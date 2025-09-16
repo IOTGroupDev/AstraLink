@@ -7,7 +7,7 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async getProfile(userId: number) {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -18,21 +18,14 @@ export class UserService {
         birthPlace: true,
         createdAt: true,
         updatedAt: true,
-        subscription: {
-          select: {
-            tier: true,
-            expiresAt: true,
-          },
-        },
-        _count: {
-          select: {
-            charts: true,
-            connections: true,
-            matches: true,
-          },
-        },
       },
     });
+
+    if (!user) {
+      throw new Error(`User with id ${userId} not found`);
+    }
+
+    return user;
   }
 
   async updateProfile(userId: number, updateData: UpdateProfileRequest) {

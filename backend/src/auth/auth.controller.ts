@@ -3,12 +3,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { AuthService } from './auth.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')
-@Controller('api/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('login')
   @ApiOperation({ summary: 'Вход в систему' })
   @ApiResponse({ status: 200, description: 'Успешный вход' })
@@ -17,6 +19,7 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  @Public()
   @Post('signup')
   @ApiOperation({ summary: 'Регистрация пользователя' })
   @ApiResponse({ status: 201, description: 'Пользователь создан' })
@@ -26,7 +29,6 @@ export class AuthController {
   }
 
   @Get('profile')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить профиль текущего пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })

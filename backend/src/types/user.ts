@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const UserSchema = z.object({
-  id: z.number().optional(),
+  id: z.union([z.number(), z.string()]).optional(),
   email: z.string().email(),
   name: z.string().optional(),
   birthDate: z.string().optional(), // ISO date string
@@ -33,7 +33,7 @@ export type SignupRequest = z.infer<typeof SignupRequestSchema>;
 
 export const AuthResponseSchema = z.object({
   user: UserSchema,
-  token: z.string(),
+  access_token: z.string(),
 });
 
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;

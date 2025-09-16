@@ -34,16 +34,16 @@ export class AuthService {
 
     return {
       user: {
-        id: user.id,
+        id: user.id.toString(),
         email: user.email,
         name: user.name || undefined,
-        birthDate: user.birthDate?.toISOString() || undefined,
+        birthDate: user.birthDate?.toISOString().split('T')[0] || undefined,
         birthTime: user.birthTime || undefined,
         birthPlace: user.birthPlace || undefined,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       },
-      token,
+      access_token: token,
     };
   }
 
@@ -78,16 +78,16 @@ export class AuthService {
 
     return {
       user: {
-        id: user.id,
+        id: user.id.toString(),
         email: user.email,
         name: user.name || undefined,
-        birthDate: user.birthDate?.toISOString() || undefined,
+        birthDate: user.birthDate?.toISOString().split('T')[0] || undefined,
         birthTime: user.birthTime || undefined,
         birthPlace: user.birthPlace || undefined,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       },
-      token,
+      access_token: token,
     };
   }
 }

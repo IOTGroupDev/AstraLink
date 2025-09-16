@@ -1,12 +1,10 @@
-import { Controller, Get, Post, Query, UseGuards, Request, Body } from '@nestjs/common';
+import { Controller, Get, Post, Query, Request, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '../types';
 
 @ApiTags('Chart')
 @Controller('chart')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ChartController {
   constructor(private readonly chartService: ChartService) {}

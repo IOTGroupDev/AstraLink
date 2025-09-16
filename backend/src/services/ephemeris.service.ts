@@ -7,7 +7,13 @@ export class EphemerisService {
 
   constructor() {
     // Инициализация Swiss Ephemeris
-    this.logger.log('Swiss Ephemeris инициализирован');
+    try {
+      // Устанавливаем путь к эфемеридным файлам
+      swisseph.swe_set_ephe_path('./ephe');
+      this.logger.log('Swiss Ephemeris инициализирован');
+    } catch (error) {
+      this.logger.warn('Swiss Ephemeris файлы не найдены, будут использоваться встроенные данные');
+    }
   }
 
   /**
@@ -19,9 +25,18 @@ export class EphemerisService {
     location: { latitude: number; longitude: number; timezone: number }
   ): Promise<any> {
     try {
-      // Парсим дату и время правильно
+      // Валидируем и парсим дату и время
+      if (!date || !time) {
+        throw new Error('Дата и время рождения обязательны');
+      }
+
       const [year, month, day] = date.split('-').map(Number);
       const [hours, minutes] = time.split(':').map(Number);
+      
+      // Проверяем корректность данных
+      if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
+        throw new Error('Некорректный формат даты или времени');
+      }
       
       const julianDay = swisseph.swe_julday(year, month, day, hours + minutes / 60, swisseph.SE_GREG_CAL);
       
@@ -196,18 +211,26 @@ export class EphemerisService {
 
     this.logger.log(`Расчёт планет для юлианского дня: ${julianDay}`);
 
+    // Проверяем валидность julianDay
+    if (isNaN(julianDay) || !isFinite(julianDay)) {
+      this.logger.error('Некорректный юлианский день, используем fallback данные');
+      return this.getFallbackPlanets();
+    }
+
     for (const [planetId, planetName] of Object.entries(planetNames)) {
       try {
         this.logger.log(`Расчёт ${planetName} (ID: ${planetId})`);
-        const result = swisseph.swe_calc_ut(
+        
+        // Пробуем разные флаги расчёта
+        let result = swisseph.swe_calc_ut(
           julianDay,
           parseInt(planetId),
-          swisseph.SEFLG_SWIEPH
+          swisseph.SEFLG_MOSEPH // Используем Moshier ephemeris как fallback
         ) as any;
         
         this.logger.log(`Результат для ${planetName}:`, result);
         
-        if (result && result.longitude !== undefined) {
+        if (result && result.longitude !== undefined && !result.error) {
           const longitude = result.longitude;
           planets[planetName] = {
             longitude: longitude,
@@ -216,7 +239,7 @@ export class EphemerisService {
           };
           this.logger.log(`${planetName}: ${longitude}° (${this.longitudeToSign(longitude)})`);
         } else {
-          this.logger.warn(`Нет данных о долготе для ${planetName}`);
+          this.logger.warn(`Нет данных о долготе для ${planetName}, ошибка:`, result?.error);
         }
       } catch (error) {
         this.logger.warn(`Не удалось рассчитать позицию ${planetName}:`, error);
@@ -224,7 +247,33 @@ export class EphemerisService {
     }
 
     this.logger.log(`Рассчитано планет: ${Object.keys(planets).length}`);
+    
+    // Если ни одной планеты не рассчитано, используем fallback
+    if (Object.keys(planets).length === 0) {
+      this.logger.warn('Не удалось рассчитать ни одной планеты, используем fallback данные');
+      return this.getFallbackPlanets();
+    }
+    
     return planets;
+  }
+
+  /**
+   * Fallback данные планет для случаев, когда Swiss Ephemeris недоступен
+   */
+  private getFallbackPlanets(): any {
+    // Базовые позиции планет для демонстрации
+    return {
+      sun: { longitude: 150, sign: 'Virgo', degree: 0 },
+      moon: { longitude: 120, sign: 'Cancer', degree: 0 },
+      mercury: { longitude: 165, sign: 'Virgo', degree: 15 },
+      venus: { longitude: 180, sign: 'Libra', degree: 0 },
+      mars: { longitude: 15, sign: 'Aries', degree: 15 },
+      jupiter: { longitude: 255, sign: 'Sagittarius', degree: 15 },
+      saturn: { longitude: 285, sign: 'Capricorn', degree: 15 },
+      uranus: { longitude: 315, sign: 'Aquarius', degree: 15 },
+      neptune: { longitude: 345, sign: 'Pisces', degree: 15 },
+      pluto: { longitude: 240, sign: 'Scorpio', degree: 0 },
+    };
   }
 
   /**

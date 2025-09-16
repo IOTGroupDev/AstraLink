@@ -36,9 +36,14 @@ export class ChartService {
       throw new NotFoundException('Недостаточно данных для расчёта натальной карты');
     }
 
-    // Преобразуем дату и время
+    // Преобразуем дату и время с проверкой
     const birthDate = user.birthDate.toISOString().split('T')[0];
-    const birthTime = user.birthTime;
+    const birthTime = user.birthTime || '12:00'; // Дефолтное время если не указано
+    
+    // Проверяем корректность времени
+    if (!/^\d{2}:\d{2}$/.test(birthTime)) {
+      throw new NotFoundException('Некорректный формат времени рождения');
+    }
     
     // Упрощённые координаты (можно захардкодить для тестирования)
     const location = this.getLocationCoordinates(user.birthPlace);

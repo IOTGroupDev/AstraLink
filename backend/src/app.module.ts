@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -10,6 +10,7 @@ import { ChartModule } from './chart/chart.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { DatingModule } from './dating/dating.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { AuthMiddleware } from './auth/middleware/auth.middleware';
 
 @Module({
   imports: [
@@ -28,4 +29,10 @@ import { SubscriptionModule } from './subscription/subscription.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes('*'); // Применяем ко всем маршрутам
+  }
+}
