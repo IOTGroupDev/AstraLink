@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { ServicesModule } from './services/services.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { ChartModule } from './chart/chart.module';
@@ -16,6 +17,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
       isGlobal: true,
     }),
     PrismaModule,
+    ServicesModule,
     AuthModule,
     UserModule,
     ChartModule,

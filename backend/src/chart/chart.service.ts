@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EphemerisService } from '../services/ephemeris.service';
 
 @Injectable()
 export class ChartService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private ephemerisService: EphemerisService,
+  ) {}
 
   async getNatalChart(userId: number) {
     const chart = await this.prisma.chart.findFirst({
@@ -23,6 +27,29 @@ export class ChartService {
   }
 
   async createNatalChart(userId: number, data: any) {
+    // Получаем данные пользователя для расчёта
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.birthDate || !user.birthTime || !user.birthPlace) {
+      throw new NotFoundException('Недостаточно данных для расчёта натальной карты');
+    }
+
+    // Преобразуем дату и время
+    const birthDate = user.birthDate.toISOString().split('T')[0];
+    const birthTime = user.birthTime;
+    
+    // Упрощённые координаты (можно захардкодить для тестирования)
+    const location = this.getLocationCoordinates(user.birthPlace);
+
+    // Рассчитываем натальную карту через Swiss Ephemeris
+    const natalChartData = await this.ephemerisService.calculateNatalChart(
+      birthDate,
+      birthTime,
+      location
+    );
+
     // Удаляем старую натальную карту, если есть
     await this.prisma.chart.deleteMany({
       where: {
@@ -33,35 +60,48 @@ export class ChartService {
     return this.prisma.chart.create({
       data: {
         userId,
-        data,
+        data: natalChartData,
       },
     });
   }
 
   async getTransits(userId: number, from: string, to: string) {
-    // Заглушка для транзитов
+    // Получаем натальную карту пользователя
+    const natalChart = await this.getNatalChart(userId);
+    
+    // Рассчитываем транзиты через Swiss Ephemeris
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    
+    const transits = await this.ephemerisService.getTransits(
+      userId,
+      fromDate,
+      toDate
+    );
+
     return {
       from,
       to,
-      transits: [
-        {
-          date: from,
-          planet: 'Sun',
-          sign: 'Aries',
-          house: 1,
-          aspect: 'conjunction',
-          orb: 0.5,
-        },
-        {
-          date: to,
-          planet: 'Moon',
-          sign: 'Taurus',
-          house: 2,
-          aspect: 'trine',
-          orb: 1.2,
-        },
-      ],
-      message: 'Транзиты рассчитываются на основе натальной карты',
+      transits,
+      natalChart: natalChart.data,
+      message: 'Транзиты рассчитаны на основе натальной карты',
     };
+  }
+
+  /**
+   * Получает координаты места рождения
+   * Упрощённая версия - можно захардкодить для тестирования
+   */
+  private getLocationCoordinates(birthPlace: string): { latitude: number; longitude: number; timezone: number } {
+    // Упрощённые координаты для основных городов
+    const locations: { [key: string]: { latitude: number; longitude: number; timezone: number } } = {
+      'Москва': { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
+      'Санкт-Петербург': { latitude: 59.9311, longitude: 30.3609, timezone: 3 },
+      'Екатеринбург': { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
+      'Новосибирск': { latitude: 55.0084, longitude: 82.9357, timezone: 7 },
+      'default': { latitude: 55.7558, longitude: 37.6176, timezone: 3 }, // Москва по умолчанию
+    };
+
+    return locations[birthPlace] || locations['default'];
   }
 }

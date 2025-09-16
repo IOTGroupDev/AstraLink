@@ -16,14 +16,14 @@ export class ChartController {
   @ApiResponse({ status: 200, description: 'Натальная карта' })
   @ApiResponse({ status: 404, description: 'Карта не найдена' })
   async getNatalChart(@Request() req) {
-    return this.chartService.getNatalChart(req.user.id);
+    return this.chartService.getNatalChart(req.user.userId);
   }
 
   @Post('natal')
   @ApiOperation({ summary: 'Сохранить натальную карту' })
   @ApiResponse({ status: 201, description: 'Карта сохранена' })
   async createNatalChart(@Request() req, @Body() chartData: CreateNatalChartRequest) {
-    return this.chartService.createNatalChart(req.user.id, chartData.data);
+    return this.chartService.createNatalChart(req.user.userId, chartData.data);
   }
 
   @Get('transits')
@@ -32,6 +32,6 @@ export class ChartController {
   @ApiQuery({ name: 'to', description: 'Дата окончания (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Данные транзитов' })
   async getTransits(@Request() req, @Query() query: TransitRequest) {
-    return this.chartService.getTransits(req.user.id, query.from, query.to);
+    return this.chartService.getTransits(req.user.userId, query.from, query.to);
   }
 }
