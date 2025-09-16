@@ -36,8 +36,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
-        birthDate: user.birthDate.toISOString(),
+        name: user.name || undefined,
+        birthDate: user.birthDate?.toISOString() || undefined,
         birthTime: user.birthTime || undefined,
         birthPlace: user.birthPlace || undefined,
         createdAt: user.createdAt.toISOString(),
@@ -80,8 +80,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
-        birthDate: user.birthDate.toISOString(),
+        name: user.name || undefined,
+        birthDate: user.birthDate?.toISOString() || undefined,
         birthTime: user.birthTime || undefined,
         birthPlace: user.birthPlace || undefined,
         createdAt: user.createdAt.toISOString(),

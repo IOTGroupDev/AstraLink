@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const UserSchema = z.object({
   id: z.string().optional(),
   email: z.string().email(),
-  name: z.string(),
-  birthDate: z.string(), // ISO date string
+  name: z.string().optional(),
+  birthDate: z.string().optional(), // ISO date string
   birthTime: z.string().optional(), // HH:MM format
   birthPlace: z.string().optional(),
   createdAt: z.string().optional(),
