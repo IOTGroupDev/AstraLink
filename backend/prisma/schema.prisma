@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String
+  birthDate DateTime  @db.Date
+  birthTime String?
+  birthPlace String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  charts    Chart[]
+  connections1 Connection[] @relation("User1Connections")
+  connections2 Connection[] @relation("User2Connections")
+  datingProfile DatingProfile?
+
+  @@map("users")
+}
+
+model Chart {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  birthDate DateTime @db.Date
+  birthTime String?
+  birthPlace String?
+  timezone  String
+  houses    Json     // Астрологические дома
+  planets   Json     // Планеты
+  aspects   Json     // Аспекты
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("charts")
+}
+
+enum ConnectionType {
+  FRIEND
+  FAMILY
+  ROMANTIC
+  BUSINESS
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Connection {
+  id             String         @id @default(uuid())
+  user1Id        String
+  user1          User           @relation("User1Connections", fields: [user1Id], references: [id])
+  user2Id        String
+  user2          User           @relation("User2Connections", fields: [user2Id], references: [id])
+  connectionType ConnectionType
+  compatibility  Json           // Совместимость по разным аспектам
+  aspects        Json           // Синастрические аспекты
+  status         ConnectionStatus
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("connections")
+}
+
+enum MatchStatus {
+  PENDING
+  LIKED
+  PASSED
+  MATCHED
+  UNMATCHED
+}
+
+model DatingProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id])
+  isActive    Boolean   @default(true)
+  preferences Json      // Предпочтения для поиска
+  filters     Json      // Фильтры совместимости
+  bio         String?
+  photos      String[]  // URL фотографий
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  matches1    DatingMatch[] @relation("User1Matches")
+  matches2    DatingMatch[] @relation("User2Matches")
+
+  @@map("dating_profiles")
+}
+
+model DatingMatch {
+  id            String      @id @default(uuid())
+  user1Id       String
+  user1         DatingProfile @relation("User1Matches", fields: [user1Id], references: [id])
+  user2Id       String
+  user2         DatingProfile @relation("User2Matches", fields: [user2Id], references: [id])
+  compatibility Json          // Совместимость
+  status        MatchStatus
+  astroAnalysis Json          // Астрологический анализ
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("dating_matches")
+}
