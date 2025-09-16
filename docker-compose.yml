@@ -2,41 +2,41 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
-    restart: unless-stopped
+    image: postgres:15
+    container_name: astralink-postgres
     environment:
       POSTGRES_DB: astralink
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d astralink"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - astralink-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
+    container_name: astralink-backend
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/astralink
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/astralink?schema=public
       JWT_SECRET: supersecret
-      PORT: 3001
-      NODE_ENV: development
+      PORT: 3000
     ports:
-      - "3001:3001"
+      - "3000:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
+    networks:
+      - astralink-network
     volumes:
       - ./backend:/app
       - /app/node_modules
-    command: npm run start:dev
 
 volumes:
   postgres_data:
+
+networks:
+  astralink-network:
+    driver: bridge
