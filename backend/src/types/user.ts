@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const UserSchema = z.object({
-  id: z.string().optional(),
+  id: z.number().optional(),
   email: z.string().email(),
   name: z.string().optional(),
   birthDate: z.string().optional(), // ISO date string
@@ -15,15 +15,15 @@ export type User = z.infer<typeof UserSchema>;
 
 export const LoginRequestSchema = z.object({
   email: z.string().email(),
-  password: z.string(),
+  password: z.string().min(6),
 });
 
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
 export const SignupRequestSchema = z.object({
   email: z.string().email(),
-  password: z.string(),
-  name: z.string(),
+  password: z.string().min(6),
+  name: z.string().min(2),
   birthDate: z.string(),
   birthTime: z.string().optional(),
   birthPlace: z.string().optional(),
@@ -37,3 +37,11 @@ export const AuthResponseSchema = z.object({
 });
 
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+
+export const UpdateProfileRequestSchema = z.object({
+  name: z.string().min(2).optional(),
+  birthPlace: z.string().optional(),
+  birthTime: z.string().optional(),
+});
+
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>;

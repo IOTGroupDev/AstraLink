@@ -18,7 +18,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Открываем порт
-EXPOSE 3001
+EXPOSE 3000
 
 # Запускаем приложение
 CMD ["npm", "run", "start:prod"]

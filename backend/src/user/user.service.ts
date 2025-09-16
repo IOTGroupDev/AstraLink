@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { UpdateProfileRequest } from '../types';
 
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
-  async getProfile(userId: string) {
+  async getProfile(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -19,7 +20,7 @@ export class UserService {
         updatedAt: true,
         subscription: {
           select: {
-            level: true,
+            tier: true,
             expiresAt: true,
           },
         },
@@ -30,6 +31,22 @@ export class UserService {
             matches: true,
           },
         },
+      },
+    });
+  }
+
+  async updateProfile(userId: number, updateData: UpdateProfileRequest) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        birthDate: true,
+        birthTime: true,
+        birthPlace: true,
+        updatedAt: true,
       },
     });
   }
