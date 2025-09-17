@@ -41,8 +41,15 @@ export class ChartService {
     const birthTime = user.birthTime || '12:00'; // Дефолтное время если не указано
     
     // Проверяем корректность времени
-    if (!/^\d{2}:\d{2}$/.test(birthTime)) {
-      throw new NotFoundException('Некорректный формат времени рождения');
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(birthTime)) {
+      throw new NotFoundException('Некорректный формат времени рождения. Ожидается HH:MM');
+    }
+
+    // Проверяем корректность даты
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(birthDate)) {
+      throw new NotFoundException('Некорректный формат даты рождения. Ожидается YYYY-MM-DD');
     }
     
     // Упрощённые координаты (можно захардкодить для тестирования)

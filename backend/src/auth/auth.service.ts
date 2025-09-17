@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -57,6 +57,31 @@ export class AuthService {
       throw new ConflictException('Пользователь с таким email уже существует');
     }
 
+    // Валидация даты рождения
+    const birthDate = new Date(signupDto.birthDate);
+    if (isNaN(birthDate.getTime())) {
+      throw new BadRequestException('Некорректная дата рождения');
+    }
+
+    // Проверяем, что дата не в будущем
+    if (birthDate > new Date()) {
+      throw new BadRequestException('Дата рождения не может быть в будущем');
+    }
+
+    // Проверяем возраст (от 0 до 120 лет)
+    const age = new Date().getFullYear() - birthDate.getFullYear();
+    if (age < 0 || age > 120) {
+      throw new BadRequestException('Некорректный возраст');
+    }
+
+    // Валидация времени рождения
+    if (signupDto.birthTime) {
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(signupDto.birthTime)) {
+        throw new BadRequestException('Время рождения должно быть в формате HH:MM');
+      }
+    }
+
     // Хешируем пароль
     const hashedPassword = await bcrypt.hash(signupDto.password, 10);
 
@@ -66,7 +91,7 @@ export class AuthService {
         email: signupDto.email,
         password: hashedPassword,
         name: signupDto.name,
-        birthDate: new Date(signupDto.birthDate),
+        birthDate: birthDate,
         birthTime: signupDto.birthTime,
         birthPlace: signupDto.birthPlace,
       },
