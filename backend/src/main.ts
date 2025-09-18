@@ -18,7 +18,17 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:8081'],
+    origin: [
+      'http://localhost:3000', 
+      'http://localhost:8081',
+      'http://192.168.1.69:3000',
+      'http://192.168.1.69:8081',
+      'exp://192.168.1.69:8081', // Для Expo Go
+      'exp://qjjc4tg-anonymous-8081.exp.direct', // Для Expo туннеля
+      'exp://localhost:8081', // Для Expo localhost
+      'exp://192.168.1.69:8081', // Для Expo IP
+      '*', // Временно разрешаем все origins для отладки
+    ],
     credentials: true,
   });
 

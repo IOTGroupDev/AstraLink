@@ -116,4 +116,171 @@ export class ChartService {
 
     return locations[birthPlace] || locations['default'];
   }
+
+
+  /**
+   * Получить текущие позиции планет
+   */
+  async getCurrentPlanets(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    const now = new Date();
+    const julianDay = this.ephemerisService.dateToJulianDay(now);
+    const currentPlanets = await this.ephemerisService.calculatePlanets(julianDay);
+
+    return {
+      date: now.toISOString(),
+      planets: currentPlanets,
+    };
+  }
+
+  /**
+   * Получить астрологические предсказания
+   */
+  async getPredictions(userId: number, period: string = 'day') {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    // Получаем натальную карту
+    const natalChart = await this.getNatalChart(userId);
+    if (!natalChart) {
+      throw new NotFoundException('Натальная карта не найдена');
+    }
+
+    // Вычисляем дату для предсказания
+    let targetDate = new Date();
+    if (period === 'tomorrow') {
+      targetDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    } else if (period === 'week') {
+      targetDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+
+    // Получаем позиции планет для целевой даты
+    const julianDay = this.ephemerisService.dateToJulianDay(targetDate);
+    const targetPlanets = await this.ephemerisService.calculatePlanets(julianDay);
+    
+    // Генерируем предсказания на основе транзитов
+    const predictions = this.generatePredictions(natalChart, { planets: targetPlanets }, period);
+
+    return {
+      period,
+      date: targetDate.toISOString(),
+      predictions,
+      currentPlanets: targetPlanets,
+    };
+  }
+
+  /**
+   * Генерирует предсказания на основе натальной карты и текущих позиций
+   */
+  private generatePredictions(natalChart: any, currentPlanets: any, period: string) {
+    const predictions = {
+      general: '',
+      love: '',
+      career: '',
+      health: '',
+      advice: '',
+    };
+
+    // Простая логика предсказаний на основе планет
+    const natalPlanets = natalChart.planets || {};
+    const current = currentPlanets.planets || {};
+
+    // Базовые предсказания в зависимости от периода
+    const periodText = period === 'tomorrow' ? 'завтра' : period === 'week' ? 'на неделе' : 'сегодня';
+    const periodPrefix = period === 'tomorrow' ? 'Завтра' : period === 'week' ? 'На неделе' : 'Сегодня';
+
+    // Анализ Солнца
+    if (current.Sun && natalPlanets.Sun) {
+      const sunAspect = this.calculateAspect(current.Sun.longitude, natalPlanets.Sun.longitude);
+      if (sunAspect === 'conjunction') {
+        predictions.general = `${periodPrefix} благоприятный день для новых начинаний. Энергия Солнца усиливает ваши лидерские качества.`;
+      } else if (sunAspect === 'opposition') {
+        predictions.general = `${periodPrefix} возможны конфликты в отношениях. Старайтесь быть более дипломатичными.`;
+      } else {
+        predictions.general = `${periodPrefix} энергия Солнца будет влиять на вашу активность и уверенность в себе.`;
+      }
+    }
+
+    // Анализ Луны
+    if (current.Moon && natalPlanets.Moon) {
+      const moonAspect = this.calculateAspect(current.Moon.longitude, natalPlanets.Moon.longitude);
+      if (moonAspect === 'conjunction') {
+        predictions.love = `${periodPrefix} эмоциональная близость в отношениях. Хорошее время для романтических встреч.`;
+      } else {
+        predictions.love = `${periodPrefix} Луна будет влиять на ваши эмоции и интуицию в отношениях.`;
+      }
+    }
+
+    // Анализ Венеры
+    if (current.Venus && natalPlanets.Venus) {
+      const venusAspect = this.calculateAspect(current.Venus.longitude, natalPlanets.Venus.longitude);
+      if (venusAspect === 'trine') {
+        predictions.love = `${periodPrefix} гармония в любовных отношениях. Возможны новые знакомства.`;
+      } else if (venusAspect === 'square') {
+        predictions.love = `${periodPrefix} возможны сложности в отношениях. Будьте терпеливы.`;
+      } else {
+        predictions.love = `${periodPrefix} Венера будет влиять на вашу привлекательность и отношения.`;
+      }
+    }
+
+    // Анализ Марса
+    if (current.Mars && natalPlanets.Mars) {
+      const marsAspect = this.calculateAspect(current.Mars.longitude, natalPlanets.Mars.longitude);
+      if (marsAspect === 'square') {
+        predictions.career = `${periodPrefix} возможны препятствия в работе. Проявите терпение и настойчивость.`;
+      } else if (marsAspect === 'trine') {
+        predictions.career = `${periodPrefix} хорошее время для карьерных достижений. Проявляйте инициативу.`;
+      } else {
+        predictions.career = `${periodPrefix} Марс будет влиять на вашу энергию и амбиции в работе.`;
+      }
+    }
+
+    // Анализ Юпитера для здоровья
+    if (current.Jupiter && natalPlanets.Jupiter) {
+      const jupiterAspect = this.calculateAspect(current.Jupiter.longitude, natalPlanets.Jupiter.longitude);
+      if (jupiterAspect === 'trine') {
+        predictions.health = `${periodPrefix} хорошее время для укрепления здоровья. Занимайтесь спортом.`;
+      } else {
+        predictions.health = `${periodPrefix} Юпитер будет влиять на ваше общее самочувствие и жизненную силу.`;
+      }
+    }
+
+    // Общие советы в зависимости от периода
+    if (period === 'week') {
+      predictions.advice = 'На этой неделе фокусируйтесь на долгосрочных целях и планировании.';
+    } else if (period === 'tomorrow') {
+      predictions.advice = 'Завтра будьте готовы к новым возможностям и изменениям.';
+    } else {
+      predictions.advice = 'Сегодня слушайте свою интуицию и доверяйте внутреннему голосу.';
+    }
+
+    return predictions;
+  }
+
+  /**
+   * Вычисляет аспект между двумя планетами
+   */
+  private calculateAspect(longitude1: number, longitude2: number): string {
+    const diff = Math.abs(longitude1 - longitude2);
+    const normalizedDiff = Math.min(diff, 360 - diff);
+
+    if (normalizedDiff <= 8) return 'conjunction';
+    if (normalizedDiff >= 82 && normalizedDiff <= 98) return 'square';
+    if (normalizedDiff >= 118 && normalizedDiff <= 122) return 'trine';
+    if (normalizedDiff >= 172 && normalizedDiff <= 188) return 'opposition';
+    
+    return 'other';
+  }
 }

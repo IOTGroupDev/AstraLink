@@ -180,7 +180,7 @@ export class EphemerisService {
   /**
    * Преобразует дату в юлианский день
    */
-  private dateToJulianDay(date: Date): number {
+  dateToJulianDay(date: Date): number {
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
     const day = date.getDate();
@@ -194,7 +194,7 @@ export class EphemerisService {
   /**
    * Рассчитывает позиции планет
    */
-  private async calculatePlanets(julianDay: number): Promise<any> {
+  async calculatePlanets(julianDay: number): Promise<any> {
     const planets: any = {};
     const planetNames = {
       0: 'sun',
@@ -213,19 +213,19 @@ export class EphemerisService {
 
     // Проверяем валидность julianDay
     if (isNaN(julianDay) || !isFinite(julianDay)) {
-      this.logger.error('Некорректный юлианский день, используем fallback данные');
-      return this.getFallbackPlanets();
+      this.logger.error('Некорректный юлианский день:', julianDay);
+      throw new Error('Некорректная дата для расчёта планет');
     }
 
     for (const [planetId, planetName] of Object.entries(planetNames)) {
       try {
         this.logger.log(`Расчёт ${planetName} (ID: ${planetId})`);
         
-        // Пробуем разные флаги расчёта
+        // Используем Swiss Ephemeris с правильными флагами
         let result = swisseph.swe_calc_ut(
           julianDay,
           parseInt(planetId),
-          swisseph.SEFLG_MOSEPH // Используем Moshier ephemeris как fallback
+          swisseph.SEFLG_SWIEPH | swisseph.SEFLG_SPEED
         ) as any;
         
         this.logger.log(`Результат для ${planetName}:`, result);
@@ -239,42 +239,26 @@ export class EphemerisService {
           };
           this.logger.log(`${planetName}: ${longitude}° (${this.longitudeToSign(longitude)})`);
         } else {
-          this.logger.warn(`Нет данных о долготе для ${planetName}, ошибка:`, result?.error);
+          this.logger.error(`Ошибка расчёта ${planetName}:`, result?.error);
+          throw new Error(`Не удалось рассчитать позицию ${planetName}: ${result?.error || 'Неизвестная ошибка'}`);
         }
       } catch (error) {
-        this.logger.warn(`Не удалось рассчитать позицию ${planetName}:`, error);
+        this.logger.error(`Критическая ошибка расчёта ${planetName}:`, error);
+        throw new Error(`Критическая ошибка расчёта ${planetName}: ${error.message}`);
       }
     }
 
     this.logger.log(`Рассчитано планет: ${Object.keys(planets).length}`);
     
-    // Если ни одной планеты не рассчитано, используем fallback
+    // Если ни одной планеты не рассчитано, выбрасываем ошибку
     if (Object.keys(planets).length === 0) {
-      this.logger.warn('Не удалось рассчитать ни одной планеты, используем fallback данные');
-      return this.getFallbackPlanets();
+      this.logger.error('Не удалось рассчитать ни одной планеты');
+      throw new Error('Ошибка расчёта планет через Swiss Ephemeris');
     }
     
     return planets;
   }
 
-  /**
-   * Fallback данные планет для случаев, когда Swiss Ephemeris недоступен
-   */
-  private getFallbackPlanets(): any {
-    // Базовые позиции планет для демонстрации
-    return {
-      sun: { longitude: 150, sign: 'Virgo', degree: 0 },
-      moon: { longitude: 120, sign: 'Cancer', degree: 0 },
-      mercury: { longitude: 165, sign: 'Virgo', degree: 15 },
-      venus: { longitude: 180, sign: 'Libra', degree: 0 },
-      mars: { longitude: 15, sign: 'Aries', degree: 15 },
-      jupiter: { longitude: 255, sign: 'Sagittarius', degree: 15 },
-      saturn: { longitude: 285, sign: 'Capricorn', degree: 15 },
-      uranus: { longitude: 315, sign: 'Aquarius', degree: 15 },
-      neptune: { longitude: 345, sign: 'Pisces', degree: 15 },
-      pluto: { longitude: 240, sign: 'Scorpio', degree: 0 },
-    };
-  }
 
   /**
    * Рассчитывает дома

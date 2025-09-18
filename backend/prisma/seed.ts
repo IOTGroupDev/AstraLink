@@ -16,7 +16,7 @@ async function main() {
       name: 'Тестовый Пользователь',
       birthDate: new Date('1990-05-15'),
       birthTime: '14:30',
-      birthPlace: 'Москва',
+      birthPlace: 'Москва, Россия',
       role: 'user',
     },
   });

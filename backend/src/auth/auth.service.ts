@@ -64,7 +64,9 @@ export class AuthService {
     }
 
     // Проверяем, что дата не в будущем
-    if (birthDate > new Date()) {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Конец дня
+    if (birthDate > today) {
       throw new BadRequestException('Дата рождения не может быть в будущем');
     }
 
