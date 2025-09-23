@@ -194,7 +194,7 @@ export class ChartService {
     };
 
     // Простая логика предсказаний на основе планет
-    const natalPlanets = natalChart.planets || {};
+    const natalPlanets = natalChart.data?.planets || natalChart.planets || {};
     const current = currentPlanets.planets || {};
 
     // Базовые предсказания в зависимости от периода
@@ -202,8 +202,8 @@ export class ChartService {
     const periodPrefix = period === 'tomorrow' ? 'Завтра' : period === 'week' ? 'На неделе' : 'Сегодня';
 
     // Анализ Солнца
-    if (current.Sun && natalPlanets.Sun) {
-      const sunAspect = this.calculateAspect(current.Sun.longitude, natalPlanets.Sun.longitude);
+    if (current.sun && natalPlanets.sun) {
+      const sunAspect = this.calculateAspect(current.sun.longitude, natalPlanets.sun.longitude);
       if (sunAspect === 'conjunction') {
         predictions.general = `${periodPrefix} благоприятный день для новых начинаний. Энергия Солнца усиливает ваши лидерские качества.`;
       } else if (sunAspect === 'opposition') {
@@ -214,8 +214,8 @@ export class ChartService {
     }
 
     // Анализ Луны
-    if (current.Moon && natalPlanets.Moon) {
-      const moonAspect = this.calculateAspect(current.Moon.longitude, natalPlanets.Moon.longitude);
+    if (current.moon && natalPlanets.moon) {
+      const moonAspect = this.calculateAspect(current.moon.longitude, natalPlanets.moon.longitude);
       if (moonAspect === 'conjunction') {
         predictions.love = `${periodPrefix} эмоциональная близость в отношениях. Хорошее время для романтических встреч.`;
       } else {
@@ -224,8 +224,8 @@ export class ChartService {
     }
 
     // Анализ Венеры
-    if (current.Venus && natalPlanets.Venus) {
-      const venusAspect = this.calculateAspect(current.Venus.longitude, natalPlanets.Venus.longitude);
+    if (current.venus && natalPlanets.venus) {
+      const venusAspect = this.calculateAspect(current.venus.longitude, natalPlanets.venus.longitude);
       if (venusAspect === 'trine') {
         predictions.love = `${periodPrefix} гармония в любовных отношениях. Возможны новые знакомства.`;
       } else if (venusAspect === 'square') {
@@ -236,8 +236,8 @@ export class ChartService {
     }
 
     // Анализ Марса
-    if (current.Mars && natalPlanets.Mars) {
-      const marsAspect = this.calculateAspect(current.Mars.longitude, natalPlanets.Mars.longitude);
+    if (current.mars && natalPlanets.mars) {
+      const marsAspect = this.calculateAspect(current.mars.longitude, natalPlanets.mars.longitude);
       if (marsAspect === 'square') {
         predictions.career = `${periodPrefix} возможны препятствия в работе. Проявите терпение и настойчивость.`;
       } else if (marsAspect === 'trine') {
@@ -248,8 +248,8 @@ export class ChartService {
     }
 
     // Анализ Юпитера для здоровья
-    if (current.Jupiter && natalPlanets.Jupiter) {
-      const jupiterAspect = this.calculateAspect(current.Jupiter.longitude, natalPlanets.Jupiter.longitude);
+    if (current.jupiter && natalPlanets.jupiter) {
+      const jupiterAspect = this.calculateAspect(current.jupiter.longitude, natalPlanets.jupiter.longitude);
       if (jupiterAspect === 'trine') {
         predictions.health = `${periodPrefix} хорошее время для укрепления здоровья. Занимайтесь спортом.`;
       } else {
