@@ -10,8 +10,9 @@ const axios = require('axios');
 const BASE_URL = 'http://localhost:3000/api';
 
 // Тестовые данные
+const timestamp = Date.now();
 const testUser = {
-  email: 'supabase-test@gmail.com',
+  email: `supabase-test-${timestamp}@gmail.com`,
   password: 'password123',
   name: 'Supabase Test User',
   birthDate: '1990-08-15',
