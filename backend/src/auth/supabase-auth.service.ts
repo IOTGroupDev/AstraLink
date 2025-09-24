@@ -44,7 +44,7 @@ export class SupabaseAuthService {
           createdAt: userProfile?.created_at || data.user.created_at,
           updatedAt: userProfile?.updated_at || data.user.updated_at,
         },
-        access_token: data.session?.access_token || '',
+        access_token: '', // Admin API не возвращает session
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -83,8 +83,8 @@ export class SupabaseAuthService {
         }
       }
 
-      // Создаем пользователя в Supabase Auth
-      const { data, error } = await this.supabaseService.signUp(
+      // Создаем пользователя в Supabase Auth через admin API
+      const { data, error } = await this.supabaseService.createUser(
         signupDto.email,
         signupDto.password,
         {
@@ -131,7 +131,7 @@ export class SupabaseAuthService {
           createdAt: userProfile?.created_at || data.user.created_at,
           updatedAt: userProfile?.updated_at || data.user.updated_at,
         },
-        access_token: data.session?.access_token || '',
+        access_token: '', // Admin API не возвращает session
       };
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ConflictException) {

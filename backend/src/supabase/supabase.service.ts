@@ -33,6 +33,16 @@ export class SupabaseService implements OnModuleInit {
     return { data, error };
   }
 
+  async createUser(email: string, password: string, userData?: any) {
+    const { data, error } = await this.supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: userData,
+    });
+    return { data, error };
+  }
+
   async signIn(email: string, password: string) {
     const { data, error } = await this.supabase.auth.signInWithPassword({
       email,

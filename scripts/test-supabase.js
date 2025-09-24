@@ -11,7 +11,7 @@ const BASE_URL = 'http://localhost:3000/api';
 
 // Тестовые данные
 const testUser = {
-  email: 'supabase-test@astralink.com',
+  email: 'supabase-test@gmail.com',
   password: 'password123',
   name: 'Supabase Test User',
   birthDate: '1990-08-15',
