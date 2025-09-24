@@ -25,12 +25,25 @@ async function testSupabaseIntegration() {
   try {
     // 1. Тест регистрации через Supabase
     console.log('1️⃣ Тестирование регистрации через Supabase...');
-    const signupResponse = await axios.post(`${BASE_URL}/auth/supabase/signup`, testUser);
     
-    if (signupResponse.status === 201) {
-      console.log('✅ Регистрация успешна!');
-      console.log('👤 Пользователь:', signupResponse.data.user.email);
-      console.log('🔑 Токен получен:', signupResponse.data.access_token ? 'Да' : 'Нет');
+    // Сначала попробуем войти (если пользователь уже существует)
+    let signupResponse;
+    try {
+      await axios.post(`${BASE_URL}/auth/supabase/login`, {
+        email: testUser.email,
+        password: testUser.password
+      });
+      console.log('⚠️ Пользователь уже существует, пропускаем регистрацию');
+      signupResponse = null;
+    } catch (loginError) {
+      // Пользователь не существует, продолжаем с регистрацией
+      signupResponse = await axios.post(`${BASE_URL}/auth/supabase/signup`, testUser);
+      
+      if (signupResponse.status === 201) {
+        console.log('✅ Регистрация успешна!');
+        console.log('👤 Пользователь:', signupResponse.data.user.email);
+        console.log('🔑 Токен получен:', signupResponse.data.access_token ? 'Да' : 'Нет');
+      }
     }
 
     // 2. Тест входа через Supabase
