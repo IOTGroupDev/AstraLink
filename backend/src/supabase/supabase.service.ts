@@ -52,7 +52,7 @@ export class SupabaseService implements OnModuleInit {
   }
 
   // Database methods
-  async from(table: string) {
+  from(table: string) {
     return this.supabase.from(table);
   }
 
