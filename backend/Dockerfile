@@ -1,12 +1,19 @@
-FROM node:18-alpine
+FROM node:20-slim
 
 WORKDIR /app
+
+# Устанавливаем системные зависимости для компиляции нативных модулей
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Копируем package.json и package-lock.json
 COPY package*.json ./
 
 # Устанавливаем зависимости
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Копируем исходный код
 COPY . .

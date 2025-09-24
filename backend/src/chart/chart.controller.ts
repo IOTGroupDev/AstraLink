@@ -2,6 +2,7 @@ import { Controller, Get, Post, Query, Request, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '../types';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Chart')
 @Controller('chart')

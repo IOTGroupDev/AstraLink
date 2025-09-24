@@ -166,9 +166,9 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
-    padding: 20,
+    padding: 15,
     marginHorizontal: 15,
-    marginBottom: 20,
+    marginBottom: 15,
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
     shadowColor: '#8B5CF6',
@@ -225,13 +225,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   content: {
-    maxHeight: 400,
+    maxHeight: 350,
+    marginBottom: 10,
   },
   predictionCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 15,
-    padding: 15,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -245,15 +246,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#FFFFFF',
     marginLeft: 8,
   },
   predictionText: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   adviceText: {
     fontSize: 14,

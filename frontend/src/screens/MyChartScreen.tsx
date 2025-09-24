@@ -461,13 +461,15 @@ const MyChartScreen: React.FC = () => {
                 {chart?.planets?.moon?.sign || 'Неизвестно'}
               </Text>
             </View>
-
-            {/* Biorhythms Widget */}
-            <View style={styles.widget}>
+          </ScrollView>
+          
+          {/* Biorhythms Widget - отдельная строка */}
+          <View style={styles.biorhythmsRow}>
+            <View style={styles.biorhythmsWidget}>
               <Biorhythms physical={75} emotional={60} intellectual={85} />
               <Text style={styles.widgetLabel}>Биоритмы</Text>
             </View>
-          </ScrollView>
+          </View>
         </Animated.View>
 
         {/* Chart Summary */}
@@ -645,6 +647,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     marginTop: 4,
+  },
+  biorhythmsRow: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  biorhythmsWidget: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 15,
+    padding: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    width: 200,
   },
   chartSummary: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
