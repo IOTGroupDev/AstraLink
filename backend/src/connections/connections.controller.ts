@@ -31,7 +31,7 @@ export class ConnectionsController {
   @ApiResponse({ status: 200, description: 'Данные синастрии' })
   @ApiResponse({ status: 404, description: 'Связь не найдена' })
   async getSynastry(@Request() req, @Param('id') connectionId: string): Promise<SynastryResponse> {
-    return this.connectionsService.getSynastry(req.user.userId, parseInt(connectionId));
+    return this.connectionsService.getSynastry(req.user.userId, connectionId);
   }
 
   @Get(':id/composite')
@@ -40,6 +40,6 @@ export class ConnectionsController {
   @ApiResponse({ status: 200, description: 'Данные композитной карты' })
   @ApiResponse({ status: 404, description: 'Связь не найдена' })
   async getComposite(@Request() req, @Param('id') connectionId: string): Promise<CompositeResponse> {
-    return this.connectionsService.getComposite(req.user.userId, parseInt(connectionId));
+    return this.connectionsService.getComposite(req.user.userId, connectionId);
   }
 }

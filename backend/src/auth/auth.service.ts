@@ -1,26 +1,34 @@
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    private supabaseService: SupabaseService,
     private jwtService: JwtService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    try {
+      const { data, error } = await this.supabaseService.signIn(email, password);
+      
+      if (error || !data.user) {
+        return null;
+      }
 
-    if (user && await bcrypt.compare(password, user.password)) {
-      const { password, ...result } = user;
-      return result;
+      return {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.user_metadata?.name,
+        birthDate: data.user.user_metadata?.birth_date,
+        birthTime: data.user.user_metadata?.birth_time,
+        birthPlace: data.user.user_metadata?.birth_place,
+      };
+    } catch (error) {
+      return null;
     }
-    return null;
   }
 
   async login(loginDto: LoginRequest): Promise<AuthResponse> {
@@ -48,15 +56,6 @@ export class AuthService {
   }
 
   async signup(signupDto: SignupRequest): Promise<AuthResponse> {
-    // Проверяем, существует ли пользователь
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: signupDto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Пользователь с таким email уже существует');
-    }
-
     // Валидация даты рождения
     const birthDate = new Date(signupDto.birthDate);
     if (isNaN(birthDate.getTime())) {
@@ -84,35 +83,43 @@ export class AuthService {
       }
     }
 
-    // Хешируем пароль
-    const hashedPassword = await bcrypt.hash(signupDto.password, 10);
-
-    // Создаем пользователя
-    const user = await this.prisma.user.create({
-      data: {
-        email: signupDto.email,
-        password: hashedPassword,
+    // Создаем пользователя через Supabase
+    const { data, error } = await this.supabaseService.signUp(
+      signupDto.email,
+      signupDto.password,
+      {
         name: signupDto.name,
-        birthDate: birthDate,
-        birthTime: signupDto.birthTime,
-        birthPlace: signupDto.birthPlace,
-      },
-    });
+        birth_date: birthDate.toISOString(),
+        birth_time: signupDto.birthTime,
+        birth_place: signupDto.birthPlace,
+      }
+    );
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        throw new ConflictException('Пользователь с таким email уже существует');
+      }
+      throw new BadRequestException(error.message);
+    }
+
+    if (!data.user) {
+      throw new BadRequestException('Ошибка создания пользователя');
+    }
 
     // Генерируем токен
-    const payload = { email: user.email, sub: user.id };
+    const payload = { email: data.user.email, sub: data.user.id };
     const token = this.jwtService.sign(payload);
 
     return {
       user: {
-        id: user.id.toString(),
-        email: user.email,
-        name: user.name || undefined,
-        birthDate: user.birthDate?.toISOString().split('T')[0] || undefined,
-        birthTime: user.birthTime || undefined,
-        birthPlace: user.birthPlace || undefined,
-        createdAt: user.createdAt.toISOString(),
-        updatedAt: user.updatedAt.toISOString(),
+        id: data.user.id,
+        email: data.user.email || '',
+        name: data.user.user_metadata?.name || undefined,
+        birthDate: data.user.user_metadata?.birth_date?.split('T')[0] || undefined,
+        birthTime: data.user.user_metadata?.birth_time || undefined,
+        birthPlace: data.user.user_metadata?.birth_place || undefined,
+        createdAt: data.user.created_at,
+        updatedAt: data.user.updated_at,
       },
       access_token: token,
     };

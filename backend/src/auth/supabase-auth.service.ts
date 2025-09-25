@@ -21,9 +21,9 @@ export class SupabaseAuthService {
         throw new UnauthorizedException('Пользователь не найден');
       }
 
-      // Get user profile from our users table
+      // Get user profile from our User table
       const { data: userProfile, error: profileError } = await this.supabaseService
-        .from('users')
+        .from('User')
         .select('*')
         .eq('id', data.user.id)
         .single();
@@ -44,7 +44,7 @@ export class SupabaseAuthService {
           createdAt: userProfile?.created_at || data.user.created_at,
           updatedAt: userProfile?.updated_at || data.user.updated_at,
         },
-        access_token: '', // Admin API не возвращает session
+        access_token: data.session?.access_token || '',
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -83,8 +83,8 @@ export class SupabaseAuthService {
         }
       }
 
-      // Создаем пользователя в Supabase Auth через admin API
-      const { data, error } = await this.supabaseService.createUser(
+      // Создаем пользователя через Supabase Auth
+      const { data, error } = await this.supabaseService.signUp(
         signupDto.email,
         signupDto.password,
         {
@@ -106,18 +106,23 @@ export class SupabaseAuthService {
         throw new BadRequestException('Ошибка создания пользователя');
       }
 
-      // Wait a moment for the trigger to create the user profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Get the created user profile
-      const { data: userProfile, error: profileError } = await this.supabaseService
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
+      // Создаем профиль пользователя в нашей таблице User
+      const { data: userProfile, error: createError } = await this.supabaseService
+        .from('User')
+        .insert({
+          id: data.user.id,
+          email: data.user.email,
+          name: signupDto.name,
+          birthDate: birthDate.toISOString(),
+          birthTime: signupDto.birthTime || null,
+          birthPlace: signupDto.birthPlace || null,
+        })
+        .select()
         .single();
 
-      if (profileError) {
-        console.error('Error fetching created user profile:', profileError);
+      if (createError) {
+        console.error('Error creating user profile:', createError);
+        // Продолжаем, даже если создание профиля не удалось
       }
 
       return {
@@ -125,13 +130,13 @@ export class SupabaseAuthService {
           id: data.user.id,
           email: data.user.email || '',
           name: userProfile?.name || signupDto.name,
-          birthDate: userProfile?.birth_date?.split('T')[0] || signupDto.birthDate,
-          birthTime: userProfile?.birth_time || signupDto.birthTime,
-          birthPlace: userProfile?.birth_place || signupDto.birthPlace,
-          createdAt: userProfile?.created_at || data.user.created_at,
-          updatedAt: userProfile?.updated_at || data.user.updated_at,
+          birthDate: userProfile?.birthDate?.split('T')[0] || signupDto.birthDate,
+          birthTime: userProfile?.birthTime || signupDto.birthTime,
+          birthPlace: userProfile?.birthPlace || signupDto.birthPlace,
+          createdAt: userProfile?.createdAt || data.user.created_at,
+          updatedAt: userProfile?.updatedAt || data.user.updated_at,
         },
-        access_token: '', // Admin API не возвращает session
+        access_token: data.session?.access_token || '',
       };
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ConflictException) {

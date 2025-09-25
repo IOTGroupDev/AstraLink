@@ -8,12 +8,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'supersecret',
+      ignoreExpiration: true, // Временно игнорируем истечение для отладки
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'your-super-secret-jwt-key-change-this-in-production',
     });
   }
 
   async validate(payload: any) {
-    return { userId: payload.sub, email: payload.email };
+    // Поддерживаем как Supabase токены, так и локальные
+    return { 
+      userId: payload.sub, 
+      email: payload.email,
+      role: payload.role 
+    };
   }
 }

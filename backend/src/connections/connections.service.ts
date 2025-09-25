@@ -10,7 +10,7 @@ export class ConnectionsService {
     private ephemerisService: EphemerisService,
   ) {}
 
-  async createConnection(userId: number, connectionData: CreateConnectionRequest) {
+  async createConnection(userId: string, connectionData: CreateConnectionRequest) {
     return this.prisma.connection.create({
       data: {
         userId: userId,
@@ -20,14 +20,14 @@ export class ConnectionsService {
     });
   }
 
-  async getConnections(userId: number) {
+  async getConnections(userId: string) {
     return this.prisma.connection.findMany({
       where: { userId: userId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async getSynastry(userId: number, connectionId: number): Promise<SynastryResponse> {
+  async getSynastry(userId: string, connectionId: string): Promise<SynastryResponse> {
     const connection = await this.prisma.connection.findFirst({
       where: {
         id: connectionId,
@@ -71,7 +71,7 @@ export class ConnectionsService {
     };
   }
 
-  async getComposite(userId: number, connectionId: number): Promise<CompositeResponse> {
+  async getComposite(userId: string, connectionId: string): Promise<CompositeResponse> {
     const connection = await this.prisma.connection.findFirst({
       where: {
         id: connectionId,

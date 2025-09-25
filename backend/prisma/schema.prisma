@@ -9,9 +9,9 @@ datasource db {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
+  id            String   @id @default(uuid())
   email         String   @unique
-  password      String
+  password      String?
   name          String?
   birthDate     DateTime?
   birthTime     String?
@@ -26,8 +26,8 @@ model User {
 }
 
 model Chart {
-  id        Int      @id @default(autoincrement())
-  userId    Int
+  id        String   @id @default(uuid())
+  userId    String
   user      User     @relation(fields: [userId], references: [id])
   data      Json
   createdAt DateTime @default(now())
@@ -35,8 +35,8 @@ model Chart {
 }
 
 model Connection {
-  id          Int      @id @default(autoincrement())
-  userId      Int
+  id          String   @id @default(uuid())
+  userId      String
   user        User     @relation(fields: [userId], references: [id])
   targetName  String
   targetData  Json
@@ -44,8 +44,8 @@ model Connection {
 }
 
 model DatingMatch {
-  id            Int      @id @default(autoincrement())
-  userId        Int
+  id            String   @id @default(uuid())
+  userId        String
   user          User     @relation(fields: [userId], references: [id])
   candidateData Json
   compatibility Int
@@ -55,8 +55,8 @@ model DatingMatch {
 }
 
 model Subscription {
-  id        Int       @id @default(autoincrement())
-  userId    Int       @unique
+  id        String    @id @default(uuid())
+  userId    String    @unique
   user      User      @relation(fields: [userId], references: [id])
   tier      String    @default("free")
   startedAt DateTime  @default(now())

@@ -9,7 +9,7 @@ export class ChartService {
     private ephemerisService: EphemerisService,
   ) {}
 
-  async getNatalChart(userId: number) {
+  async getNatalChart(userId: string) {
     const chart = await this.prisma.chart.findFirst({
       where: {
         userId,
@@ -26,7 +26,7 @@ export class ChartService {
     return chart;
   }
 
-  async createNatalChart(userId: number, data: any) {
+  async createNatalChart(userId: string, data: any) {
     // Получаем данные пользователя для расчёта
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -77,7 +77,7 @@ export class ChartService {
     });
   }
 
-  async getTransits(userId: number, from: string, to: string) {
+  async getTransits(userId: string, from: string, to: string) {
     // Получаем натальную карту пользователя
     const natalChart = await this.getNatalChart(userId);
     
@@ -121,7 +121,7 @@ export class ChartService {
   /**
    * Получить текущие позиции планет
    */
-  async getCurrentPlanets(userId: number) {
+  async getCurrentPlanets(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -143,7 +143,7 @@ export class ChartService {
   /**
    * Получить астрологические предсказания
    */
-  async getPredictions(userId: number, period: string = 'day') {
+  async getPredictions(userId: string, period: string = 'day') {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });

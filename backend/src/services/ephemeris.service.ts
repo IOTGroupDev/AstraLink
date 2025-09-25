@@ -68,7 +68,7 @@ export class EphemerisService {
    * Получает транзиты для пользователя
    */
   async getTransits(
-    userId: number,
+    userId: string,
     from: Date,
     to: Date
   ): Promise<any[]> {

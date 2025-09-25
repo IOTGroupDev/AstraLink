@@ -24,7 +24,7 @@ export class DatingController {
   @ApiResponse({ status: 200, description: 'Лайк поставлен' })
   @ApiResponse({ status: 404, description: 'Кандидат не найден' })
   async likeMatch(@Request() req, @Param('id') matchId: string) {
-    return this.datingService.likeMatch(req.user.userId, parseInt(matchId));
+    return this.datingService.likeMatch(req.user.userId, matchId);
   }
 
   @Post('match/:id/reject')
@@ -33,6 +33,6 @@ export class DatingController {
   @ApiResponse({ status: 200, description: 'Кандидат отклонен' })
   @ApiResponse({ status: 404, description: 'Кандидат не найден' })
   async rejectMatch(@Request() req, @Param('id') matchId: string) {
-    return this.datingService.rejectMatch(req.user.userId, parseInt(matchId));
+    return this.datingService.rejectMatch(req.user.userId, matchId);
   }
 }

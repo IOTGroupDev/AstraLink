@@ -66,6 +66,47 @@ export class SupabaseService implements OnModuleInit {
     return this.supabase.from(table);
   }
 
+  // Secure user data methods
+  async getUserProfile(userId: string) {
+    const { data, error } = await this.supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    return { data, error };
+  }
+
+  async updateUserProfile(userId: string, profileData: any) {
+    const { data, error } = await this.supabase
+      .from('users')
+      .update(profileData)
+      .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  async createUserChart(userId: string, chartData: any) {
+    const { data, error } = await this.supabase
+      .from('charts')
+      .insert({
+        user_id: userId,
+        data: chartData
+      })
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  async getUserCharts(userId: string) {
+    const { data, error } = await this.supabase
+      .from('charts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  }
+
   // Real-time subscriptions
   async subscribe(table: string, callback: (payload: any) => void) {
     return this.supabase

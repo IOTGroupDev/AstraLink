@@ -6,7 +6,7 @@ import type { SubscriptionStatusResponse } from '../types';
 export class SubscriptionService {
   constructor(private prisma: PrismaService) {}
 
-  async getStatus(userId: number): Promise<SubscriptionStatusResponse> {
+  async getStatus(userId: string): Promise<SubscriptionStatusResponse> {
     const subscription = await this.prisma.subscription.findUnique({
       where: { userId },
     });
@@ -25,7 +25,7 @@ export class SubscriptionService {
     };
   }
 
-  async upgrade(userId: number, level: string) {
+  async upgrade(userId: string, level: string) {
     const validLevels = ['AstraPlus', 'DatingPremium', 'MAX'];
     if (!validLevels.includes(level)) {
       throw new BadRequestException('Неверный уровень подписки');
