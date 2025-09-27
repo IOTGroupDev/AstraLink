@@ -10,56 +10,116 @@ export class ChartService {
   ) {}
 
   async getNatalChart(userId: string) {
-    const chart = await this.prisma.chart.findFirst({
-      where: {
-        userId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    if (!chart) {
-      throw new NotFoundException('Натальная карта не найдена');
-    }
-
-    return chart;
-  }
-
-  async createNatalChart(userId: string, data: any) {
-    // Получаем данные пользователя для расчёта
+    // Получаем данные пользователя из базы данных
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        birthDate: true,
+        birthTime: true,
+        birthPlace: true,
+        createdAt: true,
+        updatedAt: true,
+        charts: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
     });
 
-    if (!user || !user.birthDate || !user.birthTime || !user.birthPlace) {
-      throw new NotFoundException('Недостаточно данных для расчёта натальной карты');
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
     }
 
-    // Преобразуем дату и время с проверкой
+    if (!user.birthDate || !user.birthTime || !user.birthPlace) {
+      throw new NotFoundException(
+        'Недостаточно данных для расчёта натальной карты. Заполните дату, время и место рождения.',
+      );
+    }
+
+    // Преобразуем дату и время
     const birthDate = user.birthDate.toISOString().split('T')[0];
-    const birthTime = user.birthTime || '12:00'; // Дефолтное время если не указано
-    
-    // Проверяем корректность времени
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(birthTime)) {
-      throw new NotFoundException('Некорректный формат времени рождения. Ожидается HH:MM');
-    }
+    const birthTime = user.birthTime;
 
-    // Проверяем корректность даты
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(birthDate)) {
-      throw new NotFoundException('Некорректный формат даты рождения. Ожидается YYYY-MM-DD');
-    }
-    
-    // Упрощённые координаты (можно захардкодить для тестирования)
+    // Получаем координаты места рождения
     const location = this.getLocationCoordinates(user.birthPlace);
 
     // Рассчитываем натальную карту через Swiss Ephemeris
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       birthDate,
       birthTime,
-      location
+      location,
+    );
+
+    // Проверяем, есть ли уже сохраненная карта
+    const existingChart = user.charts[0]; // Берем первую карту (самую новую)
+
+    if (existingChart) {
+      // Обновляем существующую карту новыми расчетами
+      const updatedChart = await this.prisma.chart.update({
+        where: { id: existingChart.id },
+        data: { data: natalChartData },
+      });
+      return updatedChart;
+    } else {
+      // Создаем новую карту
+      const newChart = await this.prisma.chart.create({
+        data: {
+          userId,
+          data: natalChartData,
+        },
+      });
+      return newChart;
+    }
+  }
+
+  async createNatalChart(userId: string, _data: any) {
+    // Получаем данные пользователя из базы данных
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (!user.birthDate || !user.birthTime || !user.birthPlace) {
+      throw new NotFoundException(
+        'Недостаточно данных для расчёта натальной карты. Заполните дату, время и место рождения.',
+      );
+    }
+
+    // Преобразуем дату и время с проверкой
+    const birthDate = user.birthDate.toISOString().split('T')[0];
+    const birthTime = user.birthTime;
+
+    // Проверяем корректность времени
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(birthTime)) {
+      throw new NotFoundException(
+        'Некорректный формат времени рождения. Ожидается HH:MM',
+      );
+    }
+
+    // Проверяем корректность даты
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(birthDate)) {
+      throw new NotFoundException(
+        'Некорректный формат даты рождения. Ожидается YYYY-MM-DD',
+      );
+    }
+
+    // Получаем координаты места рождения
+    const location = this.getLocationCoordinates(user.birthPlace);
+
+    // Рассчитываем натальную карту через Swiss Ephemeris
+    const natalChartData = await this.ephemerisService.calculateNatalChart(
+      birthDate,
+      birthTime,
+      location,
     );
 
     // Удаляем старую натальную карту, если есть
@@ -69,26 +129,29 @@ export class ChartService {
       },
     });
 
-    return this.prisma.chart.create({
+    // Создаем новую карту
+    const newChart = await this.prisma.chart.create({
       data: {
         userId,
         data: natalChartData,
       },
     });
+
+    return newChart;
   }
 
   async getTransits(userId: string, from: string, to: string) {
     // Получаем натальную карту пользователя
     const natalChart = await this.getNatalChart(userId);
-    
+
     // Рассчитываем транзиты через Swiss Ephemeris
     const fromDate = new Date(from);
     const toDate = new Date(to);
-    
+
     const transits = await this.ephemerisService.getTransits(
       userId,
       fromDate,
-      toDate
+      toDate,
     );
 
     return {
@@ -104,19 +167,24 @@ export class ChartService {
    * Получает координаты места рождения
    * Упрощённая версия - можно захардкодить для тестирования
    */
-  private getLocationCoordinates(birthPlace: string): { latitude: number; longitude: number; timezone: number } {
+  getLocationCoordinates(birthPlace: string): {
+    latitude: number;
+    longitude: number;
+    timezone: number;
+  } {
     // Упрощённые координаты для основных городов
-    const locations: { [key: string]: { latitude: number; longitude: number; timezone: number } } = {
-      'Москва': { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
+    const locations: {
+      [key: string]: { latitude: number; longitude: number; timezone: number };
+    } = {
+      Москва: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
       'Санкт-Петербург': { latitude: 59.9311, longitude: 30.3609, timezone: 3 },
-      'Екатеринбург': { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
-      'Новосибирск': { latitude: 55.0084, longitude: 82.9357, timezone: 7 },
-      'default': { latitude: 55.7558, longitude: 37.6176, timezone: 3 }, // Москва по умолчанию
+      Екатеринбург: { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
+      Новосибирск: { latitude: 55.0084, longitude: 82.9357, timezone: 7 },
+      default: { latitude: 55.7558, longitude: 37.6176, timezone: 3 }, // Москва по умолчанию
     };
 
     return locations[birthPlace] || locations['default'];
   }
-
 
   /**
    * Получить текущие позиции планет
@@ -132,7 +200,8 @@ export class ChartService {
 
     const now = new Date();
     const julianDay = this.ephemerisService.dateToJulianDay(now);
-    const currentPlanets = await this.ephemerisService.calculatePlanets(julianDay);
+    const currentPlanets =
+      await this.ephemerisService.calculatePlanets(julianDay);
 
     return {
       date: now.toISOString(),
@@ -168,10 +237,15 @@ export class ChartService {
 
     // Получаем позиции планет для целевой даты
     const julianDay = this.ephemerisService.dateToJulianDay(targetDate);
-    const targetPlanets = await this.ephemerisService.calculatePlanets(julianDay);
-    
+    const targetPlanets =
+      await this.ephemerisService.calculatePlanets(julianDay);
+
     // Генерируем предсказания на основе транзитов
-    const predictions = this.generatePredictions(natalChart, { planets: targetPlanets }, period);
+    const predictions = this.generatePredictions(
+      natalChart,
+      { planets: targetPlanets },
+      period,
+    );
 
     return {
       period,
@@ -184,7 +258,11 @@ export class ChartService {
   /**
    * Генерирует предсказания на основе натальной карты и текущих позиций
    */
-  private generatePredictions(natalChart: any, currentPlanets: any, period: string) {
+  private generatePredictions(
+    natalChart: any,
+    currentPlanets: any,
+    period: string,
+  ) {
     const predictions = {
       general: '',
       love: '',
@@ -198,12 +276,19 @@ export class ChartService {
     const current = currentPlanets.planets || {};
 
     // Базовые предсказания в зависимости от периода
-    const periodText = period === 'tomorrow' ? 'завтра' : period === 'week' ? 'на неделе' : 'сегодня';
-    const periodPrefix = period === 'tomorrow' ? 'Завтра' : period === 'week' ? 'На неделе' : 'Сегодня';
+    const periodPrefix =
+      period === 'tomorrow'
+        ? 'Завтра'
+        : period === 'week'
+          ? 'На неделе'
+          : 'Сегодня';
 
     // Анализ Солнца
     if (current.sun && natalPlanets.sun) {
-      const sunAspect = this.calculateAspect(current.sun.longitude, natalPlanets.sun.longitude);
+      const sunAspect = this.calculateAspect(
+        current.sun.longitude,
+        natalPlanets.sun.longitude,
+      );
       if (sunAspect === 'conjunction') {
         predictions.general = `${periodPrefix} благоприятный день для новых начинаний. Энергия Солнца усиливает ваши лидерские качества.`;
       } else if (sunAspect === 'opposition') {
@@ -215,7 +300,10 @@ export class ChartService {
 
     // Анализ Луны
     if (current.moon && natalPlanets.moon) {
-      const moonAspect = this.calculateAspect(current.moon.longitude, natalPlanets.moon.longitude);
+      const moonAspect = this.calculateAspect(
+        current.moon.longitude,
+        natalPlanets.moon.longitude,
+      );
       if (moonAspect === 'conjunction') {
         predictions.love = `${periodPrefix} эмоциональная близость в отношениях. Хорошее время для романтических встреч.`;
       } else {
@@ -225,7 +313,10 @@ export class ChartService {
 
     // Анализ Венеры
     if (current.venus && natalPlanets.venus) {
-      const venusAspect = this.calculateAspect(current.venus.longitude, natalPlanets.venus.longitude);
+      const venusAspect = this.calculateAspect(
+        current.venus.longitude,
+        natalPlanets.venus.longitude,
+      );
       if (venusAspect === 'trine') {
         predictions.love = `${periodPrefix} гармония в любовных отношениях. Возможны новые знакомства.`;
       } else if (venusAspect === 'square') {
@@ -237,7 +328,10 @@ export class ChartService {
 
     // Анализ Марса
     if (current.mars && natalPlanets.mars) {
-      const marsAspect = this.calculateAspect(current.mars.longitude, natalPlanets.mars.longitude);
+      const marsAspect = this.calculateAspect(
+        current.mars.longitude,
+        natalPlanets.mars.longitude,
+      );
       if (marsAspect === 'square') {
         predictions.career = `${periodPrefix} возможны препятствия в работе. Проявите терпение и настойчивость.`;
       } else if (marsAspect === 'trine') {
@@ -249,7 +343,10 @@ export class ChartService {
 
     // Анализ Юпитера для здоровья
     if (current.jupiter && natalPlanets.jupiter) {
-      const jupiterAspect = this.calculateAspect(current.jupiter.longitude, natalPlanets.jupiter.longitude);
+      const jupiterAspect = this.calculateAspect(
+        current.jupiter.longitude,
+        natalPlanets.jupiter.longitude,
+      );
       if (jupiterAspect === 'trine') {
         predictions.health = `${periodPrefix} хорошее время для укрепления здоровья. Занимайтесь спортом.`;
       } else {
@@ -259,11 +356,14 @@ export class ChartService {
 
     // Общие советы в зависимости от периода
     if (period === 'week') {
-      predictions.advice = 'На этой неделе фокусируйтесь на долгосрочных целях и планировании.';
+      predictions.advice =
+        'На этой неделе фокусируйтесь на долгосрочных целях и планировании.';
     } else if (period === 'tomorrow') {
-      predictions.advice = 'Завтра будьте готовы к новым возможностям и изменениям.';
+      predictions.advice =
+        'Завтра будьте готовы к новым возможностям и изменениям.';
     } else {
-      predictions.advice = 'Сегодня слушайте свою интуицию и доверяйте внутреннему голосу.';
+      predictions.advice =
+        'Сегодня слушайте свою интуицию и доверяйте внутреннему голосу.';
     }
 
     return predictions;
@@ -280,7 +380,7 @@ export class ChartService {
     if (normalizedDiff >= 82 && normalizedDiff <= 98) return 'square';
     if (normalizedDiff >= 118 && normalizedDiff <= 122) return 'trine';
     if (normalizedDiff >= 172 && normalizedDiff <= 188) return 'opposition';
-    
+
     return 'other';
   }
 }

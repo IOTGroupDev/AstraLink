@@ -1,5 +1,10 @@
 import { Controller, Get, Put, Request, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { UserService } from './user.service';
 import type { UpdateProfileRequest } from '../types';
 
@@ -19,7 +24,10 @@ export class UserController {
   @Put('profile')
   @ApiOperation({ summary: 'Обновить профиль пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль обновлен' })
-  async updateProfile(@Request() req, @Body() updateData: UpdateProfileRequest) {
+  async updateProfile(
+    @Request() req,
+    @Body() updateData: UpdateProfileRequest,
+  ) {
     return this.userService.updateProfile(req.user.userId, updateData);
   }
 }

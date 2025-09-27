@@ -15,14 +15,19 @@ import { SupabaseModule } from '../supabase/supabase.module';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '24h' },
       }),
       inject: [ConfigService],
     }),
   ],
-  providers: [SupabaseAuthService, JwtStrategy, AuthMiddleware, SupabaseAuthGuard],
+  providers: [
+    SupabaseAuthService,
+    JwtStrategy,
+    AuthMiddleware,
+    SupabaseAuthGuard,
+  ],
   controllers: [AuthController],
   exports: [SupabaseAuthService, JwtModule, AuthMiddleware, SupabaseAuthGuard],
 })

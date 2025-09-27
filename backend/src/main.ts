@@ -5,21 +5,23 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Глобальный префикс для API
   app.setGlobalPrefix('api');
-  
+
   // Валидация
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // CORS
   app.enableCors({
     origin: [
-      'http://localhost:3000', 
+      'http://localhost:3000',
       'http://localhost:8081',
       'http://192.168.1.69:3000',
       'http://192.168.1.69:8081',
@@ -42,9 +44,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3006;
   await app.listen(port);
   console.log(`🚀 Backend запущен на порту ${port}`);
   console.log(`📚 Swagger документация: http://localhost:${port}/api/docs`);
 }
-bootstrap();
+void bootstrap();

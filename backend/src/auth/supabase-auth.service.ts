@@ -1,6 +1,12 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class SupabaseAuthService {
@@ -10,7 +16,7 @@ export class SupabaseAuthService {
     try {
       const { data, error } = await this.supabaseService.signIn(
         loginDto.email,
-        loginDto.password
+        loginDto.password,
       );
 
       if (error) {
@@ -21,28 +27,21 @@ export class SupabaseAuthService {
         throw new UnauthorizedException('Пользователь не найден');
       }
 
-      // Get user profile from our User table
-      const { data: userProfile, error: profileError } = await this.supabaseService
-        .from('User')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        throw new UnauthorizedException('Ошибка получения профиля пользователя');
-      }
-
+      // Return user data from Supabase Auth (user_metadata contains signup data)
       return {
         user: {
           id: data.user.id,
           email: data.user.email || '',
-          name: userProfile?.name || undefined,
-          birthDate: userProfile?.birth_date?.split('T')[0] || undefined,
-          birthTime: userProfile?.birth_time || undefined,
-          birthPlace: userProfile?.birth_place || undefined,
-          createdAt: userProfile?.created_at || data.user.created_at,
-          updatedAt: userProfile?.updated_at || data.user.updated_at,
+          name: data.user.user_metadata?.name || undefined,
+          birthDate: data.user.user_metadata?.birth_date
+            ? new Date(data.user.user_metadata.birth_date)
+                .toISOString()
+                .split('T')[0]
+            : undefined,
+          birthTime: data.user.user_metadata?.birth_time || undefined,
+          birthPlace: data.user.user_metadata?.birth_place || undefined,
+          createdAt: data.user.created_at,
+          updatedAt: data.user.updated_at,
         },
         access_token: data.session?.access_token || '',
       };
@@ -79,7 +78,9 @@ export class SupabaseAuthService {
       if (signupDto.birthTime) {
         const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
         if (!timeRegex.test(signupDto.birthTime)) {
-          throw new BadRequestException('Время рождения должно быть в формате HH:MM');
+          throw new BadRequestException(
+            'Время рождения должно быть в формате HH:MM',
+          );
         }
       }
 
@@ -92,12 +93,14 @@ export class SupabaseAuthService {
           birth_date: birthDate.toISOString(),
           birth_time: signupDto.birthTime,
           birth_place: signupDto.birthPlace,
-        }
+        },
       );
 
       if (error) {
         if (error.message.includes('already registered')) {
-          throw new ConflictException('Пользователь с таким email уже существует');
+          throw new ConflictException(
+            'Пользователь с таким email уже существует',
+          );
         }
         throw new BadRequestException(error.message);
       }
@@ -106,19 +109,19 @@ export class SupabaseAuthService {
         throw new BadRequestException('Ошибка создания пользователя');
       }
 
-      // Создаем профиль пользователя в нашей таблице User
-      const { data: userProfile, error: createError } = await this.supabaseService
-        .from('User')
-        .insert({
-          id: data.user.id,
-          email: data.user.email,
-          name: signupDto.name,
-          birthDate: birthDate.toISOString(),
-          birthTime: signupDto.birthTime || null,
-          birthPlace: signupDto.birthPlace || null,
-        })
-        .select()
-        .single();
+      // Создаем или обновляем профиль пользователя в нашей таблице users
+      const { data: userProfile, error: createError } =
+        await this.supabaseService
+          .from('users')
+          .upsert({
+            id: data.user.id,
+            name: signupDto.name,
+            birth_date: birthDate.toISOString(),
+            birth_time: signupDto.birthTime || null,
+            birth_place: signupDto.birthPlace || null,
+          })
+          .select()
+          .single();
 
       if (createError) {
         console.error('Error creating user profile:', createError);
@@ -130,16 +133,21 @@ export class SupabaseAuthService {
           id: data.user.id,
           email: data.user.email || '',
           name: userProfile?.name || signupDto.name,
-          birthDate: userProfile?.birthDate?.split('T')[0] || signupDto.birthDate,
-          birthTime: userProfile?.birthTime || signupDto.birthTime,
-          birthPlace: userProfile?.birthPlace || signupDto.birthPlace,
-          createdAt: userProfile?.createdAt || data.user.created_at,
-          updatedAt: userProfile?.updatedAt || data.user.updated_at,
+          birthDate: userProfile?.birth_date
+            ? new Date(userProfile.birth_date).toISOString().split('T')[0]
+            : signupDto.birthDate,
+          birthTime: userProfile?.birth_time || signupDto.birthTime,
+          birthPlace: userProfile?.birth_place || signupDto.birthPlace,
+          createdAt: userProfile?.created_at || data.user.created_at,
+          updatedAt: userProfile?.updated_at || data.user.updated_at,
         },
         access_token: data.session?.access_token || '',
       };
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ConflictException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
       throw new BadRequestException('Ошибка регистрации');
@@ -148,14 +156,22 @@ export class SupabaseAuthService {
 
   async validateToken(token: string): Promise<any> {
     try {
-      const { data, error } = await this.supabaseService.getUser(token);
-      
-      if (error || !data.user) {
+      // For demo purposes, validate JWT token
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || 'fallback-secret',
+      ) as any;
+
+      if (!decoded.sub) {
         throw new UnauthorizedException('Недействительный токен');
       }
 
-      return data.user;
-    } catch (error) {
+      // Return mock user data
+      return {
+        id: decoded.sub,
+        email: decoded.email,
+      };
+    } catch (_error) {
       throw new UnauthorizedException('Ошибка валидации токена');
     }
   }

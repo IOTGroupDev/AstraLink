@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { DatingMatchResponse } from '../types';
 
@@ -6,7 +6,7 @@ import type { DatingMatchResponse } from '../types';
 export class DatingService {
   constructor(private prisma: PrismaService) {}
 
-  async getMatches(userId: string): Promise<DatingMatchResponse[]> {
+  async getMatches(): Promise<DatingMatchResponse[]> {
     // Заглушка с 3-5 случайными кандидатами
     const mockCandidates = [
       {
@@ -66,7 +66,7 @@ export class DatingService {
     return mockCandidates;
   }
 
-  async likeMatch(userId: string, matchId: string) {
+  likeMatch(userId: string, matchId: string) {
     // В реальном приложении здесь была бы логика обновления статуса матча
     return {
       success: true,
@@ -75,7 +75,7 @@ export class DatingService {
     };
   }
 
-  async rejectMatch(userId: string, matchId: string) {
+  rejectMatch(userId: string, matchId: string) {
     // В реальном приложении здесь была бы логика обновления статуса матча
     return {
       success: true,

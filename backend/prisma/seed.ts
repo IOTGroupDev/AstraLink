@@ -7,12 +7,9 @@ async function main() {
   console.log('🌱 Начинаем заполнение базы данных...');
 
   // Создаем пользователя
-  const hashedPassword = await bcrypt.hash('password', 10);
-  
   const user = await prisma.user.create({
     data: {
       email: 'test@test.com',
-      password: hashedPassword,
       name: 'Тестовый Пользователь',
       birthDate: new Date('1990-05-15'),
       birthTime: '14:30',
@@ -58,7 +55,12 @@ async function main() {
         aspects: [
           { planet1: 'sun', planet2: 'moon', aspect: 'trine', orb: 2.3 },
           { planet1: 'venus', planet2: 'mars', aspect: 'sextile', orb: 1.8 },
-          { planet1: 'jupiter', planet2: 'saturn', aspect: 'conjunction', orb: 0.5 },
+          {
+            planet1: 'jupiter',
+            planet2: 'saturn',
+            aspect: 'conjunction',
+            orb: 0.5,
+          },
         ],
       },
     },

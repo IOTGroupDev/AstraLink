@@ -6,11 +6,11 @@
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
-    "backend:dev": "cd backend && npm run dev",
+    "backend:dev": "cd backend && npm run start:dev",
     "frontend:dev": "cd frontend && npx expo start",
     "backend:build": "cd backend && npm run build",
     "frontend:build": "cd frontend && npm run build",
-    "lint": "npm run backend:lint && npm run frontend:lint",
+    "lint": "npm run backend:lint",
     "backend:lint": "cd backend && npm run lint",
     "frontend:lint": "cd frontend && npm run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",

@@ -10,9 +10,9 @@ export class SupabaseUserController {
   @Get('profile')
   async getProfile(@Request() req) {
     const userId = req.user.id;
-    
+
     const { data, error } = await this.supabaseService.getUserProfile(userId);
-    
+
     if (error) {
       throw new Error('Ошибка получения профиля');
     }
@@ -33,25 +33,30 @@ export class SupabaseUserController {
   @Put('profile')
   async updateProfile(@Request() req, @Body() updateData: any) {
     const userId = req.user.id;
-    
+
     // Подготавливаем данные для обновления
     const profileData = {
       name: updateData.name,
-      birth_date: updateData.birthDate ? new Date(updateData.birthDate) : undefined,
+      birth_date: updateData.birthDate
+        ? new Date(updateData.birthDate)
+        : undefined,
       birth_time: updateData.birthTime,
       birth_place: updateData.birthPlace,
       updated_at: new Date().toISOString(),
     };
 
     // Удаляем undefined значения
-    Object.keys(profileData).forEach(key => {
+    Object.keys(profileData).forEach((key) => {
       if (profileData[key] === undefined) {
         delete profileData[key];
       }
     });
 
-    const { data, error } = await this.supabaseService.updateUserProfile(userId, profileData);
-    
+    const { data, error } = await this.supabaseService.updateUserProfile(
+      userId,
+      profileData,
+    );
+
     if (error) {
       throw new Error('Ошибка обновления профиля');
     }
@@ -72,9 +77,9 @@ export class SupabaseUserController {
   @Get('charts')
   async getUserCharts(@Request() req) {
     const userId = req.user.id;
-    
+
     const { data, error } = await this.supabaseService.getUserCharts(userId);
-    
+
     if (error) {
       throw new Error('Ошибка получения натальных карт');
     }
@@ -82,4 +87,3 @@ export class SupabaseUserController {
     return data;
   }
 }
-

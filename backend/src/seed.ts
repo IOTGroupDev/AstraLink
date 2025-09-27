@@ -1,20 +1,16 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database...');
-  
+
   // Создаем тестового пользователя
-  const hashedPassword = await bcrypt.hash('password123', 10);
-  
   const testUser = await prisma.user.upsert({
     where: { email: 'test@astralink.com' },
     update: {},
     create: {
       email: 'test@astralink.com',
-      password: hashedPassword,
       name: 'Тестовый Пользователь',
       birthDate: new Date('1990-08-15'),
       birthTime: '14:30',
@@ -30,7 +26,6 @@ async function main() {
     update: {},
     create: {
       email: 'anna@astralink.com',
-      password: hashedPassword,
       name: 'Анна',
       birthDate: new Date('1992-12-22'),
       birthTime: '09:15',
@@ -49,7 +44,7 @@ async function main() {
         birthDate: '1992-12-22',
         birthTime: '09:15',
         birthPlace: 'Санкт-Петербург, Россия',
-        zodiacSign: 'Capricorn'
+        zodiacSign: 'Capricorn',
       },
     },
   });
@@ -59,7 +54,7 @@ async function main() {
   console.log('✅ Seeding завершен!');
 }
 
-main()
+void main()
   .catch((e) => {
     console.error('❌ Ошибка при seeding:', e);
     process.exit(1);

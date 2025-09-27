@@ -15,7 +15,9 @@ export const UpgradeSubscriptionRequestSchema = z.object({
   level: z.enum(['AstraPlus', 'DatingPremium', 'MAX']),
 });
 
-export type UpgradeSubscriptionRequest = z.infer<typeof UpgradeSubscriptionRequestSchema>;
+export type UpgradeSubscriptionRequest = z.infer<
+  typeof UpgradeSubscriptionRequestSchema
+>;
 
 export const SubscriptionStatusResponseSchema = z.object({
   level: z.string(),
@@ -24,4 +26,6 @@ export const SubscriptionStatusResponseSchema = z.object({
   features: z.array(z.string()),
 });
 
-export type SubscriptionStatusResponse = z.infer<typeof SubscriptionStatusResponseSchema>;
+export type SubscriptionStatusResponse = z.infer<
+  typeof SubscriptionStatusResponseSchema
+>;

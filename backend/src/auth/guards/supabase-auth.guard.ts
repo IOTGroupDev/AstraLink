@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 
 @Injectable()
@@ -17,7 +22,7 @@ export class SupabaseAuthGuard implements CanActivate {
 
     try {
       const { data, error } = await this.supabaseService.getUser(token);
-      
+
       if (error || !data.user) {
         throw new UnauthorizedException('Недействительный токен');
       }
@@ -25,9 +30,8 @@ export class SupabaseAuthGuard implements CanActivate {
       // Добавляем пользователя в запрос для использования в контроллерах
       request.user = data.user;
       return true;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Ошибка проверки токена');
     }
   }
 }
-

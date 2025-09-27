@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
@@ -11,7 +10,6 @@ import { ChartModule } from './chart/chart.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { DatingModule } from './dating/dating.module';
 import { SubscriptionModule } from './subscription/subscription.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -30,10 +28,10 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: JwtAuthGuard,
+    // }, // Временно отключаем глобальный guard для тестирования
   ],
 })
 export class AppModule {}

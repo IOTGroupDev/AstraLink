@@ -5,7 +5,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 export class SupabaseService implements OnModuleInit {
   private supabase: SupabaseClient;
 
-  async onModuleInit() {
+  onModuleInit() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
@@ -91,7 +91,7 @@ export class SupabaseService implements OnModuleInit {
       .from('charts')
       .insert({
         user_id: userId,
-        data: chartData
+        data: chartData,
       })
       .select()
       .single();
@@ -108,7 +108,7 @@ export class SupabaseService implements OnModuleInit {
   }
 
   // Real-time subscriptions
-  async subscribe(table: string, callback: (payload: any) => void) {
+  subscribe(table: string, callback: (payload: any) => void) {
     return this.supabase
       .channel(`${table}_changes`)
       .on('postgres_changes', { event: '*', schema: 'public', table }, callback)

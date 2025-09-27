@@ -1,7 +1,18 @@
 import axios from 'axios';
-import { LoginRequest, SignupRequest, AuthResponse, User, Chart, TransitsResponse, UserProfile, UpdateProfileRequest, Subscription, UpgradeSubscriptionRequest } from '../types';
+import {
+  LoginRequest,
+  SignupRequest,
+  AuthResponse,
+  User,
+  Chart,
+  TransitsResponse,
+  UserProfile,
+  UpdateProfileRequest,
+  Subscription,
+  UpgradeSubscriptionRequest,
+} from '../types';
 
-const API_BASE_URL = 'http://192.168.1.14:3000/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -15,7 +26,11 @@ api.interceptors.request.use((config) => {
   const token = getStoredToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('🔐 Добавлен токен к запросу:', config.url, token.substring(0, 20) + '...');
+    console.log(
+      '🔐 Добавлен токен к запросу:',
+      config.url,
+      token.substring(0, 20) + '...'
+    );
   } else {
     console.log('⚠️ Токен отсутствует для запроса:', config.url);
   }
@@ -29,20 +44,27 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.log('❌ API ошибка:', error.config?.url, error.response?.status, error.message);
-    
+    console.log(
+      '❌ API ошибка:',
+      error.config?.url,
+      error.response?.status,
+      error.message
+    );
+
     // Обработка ошибок авторизации от middleware
     if (error.response?.status === 401) {
       const errorData = error.response.data;
       if (errorData?.redirectTo === '/signup' || errorData?.requiresAuth) {
-        console.log('🔄 Перенаправление на регистрацию из-за отсутствия авторизации');
+        console.log(
+          '🔄 Перенаправление на регистрацию из-за отсутствия авторизации'
+        );
         // Удаляем токен и перенаправляем на регистрацию
         removeStoredToken();
         // В React Native можно использовать navigation для перенаправления
         // navigation.navigate('Signup');
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -70,16 +92,22 @@ export const setStoredToken = (token: string) => {
 // Получаем токен
 export const getStoredToken = (): string | null => {
   if (authToken) {
-    console.log('🔍 Токен найден в памяти:', authToken.substring(0, 20) + '...');
+    console.log(
+      '🔍 Токен найден в памяти:',
+      authToken.substring(0, 20) + '...'
+    );
     return authToken;
   }
-  
+
   // В реальном приложении используйте SecureStore или AsyncStorage
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const token = localStorage.getItem('auth_token');
       if (token) {
-        console.log('🔍 Токен найден в localStorage:', token.substring(0, 20) + '...');
+        console.log(
+          '🔍 Токен найден в localStorage:',
+          token.substring(0, 20) + '...'
+        );
         authToken = token;
         return token;
       }
@@ -87,7 +115,7 @@ export const getStoredToken = (): string | null => {
   } catch (error) {
     console.log('❌ Ошибка чтения localStorage:', error);
   }
-  
+
   console.log('❌ Токен не найден');
   return null;
 };
@@ -115,19 +143,19 @@ export const authAPI = {
       const response = await api.post('/auth/login', data);
       console.log('✅ Получен ответ от сервера:', response.data);
       const authResponse = response.data;
-      
+
       // Backend возвращает 'token', используем его напрямую
       const token = authResponse.token || authResponse.access_token;
       if (!token) {
         throw new Error('Токен не получен от сервера');
       }
-      
+
       // Сохраняем токен
       setStoredToken(token);
-      
+
       // Обеспечиваем совместимость с типами
       authResponse.access_token = token;
-      
+
       return authResponse;
     } catch (error) {
       console.log('❌ API login failed:', error);
@@ -135,9 +163,9 @@ export const authAPI = {
         message: error.message,
         status: error.response?.status,
         data: error.response?.data,
-        config: error.config
+        config: error.config,
       });
-      
+
       // Добавляем более понятное сообщение об ошибке
       if (error.response?.status === 401) {
         error.message = 'Неверный email или пароль';
@@ -146,7 +174,7 @@ export const authAPI = {
       } else if (error.code === 'ERR_NETWORK') {
         error.message = 'Ошибка сети';
       }
-      
+
       throw error;
     }
   },
@@ -155,19 +183,19 @@ export const authAPI = {
     try {
       const response = await api.post('/auth/signup', data);
       const authResponse = response.data;
-      
+
       const token = authResponse.token || authResponse.access_token;
       if (!token) {
         throw new Error('Токен не получен от сервера');
       }
-      
+
       setStoredToken(token);
       authResponse.access_token = token;
-      
+
       return authResponse;
     } catch (error) {
       console.log('❌ API signup failed:', error);
-      
+
       // Добавляем более понятное сообщение об ошибке
       if (error.response?.status === 409) {
         error.message = 'Пользователь с таким email уже существует';
@@ -176,7 +204,7 @@ export const authAPI = {
       } else if (error.code === 'ERR_NETWORK') {
         error.message = 'Ошибка сети';
       }
-      
+
       throw error;
     }
   },
@@ -184,9 +212,20 @@ export const authAPI = {
 
 // Chart API с реальными вызовами
 export const chartAPI = {
-  getNatalChart: async (): Promise<Chart> => {
-    const response = await api.get('/chart/natal');
-    return response.data;
+  getNatalChart: async (): Promise<Chart | null> => {
+    try {
+      const response = await api.get('/chart/natal');
+      return response.data;
+    } catch (error) {
+      // If 404, user doesn't have a natal chart yet - this is expected
+      if (error.response?.status === 404) {
+        console.log(
+          'ℹ️ Натальная карта не найдена - пользователь должен создать её'
+        );
+        return null;
+      }
+      throw error;
+    }
   },
 
   createNatalChart: async (data: any): Promise<Chart> => {
@@ -239,7 +278,7 @@ export const subscriptionAPI = {
   },
 };
 
-// Connections API с реальными вызовами  
+// Connections API с реальными вызовами
 export const connectionsAPI = {
   getConnections: async (): Promise<any[]> => {
     const response = await api.get('/connections');

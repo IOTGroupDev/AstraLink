@@ -1,16 +1,18 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Body, Get, Request } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { SupabaseAuthService } from './supabase-auth.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly supabaseAuthService: SupabaseAuthService,
-  ) {}
+  constructor(private readonly supabaseAuthService: SupabaseAuthService) {}
 
   @Public()
   @Post('login')
@@ -35,7 +37,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Получить профиль текущего пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getProfile(@Request() req) {
+  getProfile(@Request() req) {
     return req.user;
   }
 }
