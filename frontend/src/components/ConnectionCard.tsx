@@ -1,5 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,7 +16,12 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.9;
@@ -70,18 +81,18 @@ const ConnectionCard: React.FC<ConnectionCardProps> = ({
 
   const getZodiacSymbol = (sign: string) => {
     const symbols: { [key: string]: string } = {
-      'Aries': '♈',
-      'Taurus': '♉',
-      'Gemini': '♊',
-      'Cancer': '♋',
-      'Leo': '♌',
-      'Virgo': '♍',
-      'Libra': '♎',
-      'Scorpio': '♏',
-      'Sagittarius': '♐',
-      'Capricorn': '♑',
-      'Aquarius': '♒',
-      'Pisces': '♓',
+      Aries: '♈',
+      Taurus: '♉',
+      Gemini: '♊',
+      Cancer: '♋',
+      Leo: '♌',
+      Virgo: '♍',
+      Libra: '♎',
+      Scorpio: '♏',
+      Sagittarius: '♐',
+      Capricorn: '♑',
+      Aquarius: '♒',
+      Pisces: '♓',
     };
     return symbols[sign] || '♈';
   };
@@ -109,16 +120,30 @@ const ConnectionCard: React.FC<ConnectionCardProps> = ({
               animatedGlowStyle,
             ]}
           />
-          
+
           {/* Content */}
           <View style={styles.content}>
             {/* Zodiac Avatar */}
             <View style={styles.avatarContainer}>
               <Svg width={60} height={60} style={styles.avatar}>
                 <Defs>
-                  <SvgGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor={getCompatibilityColor(compatibility)} stopOpacity="1" />
-                    <Stop offset="100%" stopColor={getCompatibilityColor(compatibility)} stopOpacity="0.3" />
+                  <SvgGradient
+                    id="avatarGradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <Stop
+                      offset="0%"
+                      stopColor={getCompatibilityColor(compatibility)}
+                      stopOpacity="1"
+                    />
+                    <Stop
+                      offset="100%"
+                      stopColor={getCompatibilityColor(compatibility)}
+                      stopOpacity="0.3"
+                    />
                   </SvgGradient>
                 </Defs>
                 <Circle
@@ -141,7 +166,7 @@ const ConnectionCard: React.FC<ConnectionCardProps> = ({
                 </Text>
               </Svg>
             </View>
-            
+
             {/* Info */}
             <View style={styles.info}>
               <Text style={styles.name}>{name}</Text>

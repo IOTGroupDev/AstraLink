@@ -38,31 +38,39 @@ const ELEMENT_THEMES = {
   fire: {
     colors: ['#FF6B35', '#F7931E', '#FFD700'],
     glow: '#FF6B35',
-    name: 'Огонь'
+    name: 'Огонь',
   },
   water: {
     colors: ['#4ECDC4', '#44A08D', '#096B72'],
     glow: '#4ECDC4',
-    name: 'Вода'
+    name: 'Вода',
   },
   earth: {
     colors: ['#8FBC8F', '#556B2F', '#2F4F2F'],
     glow: '#8FBC8F',
-    name: 'Земля'
+    name: 'Земля',
   },
   air: {
     colors: ['#FFD700', '#8B5CF6', '#DDA0DD'],
     glow: '#FFD700',
-    name: 'Воздух'
-  }
+    name: 'Воздух',
+  },
 };
 
 // Соответствие знаков зодиака стихиям
 const ZODIAC_ELEMENTS = {
-  'Aries': 'fire', 'Leo': 'fire', 'Sagittarius': 'fire',
-  'Cancer': 'water', 'Scorpio': 'water', 'Pisces': 'water',
-  'Taurus': 'earth', 'Virgo': 'earth', 'Capricorn': 'earth',
-  'Gemini': 'air', 'Libra': 'air', 'Aquarius': 'air'
+  Aries: 'fire',
+  Leo: 'fire',
+  Sagittarius: 'fire',
+  Cancer: 'water',
+  Scorpio: 'water',
+  Pisces: 'water',
+  Taurus: 'earth',
+  Virgo: 'earth',
+  Capricorn: 'earth',
+  Gemini: 'air',
+  Libra: 'air',
+  Aquarius: 'air',
 };
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -104,7 +112,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       setLoading(true);
       const [profileData, subscriptionData] = await Promise.all([
         userAPI.getProfile(),
-        subscriptionAPI.getStatus()
+        subscriptionAPI.getStatus(),
       ]);
       setProfile(profileData);
       setSubscription(subscriptionData);
@@ -117,24 +125,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Выход',
-      'Вы уверены, что хотите выйти?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Выйти',
-          style: 'destructive',
-          onPress: () => {
-            removeStoredToken();
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          },
+    Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Выйти',
+        style: 'destructive',
+        onPress: () => {
+          removeStoredToken();
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const getZodiacSign = (birthDate: string): string => {
@@ -142,18 +146,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     const date = new Date(birthDate);
     const month = date.getMonth() + 1;
     const day = date.getDate();
-    
-    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Aries';
-    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'Taurus';
-    if ((month === 5 && day >= 21) || (month === 6 && day <= 20)) return 'Gemini';
-    if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) return 'Cancer';
+
+    if ((month === 3 && day >= 21) || (month === 4 && day <= 19))
+      return 'Aries';
+    if ((month === 4 && day >= 20) || (month === 5 && day <= 20))
+      return 'Taurus';
+    if ((month === 5 && day >= 21) || (month === 6 && day <= 20))
+      return 'Gemini';
+    if ((month === 6 && day >= 21) || (month === 7 && day <= 22))
+      return 'Cancer';
     if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return 'Leo';
-    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return 'Virgo';
-    if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) return 'Libra';
-    if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) return 'Scorpio';
-    if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) return 'Sagittarius';
-    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return 'Capricorn';
-    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return 'Aquarius';
+    if ((month === 8 && day >= 23) || (month === 9 && day <= 22))
+      return 'Virgo';
+    if ((month === 9 && day >= 23) || (month === 10 && day <= 22))
+      return 'Libra';
+    if ((month === 10 && day >= 23) || (month === 11 && day <= 21))
+      return 'Scorpio';
+    if ((month === 11 && day >= 22) || (month === 12 && day <= 21))
+      return 'Sagittarius';
+    if ((month === 12 && day >= 22) || (month === 1 && day <= 19))
+      return 'Capricorn';
+    if ((month === 1 && day >= 20) || (month === 2 && day <= 18))
+      return 'Aquarius';
     return 'Pisces';
   };
 
@@ -164,9 +178,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const formatRegistrationDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', { 
-      year: 'numeric', 
-      month: 'long' 
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'long',
     });
   };
 
@@ -175,9 +189,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       opacity: fadeAnim.value,
       transform: [
         {
-          translateY: interpolate(fadeAnim.value, [0, 1], [50, 0])
-        }
-      ]
+          translateY: interpolate(fadeAnim.value, [0, 1], [50, 0]),
+        },
+      ],
     };
   });
 
@@ -189,9 +203,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const animatedOrbStyle = useAnimatedStyle(() => {
     return {
-      transform: [
-        { rotate: `${orbRotation.value}deg` }
-      ]
+      transform: [{ rotate: `${orbRotation.value}deg` }],
     };
   });
 
@@ -200,12 +212,27 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <View style={styles.container}>
         <CosmicBackground />
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <ShimmerLoader width={120} height={120} borderRadius={60} style={styles.avatarShimmer} />
+          <ShimmerLoader
+            width={120}
+            height={120}
+            borderRadius={60}
+            style={styles.avatarShimmer}
+          />
           <ShimmerLoader width={200} height={30} style={styles.nameShimmer} />
           <ShimmerLoader width={150} height={20} style={styles.zodiacShimmer} />
           <View style={styles.cardsContainer}>
-            <ShimmerLoader width={width - 40} height={150} borderRadius={20} style={styles.cardShimmer} />
-            <ShimmerLoader width={width - 40} height={200} borderRadius={20} style={styles.cardShimmer} />
+            <ShimmerLoader
+              width={width - 40}
+              height={150}
+              borderRadius={20}
+              style={styles.cardShimmer}
+            />
+            <ShimmerLoader
+              width={width - 40}
+              height={200}
+              borderRadius={20}
+              style={styles.cardShimmer}
+            />
           </View>
         </ScrollView>
       </View>
@@ -218,7 +245,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <CosmicBackground />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Ошибка загрузки профиля</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadProfileData}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={loadProfileData}
+          >
             <Text style={styles.retryButtonText}>Повторить</Text>
           </TouchableOpacity>
         </View>
@@ -232,10 +262,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <CosmicBackground />
-      
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[styles.content, animatedContainerStyle]}>
-          
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Мой космический профиль</Text>
@@ -261,7 +290,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 </LinearGradient>
               </Animated.View>
             </Animated.View>
-            
+
             <Text style={styles.userName}>{profile.name}</Text>
             <View style={styles.zodiacContainer}>
               <Text style={styles.zodiacSign}>{zodiacSign}</Text>
@@ -272,7 +301,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* Subscription Card */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Моя подписка</Text>
-            <SubscriptionCard 
+            <SubscriptionCard
               subscription={subscription}
               onUpgrade={() => setShowSubscriptionModal(true)}
             />
@@ -281,9 +310,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* Settings Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Настройки</Text>
-            
+
             <View style={styles.settingsCard}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.settingItem}
                 onPress={() => navigation.navigate('EditProfile')}
               >
@@ -307,14 +336,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 />
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.settingItem}
                 onPress={handleLogout}
               >
                 <View style={styles.settingIcon}>
                   <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
                 </View>
-                <Text style={[styles.settingText, { color: '#FF6B6B' }]}>Выйти</Text>
+                <Text style={[styles.settingText, { color: '#FF6B6B' }]}>
+                  Выйти
+                </Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
             </View>
@@ -326,7 +357,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               С нами с {formatRegistrationDate(profile.createdAt)} ✨
             </Text>
           </View>
-
         </Animated.View>
       </ScrollView>
     </View>

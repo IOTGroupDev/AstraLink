@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Platform,
+  StyleSheet,
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 
 interface DateTimePickerProps {
   value: string;
@@ -45,7 +55,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   const animatedInputStyle = useAnimatedStyle(() => {
     const scale = animationValue.value;
     const opacity = animationValue.value;
-    
+
     return {
       transform: [{ scale }],
       opacity,
@@ -69,7 +79,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   const animatedLabelStyle = useAnimatedStyle(() => {
     const scale = animationValue.value;
     const opacity = animationValue.value;
-    
+
     return {
       transform: [{ scale }],
       opacity,
@@ -85,10 +95,10 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(Platform.OS === 'ios');
-    
+
     if (selectedDate) {
       setDate(selectedDate);
-      
+
       if (mode === 'date') {
         const formattedDate = selectedDate.toISOString().split('T')[0];
         onChangeText(formattedDate);
@@ -103,7 +113,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const formatDisplayValue = () => {
     if (!value) return '';
-    
+
     if (mode === 'date') {
       // Проверяем формат YYYY-MM-DD
       if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -111,7 +121,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
         return dateObj.toLocaleDateString('ru-RU', {
           year: 'numeric',
           month: '2-digit',
-          day: '2-digit'
+          day: '2-digit',
         });
       }
       return value; // Возвращаем как есть если неправильный формат
@@ -124,32 +134,30 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     <View style={styles.container}>
       <Animated.View style={animatedInputStyle}>
         <View style={styles.iconContainer}>
-          <Ionicons 
-            name={icon} 
-            size={20} 
-            color={error ? '#FF6B6B' : 'rgba(255, 255, 255, 0.6)'} 
+          <Ionicons
+            name={icon}
+            size={20}
+            color={error ? '#FF6B6B' : 'rgba(255, 255, 255, 0.6)'}
           />
         </View>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.inputWrapper}
           onPress={() => setShowPicker(true)}
           activeOpacity={0.7}
         >
-          <Animated.Text style={[animatedLabelStyle, value && { top: 5, fontSize: 12 }]}>
+          <Animated.Text
+            style={[animatedLabelStyle, value && { top: 5, fontSize: 12 }]}
+          >
             {placeholder} {required && '*'}
           </Animated.Text>
           {value && (
-            <Text style={styles.inputText}>
-              {formatDisplayValue()}
-            </Text>
+            <Text style={styles.inputText}>{formatDisplayValue()}</Text>
           )}
         </TouchableOpacity>
       </Animated.View>
 
-      {errorMessage && (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      )}
+      {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
       {showPicker && (
         <DateTimePicker

@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 // Force cache refresh
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Dimensions,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -28,7 +36,14 @@ import { connectionsAPI, getStoredToken } from '../services/api';
 const { width, height } = Dimensions.get('window');
 
 export default function ConnectionsScreen() {
-  const [connections, setConnections] = useState<{id: string|number, name: string, zodiacSign: string, compatibility: number}[]>([]);
+  const [connections, setConnections] = useState<
+    {
+      id: string | number;
+      name: string;
+      zodiacSign: string;
+      compatibility: number;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -40,10 +55,13 @@ export default function ConnectionsScreen() {
 
   useEffect(() => {
     fetchConnections();
-    
+
     // Анимация появления карточек
-    cardAnimations.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
-    
+    cardAnimations.value = withDelay(
+      200,
+      withSpring(1, { damping: 8, stiffness: 100 })
+    );
+
     // Анимация свечения
     glow.value = withRepeat(
       withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
@@ -55,7 +73,7 @@ export default function ConnectionsScreen() {
   const fetchConnections = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const token = getStoredToken();
       if (!token) {
         console.log('❌ Пользователь не авторизован, отображаем сообщение');
@@ -67,7 +85,12 @@ export default function ConnectionsScreen() {
           { id: 1, name: 'Анна', zodiacSign: 'Leo', compatibility: 85 },
           { id: 2, name: 'Михаил', zodiacSign: 'Scorpio', compatibility: 72 },
           { id: 3, name: 'Елена', zodiacSign: 'Gemini', compatibility: 68 },
-          { id: 4, name: 'Дмитрий', zodiacSign: 'Capricorn', compatibility: 91 },
+          {
+            id: 4,
+            name: 'Дмитрий',
+            zodiacSign: 'Capricorn',
+            compatibility: 91,
+          },
         ];
         setConnections(mockConnections);
         return;
@@ -76,15 +99,15 @@ export default function ConnectionsScreen() {
       // Для авторизованных пользователей - реальные API вызовы
       try {
         const connectionsData = await connectionsAPI.getConnections();
-        
+
         // Преобразуем данные в нужный формат
-        const formattedConnections = connectionsData.map(conn => ({
+        const formattedConnections = connectionsData.map((conn) => ({
           id: conn.id,
           name: conn.targetName,
           zodiacSign: conn.targetData?.zodiacSign || 'Unknown',
           compatibility: Math.floor(Math.random() * 40) + 60, // Временно рандомная совместимость
         }));
-        
+
         setConnections(formattedConnections);
       } catch (error) {
         console.error('Error loading real connections data:', error);
@@ -115,7 +138,7 @@ export default function ConnectionsScreen() {
       zodiacSign: 'Aries', // Здесь будет расчёт знака зодиака
       compatibility: Math.floor(Math.random() * 40) + 60, // Случайная совместимость
     };
-    setConnections(prev => [newConnection, ...prev]);
+    setConnections((prev) => [newConnection, ...prev]);
   };
 
   const handleConnectionPress = (connection: any) => {
@@ -135,7 +158,7 @@ export default function ConnectionsScreen() {
         <AnimatedStars />
         <CosmicBackground />
         <ZodiacWheel />
-        
+
         <View style={styles.loaderContainer}>
           <ShimmerLoader width={width * 0.8} height={30} borderRadius={15} />
           <View style={{ height: 20 }} />
@@ -143,7 +166,11 @@ export default function ConnectionsScreen() {
           <View style={{ height: 40 }} />
           {[1, 2, 3].map((i) => (
             <View key={i} style={{ marginBottom: 15 }}>
-              <ShimmerLoader width={width * 0.9} height={100} borderRadius={15} />
+              <ShimmerLoader
+                width={width * 0.9}
+                height={100}
+                borderRadius={15}
+              />
             </View>
           ))}
         </View>
@@ -162,7 +189,7 @@ export default function ConnectionsScreen() {
         <AnimatedStars />
         <CosmicBackground />
         <ZodiacWheel />
-        
+
         <View style={styles.authRequiredContainer}>
           <Text style={styles.authRequiredTitle}>Требуется авторизация</Text>
           <Text style={styles.authRequiredSubtitle}>
@@ -181,7 +208,7 @@ export default function ConnectionsScreen() {
       <AnimatedStars />
       <CosmicBackground />
       <ZodiacWheel />
-      
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -200,7 +227,10 @@ export default function ConnectionsScreen() {
         </Animated.View>
 
         {/* Add Button */}
-        <Animated.View entering={SlideInUp.delay(400)} style={styles.addButtonContainer}>
+        <Animated.View
+          entering={SlideInUp.delay(400)}
+          style={styles.addButtonContainer}
+        >
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setShowAddModal(true)}
@@ -234,7 +264,11 @@ export default function ConnectionsScreen() {
         {/* Empty State */}
         {connections.length === 0 && (
           <Animated.View entering={FadeIn.delay(600)} style={styles.emptyState}>
-            <Ionicons name="people-outline" size={80} color="rgba(255, 255, 255, 0.3)" />
+            <Ionicons
+              name="people-outline"
+              size={80}
+              color="rgba(255, 255, 255, 0.3)"
+            />
             <Text style={styles.emptyTitle}>Нет связей</Text>
             <Text style={styles.emptySubtitle}>
               Добавьте первую астрологическую связь для анализа совместимости

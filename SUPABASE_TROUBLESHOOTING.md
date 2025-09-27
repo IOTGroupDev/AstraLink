@@ -5,11 +5,13 @@
 ## ❌ Ошибка: "relation 'users' already exists"
 
 ### Проблема
+
 ```
 ERROR: 42P07: relation "users" already exists
 ```
 
 ### Причина
+
 Таблицы уже существуют в Supabase, но схема пытается создать их заново.
 
 ### Решение
@@ -17,6 +19,7 @@ ERROR: 42P07: relation "users" already exists
 #### Вариант 1: Использовать безопасную схему (рекомендуется)
 
 1. **В Supabase SQL Editor** выполните содержимое файла:
+
    ```
    backend/supabase-schema-safe.sql
    ```
@@ -31,6 +34,7 @@ ERROR: 42P07: relation "users" already exists
 ⚠️ **ВНИМАНИЕ: Это удалит все данные!**
 
 1. **Выполните скрипт сброса:**
+
    ```
    backend/supabase-reset.sql
    ```
@@ -55,7 +59,9 @@ ERROR: 42P07: relation "users" already exists
 ## ❌ Ошибка: "function handle_new_user() already exists"
 
 ### Решение
+
 Безопасная схема автоматически заменяет функции:
+
 ```sql
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 ```
@@ -63,7 +69,9 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 ## ❌ Ошибка: "policy already exists"
 
 ### Решение
+
 Безопасная схема удаляет существующие политики:
+
 ```sql
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 ```
@@ -78,6 +86,7 @@ cat backend/.env | grep SUPABASE
 ```
 
 Должно быть:
+
 ```env
 SUPABASE_URL="https://your-project.supabase.co"
 SUPABASE_ANON_KEY="eyJ..."
@@ -99,7 +108,7 @@ curl -H "apikey: YOUR_ANON_KEY" \
 
 1. **В Supabase Dashboard** → **Authentication** → **Settings**
 2. **Site URL**: `http://localhost:3000`
-3. **Redirect URLs**: 
+3. **Redirect URLs**:
    - `http://localhost:3000/api/auth/callback`
    - `http://localhost:8081`
 
@@ -107,8 +116,8 @@ curl -H "apikey: YOUR_ANON_KEY" \
 
 ```sql
 -- Проверьте активные политики
-SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual 
-FROM pg_policies 
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual
+FROM pg_policies
 WHERE schemaname = 'public';
 ```
 
@@ -137,8 +146,8 @@ curl http://localhost:3000/api
 
 ```sql
 -- Список всех таблиц
-SELECT table_name 
-FROM information_schema.tables 
+SELECT table_name
+FROM information_schema.tables
 WHERE table_schema = 'public';
 ```
 
@@ -146,8 +155,8 @@ WHERE table_schema = 'public';
 
 ```sql
 -- Список политик
-SELECT tablename, policyname, cmd 
-FROM pg_policies 
+SELECT tablename, policyname, cmd
+FROM pg_policies
 WHERE schemaname = 'public';
 ```
 
@@ -155,8 +164,8 @@ WHERE schemaname = 'public';
 
 ```sql
 -- Список функций
-SELECT routine_name 
-FROM information_schema.routines 
+SELECT routine_name
+FROM information_schema.routines
 WHERE routine_schema = 'public';
 ```
 

@@ -22,7 +22,9 @@ interface EditProfileScreenProps {
   navigation: any;
 }
 
-const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
+const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
+  navigation,
+}) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState<UpdateProfileRequest>({});
   const [loading, setLoading] = useState(true);
@@ -54,13 +56,13 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
   const handleSave = async () => {
     try {
       setSaving(true);
-      
+
       // Валидация
       if (!formData.name?.trim()) {
         Alert.alert('Ошибка', 'Пожалуйста, введите имя');
         return;
       }
-      
+
       if (!formData.birthDate) {
         Alert.alert('Ошибка', 'Пожалуйста, введите дату рождения');
         return;
@@ -68,7 +70,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
 
       await userAPI.updateProfile(formData);
       Alert.alert('Успех', 'Профиль обновлен', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -90,16 +92,15 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
   return (
     <View style={styles.container}>
       <CosmicBackground />
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
@@ -111,14 +112,15 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
 
           {/* Form */}
           <View style={styles.form}>
-            
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Основная информация</Text>
-              
+
               <AstralInput
                 label="Имя"
                 value={formData.name || ''}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, name: text })
+                }
                 placeholder="Введите ваше имя"
                 icon="person-outline"
               />
@@ -126,7 +128,9 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               <AstralDateTimePicker
                 placeholder="Дата рождения"
                 value={formData.birthDate || ''}
-                onChangeText={(text) => setFormData({ ...formData, birthDate: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, birthDate: text })
+                }
                 icon="calendar"
                 mode="date"
                 required
@@ -136,7 +140,9 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               <AstralDateTimePicker
                 placeholder="Время рождения"
                 value={formData.birthTime || ''}
-                onChangeText={(text) => setFormData({ ...formData, birthTime: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, birthTime: text })
+                }
                 icon="time"
                 mode="time"
                 animationValue={{ value: 1 }}
@@ -145,7 +151,9 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
               <AstralInput
                 label="Место рождения"
                 value={formData.birthPlace || ''}
-                onChangeText={(text) => setFormData({ ...formData, birthPlace: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, birthPlace: text })
+                }
                 placeholder="Город, страна"
                 icon="location-outline"
               />
@@ -153,9 +161,14 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
 
             {/* Info Block */}
             <View style={styles.infoBlock}>
-              <Ionicons name="information-circle-outline" size={20} color="#8B5CF6" />
+              <Ionicons
+                name="information-circle-outline"
+                size={20}
+                color="#8B5CF6"
+              />
               <Text style={styles.infoText}>
-                Точные данные рождения необходимы для составления персональной натальной карты и расчета транзитов.
+                Точные данные рождения необходимы для составления персональной
+                натальной карты и расчета транзитов.
               </Text>
             </View>
 
@@ -179,7 +192,6 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => 
                 )}
               </LinearGradient>
             </TouchableOpacity>
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -281,4 +293,3 @@ const styles = StyleSheet.create({
 });
 
 export default EditProfileScreen;
-

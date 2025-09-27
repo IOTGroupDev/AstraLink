@@ -63,15 +63,18 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
         >
           <View style={styles.leftContent}>
             {icon && (
-              <View style={[styles.iconContainer, { backgroundColor: `${iconColor}20` }]}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: `${iconColor}20` },
+                ]}
+              >
                 <Ionicons name={icon} size={24} color={iconColor} />
               </View>
             )}
             <View style={styles.textContainer}>
               <Text style={[styles.title, { color: textColor }]}>{title}</Text>
-              {subtitle && (
-                <Text style={styles.subtitle}>{subtitle}</Text>
-              )}
+              {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
             </View>
           </View>
 
@@ -85,7 +88,11 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
                 ios_backgroundColor="#374151"
               />
             ) : (
-              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color="rgba(255, 255, 255, 0.5)"
+              />
             )}
           </View>
         </TouchableOpacity>

@@ -9,17 +9,17 @@ interface PlanetIconProps {
   glow?: boolean;
 }
 
-const PlanetIcon: React.FC<PlanetIconProps> = ({ 
-  planet, 
-  size = 24, 
-  color = '#fff', 
-  glow = false 
+const PlanetIcon: React.FC<PlanetIconProps> = ({
+  planet,
+  size = 24,
+  color = '#fff',
+  glow = false,
 }) => {
   const getPlanetIcon = (planetName: string) => {
     if (!planetName || typeof planetName !== 'string') {
       return 'planet';
     }
-    
+
     const iconMap: { [key: string]: string } = {
       sun: 'sunny',
       moon: 'moon',
@@ -39,7 +39,7 @@ const PlanetIcon: React.FC<PlanetIconProps> = ({
     if (!planetName || typeof planetName !== 'string') {
       return color;
     }
-    
+
     const colorMap: { [key: string]: string } = {
       sun: '#FFD700',
       moon: '#C0C0C0',
@@ -60,11 +60,7 @@ const PlanetIcon: React.FC<PlanetIconProps> = ({
 
   return (
     <View style={[styles.container, glow && styles.glow]}>
-      <Ionicons 
-        name={iconName as any} 
-        size={size} 
-        color={planetColor} 
-      />
+      <Ionicons name={iconName as any} size={size} color={planetColor} />
     </View>
   );
 };

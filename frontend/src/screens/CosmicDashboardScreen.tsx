@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   Dimensions,
-  RefreshControl 
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -34,11 +34,11 @@ const CosmicDashboardScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      
+
       // Загружаем текущие позиции планет и предсказания параллельно
       const [planetsData, predictionsData] = await Promise.all([
         chartAPI.getCurrentPlanets(),
-        chartAPI.getPredictions(selectedPeriod)
+        chartAPI.getPredictions(selectedPeriod),
       ]);
 
       setCurrentPlanets(planetsData);
@@ -71,7 +71,7 @@ const CosmicDashboardScreen: React.FC = () => {
   }, []);
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       refreshControl={
         <RefreshControl
@@ -87,25 +87,30 @@ const CosmicDashboardScreen: React.FC = () => {
           <Ionicons name="planet" size={28} color="#8B5CF6" />
           <Text style={styles.title}>Космический Дашборд</Text>
         </View>
-        <Text style={styles.subtitle}>Текущие позиции планет и предсказания</Text>
+        <Text style={styles.subtitle}>
+          Текущие позиции планет и предсказания
+        </Text>
       </Animated.View>
 
       {/* Солнечная система */}
-      <Animated.View entering={FadeInUp.delay(200)} style={styles.solarSystemContainer}>
+      <Animated.View
+        entering={FadeInUp.delay(200)}
+        style={styles.solarSystemContainer}
+      >
         <View style={styles.sectionHeader}>
           <Ionicons name="solar" size={20} color="#8B5CF6" />
           <Text style={styles.sectionTitle}>Солнечная система</Text>
         </View>
         <View style={styles.solarSystemWrapper}>
-          <SolarSystem 
-            currentPlanets={currentPlanets} 
-            isLoading={isLoading}
-          />
+          <SolarSystem currentPlanets={currentPlanets} isLoading={isLoading} />
         </View>
       </Animated.View>
 
       {/* Переключатель периодов */}
-      <Animated.View entering={FadeInUp.delay(300)} style={styles.periodSelector}>
+      <Animated.View
+        entering={FadeInUp.delay(300)}
+        style={styles.periodSelector}
+      >
         <Text style={styles.selectorTitle}>Период предсказаний:</Text>
         <View style={styles.periodButtons}>
           {periods.map((period) => (
@@ -113,19 +118,22 @@ const CosmicDashboardScreen: React.FC = () => {
               key={period.key}
               style={[
                 styles.periodButton,
-                selectedPeriod === period.key && styles.periodButtonActive
+                selectedPeriod === period.key && styles.periodButtonActive,
               ]}
               onPress={() => handlePeriodChange(period.key)}
             >
-              <Ionicons 
-                name={period.icon as any} 
-                size={16} 
-                color={selectedPeriod === period.key ? '#FFFFFF' : '#8B5CF6'} 
+              <Ionicons
+                name={period.icon as any}
+                size={16}
+                color={selectedPeriod === period.key ? '#FFFFFF' : '#8B5CF6'}
               />
-              <Text style={[
-                styles.periodButtonText,
-                selectedPeriod === period.key && styles.periodButtonTextActive
-              ]}>
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  selectedPeriod === period.key &&
+                    styles.periodButtonTextActive,
+                ]}
+              >
                 {period.label}
               </Text>
             </TouchableOpacity>
@@ -135,7 +143,7 @@ const CosmicDashboardScreen: React.FC = () => {
 
       {/* Предсказания */}
       {predictions && (
-        <PredictionsCard 
+        <PredictionsCard
           predictions={predictions.predictions}
           period={selectedPeriod}
           isLoading={isLoading}
@@ -143,29 +151,42 @@ const CosmicDashboardScreen: React.FC = () => {
       )}
 
       {/* Кнопка натальной карты */}
-      <Animated.View entering={FadeInUp.delay(400)} style={styles.natalChartContainer}>
-        <TouchableOpacity 
+      <Animated.View
+        entering={FadeInUp.delay(400)}
+        style={styles.natalChartContainer}
+      >
+        <TouchableOpacity
           style={styles.natalChartButton}
           onPress={() => navigation.navigate('MyChart' as never)}
         >
           <Ionicons name="star" size={24} color="#FFFFFF" />
           <View style={styles.natalChartContent}>
             <Text style={styles.natalChartTitle}>Моя Натальная Карта</Text>
-            <Text style={styles.natalChartSubtitle}>Посмотреть детальную карту</Text>
+            <Text style={styles.natalChartSubtitle}>
+              Посмотреть детальную карту
+            </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.6)" />
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="rgba(255, 255, 255, 0.6)"
+          />
         </TouchableOpacity>
       </Animated.View>
 
       {/* Дополнительная информация */}
-      <Animated.View entering={FadeInUp.delay(500)} style={styles.infoContainer}>
+      <Animated.View
+        entering={FadeInUp.delay(500)}
+        style={styles.infoContainer}
+      >
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#8B5CF6" />
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>Как это работает?</Text>
             <Text style={styles.infoText}>
-              Астрологические предсказания основаны на анализе текущих позиций планет 
-              относительно вашей натальной карты. Каждая планета влияет на разные сферы жизни.
+              Астрологические предсказания основаны на анализе текущих позиций
+              планет относительно вашей натальной карты. Каждая планета влияет
+              на разные сферы жизни.
             </Text>
           </View>
         </View>

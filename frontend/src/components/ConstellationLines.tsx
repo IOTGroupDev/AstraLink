@@ -8,7 +8,12 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,7 +27,7 @@ const ConstellationLines: React.FC = () => {
       -1,
       false
     );
-    
+
     glow.value = withRepeat(
       withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -78,13 +83,19 @@ const ConstellationLines: React.FC = () => {
       <Animated.View style={[styles.constellationContainer, animatedStyle]}>
         <Svg width={width} height={height} style={styles.svg}>
           <Defs>
-            <SvgGradient id="constellationGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <SvgGradient
+              id="constellationGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.6" />
               <Stop offset="50%" stopColor="#3B82F6" stopOpacity="0.4" />
               <Stop offset="100%" stopColor="#1E40AF" stopOpacity="0.2" />
             </SvgGradient>
           </Defs>
-          
+
           {constellations.map((constellation) => (
             <g key={constellation.id}>
               {constellation.paths.map((path, index) => (

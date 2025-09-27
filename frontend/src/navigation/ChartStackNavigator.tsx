@@ -12,10 +12,7 @@ export default function ChartStackNavigator() {
         cardStyle: { backgroundColor: 'transparent' },
       }}
     >
-      <Stack.Screen 
-        name="MyChart" 
-        component={MyChartScreen}
-      />
+      <Stack.Screen name="MyChart" component={MyChartScreen} />
     </Stack.Navigator>
   );
 }

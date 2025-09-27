@@ -30,32 +30,35 @@ const SUBSCRIPTION_LEVELS = {
     color: '#6B7280',
     gradient: ['#6B7280', '#4B5563'],
     icon: 'star-outline',
-    features: ['Базовые функции', 'Лимитированный доступ']
+    features: ['Базовые функции', 'Лимитированный доступ'],
   },
   basic: {
     name: 'AstraPlus',
     color: '#8B5CF6',
     gradient: ['#8B5CF6', '#7C3AED'],
     icon: 'star',
-    features: ['Полные натальные карты', 'Транзиты', 'Совместимость']
+    features: ['Полные натальные карты', 'Транзиты', 'Совместимость'],
   },
   premium: {
     name: 'DatingPremium',
     color: '#EC4899',
     gradient: ['#EC4899', '#DB2777'],
     icon: 'heart',
-    features: ['Неограниченные лайки', 'Супер-лайки', 'Кто лайкнул']
+    features: ['Неограниченные лайки', 'Супер-лайки', 'Кто лайкнул'],
   },
   max: {
     name: 'MAX',
     color: '#F59E0B',
     gradient: ['#F59E0B', '#D97706', '#DC2626'],
     icon: 'diamond',
-    features: ['Все функции', 'Приоритетная поддержка', 'Эксклюзивный контент']
-  }
+    features: ['Все функции', 'Приоритетная поддержка', 'Эксклюзивный контент'],
+  },
 };
 
-const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpgrade }) => {
+const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
+  subscription,
+  onUpgrade,
+}) => {
   const glowAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(1);
 
@@ -79,7 +82,8 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpg
   };
 
   const currentLevel = subscription?.tier || 'free';
-  const levelConfig = SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
+  const levelConfig =
+    SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
 
   const animatedGlowStyle = useAnimatedStyle(() => {
     return {
@@ -98,22 +102,27 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpg
     return date.toLocaleDateString('ru-RU', {
       day: 'numeric',
       month: 'long',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
-  const isExpired = subscription?.expiresAt 
+  const isExpired = subscription?.expiresAt
     ? new Date(subscription.expiresAt) < new Date()
     : false;
 
   const daysLeft = subscription?.expiresAt
-    ? Math.max(0, Math.ceil((new Date(subscription.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(
+        0,
+        Math.ceil(
+          (new Date(subscription.expiresAt).getTime() - new Date().getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      )
     : 0;
 
   return (
     <Animated.View style={[styles.container, animatedScaleStyle]}>
       <View style={styles.card}>
-        
         {/* Background Glow */}
         <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
           <LinearGradient
@@ -129,7 +138,6 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpg
           colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
           style={styles.cardGradient}
         >
-          
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.levelBadge}>
@@ -137,16 +145,16 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpg
                 colors={levelConfig.gradient}
                 style={styles.badgeGradient}
               >
-                <Ionicons 
-                  name={levelConfig.icon} 
-                  size={20} 
-                  color="#fff" 
+                <Ionicons
+                  name={levelConfig.icon}
+                  size={20}
+                  color="#fff"
                   style={styles.badgeIcon}
                 />
                 <Text style={styles.levelName}>{levelConfig.name}</Text>
               </LinearGradient>
             </View>
-            
+
             {currentLevel !== 'max' && (
               <TouchableOpacity
                 style={styles.upgradeButton}
@@ -181,7 +189,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpg
                     Активна до {formatExpiryDate(subscription?.expiresAt || '')}
                   </Text>
                 )}
-                
+
                 {!isExpired && daysLeft <= 7 && (
                   <View style={styles.warningContainer}>
                     <Ionicons name="warning" size={16} color="#F59E0B" />
@@ -198,32 +206,38 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({ subscription, onUpg
           <View style={styles.featuresContainer}>
             {levelConfig.features.map((feature, index) => (
               <View key={index} style={styles.featureItem}>
-                <View style={[styles.featureDot, { backgroundColor: levelConfig.color }]} />
+                <View
+                  style={[
+                    styles.featureDot,
+                    { backgroundColor: levelConfig.color },
+                  ]}
+                />
                 <Text style={styles.featureText}>{feature}</Text>
               </View>
             ))}
           </View>
 
           {/* Progress Bar (for non-free users) */}
-          {subscription?.tier !== 'free' && subscription?.expiresAt && !isExpired && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <LinearGradient
-                  colors={levelConfig.gradient}
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.max(10, (daysLeft / 30) * 100)}%`
-                    }
-                  ]}
-                />
+          {subscription?.tier !== 'free' &&
+            subscription?.expiresAt &&
+            !isExpired && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <LinearGradient
+                    colors={levelConfig.gradient}
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${Math.max(10, (daysLeft / 30) * 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {daysLeft} дней осталось
+                </Text>
               </View>
-              <Text style={styles.progressText}>
-                {daysLeft} дней осталось
-              </Text>
-            </View>
-          )}
-
+            )}
         </LinearGradient>
       </View>
     </Animated.View>

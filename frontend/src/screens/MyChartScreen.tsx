@@ -49,7 +49,7 @@ const MyChartScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Проверяем, есть ли токен
       const token = await getStoredToken();
       if (!token) {
@@ -58,35 +58,40 @@ const MyChartScreen: React.FC = () => {
         navigation.navigate('Login');
         return;
       }
-      
+
       // Для авторизованных пользователей - реальные API вызовы
       try {
-        console.log('🔍 Загружаю реальные данные карты для токена:', token.substring(0, 20) + '...');
-        
+        console.log(
+          '🔍 Загружаю реальные данные карты для токена:',
+          token.substring(0, 20) + '...'
+        );
+
         const [chartData, transitsData, planetsData] = await Promise.all([
           chartAPI.getNatalChart(),
           chartAPI.getTransits(
             new Date().toISOString().split('T')[0],
-            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split('T')[0]
           ),
-          chartAPI.getCurrentPlanets()
+          chartAPI.getCurrentPlanets(),
         ]);
-        
-          console.log('✅ Получены реальные данные карты:', chartData);
-          console.log('✅ Получены реальные транзиты:', transitsData);
-          console.log('✅ Получены текущие планеты:', planetsData);
-          console.log('🔍 Структура chartData:', {
-            hasPlanets: !!chartData.planets,
-            planetsType: typeof chartData.planets,
-            planetsValue: chartData.planets,
-            hasData: !!chartData.data,
-            dataType: typeof chartData.data,
-            dataValue: chartData.data
-          });
 
-          setChart(chartData);
-          setTransits(transitsData);
-          setCurrentPlanets(planetsData.planets);
+        console.log('✅ Получены реальные данные карты:', chartData);
+        console.log('✅ Получены реальные транзиты:', transitsData);
+        console.log('✅ Получены текущие планеты:', planetsData);
+        console.log('🔍 Структура chartData:', {
+          hasPlanets: !!chartData.planets,
+          planetsType: typeof chartData.planets,
+          planetsValue: chartData.planets,
+          hasData: !!chartData.data,
+          dataType: typeof chartData.data,
+          dataValue: chartData.data,
+        });
+
+        setChart(chartData);
+        setTransits(transitsData);
+        setCurrentPlanets(planetsData.planets);
       } catch (error) {
         console.error('Error loading real chart data:', error);
         // Если нет данных профиля или карты не создана, создаем автоматически
@@ -99,7 +104,7 @@ const MyChartScreen: React.FC = () => {
           } catch (createError) {
             console.error('Error creating chart:', createError);
             Alert.alert(
-              'Необходимо создать натальную карту', 
+              'Необходимо создать натальную карту',
               'Пожалуйста, заполните данные о рождении в профиле для создания астрологической карты.',
               [{ text: 'OK' }]
             );
@@ -122,24 +127,28 @@ const MyChartScreen: React.FC = () => {
   const loadAllPredictions = async () => {
     try {
       console.log('🔮 Загружаю прогнозы...');
-      console.log('🔍 Текущее состояние:', { chart: !!chart, currentPlanets: !!currentPlanets });
-      
-      const [dayPredictions, tomorrowPredictions, weekPredictions] = await Promise.all([
-        chartAPI.getPredictions('day'),
-        chartAPI.getPredictions('tomorrow'),
-        chartAPI.getPredictions('week')
-      ]);
+      console.log('🔍 Текущее состояние:', {
+        chart: !!chart,
+        currentPlanets: !!currentPlanets,
+      });
+
+      const [dayPredictions, tomorrowPredictions, weekPredictions] =
+        await Promise.all([
+          chartAPI.getPredictions('day'),
+          chartAPI.getPredictions('tomorrow'),
+          chartAPI.getPredictions('week'),
+        ]);
 
       console.log('✅ Получены прогнозы:', {
         day: dayPredictions,
         tomorrow: tomorrowPredictions,
-        week: weekPredictions
+        week: weekPredictions,
       });
 
       const newPredictions = {
         day: dayPredictions.predictions || {},
         tomorrow: tomorrowPredictions.predictions || {},
-        week: weekPredictions.predictions || {}
+        week: weekPredictions.predictions || {},
       };
 
       console.log('🔮 Устанавливаю прогнозы:', newPredictions);
@@ -150,7 +159,7 @@ const MyChartScreen: React.FC = () => {
       setPredictions({
         day: { general: 'Ошибка загрузки прогноза на сегодня' },
         tomorrow: { general: 'Ошибка загрузки прогноза на завтра' },
-        week: { general: 'Ошибка загрузки прогноза на неделю' }
+        week: { general: 'Ошибка загрузки прогноза на неделю' },
       });
     }
   };
@@ -160,10 +169,10 @@ const MyChartScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    console.log('🔍 useEffect для loadAllPredictions:', { 
-      currentPlanets: !!currentPlanets, 
+    console.log('🔍 useEffect для loadAllPredictions:', {
+      currentPlanets: !!currentPlanets,
       chart: !!chart,
-      predictions: !!predictions 
+      predictions: !!predictions,
     });
     if (currentPlanets && chart) {
       console.log('🚀 Вызываю loadAllPredictions...');
@@ -173,94 +182,108 @@ const MyChartScreen: React.FC = () => {
 
   const getCurrentEnergy = () => {
     if (!chart) return 75;
-    
+
     // Для реальных данных карты используем аспекты из chart.data.aspects
     if (chart.data && chart.data.aspects) {
       let energy = 50;
       const aspectCount = chart.data.aspects.length;
       energy += aspectCount * 2;
-      
+
       // Добавляем бонус за гармоничные аспекты и их силу
-      const harmoniousAspects = chart.data.aspects.filter(aspect => 
+      const harmoniousAspects = chart.data.aspects.filter((aspect) =>
         ['trine', 'sextile', 'conjunction'].includes(aspect.aspect)
       );
-      
-      const harmonyBonus = harmoniousAspects.reduce((sum, aspect) => 
-        sum + (aspect.strength || 0.5) * 15, 0
+
+      const harmonyBonus = harmoniousAspects.reduce(
+        (sum, aspect) => sum + (aspect.strength || 0.5) * 15,
+        0
       );
-      
+
       energy += harmonyBonus;
-      
+
       return Math.min(100, Math.max(0, Math.round(energy)));
     }
-    
+
     // Fallback для старого формата
     if (transits && transits.transits && transits.transits.length > 0) {
       let energy = 50;
       const transitCount = transits.transits.length;
       energy += transitCount * 5;
-      
-      const harmoniousAspects = transits.transits.filter(transit => 
+
+      const harmoniousAspects = transits.transits.filter((transit) =>
         ['trine', 'sextile', 'conjunction'].includes(transit.aspect)
       ).length;
       energy += harmoniousAspects * 10;
-      
+
       return Math.min(100, Math.max(0, energy));
     }
-    
+
     return 75; // Дефолтное значение
   };
 
   const getMainTransit = () => {
     console.log('🔍 getMainTransit - chart:', !!chart);
     console.log('🔍 getMainTransit - chart.data:', !!chart?.data);
-    console.log('🔍 getMainTransit - aspects:', chart?.data?.aspects?.length || 0);
+    console.log(
+      '🔍 getMainTransit - aspects:',
+      chart?.data?.aspects?.length || 0
+    );
     console.log('🔍 getMainTransit - transits:', !!transits);
-    
+
     // Для реальных данных используем самый сильный аспект из натальной карты
-    if (chart && chart.data && chart.data.aspects && chart.data.aspects.length > 0) {
+    if (
+      chart &&
+      chart.data &&
+      chart.data.aspects &&
+      chart.data.aspects.length > 0
+    ) {
       // Находим самый сильный аспект
-      const strongestAspect = chart.data.aspects.reduce((strongest, current) => 
-        (current.strength || 0) > (strongest.strength || 0) ? current : strongest
+      const strongestAspect = chart.data.aspects.reduce((strongest, current) =>
+        (current.strength || 0) > (strongest.strength || 0)
+          ? current
+          : strongest
       );
-      
+
       console.log('✅ Найден сильнейший аспект:', strongestAspect);
-      
+
       // Переводим названия планет на русский
       const planetNames = {
-        'sun': 'Солнце',
-        'moon': 'Луна', 
-        'mercury': 'Меркурий',
-        'venus': 'Венера',
-        'mars': 'Марс',
-        'jupiter': 'Юпитер',
-        'saturn': 'Сатурн',
-        'uranus': 'Уран',
-        'neptune': 'Нептун',
-        'pluto': 'Плутон'
+        sun: 'Солнце',
+        moon: 'Луна',
+        mercury: 'Меркурий',
+        venus: 'Венера',
+        mars: 'Марс',
+        jupiter: 'Юпитер',
+        saturn: 'Сатурн',
+        uranus: 'Уран',
+        neptune: 'Нептун',
+        pluto: 'Плутон',
       };
-      
+
       const aspectNames = {
-        'conjunction': 'соединении',
-        'opposition': 'оппозиции', 
-        'trine': 'тригоне',
-        'square': 'квадрате',
-        'sextile': 'секстиле'
+        conjunction: 'соединении',
+        opposition: 'оппозиции',
+        trine: 'тригоне',
+        square: 'квадрате',
+        sextile: 'секстиле',
       };
-      
-      const planetA = planetNames[strongestAspect.planetA] || strongestAspect.planetA;
-      const planetB = planetNames[strongestAspect.planetB] || strongestAspect.planetB;
-      const aspect = aspectNames[strongestAspect.aspect] || strongestAspect.aspect;
-      
+
+      const planetA =
+        planetNames[strongestAspect.planetA] || strongestAspect.planetA;
+      const planetB =
+        planetNames[strongestAspect.planetB] || strongestAspect.planetB;
+      const aspect =
+        aspectNames[strongestAspect.aspect] || strongestAspect.aspect;
+
       return {
         name: planetA,
         aspect: strongestAspect.aspect,
         targetPlanet: planetB,
         strength: strongestAspect.strength,
-        description: `${planetA} в ${aspect} с ${planetB}`
+        description: `${planetA} в ${aspect} с ${planetB}`,
       };
     }
-    
+
     // Fallback для старого формата транзитов
     if (transits && transits.transits && transits.transits.length > 0) {
       const mainTransit = transits.transits[0];
@@ -270,10 +293,10 @@ const MyChartScreen: React.FC = () => {
         degree: mainTransit.degree,
         house: mainTransit.house,
         aspect: mainTransit.aspect,
-        description: mainTransit.description
+        description: mainTransit.description,
       };
     }
-    
+
     console.log('❌ Нет данных для главного транзита');
     return null;
   };
@@ -281,15 +304,15 @@ const MyChartScreen: React.FC = () => {
   const getDailyAdvice = () => {
     const energy = getCurrentEnergy();
     const mainTransit = getMainTransit();
-    
+
     if (energy > 80) {
-      return "Сегодня отличный день для новых начинаний! Ваша энергия на пике.";
+      return 'Сегодня отличный день для новых начинаний! Ваша энергия на пике.';
     } else if (energy > 60) {
-      return "Хорошее время для планирования и реализации текущих проектов.";
+      return 'Хорошее время для планирования и реализации текущих проектов.';
     } else if (energy > 40) {
-      return "День для размышлений и внутренней работы. Отдохните и восстановите силы.";
+      return 'День для размышлений и внутренней работы. Отдохните и восстановите силы.';
     } else {
-      return "Время для медитации и восстановления. Слушайте свой внутренний голос.";
+      return 'Время для медитации и восстановления. Слушайте свой внутренний голос.';
     }
   };
 
@@ -301,12 +324,18 @@ const MyChartScreen: React.FC = () => {
       >
         <AnimatedStars />
         <ScrollView contentContainerStyle={styles.loadingContent}>
-          <Animated.View entering={FadeIn.delay(200)} style={styles.loadingHeader}>
+          <Animated.View
+            entering={FadeIn.delay(200)}
+            style={styles.loadingHeader}
+          >
             <ShimmerLoader width={200} height={40} borderRadius={20} />
             <ShimmerLoader width={150} height={20} borderRadius={10} />
           </Animated.View>
-          
-          <Animated.View entering={SlideInUp.delay(400)} style={styles.loadingCards}>
+
+          <Animated.View
+            entering={SlideInUp.delay(400)}
+            style={styles.loadingCards}
+          >
             <ShimmerLoader width="100%" height={120} borderRadius={15} />
             <ShimmerLoader width="100%" height={100} borderRadius={15} />
             <ShimmerLoader width="100%" height={80} borderRadius={15} />
@@ -323,7 +352,7 @@ const MyChartScreen: React.FC = () => {
     >
       <AnimatedStars />
       <AstrologicalChart />
-      
+
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -342,29 +371,32 @@ const MyChartScreen: React.FC = () => {
           <Text style={styles.subtitle}>Астрологический дашборд</Text>
           {currentPlanets && (
             <Text style={styles.planetsInfo}>
-              Позиции на {currentPlanets.date ? 
-                new Date(currentPlanets.date).toLocaleDateString('ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : 
-                new Date().toLocaleDateString('ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })
-              }
+              Позиции на{' '}
+              {currentPlanets.date
+                ? new Date(currentPlanets.date).toLocaleDateString('ru-RU', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                : new Date().toLocaleDateString('ru-RU', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
             </Text>
           )}
         </Animated.View>
 
         {/* Solar System Widget */}
         {currentPlanets && (
-          <Animated.View entering={SlideInUp.delay(300)} style={styles.solarSystemWidget}>
+          <Animated.View
+            entering={SlideInUp.delay(300)}
+            style={styles.solarSystemWidget}
+          >
             <Text style={styles.widgetTitle}>Текущее положение планет</Text>
             <View style={styles.solarSystemContainer}>
-              <SolarSystem 
-                currentPlanets={currentPlanets} 
+              <SolarSystem
+                currentPlanets={currentPlanets}
                 isLoading={loading}
               />
             </View>
@@ -372,7 +404,10 @@ const MyChartScreen: React.FC = () => {
         )}
 
         {/* Energy Card */}
-        <Animated.View entering={SlideInUp.delay(400)} style={styles.energyCard}>
+        <Animated.View
+          entering={SlideInUp.delay(400)}
+          style={styles.energyCard}
+        >
           <View style={styles.energyHeader}>
             <Text style={styles.cardTitle}>Энергия дня</Text>
             <Text style={styles.energyAdvice}>{getDailyAdvice()}</Text>
@@ -381,28 +416,36 @@ const MyChartScreen: React.FC = () => {
             <EnergyIndicator energy={getCurrentEnergy()} />
             <View style={styles.energyDetails}>
               <Text style={styles.energyLevel}>
-                {getCurrentEnergy() > 80 ? 'Высокая' : 
-                 getCurrentEnergy() > 60 ? 'Хорошая' : 
-                 getCurrentEnergy() > 40 ? 'Средняя' : 'Низкая'}
+                {getCurrentEnergy() > 80
+                  ? 'Высокая'
+                  : getCurrentEnergy() > 60
+                    ? 'Хорошая'
+                    : getCurrentEnergy() > 40
+                      ? 'Средняя'
+                      : 'Низкая'}
               </Text>
               <Text style={styles.energyDescription}>
-                {getCurrentEnergy() > 80 ? 'Отличное время для активных действий' : 
-                 getCurrentEnergy() > 60 ? 'Хорошее время для планирования' : 
-                 getCurrentEnergy() > 40 ? 'Время для размышлений' : 'Время для отдыха и восстановления'}
+                {getCurrentEnergy() > 80
+                  ? 'Отличное время для активных действий'
+                  : getCurrentEnergy() > 60
+                    ? 'Хорошее время для планирования'
+                    : getCurrentEnergy() > 40
+                      ? 'Время для размышлений'
+                      : 'Время для отдыха и восстановления'}
               </Text>
             </View>
           </View>
         </Animated.View>
 
         {/* Main Transit Card */}
-        <Animated.View entering={SlideInUp.delay(600)} style={styles.transitCard}>
+        <Animated.View
+          entering={SlideInUp.delay(600)}
+          style={styles.transitCard}
+        >
           <Text style={styles.cardTitle}>Главный транзит</Text>
           {getMainTransit() ? (
             <View style={styles.transitContent}>
-              <PlanetIcon 
-                planetName={getMainTransit()!.name} 
-                size={40} 
-              />
+              <PlanetIcon planetName={getMainTransit()!.name} size={40} />
               <View style={styles.transitInfo}>
                 <Text style={styles.planetName}>
                   {getMainTransit()!.description}
@@ -420,7 +463,10 @@ const MyChartScreen: React.FC = () => {
         </Animated.View>
 
         {/* Daily Advice Card */}
-        <Animated.View entering={SlideInUp.delay(800)} style={styles.adviceCard}>
+        <Animated.View
+          entering={SlideInUp.delay(800)}
+          style={styles.adviceCard}
+        >
           <Text style={styles.cardTitle}>Совет дня</Text>
           <View style={styles.scrollContainer}>
             <Text style={styles.adviceText}>{getDailyAdvice()}</Text>
@@ -428,17 +474,24 @@ const MyChartScreen: React.FC = () => {
         </Animated.View>
 
         {/* Horoscope Widget */}
-        <HoroscopeWidget 
+        <HoroscopeWidget
           predictions={predictions}
           currentPlanets={currentPlanets}
           isLoading={loading || !predictions || !currentPlanets}
         />
 
         {/* Widgets */}
-        <Animated.View entering={SlideInRight.delay(1000)} style={styles.widgetsContainer}>
+        <Animated.View
+          entering={SlideInRight.delay(1000)}
+          style={styles.widgetsContainer}
+        >
           <Text style={styles.widgetsTitle}>Астрологические виджеты</Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.widgetsScroll}>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.widgetsScroll}
+          >
             {/* Moon Phase Widget */}
             <View style={styles.widget}>
               <MoonPhase phase={0.3} size={40} />
@@ -462,7 +515,7 @@ const MyChartScreen: React.FC = () => {
               </Text>
             </View>
           </ScrollView>
-          
+
           {/* Biorhythms Widget - отдельная строка */}
           <View style={styles.biorhythmsRow}>
             <View style={styles.biorhythmsWidget}>
@@ -474,20 +527,34 @@ const MyChartScreen: React.FC = () => {
 
         {/* Chart Summary */}
         {chart && (
-          <Animated.View entering={SlideInUp.delay(1200)} style={styles.chartSummary}>
+          <Animated.View
+            entering={SlideInUp.delay(1200)}
+            style={styles.chartSummary}
+          >
             <Text style={styles.cardTitle}>Натальная карта</Text>
             <View style={styles.planetsGrid}>
-              {chart.planets && Object.entries(chart.planets)
-                .filter(([planet, data]) => planet && data && data.sign && typeof data.degree === 'number')
-                .slice(0, 6)
-                .map(([planet, data]) => (
-                  <View key={planet} style={styles.planetItem}>
-                    <PlanetIcon planet={planet} size={20} />
-                    <Text style={styles.planetSign}>{data.sign}</Text>
-                    <Text style={styles.planetDegree}>{Math.round(data.degree)}°</Text>
-                  </View>
-                )) || (
-                <Text style={styles.noDataText}>Данные о планетах загружаются...</Text>
+              {(chart.planets &&
+                Object.entries(chart.planets)
+                  .filter(
+                    ([planet, data]) =>
+                      planet &&
+                      data &&
+                      data.sign &&
+                      typeof data.degree === 'number'
+                  )
+                  .slice(0, 6)
+                  .map(([planet, data]) => (
+                    <View key={planet} style={styles.planetItem}>
+                      <PlanetIcon planet={planet} size={20} />
+                      <Text style={styles.planetSign}>{data.sign}</Text>
+                      <Text style={styles.planetDegree}>
+                        {Math.round(data.degree)}°
+                      </Text>
+                    </View>
+                  ))) || (
+                <Text style={styles.noDataText}>
+                  Данные о планетах загружаются...
+                </Text>
               )}
             </View>
           </Animated.View>

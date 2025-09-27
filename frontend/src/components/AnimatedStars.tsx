@@ -45,12 +45,18 @@ const StarComponent: React.FC<{ star: Star }> = ({ star }) => {
 
   useEffect(() => {
     opacity.value = withRepeat(
-      withTiming(0.1, { duration: star.duration, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.1, {
+        duration: star.duration,
+        easing: Easing.inOut(Easing.sin),
+      }),
       -1,
       true
     );
     scale.value = withRepeat(
-      withTiming(1.5, { duration: star.duration, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.5, {
+        duration: star.duration,
+        easing: Easing.inOut(Easing.sin),
+      }),
       -1,
       true
     );

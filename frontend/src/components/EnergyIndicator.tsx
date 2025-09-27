@@ -21,10 +21,10 @@ interface EnergyIndicatorProps {
   color?: string;
 }
 
-const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({ 
-  energy, 
+const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
+  energy,
   size = SIZE,
-  color = '#8B5CF6' 
+  color = '#8B5CF6',
 }) => {
   const progress = useSharedValue(0);
   const rotation = useSharedValue(0);
@@ -34,7 +34,7 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
       duration: 2000,
       easing: Easing.out(Easing.cubic),
     });
-    
+
     rotation.value = withTiming(360, {
       duration: 3000,
       easing: Easing.linear,
@@ -86,7 +86,7 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
           </Animated.View>
         </Svg>
       </Animated.View>
-      
+
       <View style={styles.content}>
         <Text style={styles.energyText}>{Math.round(energy)}%</Text>
         <Text style={styles.labelText}>Энергия</Text>

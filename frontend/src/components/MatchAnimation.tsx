@@ -10,7 +10,13 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,7 +25,10 @@ interface MatchAnimationProps {
   onComplete: () => void;
 }
 
-const MatchAnimation: React.FC<MatchAnimationProps> = ({ visible, onComplete }) => {
+const MatchAnimation: React.FC<MatchAnimationProps> = ({
+  visible,
+  onComplete,
+}) => {
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const rotation = useSharedValue(0);
@@ -34,25 +43,31 @@ const MatchAnimation: React.FC<MatchAnimationProps> = ({ visible, onComplete }) 
         withTiming(1.1, { duration: 200, easing: Easing.out(Easing.quad) }),
         withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) })
       );
-      
+
       opacity.value = withTiming(1, { duration: 300 });
-      
+
       // Анимация вращения
-      rotation.value = withTiming(360, { duration: 2000, easing: Easing.linear });
-      
+      rotation.value = withTiming(360, {
+        duration: 2000,
+        easing: Easing.linear,
+      });
+
       // Анимация свечения
       glow.value = withRepeat(
         withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
         3,
         false
       );
-      
+
       // Анимация текста
-      textScale.value = withDelay(500, withSequence(
-        withTiming(1.2, { duration: 200, easing: Easing.out(Easing.quad) }),
-        withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) })
-      ));
-      
+      textScale.value = withDelay(
+        500,
+        withSequence(
+          withTiming(1.2, { duration: 200, easing: Easing.out(Easing.quad) }),
+          withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) })
+        )
+      );
+
       // Завершение анимации
       setTimeout(() => {
         onComplete();
@@ -100,7 +115,13 @@ const MatchAnimation: React.FC<MatchAnimationProps> = ({ visible, onComplete }) 
         <Animated.View style={[styles.orb1, animatedOrb1Style]}>
           <Svg width={120} height={120} style={styles.orbSvg}>
             <Defs>
-              <SvgGradient id="orb1Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <SvgGradient
+                id="orb1Gradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
                 <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="1" />
                 <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0.7" />
               </SvgGradient>
@@ -128,7 +149,13 @@ const MatchAnimation: React.FC<MatchAnimationProps> = ({ visible, onComplete }) 
         <Animated.View style={[styles.orb2, animatedOrb2Style]}>
           <Svg width={120} height={120} style={styles.orbSvg}>
             <Defs>
-              <SvgGradient id="orb2Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <SvgGradient
+                id="orb2Gradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
                 <Stop offset="0%" stopColor="#F59E0B" stopOpacity="1" />
                 <Stop offset="100%" stopColor="#EF4444" stopOpacity="0.7" />
               </SvgGradient>
@@ -174,7 +201,9 @@ const MatchAnimation: React.FC<MatchAnimationProps> = ({ visible, onComplete }) 
         {/* Match text */}
         <Animated.View style={[styles.textContainer, animatedTextStyle]}>
           <Text style={styles.matchTitle}>Соединение звёзд!</Text>
-          <Text style={styles.matchSubtitle}>Вы нашли своего космического партнёра</Text>
+          <Text style={styles.matchSubtitle}>
+            Вы нашли своего космического партнёра
+          </Text>
         </Animated.View>
       </Animated.View>
     </View>

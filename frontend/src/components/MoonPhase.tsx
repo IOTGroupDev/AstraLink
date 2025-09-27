@@ -25,7 +25,7 @@ const MoonPhase: React.FC<MoonPhaseProps> = ({ phase, size = 60 }) => {
       -1,
       false
     );
-    
+
     glow.value = withRepeat(
       withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -42,7 +42,7 @@ const MoonPhase: React.FC<MoonPhaseProps> = ({ phase, size = 60 }) => {
     const centerX = size / 2;
     const centerY = size / 2;
     const radius = size * 0.4;
-    
+
     if (phase < 0.5) {
       // Waxing moon (растущая)
       const crescentWidth = phase * 2 * radius;
@@ -55,7 +55,9 @@ const MoonPhase: React.FC<MoonPhaseProps> = ({ phase, size = 60 }) => {
   };
 
   return (
-    <Animated.View style={[styles.container, { width: size, height: size }, animatedStyle]}>
+    <Animated.View
+      style={[styles.container, { width: size, height: size }, animatedStyle]}
+    >
       <Svg width={size} height={size} style={styles.svg}>
         {/* Moon shadow */}
         <Circle

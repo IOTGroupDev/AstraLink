@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -25,9 +33,24 @@ interface CosmicChatProps {
 
 const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
   const [messages, setMessages] = useState([
-    { id: 1, text: 'Привет! Звёзды свели нас вместе ✨', isMe: false, timestamp: '12:30' },
-    { id: 2, text: 'Привет! Да, наша совместимость 85%! 🌟', isMe: true, timestamp: '12:32' },
-    { id: 3, text: 'Мне нравится твой знак зодиака', isMe: false, timestamp: '12:35' },
+    {
+      id: 1,
+      text: 'Привет! Звёзды свели нас вместе ✨',
+      isMe: false,
+      timestamp: '12:30',
+    },
+    {
+      id: 2,
+      text: 'Привет! Да, наша совместимость 85%! 🌟',
+      isMe: true,
+      timestamp: '12:32',
+    },
+    {
+      id: 3,
+      text: 'Мне нравится твой знак зодиака',
+      isMe: false,
+      timestamp: '12:35',
+    },
   ]);
   const [newMessage, setNewMessage] = useState('');
   const [showAstroHelper, setShowAstroHelper] = useState(false);
@@ -44,9 +67,12 @@ const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
         id: messages.length + 1,
         text: newMessage.trim(),
         isMe: true,
-        timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+        timestamp: new Date().toLocaleTimeString('ru-RU', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
       };
-      setMessages(prev => [...prev, message]);
+      setMessages((prev) => [...prev, message]);
       setNewMessage('');
     }
   };
@@ -70,15 +96,23 @@ const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
           </TouchableOpacity>
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.userZodiac}>{user.zodiacSign} • {user.compatibility}% совместимость</Text>
+            <Text style={styles.userZodiac}>
+              {user.zodiacSign} • {user.compatibility}% совместимость
+            </Text>
           </View>
-          <TouchableOpacity onPress={handleAstroHelper} style={styles.astroButton}>
+          <TouchableOpacity
+            onPress={handleAstroHelper}
+            style={styles.astroButton}
+          >
             <Ionicons name="sparkles" size={24} color="#8B5CF6" />
           </TouchableOpacity>
         </Animated.View>
 
         {/* Messages */}
-        <ScrollView style={styles.messagesContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.messagesContainer}
+          showsVerticalScrollIndicator={false}
+        >
           {messages.map((message) => (
             <Animated.View
               key={message.id}
@@ -89,7 +123,11 @@ const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
               ]}
             >
               <LinearGradient
-                colors={message.isMe ? ['#8B5CF6', '#3B82F6'] : ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+                colors={
+                  message.isMe
+                    ? ['#8B5CF6', '#3B82F6']
+                    : ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']
+                }
                 style={styles.messageBubble}
               >
                 <Text style={styles.messageText}>{message.text}</Text>
@@ -101,9 +139,14 @@ const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
 
         {/* Astro Helper */}
         {showAstroHelper && (
-          <Animated.View entering={SlideInUp.delay(200)} style={styles.astroHelper}>
+          <Animated.View
+            entering={SlideInUp.delay(200)}
+            style={styles.astroHelper}
+          >
             <Text style={styles.astroHelperTitle}>Астропомощник</Text>
-            <Text style={styles.astroHelperSubtitle}>Предложения для начала разговора:</Text>
+            <Text style={styles.astroHelperSubtitle}>
+              Предложения для начала разговора:
+            </Text>
             {astroHelperMessages.map((suggestion, index) => (
               <TouchableOpacity
                 key={index}
@@ -121,7 +164,10 @@ const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
         )}
 
         {/* Input */}
-        <Animated.View entering={SlideInUp.delay(400)} style={styles.inputContainer}>
+        <Animated.View
+          entering={SlideInUp.delay(400)}
+          style={styles.inputContainer}
+        >
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
@@ -132,7 +178,10 @@ const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
               multiline
             />
             <TouchableOpacity
-              style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton,
+                !newMessage.trim() && styles.sendButtonDisabled,
+              ]}
               onPress={handleSendMessage}
               disabled={!newMessage.trim()}
             >

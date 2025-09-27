@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 
@@ -21,37 +27,47 @@ interface HoroscopeWidgetProps {
   isLoading?: boolean;
 }
 
-const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({ 
-  predictions, 
-  currentPlanets, 
-  isLoading = false 
+const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
+  predictions,
+  currentPlanets,
+  isLoading = false,
 }) => {
-  const [activePeriod, setActivePeriod] = React.useState<'day' | 'tomorrow' | 'week'>('day');
+  const [activePeriod, setActivePeriod] = React.useState<
+    'day' | 'tomorrow' | 'week'
+  >('day');
 
   // Отладочная информация
   React.useEffect(() => {
     console.log('🔮 HoroscopeWidget получил данные:', {
       predictions,
       currentPlanets,
-      isLoading
+      isLoading,
     });
   }, [predictions, currentPlanets, isLoading]);
 
   const getPeriodTitle = (period: string) => {
     switch (period) {
-      case 'day': return 'Сегодня';
-      case 'tomorrow': return 'Завтра';
-      case 'week': return 'Неделя';
-      default: return period;
+      case 'day':
+        return 'Сегодня';
+      case 'tomorrow':
+        return 'Завтра';
+      case 'week':
+        return 'Неделя';
+      default:
+        return period;
     }
   };
 
   const getPeriodIcon = (period: string) => {
     switch (period) {
-      case 'day': return 'sunny';
-      case 'tomorrow': return 'moon';
-      case 'week': return 'calendar';
-      default: return 'star';
+      case 'day':
+        return 'sunny';
+      case 'tomorrow':
+        return 'moon';
+      case 'week':
+        return 'calendar';
+      default:
+        return 'star';
     }
   };
 
@@ -67,10 +83,14 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     }
 
     switch (activePeriod) {
-      case 'day': return predictions.day || {};
-      case 'tomorrow': return predictions.tomorrow || {};
-      case 'week': return predictions.week || {};
-      default: return predictions.day || {};
+      case 'day':
+        return predictions.day || {};
+      case 'tomorrow':
+        return predictions.tomorrow || {};
+      case 'week':
+        return predictions.week || {};
+      default:
+        return predictions.day || {};
     }
   };
 
@@ -89,7 +109,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   return (
     <Animated.View entering={SlideInUp.delay(500)} style={styles.container}>
       <Text style={styles.title}>Астрологический прогноз</Text>
-      
+
       {/* Period Selector */}
       <View style={styles.periodSelector}>
         {(['day', 'tomorrow', 'week'] as const).map((period) => (
@@ -97,19 +117,23 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             key={period}
             style={[
               styles.periodButton,
-              activePeriod === period && styles.activePeriodButton
+              activePeriod === period && styles.activePeriodButton,
             ]}
             onPress={() => setActivePeriod(period)}
           >
-            <Ionicons 
-              name={getPeriodIcon(period) as any} 
-              size={16} 
-              color={activePeriod === period ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} 
+            <Ionicons
+              name={getPeriodIcon(period) as any}
+              size={16}
+              color={
+                activePeriod === period ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'
+              }
             />
-            <Text style={[
-              styles.periodText,
-              activePeriod === period && styles.activePeriodText
-            ]}>
+            <Text
+              style={[
+                styles.periodText,
+                activePeriod === period && styles.activePeriodText,
+              ]}
+            >
               {getPeriodTitle(period)}
             </Text>
           </TouchableOpacity>
@@ -118,44 +142,69 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
       {/* Prediction Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeIn.delay(200)} style={styles.predictionCard}>
+        <Animated.View
+          entering={FadeIn.delay(200)}
+          style={styles.predictionCard}
+        >
           <View style={styles.cardHeader}>
             <Ionicons name="star" size={20} color="#8B5CF6" />
             <Text style={styles.cardTitle}>Общий прогноз</Text>
           </View>
-          <Text style={styles.predictionText}>{currentPrediction.general || 'Предсказание недоступно'}</Text>
+          <Text style={styles.predictionText}>
+            {currentPrediction.general || 'Предсказание недоступно'}
+          </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.delay(300)} style={styles.predictionCard}>
+        <Animated.View
+          entering={FadeIn.delay(300)}
+          style={styles.predictionCard}
+        >
           <View style={styles.cardHeader}>
             <Ionicons name="heart" size={20} color="#FF6B6B" />
             <Text style={styles.cardTitle}>Любовь и отношения</Text>
           </View>
-          <Text style={styles.predictionText}>{currentPrediction.love || 'Предсказание недоступно'}</Text>
+          <Text style={styles.predictionText}>
+            {currentPrediction.love || 'Предсказание недоступно'}
+          </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.delay(400)} style={styles.predictionCard}>
+        <Animated.View
+          entering={FadeIn.delay(400)}
+          style={styles.predictionCard}
+        >
           <View style={styles.cardHeader}>
             <Ionicons name="briefcase" size={20} color="#4ECDC4" />
             <Text style={styles.cardTitle}>Карьера и работа</Text>
           </View>
-          <Text style={styles.predictionText}>{currentPrediction.career || 'Предсказание недоступно'}</Text>
+          <Text style={styles.predictionText}>
+            {currentPrediction.career || 'Предсказание недоступно'}
+          </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.delay(500)} style={styles.predictionCard}>
+        <Animated.View
+          entering={FadeIn.delay(500)}
+          style={styles.predictionCard}
+        >
           <View style={styles.cardHeader}>
             <Ionicons name="fitness" size={20} color="#45B7D1" />
             <Text style={styles.cardTitle}>Здоровье</Text>
           </View>
-          <Text style={styles.predictionText}>{currentPrediction.health || 'Предсказание недоступно'}</Text>
+          <Text style={styles.predictionText}>
+            {currentPrediction.health || 'Предсказание недоступно'}
+          </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.delay(600)} style={[styles.predictionCard, styles.adviceCard]}>
+        <Animated.View
+          entering={FadeIn.delay(600)}
+          style={[styles.predictionCard, styles.adviceCard]}
+        >
           <View style={styles.cardHeader}>
             <Ionicons name="bulb" size={20} color="#FFD93D" />
             <Text style={styles.cardTitle}>Совет дня</Text>
           </View>
-          <Text style={styles.adviceText}>{currentPrediction.advice || 'Совет недоступен'}</Text>
+          <Text style={styles.adviceText}>
+            {currentPrediction.advice || 'Совет недоступен'}
+          </Text>
         </Animated.View>
       </ScrollView>
     </Animated.View>

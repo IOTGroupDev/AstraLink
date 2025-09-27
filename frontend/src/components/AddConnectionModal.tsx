@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -23,7 +30,11 @@ interface AddConnectionModalProps {
   onAdd: (connection: any) => void;
 }
 
-const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClose, onAdd }) => {
+const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
+  visible,
+  onClose,
+  onAdd,
+}) => {
   const [formData, setFormData] = useState({
     name: '',
     birthDate: '',
@@ -44,13 +55,25 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
   useEffect(() => {
     if (visible) {
       // Анимация появления полей
-      fieldAnimations.name.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
-      fieldAnimations.birthDate.value = withDelay(400, withSpring(1, { damping: 8, stiffness: 100 }));
-      fieldAnimations.birthTime.value = withDelay(600, withSpring(1, { damping: 8, stiffness: 100 }));
-      fieldAnimations.birthPlace.value = withDelay(800, withSpring(1, { damping: 8, stiffness: 100 }));
+      fieldAnimations.name.value = withDelay(
+        200,
+        withSpring(1, { damping: 8, stiffness: 100 })
+      );
+      fieldAnimations.birthDate.value = withDelay(
+        400,
+        withSpring(1, { damping: 8, stiffness: 100 })
+      );
+      fieldAnimations.birthTime.value = withDelay(
+        600,
+        withSpring(1, { damping: 8, stiffness: 100 })
+      );
+      fieldAnimations.birthPlace.value = withDelay(
+        800,
+        withSpring(1, { damping: 8, stiffness: 100 })
+      );
     } else {
       // Сброс анимаций при закрытии
-      Object.values(fieldAnimations).forEach(animation => {
+      Object.values(fieldAnimations).forEach((animation) => {
         animation.value = 0;
       });
     }
@@ -65,8 +88,8 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
     setLoading(true);
     try {
       // Здесь будет API вызов
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация загрузки
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Имитация загрузки
+
       onAdd(formData);
       setFormData({ name: '', birthDate: '', birthTime: '', birthPlace: '' });
       onClose();
@@ -92,16 +115,23 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
               <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.title}>Добавить связь</Text>
-            <Text style={styles.subtitle}>Создайте новую астрологическую связь</Text>
+            <Text style={styles.subtitle}>
+              Создайте новую астрологическую связь
+            </Text>
           </View>
 
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
             {/* Form */}
             <Animated.View entering={SlideInUp.delay(400)} style={styles.form}>
               <AstralInput
                 placeholder="Имя"
                 value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, name: text })
+                }
                 onFocus={() => setFocusedField('name')}
                 onBlur={() => setFocusedField(null)}
                 icon="person"
@@ -113,7 +143,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
               <AstralDateTimePicker
                 placeholder="Дата рождения"
                 value={formData.birthDate}
-                onChangeText={(text) => setFormData({ ...formData, birthDate: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, birthDate: text })
+                }
                 icon="calendar"
                 mode="date"
                 required
@@ -123,7 +155,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
               <AstralDateTimePicker
                 placeholder="Время рождения"
                 value={formData.birthTime}
-                onChangeText={(text) => setFormData({ ...formData, birthTime: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, birthTime: text })
+                }
                 icon="time"
                 mode="time"
                 animationValue={fieldAnimations.birthTime}
@@ -133,7 +167,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
               <AstralInput
                 placeholder="Место рождения"
                 value={formData.birthPlace}
-                onChangeText={(text) => setFormData({ ...formData, birthPlace: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, birthPlace: text })
+                }
                 onFocus={() => setFocusedField('birthPlace')}
                 onBlur={() => setFocusedField(null)}
                 icon="location"
@@ -142,7 +178,10 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
               />
 
               {/* Submit Button */}
-              <Animated.View entering={SlideInUp.delay(1000)} style={styles.buttonContainer}>
+              <Animated.View
+                entering={SlideInUp.delay(1000)}
+                style={styles.buttonContainer}
+              >
                 <TouchableOpacity
                   style={[styles.button, loading && styles.buttonDisabled]}
                   onPress={handleAdd}
@@ -158,7 +197,12 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ visible, onClos
                       <Ionicons name="hourglass" size={20} color="#fff" />
                     ) : (
                       <>
-                        <Ionicons name="add-circle" size={20} color="#fff" style={styles.buttonIcon} />
+                        <Ionicons
+                          name="add-circle"
+                          size={20}
+                          color="#fff"
+                          style={styles.buttonIcon}
+                        />
                         <Text style={styles.buttonText}>Добавить связь</Text>
                       </>
                     )}

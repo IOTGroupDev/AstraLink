@@ -17,7 +17,12 @@ interface BiorhythmProps {
   label: string;
 }
 
-const Biorhythm: React.FC<BiorhythmProps> = ({ value, color, size = 40, label }) => {
+const Biorhythm: React.FC<BiorhythmProps> = ({
+  value,
+  color,
+  size = 40,
+  label,
+}) => {
   const progress = useSharedValue(0);
   const glow = useSharedValue(0);
 
@@ -26,7 +31,7 @@ const Biorhythm: React.FC<BiorhythmProps> = ({ value, color, size = 40, label })
       duration: 2000,
       easing: Easing.out(Easing.cubic),
     });
-    
+
     glow.value = withRepeat(
       withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -42,7 +47,9 @@ const Biorhythm: React.FC<BiorhythmProps> = ({ value, color, size = 40, label })
   const circumference = radius * 2 * Math.PI;
 
   return (
-    <Animated.View style={[styles.container, { width: size, height: size }, animatedStyle]}>
+    <Animated.View
+      style={[styles.container, { width: size, height: size }, animatedStyle]}
+    >
       <Svg width={size} height={size} style={styles.svg}>
         {/* Background circle */}
         <Circle
@@ -81,10 +88,10 @@ interface BiorhythmsProps {
   intellectual?: number;
 }
 
-const Biorhythms: React.FC<BiorhythmsProps> = ({ 
-  physical = 75, 
-  emotional = 60, 
-  intellectual = 85 
+const Biorhythms: React.FC<BiorhythmsProps> = ({
+  physical = 75,
+  emotional = 60,
+  intellectual = 85,
 }) => {
   return (
     <View style={styles.container}>

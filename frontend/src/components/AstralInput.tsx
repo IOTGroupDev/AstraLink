@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -46,7 +52,10 @@ const AstralInput: React.FC<AstralInputProps> = ({
 
   useEffect(() => {
     if (isFocused || value) {
-      focusAnimation.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) });
+      focusAnimation.value = withTiming(1, {
+        duration: 200,
+        easing: Easing.out(Easing.quad),
+      });
       if (isFocused) {
         glowAnimation.value = withRepeat(
           withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
@@ -55,7 +64,10 @@ const AstralInput: React.FC<AstralInputProps> = ({
         );
       }
     } else {
-      focusAnimation.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) });
+      focusAnimation.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.quad),
+      });
       glowAnimation.value = withTiming(0, { duration: 200 });
     }
   }, [isFocused, value]);
@@ -79,7 +91,11 @@ const AstralInput: React.FC<AstralInputProps> = ({
       };
     }
     return {
-      borderColor: interpolate(focusAnimation.value, [0, 1], ['rgba(139, 92, 246, 0.3)', 'rgba(139, 92, 246, 0.8)']),
+      borderColor: interpolate(
+        focusAnimation.value,
+        [0, 1],
+        ['rgba(139, 92, 246, 0.3)', 'rgba(139, 92, 246, 0.8)']
+      ),
       borderWidth: interpolate(focusAnimation.value, [0, 1], [1, 1.5]),
       shadowOpacity: interpolate(glowAnimation.value, [0, 1], [0.1, 0.3]),
       shadowRadius: interpolate(glowAnimation.value, [0, 1], [3, 8]),
@@ -92,9 +108,13 @@ const AstralInput: React.FC<AstralInputProps> = ({
       { translateY: interpolate(focusAnimation.value, [0, 1], [0, -20]) },
       { scale: interpolate(focusAnimation.value, [0, 1], [1, 0.8]) },
     ],
-    color: error 
-      ? '#FF4444' 
-      : interpolate(focusAnimation.value, [0, 1], ['rgba(255, 255, 255, 0.7)', 'rgba(139, 92, 246, 0.9)']),
+    color: error
+      ? '#FF4444'
+      : interpolate(
+          focusAnimation.value,
+          [0, 1],
+          ['rgba(255, 255, 255, 0.7)', 'rgba(139, 92, 246, 0.9)']
+        ),
   }));
 
   return (
@@ -102,14 +122,20 @@ const AstralInput: React.FC<AstralInputProps> = ({
       <Animated.View style={[styles.inputContainer, animatedInputStyle]}>
         {icon && (
           <View style={styles.iconContainer}>
-            <Ionicons 
-              name={icon} 
-              size={20} 
-              color={error ? '#FF4444' : (isFocused ? 'rgba(139, 92, 246, 0.8)' : 'rgba(255, 255, 255, 0.6)')} 
+            <Ionicons
+              name={icon}
+              size={20}
+              color={
+                error
+                  ? '#FF4444'
+                  : isFocused
+                    ? 'rgba(139, 92, 246, 0.8)'
+                    : 'rgba(255, 255, 255, 0.6)'
+              }
             />
           </View>
         )}
-        
+
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
@@ -128,13 +154,13 @@ const AstralInput: React.FC<AstralInputProps> = ({
             placeholderTextColor="transparent"
             autoCapitalize="none"
           />
-          
+
           <Animated.Text style={[styles.label, animatedLabelStyle]}>
             {placeholder} {required && '*'}
           </Animated.Text>
         </View>
       </Animated.View>
-      
+
       {error && errorMessage && (
         <Text style={styles.errorText}>{errorMessage}</Text>
       )}

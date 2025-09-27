@@ -9,7 +9,13 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 const LOGO_SIZE = width * 0.4;
@@ -25,9 +31,9 @@ const AstralLogo: React.FC = () => {
       -1,
       false
     );
-    
+
     scale.value = withSpring(1, { damping: 8, stiffness: 100 });
-    
+
     glow.value = withRepeat(
       withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -36,10 +42,7 @@ const AstralLogo: React.FC = () => {
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${rotation.value}deg` },
-      { scale: scale.value },
-    ],
+    transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
     shadowOpacity: interpolate(glow.value, [0, 1], [0.3, 0.8]),
   }));
 
@@ -57,7 +60,7 @@ const AstralLogo: React.FC = () => {
             <Stop offset="100%" stopColor="#EF4444" stopOpacity="1" />
           </SvgGradient>
         </Defs>
-        
+
         {/* Outer ring */}
         <Circle
           cx={LOGO_SIZE / 2}
@@ -67,7 +70,7 @@ const AstralLogo: React.FC = () => {
           strokeWidth="3"
           fill="none"
         />
-        
+
         {/* Inner ring */}
         <Circle
           cx={LOGO_SIZE / 2}
@@ -77,7 +80,7 @@ const AstralLogo: React.FC = () => {
           strokeWidth="2"
           fill="none"
         />
-        
+
         {/* Center star */}
         <Path
           d={`M ${LOGO_SIZE / 2} ${LOGO_SIZE * 0.1} 
@@ -93,21 +96,15 @@ const AstralLogo: React.FC = () => {
                Z`}
           fill="url(#innerGradient)"
         />
-        
+
         {/* Orbiting planets */}
         {Array.from({ length: 6 }, (_, i) => {
-          const angle = (i * 60) * (Math.PI / 180);
+          const angle = i * 60 * (Math.PI / 180);
           const x = LOGO_SIZE / 2 + Math.cos(angle) * (LOGO_SIZE * 0.38);
           const y = LOGO_SIZE / 2 + Math.sin(angle) * (LOGO_SIZE * 0.38);
-          
+
           return (
-            <Circle
-              key={i}
-              cx={x}
-              cy={y}
-              r="4"
-              fill="url(#astralGradient)"
-            />
+            <Circle key={i} cx={x} cy={y} r="4" fill="url(#astralGradient)" />
           );
         })}
       </Svg>

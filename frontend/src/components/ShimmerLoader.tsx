@@ -15,10 +15,10 @@ interface ShimmerLoaderProps {
   borderRadius?: number;
 }
 
-const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({ 
-  width = '100%', 
-  height = 20, 
-  borderRadius = 8 
+const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
+  width = '100%',
+  height = 20,
+  borderRadius = 8,
 }) => {
   const shimmer = useSharedValue(0);
 

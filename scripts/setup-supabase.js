@@ -11,7 +11,7 @@ const path = require('path');
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 console.log('🚀 AstraLink Supabase Setup\n');
@@ -26,18 +26,18 @@ const questions = [
   {
     key: 'projectName',
     question: 'Название проекта (например: AstraLink): ',
-    default: 'AstraLink'
+    default: 'AstraLink',
   },
   {
     key: 'databasePassword',
     question: 'Пароль базы данных (минимум 8 символов): ',
-    default: ''
+    default: '',
   },
   {
     key: 'region',
     question: 'Регион (например: us-east-1, eu-west-1): ',
-    default: 'us-east-1'
-  }
+    default: 'us-east-1',
+  },
 ];
 
 const answers = {};
@@ -52,7 +52,7 @@ async function askQuestion(question) {
 
 async function main() {
   console.log('🔧 Настройка проекта Supabase:\n');
-  
+
   for (const question of questions) {
     answers[question.key] = await askQuestion(question);
   }
@@ -67,12 +67,16 @@ async function main() {
   console.log('2. Дождитесь завершения создания проекта (2-3 минуты)');
   console.log('3. Перейдите в Settings → API');
   console.log('4. Скопируйте Project URL и anon public key');
-  console.log('5. Запустите этот скрипт снова с командой: node setup-supabase.js --configure');
+  console.log(
+    '5. Запустите этот скрипт снова с командой: node setup-supabase.js --configure'
+  );
 
   console.log('\n🔗 Полезные ссылки:');
   console.log('- Supabase Dashboard: https://supabase.com/dashboard');
   console.log('- Документация: https://supabase.com/docs');
-  console.log('- SQL Editor: https://supabase.com/dashboard/project/[your-project]/sql');
+  console.log(
+    '- SQL Editor: https://supabase.com/dashboard/project/[your-project]/sql'
+  );
 
   rl.close();
 }
@@ -80,11 +84,10 @@ async function main() {
 // Проверяем аргументы командной строки
 if (process.argv.includes('--configure')) {
   console.log('🔧 Конфигурация Supabase...\n');
-  
+
   rl.question('Project URL (https://xxx.supabase.co): ', (url) => {
     rl.question('Anon Key: ', (anonKey) => {
       rl.question('Service Role Key (опционально): ', (serviceKey) => {
-        
         const envContent = `
 # Supabase Configuration
 SUPABASE_URL="${url}"
@@ -100,21 +103,20 @@ NODE_ENV="development"
 `;
 
         const envPath = path.join(__dirname, '..', 'backend', '.env');
-        
+
         try {
           fs.writeFileSync(envPath, envContent);
           console.log('\n✅ Файл .env обновлен!');
           console.log('📍 Путь:', envPath);
-          
+
           console.log('\n🚀 Следующие шаги:');
           console.log('1. Выполните SQL схему в Supabase SQL Editor');
           console.log('2. Запустите бэкенд: cd backend && npm run start:dev');
           console.log('3. Протестируйте эндпоинты Supabase');
-          
         } catch (error) {
           console.error('❌ Ошибка записи файла:', error.message);
         }
-        
+
         rl.close();
       });
     });

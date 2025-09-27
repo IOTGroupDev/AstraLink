@@ -26,7 +26,13 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 import { authAPI, setStoredToken } from '../services/api';
 import { SignupRequest } from '../types';
@@ -43,7 +49,10 @@ interface SignupScreenProps {
   onSwitchToLogin: () => void;
 }
 
-export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
+export default function SignupScreen({
+  onSignup,
+  onSwitchToLogin,
+}: SignupScreenProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -76,7 +85,10 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
   useEffect(() => {
     // Анимация появления полей
     Object.values(fieldAnimations).forEach((animation, index) => {
-      animation.value = withDelay(index * 100, withSpring(1, { damping: 8, stiffness: 100 }));
+      animation.value = withDelay(
+        index * 100,
+        withSpring(1, { damping: 8, stiffness: 100 })
+      );
     });
   }, []);
 
@@ -97,13 +109,13 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
   const validateBirthDate = (date: string): boolean => {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) return false;
-    
+
     const birthDate = new Date(date);
     const today = new Date();
-    
+
     // Проверяем, что дата не в будущем
     if (birthDate > today) return false;
-    
+
     const age = today.getFullYear() - birthDate.getFullYear();
     return age >= 0 && age <= 120;
   };
@@ -116,19 +128,19 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
 
   // Обработчики изменения полей
   const handleFieldChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Очищаем ошибку при изменении
     if (errors[field as keyof typeof errors]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: '' }));
     }
   };
 
   // Обработчики потери фокуса с валидацией
   const handleFieldBlur = (field: string, value: string) => {
     setFocusedField(null);
-    
+
     let error = '';
-    
+
     switch (field) {
       case 'email':
         if (value && !validateEmail(value)) {
@@ -167,8 +179,8 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
         }
         break;
     }
-    
-    setErrors(prev => ({ ...prev, [field]: error }));
+
+    setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const handleSignup = async () => {
@@ -183,9 +195,14 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
     });
 
     // Проверяем обязательные поля
-    if (!formData.email.trim() || !formData.password.trim() || !formData.name.trim() || !formData.birthDate.trim()) {
+    if (
+      !formData.email.trim() ||
+      !formData.password.trim() ||
+      !formData.name.trim() ||
+      !formData.birthDate.trim()
+    ) {
       Alert.alert(
-        'Ошибка ввода', 
+        'Ошибка ввода',
         'Пожалуйста, заполните все обязательные поля',
         [{ text: 'OK', style: 'default' }]
       );
@@ -223,11 +240,9 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
 
     if (hasErrors) {
       setErrors(newErrors);
-      Alert.alert(
-        'Ошибка валидации', 
-        'Пожалуйста, исправьте ошибки в полях',
-        [{ text: 'OK', style: 'default' }]
-      );
+      Alert.alert('Ошибка валидации', 'Пожалуйста, исправьте ошибки в полях', [
+        { text: 'OK', style: 'default' },
+      ]);
       return;
     }
 
@@ -241,46 +256,51 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
         birthTime: formData.birthTime.trim() || undefined,
         birthPlace: formData.birthPlace.trim() || undefined,
       };
-      
+
       const response = await authAPI.signup(signupData);
       setStoredToken(response.access_token);
-      
+
       // Небольшая задержка для анимации
       setTimeout(() => {
         onSignup();
       }, 300);
     } catch (error: any) {
       console.error('Signup error:', error);
-      
+
       // Определяем тип ошибки и показываем соответствующее сообщение
       if (error.response?.status === 409) {
         Alert.alert(
-          'Ошибка регистрации', 
+          'Ошибка регистрации',
           'Пользователь с таким email уже существует. Попробуйте войти в систему или используйте другой email.',
           [{ text: 'OK', style: 'default' }]
         );
       } else if (error.response?.status === 400) {
         Alert.alert(
-          'Ошибка регистрации', 
-          error.response?.data?.message || 'Некорректные данные. Проверьте правильность введенной информации.',
+          'Ошибка регистрации',
+          error.response?.data?.message ||
+            'Некорректные данные. Проверьте правильность введенной информации.',
           [{ text: 'OK', style: 'default' }]
         );
       } else if (error.code === 'ERR_NETWORK') {
         Alert.alert(
-          'Ошибка сети', 
+          'Ошибка сети',
           'Не удалось подключиться к серверу. Проверьте подключение к интернету.',
           [{ text: 'OK', style: 'default' }]
         );
-      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      } else if (
+        error.code === 'ECONNABORTED' ||
+        error.message?.includes('timeout')
+      ) {
         Alert.alert(
-          'Ошибка подключения', 
+          'Ошибка подключения',
           'Превышено время ожидания ответа от сервера. Проверьте подключение к интернету и попробуйте еще раз.',
           [{ text: 'OK', style: 'default' }]
         );
       } else {
         Alert.alert(
-          'Ошибка регистрации', 
-          error.message || 'Произошла ошибка при регистрации. Попробуйте еще раз.',
+          'Ошибка регистрации',
+          error.message ||
+            'Произошла ошибка при регистрации. Попробуйте еще раз.',
           [{ text: 'OK', style: 'default' }]
         );
       }
@@ -296,12 +316,12 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
     >
       <AnimatedStars />
       <AstrologicalChart />
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
@@ -309,13 +329,15 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
           <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
             <AstralLogo />
             <Text style={styles.title}>AstraLink</Text>
-            <Text style={styles.subtitle}>Создайте свой астрологический профиль</Text>
+            <Text style={styles.subtitle}>
+              Создайте свой астрологический профиль
+            </Text>
           </Animated.View>
 
           {/* Form */}
           <Animated.View entering={SlideInUp.delay(400)} style={styles.form}>
             <Text style={styles.formTitle}>Регистрация</Text>
-            
+
             <View>
               <AstralInput
                 placeholder="Имя"
@@ -393,7 +415,10 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
             </View>
 
             {/* Submit Button */}
-            <Animated.View entering={SlideInUp.delay(1000)} style={styles.buttonContainer}>
+            <Animated.View
+              entering={SlideInUp.delay(1000)}
+              style={styles.buttonContainer}
+            >
               <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleSignup}
@@ -409,7 +434,12 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
                     <>
-                      <Ionicons name="star" size={20} color="#fff" style={styles.buttonIcon} />
+                      <Ionicons
+                        name="star"
+                        size={20}
+                        color="#fff"
+                        style={styles.buttonIcon}
+                      />
                       <Text style={styles.buttonText}>Создать профиль</Text>
                     </>
                   )}
@@ -418,10 +448,16 @@ export default function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreen
             </Animated.View>
 
             {/* Login Link */}
-            <Animated.View entering={FadeIn.delay(1200)} style={styles.linkContainer}>
-              <TouchableOpacity onPress={onSwitchToLogin} style={styles.linkButton}>
+            <Animated.View
+              entering={FadeIn.delay(1200)}
+              style={styles.linkContainer}
+            >
+              <TouchableOpacity
+                onPress={onSwitchToLogin}
+                style={styles.linkButton}
+              >
                 <Text style={styles.linkText}>
-                  Уже есть аккаунт? 
+                  Уже есть аккаунт?
                   <Text style={styles.linkTextAccent}> Войти в систему</Text>
                 </Text>
               </TouchableOpacity>

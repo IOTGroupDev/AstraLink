@@ -30,17 +30,17 @@ interface SolarSystemProps {
 // Функция для получения отображаемого названия планеты
 const getPlanetDisplayName = (planetName: string): string => {
   const planetNames: { [key: string]: string } = {
-    'mercury': 'Меркурий',
-    'venus': 'Венера',
-    'earth': 'Земля',
-    'mars': 'Марс',
-    'jupiter': 'Юпитер',
-    'saturn': 'Сатурн',
-    'uranus': 'Уран',
-    'neptune': 'Нептун',
-    'pluto': 'Плутон',
-    'sun': 'Солнце',
-    'moon': 'Луна',
+    mercury: 'Меркурий',
+    venus: 'Венера',
+    earth: 'Земля',
+    mars: 'Марс',
+    jupiter: 'Юпитер',
+    saturn: 'Сатурн',
+    uranus: 'Уран',
+    neptune: 'Нептун',
+    pluto: 'Плутон',
+    sun: 'Солнце',
+    moon: 'Луна',
   };
   return planetNames[planetName] || planetName;
 };
@@ -52,34 +52,32 @@ const PlanetComponent: React.FC<{
   scale: Animated.SharedValue<number>;
 }> = ({ planet, rotation, scale }) => {
   const animatedStyle = useAnimatedStyle(() => {
-    const planetRotation = rotation.value * planet.speed + planet.currentPosition;
+    const planetRotation =
+      rotation.value * planet.speed + planet.currentPosition;
     const x = Math.cos((planetRotation * Math.PI) / 180) * planet.distance;
     const y = Math.sin((planetRotation * Math.PI) / 180) * planet.distance;
 
     return {
-      transform: [
-        { translateX: x },
-        { translateY: y },
-        { scale: scale.value },
-      ],
+      transform: [{ translateX: x }, { translateY: y }, { scale: scale.value }],
     };
   });
 
   return (
     <Animated.View style={[styles.planet, animatedStyle]}>
-      <View style={[styles.planetBody, { 
-        width: planet.size, 
-        height: planet.size, 
-        backgroundColor: planet.color,
-        borderRadius: planet.size / 2,
-      }]}>
-        <Ionicons 
-          name={planet.icon} 
-          size={planet.size * 0.6} 
-          color="#FFFFFF" 
-        />
+      <View
+        style={[
+          styles.planetBody,
+          {
+            width: planet.size,
+            height: planet.size,
+            backgroundColor: planet.color,
+            borderRadius: planet.size / 2,
+          },
+        ]}
+      >
+        <Ionicons name={planet.icon} size={planet.size * 0.6} color="#FFFFFF" />
       </View>
-        <Text style={styles.planetName}>{getPlanetDisplayName(planet.name)}</Text>
+      <Text style={styles.planetName}>{getPlanetDisplayName(planet.name)}</Text>
     </Animated.View>
   );
 };
@@ -110,7 +108,10 @@ const OrbitComponent: React.FC<{
   );
 };
 
-const SolarSystem: React.FC<SolarSystemProps> = ({ currentPlanets, isLoading = false }) => {
+const SolarSystem: React.FC<SolarSystemProps> = ({
+  currentPlanets,
+  isLoading = false,
+}) => {
   const rotation = useSharedValue(0);
   const scale = useSharedValue(0.8);
 
@@ -195,7 +196,10 @@ const SolarSystem: React.FC<SolarSystemProps> = ({ currentPlanets, isLoading = f
     if (currentPlanets) {
       planets.forEach((planet, index) => {
         // Ищем данные планеты по имени
-        if (currentPlanets[planet.name] && currentPlanets[planet.name].longitude !== undefined) {
+        if (
+          currentPlanets[planet.name] &&
+          currentPlanets[planet.name].longitude !== undefined
+        ) {
           planet.currentPosition = currentPlanets[planet.name].longitude;
         }
       });
@@ -235,31 +239,32 @@ const SolarSystem: React.FC<SolarSystemProps> = ({ currentPlanets, isLoading = f
     <View style={styles.container}>
       {/* Солнце в центре */}
       <View style={styles.sunContainer}>
-        <Animated.View style={[styles.sun, { transform: [{ scale: scale.value }] }]}>
+        <Animated.View
+          style={[styles.sun, { transform: [{ scale: scale.value }] }]}
+        >
           <Ionicons name="sunny" size={40} color="#FFD700" />
         </Animated.View>
         <Text style={styles.sunLabel}>Солнце</Text>
       </View>
 
       {/* Орбиты */}
-      {planets.map(planet => (
-        <OrbitComponent 
+      {planets.map((planet) => (
+        <OrbitComponent
           key={`orbit-${planet.distance}`}
-          distance={planet.distance} 
-          scale={scale} 
+          distance={planet.distance}
+          scale={scale}
         />
       ))}
 
       {/* Планеты */}
       {planets.map((planet, index) => (
-        <PlanetComponent 
+        <PlanetComponent
           key={planet.name}
-          planet={planet} 
-          rotation={rotation} 
-          scale={scale} 
+          planet={planet}
+          rotation={rotation}
+          scale={scale}
         />
       ))}
-
     </View>
   );
 };

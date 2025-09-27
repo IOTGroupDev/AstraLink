@@ -21,31 +21,37 @@ src/
 ## API Эндпоинты
 
 ### Аутентификация
+
 - `POST /api/auth/signup` - Регистрация
 - `POST /api/auth/login` - Вход
 - `GET /api/auth/profile` - Профиль текущего пользователя
 
 ### Пользователи
+
 - `GET /api/user/profile` - Получить профиль
 - `PUT /api/user/profile` - Обновить профиль
 
 ### Карты
+
 - `GET /api/chart/natal` - Получить натальную карту
 - `POST /api/chart/natal` - Сохранить натальную карту
 - `GET /api/chart/transits` - Получить транзиты
 
 ### Связи
+
 - `POST /api/connections` - Создать связь
 - `GET /api/connections` - Список связей
 - `GET /api/connections/:id/synastry` - Синастрия
 - `GET /api/connections/:id/composite` - Композитная карта
 
 ### Знакомства
+
 - `GET /api/dating/matches` - Список кандидатов
 - `POST /api/dating/match/:id/like` - Лайк
 - `POST /api/dating/match/:id/reject` - Отклонение
 
 ### Подписки
+
 - `GET /api/subscription/status` - Статус подписки
 - `POST /api/subscription/upgrade` - Обновить подписку
 
@@ -54,11 +60,13 @@ src/
 ### Локальная разработка
 
 1. Установите зависимости:
+
 ```bash
 npm install
 ```
 
 2. Настройте переменные окружения:
+
 ```bash
 cp .env.example .env
 ```
@@ -66,12 +74,14 @@ cp .env.example .env
 3. Запустите PostgreSQL и создайте базу данных
 
 4. Примените миграции Prisma:
+
 ```bash
 npm run prisma:generate
 npm run prisma:migrate
 ```
 
 5. Запустите сервер:
+
 ```bash
 npm run start:dev
 ```
@@ -79,11 +89,13 @@ npm run start:dev
 ### Docker
 
 1. Запустите все сервисы:
+
 ```bash
 docker-compose up -d
 ```
 
 2. Примените миграции:
+
 ```bash
 docker-compose exec backend npx prisma migrate dev
 ```

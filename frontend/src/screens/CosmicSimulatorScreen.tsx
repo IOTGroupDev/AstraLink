@@ -60,7 +60,9 @@ export default function CosmicSimulatorScreen() {
   const [transitPlanets, setTransitPlanets] = useState<PlanetPosition[]>([]);
   const [activeTransits, setActiveTransits] = useState<TransitData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTransit, setSelectedTransit] = useState<TransitData | null>(null);
+  const [selectedTransit, setSelectedTransit] = useState<TransitData | null>(
+    null
+  );
   const [historicalNotes, setHistoricalNotes] = useState<HistoricalNote[]>([]);
   const [showTimeline, setShowTimeline] = useState(true);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -107,9 +109,9 @@ export default function CosmicSimulatorScreen() {
             saturn: { sign: 'Capricorn', degree: 25.7, longitude: 295.7 },
             uranus: { sign: 'Gemini', degree: 7.4, longitude: 67.4 },
             neptune: { sign: 'Pisces', degree: 14.8, longitude: 344.8 },
-            pluto: { sign: 'Scorpio', degree: 9.1, longitude: 219.1 }
-          }
-        }
+            pluto: { sign: 'Scorpio', degree: 9.1, longitude: 219.1 },
+          },
+        },
       });
     } finally {
       setLoading(false);
@@ -120,18 +122,22 @@ export default function CosmicSimulatorScreen() {
     setTransitsLoading(true);
     try {
       // Небольшая задержка для плавности анимации
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       console.log('Загружаем транзиты для даты:', date.toDateString());
       console.log('Натальная карта:', natalChart);
-      
+
       // Рассчитываем позиции транзитных планет на основе даты
       const transitPlanets = calculateTransitPlanets(date);
       console.log('Транзитные планеты:', transitPlanets);
       setTransitPlanets(transitPlanets);
 
       // Рассчитываем активные транзиты на основе натальной карты и транзитных планет
-      const activeTransits = calculateActiveTransits(transitPlanets, natalChart, date);
+      const activeTransits = calculateActiveTransits(
+        transitPlanets,
+        natalChart,
+        date
+      );
       console.log('Активные транзиты:', activeTransits);
       setActiveTransits(activeTransits);
     } catch (error) {
@@ -145,16 +151,19 @@ export default function CosmicSimulatorScreen() {
   const calculateTransitPlanets = (date: Date): PlanetPosition[] => {
     // Упрощенная модель движения планет (для демонстрации)
     // В реальном приложении здесь будет использоваться Swiss Ephemeris
-    
-    const daysSinceEpoch = Math.floor((date.getTime() - new Date('2000-01-01').getTime()) / (1000 * 60 * 60 * 24));
-    
+
+    const daysSinceEpoch = Math.floor(
+      (date.getTime() - new Date('2000-01-01').getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+
     // Скорости движения планет (градусы в день)
     const planetSpeeds = {
-      Saturn: 0.033,    // ~30 лет на круг
-      Jupiter: 0.083,    // ~12 лет на круг  
-      Uranus: 0.014,    // ~84 года на круг
-      Neptune: 0.006,   // ~165 лет на круг
-      Pluto: 0.004      // ~248 лет на круг
+      Saturn: 0.033, // ~30 лет на круг
+      Jupiter: 0.083, // ~12 лет на круг
+      Uranus: 0.014, // ~84 года на круг
+      Neptune: 0.006, // ~165 лет на круг
+      Pluto: 0.004, // ~248 лет на круг
     };
 
     // Начальные позиции планет (примерные)
@@ -163,23 +172,25 @@ export default function CosmicSimulatorScreen() {
       Jupiter: 45,
       Uranus: 75,
       Neptune: 355,
-      Pluto: 295
+      Pluto: 295,
     };
 
     const planets: PlanetPosition[] = [];
 
     Object.entries(planetSpeeds).forEach(([planetName, speed]) => {
-      const longitude = (initialPositions[planetName as keyof typeof initialPositions] + 
-                       (daysSinceEpoch * speed)) % 360;
-      
+      const longitude =
+        (initialPositions[planetName as keyof typeof initialPositions] +
+          daysSinceEpoch * speed) %
+        360;
+
       const sign = getSignFromLongitude(longitude);
-      const degree = longitude - (Math.floor(longitude / 30) * 30);
+      const degree = longitude - Math.floor(longitude / 30) * 30;
 
       planets.push({
         name: planetName,
         longitude,
         sign,
-        degree: Math.round(degree * 10) / 10
+        degree: Math.round(degree * 10) / 10,
       });
     });
 
@@ -189,17 +200,34 @@ export default function CosmicSimulatorScreen() {
   // Функция для определения знака зодиака по долготе
   const getSignFromLongitude = (longitude: number): string => {
     const signs = [
-      'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
-      'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
+      'Aries',
+      'Taurus',
+      'Gemini',
+      'Cancer',
+      'Leo',
+      'Virgo',
+      'Libra',
+      'Scorpio',
+      'Sagittarius',
+      'Capricorn',
+      'Aquarius',
+      'Pisces',
     ];
     const signIndex = Math.floor(longitude / 30);
     return signs[signIndex];
   };
 
   // Функция для расчета активных транзитов
-  const calculateActiveTransits = (transitPlanets: PlanetPosition[], natalChart: any, date: Date): TransitData[] => {
-    console.log('calculateActiveTransits вызвана с:', { transitPlanets, natalChart });
-    
+  const calculateActiveTransits = (
+    transitPlanets: PlanetPosition[],
+    natalChart: any,
+    date: Date
+  ): TransitData[] => {
+    console.log('calculateActiveTransits вызвана с:', {
+      transitPlanets,
+      natalChart,
+    });
+
     // Проверяем разные возможные структуры натальной карты
     let natalPlanets = null;
     if (natalChart?.data?.planets) {
@@ -223,7 +251,7 @@ export default function CosmicSimulatorScreen() {
         saturn: { longitude: 295.7, sign: 'Capricorn', degree: 25.7 },
         uranus: { longitude: 67.4, sign: 'Gemini', degree: 7.4 },
         neptune: { longitude: 344.8, sign: 'Pisces', degree: 14.8 },
-        pluto: { longitude: 219.1, sign: 'Scorpio', degree: 9.1 }
+        pluto: { longitude: 219.1, sign: 'Scorpio', degree: 9.1 },
       };
     }
 
@@ -232,28 +260,43 @@ export default function CosmicSimulatorScreen() {
     const transits: TransitData[] = [];
 
     // Проверяем аспекты между транзитными и натальными планетами
-    transitPlanets.forEach(transitPlanet => {
-      Object.entries(natalPlanets).forEach(([natalPlanetKey, natalPlanet]: [string, any]) => {
-        const aspect = calculateAspect(transitPlanet.longitude, natalPlanet.longitude);
-        
-        console.log(`Проверяем аспект: ${transitPlanet.name} -> ${natalPlanetKey}`, aspect);
-        
-        if (aspect.aspect !== 'none' && aspect.orb <= 10) { // Увеличили орбис до 10 градусов
-          transits.push({
-            planet: transitPlanet.name,
-            aspect: aspect.aspect,
-            target: natalPlanetKey.charAt(0).toUpperCase() + natalPlanetKey.slice(1),
-            orb: Math.round(aspect.orb * 10) / 10,
-            date: date.toDateString(),
-            description: getTransitDescription(transitPlanet.name, aspect.aspect, natalPlanetKey),
-            type: getAspectType(aspect.aspect)
-          });
+    transitPlanets.forEach((transitPlanet) => {
+      Object.entries(natalPlanets).forEach(
+        ([natalPlanetKey, natalPlanet]: [string, any]) => {
+          const aspect = calculateAspect(
+            transitPlanet.longitude,
+            natalPlanet.longitude
+          );
+
+          console.log(
+            `Проверяем аспект: ${transitPlanet.name} -> ${natalPlanetKey}`,
+            aspect
+          );
+
+          if (aspect.aspect !== 'none' && aspect.orb <= 10) {
+            // Увеличили орбис до 10 градусов
+            transits.push({
+              planet: transitPlanet.name,
+              aspect: aspect.aspect,
+              target:
+                natalPlanetKey.charAt(0).toUpperCase() +
+                natalPlanetKey.slice(1),
+              orb: Math.round(aspect.orb * 10) / 10,
+              date: date.toDateString(),
+              description: getTransitDescription(
+                transitPlanet.name,
+                aspect.aspect,
+                natalPlanetKey
+              ),
+              type: getAspectType(aspect.aspect),
+            });
+          }
         }
-      });
+      );
     });
 
     console.log('Найдено транзитов:', transits.length);
-    
+
     // Если транзитов нет, создаем демонстрационные
     if (transits.length === 0) {
       console.log('Создаем демонстрационные транзиты');
@@ -264,8 +307,9 @@ export default function CosmicSimulatorScreen() {
           target: 'Sun',
           orb: 2.5,
           date: date.toDateString(),
-          description: 'Период проверки вашей уверенности в себе на прочность. Время стать более дисциплинированным.',
-          type: 'challenging'
+          description:
+            'Период проверки вашей уверенности в себе на прочность. Время стать более дисциплинированным.',
+          type: 'challenging',
         },
         {
           planet: 'Jupiter',
@@ -273,8 +317,9 @@ export default function CosmicSimulatorScreen() {
           target: 'Venus',
           orb: 1.8,
           date: date.toDateString(),
-          description: 'Благоприятное время для любви и творчества. Расширение возможностей в отношениях.',
-          type: 'harmonious'
+          description:
+            'Благоприятное время для любви и творчества. Расширение возможностей в отношениях.',
+          type: 'harmonious',
         },
         {
           planet: 'Uranus',
@@ -282,13 +327,14 @@ export default function CosmicSimulatorScreen() {
           target: 'Mercury',
           orb: 3.2,
           date: date.toDateString(),
-          description: 'Неожиданные идеи и прорывы в общении. Время для инноваций.',
-          type: 'harmonious'
-        }
+          description:
+            'Неожиданные идеи и прорывы в общении. Время для инноваций.',
+          type: 'harmonious',
+        },
       ];
       return demoTransits;
     }
-    
+
     // Сортируем по орбису (более точные аспекты первыми)
     return transits.sort((a, b) => a.orb - b.orb);
   };
@@ -303,16 +349,18 @@ export default function CosmicSimulatorScreen() {
       { name: 'sextile', angle: 60, orb: 8 },
       { name: 'square', angle: 90, orb: 10 },
       { name: 'trine', angle: 120, orb: 10 },
-      { name: 'opposition', angle: 180, orb: 10 }
+      { name: 'opposition', angle: 180, orb: 10 },
     ];
 
     for (const aspect of aspects) {
       const orbDiff = Math.abs(diff - aspect.angle);
       if (orbDiff <= aspect.orb) {
-        console.log(`Найден аспект: ${aspect.name}, разность: ${orbDiff.toFixed(2)}°`);
+        console.log(
+          `Найден аспект: ${aspect.name}, разность: ${orbDiff.toFixed(2)}°`
+        );
         return {
           aspect: aspect.name,
-          orb: orbDiff
+          orb: orbDiff,
         };
       }
     }
@@ -322,7 +370,9 @@ export default function CosmicSimulatorScreen() {
   };
 
   // Функция для определения типа аспекта
-  const getAspectType = (aspect: string): 'harmonious' | 'challenging' | 'neutral' => {
+  const getAspectType = (
+    aspect: string
+  ): 'harmonious' | 'challenging' | 'neutral' => {
     switch (aspect) {
       case 'trine':
       case 'sextile':
@@ -338,51 +388,64 @@ export default function CosmicSimulatorScreen() {
   };
 
   // Функция для генерации описания транзита
-  const getTransitDescription = (transitPlanet: string, aspect: string, natalPlanet: string): string => {
+  const getTransitDescription = (
+    transitPlanet: string,
+    aspect: string,
+    natalPlanet: string
+  ): string => {
     const descriptions = {
-      'Saturn': {
-        'conjunction': 'Время серьезности и ответственности. Возможны ограничения, но и рост через дисциплину.',
-        'square': 'Период испытаний и препятствий. Время пересмотра планов и укрепления основ.',
-        'trine': 'Стабильность и структура. Благоприятное время для долгосрочных проектов.',
-        'opposition': 'Конфликт между желаниями и обязанностями. Нужно найти баланс.',
-        'sextile': 'Возможности для роста через терпение и упорство.'
+      Saturn: {
+        conjunction:
+          'Время серьезности и ответственности. Возможны ограничения, но и рост через дисциплину.',
+        square:
+          'Период испытаний и препятствий. Время пересмотра планов и укрепления основ.',
+        trine:
+          'Стабильность и структура. Благоприятное время для долгосрочных проектов.',
+        opposition:
+          'Конфликт между желаниями и обязанностями. Нужно найти баланс.',
+        sextile: 'Возможности для роста через терпение и упорство.',
       },
-      'Jupiter': {
-        'conjunction': 'Время расширения и роста. Новые возможности и оптимизм.',
-        'square': 'Избыток энергии может привести к переоценке. Нужна умеренность.',
-        'trine': 'Гармония и благополучие. Удача и успех в делах.',
-        'opposition': 'Возможны конфликты из-за излишнего оптимизма.',
-        'sextile': 'Благоприятные возможности для развития.'
+      Jupiter: {
+        conjunction: 'Время расширения и роста. Новые возможности и оптимизм.',
+        square:
+          'Избыток энергии может привести к переоценке. Нужна умеренность.',
+        trine: 'Гармония и благополучие. Удача и успех в делах.',
+        opposition: 'Возможны конфликты из-за излишнего оптимизма.',
+        sextile: 'Благоприятные возможности для развития.',
       },
-      'Uranus': {
-        'conjunction': 'Время перемен и революций. Неожиданные события и прорывы.',
-        'square': 'Напряжение и конфликты. Время для радикальных изменений.',
-        'trine': 'Инновации и прогресс. Благоприятное время для экспериментов.',
-        'opposition': 'Конфликт между традициями и новшествами.',
-        'sextile': 'Возможности для творческих прорывов.'
+      Uranus: {
+        conjunction:
+          'Время перемен и революций. Неожиданные события и прорывы.',
+        square: 'Напряжение и конфликты. Время для радикальных изменений.',
+        trine: 'Инновации и прогресс. Благоприятное время для экспериментов.',
+        opposition: 'Конфликт между традициями и новшествами.',
+        sextile: 'Возможности для творческих прорывов.',
       },
-      'Neptune': {
-        'conjunction': 'Время духовного поиска и интуиции. Возможны иллюзии.',
-        'square': 'Путаница и неопределенность. Нужна осторожность.',
-        'trine': 'Вдохновение и творчество. Духовное развитие.',
-        'opposition': 'Конфликт между реальностью и идеалами.',
-        'sextile': 'Возможности для духовного роста.'
+      Neptune: {
+        conjunction: 'Время духовного поиска и интуиции. Возможны иллюзии.',
+        square: 'Путаница и неопределенность. Нужна осторожность.',
+        trine: 'Вдохновение и творчество. Духовное развитие.',
+        opposition: 'Конфликт между реальностью и идеалами.',
+        sextile: 'Возможности для духовного роста.',
       },
-      'Pluto': {
-        'conjunction': 'Время трансформации и возрождения. Глубокие изменения.',
-        'square': 'Интенсивные испытания. Время для кардинальных перемен.',
-        'trine': 'Мощная энергия для трансформации. Глубокие изменения.',
-        'opposition': 'Конфликт между старым и новым.',
-        'sextile': 'Возможности для глубокой трансформации.'
-      }
+      Pluto: {
+        conjunction: 'Время трансформации и возрождения. Глубокие изменения.',
+        square: 'Интенсивные испытания. Время для кардинальных перемен.',
+        trine: 'Мощная энергия для трансформации. Глубокие изменения.',
+        opposition: 'Конфликт между старым и новым.',
+        sextile: 'Возможности для глубокой трансформации.',
+      },
     };
 
-    return descriptions[transitPlanet as keyof typeof descriptions]?.[aspect as keyof typeof descriptions[typeof transitPlanet]] || 
-           `Транзит ${transitPlanet} создает ${aspect} аспект с ${natalPlanet}.`;
+    return (
+      descriptions[transitPlanet as keyof typeof descriptions]?.[
+        aspect as keyof (typeof descriptions)[typeof transitPlanet]
+      ] || `Транзит ${transitPlanet} создает ${aspect} аспект с ${natalPlanet}.`
+    );
   };
 
   const handleTimelineChange = (position: number) => {
-    const newTime = startDate.getTime() + (position * totalTimeSpan);
+    const newTime = startDate.getTime() + position * totalTimeSpan;
     const newDate = new Date(newTime);
     setCurrentDate(newDate);
     timelinePosition.value = position;
@@ -391,7 +454,8 @@ export default function CosmicSimulatorScreen() {
   const goToToday = () => {
     const today = new Date();
     setCurrentDate(today);
-    const todayPosition = (today.getTime() - startDate.getTime()) / totalTimeSpan;
+    const todayPosition =
+      (today.getTime() - startDate.getTime()) / totalTimeSpan;
     timelinePosition.value = withSpring(todayPosition);
   };
 
@@ -400,9 +464,11 @@ export default function CosmicSimulatorScreen() {
       const newNote: HistoricalNote = {
         date: currentDate.toDateString(),
         note: noteText.trim(),
-        transits: activeTransits.map(t => `${t.planet} ${t.aspect} ${t.target}`)
+        transits: activeTransits.map(
+          (t) => `${t.planet} ${t.aspect} ${t.target}`
+        ),
       };
-      setHistoricalNotes(prev => [...prev, newNote]);
+      setHistoricalNotes((prev) => [...prev, newNote]);
       setNoteText('');
       setShowNoteModal(false);
       Alert.alert('✅', 'Заметка сохранена!');
@@ -410,7 +476,7 @@ export default function CosmicSimulatorScreen() {
   };
 
   const getHistoricalNoteForDate = (date: Date) => {
-    return historicalNotes.find(note => note.date === date.toDateString());
+    return historicalNotes.find((note) => note.date === date.toDateString());
   };
 
   // Timeline PanResponder
@@ -420,7 +486,10 @@ export default function CosmicSimulatorScreen() {
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
         const timelineWidth = width * 0.8;
-        const position = Math.max(0, Math.min(1, gestureState.moveX / timelineWidth));
+        const position = Math.max(
+          0,
+          Math.min(1, gestureState.moveX / timelineWidth)
+        );
         handleTimelineChange(position);
       },
     })
@@ -444,7 +513,7 @@ export default function CosmicSimulatorScreen() {
             strokeWidth="2"
             fill="rgba(139, 92, 246, 0.1)"
           />
-          
+
           {/* Внешний круг - транзиты */}
           <Circle
             cx={centerX}
@@ -457,38 +526,68 @@ export default function CosmicSimulatorScreen() {
           />
 
           {/* Натальные планеты */}
-          {natalChart?.data?.planets && Object.entries(natalChart.data.planets).map(([planetKey, planet]: [string, any], index) => {
-            const angle = (planet.longitude * Math.PI) / 180;
-            const x = centerX + natalRadius * Math.cos(angle - Math.PI / 2);
-            const y = centerY + natalRadius * Math.sin(angle - Math.PI / 2);
-            
-            return (
-              <G key={planetKey}>
-                <Circle cx={x} cy={y} r="6" fill="#8B5CF6" />
-                <SvgText x={x} y={y - 15} textAnchor="middle" fontSize="10" fill="#fff">
-                  {planetKey.charAt(0).toUpperCase()}
-                </SvgText>
-              </G>
-            );
-          })}
+          {natalChart?.data?.planets &&
+            Object.entries(natalChart.data.planets).map(
+              ([planetKey, planet]: [string, any], index) => {
+                const angle = (planet.longitude * Math.PI) / 180;
+                const x = centerX + natalRadius * Math.cos(angle - Math.PI / 2);
+                const y = centerY + natalRadius * Math.sin(angle - Math.PI / 2);
+
+                return (
+                  <G key={planetKey}>
+                    <Circle cx={x} cy={y} r="6" fill="#8B5CF6" />
+                    <SvgText
+                      x={x}
+                      y={y - 15}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fill="#fff"
+                    >
+                      {planetKey.charAt(0).toUpperCase()}
+                    </SvgText>
+                  </G>
+                );
+              }
+            )}
 
           {/* Транзитные планеты */}
           {transitPlanets.map((planet, index) => {
             const angle = (planet.longitude * Math.PI) / 180;
             const x = centerX + transitRadius * Math.cos(angle - Math.PI / 2);
             const y = centerY + transitRadius * Math.sin(angle - Math.PI / 2);
-            
+
             // Цвет планеты в зависимости от типа
-            const planetColor = planet.name === 'Saturn' ? '#C0C0C0' :
-                               planet.name === 'Jupiter' ? '#FFD700' :
-                               planet.name === 'Uranus' ? '#4FD1C7' :
-                               planet.name === 'Neptune' ? '#3B82F6' :
-                               planet.name === 'Pluto' ? '#8B5CF6' : '#FFD700';
-            
+            const planetColor =
+              planet.name === 'Saturn'
+                ? '#C0C0C0'
+                : planet.name === 'Jupiter'
+                  ? '#FFD700'
+                  : planet.name === 'Uranus'
+                    ? '#4FD1C7'
+                    : planet.name === 'Neptune'
+                      ? '#3B82F6'
+                      : planet.name === 'Pluto'
+                        ? '#8B5CF6'
+                        : '#FFD700';
+
             return (
               <G key={planet.name}>
-                <Circle cx={x} cy={y} r="8" fill={planetColor} stroke="#fff" strokeWidth="1" />
-                <SvgText x={x} y={y - 20} textAnchor="middle" fontSize="10" fill={planetColor} fontWeight="bold">
+                <Circle
+                  cx={x}
+                  cy={y}
+                  r="8"
+                  fill={planetColor}
+                  stroke="#fff"
+                  strokeWidth="1"
+                />
+                <SvgText
+                  x={x}
+                  y={y - 20}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill={planetColor}
+                  fontWeight="bold"
+                >
                   {planet.name.charAt(0)}
                 </SvgText>
               </G>
@@ -498,22 +597,33 @@ export default function CosmicSimulatorScreen() {
           {/* Линии аспектов */}
           {activeTransits.slice(0, 5).map((transit, index) => {
             // Находим позиции планет для точного отображения линий
-            const transitPlanet = transitPlanets.find(p => p.name === transit.planet);
-            const natalPlanet = natalChart?.data?.planets?.[transit.target.toLowerCase()];
-            
+            const transitPlanet = transitPlanets.find(
+              (p) => p.name === transit.planet
+            );
+            const natalPlanet =
+              natalChart?.data?.planets?.[transit.target.toLowerCase()];
+
             if (!transitPlanet || !natalPlanet) return null;
-            
+
             const transitAngle = (transitPlanet.longitude * Math.PI) / 180;
             const natalAngle = (natalPlanet.longitude * Math.PI) / 180;
-            
-            const transitX = centerX + transitRadius * Math.cos(transitAngle - Math.PI / 2);
-            const transitY = centerY + transitRadius * Math.sin(transitAngle - Math.PI / 2);
-            const natalX = centerX + natalRadius * Math.cos(natalAngle - Math.PI / 2);
-            const natalY = centerY + natalRadius * Math.sin(natalAngle - Math.PI / 2);
-            
-            const aspectColor = transit.type === 'harmonious' ? '#22C55E' : 
-                               transit.type === 'challenging' ? '#EF4444' : '#6B7280';
-            
+
+            const transitX =
+              centerX + transitRadius * Math.cos(transitAngle - Math.PI / 2);
+            const transitY =
+              centerY + transitRadius * Math.sin(transitAngle - Math.PI / 2);
+            const natalX =
+              centerX + natalRadius * Math.cos(natalAngle - Math.PI / 2);
+            const natalY =
+              centerY + natalRadius * Math.sin(natalAngle - Math.PI / 2);
+
+            const aspectColor =
+              transit.type === 'harmonious'
+                ? '#22C55E'
+                : transit.type === 'challenging'
+                  ? '#EF4444'
+                  : '#6B7280';
+
             return (
               <Line
                 key={`${transit.planet}-${transit.target}-${index}`}
@@ -535,32 +645,33 @@ export default function CosmicSimulatorScreen() {
 
   const renderTimeline = () => {
     const timelineWidth = width * 0.8;
-    const currentPosition = (currentDate.getTime() - startDate.getTime()) / totalTimeSpan;
+    const currentPosition =
+      (currentDate.getTime() - startDate.getTime()) / totalTimeSpan;
 
     return (
       <View style={styles.timelineContainer}>
         <Text style={styles.timelineTitle}>Машина Времени</Text>
-        
+
         <View style={styles.timelineDates}>
           <Text style={styles.timelineDate}>{startDate.getFullYear()}</Text>
           <Text style={styles.currentDate}>
-            {currentDate.toLocaleDateString('ru-RU', { 
-              year: 'numeric', 
-              month: 'long' 
+            {currentDate.toLocaleDateString('ru-RU', {
+              year: 'numeric',
+              month: 'long',
             })}
           </Text>
           <Text style={styles.timelineDate}>{endDate.getFullYear()}</Text>
         </View>
 
-        <View 
+        <View
           style={[styles.timelineTrack, { width: timelineWidth }]}
           {...timelinePanResponder.panHandlers}
         >
           <View style={styles.timelineProgress} />
-          <Animated.View 
+          <Animated.View
             style={[
               styles.timelineHandle,
-              { left: currentPosition * timelineWidth - 15 }
+              { left: currentPosition * timelineWidth - 15 },
             ]}
           >
             <Ionicons name="time" size={20} color="#fff" />
@@ -572,18 +683,24 @@ export default function CosmicSimulatorScreen() {
             <Ionicons name="today" size={16} color="#8B5CF6" />
             <Text style={styles.timelineButtonText}>Сегодня</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             onPress={() => setShowNoteModal(true)}
-            style={[styles.timelineButton, getHistoricalNoteForDate(currentDate) && styles.timelineButtonWithNote]}
+            style={[
+              styles.timelineButton,
+              getHistoricalNoteForDate(currentDate) &&
+                styles.timelineButtonWithNote,
+            ]}
           >
             <Ionicons name="document-text" size={16} color="#8B5CF6" />
             <Text style={styles.timelineButtonText}>
-              {getHistoricalNoteForDate(currentDate) ? 'Есть заметка' : 'Заметка'}
+              {getHistoricalNoteForDate(currentDate)
+                ? 'Есть заметка'
+                : 'Заметка'}
             </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             onPress={() => {
               const nextYear = new Date(currentDate);
               nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -607,7 +724,8 @@ export default function CosmicSimulatorScreen() {
             <Text style={styles.transitsTitle}>Активные Транзиты</Text>
             {!transitsLoading && (
               <Text style={styles.transitsCount}>
-                {activeTransits.length} транзитов на {currentDate.toLocaleDateString('ru-RU')}
+                {activeTransits.length} транзитов на{' '}
+                {currentDate.toLocaleDateString('ru-RU')}
               </Text>
             )}
           </View>
@@ -617,7 +735,7 @@ export default function CosmicSimulatorScreen() {
                 <Text style={styles.loadingText}>Обновление...</Text>
               </View>
             )}
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => loadTransitsForDate(currentDate)}
               style={styles.refreshTransitsButton}
             >
@@ -625,7 +743,7 @@ export default function CosmicSimulatorScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        
+
         {transitsLoading ? (
           <View style={styles.transitsLoading}>
             <ShimmerLoader width={width * 0.8} height={60} borderRadius={15} />
@@ -637,33 +755,43 @@ export default function CosmicSimulatorScreen() {
         ) : (
           <>
             {activeTransits.map((transit, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.transitItem,
-              { borderLeftColor: 
-                transit.type === 'harmonious' ? '#22C55E' : 
-                transit.type === 'challenging' ? '#EF4444' : '#6B7280'
-              }
-            ]}
-            onPress={() => setSelectedTransit(transit)}
-          >
-            <View style={styles.transitHeader}>
-              <Text style={styles.transitTitle}>
-                {transit.planet} {transit.aspect} {transit.target}
-              </Text>
-              <Text style={styles.transitOrb}>±{transit.orb}°</Text>
-            </View>
-            <Text style={styles.transitDescription} numberOfLines={2}>
-              {transit.description}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.transitItem,
+                  {
+                    borderLeftColor:
+                      transit.type === 'harmonious'
+                        ? '#22C55E'
+                        : transit.type === 'challenging'
+                          ? '#EF4444'
+                          : '#6B7280',
+                  },
+                ]}
+                onPress={() => setSelectedTransit(transit)}
+              >
+                <View style={styles.transitHeader}>
+                  <Text style={styles.transitTitle}>
+                    {transit.planet} {transit.aspect} {transit.target}
+                  </Text>
+                  <Text style={styles.transitOrb}>±{transit.orb}°</Text>
+                </View>
+                <Text style={styles.transitDescription} numberOfLines={2}>
+                  {transit.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
             {activeTransits.length === 0 && (
               <View style={styles.emptyTransits}>
-                <Ionicons name="planet-outline" size={40} color="rgba(255, 255, 255, 0.3)" />
-                <Text style={styles.emptyTransitsText}>Нет активных транзитов</Text>
+                <Ionicons
+                  name="planet-outline"
+                  size={40}
+                  color="rgba(255, 255, 255, 0.3)"
+                />
+                <Text style={styles.emptyTransitsText}>
+                  Нет активных транзитов
+                </Text>
               </View>
             )}
           </>
@@ -686,7 +814,11 @@ export default function CosmicSimulatorScreen() {
           <View style={{ height: 20 }} />
           {[1, 2, 3].map((i) => (
             <View key={i} style={{ marginBottom: 10 }}>
-              <ShimmerLoader width={width * 0.9} height={80} borderRadius={15} />
+              <ShimmerLoader
+                width={width * 0.9}
+                height={80}
+                borderRadius={15}
+              />
             </View>
           ))}
         </View>
@@ -700,8 +832,11 @@ export default function CosmicSimulatorScreen() {
       style={styles.container}
     >
       <AnimatedStars />
-      
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Заголовок */}
         <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
           <Text style={styles.title}>Cosmic Time Machine</Text>
@@ -714,24 +849,33 @@ export default function CosmicSimulatorScreen() {
         </Animated.View>
 
         {/* Временная шкала */}
-        <Animated.View entering={SlideInUp.delay(600)} style={styles.timelineSection}>
+        <Animated.View
+          entering={SlideInUp.delay(600)}
+          style={styles.timelineSection}
+        >
           {renderTimeline()}
         </Animated.View>
 
         {/* Активные транзиты */}
-        <Animated.View entering={SlideInUp.delay(800)} style={styles.transitsSection}>
+        <Animated.View
+          entering={SlideInUp.delay(800)}
+          style={styles.transitsSection}
+        >
           {renderActiveTransits()}
         </Animated.View>
 
         {/* Кнопка "Почему я это чувствую?" */}
-        <Animated.View entering={FadeIn.delay(1000)} style={styles.feelingSection}>
-          <TouchableOpacity 
+        <Animated.View
+          entering={FadeIn.delay(1000)}
+          style={styles.feelingSection}
+        >
+          <TouchableOpacity
             style={styles.feelingButton}
             onPress={() => {
               Alert.alert(
-                "Почему я это чувствую?",
-                "Сейчас Сатурн создает напряжение с вашим Солнцем, что может вызывать ощущение ограничений. Юпитер поддерживает Венеру - хорошее время для творчества и любви.",
-                [{ text: "Понятно", style: "default" }]
+                'Почему я это чувствую?',
+                'Сейчас Сатурн создает напряжение с вашим Солнцем, что может вызывать ощущение ограничений. Юпитер поддерживает Венеру - хорошее время для творчества и любви.',
+                [{ text: 'Понятно', style: 'default' }]
               );
             }}
           >
@@ -757,9 +901,11 @@ export default function CosmicSimulatorScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {getHistoricalNoteForDate(currentDate) ? 'Ваша заметка' : 'Что было в этот период?'}
+                {getHistoricalNoteForDate(currentDate)
+                  ? 'Ваша заметка'
+                  : 'Что было в этот период?'}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowNoteModal(false)}
                 style={styles.modalCloseButton}
               >
@@ -768,10 +914,10 @@ export default function CosmicSimulatorScreen() {
             </View>
 
             <Text style={styles.modalDate}>
-              {currentDate.toLocaleDateString('ru-RU', { 
-                year: 'numeric', 
+              {currentDate.toLocaleDateString('ru-RU', {
+                year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
               })}
             </Text>
 
@@ -781,11 +927,14 @@ export default function CosmicSimulatorScreen() {
                   {getHistoricalNoteForDate(currentDate)?.note}
                 </Text>
                 <Text style={styles.noteTransits}>
-                  Активные транзиты: {getHistoricalNoteForDate(currentDate)?.transits.join(', ')}
+                  Активные транзиты:{' '}
+                  {getHistoricalNoteForDate(currentDate)?.transits.join(', ')}
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => {
-                    setNoteText(getHistoricalNoteForDate(currentDate)?.note || '');
+                    setNoteText(
+                      getHistoricalNoteForDate(currentDate)?.note || ''
+                    );
                   }}
                   style={styles.editNoteButton}
                 >
@@ -795,10 +944,11 @@ export default function CosmicSimulatorScreen() {
             ) : (
               <View>
                 <Text style={styles.modalDescription}>
-                  Добавьте заметку о том, что происходило в вашей жизни в этот период. 
-                  Это поможет лучше понять влияние астрологических циклов.
+                  Добавьте заметку о том, что происходило в вашей жизни в этот
+                  период. Это поможет лучше понять влияние астрологических
+                  циклов.
                 </Text>
-                
+
                 <TextInput
                   style={styles.noteInput}
                   placeholder="Что происходило в вашей жизни..."
@@ -810,14 +960,14 @@ export default function CosmicSimulatorScreen() {
                 />
 
                 <View style={styles.modalButtons}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => setShowNoteModal(false)}
                     style={styles.modalCancelButton}
                   >
                     <Text style={styles.modalCancelText}>Отмена</Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     onPress={addHistoricalNote}
                     style={styles.modalSaveButton}
                   >

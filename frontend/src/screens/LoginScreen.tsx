@@ -33,7 +33,10 @@ interface LoginScreenProps {
   onSwitchToSignup: () => void;
 }
 
-export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenProps) {
+export default function LoginScreen({
+  onLogin,
+  onSwitchToSignup,
+}: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,8 +52,14 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
 
   useEffect(() => {
     // Анимация появления полей
-    fieldAnimations.email.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
-    fieldAnimations.password.value = withDelay(400, withSpring(1, { damping: 8, stiffness: 100 }));
+    fieldAnimations.email.value = withDelay(
+      200,
+      withSpring(1, { damping: 8, stiffness: 100 })
+    );
+    fieldAnimations.password.value = withDelay(
+      400,
+      withSpring(1, { damping: 8, stiffness: 100 })
+    );
   }, []);
 
   // Функция валидации email
@@ -85,22 +94,18 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
     setPasswordError('');
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert(
-        'Ошибка ввода', 
-        'Пожалуйста, заполните все поля',
-        [{ text: 'OK', style: 'default' }]
-      );
+      Alert.alert('Ошибка ввода', 'Пожалуйста, заполните все поля', [
+        { text: 'OK', style: 'default' },
+      ]);
       return;
     }
 
     // Валидация email
     if (!validateEmail(email)) {
       setEmailError('Введите корректный email адрес');
-      Alert.alert(
-        'Ошибка ввода', 
-        'Введите корректный email адрес',
-        [{ text: 'OK', style: 'default' }]
-      );
+      Alert.alert('Ошибка ввода', 'Введите корректный email адрес', [
+        { text: 'OK', style: 'default' },
+      ]);
       return;
     }
 
@@ -108,7 +113,7 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
     if (password.length < 6) {
       setPasswordError('Пароль должен содержать минимум 6 символов');
       Alert.alert(
-        'Ошибка ввода', 
+        'Ошибка ввода',
         'Пароль должен содержать минимум 6 символов',
         [{ text: 'OK', style: 'default' }]
       );
@@ -117,50 +122,59 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
 
     setLoading(true);
     try {
-      const loginData: LoginRequest = { 
-        email: email.trim(), 
-        password: password.trim() 
+      const loginData: LoginRequest = {
+        email: email.trim(),
+        password: password.trim(),
       };
-      console.log('🔐 Попытка входа с данными:', { email: loginData.email, password: '***' });
+      console.log('🔐 Попытка входа с данными:', {
+        email: loginData.email,
+        password: '***',
+      });
       const response = await authAPI.login(loginData);
-      console.log('✅ Успешный вход, получен токен:', response.access_token.substring(0, 20) + '...');
+      console.log(
+        '✅ Успешный вход, получен токен:',
+        response.access_token.substring(0, 20) + '...'
+      );
       setStoredToken(response.access_token);
-      
+
       // Небольшая задержка для анимации
       setTimeout(() => {
         onLogin();
       }, 300);
     } catch (error: any) {
       console.error('Login error:', error);
-      
+
       // Определяем тип ошибки и показываем соответствующее сообщение
       if (error.response?.status === 401) {
         Alert.alert(
-          'Ошибка входа', 
+          'Ошибка входа',
           'Неверный email или пароль. Проверьте правильность введенных данных.',
           [{ text: 'OK', style: 'default' }]
         );
       } else if (error.response?.status === 400) {
         Alert.alert(
-          'Ошибка входа', 
+          'Ошибка входа',
           'Некорректные данные. Проверьте формат email и пароля.',
           [{ text: 'OK', style: 'default' }]
         );
       } else if (error.code === 'ERR_NETWORK') {
         Alert.alert(
-          'Ошибка сети', 
+          'Ошибка сети',
           'Не удалось подключиться к серверу. Проверьте подключение к интернету.',
           [{ text: 'OK', style: 'default' }]
         );
-      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      } else if (
+        error.code === 'ECONNABORTED' ||
+        error.message?.includes('timeout')
+      ) {
         Alert.alert(
-          'Ошибка подключения', 
+          'Ошибка подключения',
           'Превышено время ожидания ответа от сервера. Проверьте подключение к интернету и попробуйте еще раз.',
           [{ text: 'OK', style: 'default' }]
         );
       } else {
         Alert.alert(
-          'Ошибка входа', 
+          'Ошибка входа',
           'Произошла ошибка при входе в систему. Попробуйте еще раз.',
           [{ text: 'OK', style: 'default' }]
         );
@@ -175,11 +189,11 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
       colors={['#0F172A', '#1E293B', '#334155']}
       style={styles.container}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
@@ -187,13 +201,15 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
           <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
             <AstralLogo />
             <Text style={styles.title}>AstraLink</Text>
-            <Text style={styles.subtitle}>Войдите в свой астрологический мир</Text>
+            <Text style={styles.subtitle}>
+              Войдите в свой астрологический мир
+            </Text>
           </Animated.View>
 
           {/* Form */}
           <Animated.View entering={SlideInUp.delay(400)} style={styles.form}>
             <Text style={styles.formTitle}>Вход в систему</Text>
-            
+
             <View>
               <AstralInput
                 placeholder="Email"
@@ -225,7 +241,10 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
             </View>
 
             {/* Submit Button */}
-            <Animated.View entering={SlideInUp.delay(600)} style={styles.buttonContainer}>
+            <Animated.View
+              entering={SlideInUp.delay(600)}
+              style={styles.buttonContainer}
+            >
               <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleLogin}
@@ -241,7 +260,12 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
                     <>
-                      <Ionicons name="log-in" size={20} color="#fff" style={styles.buttonIcon} />
+                      <Ionicons
+                        name="log-in"
+                        size={20}
+                        color="#fff"
+                        style={styles.buttonIcon}
+                      />
                       <Text style={styles.buttonText}>Войти в систему</Text>
                     </>
                   )}
@@ -250,10 +274,16 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }: LoginScreenPr
             </Animated.View>
 
             {/* Signup Link */}
-            <Animated.View entering={FadeIn.delay(800)} style={styles.linkContainer}>
-              <TouchableOpacity onPress={onSwitchToSignup} style={styles.linkButton}>
+            <Animated.View
+              entering={FadeIn.delay(800)}
+              style={styles.linkContainer}
+            >
+              <TouchableOpacity
+                onPress={onSwitchToSignup}
+                style={styles.linkButton}
+              >
                 <Text style={styles.linkText}>
-                  Нет аккаунта? 
+                  Нет аккаунта?
                   <Text style={styles.linkTextAccent}> Создать профиль</Text>
                 </Text>
               </TouchableOpacity>

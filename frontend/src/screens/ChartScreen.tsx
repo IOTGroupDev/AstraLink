@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
@@ -47,9 +55,11 @@ export default function ChartScreen() {
     natal: false,
     planets: false,
     transits: false,
-    horoscope: false
+    horoscope: false,
   });
-  const [activeTab, setActiveTab] = useState<'natal' | 'transits' | 'horoscope'>('natal');
+  const [activeTab, setActiveTab] = useState<
+    'natal' | 'transits' | 'horoscope'
+  >('natal');
 
   useEffect(() => {
     // Принудительно сбрасываем состояние загрузки
@@ -57,9 +67,9 @@ export default function ChartScreen() {
       natal: false,
       planets: false,
       transits: false,
-      horoscope: false
+      horoscope: false,
     });
-    
+
     loadNatalChart();
     loadCurrentPlanets();
     loadTransits();
@@ -67,14 +77,14 @@ export default function ChartScreen() {
   }, []);
 
   const loadNatalChart = async () => {
-    setLoading(prev => ({ ...prev, natal: true }));
+    setLoading((prev) => ({ ...prev, natal: true }));
     try {
       const chart = await chartAPI.getNatalChart();
       console.log('Натальная карта загружена:', chart);
       setNatalChart(chart);
     } catch (error) {
       console.error('Ошибка загрузки натальной карты:', error);
-      
+
       // Если натальная карта не найдена, пытаемся создать её
       if ((error as any).response?.status === 404) {
         try {
@@ -84,7 +94,7 @@ export default function ChartScreen() {
           Alert.alert('✅', 'Натальная карта успешно создана!');
         } catch (createError) {
           console.error('Ошибка создания натальной карты:', createError);
-          
+
           // Если не удалось создать, показываем моковые данные
           const mockChart = {
             planets: [
@@ -97,11 +107,14 @@ export default function ChartScreen() {
               { name: 'Сатурн', sign: 'Козерог', degree: 25 },
               { name: 'Уран', sign: 'Близнецы', degree: 7 },
               { name: 'Нептун', sign: 'Рыбы', degree: 14 },
-              { name: 'Плутон', sign: 'Скорпион', degree: 9 }
-            ]
+              { name: 'Плутон', sign: 'Скорпион', degree: 9 },
+            ],
           };
           setNatalChart(mockChart);
-          Alert.alert('ℹ️', 'Показаны демонстрационные данные. Для создания реальной натальной карты заполните данные профиля.');
+          Alert.alert(
+            'ℹ️',
+            'Показаны демонстрационные данные. Для создания реальной натальной карты заполните данные профиля.'
+          );
         }
       } else {
         // Для других ошибок показываем моковые данные
@@ -116,18 +129,18 @@ export default function ChartScreen() {
             { name: 'Сатурн', sign: 'Козерог', degree: 25 },
             { name: 'Уран', sign: 'Близнецы', degree: 7 },
             { name: 'Нептун', sign: 'Рыбы', degree: 14 },
-            { name: 'Плутон', sign: 'Скорпион', degree: 9 }
-          ]
+            { name: 'Плутон', sign: 'Скорпион', degree: 9 },
+          ],
         };
         setNatalChart(mockChart);
       }
     } finally {
-      setLoading(prev => ({ ...prev, natal: false }));
+      setLoading((prev) => ({ ...prev, natal: false }));
     }
   };
 
   const loadCurrentPlanets = async () => {
-    setLoading(prev => ({ ...prev, planets: true }));
+    setLoading((prev) => ({ ...prev, planets: true }));
     try {
       const planets = await chartAPI.getCurrentPlanets();
       setCurrentPlanets(planets);
@@ -135,32 +148,33 @@ export default function ChartScreen() {
       console.error('Ошибка загрузки планет:', error);
       Alert.alert('Ошибка', 'Не удалось загрузить текущие позиции планет');
     } finally {
-      setLoading(prev => ({ ...prev, planets: false }));
+      setLoading((prev) => ({ ...prev, planets: false }));
     }
   };
 
   const loadTransits = async () => {
-    setLoading(prev => ({ ...prev, transits: true }));
+    setLoading((prev) => ({ ...prev, transits: true }));
     try {
       const today = new Date();
       const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
+
       const transitsData = await chartAPI.getTransits(
         today.toISOString().split('T')[0],
         nextWeek.toISOString().split('T')[0]
       );
       // Преобразуем данные транзитов в нужный формат
-      const formattedTransits: TransitData[] = transitsData.transits?.map((transit: any) => ({
-        planet: 'Марс',
-        aspect: 'Квадрат',
-        target: 'Солнце',
-        date: transit.date,
-        description: 'Сильный аспект, влияющий на энергию и активность'
-      })) || [];
+      const formattedTransits: TransitData[] =
+        transitsData.transits?.map((transit: any) => ({
+          planet: 'Марс',
+          aspect: 'Квадрат',
+          target: 'Солнце',
+          date: transit.date,
+          description: 'Сильный аспект, влияющий на энергию и активность',
+        })) || [];
       setTransits(formattedTransits);
     } catch (error) {
       console.error('Ошибка загрузки транзитов:', error);
-      
+
       // Если транзиты не найдены из-за отсутствия натальной карты, пытаемся создать её
       if ((error as any).response?.status === 404) {
         try {
@@ -169,27 +183,31 @@ export default function ChartScreen() {
           // После создания натальной карты повторяем запрос транзитов
           const today = new Date();
           const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-          
+
           const transitsData = await chartAPI.getTransits(
             today.toISOString().split('T')[0],
             nextWeek.toISOString().split('T')[0]
           );
-          
-          const formattedTransits: TransitData[] = transitsData.transits?.map((transit: any) => ({
-            planet: 'Марс',
-            aspect: 'Квадрат',
-            target: 'Солнце',
-            date: transit.date,
-            description: 'Сильный аспект, влияющий на энергию и активность'
-          })) || [];
+
+          const formattedTransits: TransitData[] =
+            transitsData.transits?.map((transit: any) => ({
+              planet: 'Марс',
+              aspect: 'Квадрат',
+              target: 'Солнце',
+              date: transit.date,
+              description: 'Сильный аспект, влияющий на энергию и активность',
+            })) || [];
           setTransits(formattedTransits);
           Alert.alert('✅', 'Натальная карта создана! Транзиты рассчитаны.');
           return;
         } catch (createError) {
-          console.error('Ошибка создания натальной карты для транзитов:', createError);
+          console.error(
+            'Ошибка создания натальной карты для транзитов:',
+            createError
+          );
         }
       }
-      
+
       // Используем моковые данные для демонстрации
       const mockTransits: TransitData[] = [
         {
@@ -197,51 +215,56 @@ export default function ChartScreen() {
           aspect: 'Квадрат',
           target: 'Солнце',
           date: '2025-09-23',
-          description: 'Повышенная активность и энергия. Время для решительных действий.'
+          description:
+            'Повышенная активность и энергия. Время для решительных действий.',
         },
         {
           planet: 'Венера',
           aspect: 'Трин',
           target: 'Луна',
           date: '2025-09-24',
-          description: 'Гармония в отношениях и творчестве. Благоприятное время для романтики.'
+          description:
+            'Гармония в отношениях и творчестве. Благоприятное время для романтики.',
         },
         {
           planet: 'Меркурий',
           aspect: 'Секстиль',
           target: 'Юпитер',
           date: '2025-09-25',
-          description: 'Улучшение коммуникации и обучения. Хорошее время для новых знаний.'
+          description:
+            'Улучшение коммуникации и обучения. Хорошее время для новых знаний.',
         },
         {
           planet: 'Сатурн',
           aspect: 'Оппозиция',
           target: 'Марс',
           date: '2025-09-26',
-          description: 'Период ограничений и дисциплины. Важно быть терпеливым.'
+          description:
+            'Период ограничений и дисциплины. Важно быть терпеливым.',
         },
         {
           planet: 'Юпитер',
           aspect: 'Соединение',
           target: 'Нептун',
           date: '2025-09-27',
-          description: 'Расширение духовного сознания. Время для медитации и размышлений.'
-        }
+          description:
+            'Расширение духовного сознания. Время для медитации и размышлений.',
+        },
       ];
       setTransits(mockTransits);
     } finally {
-      setLoading(prev => ({ ...prev, transits: false }));
+      setLoading((prev) => ({ ...prev, transits: false }));
     }
   };
 
   const loadHoroscope = async () => {
-    setLoading(prev => ({ ...prev, horoscope: true }));
+    setLoading((prev) => ({ ...prev, horoscope: true }));
     try {
       const horoscopeData = await chartAPI.getPredictions('day');
       setHoroscope(horoscopeData);
     } catch (error) {
       console.error('Ошибка загрузки гороскопа:', error);
-      
+
       // Если гороскоп не найден из-за отсутствия натальной карты, пытаемся создать её
       if ((error as any).response?.status === 404) {
         try {
@@ -253,32 +276,42 @@ export default function ChartScreen() {
           Alert.alert('✅', 'Натальная карта создана! Гороскоп рассчитан.');
           return;
         } catch (createError) {
-          console.error('Ошибка создания натальной карты для гороскопа:', createError);
+          console.error(
+            'Ошибка создания натальной карты для гороскопа:',
+            createError
+          );
         }
       }
-      
+
       // Используем моковые данные для демонстрации
       const mockHoroscope: HoroscopeData = {
         period: 'day',
         date: new Date().toISOString(),
         predictions: {
-          general: 'Сегодня звезды благоволят вам! Энергия Марса в квадрате к вашему Солнцу принесет повышенную активность и решительность.',
+          general:
+            'Сегодня звезды благоволят вам! Энергия Марса в квадрате к вашему Солнцу принесет повышенную активность и решительность.',
           love: 'Это отличное время для начала новых проектов и принятия важных решений. Венера в трине к Луне создает гармонию в отношениях.',
-          career: 'На этой неделе вас ждут значительные изменения в карьере. Юпитер в секстиле к Меркурию принесет новые возможности.',
-          health: 'Этот месяц будет особенно благоприятным для творческих проектов и самовыражения.',
-          advice: 'Сегодня слушайте свою интуицию и доверяйте внутреннему голосу.'
+          career:
+            'На этой неделе вас ждут значительные изменения в карьере. Юпитер в секстиле к Меркурию принесет новые возможности.',
+          health:
+            'Этот месяц будет особенно благоприятным для творческих проектов и самовыражения.',
+          advice:
+            'Сегодня слушайте свою интуицию и доверяйте внутреннему голосу.',
         },
-        currentPlanets: {}
+        currentPlanets: {},
       };
       setHoroscope(mockHoroscope);
     } finally {
-      setLoading(prev => ({ ...prev, horoscope: false }));
+      setLoading((prev) => ({ ...prev, horoscope: false }));
     }
   };
 
   const renderNatalChart = () => {
-    console.log('Рендер натальной карты:', { loading: loading.natal, natalChart });
-    
+    console.log('Рендер натальной карты:', {
+      loading: loading.natal,
+      natalChart,
+    });
+
     if (loading.natal) {
       return (
         <View style={styles.loadingContainer}>
@@ -290,10 +323,19 @@ export default function ChartScreen() {
     if (!natalChart) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="planet-outline" size={60} color="rgba(255, 255, 255, 0.3)" />
+          <Ionicons
+            name="planet-outline"
+            size={60}
+            color="rgba(255, 255, 255, 0.3)"
+          />
           <Text style={styles.emptyText}>Натальная карта не найдена</Text>
-          <Text style={styles.emptySubtext}>Создайте натальную карту на основе ваших данных</Text>
-          <TouchableOpacity onPress={loadNatalChart} style={styles.refreshButton}>
+          <Text style={styles.emptySubtext}>
+            Создайте натальную карту на основе ваших данных
+          </Text>
+          <TouchableOpacity
+            onPress={loadNatalChart}
+            style={styles.refreshButton}
+          >
             <Text style={styles.refreshText}>Создать натальную карту</Text>
           </TouchableOpacity>
         </View>
@@ -302,41 +344,47 @@ export default function ChartScreen() {
 
     console.log('Отображаем натальную карту:', natalChart);
     console.log('Планеты:', natalChart.data?.planets);
-    
+
     return (
       <Animated.View entering={FadeIn} style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Ваша натальная карта</Text>
         <View style={styles.planetsList}>
-          {natalChart.data?.planets ? Object.entries(natalChart.data.planets).map(([planetKey, planet]: [string, any], index: number) => {
-            const planetNames: { [key: string]: string } = {
-              'sun': 'Солнце',
-              'moon': 'Луна',
-              'mercury': 'Меркурий',
-              'venus': 'Венера',
-              'mars': 'Марс',
-              'jupiter': 'Юпитер',
-              'saturn': 'Сатурн',
-              'uranus': 'Уран',
-              'neptune': 'Нептун',
-              'pluto': 'Плутон'
-            };
-            
-            return (
-              <View key={index} style={styles.planetRow}>
-                <Text style={styles.planetName}>{planetNames[planetKey] || planetKey}</Text>
-                <Text style={styles.planetPosition}>
-                  {planet.sign} {planet.degree?.toFixed(1)}°
-                </Text>
-              </View>
-            );
-          }) : natalChart.planets?.map((planet: any, index: number) => (
-            <View key={index} style={styles.planetRow}>
-              <Text style={styles.planetName}>{planet.name}</Text>
-              <Text style={styles.planetPosition}>
-                {planet.sign} {planet.degree}°
-              </Text>
-            </View>
-          ))}
+          {natalChart.data?.planets
+            ? Object.entries(natalChart.data.planets).map(
+                ([planetKey, planet]: [string, any], index: number) => {
+                  const planetNames: { [key: string]: string } = {
+                    sun: 'Солнце',
+                    moon: 'Луна',
+                    mercury: 'Меркурий',
+                    venus: 'Венера',
+                    mars: 'Марс',
+                    jupiter: 'Юпитер',
+                    saturn: 'Сатурн',
+                    uranus: 'Уран',
+                    neptune: 'Нептун',
+                    pluto: 'Плутон',
+                  };
+
+                  return (
+                    <View key={index} style={styles.planetRow}>
+                      <Text style={styles.planetName}>
+                        {planetNames[planetKey] || planetKey}
+                      </Text>
+                      <Text style={styles.planetPosition}>
+                        {planet.sign} {planet.degree?.toFixed(1)}°
+                      </Text>
+                    </View>
+                  );
+                }
+              )
+            : natalChart.planets?.map((planet: any, index: number) => (
+                <View key={index} style={styles.planetRow}>
+                  <Text style={styles.planetName}>{planet.name}</Text>
+                  <Text style={styles.planetPosition}>
+                    {planet.sign} {planet.degree}°
+                  </Text>
+                </View>
+              ))}
         </View>
       </Animated.View>
     );
@@ -354,7 +402,11 @@ export default function ChartScreen() {
     if (!transits || transits.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="time-outline" size={60} color="rgba(255, 255, 255, 0.3)" />
+          <Ionicons
+            name="time-outline"
+            size={60}
+            color="rgba(255, 255, 255, 0.3)"
+          />
           <Text style={styles.emptyText}>Транзиты не найдены</Text>
           <TouchableOpacity onPress={loadTransits} style={styles.refreshButton}>
             <Text style={styles.refreshText}>Обновить</Text>
@@ -393,9 +445,16 @@ export default function ChartScreen() {
     if (!horoscope) {
       return (
         <View style={styles.emptyContainer}>
-          <Ionicons name="star-outline" size={60} color="rgba(255, 255, 255, 0.3)" />
+          <Ionicons
+            name="star-outline"
+            size={60}
+            color="rgba(255, 255, 255, 0.3)"
+          />
           <Text style={styles.emptyText}>Гороскоп не найден</Text>
-          <TouchableOpacity onPress={loadHoroscope} style={styles.refreshButton}>
+          <TouchableOpacity
+            onPress={loadHoroscope}
+            style={styles.refreshButton}
+          >
             <Text style={styles.refreshText}>Загрузить</Text>
           </TouchableOpacity>
         </View>
@@ -409,35 +468,45 @@ export default function ChartScreen() {
           {horoscope.predictions?.general && (
             <View style={styles.predictionSection}>
               <Text style={styles.predictionTitle}>Общее</Text>
-              <Text style={styles.predictionText}>{horoscope.predictions.general}</Text>
+              <Text style={styles.predictionText}>
+                {horoscope.predictions.general}
+              </Text>
             </View>
           )}
-          
+
           {horoscope.predictions?.love && (
             <View style={styles.predictionSection}>
               <Text style={styles.predictionTitle}>Любовь</Text>
-              <Text style={styles.predictionText}>{horoscope.predictions.love}</Text>
+              <Text style={styles.predictionText}>
+                {horoscope.predictions.love}
+              </Text>
             </View>
           )}
-          
+
           {horoscope.predictions?.career && (
             <View style={styles.predictionSection}>
               <Text style={styles.predictionTitle}>Карьера</Text>
-              <Text style={styles.predictionText}>{horoscope.predictions.career}</Text>
+              <Text style={styles.predictionText}>
+                {horoscope.predictions.career}
+              </Text>
             </View>
           )}
-          
+
           {horoscope.predictions?.health && (
             <View style={styles.predictionSection}>
               <Text style={styles.predictionTitle}>Здоровье</Text>
-              <Text style={styles.predictionText}>{horoscope.predictions.health}</Text>
+              <Text style={styles.predictionText}>
+                {horoscope.predictions.health}
+              </Text>
             </View>
           )}
-          
+
           {horoscope.predictions?.advice && (
             <View style={styles.predictionSection}>
               <Text style={styles.predictionTitle}>Совет</Text>
-              <Text style={styles.predictionText}>{horoscope.predictions.advice}</Text>
+              <Text style={styles.predictionText}>
+                {horoscope.predictions.advice}
+              </Text>
             </View>
           )}
         </View>
@@ -451,7 +520,7 @@ export default function ChartScreen() {
       style={styles.container}
     >
       <AnimatedStars />
-      
+
       <ScrollView contentContainerStyle={styles.content}>
         {/* Заголовок */}
         <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
@@ -461,30 +530,48 @@ export default function ChartScreen() {
         </Animated.View>
 
         {/* Табы */}
-        <Animated.View entering={SlideInUp.delay(400)} style={styles.tabsContainer}>
+        <Animated.View
+          entering={SlideInUp.delay(400)}
+          style={styles.tabsContainer}
+        >
           <TouchableOpacity
             style={[styles.tab, activeTab === 'natal' && styles.activeTab]}
             onPress={() => setActiveTab('natal')}
           >
-            <Text style={[styles.tabText, activeTab === 'natal' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'natal' && styles.activeTabText,
+              ]}
+            >
               Натальная карта
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.tab, activeTab === 'transits' && styles.activeTab]}
             onPress={() => setActiveTab('transits')}
           >
-            <Text style={[styles.tabText, activeTab === 'transits' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'transits' && styles.activeTabText,
+              ]}
+            >
               Транзиты
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.tab, activeTab === 'horoscope' && styles.activeTab]}
             onPress={() => setActiveTab('horoscope')}
           >
-            <Text style={[styles.tabText, activeTab === 'horoscope' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'horoscope' && styles.activeTabText,
+              ]}
+            >
               Гороскоп
             </Text>
           </TouchableOpacity>
@@ -494,7 +581,12 @@ export default function ChartScreen() {
         <TouchableOpacity
           style={styles.refreshButton}
           onPress={() => {
-            setLoading({ natal: true, planets: true, transits: true, horoscope: true });
+            setLoading({
+              natal: true,
+              planets: true,
+              transits: true,
+              horoscope: true,
+            });
             loadNatalChart();
             loadCurrentPlanets();
             loadTransits();
@@ -505,7 +597,10 @@ export default function ChartScreen() {
         </TouchableOpacity>
 
         {/* Контент */}
-        <Animated.View entering={SlideInUp.delay(600)} style={styles.contentContainer}>
+        <Animated.View
+          entering={SlideInUp.delay(600)}
+          style={styles.contentContainer}
+        >
           {activeTab === 'natal' && renderNatalChart()}
           {activeTab === 'transits' && renderTransits()}
           {activeTab === 'horoscope' && renderHoroscope()}

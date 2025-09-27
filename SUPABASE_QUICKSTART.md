@@ -39,6 +39,7 @@ node scripts/setup-supabase.js --configure
 ```
 
 **Введите данные:**
+
 - Project URL: `https://your-project.supabase.co`
 - Anon Key: `eyJ...`
 - Service Role Key: `eyJ...`
@@ -183,9 +184,11 @@ curl -X POST http://localhost:3000/api/auth/supabase/login \
 - ✅ **Storage** - загрузка файлов (для будущего)
 
 **Теперь вы можете использовать новые эндпоинты:**
+
 - `POST /api/auth/supabase/signup`
 - `POST /api/auth/supabase/login`
 
 **И старые эндпоинты остаются для совместимости:**
+
 - `POST /api/auth/signup`
 - `POST /api/auth/login`

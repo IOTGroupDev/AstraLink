@@ -9,7 +9,13 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 const LOGO_SIZE = width * 0.5;
@@ -26,9 +32,9 @@ const LoadingLogo: React.FC = () => {
       -1,
       false
     );
-    
+
     scale.value = withSpring(1, { damping: 8, stiffness: 100 });
-    
+
     glow.value = withRepeat(
       withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -43,17 +49,12 @@ const LoadingLogo: React.FC = () => {
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${rotation.value}deg` },
-      { scale: scale.value },
-    ],
+    transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
     shadowOpacity: interpolate(glow.value, [0, 1], [0.3, 0.8]),
   }));
 
   const pulseStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(pulse.value, [0, 1], [1, 1.1]) },
-    ],
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.1]) }],
     opacity: interpolate(pulse.value, [0, 1], [0.6, 1]),
   }));
 
@@ -62,7 +63,13 @@ const LoadingLogo: React.FC = () => {
       <Animated.View style={[styles.logoContainer, animatedStyle]}>
         <Svg width={LOGO_SIZE} height={LOGO_SIZE} style={styles.svg}>
           <Defs>
-            <SvgGradient id="cosmicGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <SvgGradient
+              id="cosmicGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="1" />
               <Stop offset="30%" stopColor="#3B82F6" stopOpacity="1" />
               <Stop offset="60%" stopColor="#1E40AF" stopOpacity="1" />
@@ -78,7 +85,7 @@ const LoadingLogo: React.FC = () => {
               <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0.3" />
             </SvgGradient>
           </Defs>
-          
+
           {/* Outer glow ring */}
           <Circle
             cx={LOGO_SIZE / 2}
@@ -89,7 +96,7 @@ const LoadingLogo: React.FC = () => {
             fill="none"
             opacity="0.6"
           />
-          
+
           {/* Main outer ring */}
           <Circle
             cx={LOGO_SIZE / 2}
@@ -99,7 +106,7 @@ const LoadingLogo: React.FC = () => {
             strokeWidth="3"
             fill="none"
           />
-          
+
           {/* Inner ring */}
           <Circle
             cx={LOGO_SIZE / 2}
@@ -109,7 +116,7 @@ const LoadingLogo: React.FC = () => {
             strokeWidth="2"
             fill="none"
           />
-          
+
           {/* Center cosmic star */}
           <Path
             d={`M ${LOGO_SIZE / 2} ${LOGO_SIZE * 0.1} 
@@ -125,26 +132,20 @@ const LoadingLogo: React.FC = () => {
                  Z`}
             fill="url(#innerGradient)"
           />
-          
+
           {/* Orbiting cosmic elements */}
           {Array.from({ length: 8 }, (_, i) => {
-            const angle = (i * 45) * (Math.PI / 180);
+            const angle = i * 45 * (Math.PI / 180);
             const x = LOGO_SIZE / 2 + Math.cos(angle) * (LOGO_SIZE * 0.38);
             const y = LOGO_SIZE / 2 + Math.sin(angle) * (LOGO_SIZE * 0.38);
-            
+
             return (
-              <Circle
-                key={i}
-                cx={x}
-                cy={y}
-                r="3"
-                fill="url(#cosmicGradient)"
-              />
+              <Circle key={i} cx={x} cy={y} r="3" fill="url(#cosmicGradient)" />
             );
           })}
         </Svg>
       </Animated.View>
-      
+
       <Animated.View style={[styles.textContainer, pulseStyle]}>
         <Text style={styles.title}>AstraLink</Text>
         <Text style={styles.subtitle}>Подключение к звёздам...</Text>

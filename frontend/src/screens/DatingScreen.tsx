@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+  Alert,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -13,7 +21,10 @@ import Animated, {
   interpolate,
   runOnJS,
 } from 'react-native-reanimated';
-import { PanGestureHandler, GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  PanGestureHandler,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
 import AnimatedStars from '../components/AnimatedStars';
@@ -57,10 +68,10 @@ export default function DatingScreen() {
 
   const loadMatches = async () => {
     setLoading(true);
-    
+
     // Симулируем загрузку данных
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
     // Расширенные моковые данные для демонстрации
     const mockMatches: DatingMatch[] = [
       {
@@ -79,10 +90,10 @@ export default function DatingScreen() {
         lifestyle: ['Вегетарианство', 'ЗОЖ', 'Спорт'],
         astrologySign: 'Рыбы',
         moonSign: 'Рак',
-        risingSign: 'Скорпион'
+        risingSign: 'Скорпион',
       },
       {
-        id: '2', 
+        id: '2',
         name: 'София',
         age: 25,
         zodiacSign: 'Лев',
@@ -97,13 +108,13 @@ export default function DatingScreen() {
         lifestyle: ['Творчество', 'Концерты', 'Выставки'],
         astrologySign: 'Лев',
         moonSign: 'Весы',
-        risingSign: 'Близнецы'
+        risingSign: 'Близнецы',
       },
       {
         id: '3',
         name: 'Анна',
         age: 30,
-        zodiacSign: 'Скорпион', 
+        zodiacSign: 'Скорпион',
         compatibility: 76,
         distance: 12,
         bio: 'Глубокие разговоры о смысле жизни и космосе. Интересуюсь эзотерикой и философией.',
@@ -115,7 +126,7 @@ export default function DatingScreen() {
         lifestyle: ['Чтение', 'Медитация', 'Природа'],
         astrologySign: 'Скорпион',
         moonSign: 'Скорпион',
-        risingSign: 'Рыбы'
+        risingSign: 'Рыбы',
       },
       {
         id: '4',
@@ -133,7 +144,7 @@ export default function DatingScreen() {
         lifestyle: ['Красота', 'Искусство', 'Социальная жизнь'],
         astrologySign: 'Весы',
         moonSign: 'Лев',
-        risingSign: 'Весы'
+        risingSign: 'Весы',
       },
       {
         id: '5',
@@ -151,7 +162,7 @@ export default function DatingScreen() {
         lifestyle: ['Активный отдых', 'Путешествия', 'Спорт'],
         astrologySign: 'Стрелец',
         moonSign: 'Овен',
-        risingSign: 'Стрелец'
+        risingSign: 'Стрелец',
       },
       {
         id: '6',
@@ -169,7 +180,7 @@ export default function DatingScreen() {
         lifestyle: ['Планирование', 'ЗОЖ', 'Обучение'],
         astrologySign: 'Дева',
         moonSign: 'Дева',
-        risingSign: 'Козерог'
+        risingSign: 'Козерог',
       },
       {
         id: '7',
@@ -187,7 +198,7 @@ export default function DatingScreen() {
         lifestyle: ['Социальная жизнь', 'Технологии', 'Спорт'],
         astrologySign: 'Близнецы',
         moonSign: 'Близнецы',
-        risingSign: 'Лев'
+        risingSign: 'Лев',
       },
       {
         id: '8',
@@ -205,10 +216,10 @@ export default function DatingScreen() {
         lifestyle: ['Карьера', 'Спорт', 'Обучение'],
         astrologySign: 'Козерог',
         moonSign: 'Козерог',
-        risingSign: 'Дева'
-      }
+        risingSign: 'Дева',
+      },
     ];
-    
+
     setMatches(mockMatches);
     setLoading(false);
   };
@@ -232,7 +243,7 @@ export default function DatingScreen() {
       setConnections([
         { id: 1, name: 'Анна', zodiacSign: 'Рыбы', compatibility: 85 },
         { id: 2, name: 'Михаил', zodiacSign: 'Скорпион', compatibility: 92 },
-        { id: 3, name: 'Елена', zodiacSign: 'Весы', compatibility: 78 }
+        { id: 3, name: 'Елена', zodiacSign: 'Весы', compatibility: 78 },
       ]);
     } finally {
       setConnectionsLoading(false);
@@ -249,17 +260,20 @@ export default function DatingScreen() {
   }, [currentIndex]);
 
   const nextCard = () => {
-        if (currentIndex < matches.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          Alert.alert('🌟', 'Это все совпадения на сегодня!\nЗавтра будут новые звездные встречи ✨');
-        }
+    if (currentIndex < matches.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      Alert.alert(
+        '🌟',
+        'Это все совпадения на сегодня!\nЗавтра будут новые звездные встречи ✨'
+      );
+    }
   };
 
   const onGestureEvent = (event: any) => {
     translateX.value = event.nativeEvent.translationX;
     translateY.value = event.nativeEvent.translationY;
-    
+
     // Поворот карточки при свайпе
     const rotation = interpolate(
       event.nativeEvent.translationX,
@@ -270,13 +284,14 @@ export default function DatingScreen() {
   };
 
   const onHandlerStateChange = (event: any) => {
-    if (event.nativeEvent.state === 5) { // END
+    if (event.nativeEvent.state === 5) {
+      // END
       const { translationX, velocityX } = event.nativeEvent;
-      
+
       // Определяем направление свайпа
       const shouldSwipeLeft = translationX < -width * 0.3 || velocityX < -500;
       const shouldSwipeRight = translationX > width * 0.3 || velocityX > 500;
-      
+
       if (shouldSwipeLeft) {
         // Свайп влево - пропустить
         translateX.value = withTiming(-width * 1.5, { duration: 300 }, () => {
@@ -312,7 +327,7 @@ export default function DatingScreen() {
       { translateX: translateX.value },
       { translateY: translateY.value },
       { rotate: `${rotate.value}deg` },
-      { scale: cardScale.value }
+      { scale: cardScale.value },
     ],
     opacity: cardOpacity.value,
   }));
@@ -330,7 +345,11 @@ export default function DatingScreen() {
           <Text style={styles.title}>Cosmic Matches</Text>
           <Text style={styles.subtitle}>Ищем ваши звездные совпадения...</Text>
           <View style={styles.shimmerContainer}>
-            <ShimmerLoader width={width * 0.8} height={height * 0.5} borderRadius={25} />
+            <ShimmerLoader
+              width={width * 0.8}
+              height={height * 0.5}
+              borderRadius={25}
+            />
             <View style={{ height: 20 }} />
             <ShimmerLoader width={width * 0.6} height={50} borderRadius={25} />
           </View>
@@ -347,7 +366,11 @@ export default function DatingScreen() {
       >
         <AnimatedStars count={50} />
         <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={80} color="rgba(255, 255, 255, 0.3)" />
+          <Ionicons
+            name="heart-outline"
+            size={80}
+            color="rgba(255, 255, 255, 0.3)"
+          />
           <Text style={styles.emptyTitle}>Нет новых совпадений</Text>
           <Text style={styles.emptySubtitle}>
             Звезды готовят для вас новые встречи.{'\n'}Загляните завтра! ✨
@@ -370,192 +393,245 @@ export default function DatingScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-    <LinearGradient
-      colors={['#1a0a2a', '#3a1a5a', '#000000']}
-      style={styles.container}
-    >
-      <AnimatedStars count={50} />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Заголовок */}
-        <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
-          <Text style={styles.title}>Cosmic Matches</Text>
-          <Text style={styles.subtitle}>Астрологические совпадения</Text>
-        </Animated.View>
+      <LinearGradient
+        colors={['#1a0a2a', '#3a1a5a', '#000000']}
+        style={styles.container}
+      >
+        <AnimatedStars count={50} />
 
-        {/* Виджет связей */}
-        <Animated.View entering={FadeIn.delay(300)} style={styles.connectionsWidget}>
-          <View style={styles.connectionsHeader}>
-            <Ionicons name="people" size={20} color="#8B5CF6" />
-            <Text style={styles.connectionsTitle}>Ваши связи</Text>
-          </View>
-          
-          {connectionsLoading ? (
-            <View style={styles.connectionsLoading}>
-              <ShimmerLoader width={60} height={60} borderRadius={30} />
-              <ShimmerLoader width={60} height={60} borderRadius={30} />
-              <ShimmerLoader width={60} height={60} borderRadius={30} />
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Заголовок */}
+          <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
+            <Text style={styles.title}>Cosmic Matches</Text>
+            <Text style={styles.subtitle}>Астрологические совпадения</Text>
+          </Animated.View>
+
+          {/* Виджет связей */}
+          <Animated.View
+            entering={FadeIn.delay(300)}
+            style={styles.connectionsWidget}
+          >
+            <View style={styles.connectionsHeader}>
+              <Ionicons name="people" size={20} color="#8B5CF6" />
+              <Text style={styles.connectionsTitle}>Ваши связи</Text>
             </View>
-          ) : connections.length > 0 ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.connectionsList}
+
+            {connectionsLoading ? (
+              <View style={styles.connectionsLoading}>
+                <ShimmerLoader width={60} height={60} borderRadius={30} />
+                <ShimmerLoader width={60} height={60} borderRadius={30} />
+                <ShimmerLoader width={60} height={60} borderRadius={30} />
+              </View>
+            ) : connections.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.connectionsList}
+              >
+                {connections.map((connection, index) => (
+                  <View key={connection.id} style={styles.connectionItem}>
+                    <LinearGradient
+                      colors={['#8B5CF6', '#A855F7']}
+                      style={styles.connectionAvatar}
+                    >
+                      <Text style={styles.connectionInitial}>
+                        {connection.name?.charAt(0) || 'A'}
+                      </Text>
+                    </LinearGradient>
+                    <Text style={styles.connectionName}>{connection.name}</Text>
+                    <Text style={styles.connectionSign}>
+                      {connection.zodiacSign}
+                    </Text>
+                    <Text style={styles.connectionCompatibility}>
+                      {connection.compatibility}%
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.connectionsEmpty}>
+                <Text style={styles.connectionsEmptyText}>Нет связей</Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Карточка пользователя */}
+          <Animated.View
+            entering={SlideInUp.delay(400)}
+            style={styles.cardContainer}
+          >
+            <PanGestureHandler
+              onGestureEvent={onGestureEvent}
+              onHandlerStateChange={onHandlerStateChange}
             >
-              {connections.map((connection, index) => (
-                <View key={connection.id} style={styles.connectionItem}>
+              <Animated.View style={animatedCardStyle}>
+                <LinearGradient
+                  colors={[
+                    'rgba(255, 255, 255, 0.15)',
+                    'rgba(255, 255, 255, 0.05)',
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.matchCard}
+                >
+                  {/* Аватар заглушка */}
                   <LinearGradient
                     colors={['#8B5CF6', '#A855F7']}
-                    style={styles.connectionAvatar}
+                    style={styles.avatar}
                   >
-                    <Text style={styles.connectionInitial}>
-                      {connection.name?.charAt(0) || 'A'}
+                    <Text style={styles.avatarText}>
+                      {currentMatch.name.charAt(0)}
                     </Text>
                   </LinearGradient>
-                  <Text style={styles.connectionName}>{connection.name}</Text>
-                  <Text style={styles.connectionSign}>{connection.zodiacSign}</Text>
-                  <Text style={styles.connectionCompatibility}>{connection.compatibility}%</Text>
-                </View>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.connectionsEmpty}>
-              <Text style={styles.connectionsEmptyText}>Нет связей</Text>
-            </View>
-          )}
-        </Animated.View>
 
-        {/* Карточка пользователя */}
-        <Animated.View entering={SlideInUp.delay(400)} style={styles.cardContainer}>
-          <PanGestureHandler
-            onGestureEvent={onGestureEvent}
-            onHandlerStateChange={onHandlerStateChange}
-          >
-            <Animated.View style={animatedCardStyle}>
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.matchCard}
-          >
-            {/* Аватар заглушка */}
-            <LinearGradient
-              colors={['#8B5CF6', '#A855F7']}
-              style={styles.avatar}
-            >
-              <Text style={styles.avatarText}>
-                {currentMatch.name.charAt(0)}
-              </Text>
-            </LinearGradient>
+                  {/* Информация о пользователе */}
+                  <Text style={styles.userName}>
+                    {currentMatch.name}, {currentMatch.age}
+                  </Text>
+                  <Text style={styles.zodiacSign}>
+                    {currentMatch.zodiacSign}
+                  </Text>
 
-            {/* Информация о пользователе */}
-            <Text style={styles.userName}>{currentMatch.name}, {currentMatch.age}</Text>
-            <Text style={styles.zodiacSign}>{currentMatch.zodiacSign}</Text>
-            
-            {/* Совместимость */}
-            <View style={styles.compatibilityContainer}>
-              <Text style={styles.compatibilityLabel}>Совместимость</Text>
-              <View style={styles.compatibilityBar}>
-                <LinearGradient
-                  colors={['#10B981', '#34D399']}
-                  style={[styles.compatibilityFill, { width: `${currentMatch.compatibility}%` }]}
-                />
-              </View>
-              <Text style={styles.compatibilityText}>{currentMatch.compatibility}%</Text>
-            </View>
-
-            {/* Расстояние */}
-            <View style={styles.distanceContainer}>
-              <Ionicons name="location-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-              <Text style={styles.distanceText}>{currentMatch.distance} км от вас</Text>
-            </View>
-
-            {/* Биография */}
-            <Text style={styles.bioText}>{currentMatch.bio}</Text>
-
-            {/* Дополнительная информация */}
-            <View style={styles.additionalInfo}>
-              {currentMatch.occupation && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="briefcase-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-                  <Text style={styles.infoText}>{currentMatch.occupation}</Text>
-                </View>
-              )}
-              {currentMatch.height && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="resize-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-                  <Text style={styles.infoText}>{currentMatch.height}</Text>
-                </View>
-              )}
-              {currentMatch.relationshipGoals && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="heart-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-                  <Text style={styles.infoText}>{currentMatch.relationshipGoals}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Астрологическая информация */}
-            <View style={styles.astroInfo}>
-              <Text style={styles.astroTitle}>Астрологическая карта</Text>
-              <View style={styles.astroSigns}>
-                {currentMatch.moonSign && (
-                  <View style={styles.astroSign}>
-                    <Text style={styles.astroLabel}>Луна</Text>
-                    <Text style={styles.astroValue}>{currentMatch.moonSign}</Text>
+                  {/* Совместимость */}
+                  <View style={styles.compatibilityContainer}>
+                    <Text style={styles.compatibilityLabel}>Совместимость</Text>
+                    <View style={styles.compatibilityBar}>
+                      <LinearGradient
+                        colors={['#10B981', '#34D399']}
+                        style={[
+                          styles.compatibilityFill,
+                          { width: `${currentMatch.compatibility}%` },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.compatibilityText}>
+                      {currentMatch.compatibility}%
+                    </Text>
                   </View>
-                )}
-                {currentMatch.risingSign && (
-                  <View style={styles.astroSign}>
-                    <Text style={styles.astroLabel}>Восход</Text>
-                    <Text style={styles.astroValue}>{currentMatch.risingSign}</Text>
+
+                  {/* Расстояние */}
+                  <View style={styles.distanceContainer}>
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color="rgba(255, 255, 255, 0.7)"
+                    />
+                    <Text style={styles.distanceText}>
+                      {currentMatch.distance} км от вас
+                    </Text>
                   </View>
-                )}
-              </View>
-            </View>
 
-            {/* Интересы */}
-            <View style={styles.interestsContainer}>
-              {currentMatch.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))}
-            </View>
-          </LinearGradient>
-            </Animated.View>
-          </PanGestureHandler>
-        </Animated.View>
+                  {/* Биография */}
+                  <Text style={styles.bioText}>{currentMatch.bio}</Text>
 
-        {/* Кнопки действий */}
-        <Animated.View entering={SlideInUp.delay(600)} style={styles.actionButtons}>
-          <TouchableOpacity onPress={handlePass} style={styles.actionButton}>
-            <LinearGradient
-              colors={['#EF4444', '#DC2626']}
-              style={styles.buttonGradient}
-            >
-              <Ionicons name="close" size={30} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
+                  {/* Дополнительная информация */}
+                  <View style={styles.additionalInfo}>
+                    {currentMatch.occupation && (
+                      <View style={styles.infoRow}>
+                        <Ionicons
+                          name="briefcase-outline"
+                          size={16}
+                          color="rgba(255, 255, 255, 0.7)"
+                        />
+                        <Text style={styles.infoText}>
+                          {currentMatch.occupation}
+                        </Text>
+                      </View>
+                    )}
+                    {currentMatch.height && (
+                      <View style={styles.infoRow}>
+                        <Ionicons
+                          name="resize-outline"
+                          size={16}
+                          color="rgba(255, 255, 255, 0.7)"
+                        />
+                        <Text style={styles.infoText}>
+                          {currentMatch.height}
+                        </Text>
+                      </View>
+                    )}
+                    {currentMatch.relationshipGoals && (
+                      <View style={styles.infoRow}>
+                        <Ionicons
+                          name="heart-outline"
+                          size={16}
+                          color="rgba(255, 255, 255, 0.7)"
+                        />
+                        <Text style={styles.infoText}>
+                          {currentMatch.relationshipGoals}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
 
-          <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
-            <LinearGradient
-              colors={['#EC4899', '#BE185D']}
-              style={styles.buttonGradient}
-            >
-              <Ionicons name="heart" size={30} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+                  {/* Астрологическая информация */}
+                  <View style={styles.astroInfo}>
+                    <Text style={styles.astroTitle}>Астрологическая карта</Text>
+                    <View style={styles.astroSigns}>
+                      {currentMatch.moonSign && (
+                        <View style={styles.astroSign}>
+                          <Text style={styles.astroLabel}>Луна</Text>
+                          <Text style={styles.astroValue}>
+                            {currentMatch.moonSign}
+                          </Text>
+                        </View>
+                      )}
+                      {currentMatch.risingSign && (
+                        <View style={styles.astroSign}>
+                          <Text style={styles.astroLabel}>Восход</Text>
+                          <Text style={styles.astroValue}>
+                            {currentMatch.risingSign}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
 
-        {/* Счетчик карточек */}
-        <Animated.View entering={FadeIn.delay(800)} style={styles.counter}>
-          <Text style={styles.counterText}>
-            {currentIndex + 1} из {matches.length}
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </LinearGradient>
+                  {/* Интересы */}
+                  <View style={styles.interestsContainer}>
+                    {currentMatch.interests.map((interest, index) => (
+                      <View key={index} style={styles.interestTag}>
+                        <Text style={styles.interestText}>{interest}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </LinearGradient>
+              </Animated.View>
+            </PanGestureHandler>
+          </Animated.View>
+
+          {/* Кнопки действий */}
+          <Animated.View
+            entering={SlideInUp.delay(600)}
+            style={styles.actionButtons}
+          >
+            <TouchableOpacity onPress={handlePass} style={styles.actionButton}>
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                style={styles.buttonGradient}
+              >
+                <Ionicons name="close" size={30} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
+              <LinearGradient
+                colors={['#EC4899', '#BE185D']}
+                style={styles.buttonGradient}
+              >
+                <Ionicons name="heart" size={30} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Счетчик карточек */}
+          <Animated.View entering={FadeIn.delay(800)} style={styles.counter}>
+            <Text style={styles.counterText}>
+              {currentIndex + 1} из {matches.length}
+            </Text>
+          </Animated.View>
+        </ScrollView>
+      </LinearGradient>
     </GestureHandlerRootView>
   );
 }

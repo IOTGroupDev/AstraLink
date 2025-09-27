@@ -42,6 +42,7 @@ NODE_ENV=development
 ### 4. Обновить переменные
 
 Замените в `.env`:
+
 - `your-project.supabase.co` → ваш реальный URL
 - `your-anon-key` → ваш реальный anon key
 - `your-service-role-key` → ваш реальный service role key
@@ -70,11 +71,13 @@ npm run start:dev
 ## 🔄 Миграция с Docker
 
 ### Что больше не нужно:
+
 - ❌ Docker контейнер PostgreSQL
 - ❌ Локальная база данных
 - ❌ Prisma миграции (для Supabase)
 
 ### Что используется:
+
 - ✅ Supabase PostgreSQL
 - ✅ Supabase Auth
 - ✅ Supabase RLS

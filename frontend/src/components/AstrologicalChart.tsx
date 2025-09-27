@@ -24,7 +24,7 @@ const AstrologicalChart: React.FC = () => {
       -1,
       false
     );
-    
+
     scale.value = withRepeat(
       withTiming(1.1, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -33,10 +33,7 @@ const AstrologicalChart: React.FC = () => {
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${rotation.value}deg` },
-      { scale: scale.value },
-    ],
+    transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
   }));
 
   return (
@@ -52,7 +49,7 @@ const AstrologicalChart: React.FC = () => {
             strokeWidth="2"
             fill="none"
           />
-          
+
           {/* Inner circle */}
           <Circle
             cx={CENTER_X}
@@ -62,7 +59,7 @@ const AstrologicalChart: React.FC = () => {
             strokeWidth="1"
             fill="none"
           />
-          
+
           {/* Center circle */}
           <Circle
             cx={CENTER_X}
@@ -72,15 +69,15 @@ const AstrologicalChart: React.FC = () => {
             strokeWidth="1"
             fill="rgba(139, 92, 246, 0.1)"
           />
-          
+
           {/* Zodiac signs positions */}
           {Array.from({ length: 12 }, (_, i) => {
-            const angle = (i * 30) * (Math.PI / 180);
+            const angle = i * 30 * (Math.PI / 180);
             const x1 = CENTER_X + Math.cos(angle) * (RADIUS - 20);
             const y1 = CENTER_Y + Math.sin(angle) * (RADIUS - 20);
             const x2 = CENTER_X + Math.cos(angle) * RADIUS;
             const y2 = CENTER_Y + Math.sin(angle) * RADIUS;
-            
+
             return (
               <Line
                 key={i}
@@ -93,13 +90,13 @@ const AstrologicalChart: React.FC = () => {
               />
             );
           })}
-          
+
           {/* Planet positions (simplified) */}
           {Array.from({ length: 8 }, (_, i) => {
-            const angle = (i * 45) * (Math.PI / 180);
+            const angle = i * 45 * (Math.PI / 180);
             const x = CENTER_X + Math.cos(angle) * (RADIUS * 0.5);
             const y = CENTER_Y + Math.sin(angle) * (RADIUS * 0.5);
-            
+
             return (
               <Circle
                 key={i}

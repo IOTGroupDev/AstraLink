@@ -8,7 +8,14 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Circle, Path, Text as SvgText, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Text as SvgText,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 const WHEEL_SIZE = Math.min(width, height) * 0.8;
@@ -23,7 +30,7 @@ const ZodiacWheel: React.FC = () => {
       -1,
       false
     );
-    
+
     glow.value = withRepeat(
       withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
       -1,
@@ -60,7 +67,13 @@ const ZodiacWheel: React.FC = () => {
       <Animated.View style={[styles.wheelContainer, animatedStyle]}>
         <Svg width={WHEEL_SIZE} height={WHEEL_SIZE} style={styles.svg}>
           <Defs>
-            <SvgGradient id="zodiacGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <SvgGradient
+              id="zodiacGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
               <Stop offset="30%" stopColor="#3B82F6" stopOpacity="0.6" />
               <Stop offset="60%" stopColor="#1E40AF" stopOpacity="0.4" />
@@ -72,7 +85,7 @@ const ZodiacWheel: React.FC = () => {
               <Stop offset="100%" stopColor="#DC2626" stopOpacity="0.2" />
             </SvgGradient>
           </Defs>
-          
+
           {/* Outer ring */}
           <Circle
             cx={centerX}
@@ -83,7 +96,7 @@ const ZodiacWheel: React.FC = () => {
             fill="none"
             opacity="0.6"
           />
-          
+
           {/* Main wheel */}
           <Circle
             cx={centerX}
@@ -93,7 +106,7 @@ const ZodiacWheel: React.FC = () => {
             strokeWidth="3"
             fill="none"
           />
-          
+
           {/* Inner ring */}
           <Circle
             cx={centerX}
@@ -103,7 +116,7 @@ const ZodiacWheel: React.FC = () => {
             strokeWidth="2"
             fill="none"
           />
-          
+
           {/* Zodiac signs */}
           {zodiacSigns.map((sign, index) => {
             const angle = (sign.angle * Math.PI) / 180;
@@ -111,7 +124,7 @@ const ZodiacWheel: React.FC = () => {
             const y = centerY + Math.sin(angle) * radius;
             const innerX = centerX + Math.cos(angle) * (radius - 15);
             const innerY = centerY + Math.sin(angle) * (radius - 15);
-            
+
             return (
               <React.Fragment key={sign.name}>
                 {/* Connection line */}
@@ -121,7 +134,7 @@ const ZodiacWheel: React.FC = () => {
                   strokeWidth="1"
                   opacity="0.4"
                 />
-                
+
                 {/* Sign symbol */}
                 <SvgText
                   x={x}
@@ -133,7 +146,7 @@ const ZodiacWheel: React.FC = () => {
                 >
                   {sign.symbol}
                 </SvgText>
-                
+
                 {/* Sign name */}
                 <SvgText
                   x={innerX}
@@ -147,14 +160,9 @@ const ZodiacWheel: React.FC = () => {
               </React.Fragment>
             );
           })}
-          
+
           {/* Center point */}
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r="4"
-            fill="url(#innerGradient)"
-          />
+          <Circle cx={centerX} cy={centerY} r="4" fill="url(#innerGradient)" />
         </Svg>
       </Animated.View>
     </View>

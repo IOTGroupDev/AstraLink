@@ -54,23 +54,23 @@ export default function TabNavigator() {
         headerBackground: () => null,
       })}
     >
-      <Tab.Screen 
-        name="ChartStack" 
+      <Tab.Screen
+        name="ChartStack"
         component={ChartStackNavigator}
         options={{ title: 'Карты', headerShown: false }}
       />
-      <Tab.Screen 
-        name="CosmicSimulator" 
+      <Tab.Screen
+        name="CosmicSimulator"
         component={CosmicSimulatorScreen}
         options={{ title: 'Симулятор', headerShown: false }}
       />
-      <Tab.Screen 
-        name="Dating" 
+      <Tab.Screen
+        name="Dating"
         component={DatingScreen}
         options={{ title: 'Dating', headerShown: false }}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileScreen}
         options={{ title: 'Профиль', headerShown: false }}
       />
