@@ -12,11 +12,47 @@ export class EphemerisService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       swisseph = require('swisseph');
-      if (swisseph?.swe_set_ephe_path) {
-        swisseph.swe_set_ephe_path('./ephe');
+      if (
+        swisseph &&
+        typeof swisseph === 'object' &&
+        swisseph.swe_set_ephe_path
+      ) {
+        // Пробуем разные пути к эфемерисным файлам
+        try {
+          swisseph.swe_set_ephe_path('./ephe');
+          this.logger.log('Установлен путь к эфемерисным файлам: ./ephe');
+        } catch (pathError) {
+          try {
+            swisseph.swe_set_ephe_path(__dirname + '/../../ephe');
+            this.logger.log(
+              'Установлен альтернативный путь к эфемерисным файлам',
+            );
+          } catch (altPathError) {
+            this.logger.warn(
+              'Не удалось установить путь к эфемерисным файлам, используем встроенные данные',
+            );
+          }
+        }
+        // Проверяем основные методы
+        if (
+          swisseph.swe_calc_ut &&
+          swisseph.swe_julday &&
+          swisseph.swe_houses
+        ) {
+          this.hasSE = true;
+          this.logger.log('Swiss Ephemeris инициализирован успешно');
+        } else {
+          this.hasSE = false;
+          this.logger.warn(
+            'Swiss Ephemeris загружен, но некоторые методы недоступны',
+          );
+        }
+      } else {
+        this.hasSE = false;
+        this.logger.warn(
+          'Swiss Ephemeris не найден или имеет неправильную структуру',
+        );
       }
-      this.hasSE = true;
-      this.logger.log('Swiss Ephemeris инициализирован');
     } catch (_error) {
       this.hasSE = false;
       this.logger.warn(
@@ -53,13 +89,23 @@ export class EphemerisService {
         throw new Error('Некорректный формат даты или времени');
       }
 
-      const julianDay = swisseph.swe_julday(
-        year,
-        month,
-        day,
-        hours + minutes / 60,
-        swisseph.SE_GREG_CAL,
-      );
+      // Рассчитываем юлианский день
+      let julianDay: number;
+      if (this.hasSE && swisseph?.swe_julday) {
+        julianDay = swisseph.swe_julday(
+          year,
+          month,
+          day,
+          hours + minutes / 60,
+          swisseph.SE_GREG_CAL,
+        );
+      } else {
+        // Fallback calculation
+        julianDay =
+          2440587.5 +
+          new Date(Date.UTC(year, month - 1, day, hours, minutes)).getTime() /
+            86400000;
+      }
 
       // Рассчитываем позиции планет
       const planets = await this.calculatePlanets(julianDay);
@@ -279,7 +325,7 @@ export class EphemerisService {
     this.logger.log(`Расчёт планет для юлианского дня: ${julianDay}`);
 
     // Fallback if Swiss Ephemeris is not available
-    if (!this.hasSE) {
+    if (!this.hasSE || !swisseph) {
       this.logger.warn('Используем упрощённые позиции планет (fallback)');
       // Approximate mean longitudes (simplified)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -332,6 +378,8 @@ export class EphemerisService {
 
         this.logger.log(`Результат для ${planetName}:`, result);
 
+        this.logger.log(`Результат для ${planetName}:`, result);
+
         if (result && result.longitude !== undefined && !result.error) {
           const longitude = result.longitude;
           planets[planetName] = {
@@ -375,6 +423,22 @@ export class EphemerisService {
     location: { latitude: number; longitude: number; timezone: number },
   ): Promise<any> {
     try {
+      // Проверяем, доступен ли Swiss Ephemeris
+      if (!this.hasSE || !swisseph?.swe_houses) {
+        this.logger.warn(
+          'Swiss Ephemeris не доступен для расчёта домов, используем fallback',
+        );
+        // Fallback - создаём упрощённые дома
+        const houses: any = {};
+        for (let i = 1; i <= 12; i++) {
+          houses[i] = {
+            cusp: (i - 1) * 30,
+            sign: this.longitudeToSign((i - 1) * 30),
+          };
+        }
+        return houses;
+      }
+
       const result = swisseph.swe_houses(
         julianDay,
         location.latitude,
@@ -406,7 +470,15 @@ export class EphemerisService {
       return houses;
     } catch (error) {
       this.logger.warn('Не удалось рассчитать дома:', error);
-      return {};
+      // Fallback - создаём упрощённые дома
+      const houses: any = {};
+      for (let i = 1; i <= 12; i++) {
+        houses[i] = {
+          cusp: (i - 1) * 30,
+          sign: this.longitudeToSign((i - 1) * 30),
+        };
+      }
+      return houses;
     }
   }
 

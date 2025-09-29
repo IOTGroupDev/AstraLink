@@ -717,48 +717,41 @@ export default function CosmicSimulatorScreen() {
   };
 
   const renderActiveTransits = () => {
+    // Показываем только 3 самых важных транзита (с наименьшим орбисом)
+    const topTransits = activeTransits.slice(0, 3);
+
     return (
       <View style={styles.transitsContainer}>
         <View style={styles.transitsTitleContainer}>
           <View>
-            <Text style={styles.transitsTitle}>Активные Транзиты</Text>
-            {!transitsLoading && (
+            <Text style={styles.transitsTitle}>Ключевые Транзиты</Text>
+            {!transitsLoading && topTransits.length > 0 && (
               <Text style={styles.transitsCount}>
-                {activeTransits.length} транзитов на{' '}
-                {currentDate.toLocaleDateString('ru-RU')}
+                {topTransits.length} из {activeTransits.length}
               </Text>
             )}
           </View>
-          <View style={styles.transitsControls}>
-            {transitsLoading && (
-              <View style={styles.loadingIndicator}>
-                <Text style={styles.loadingText}>Обновление...</Text>
-              </View>
-            )}
-            <TouchableOpacity
-              onPress={() => loadTransitsForDate(currentDate)}
-              style={styles.refreshTransitsButton}
-            >
-              <Ionicons name="refresh" size={16} color="#8B5CF6" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => loadTransitsForDate(currentDate)}
+            style={styles.refreshTransitsButton}
+          >
+            <Ionicons name="refresh" size={16} color="#8B5CF6" />
+          </TouchableOpacity>
         </View>
 
         {transitsLoading ? (
           <View style={styles.transitsLoading}>
-            <ShimmerLoader width={width * 0.8} height={60} borderRadius={15} />
-            <View style={{ height: 10 }} />
-            <ShimmerLoader width={width * 0.8} height={60} borderRadius={15} />
-            <View style={{ height: 10 }} />
-            <ShimmerLoader width={width * 0.8} height={60} borderRadius={15} />
+            <ShimmerLoader width={width * 0.8} height={50} borderRadius={12} />
+            <View style={{ height: 8 }} />
+            <ShimmerLoader width={width * 0.8} height={50} borderRadius={12} />
           </View>
         ) : (
           <>
-            {activeTransits.map((transit, index) => (
+            {topTransits.map((transit, index) => (
               <TouchableOpacity
                 key={index}
                 style={[
-                  styles.transitItem,
+                  styles.transitItemCompact,
                   {
                     borderLeftColor:
                       transit.type === 'harmonious'
@@ -770,29 +763,60 @@ export default function CosmicSimulatorScreen() {
                 ]}
                 onPress={() => setSelectedTransit(transit)}
               >
-                <View style={styles.transitHeader}>
-                  <Text style={styles.transitTitle}>
+                <View style={styles.transitHeaderCompact}>
+                  <Text style={styles.transitTitleCompact}>
                     {transit.planet} {transit.aspect} {transit.target}
                   </Text>
-                  <Text style={styles.transitOrb}>±{transit.orb}°</Text>
+                  <View style={styles.transitOrbBadge}>
+                    <Text style={styles.transitOrbCompact}>
+                      ±{transit.orb}°
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.transitDescription} numberOfLines={2}>
+                <Text
+                  style={styles.transitDescriptionCompact}
+                  numberOfLines={1}
+                >
                   {transit.description}
                 </Text>
               </TouchableOpacity>
             ))}
 
             {activeTransits.length === 0 && (
-              <View style={styles.emptyTransits}>
-                <Ionicons
-                  name="planet-outline"
-                  size={40}
-                  color="rgba(255, 255, 255, 0.3)"
-                />
+              <View style={styles.emptyTransitsCompact}>
                 <Text style={styles.emptyTransitsText}>
                   Нет активных транзитов
                 </Text>
               </View>
+            )}
+
+            {activeTransits.length > 3 && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => {
+                  console.log('Нажата кнопка показать все транзиты');
+                  console.log('Количество транзитов:', activeTransits.length);
+
+                  const allTransitsText = activeTransits
+                    .map(
+                      (t, i) =>
+                        `${i + 1}. ${t.planet} ${t.aspect} ${t.target} (±${t.orb}°)`
+                    )
+                    .join('\n');
+
+                  console.log('Текст для Alert:', allTransitsText);
+
+                  Alert.alert(
+                    `Все транзиты (${activeTransits.length})`,
+                    allTransitsText || 'Нет данных о транзитах',
+                    [{ text: 'Закрыть', style: 'default' }]
+                  );
+                }}
+              >
+                <Text style={styles.showMoreText}>
+                  Показать все {activeTransits.length} транзитов
+                </Text>
+              </TouchableOpacity>
             )}
           </>
         )}
@@ -1178,34 +1202,91 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#6B7280',
   },
+  transitItemCompact: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#6B7280',
+  },
   transitHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
+  transitHeaderCompact: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   transitTitle: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
+  transitTitleCompact: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
   transitOrb: {
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 12,
+  },
+  transitOrbBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  transitOrbCompact: {
+    color: '#8B5CF6',
+    fontSize: 10,
+    fontWeight: '600',
   },
   transitDescription: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
     lineHeight: 20,
   },
+  transitDescriptionCompact: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 6,
+    paddingLeft: 8,
+    paddingRight: 8,
+  },
   emptyTransits: {
     alignItems: 'center',
     paddingVertical: 30,
   },
+  emptyTransitsCompact: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
   emptyTransitsText: {
     color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 16,
-    marginTop: 10,
+    fontSize: 14,
+  },
+  showMoreButton: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  showMoreText: {
+    color: '#8B5CF6',
+    fontSize: 12,
+    fontWeight: '500',
   },
   feelingSection: {
     width: '100%',

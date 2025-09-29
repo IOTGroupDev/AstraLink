@@ -492,6 +492,51 @@ const MyChartScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             style={styles.widgetsScroll}
           >
+            {/* Sun Sign Widget */}
+            <View style={styles.widget}>
+              <Ionicons name="sunny" size={30} color="#FFD700" />
+              <Text style={styles.widgetLabel}>Солнце</Text>
+              <Text style={styles.widgetValue}>
+                {chart?.data?.planets?.sun?.sign || 'Лев'}
+              </Text>
+            </View>
+
+            {/* Moon Sign Widget */}
+            <View style={styles.widget}>
+              <Ionicons name="moon" size={30} color="#C0C0C0" />
+              <Text style={styles.widgetLabel}>Луна</Text>
+              <Text style={styles.widgetValue}>
+                {chart?.data?.planets?.moon?.sign || 'Рак'}
+              </Text>
+            </View>
+
+            {/* Ascendant Widget */}
+            <View style={styles.widget}>
+              <Ionicons name="trending-up" size={30} color="#8B5CF6" />
+              <Text style={styles.widgetLabel}>Асцендент</Text>
+              <Text style={styles.widgetValue}>
+                {chart?.data?.houses?.[1]?.sign || 'Овен'}
+              </Text>
+            </View>
+
+            {/* Venus Widget */}
+            <View style={styles.widget}>
+              <Ionicons name="heart" size={30} color="#FFC649" />
+              <Text style={styles.widgetLabel}>Венера</Text>
+              <Text style={styles.widgetValue}>
+                {chart?.data?.planets?.venus?.sign || 'Лев'}
+              </Text>
+            </View>
+
+            {/* Mars Widget */}
+            <View style={styles.widget}>
+              <Ionicons name="fitness" size={30} color="#C1440E" />
+              <Text style={styles.widgetLabel}>Марс</Text>
+              <Text style={styles.widgetValue}>
+                {chart?.data?.planets?.mars?.sign || 'Скорпион'}
+              </Text>
+            </View>
+
             {/* Moon Phase Widget */}
             <View style={styles.widget}>
               <MoonPhase phase={0.3} size={40} />
@@ -499,19 +544,28 @@ const MyChartScreen: React.FC = () => {
               <Text style={styles.widgetValue}>Растущая</Text>
             </View>
 
+            {/* Jupiter Widget */}
+            <View style={styles.widget}>
+              <Ionicons name="leaf" size={30} color="#D8CA9D" />
+              <Text style={styles.widgetLabel}>Юпитер</Text>
+              <Text style={styles.widgetValue}>
+                {chart?.data?.planets?.jupiter?.sign || 'Рыбы'}
+              </Text>
+            </View>
+
             {/* Mercury Retrograde Widget */}
             <View style={styles.widget}>
-              <Ionicons name="planet" size={30} color="#8C7853" />
+              <Ionicons name="swap-horizontal" size={30} color="#8C7853" />
               <Text style={styles.widgetLabel}>Меркурий</Text>
               <Text style={styles.widgetValue}>Прямой</Text>
             </View>
 
-            {/* Moon Sign Widget */}
+            {/* Saturn Widget */}
             <View style={styles.widget}>
-              <Ionicons name="star" size={30} color="#FFD700" />
-              <Text style={styles.widgetLabel}>Знак Луны</Text>
+              <Ionicons name="time" size={30} color="#FAD5A5" />
+              <Text style={styles.widgetLabel}>Сатурн</Text>
               <Text style={styles.widgetValue}>
-                {chart?.planets?.moon?.sign || 'Неизвестно'}
+                {chart?.data?.planets?.saturn?.sign || 'Козерог'}
               </Text>
             </View>
           </ScrollView>
@@ -519,7 +573,12 @@ const MyChartScreen: React.FC = () => {
           {/* Biorhythms Widget - отдельная строка */}
           <View style={styles.biorhythmsRow}>
             <View style={styles.biorhythmsWidget}>
-              <Biorhythms physical={75} emotional={60} intellectual={85} />
+              <Biorhythms
+                physical={75}
+                emotional={60}
+                intellectual={85}
+                size={60}
+              />
               <Text style={styles.widgetLabel}>Биоритмы</Text>
             </View>
           </View>
@@ -686,12 +745,13 @@ const styles = StyleSheet.create({
   },
   biorhythmsWidget: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 15,
-    padding: 15,
+    borderRadius: 20,
+    padding: 25,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    width: 200,
+    width: width - 40,
+    minHeight: 120,
   },
   noDataText: {
     color: 'rgba(255, 255, 255, 0.6)',

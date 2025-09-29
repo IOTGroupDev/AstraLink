@@ -25,6 +25,7 @@ interface Planet {
 interface SolarSystemProps {
   currentPlanets: any;
   isLoading?: boolean;
+  isNatal?: boolean;
 }
 
 // Функция для получения отображаемого названия планеты
@@ -50,10 +51,14 @@ const PlanetComponent: React.FC<{
   planet: Planet;
   rotation: Animated.SharedValue<number>;
   scale: Animated.SharedValue<number>;
-}> = ({ planet, rotation, scale }) => {
+  isNatal?: boolean;
+}> = ({ planet, rotation, scale, isNatal = false }) => {
   const animatedStyle = useAnimatedStyle(() => {
-    const planetRotation =
-      rotation.value * planet.speed + planet.currentPosition;
+    // Для натальной карты используем только currentPosition (longitude)
+    // Для текущих позиций добавляем вращение
+    const planetRotation = isNatal
+      ? planet.currentPosition
+      : rotation.value * planet.speed + planet.currentPosition;
     const x = Math.cos((planetRotation * Math.PI) / 180) * planet.distance;
     const y = Math.sin((planetRotation * Math.PI) / 180) * planet.distance;
 
@@ -86,7 +91,8 @@ const PlanetComponent: React.FC<{
 const OrbitComponent: React.FC<{
   distance: number;
   scale: Animated.SharedValue<number>;
-}> = ({ distance, scale }) => {
+  isNatal?: boolean;
+}> = ({ distance, scale, isNatal = false }) => {
   const orbitStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
@@ -100,7 +106,9 @@ const OrbitComponent: React.FC<{
           height: distance * 2,
           borderRadius: distance,
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderColor: isNatal
+            ? 'rgba(139, 92, 246, 0.4)'
+            : 'rgba(255, 255, 255, 0.1)',
         },
         orbitStyle,
       ]}
@@ -111,6 +119,7 @@ const OrbitComponent: React.FC<{
 const SolarSystem: React.FC<SolarSystemProps> = ({
   currentPlanets,
   isLoading = false,
+  isNatal = false,
 }) => {
   const rotation = useSharedValue(0);
   const scale = useSharedValue(0.8);
@@ -206,22 +215,24 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     }
   }, [currentPlanets]);
 
-  // Анимация вращения
+  // Анимация вращения (только для текущих позиций, не для натальной карты)
   useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, {
-        duration: 20000, // 20 секунд на полный оборот
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    );
+    if (!isNatal) {
+      rotation.value = withRepeat(
+        withTiming(360, {
+          duration: 20000, // 20 секунд на полный оборот
+          easing: Easing.linear,
+        }),
+        -1,
+        false
+      );
+    }
 
     scale.value = withTiming(1, {
       duration: 1000,
       easing: Easing.out(Easing.cubic),
     });
-  }, []);
+  }, [isNatal]);
 
   if (isLoading) {
     return (
@@ -253,6 +264,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
           key={`orbit-${planet.distance}`}
           distance={planet.distance}
           scale={scale}
+          isNatal={isNatal}
         />
       ))}
 
@@ -263,6 +275,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
           planet={planet}
           rotation={rotation}
           scale={scale}
+          isNatal={isNatal}
         />
       ))}
     </View>

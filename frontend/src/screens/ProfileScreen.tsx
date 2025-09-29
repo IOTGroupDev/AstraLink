@@ -20,12 +20,20 @@ import Animated, {
   interpolate,
   runOnJS,
 } from 'react-native-reanimated';
-import { userAPI, subscriptionAPI, removeStoredToken } from '../services/api';
-import { UserProfile, Subscription } from '../types';
+import {
+  userAPI,
+  subscriptionAPI,
+  chartAPI,
+  removeStoredToken,
+} from '../services/api';
+import { UserProfile, Subscription, Chart } from '../types';
 import ShimmerLoader from '../components/ShimmerLoader';
 import CosmicBackground from '../components/CosmicBackground';
 import ZodiacAvatar from '../components/ZodiacAvatar';
 import SubscriptionCard from '../components/SubscriptionCard';
+import PlanetIcon from '../components/PlanetIcon';
+import AstrologicalChart from '../components/AstrologicalChart';
+import NatalChartWidget from '../components/NatalChartWidget';
 
 const { width, height } = Dimensions.get('window');
 
@@ -76,6 +84,7 @@ const ZODIAC_ELEMENTS = {
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [chart, setChart] = useState<Chart | null>(null);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -110,12 +119,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const loadProfileData = async () => {
     try {
       setLoading(true);
-      const [profileData, subscriptionData] = await Promise.all([
+      const [profileData, subscriptionData, chartData] = await Promise.all([
         userAPI.getProfile(),
         subscriptionAPI.getStatus(),
+        chartAPI.getNatalChart().catch(() => null), // Не прерываем загрузку если нет карты
       ]);
       setProfile(profileData);
       setSubscription(subscriptionData);
+      setChart(chartData);
     } catch (error) {
       console.error('Error loading profile:', error);
       Alert.alert('Ошибка', 'Не удалось загрузить данные профиля');
@@ -306,6 +317,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               onUpgrade={() => setShowSubscriptionModal(true)}
             />
           </View>
+
+          {/* Natal Chart Widget */}
+          {chart && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Натальная карта</Text>
+              <View style={styles.chartCard}>
+                <NatalChartWidget chart={chart} />
+                <TouchableOpacity
+                  style={styles.viewFullChartButton}
+                  onPress={() => navigation.navigate('ChartStack')}
+                >
+                  <Text style={styles.viewFullChartText}>
+                    Посмотреть полную карту
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Settings Section */}
           <View style={styles.section}>
@@ -540,6 +569,28 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // Natal Chart Widget Styles
+  chartCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  viewFullChartButton: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    marginTop: 15,
+  },
+  viewFullChartText: {
+    color: '#8B5CF6',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

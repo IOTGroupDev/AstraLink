@@ -86,18 +86,20 @@ interface BiorhythmsProps {
   physical?: number;
   emotional?: number;
   intellectual?: number;
+  size?: number;
 }
 
 const Biorhythms: React.FC<BiorhythmsProps> = ({
   physical = 75,
-  emotional = 60,
+  emotional = 80,
   intellectual = 85,
+  size = 40,
 }) => {
   return (
     <View style={styles.container}>
-      <Biorhythm value={physical} color="#FF6B6B" label="Физ" />
-      <Biorhythm value={emotional} color="#4ECDC4" label="Эмо" />
-      <Biorhythm value={intellectual} color="#45B7D1" label="Инт" />
+      <Biorhythm value={physical} color="#FF6B6B" label="Физ" size={size} />
+      <Biorhythm value={emotional} color="#4ECDC4" label="Эмо" size={size} />
+      <Biorhythm value={intellectual} color="#45B7D1" label="Инт" size={size} />
     </View>
   );
 };
