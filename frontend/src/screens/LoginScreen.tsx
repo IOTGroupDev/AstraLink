@@ -327,7 +327,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginTop: 20,
-    textShadow: '0 0 20px rgba(139, 92, 246, 0.8)',
+    textShadowColor: 'rgba(139, 92, 246, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   subtitle: {
     fontSize: 16,
@@ -354,7 +356,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 30,
-    textShadow: '0 0 10px rgba(139, 92, 246, 0.3)',
+    textShadowColor: 'rgba(139, 92, 246, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   buttonContainer: {
     marginTop: 20,
@@ -386,7 +390,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-    textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   linkContainer: {
     alignItems: 'center',
@@ -405,6 +411,8 @@ const styles = StyleSheet.create({
   linkTextAccent: {
     color: '#8B5CF6',
     fontWeight: 'bold',
-    textShadow: '0 0 5px rgba(139, 92, 246, 0.5)',
+    textShadowColor: 'rgba(139, 92, 246, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
   },
 });

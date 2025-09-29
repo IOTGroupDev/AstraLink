@@ -420,7 +420,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
-    textShadow: '0 0 20px rgba(139, 92, 246, 0.8)',
+    textShadowColor: 'rgba(139, 92, 246, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   headerActions: {
     flexDirection: 'row',
@@ -466,7 +468,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 8,
-    textShadow: '0 0 10px rgba(139, 92, 246, 0.5)',
+    textShadowColor: 'rgba(139, 92, 246, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   zodiacContainer: {
     alignItems: 'center',
@@ -490,7 +494,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 15,
-    textShadow: '0 0 10px rgba(139, 92, 246, 0.3)',
+    textShadowColor: 'rgba(139, 92, 246, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   settingsCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

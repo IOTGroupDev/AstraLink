@@ -462,6 +462,13 @@ const MyChartScreen: React.FC = () => {
           )}
         </Animated.View>
 
+        {/* Horoscope Widget - Overlay */}
+        <HoroscopeWidget
+          predictions={predictions}
+          currentPlanets={currentPlanets}
+          isLoading={loading || !predictions || !currentPlanets}
+        />
+
         {/* Daily Advice Card */}
         <Animated.View
           entering={SlideInUp.delay(800)}
@@ -473,19 +480,15 @@ const MyChartScreen: React.FC = () => {
           </View>
         </Animated.View>
 
-        {/* Horoscope Widget */}
-        <HoroscopeWidget
-          predictions={predictions}
-          currentPlanets={currentPlanets}
-          isLoading={loading || !predictions || !currentPlanets}
-        />
+        {/* Разделитель */}
+        <View style={styles.divider} />
 
         {/* Widgets */}
         <Animated.View
           entering={SlideInRight.delay(1000)}
           style={styles.widgetsContainer}
         >
-          <Text style={styles.widgetsTitle}>Астрологические виджеты</Text>
+          <Text style={styles.widgetsTitle}>🌟 Астрологические виджеты 🌟</Text>
 
           <ScrollView
             horizontal
@@ -705,14 +708,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  divider: {
+    height: 20,
+    width: '100%',
+  },
   widgetsContainer: {
+    marginTop: 10,
     marginBottom: 20,
+    zIndex: 1,
   },
   widgetsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 15,
+    textAlign: 'center',
+    marginTop: 5,
   },
   widgetsScroll: {
     flexDirection: 'row',

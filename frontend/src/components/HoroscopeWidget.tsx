@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 
@@ -108,7 +102,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
   return (
     <Animated.View entering={SlideInUp.delay(500)} style={styles.container}>
-      <Text style={styles.title}>Астрологический прогноз</Text>
+      <Text style={styles.title}>🔮 Астрологический прогноз 🔮</Text>
 
       {/* Period Selector */}
       <View style={styles.periodSelector}>
@@ -141,7 +135,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
       </View>
 
       {/* Prediction Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
         <Animated.View
           entering={FadeIn.delay(200)}
           style={styles.predictionCard}
@@ -206,25 +200,26 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             {currentPrediction.advice || 'Совет недоступен'}
           </Text>
         </Animated.View>
-      </ScrollView>
+      </View>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 20,
     padding: 15,
     marginHorizontal: 15,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(139, 92, 246, 0.5)',
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
+    zIndex: 10,
   },
   loadingContainer: {
     padding: 40,
@@ -274,7 +269,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   content: {
-    maxHeight: 350,
     marginBottom: 10,
   },
   predictionCard: {

@@ -38,7 +38,6 @@ export default function TabNavigator() {
           paddingBottom: 5,
           paddingTop: 5,
           height: 60,
-          backdropFilter: 'blur(10px)',
         },
         headerStyle: {
           backgroundColor: 'transparent',

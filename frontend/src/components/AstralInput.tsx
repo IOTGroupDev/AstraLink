@@ -220,7 +220,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
     marginLeft: 15,
-    textShadow: '0 0 5px rgba(255, 68, 68, 0.3)',
+    textShadowColor: 'rgba(255, 68, 68, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
   },
 });
 

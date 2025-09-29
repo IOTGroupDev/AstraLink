@@ -12,7 +12,24 @@ import {
   UpgradeSubscriptionRequest,
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+// Определяем базовый URL в зависимости от платформы
+const getApiBaseUrl = () => {
+  // В Expo Go всегда используем IP адрес
+  // Можно также использовать переменную окружения
+  const EXPO_API_URL = 'http://192.168.1.14:3000/api';
+  const LOCAL_API_URL = 'http://localhost:3000/api';
+
+  // В веб-версии используем localhost, в мобильной - IP
+  if (typeof window !== 'undefined' && window.location?.protocol === 'http:') {
+    return LOCAL_API_URL;
+  }
+
+  // Для Expo Go используем IP адрес
+  return EXPO_API_URL;
+};
+
+const API_BASE_URL = getApiBaseUrl();
+console.log('🌐 API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,

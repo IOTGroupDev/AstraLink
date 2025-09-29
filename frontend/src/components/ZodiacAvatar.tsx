@@ -77,10 +77,14 @@ const styles = StyleSheet.create({
   symbol: {
     color: '#fff',
     fontWeight: 'bold',
-    textShadow: '0 0 20px rgba(255, 255, 255, 0.8)',
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   icon: {
-    textShadow: '0 0 20px rgba(255, 255, 255, 0.8)',
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   text: {
     color: '#fff',
