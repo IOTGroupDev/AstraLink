@@ -21,13 +21,13 @@ export class EphemerisService {
         try {
           swisseph.swe_set_ephe_path('./ephe');
           this.logger.log('Установлен путь к эфемерисным файлам: ./ephe');
-        } catch (pathError) {
+        } catch (_pathError) {
           try {
             swisseph.swe_set_ephe_path(__dirname + '/../../ephe');
             this.logger.log(
               'Установлен альтернативный путь к эфемерисным файлам',
             );
-          } catch (altPathError) {
+          } catch (_altPathError) {
             this.logger.warn(
               'Не удалось установить путь к эфемерисным файлам, используем встроенные данные',
             );
@@ -283,6 +283,43 @@ export class EphemerisService {
    * Преобразует дату в юлианский день
    */
   dateToJulianDay(date: Date): number {
+    // Попытка доинициализации Swiss Ephemeris на лету
+    if (!this.hasSE) {
+      try {
+        if (!swisseph) {
+          swisseph = require('swisseph'); // eslint-disable-line @typescript-eslint/no-require-imports
+        }
+        if (
+          swisseph &&
+          typeof swisseph === 'object' &&
+          swisseph.swe_set_ephe_path
+        ) {
+          try {
+            swisseph.swe_set_ephe_path('./ephe');
+          } catch (_pathError) {
+            try {
+              swisseph.swe_set_ephe_path(__dirname + '/../../ephe');
+            } catch (_altPathError) {
+              // ignore
+            }
+          }
+        }
+        if (
+          swisseph &&
+          swisseph.swe_calc_ut &&
+          swisseph.swe_julday &&
+          swisseph.swe_houses
+        ) {
+          this.hasSE = true;
+          this.logger.log(
+            'Swiss Ephemeris был повторно инициализирован на лету (dateToJulianDay)',
+          );
+        }
+      } catch (_e) {
+        // ignore
+      }
+    }
+
     if (this.hasSE && swisseph) {
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
@@ -324,9 +361,48 @@ export class EphemerisService {
 
     this.logger.log(`Расчёт планет для юлианского дня: ${julianDay}`);
 
-    // Fallback if Swiss Ephemeris is not available
-    if (!this.hasSE || !swisseph) {
-      this.logger.warn('Используем упрощённые позиции планет (fallback)');
+    // Attempt runtime re-init if SE is not available
+    if (!this.hasSE) {
+      try {
+        if (!swisseph) {
+          swisseph = require('swisseph'); // eslint-disable-line @typescript-eslint/no-require-imports
+        }
+        if (
+          swisseph &&
+          typeof swisseph === 'object' &&
+          swisseph.swe_set_ephe_path
+        ) {
+          try {
+            swisseph.swe_set_ephe_path('./ephe');
+          } catch (_pathError) {
+            try {
+              swisseph.swe_set_ephe_path(__dirname + '/../../ephe');
+            } catch (_altPathError) {
+              // ignore
+            }
+          }
+        }
+        if (
+          swisseph &&
+          swisseph.swe_calc_ut &&
+          swisseph.swe_julday &&
+          swisseph.swe_houses
+        ) {
+          this.hasSE = true;
+          this.logger.log(
+            'Swiss Ephemeris был повторно инициализирован на лету',
+          );
+        }
+      } catch (_e) {
+        // ignore
+      }
+    }
+
+    // Fallback if Swiss Ephemeris is still not available
+    if (!this.hasSE) {
+      this.logger.warn(
+        'Swiss Ephemeris не инициализирован, используем упрощённые позиции планет (fallback)',
+      );
       // Approximate mean longitudes (simplified)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const baseDate = new Date(2000, 0, 1); // J2000
@@ -423,10 +499,47 @@ export class EphemerisService {
     location: { latitude: number; longitude: number; timezone: number },
   ): Promise<any> {
     try {
+      // Попытка доинициализации Swiss Ephemeris на лету
+      if (!this.hasSE) {
+        try {
+          if (!swisseph) {
+            swisseph = require('swisseph'); // eslint-disable-line @typescript-eslint/no-require-imports
+          }
+          if (
+            swisseph &&
+            typeof swisseph === 'object' &&
+            swisseph.swe_set_ephe_path
+          ) {
+            try {
+              swisseph.swe_set_ephe_path('./ephe');
+            } catch (_pathError) {
+              try {
+                swisseph.swe_set_ephe_path(__dirname + '/../../ephe');
+              } catch (_altPathError) {
+                // ignore
+              }
+            }
+          }
+          if (
+            swisseph &&
+            swisseph.swe_calc_ut &&
+            swisseph.swe_julday &&
+            swisseph.swe_houses
+          ) {
+            this.hasSE = true;
+            this.logger.log(
+              'Swiss Ephemeris был повторно инициализирован на лету (houses)',
+            );
+          }
+        } catch (_e) {
+          // ignore
+        }
+      }
+
       // Проверяем, доступен ли Swiss Ephemeris
-      if (!this.hasSE || !swisseph?.swe_houses) {
+      if (!this.hasSE) {
         this.logger.warn(
-          'Swiss Ephemeris не доступен для расчёта домов, используем fallback',
+          'Swiss Ephemeris не инициализирован, используем упрощённые дома (fallback)',
         );
         // Fallback - создаём упрощённые дома
         const houses: any = {};
@@ -439,25 +552,133 @@ export class EphemerisService {
         return houses;
       }
 
-      const result = swisseph.swe_houses(
-        julianDay,
-        location.latitude,
-        location.longitude,
-        'P', // Placidus system
-      );
+      // Используем Swiss Ephemeris для расчёта домов — расширенный парсер и двойная попытка вызова
+      let rawHouses: any = null;
+      try {
+        // Попытка 1: (julianDay, latitude, longitude, system)
+        try {
+          rawHouses = swisseph.swe_houses(
+            julianDay,
+            location.latitude,
+            location.longitude,
+            'P', // Placidus system
+          );
+          this.logger.log('swe_houses result (lat,lon):', rawHouses);
+        } catch (e1) {
+          this.logger.warn('swe_houses (lat,lon) failed:', e1);
+          rawHouses = null;
+        }
+
+        // Попытка 2: (julianDay, longitude, latitude, system) — на случай отличий биндинга
+        if (!rawHouses) {
+          try {
+            rawHouses = swisseph.swe_houses(
+              julianDay,
+              location.longitude,
+              location.latitude,
+              'P',
+            );
+            this.logger.log('swe_houses result (lon,lat):', rawHouses);
+          } catch (e2) {
+            this.logger.warn('swe_houses (lon,lat) failed:', e2);
+          }
+        }
+      } catch (error) {
+        this.logger.warn('Ошибка при вызове swe_houses:', error);
+        rawHouses = null;
+      }
 
       const houses: any = {};
 
-      // Проверяем, есть ли cusps в результате
-      if (result && 'cusps' in result && Array.isArray(result.cusps)) {
+      // Пытаемся извлечь массив cusps из разных форматов возврата
+      let cuspsArray: number[] | null = null;
+
+      // Вариант A: напрямую массив длиной >= 13
+      if (Array.isArray(rawHouses) && rawHouses.length >= 13) {
+        cuspsArray = rawHouses as number[];
+      }
+      // Вариант B: объект с полем cusps (массив)
+      else if (
+        rawHouses &&
+        Array.isArray(rawHouses.cusps) &&
+        rawHouses.cusps.length >= 13
+      ) {
+        cuspsArray = rawHouses.cusps as number[];
+      }
+      // Вариант C: вложенный массив [cusps, ...]
+      else if (
+        rawHouses &&
+        Array.isArray(rawHouses[0]) &&
+        rawHouses[0].length >= 13
+      ) {
+        cuspsArray = rawHouses[0] as number[];
+      }
+      // Вариант D: объект с полем house (массив из 12 значений)
+      else if (
+        rawHouses &&
+        Array.isArray(rawHouses.house) &&
+        rawHouses.house.length >= 12
+      ) {
+        const h = rawHouses.house as number[];
+        const tmp: number[] = [];
         for (let i = 1; i <= 12; i++) {
-          const cusp = result.cusps[i];
-          houses[i] = {
-            cusp: cusp,
-            sign: this.longitudeToSign(cusp),
-          };
+          const v = Number(h[i - 1]);
+          if (!isNaN(v)) {
+            tmp[i] = v;
+          }
         }
+        cuspsArray = tmp;
+      }
+      // Вариант E: объект с числовыми ключами "1".."12"
+      else if (rawHouses && typeof rawHouses === 'object') {
+        const maybe: number[] = [];
+        let found = false;
+        for (let i = 1; i <= 12; i++) {
+          const key = String(i);
+          if (Object.prototype.hasOwnProperty.call(rawHouses, key)) {
+            const v = Number(rawHouses[key]);
+            if (!isNaN(v)) {
+              maybe[i] = v;
+              found = true;
+            }
+          }
+        }
+        if (found) {
+          cuspsArray = maybe;
+        }
+      }
+
+      if (cuspsArray) {
+        // Заполняем дома значениями cuspsArray[1..12]
+        for (let i = 1; i <= 12; i++) {
+          const cusp = cuspsArray[i];
+          if (
+            typeof cusp === 'number' &&
+            !isNaN(cusp) &&
+            cusp >= 0 &&
+            cusp < 360
+          ) {
+            houses[i] = {
+              cusp: cusp,
+              sign: this.longitudeToSign(cusp),
+            };
+          } else {
+            this.logger.warn(
+              `Некорректный или отсутствующий cusp для дома ${i}:`,
+              cusp,
+            );
+            houses[i] = {
+              cusp: (i - 1) * 30,
+              sign: this.longitudeToSign((i - 1) * 30),
+            };
+          }
+        }
+        this.logger.log('Дома рассчитаны через Swiss Ephemeris (parsed cusps)');
       } else {
+        this.logger.warn(
+          'Не удалось распарсить результат swe_houses — используем fallback. rawHouses:',
+          rawHouses,
+        );
         // Fallback - создаём упрощённые дома
         for (let i = 1; i <= 12; i++) {
           houses[i] = {
@@ -469,7 +690,10 @@ export class EphemerisService {
 
       return houses;
     } catch (error) {
-      this.logger.warn('Не удалось рассчитать дома:', error);
+      this.logger.warn(
+        'Ошибка при расчёте домов через Swiss Ephemeris:',
+        error,
+      );
       // Fallback - создаём упрощённые дома
       const houses: any = {};
       for (let i = 1; i <= 12; i++) {
