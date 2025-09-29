@@ -524,41 +524,6 @@ const MyChartScreen: React.FC = () => {
             </View>
           </View>
         </Animated.View>
-
-        {/* Chart Summary */}
-        {chart && (
-          <Animated.View
-            entering={SlideInUp.delay(1200)}
-            style={styles.chartSummary}
-          >
-            <Text style={styles.cardTitle}>Натальная карта</Text>
-            <View style={styles.planetsGrid}>
-              {(chart.planets &&
-                Object.entries(chart.planets)
-                  .filter(
-                    ([planet, data]) =>
-                      planet &&
-                      data &&
-                      data.sign &&
-                      typeof data.degree === 'number'
-                  )
-                  .slice(0, 6)
-                  .map(([planet, data]) => (
-                    <View key={planet} style={styles.planetItem}>
-                      <PlanetIcon planet={planet} size={20} />
-                      <Text style={styles.planetSign}>{data.sign}</Text>
-                      <Text style={styles.planetDegree}>
-                        {Math.round(data.degree)}°
-                      </Text>
-                    </View>
-                  ))) || (
-                <Text style={styles.noDataText}>
-                  Данные о планетах загружаются...
-                </Text>
-              )}
-            </View>
-          </Animated.View>
-        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -727,32 +692,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     width: 200,
-  },
-  chartSummary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  planetsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  planetItem: {
-    alignItems: 'center',
-    width: '30%',
-    marginBottom: 15,
-    padding: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 10,
-  },
-  planetDegree: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.7,
-    marginTop: 2,
   },
   noDataText: {
     color: 'rgba(255, 255, 255, 0.6)',

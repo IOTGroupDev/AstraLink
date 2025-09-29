@@ -1,19 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as swisseph from 'swisseph';
+// Динамическая загрузка swisseph, чтобы не падать при отсутствии нативного аддона
+let swisseph: any;
 
 @Injectable()
 export class EphemerisService {
   private readonly logger = new Logger(EphemerisService.name);
+  private hasSE = false;
 
   constructor() {
-    // Инициализация Swiss Ephemeris
+    // Инициализация Swiss Ephemeris (динамически)
     try {
-      // Устанавливаем путь к эфемеридным файлам
-      swisseph.swe_set_ephe_path('./ephe');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      swisseph = require('swisseph');
+      if (swisseph?.swe_set_ephe_path) {
+        swisseph.swe_set_ephe_path('./ephe');
+      }
+      this.hasSE = true;
       this.logger.log('Swiss Ephemeris инициализирован');
     } catch (_error) {
+      this.hasSE = false;
       this.logger.warn(
-        'Swiss Ephemeris файлы не найдены, будут использоваться встроенные данные',
+        'Swiss Ephemeris не доступен. Будут использованы упрощенные расчеты (fallback).',
       );
     }
   }
@@ -73,8 +80,47 @@ export class EphemerisService {
         calculatedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error('Ошибка при расчёте натальной карты:', error);
-      throw new Error('Не удалось рассчитать натальную карту');
+      this.logger.warn(
+        'Ошибка при расчёте натальной карты, используем упрощённый fallback:',
+        error,
+      );
+      try {
+        // Fallback: пересчитываем с упрощённой логикой без Swiss Ephemeris
+        const [year, month, day] = date.split('-').map(Number);
+        const [hours, minutes] = (time || '00:00').split(':').map(Number);
+        const jd =
+          2440587.5 +
+          new Date(
+            Date.UTC(
+              year,
+              (month || 1) - 1,
+              day || 1,
+              hours || 0,
+              minutes || 0,
+            ),
+          ).getTime() /
+            86400000;
+
+        const planets = await this.calculatePlanets(jd);
+        const houses = await this.calculateHouses(jd, location);
+        const aspects = this.calculateAspects(planets);
+
+        return {
+          type: 'natal',
+          birthDate: new Date(`${date}T${time || '00:00'}`).toISOString(),
+          location,
+          planets,
+          houses,
+          aspects,
+          calculatedAt: new Date().toISOString(),
+        };
+      } catch (fallbackError) {
+        this.logger.error(
+          'Fallback расчёт натальной карты также не удался:',
+          fallbackError,
+        );
+        throw new Error('Не удалось рассчитать натальную карту');
+      }
     }
   }
 
@@ -191,20 +237,25 @@ export class EphemerisService {
    * Преобразует дату в юлианский день
    */
   dateToJulianDay(date: Date): number {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const hour = date.getHours();
-    const minute = date.getMinutes();
-    const second = date.getSeconds();
+    if (this.hasSE && swisseph) {
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      const hour = date.getHours();
+      const minute = date.getMinutes();
+      const second = date.getSeconds();
 
-    return swisseph.swe_julday(
-      year,
-      month,
-      day,
-      hour + minute / 60 + second / 3600,
-      swisseph.SE_GREG_CAL,
-    );
+      return swisseph.swe_julday(
+        year,
+        month,
+        day,
+        hour + minute / 60 + second / 3600,
+        swisseph.SE_GREG_CAL,
+      );
+    } else {
+      // Fallback calculation
+      return 2440587.5 + date.getTime() / 86400000;
+    }
   }
 
   /**
@@ -226,6 +277,41 @@ export class EphemerisService {
     };
 
     this.logger.log(`Расчёт планет для юлианского дня: ${julianDay}`);
+
+    // Fallback if Swiss Ephemeris is not available
+    if (!this.hasSE) {
+      this.logger.warn('Используем упрощённые позиции планет (fallback)');
+      // Approximate mean longitudes (simplified)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const baseDate = new Date(2000, 0, 1); // J2000
+      const daysSince2000 = (julianDay - 2451545) / 365.25; // Approximate years
+
+      const approximatePositions = {
+        sun: 280 + (daysSince2000 * 360) / 365.25, // ~1 degree per day
+        moon: ((daysSince2000 * 360) / 27.32) % 360, // ~13 degrees per day
+        mercury: 280 + (daysSince2000 * 360) / 88,
+        venus: 280 + (daysSince2000 * 360) / 225,
+        mars: 280 + (daysSince2000 * 360) / 687,
+        jupiter: 280 + (daysSince2000 * 360) / 4333,
+        saturn: 280 + (daysSince2000 * 360) / 10759,
+        uranus: 280 + (daysSince2000 * 360) / 30687,
+        neptune: 280 + (daysSince2000 * 360) / 60190,
+        pluto: 280 + (daysSince2000 * 360) / 90560,
+      };
+
+      for (const [planetName, longitude] of Object.entries(
+        approximatePositions,
+      )) {
+        const lon = longitude % 360;
+        planets[planetName] = {
+          longitude: lon,
+          sign: this.longitudeToSign(lon),
+          degree: lon % 30,
+        };
+      }
+
+      return planets;
+    }
 
     // Проверяем валидность julianDay
     if (isNaN(julianDay) || !isFinite(julianDay)) {

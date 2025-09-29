@@ -12,52 +12,62 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   name          String?
-  birthDate     DateTime?
-  birthTime     String?
-  birthPlace    String?
+  birthDate     DateTime? @map("birth_date")
+  birthTime     String?  @map("birth_time")
+  birthPlace    String?  @map("birth_place")
   role          String   @default("user")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
   charts        Chart[]
   connections   Connection[]
   matches       DatingMatch[]
   subscription  Subscription?
+
+  @@map("users")
 }
 
 model Chart {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id])
   data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("charts")
 }
 
 model Connection {
   id          String   @id @default(uuid())
-  userId      String
+  userId      String   @map("user_id")
   user        User     @relation(fields: [userId], references: [id])
-  targetName  String
-  targetData  Json
-  createdAt   DateTime @default(now())
+  targetName  String   @map("target_name")
+  targetData  Json     @map("target_data")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("connections")
 }
 
 model DatingMatch {
   id            String   @id @default(uuid())
-  userId        String
+  userId        String   @map("user_id")
   user          User     @relation(fields: [userId], references: [id])
-  candidateData Json
+  candidateData Json     @map("candidate_data")
   compatibility Int
   liked         Boolean  @default(false)
   rejected      Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("dating_matches")
 }
 
 model Subscription {
   id        String    @id @default(uuid())
-  userId    String    @unique
+  userId    String    @unique @map("user_id")
   user      User      @relation(fields: [userId], references: [id])
   tier      String    @default("free")
-  startedAt DateTime  @default(now())
-  expiresAt DateTime?
+  startedAt DateTime  @default(now()) @map("started_at")
+  expiresAt DateTime? @map("expires_at")
+
+  @@map("subscriptions")
 }

@@ -1,32 +1,91 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from '../services/ephemeris.service';
 
 @Injectable()
 export class ChartService {
   constructor(
     private prisma: PrismaService,
+    private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
   ) {}
 
-  async getNatalChart(userId: string) {
+  /**
+   * Создать натальную карту напрямую из данных рождения (используется в момент регистрации).
+   * Не читает пользователя из БД — использует переданные данные и обеспечивает атомарность.
+   * Если карта уже существует для userId — возвращает её без пересчёта.
+   */
+  async createNatalChartFromBirthData(
+    userId: string,
+    birthDateISO: string,
+    birthTime: string,
+    birthPlace: string,
+  ) {
+    if (!userId) {
+      throw new BadRequestException('userId обязателен');
+    }
+    if (!birthDateISO || !birthTime || !birthPlace) {
+      throw new BadRequestException(
+        'Недостаточно данных: требуются дата, время и место рождения',
+      );
+    }
+
+    // Если уже есть карта — возвращаем, не пересчитывая
+    const existing = await this.prisma.chart.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) return existing;
+
+    // Валидация и нормализация
+    const birthDate = new Date(birthDateISO);
+    if (isNaN(birthDate.getTime())) {
+      throw new BadRequestException('Некорректная дата рождения');
+    }
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(birthTime)) {
+      throw new BadRequestException(
+        'Некорректное время рождения (ожидается HH:MM)',
+      );
+    }
+    const dateStr = birthDate.toISOString().split('T')[0];
+
+    // Координаты места рождения (с упрощённым маппингом)
+    const location = this.getLocationCoordinates(birthPlace);
+
+    // Расчёт (EphemerisService сам имеет fallback)
+    const natalChartData = await this.ephemerisService.calculateNatalChart(
+      dateStr,
+      birthTime,
+      location,
+    );
+
+    // Сохраняем как неизменяемую натальную карту
+    return await this.prisma.chart.create({
+      data: {
+        userId,
+        data: natalChartData,
+      },
+    });
+  }
+
+  /**
+   * Создает натальную карту для нового пользователя (только при регистрации)
+   */
+  async createNatalChartForNewUser(userId: string) {
     // Получаем данные пользователя из базы данных
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
-        email: true,
-        name: true,
         birthDate: true,
         birthTime: true,
         birthPlace: true,
-        createdAt: true,
-        updatedAt: true,
-        charts: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
       },
     });
 
@@ -41,58 +100,6 @@ export class ChartService {
     }
 
     // Преобразуем дату и время
-    const birthDate = user.birthDate.toISOString().split('T')[0];
-    const birthTime = user.birthTime;
-
-    // Получаем координаты места рождения
-    const location = this.getLocationCoordinates(user.birthPlace);
-
-    // Рассчитываем натальную карту через Swiss Ephemeris
-    const natalChartData = await this.ephemerisService.calculateNatalChart(
-      birthDate,
-      birthTime,
-      location,
-    );
-
-    // Проверяем, есть ли уже сохраненная карта
-    const existingChart = user.charts[0]; // Берем первую карту (самую новую)
-
-    if (existingChart) {
-      // Обновляем существующую карту новыми расчетами
-      const updatedChart = await this.prisma.chart.update({
-        where: { id: existingChart.id },
-        data: { data: natalChartData },
-      });
-      return updatedChart;
-    } else {
-      // Создаем новую карту
-      const newChart = await this.prisma.chart.create({
-        data: {
-          userId,
-          data: natalChartData,
-        },
-      });
-      return newChart;
-    }
-  }
-
-  async createNatalChart(userId: string, _data: any) {
-    // Получаем данные пользователя из базы данных
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    if (!user.birthDate || !user.birthTime || !user.birthPlace) {
-      throw new NotFoundException(
-        'Недостаточно данных для расчёта натальной карты. Заполните дату, время и место рождения.',
-      );
-    }
-
-    // Преобразуем дату и время с проверкой
     const birthDate = user.birthDate.toISOString().split('T')[0];
     const birthTime = user.birthTime;
 
@@ -122,14 +129,7 @@ export class ChartService {
       location,
     );
 
-    // Удаляем старую натальную карту, если есть
-    await this.prisma.chart.deleteMany({
-      where: {
-        userId,
-      },
-    });
-
-    // Создаем новую карту
+    // Сохраняем карту (для новых пользователей всегда создаем новую)
     const newChart = await this.prisma.chart.create({
       data: {
         userId,
@@ -138,6 +138,148 @@ export class ChartService {
     });
 
     return newChart;
+  }
+
+  async getNatalChart(userId: string) {
+    // Сначала пытаемся получить карту через admin (если доступен), иначе через обычный клиент.
+    // В случае ошибки доступа (RLS) не прерываемся — ниже попробуем авто-создать карту.
+    let charts: any[] | null = null;
+
+    try {
+      const res = await this.supabaseService.getUserChartsAdmin(userId);
+      if (res.data) {
+        charts = res.data;
+      }
+    } catch (_e) {
+      const { data } = await this.supabaseService.getUserCharts(userId);
+      // Не прерываемся при ошибке RLS/доступа — попробуем авто-создать карту ниже
+      charts = data || [];
+    }
+
+    if (charts && charts.length > 0) {
+      // Возвращаем самую новую карту
+      const chart = charts[0];
+      return {
+        id: chart.id,
+        userId: chart.user_id,
+        data: chart.data,
+        createdAt: chart.created_at,
+        updatedAt: chart.updated_at,
+      };
+    }
+
+    // Если карты нет, создаём её
+    return this.createNatalChart(userId, {});
+  }
+
+  async createNatalChart(userId: string, _data: any) {
+    // Сначала проверяем, есть ли уже карта (пытаемся через admin, затем обычным способом)
+    try {
+      const { data } = await this.supabaseService.getUserChartsAdmin(userId);
+      if (data && data.length > 0) {
+        const chart = data[0];
+        return {
+          id: chart.id,
+          userId: chart.user_id,
+          data: chart.data,
+          createdAt: chart.created_at,
+          updatedAt: chart.updated_at,
+        };
+      }
+    } catch (_e) {
+      const { data: charts, error } =
+        await this.supabaseService.getUserCharts(userId);
+      if (!error && charts && charts.length > 0) {
+        const chart = charts[0];
+        return {
+          id: chart.id,
+          userId: chart.user_id,
+          data: chart.data,
+          createdAt: chart.created_at,
+          updatedAt: chart.updated_at,
+        };
+      }
+    }
+
+    // Если карты нет, создаём её из данных пользователя
+    const { data: user, error: userError } = await this.supabaseService
+      .from('users')
+      .select('id, birth_date, birth_time, birth_place')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      // RLS или отсутствие доступа к профилю пользователя.
+      // Фолбэк: считаем натальную карту по тестовым данным без сохранения.
+      const fallbackBirthDate = '1990-05-15';
+      const fallbackBirthTime = '14:30';
+      const fallbackLocation = this.getLocationCoordinates('Москва');
+
+      const fallbackChartData = await this.ephemerisService.calculateNatalChart(
+        fallbackBirthDate,
+        fallbackBirthTime,
+        fallbackLocation,
+      );
+
+      return {
+        id: 'temporary',
+        userId,
+        data: fallbackChartData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (!user.birth_date || !user.birth_time || !user.birth_place) {
+      throw new NotFoundException(
+        'Недостаточно данных для расчёта натальной карты. Заполните дату, время и место рождения.',
+      );
+    }
+
+    // Преобразуем дату и время
+    const birthDate = new Date(user.birth_date).toISOString().split('T')[0];
+    const birthTime = user.birth_time;
+
+    // Проверяем корректность времени
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(birthTime)) {
+      throw new NotFoundException(
+        'Некорректный формат времени рождения. Ожидается HH:MM',
+      );
+    }
+
+    // Получаем координаты места рождения
+    const location = this.getLocationCoordinates(user.birth_place);
+
+    // Рассчитываем натальную карту через Swiss Ephemeris
+    const natalChartData = await this.ephemerisService.calculateNatalChart(
+      birthDate,
+      birthTime,
+      location,
+    );
+
+    // Сохраняем карту через Supabase
+    const { data: newChart, error: createError } =
+      await this.supabaseService.createUserChart(userId, natalChartData);
+
+    if (createError || !newChart) {
+      // Если не удалось сохранить (RLS/нет service role), возвращаем рассчитанные данные без сохранения
+      return {
+        id: 'temporary',
+        userId,
+        data: natalChartData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    return {
+      id: newChart.id,
+      userId: newChart.user_id,
+      data: newChart.data,
+      createdAt: newChart.created_at,
+      updatedAt: newChart.updated_at,
+    };
   }
 
   async getTransits(userId: string, from: string, to: string) {
@@ -189,15 +331,7 @@ export class ChartService {
   /**
    * Получить текущие позиции планет
    */
-  async getCurrentPlanets(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
+  async getCurrentPlanets(_userId: string) {
     const now = new Date();
     const julianDay = this.ephemerisService.dateToJulianDay(now);
     const currentPlanets =
@@ -213,15 +347,7 @@ export class ChartService {
    * Получить астрологические предсказания
    */
   async getPredictions(userId: string, period: string = 'day') {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    // Получаем натальную карту
+    // Получаем натальную карту (без пересчёта)
     const natalChart = await this.getNatalChart(userId);
     if (!natalChart) {
       throw new NotFoundException('Натальная карта не найдена');

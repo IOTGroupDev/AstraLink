@@ -8,10 +8,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthMiddleware } from './middleware/auth.middleware';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { ChartModule } from '../chart/chart.module';
+import { ServicesModule } from '../services/services.module';
 
 @Module({
   imports: [
     SupabaseModule,
+    ChartModule,
+    ServicesModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

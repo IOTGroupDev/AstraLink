@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { SubscriptionController } from './subscription.controller';
 import { SubscriptionService } from './subscription.service';
-import { PrismaModule } from '../prisma/prisma.module';
+import { SupabaseModule } from '../supabase/supabase.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [SupabaseModule],
   controllers: [SubscriptionController],
   providers: [SubscriptionService],
   exports: [SubscriptionService],

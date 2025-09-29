@@ -27,6 +27,7 @@ import { authAPI, setStoredToken } from '../services/api';
 import { LoginRequest } from '../types';
 import AstralLogo from '../components/AstralLogo';
 import AstralInput from '../components/AstralInput';
+import ErrorModal from '../components/ErrorModal';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -43,6 +44,9 @@ export default function LoginScreen({
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorTitle, setErrorTitle] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Анимации для полей ввода
   const fieldAnimations = {
@@ -66,6 +70,13 @@ export default function LoginScreen({
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  // Функция показа модального окна ошибки
+  const showErrorModal = (title: string, message: string) => {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorModalVisible(true);
   };
 
   // Обработка изменения email без валидации
@@ -94,28 +105,23 @@ export default function LoginScreen({
     setPasswordError('');
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Ошибка ввода', 'Пожалуйста, заполните все поля', [
-        { text: 'OK', style: 'default' },
-      ]);
+      showErrorModal('Ошибка ввода', 'Пожалуйста, заполните все поля');
       return;
     }
 
     // Валидация email
     if (!validateEmail(email)) {
       setEmailError('Введите корректный email адрес');
-      Alert.alert('Ошибка ввода', 'Введите корректный email адрес', [
-        { text: 'OK', style: 'default' },
-      ]);
+      showErrorModal('Ошибка ввода', 'Введите корректный email адрес');
       return;
     }
 
     // Валидация пароля
     if (password.length < 6) {
       setPasswordError('Пароль должен содержать минимум 6 символов');
-      Alert.alert(
+      showErrorModal(
         'Ошибка ввода',
-        'Пароль должен содержать минимум 6 символов',
-        [{ text: 'OK', style: 'default' }]
+        'Пароль должен содержать минимум 6 символов'
       );
       return;
     }
@@ -146,37 +152,32 @@ export default function LoginScreen({
 
       // Определяем тип ошибки и показываем соответствующее сообщение
       if (error.response?.status === 401) {
-        Alert.alert(
+        showErrorModal(
           'Ошибка входа',
-          'Неверный email или пароль. Проверьте правильность введенных данных.',
-          [{ text: 'OK', style: 'default' }]
+          'Неверный email или пароль. Проверьте правильность введенных данных.'
         );
       } else if (error.response?.status === 400) {
-        Alert.alert(
+        showErrorModal(
           'Ошибка входа',
-          'Некорректные данные. Проверьте формат email и пароля.',
-          [{ text: 'OK', style: 'default' }]
+          'Некорректные данные. Проверьте формат email и пароля.'
         );
       } else if (error.code === 'ERR_NETWORK') {
-        Alert.alert(
+        showErrorModal(
           'Ошибка сети',
-          'Не удалось подключиться к серверу. Проверьте подключение к интернету.',
-          [{ text: 'OK', style: 'default' }]
+          'Не удалось подключиться к серверу. Проверьте подключение к интернету.'
         );
       } else if (
         error.code === 'ECONNABORTED' ||
         error.message?.includes('timeout')
       ) {
-        Alert.alert(
+        showErrorModal(
           'Ошибка подключения',
-          'Превышено время ожидания ответа от сервера. Проверьте подключение к интернету и попробуйте еще раз.',
-          [{ text: 'OK', style: 'default' }]
+          'Превышено время ожидания ответа от сервера. Проверьте подключение к интернету и попробуйте еще раз.'
         );
       } else {
-        Alert.alert(
+        showErrorModal(
           'Ошибка входа',
-          'Произошла ошибка при входе в систему. Попробуйте еще раз.',
-          [{ text: 'OK', style: 'default' }]
+          'Произошла ошибка при входе в системе. Попробуйте еще раз.'
         );
       }
     } finally {
@@ -291,6 +292,13 @@ export default function LoginScreen({
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ErrorModal
+        visible={errorModalVisible}
+        title={errorTitle}
+        message={errorMessage}
+        onClose={() => setErrorModalVisible(false)}
+      />
     </LinearGradient>
   );
 }

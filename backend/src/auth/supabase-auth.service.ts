@@ -5,12 +5,18 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ChartService } from '../chart/chart.service';
+import { EphemerisService } from '../services/ephemeris.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
 import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class SupabaseAuthService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private chartService: ChartService,
+    private ephemerisService: EphemerisService,
+  ) {}
 
   async login(loginDto: LoginRequest): Promise<AuthResponse> {
     try {
@@ -115,6 +121,7 @@ export class SupabaseAuthService {
           .from('users')
           .upsert({
             id: data.user.id,
+            email: signupDto.email,
             name: signupDto.name,
             birth_date: birthDate.toISOString(),
             birth_time: signupDto.birthTime || null,
@@ -125,7 +132,38 @@ export class SupabaseAuthService {
 
       if (createError) {
         console.error('Error creating user profile:', createError);
-        // Продолжаем, даже если создание профиля не удалось
+        throw new BadRequestException('Ошибка создания профиля пользователя');
+      }
+
+      // Генерируем натальную карту для нового пользователя (атомарно, без Prisma)
+      try {
+        const birthDateStr = new Date(signupDto.birthDate)
+          .toISOString()
+          .split('T')[0];
+        const birthTime = signupDto.birthTime || '00:00';
+        const location = this.getLocationCoordinates(
+          signupDto.birthPlace || 'Москва',
+        );
+
+        const natalChartData = await this.ephemerisService.calculateNatalChart(
+          birthDateStr,
+          birthTime,
+          location,
+        );
+
+        const { error: chartInsertError } =
+          await this.supabaseService.createUserChart(
+            data.user.id,
+            natalChartData,
+          );
+        if (chartInsertError) {
+          throw chartInsertError;
+        }
+      } catch (chartError) {
+        console.error('Error creating natal chart via Supabase:', chartError);
+        throw new BadRequestException(
+          'Ошибка создания натальной карты. Регистрация отменена.',
+        );
       }
 
       return {
@@ -152,6 +190,25 @@ export class SupabaseAuthService {
       }
       throw new BadRequestException('Ошибка регистрации');
     }
+  }
+
+  // Упрощённое определение координат по городу (совпадает с логикой ChartService)
+  private getLocationCoordinates(birthPlace: string): {
+    latitude: number;
+    longitude: number;
+    timezone: number;
+  } {
+    const locations: Record<
+      string,
+      { latitude: number; longitude: number; timezone: number }
+    > = {
+      Москва: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
+      'Санкт-Петербург': { latitude: 59.9311, longitude: 30.3609, timezone: 3 },
+      Екатеринбург: { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
+      Новосибирск: { latitude: 55.0084, longitude: 82.9357, timezone: 7 },
+      default: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
+    };
+    return locations[birthPlace] || locations['default'];
   }
 
   async validateToken(token: string): Promise<any> {

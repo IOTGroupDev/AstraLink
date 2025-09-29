@@ -1,21 +1,30 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import type { SubscriptionStatusResponse } from '../types';
 
 @Injectable()
 export class SubscriptionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private supabaseService: SupabaseService) {}
 
   async getStatus(userId: string): Promise<SubscriptionStatusResponse> {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-    });
+    const { data: subscription, error } = await this.supabaseService
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 is "not found"
+      throw new BadRequestException('Ошибка получения статуса подписки');
+    }
 
     const level = subscription?.tier || 'free';
-    const expiresAt = subscription?.expiresAt || new Date();
+    const expiresAt = subscription?.expires_at
+      ? new Date(subscription.expires_at)
+      : new Date();
     const isActive =
-      subscription && subscription.expiresAt
-        ? new Date(subscription.expiresAt) > new Date()
+      subscription && subscription.expires_at
+        ? new Date(subscription.expires_at) > new Date()
         : false;
 
     const features = this.getFeaturesForLevel(level);
@@ -37,25 +46,26 @@ export class SubscriptionService {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1); // 1 месяц
 
-    const subscription = await this.prisma.subscription.upsert({
-      where: { userId },
-      update: {
+    const { data: subscription, error } = await this.supabaseService
+      .from('subscriptions')
+      .upsert({
+        user_id: userId,
         tier: level,
-        expiresAt,
-      },
-      create: {
-        userId,
-        tier: level,
-        expiresAt,
-      },
-    });
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new BadRequestException('Ошибка обновления подписки');
+    }
 
     return {
       success: true,
       message: 'Подписка обновлена',
       subscription: {
         level: subscription.tier,
-        expiresAt: subscription.expiresAt,
+        expiresAt: subscription.expires_at,
       },
     };
   }

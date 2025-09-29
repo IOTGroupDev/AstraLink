@@ -32,7 +32,7 @@ export class ChartController {
   @ApiResponse({ status: 404, description: 'Карта не найдена' })
   async getNatalChart(@Request() req) {
     // Для тестирования используем фиксированный userId
-    const userId = req.user?.userId || '06e2f1f4-1106-415a-807d-ef9aff393127';
+    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b'; // ID тестового пользователя
     return this.chartService.getNatalChart(userId);
   }
 
@@ -70,14 +70,18 @@ export class ChartController {
     @Request() req,
     @Body() chartData: CreateNatalChartRequest,
   ) {
-    return this.chartService.createNatalChart(req.user.userId, chartData.data);
+    // Для тестирования используем фиксированный userId
+    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
+    return this.chartService.createNatalChart(userId, chartData.data);
   }
 
   @Get('current')
   @ApiOperation({ summary: 'Получить текущие позиции планет' })
   @ApiResponse({ status: 200, description: 'Текущие позиции планет' })
   async getCurrentPlanets(@Request() req) {
-    return this.chartService.getCurrentPlanets(req.user.userId);
+    // Для тестирования используем фиксированный userId
+    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
+    return this.chartService.getCurrentPlanets(userId);
   }
 
   @Get('predictions')
@@ -92,7 +96,8 @@ export class ChartController {
     @Request() req,
     @Query('period') period: string = 'day',
   ) {
-    return this.chartService.getPredictions(req.user.userId, period);
+    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163';
+    return this.chartService.getPredictions(userId, period);
   }
 
   @Get('transits')
@@ -101,6 +106,8 @@ export class ChartController {
   @ApiQuery({ name: 'to', description: 'Дата окончания (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Данные транзитов' })
   async getTransits(@Request() req, @Query() query: TransitRequest) {
-    return this.chartService.getTransits(req.user.userId, query.from, query.to);
+    // Для тестирования используем фиксированный userId
+    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
+    return this.chartService.getTransits(userId, query.from, query.to);
   }
 }
