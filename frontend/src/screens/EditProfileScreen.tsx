@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { userAPI } from '../services/api';
 import { UserProfile, UpdateProfileRequest } from '../types';
 import AstralInput from '../components/AstralInput';
@@ -29,6 +30,9 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
   const [formData, setFormData] = useState<UpdateProfileRequest>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Анимационные значения для компонентов
+  const animationValue = useSharedValue(1);
 
   useEffect(() => {
     loadProfile();
@@ -115,15 +119,18 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Основная информация</Text>
 
-              <AstralInput
-                label="Имя"
-                value={formData.name || ''}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, name: text })
-                }
-                placeholder="Введите ваше имя"
-                icon="person-outline"
-              />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Имя</Text>
+                <AstralInput
+                  value={formData.name || ''}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, name: text })
+                  }
+                  placeholder="Введите ваше имя"
+                  icon="person-outline"
+                  animationValue={animationValue}
+                />
+              </View>
 
               <AstralDateTimePicker
                 placeholder="Дата рождения"
@@ -148,15 +155,18 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
                 animationValue={{ value: 1 }}
               />
 
-              <AstralInput
-                label="Место рождения"
-                value={formData.birthPlace || ''}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, birthPlace: text })
-                }
-                placeholder="Город, страна"
-                icon="location-outline"
-              />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Место рождения</Text>
+                <AstralInput
+                  value={formData.birthPlace || ''}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, birthPlace: text })
+                  }
+                  placeholder="Город, страна"
+                  icon="location-outline"
+                  animationValue={animationValue}
+                />
+              </View>
             </View>
 
             {/* Info Block */}
@@ -183,7 +193,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
                 style={styles.saveButtonGradient}
               >
                 {saving ? (
-                  <LoadingLogo size={20} />
+                  <LoadingLogo />
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={20} color="#fff" />
@@ -255,6 +265,18 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(139, 92, 246, 0.3)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E0E0E0',
+    marginBottom: 8,
+    textShadowColor: 'rgba(139, 92, 246, 0.2)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
   },
   infoBlock: {
     flexDirection: 'row',
