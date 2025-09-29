@@ -1,24 +1,69 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
+
+// Initialize Supabase admin client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function main() {
   console.log('🌱 Начинаем заполнение базы данных...');
 
-  // Создаем пользователя
-  const user = await prisma.user.create({
-    data: {
-      email: 'test@test.com',
-      name: 'Тестовый Пользователь',
-      birthDate: new Date('1990-05-15'),
-      birthTime: '14:30',
-      birthPlace: 'Москва, Россия',
-      role: 'user',
-    },
+  // Проверяем, существует ли уже пользователь
+  let user = await prisma.user.findUnique({
+    where: { email: 'test@test.com' },
   });
 
-  console.log('✅ Пользователь создан:', user.email);
+  if (!user) {
+    // Создаем пользователя через Supabase Auth
+    const testEmail = 'test2@test.com';
+    const { data: authUser, error: authError } =
+      await supabase.auth.admin.createUser({
+        email: testEmail,
+        password: 'password',
+        email_confirm: true,
+        user_metadata: {
+          name: 'Тестовый Пользователь',
+          birth_date: new Date('1990-05-15').toISOString(),
+          birth_time: '14:30',
+          birth_place: 'Москва, Россия',
+        },
+      });
+
+    if (authError) {
+      throw new Error(
+        `Ошибка создания пользователя в Supabase Auth: ${authError.message}`,
+      );
+    }
+
+    if (!authUser.user) {
+      throw new Error('Пользователь не создан в Supabase Auth');
+    }
+
+    // Создаем профиль пользователя в таблице users
+    user = await prisma.user.create({
+      data: {
+        id: authUser.user.id,
+        email: testEmail,
+        name: 'Тестовый Пользователь',
+        birthDate: new Date('1990-05-15'),
+        birthTime: '14:30',
+        birthPlace: 'Москва, Россия',
+        role: 'user',
+      },
+    });
+
+    console.log('✅ Пользователь создан:', user.email);
+  } else {
+    console.log('✅ Пользователь уже существует:', user.email);
+  }
 
   // Создаем Chart с фиктивными данными
   const chart = await prisma.chart.create({
@@ -66,7 +111,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Chart создан для пользователя');
+  console.log('✅ Пользователь создан:', user.email);
 
   // Создаем Connection
   const connection = await prisma.connection.create({
