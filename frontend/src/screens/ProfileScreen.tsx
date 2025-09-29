@@ -383,7 +383,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* Registration Info */}
           <View style={styles.footer}>
             <Text style={styles.registrationText}>
-              С нами с {formatRegistrationDate(profile.createdAt)} ✨
+              С нами с{' '}
+              {profile.createdAt
+                ? formatRegistrationDate(profile.createdAt)
+                : 'неизвестной даты'}{' '}
+              ✨
             </Text>
           </View>
         </Animated.View>

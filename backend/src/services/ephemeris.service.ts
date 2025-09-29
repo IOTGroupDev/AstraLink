@@ -336,8 +336,9 @@ export class EphemerisService {
         swisseph.SE_GREG_CAL,
       );
     } else {
-      // Fallback calculation
-      return 2440587.5 + date.getTime() / 86400000;
+      throw new Error(
+        'Swiss Ephemeris required but not initialized in dateToJulianDay',
+      );
     }
   }
 
@@ -398,41 +399,11 @@ export class EphemerisService {
       }
     }
 
-    // Fallback if Swiss Ephemeris is still not available
+    // Fallback disabled: enforce Swiss Ephemeris only
     if (!this.hasSE) {
-      this.logger.warn(
-        'Swiss Ephemeris не инициализирован, используем упрощённые позиции планет (fallback)',
+      throw new Error(
+        'Swiss Ephemeris required but not initialized in calculatePlanets',
       );
-      // Approximate mean longitudes (simplified)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const baseDate = new Date(2000, 0, 1); // J2000
-      const daysSince2000 = (julianDay - 2451545) / 365.25; // Approximate years
-
-      const approximatePositions = {
-        sun: 280 + (daysSince2000 * 360) / 365.25, // ~1 degree per day
-        moon: ((daysSince2000 * 360) / 27.32) % 360, // ~13 degrees per day
-        mercury: 280 + (daysSince2000 * 360) / 88,
-        venus: 280 + (daysSince2000 * 360) / 225,
-        mars: 280 + (daysSince2000 * 360) / 687,
-        jupiter: 280 + (daysSince2000 * 360) / 4333,
-        saturn: 280 + (daysSince2000 * 360) / 10759,
-        uranus: 280 + (daysSince2000 * 360) / 30687,
-        neptune: 280 + (daysSince2000 * 360) / 60190,
-        pluto: 280 + (daysSince2000 * 360) / 90560,
-      };
-
-      for (const [planetName, longitude] of Object.entries(
-        approximatePositions,
-      )) {
-        const lon = longitude % 360;
-        planets[planetName] = {
-          longitude: lon,
-          sign: this.longitudeToSign(lon),
-          degree: lon % 30,
-        };
-      }
-
-      return planets;
     }
 
     // Проверяем валидность julianDay
@@ -538,18 +509,9 @@ export class EphemerisService {
 
       // Проверяем, доступен ли Swiss Ephemeris
       if (!this.hasSE) {
-        this.logger.warn(
-          'Swiss Ephemeris не инициализирован, используем упрощённые дома (fallback)',
+        throw new Error(
+          'Swiss Ephemeris required but not initialized in calculateHouses',
         );
-        // Fallback - создаём упрощённые дома
-        const houses: any = {};
-        for (let i = 1; i <= 12; i++) {
-          houses[i] = {
-            cusp: (i - 1) * 30,
-            sign: this.longitudeToSign((i - 1) * 30),
-          };
-        }
-        return houses;
       }
 
       // Используем Swiss Ephemeris для расчёта домов — расширенный парсер и двойная попытка вызова

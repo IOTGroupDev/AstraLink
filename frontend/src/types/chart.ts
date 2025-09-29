@@ -63,6 +63,7 @@ export interface Chart {
 export interface Transit {
   date: string;
   planets: Record<string, Planet>;
+  aspect?: string;
 }
 
 export type NatalChartLike = Chart | ChartData;

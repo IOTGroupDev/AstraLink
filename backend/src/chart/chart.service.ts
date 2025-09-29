@@ -159,6 +159,27 @@ export class ChartService {
     if (charts && charts.length > 0) {
       // Возвращаем самую новую карту
       const chart = charts[0];
+
+      // Самоисцеление: если старая схема/пустые дома/планеты — пересчитываем
+      const data = chart.data || {};
+      const hasPlanets =
+        data.planets &&
+        typeof data.planets === 'object' &&
+        Object.keys(data.planets).length >= 7;
+      const hasHouses =
+        data.houses &&
+        typeof data.houses === 'object' &&
+        Object.keys(data.houses).length >= 12;
+
+      if (!hasPlanets || !hasHouses) {
+        try {
+          // Пересчитываем по актуальной логике Swiss Ephemeris и сохраняем как новую запись
+          return await this.recalculateNatalChart(userId);
+        } catch (_recalcErr) {
+          // Если не удалось пересчитать (например RLS) — возвращаем то, что есть
+        }
+      }
+
       return {
         id: chart.id,
         userId: chart.user_id,
@@ -279,6 +300,107 @@ export class ChartService {
       data: newChart.data,
       createdAt: newChart.created_at,
       updatedAt: newChart.updated_at,
+    };
+  }
+
+  /**
+   * Принудительный пересчет натальной карты через Swiss Ephemeris
+   * и сохранение результата в Supabase как новую запись (сохраняем историю).
+   */
+  async recalculateNatalChart(userId: string) {
+    // Получаем профиль пользователя: сначала пытаемся через admin (если есть),
+    // иначе пробуем анонимным клиентом (RLS может помешать).
+    let birthDateISO: string | null = null;
+    let birthTime: string | null = null;
+    let birthPlace: string | null = null;
+
+    try {
+      const { data: profileAdmin } =
+        await this.supabaseService.getUserProfileAdmin(userId);
+      if (profileAdmin) {
+        birthDateISO = profileAdmin.birth_date
+          ? new Date(profileAdmin.birth_date).toISOString().split('T')[0]
+          : null;
+        birthTime = profileAdmin.birth_time || null;
+        birthPlace = profileAdmin.birth_place || null;
+      }
+    } catch (_adminErr) {
+      // ignore, попробуем анонимным клиентом ниже
+    }
+
+    if (!birthDateISO || !birthTime || !birthPlace) {
+      try {
+        const { data: profile } = await this.supabaseService
+          .from('users')
+          .select('id, birth_date, birth_time, birth_place')
+          .eq('id', userId)
+          .single();
+        if (profile) {
+          birthDateISO = profile.birth_date
+            ? new Date(profile.birth_date).toISOString().split('T')[0]
+            : birthDateISO;
+          birthTime = profile.birth_time || birthTime;
+          birthPlace = profile.birth_place || birthPlace;
+        }
+      } catch (_anonErr) {
+        // ignore
+      }
+    }
+
+    // Если всё ещё недостаточно данных — используем предсказуемый фолбэк профиля,
+    // но сам расчет будет строго через Swiss Ephemeris (в EphemerisService фолбэк отключен).
+    if (!birthDateISO || !birthTime || !birthPlace) {
+      birthDateISO = birthDateISO || '1990-05-15';
+      birthTime = birthTime || '14:30';
+      birthPlace = birthPlace || 'Москва';
+    }
+
+    const location = this.getLocationCoordinates(birthPlace);
+    const natalChartData = await this.ephemerisService.calculateNatalChart(
+      birthDateISO,
+      birthTime,
+      location,
+    );
+
+    // Пытаемся сохранить через admin-клиент (обходит RLS), иначе обычным клиентом
+    try {
+      const { data: newChartAdmin } =
+        await this.supabaseService.createUserChartAdmin(userId, natalChartData);
+      if (newChartAdmin) {
+        return {
+          id: newChartAdmin.id,
+          userId: newChartAdmin.user_id,
+          data: newChartAdmin.data,
+          createdAt: newChartAdmin.created_at,
+          updatedAt: newChartAdmin.updated_at,
+        };
+      }
+    } catch (_e) {
+      // ignore, попробуем обычным клиентом
+    }
+
+    const { data: newChart } = await this.supabaseService.createUserChart(
+      userId,
+      natalChartData,
+    );
+
+    if (newChart) {
+      return {
+        id: newChart.id,
+        userId: newChart.user_id,
+        data: newChart.data,
+        createdAt: newChart.created_at,
+        updatedAt: newChart.updated_at,
+      };
+    }
+
+    // Если не удалось сохранить (например, жесткое RLS), возвращаем рассчитанные данные без сохранения
+    return {
+      id: 'temporary',
+      userId,
+      data: natalChartData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
   }
 

@@ -211,7 +211,7 @@ const MyChartScreen: React.FC = () => {
       energy += transitCount * 5;
 
       const harmoniousAspects = transits.transits.filter((transit) =>
-        ['trine', 'sextile', 'conjunction'].includes(transit.aspect)
+        ['trine', 'sextile', 'conjunction'].includes(transit.aspect || '')
       ).length;
       energy += harmoniousAspects * 10;
 
