@@ -45,11 +45,14 @@ export class SupabaseAuthService {
       }
 
       // Проверяем, есть ли натальная карта у пользователя
+      console.log(`Checking natal chart for user ${data.user.id}`);
       const { data: existingCharts, error: chartsError } =
         await this.supabaseService.getUserChartsAdmin(data.user.id);
 
       if (chartsError) {
         console.error('Error checking user charts:', chartsError);
+      } else {
+        console.log(`Found ${existingCharts?.length || 0} existing charts for user ${data.user.id}`);
       }
 
       // Если натальной карты нет, создаем её
@@ -80,7 +83,7 @@ export class SupabaseAuthService {
               location,
             );
 
-          const { error: chartInsertError } =
+          const { data: createdChart, error: chartInsertError } =
             await this.supabaseService.createUserChartAdmin(
               data.user.id,
               natalChartData,
@@ -92,7 +95,7 @@ export class SupabaseAuthService {
             );
             // Не прерываем вход, просто логируем ошибку
           } else {
-            console.log(`✅ Natal chart created for user ${data.user.id}`);
+            console.log(`✅ Natal chart created for user ${data.user.id}, chart ID: ${createdChart?.id}`);
           }
         } catch (chartError) {
           console.error('Error creating natal chart during login:', chartError);
@@ -232,13 +235,12 @@ export class SupabaseAuthService {
             natalChartData,
           );
         if (chartInsertError) {
-          throw chartInsertError;
+          // Не прерываем регистрацию из-за ошибки сохранения карты
+          console.error('Error inserting natal chart (non-blocking):', chartInsertError);
         }
       } catch (chartError) {
-        console.error('Error creating natal chart via Supabase:', chartError);
-        throw new BadRequestException(
-          'Ошибка создания натальной карты. Регистрация отменена.',
-        );
+        // Не прерываем регистрацию из-за недоступности Swiss Ephemeris
+        console.error('Error creating natal chart via Supabase (non-blocking):', chartError);
       }
 
       return {

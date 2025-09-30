@@ -94,6 +94,14 @@ const MyChartScreen: React.FC = () => {
         setCurrentPlanets(planetsData.planets);
       } catch (error) {
         console.error('Error loading real chart data:', error);
+
+        // Обработка ошибок аутентификации
+        if (error.response?.status === 401) {
+          console.log('🔄 Перенаправление на страницу входа из-за отсутствия токена');
+          navigation.navigate('Login' as never);
+          return;
+        }
+
         // Если нет данных профиля или карты не создана, создаем автоматически
         if (error.response?.status === 404) {
           console.log('Chart not found, creating new chart');
@@ -155,6 +163,14 @@ const MyChartScreen: React.FC = () => {
       setPredictions(newPredictions);
     } catch (error) {
       console.error('❌ Ошибка загрузки прогнозов:', error);
+
+      // Обработка ошибок аутентификации
+      if (error.response?.status === 401) {
+        console.log('🔄 Перенаправление на страницу входа из-за отсутствия токена в прогнозах');
+        navigation.navigate('Login' as never);
+        return;
+      }
+
       // Устанавливаем пустые прогнозы при ошибке
       setPredictions({
         day: { general: 'Ошибка загрузки прогноза на сегодня' },

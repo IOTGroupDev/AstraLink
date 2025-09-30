@@ -40,7 +40,6 @@ import AnimatedStars from '../components/AnimatedStars';
 import AstrologicalChart from '../components/AstrologicalChart';
 import AstralLogo from '../components/AstralLogo';
 import AstralInput from '../components/AstralInput';
-import AstralDateTimePicker from '../components/DateTimePicker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -380,24 +379,28 @@ export default function SignupScreen({
                 errorMessage={errors.password}
               />
 
-              <AstralDateTimePicker
-                placeholder="Дата рождения"
+              <AstralInput
+                placeholder="Дата рождения (YYYY-MM-DD)"
                 value={formData.birthDate}
                 onChangeText={(text) => handleFieldChange('birthDate', text)}
+                onFocus={() => setFocusedField('birthDate')}
+                onBlur={() => handleFieldBlur('birthDate', formData.birthDate)}
+                keyboardType="numeric"
                 icon="calendar"
-                mode="date"
                 required
                 animationValue={fieldAnimations.birthDate}
                 error={!!errors.birthDate}
                 errorMessage={errors.birthDate}
               />
 
-              <AstralDateTimePicker
-                placeholder="Время рождения"
+              <AstralInput
+                placeholder="Время рождения (HH:MM)"
                 value={formData.birthTime}
                 onChangeText={(text) => handleFieldChange('birthTime', text)}
+                onFocus={() => setFocusedField('birthTime')}
+                onBlur={() => handleFieldBlur('birthTime', formData.birthTime)}
+                keyboardType="numeric"
                 icon="time"
-                mode="time"
                 animationValue={fieldAnimations.birthTime}
                 error={!!errors.birthTime}
                 errorMessage={errors.birthTime}

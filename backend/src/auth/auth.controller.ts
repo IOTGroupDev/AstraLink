@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Request } from '@nestjs/common';
+import { Controller, Post, Body, Get, Request, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -8,6 +8,7 @@ import {
 import { SupabaseAuthService } from './supabase-auth.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
 import { Public } from './decorators/public.decorator';
+import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -33,6 +34,7 @@ export class AuthController {
   }
 
   @Get('profile')
+  @UseGuards(SupabaseAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить профиль текущего пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })

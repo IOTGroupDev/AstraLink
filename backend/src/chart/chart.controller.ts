@@ -121,6 +121,7 @@ import {
   Request,
   Body,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -132,11 +133,11 @@ import {
 import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '../types';
 import { Public } from '../auth/decorators/public.decorator';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 
 @ApiTags('Chart')
 @Controller('chart')
-@UseGuards()
-@Public()
+@UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class ChartController {
   constructor(private readonly chartService: ChartService) {}
@@ -146,7 +147,10 @@ export class ChartController {
   @ApiResponse({ status: 200, description: 'Натальная карта' })
   @ApiResponse({ status: 404, description: 'Карта не найдена' })
   async getNatalChart(@Request() req) {
-    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getNatalChart(userId);
   }
 
@@ -155,7 +159,10 @@ export class ChartController {
   @ApiResponse({ status: 200, description: 'Интерпретация натальной карты' })
   @ApiResponse({ status: 404, description: 'Интерпретация не найдена' })
   async getChartInterpretation(@Request() req) {
-    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getChartInterpretation(userId);
   }
 
@@ -166,7 +173,10 @@ export class ChartController {
     description: 'Полная натальная карта с интерпретацией',
   })
   async getNatalChartWithInterpretation(@Request() req) {
-    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getNatalChartWithInterpretation(userId);
   }
 
@@ -177,7 +187,10 @@ export class ChartController {
     @Request() req,
     @Body() chartData: CreateNatalChartRequest,
   ) {
-    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.createNatalChart(userId, chartData.data);
   }
 
@@ -195,7 +208,10 @@ export class ChartController {
     @Request() req,
     @Query('period') period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
   ) {
-    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getHoroscope(userId, period);
   }
 
@@ -205,7 +221,10 @@ export class ChartController {
   })
   @ApiResponse({ status: 200, description: 'Все гороскопы' })
   async getAllHoroscopes(@Request() req) {
-    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getAllHoroscopes(userId);
   }
 
@@ -213,7 +232,10 @@ export class ChartController {
   @ApiOperation({ summary: 'Получить текущие позиции планет' })
   @ApiResponse({ status: 200, description: 'Текущие позиции планет' })
   async getCurrentPlanets(@Request() req) {
-    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getCurrentPlanets(userId);
   }
 
@@ -232,7 +254,10 @@ export class ChartController {
     @Request() req,
     @Query('period') period: string = 'day',
   ) {
-    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getPredictions(userId, period);
   }
 
@@ -242,11 +267,15 @@ export class ChartController {
   @ApiQuery({ name: 'to', description: 'Дата окончания (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Данные транзитов' })
   async getTransits(@Request() req, @Query() query: TransitRequest) {
-    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163';
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
     return this.chartService.getTransits(userId, query.from, query.to);
   }
 
   @Get('test')
+  @Public()
   @ApiOperation({ summary: 'Тестовый эндпоинт для проверки расчетов' })
   @ApiResponse({ status: 200, description: 'Тестовые данные' })
   async testChart() {

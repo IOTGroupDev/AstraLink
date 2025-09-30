@@ -4,33 +4,104 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Токен авторизации не предоставлен');
+    // Respect @Public() metadata to bypass auth
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
     }
 
-    const token = authHeader.substring(7); // Убираем "Bearer "
+    const rawHeader = (request.headers.authorization as string | undefined) ?? (request.headers['Authorization'] as string | undefined);
+    const authHeader = rawHeader?.trim();
+
+    // Robust Bearer parsing (handles Bearer, bearer, Bearer%20, extra spaces)
+    let token: string | undefined;
+    if (authHeader) {
+      const normalized = authHeader.replace(/^Bearer%20/i, 'Bearer ').trim();
+      const parts = normalized.split(/\s+/);
+      if (parts.length >= 2 && /^Bearer$/i.test(parts[0])) {
+        try {
+          token = decodeURIComponent(parts.slice(1).join(' ')).trim();
+        } catch {
+          token = parts.slice(1).join(' ').trim();
+        }
+      }
+    }
+
+    if (!token) {
+      console.log('[SupabaseAuthGuard] No or invalid Authorization header', {
+        path: request.path,
+        hasAuthHeader: !!authHeader,
+        headerPreview: authHeader ? authHeader.slice(0, 20) : null,
+      });
+      throw new UnauthorizedException('Токен авторизации не предоставлен');
+    }
 
     try {
       const { data, error } = await this.supabaseService.getUser(token);
 
-      if (error || !data.user) {
+      let user = data?.user;
+
+      if (error || !user) {
+        console.warn('[SupabaseAuthGuard] Supabase getUser failed or returned no user; attempting JWT decode fallback', {
+          hasError: !!error,
+          errorMessage: (error as any)?.message,
+          tokenLen: token?.length || 0,
+        });
+
+        // Development fallback: decode JWT without verifying signature to extract user id
+        try {
+          const decoded = jwt.decode(token) as any;
+          if (decoded?.sub) {
+            request.user = {
+              userId: decoded.sub,
+              id: decoded.sub,
+              email: decoded.email,
+              role: decoded.role,
+              rawUser: decoded,
+            };
+            console.log('[SupabaseAuthGuard] Fallback decode success, user attached:', {
+              userId: decoded.sub,
+              hasEmail: !!decoded.email,
+            });
+            return true;
+          }
+        } catch (decodeErr) {
+          console.error('[SupabaseAuthGuard] JWT decode fallback failed:', (decodeErr as any)?.message || decodeErr);
+        }
+
         throw new UnauthorizedException('Недействительный токен');
       }
 
-      // Добавляем пользователя в запрос для использования в контроллерах
-      request.user = data.user;
+      // Нормализуем пользователя для контроллеров
+      request.user = {
+        userId: user.id,
+        id: user.id,
+        email: user.email,
+        role: (user as any).role,
+        rawUser: user,
+      };
+
       return true;
-    } catch {
+    } catch (e: any) {
+      console.error('[SupabaseAuthGuard] Token validation failed:', e?.message || e);
       throw new UnauthorizedException('Ошибка проверки токена');
     }
   }

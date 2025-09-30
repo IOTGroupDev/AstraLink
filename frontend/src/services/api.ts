@@ -41,6 +41,9 @@ const api = axios.create({
 // Добавляем токен к запросам
 api.interceptors.request.use((config) => {
   const token = getStoredToken();
+  console.log('🔍 Проверка токена для запроса:', config.url);
+  console.log('🔍 Токен в памяти:', !!token);
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
     console.log(
@@ -50,6 +53,22 @@ api.interceptors.request.use((config) => {
     );
   } else {
     console.log('⚠️ Токен отсутствует для запроса:', config.url);
+    // Для защищенных endpoints возвращаем ошибку вместо отправки запроса
+    if (config.url && (
+      config.url.includes('/chart/') ||
+      config.url.includes('/user/') ||
+      config.url.includes('/connections/') ||
+      config.url.includes('/dating/') ||
+      config.url.includes('/subscription/')
+    ) && !config.url.includes('/chart/test')) { // Исключаем тестовый endpoint
+      console.log('🚫 Блокировка запроса без токена:', config.url);
+      return Promise.reject({
+        response: {
+          status: 401,
+          data: { message: 'Требуется аутентификация' }
+        }
+      });
+    }
   }
   return config;
 });

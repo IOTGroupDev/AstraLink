@@ -37,10 +37,12 @@ import { InterpretationService } from './interpretation.service';
 import { HoroscopeGeneratorService } from './horoscope-generator.service';
 import { AIService } from './ai.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SupabaseModule } from '../supabase/supabase.module';
 
 @Module({
   imports: [
     PrismaModule,
+    SupabaseModule, // Добавляем для доступа к SupabaseService
     ConfigModule, // Нужен для ConfigService в AIService
   ],
   providers: [

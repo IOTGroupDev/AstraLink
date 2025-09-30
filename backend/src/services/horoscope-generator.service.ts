@@ -2,6 +2,7 @@
 // СТРОГОЕ РАЗДЕЛЕНИЕ: FREE = Интерпретатор, PREMIUM = AI
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from './ephemeris.service';
 import { AIService } from './ai.service';
 
@@ -29,6 +30,7 @@ export class HoroscopeGeneratorService {
 
   constructor(
     private prisma: PrismaService,
+    private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
     private aiService: AIService,
   ) {}
@@ -47,42 +49,108 @@ export class HoroscopeGeneratorService {
       `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}`,
     );
 
-    const chart = await this.prisma.chart.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Ищем натальную карту через Supabase (как в ChartService)
+    let chartData: any = null;
+    let foundVia = '';
 
-    if (!chart) {
+    this.logger.log(`Looking for natal chart for user ${userId}`);
+
+    try {
+      // Сначала пытаемся через admin клиент
+      this.logger.log('Trying admin client lookup...');
+      const { data: charts, error: adminError } = await this.supabaseService.getUserChartsAdmin(userId);
+
+      if (adminError) {
+        this.logger.warn('Admin chart lookup error:', adminError.message);
+      } else if (charts && charts.length > 0) {
+        chartData = charts[0].data;
+        foundVia = 'admin';
+        this.logger.log(`Found chart via admin client, created: ${charts[0].created_at}`);
+      }
+    } catch (adminError) {
+      this.logger.warn('Admin chart lookup failed:', adminError.message);
+    }
+
+    // Если не нашли через admin, пробуем обычный клиент
+    if (!chartData) {
+      try {
+        this.logger.log('Trying regular client lookup...');
+        const { data: charts, error: regularError } = await this.supabaseService.getUserCharts(userId);
+
+        if (regularError) {
+          this.logger.warn('Regular chart lookup error:', regularError.message);
+        } else if (charts && charts.length > 0) {
+          chartData = charts[0].data;
+          foundVia = 'regular';
+          this.logger.log(`Found chart via regular client, created: ${charts[0].created_at}`);
+        }
+      } catch (regularError) {
+        this.logger.error('Regular chart lookup failed:', regularError.message);
+      }
+    }
+
+    // Если карта не найдена через Supabase, пробуем через Prisma как fallback
+    if (!chartData) {
+      this.logger.log('Trying Prisma fallback for chart lookup');
+      try {
+        const chart = await this.prisma.chart.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (chart) {
+          chartData = chart.data as any;
+          foundVia = 'prisma';
+          this.logger.log(`Found chart via Prisma fallback, created: ${chart.createdAt}`);
+        }
+      } catch (prismaError) {
+        this.logger.error('Prisma lookup failed:', prismaError.message);
+      }
+    }
+
+    if (!chartData) {
+      this.logger.error(`No natal chart found for user ${userId} via any method`);
       throw new Error('Натальная карта не найдена');
     }
 
-    const chartData = chart.data as any;
-    const targetDate = this.getTargetDate(period);
-    const transits = await this.getCurrentTransits(targetDate);
-    const transitAspects = this.analyzeTransitAspects(
-      chartData.planets,
-      transits.planets,
-    );
+    this.logger.log(`Successfully found natal chart for user ${userId} via ${foundVia}`);
 
-    // СТРОГОЕ РАЗДЕЛЕНИЕ
-    if (isPremium) {
-      // PREMIUM: ТОЛЬКО через AI
-      return await this.generatePremiumHoroscope(
-        chartData,
-        transits,
-        transitAspects,
-        period,
-        targetDate,
+    try {
+      const targetDate = this.getTargetDate(period);
+      this.logger.log(`Target date for ${period}: ${targetDate.toISOString()}`);
+
+      const transits = await this.getCurrentTransits(targetDate);
+      this.logger.log(`Calculated transits for ${transits.planets ? Object.keys(transits.planets).length : 0} planets`);
+
+      const transitAspects = this.analyzeTransitAspects(
+        chartData.planets,
+        transits.planets,
       );
-    } else {
-      // FREE: ТОЛЬКО через интерпретатор
-      return this.generateFreeHoroscope(
-        chartData,
-        transits,
-        transitAspects,
-        period,
-        targetDate,
-      );
+      this.logger.log(`Found ${transitAspects.length} transit aspects`);
+
+      // СТРОГОЕ РАЗДЕЛЕНИЕ
+      if (isPremium) {
+        // PREMIUM: ТОЛЬКО через AI
+        return await this.generatePremiumHoroscope(
+          chartData,
+          transits,
+          transitAspects,
+          period,
+          targetDate,
+        );
+      } else {
+        // FREE: ТОЛЬКО через интерпретатор
+        return this.generateFreeHoroscope(
+          chartData,
+          transits,
+          transitAspects,
+          period,
+          targetDate,
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Error during horoscope generation for user ${userId}:`, error);
+      throw new Error(`Ошибка генерации гороскопа: ${error.message}`);
     }
   }
 

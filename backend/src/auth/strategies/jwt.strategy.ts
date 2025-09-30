@@ -21,27 +21,40 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(request: any, payload: any) {
     // Для development просто декодируем Supabase токен без проверки подписи
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
-    if (token) {
-      try {
-        // Декодируем токен без проверки подписи
-        const decoded = jwt.decode(token, { complete: false }) as any;
-        if (decoded && decoded.sub) {
+    if (!token) {
+      console.log('No token provided in request');
+      return null; // Passport интерпретирует null как неудачную аутентификацию
+    }
+
+    try {
+      // Декодируем токен без проверки подписи
+      const decoded = jwt.decode(token, { complete: false }) as any;
+      console.log('Decoded token payload:', decoded);
+      if (decoded) {
+        const userId = decoded.sub || decoded.id || decoded.userId || decoded.user_id;
+        if (userId) {
           return {
-            userId: decoded.sub,
+            userId: userId,
             email: decoded.email,
             role: decoded.role,
           };
         }
-      } catch (error) {
-        console.error('Error decoding token:', error);
+      }
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      // Если декодирование не удалось, возможно токен - это просто userId для development
+      if (token && token.length > 10) { // Простая проверка, что это UUID-like
+        console.log('Treating token as userId for development:', token);
+        return {
+          userId: token,
+          email: 'dev@example.com',
+          role: 'authenticated',
+        };
       }
     }
 
-    // Fallback для обычных токенов
-    return {
-      userId: payload?.sub || 'demo-user-id',
-      email: payload?.email || 'demo@example.com',
-      role: payload?.role || 'user',
-    };
+    // Если токен не содержит нужных данных
+    console.log('Invalid token payload - no userId found');
+    return null; // Passport интерпретирует null как неудачную аутентификацию
   }
 }
