@@ -16,6 +16,7 @@ import { chartAPI } from '../services/api';
 import AnimatedStars from '../components/AnimatedStars';
 import ShimmerLoader from '../components/ShimmerLoader';
 
+import HoroscopeWidget from '../components/HoroscopeWidget';
 interface PlanetPosition {
   name: string;
   longitude: number;
@@ -163,14 +164,19 @@ export default function ChartScreen() {
         nextWeek.toISOString().split('T')[0]
       );
       // Преобразуем данные транзитов в нужный формат
-      const formattedTransits: TransitData[] =
-        transitsData.transits?.map((transit: any) => ({
-          planet: 'Марс',
-          aspect: 'Квадрат',
-          target: 'Солнце',
-          date: transit.date,
-          description: 'Сильный аспект, влияющий на энергию и активность',
-        })) || [];
+      const formattedTransits: TransitData[] = (
+        transitsData.transits || []
+      ).map((transit: any) => ({
+        planet:
+          transit.planet ||
+          transit.transitPlanet ||
+          transit.planetA ||
+          'Планета',
+        aspect: transit.aspect || transit.type || 'Аспект',
+        target: transit.target || transit.natalPlanet || transit.planetB || '',
+        date: transit.date || '',
+        description: transit.description || 'Аспект между планетами',
+      }));
       setTransits(formattedTransits);
     } catch (error) {
       console.error('Ошибка загрузки транзитов:', error);
@@ -189,14 +195,20 @@ export default function ChartScreen() {
             nextWeek.toISOString().split('T')[0]
           );
 
-          const formattedTransits: TransitData[] =
-            transitsData.transits?.map((transit: any) => ({
-              planet: 'Марс',
-              aspect: 'Квадрат',
-              target: 'Солнце',
-              date: transit.date,
-              description: 'Сильный аспект, влияющий на энергию и активность',
-            })) || [];
+          const formattedTransits: TransitData[] = (
+            transitsData.transits || []
+          ).map((transit: any) => ({
+            planet:
+              transit.planet ||
+              transit.transitPlanet ||
+              transit.planetA ||
+              'Планета',
+            aspect: transit.aspect || transit.type || 'Аспект',
+            target:
+              transit.target || transit.natalPlanet || transit.planetB || '',
+            date: transit.date || '',
+            description: transit.description || 'Аспект между планетами',
+          }));
           setTransits(formattedTransits);
           Alert.alert('✅', 'Натальная карта создана! Транзиты рассчитаны.');
           return;
@@ -434,83 +446,12 @@ export default function ChartScreen() {
   };
 
   const renderHoroscope = () => {
-    if (loading.horoscope) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ShimmerLoader width={300} height={200} borderRadius={15} />
-        </View>
-      );
-    }
-
-    if (!horoscope) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name="star-outline"
-            size={60}
-            color="rgba(255, 255, 255, 0.3)"
-          />
-          <Text style={styles.emptyText}>Гороскоп не найден</Text>
-          <TouchableOpacity
-            onPress={loadHoroscope}
-            style={styles.refreshButton}
-          >
-            <Text style={styles.refreshText}>Загрузить</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
     return (
-      <Animated.View entering={FadeIn} style={styles.horoscopeContainer}>
-        <Text style={styles.chartTitle}>Гороскоп на сегодня</Text>
-        <View style={styles.horoscopeContent}>
-          {horoscope.predictions?.general && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionTitle}>Общее</Text>
-              <Text style={styles.predictionText}>
-                {horoscope.predictions.general}
-              </Text>
-            </View>
-          )}
-
-          {horoscope.predictions?.love && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionTitle}>Любовь</Text>
-              <Text style={styles.predictionText}>
-                {horoscope.predictions.love}
-              </Text>
-            </View>
-          )}
-
-          {horoscope.predictions?.career && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionTitle}>Карьера</Text>
-              <Text style={styles.predictionText}>
-                {horoscope.predictions.career}
-              </Text>
-            </View>
-          )}
-
-          {horoscope.predictions?.health && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionTitle}>Здоровье</Text>
-              <Text style={styles.predictionText}>
-                {horoscope.predictions.health}
-              </Text>
-            </View>
-          )}
-
-          {horoscope.predictions?.advice && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionTitle}>Совет</Text>
-              <Text style={styles.predictionText}>
-                {horoscope.predictions.advice}
-              </Text>
-            </View>
-          )}
-        </View>
-      </Animated.View>
+      <HoroscopeWidget
+        predictions={undefined as any}
+        currentPlanets={currentPlanets}
+        isLoading={loading.horoscope}
+      />
     );
   };
 

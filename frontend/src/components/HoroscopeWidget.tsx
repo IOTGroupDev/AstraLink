@@ -379,7 +379,14 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     try {
       setLoading(true);
       const response = await chartAPI.getAllHoroscopes();
-      setAllHoroscopes(response);
+      // Нормализуем ключи с backend: today -> day
+      const normalized = {
+        day: response.today,
+        tomorrow: response.tomorrow,
+        week: response.week,
+        month: response.month,
+      };
+      setAllHoroscopes(normalized);
       setIsPremium(response.isPremium || false);
     } catch (error) {
       console.error('Ошибка загрузки гороскопов:', error);
