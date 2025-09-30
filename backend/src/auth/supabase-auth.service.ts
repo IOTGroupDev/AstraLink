@@ -52,7 +52,9 @@ export class SupabaseAuthService {
       if (chartsError) {
         console.error('Error checking user charts:', chartsError);
       } else {
-        console.log(`Found ${existingCharts?.length || 0} existing charts for user ${data.user.id}`);
+        console.log(
+          `Found ${existingCharts?.length || 0} existing charts for user ${data.user.id}`,
+        );
       }
 
       // Если натальной карты нет, создаем её
@@ -95,7 +97,9 @@ export class SupabaseAuthService {
             );
             // Не прерываем вход, просто логируем ошибку
           } else {
-            console.log(`✅ Natal chart created for user ${data.user.id}, chart ID: ${createdChart?.id}`);
+            console.log(
+              `✅ Natal chart created for user ${data.user.id}, chart ID: ${createdChart?.id}`,
+            );
           }
         } catch (chartError) {
           console.error('Error creating natal chart during login:', chartError);
@@ -236,11 +240,17 @@ export class SupabaseAuthService {
           );
         if (chartInsertError) {
           // Не прерываем регистрацию из-за ошибки сохранения карты
-          console.error('Error inserting natal chart (non-blocking):', chartInsertError);
+          console.error(
+            'Error inserting natal chart (non-blocking):',
+            chartInsertError,
+          );
         }
       } catch (chartError) {
         // Не прерываем регистрацию из-за недоступности Swiss Ephemeris
-        console.error('Error creating natal chart via Supabase (non-blocking):', chartError);
+        console.error(
+          'Error creating natal chart via Supabase (non-blocking):',
+          chartError,
+        );
       }
 
       return {

@@ -28,7 +28,9 @@ export class SupabaseAuthGuard implements CanActivate {
       return true;
     }
 
-    const rawHeader = (request.headers.authorization as string | undefined) ?? (request.headers['Authorization'] as string | undefined);
+    const rawHeader =
+      (request.headers.authorization as string | undefined) ??
+      (request.headers['Authorization'] as string | undefined);
     const authHeader = rawHeader?.trim();
 
     // Robust Bearer parsing (handles Bearer, bearer, Bearer%20, extra spaces)
@@ -57,14 +59,17 @@ export class SupabaseAuthGuard implements CanActivate {
     try {
       const { data, error } = await this.supabaseService.getUser(token);
 
-      let user = data?.user;
+      const user = data?.user;
 
       if (error || !user) {
-        console.warn('[SupabaseAuthGuard] Supabase getUser failed or returned no user; attempting JWT decode fallback', {
-          hasError: !!error,
-          errorMessage: (error as any)?.message,
-          tokenLen: token?.length || 0,
-        });
+        console.warn(
+          '[SupabaseAuthGuard] Supabase getUser failed or returned no user; attempting JWT decode fallback',
+          {
+            hasError: !!error,
+            errorMessage: (error as any)?.message,
+            tokenLen: token?.length || 0,
+          },
+        );
 
         // Development fallback: decode JWT without verifying signature to extract user id
         try {
@@ -77,14 +82,20 @@ export class SupabaseAuthGuard implements CanActivate {
               role: decoded.role,
               rawUser: decoded,
             };
-            console.log('[SupabaseAuthGuard] Fallback decode success, user attached:', {
-              userId: decoded.sub,
-              hasEmail: !!decoded.email,
-            });
+            console.log(
+              '[SupabaseAuthGuard] Fallback decode success, user attached:',
+              {
+                userId: decoded.sub,
+                hasEmail: !!decoded.email,
+              },
+            );
             return true;
           }
         } catch (decodeErr) {
-          console.error('[SupabaseAuthGuard] JWT decode fallback failed:', (decodeErr as any)?.message || decodeErr);
+          console.error(
+            '[SupabaseAuthGuard] JWT decode fallback failed:',
+            decodeErr?.message || decodeErr,
+          );
         }
 
         throw new UnauthorizedException('Недействительный токен');
@@ -101,7 +112,10 @@ export class SupabaseAuthGuard implements CanActivate {
 
       return true;
     } catch (e: any) {
-      console.error('[SupabaseAuthGuard] Token validation failed:', e?.message || e);
+      console.error(
+        '[SupabaseAuthGuard] Token validation failed:',
+        e?.message || e,
+      );
       throw new UnauthorizedException('Ошибка проверки токена');
     }
   }

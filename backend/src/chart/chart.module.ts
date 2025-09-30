@@ -7,7 +7,12 @@ import { ServicesModule } from '../services/services.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, SupabaseModule, ServicesModule, forwardRef(() => AuthModule)],
+  imports: [
+    PrismaModule,
+    SupabaseModule,
+    ServicesModule,
+    forwardRef(() => AuthModule),
+  ],
   controllers: [ChartController],
   providers: [ChartService],
   exports: [ChartService],

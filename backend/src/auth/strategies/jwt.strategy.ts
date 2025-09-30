@@ -31,7 +31,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       const decoded = jwt.decode(token, { complete: false }) as any;
       console.log('Decoded token payload:', decoded);
       if (decoded) {
-        const userId = decoded.sub || decoded.id || decoded.userId || decoded.user_id;
+        const userId =
+          decoded.sub || decoded.id || decoded.userId || decoded.user_id;
         if (userId) {
           return {
             userId: userId,
@@ -43,7 +44,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     } catch (error) {
       console.error('Error decoding token:', error);
       // Если декодирование не удалось, возможно токен - это просто userId для development
-      if (token && token.length > 10) { // Простая проверка, что это UUID-like
+      if (token && token.length > 10) {
+        // Простая проверка, что это UUID-like
         console.log('Treating token as userId for development:', token);
         return {
           userId: token,
