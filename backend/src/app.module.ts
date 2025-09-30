@@ -10,12 +10,14 @@ import { ChartModule } from './chart/chart.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { DatingModule } from './dating/dating.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    PrismaModule,
     SupabaseModule,
     ServicesModule,
     AuthModule,
