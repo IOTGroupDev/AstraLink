@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from './supabase';
 import {
   LoginRequest,
   SignupRequest,
@@ -39,37 +40,69 @@ const api = axios.create({
 });
 
 // Добавляем токен к запросам
-api.interceptors.request.use((config) => {
-  const token = getStoredToken();
-  console.log('🔍 Проверка токена для запроса:', config.url);
-  console.log('🔍 Токен в памяти:', !!token);
+api.interceptors.request.use(async (config) => {
+  console.log('🔍 Получение сессии для запроса:', config.url);
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log(
-      '🔐 Добавлен токен к запросу:',
-      config.url,
-      token.substring(0, 20) + '...'
-    );
-  } else {
-    console.log('⚠️ Токен отсутствует для запроса:', config.url);
-    // Для защищенных endpoints возвращаем ошибку вместо отправки запроса
-    if (config.url && (
-      config.url.includes('/chart/') ||
-      config.url.includes('/user/') ||
-      config.url.includes('/connections/') ||
-      config.url.includes('/dating/') ||
-      config.url.includes('/subscription/')
-    ) && !config.url.includes('/chart/test')) { // Исключаем тестовый endpoint
-      console.log('🚫 Блокировка запроса без токена:', config.url);
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.log('❌ Ошибка получения сессии:', error);
+      throw error;
+    }
+
+    const token = data.session?.access_token;
+    console.log('🔍 Токен из сессии:', !!token);
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log(
+        '🔐 Добавлен токен к запросу:',
+        config.url,
+        token.substring(0, 20) + '...'
+      );
+    } else {
+      console.log('⚠️ Токен отсутствует для запроса:', config.url);
+      // Для защищенных endpoints возвращаем ошибку вместо отправки запроса
+      if (
+        config.url &&
+        (config.url.includes('/chart/') ||
+          config.url.includes('/user/') ||
+          config.url.includes('/connections/') ||
+          config.url.includes('/dating/') ||
+          config.url.includes('/subscription/')) &&
+        !config.url.includes('/chart/test')
+      ) {
+        // Исключаем тестовый endpoint
+        console.log('🚫 Блокировка запроса без токена:', config.url);
+        return Promise.reject({
+          response: {
+            status: 401,
+            data: { message: 'Требуется аутентификация' },
+          },
+        });
+      }
+    }
+  } catch (error) {
+    console.log('❌ Ошибка в интерцепторе запроса:', error);
+    // Для защищенных endpoints возвращаем ошибку
+    if (
+      config.url &&
+      (config.url.includes('/chart/') ||
+        config.url.includes('/user/') ||
+        config.url.includes('/connections/') ||
+        config.url.includes('/dating/') ||
+        config.url.includes('/subscription/')) &&
+      !config.url.includes('/chart/test')
+    ) {
       return Promise.reject({
         response: {
           status: 401,
-          data: { message: 'Требуется аутентификация' }
-        }
+          data: { message: 'Ошибка аутентификации' },
+        },
       });
     }
   }
+
   return config;
 });
 
@@ -79,7 +112,7 @@ api.interceptors.response.use(
     console.log('✅ API ответ:', response.config.url, response.status);
     return response;
   },
-  (error) => {
+  async (error) => {
     console.log(
       '❌ API ошибка:',
       error.config?.url,
@@ -87,17 +120,33 @@ api.interceptors.response.use(
       error.message
     );
 
-    // Обработка ошибок авторизации от middleware
+    // Обработка ошибок авторизации
     if (error.response?.status === 401) {
       const errorData = error.response.data;
       if (errorData?.redirectTo === '/signup' || errorData?.requiresAuth) {
         console.log(
           '🔄 Перенаправление на регистрацию из-за отсутствия авторизации'
         );
-        // Удаляем токен и перенаправляем на регистрацию
-        removeStoredToken();
+        // Выходим из системы через Supabase
+        await supabase.auth.signOut();
         // В React Native можно использовать navigation для перенаправления
         // navigation.navigate('Signup');
+      } else {
+        // Попробуем обновить сессию и повторить запрос
+        try {
+          const { data, error: sessionError } =
+            await supabase.auth.getSession();
+          if (sessionError || !data.session) {
+            console.log('❌ Невозможно обновить сессию, выход из системы');
+            await supabase.auth.signOut();
+          } else {
+            console.log('🔄 Сессия обновлена, повторяем запрос');
+            // Можно повторить запрос с новым токеном, но для простоты просто выбрасываем ошибку
+          }
+        } catch (refreshError) {
+          console.log('❌ Ошибка при обновлении сессии:', refreshError);
+          await supabase.auth.signOut();
+        }
       }
     }
 
@@ -105,108 +154,47 @@ api.interceptors.response.use(
   }
 );
 
-// Простое хранилище токенов для демо
-let authToken: string | null = null;
+// Токены теперь управляются Supabase автоматически
 
-// Сохраняем токен
-export const setStoredToken = (token: string) => {
-  console.log('💾 Сохраняем токен:', token.substring(0, 20) + '...');
-  authToken = token;
-  // В реальном приложении используйте SecureStore или AsyncStorage
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('auth_token', token);
-      console.log('✅ Токен сохранен в localStorage');
-    } else {
-      console.log('⚠️ localStorage недоступен, токен сохранен только в памяти');
-    }
-  } catch (error) {
-    console.log('❌ Ошибка сохранения в localStorage:', error);
-  }
-};
-
-// Получаем токен
-export const getStoredToken = (): string | null => {
-  if (authToken) {
-    console.log(
-      '🔍 Токен найден в памяти:',
-      authToken.substring(0, 20) + '...'
-    );
-    return authToken;
-  }
-
-  // В реальном приложении используйте SecureStore или AsyncStorage
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        console.log(
-          '🔍 Токен найден в localStorage:',
-          token.substring(0, 20) + '...'
-        );
-        authToken = token;
-        return token;
-      }
-    }
-  } catch (error) {
-    console.log('❌ Ошибка чтения localStorage:', error);
-  }
-
-  console.log('❌ Токен не найден');
-  return null;
-};
-
-// Удаляем токен
-export const removeStoredToken = () => {
-  console.log('🗑️ Удаляем токен');
-  authToken = null;
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem('auth_token');
-      console.log('✅ Токен удален из localStorage');
-    }
-  } catch (error) {
-    console.log('❌ Ошибка удаления из localStorage:', error);
-  }
-};
-
-// Auth API с реальными вызовами и fallback на моки
+// Auth API с использованием Supabase
 export const authAPI = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Отправляем данные для входа:', data);
-      // Пробуем реальный API
-      const response = await api.post('/auth/login', data);
-      console.log('✅ Получен ответ от сервера:', response.data);
-      const authResponse = response.data;
+      console.log('🔐 Отправляем данные для входа через Supabase:', data);
 
-      // Backend возвращает 'token', используем его напрямую
-      const token = authResponse.token || authResponse.access_token;
-      if (!token) {
-        throw new Error('Токен не получен от сервера');
-      }
-
-      // Сохраняем токен
-      setStoredToken(token);
-
-      // Обеспечиваем совместимость с типами
-      authResponse.access_token = token;
-
-      return authResponse;
-    } catch (error) {
-      console.log('❌ API login failed:', error);
-      console.log('❌ Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        config: error.config,
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
       });
 
+      if (error) {
+        console.log('❌ Supabase login error:', error);
+        throw new Error(error.message);
+      }
+
+      if (!authData.session?.access_token) {
+        throw new Error('Токен не получен от Supabase');
+      }
+
+      console.log('✅ Успешный вход через Supabase');
+
+      // Возвращаем совместимый с существующим кодом ответ
+      return {
+        access_token: authData.session.access_token,
+        user: {
+          id: authData.user?.id || '',
+          email: authData.user?.email || '',
+          name: authData.user?.user_metadata?.name || '',
+        },
+      };
+    } catch (error) {
+      console.log('❌ API login failed:', error);
+
       // Добавляем более понятное сообщение об ошибке
-      if (error.response?.status === 401) {
+      if (error.message?.includes('Invalid login credentials')) {
         error.message = 'Неверный email или пароль';
-      } else if (error.response?.status === 400) {
-        error.message = 'Некорректные данные';
+      } else if (error.message?.includes('Email not confirmed')) {
+        error.message = 'Email не подтвержден';
       } else if (error.code === 'ERR_NETWORK') {
         error.message = 'Ошибка сети';
       }
@@ -217,30 +205,71 @@ export const authAPI = {
 
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     try {
-      const response = await api.post('/auth/signup', data);
-      const authResponse = response.data;
+      console.log('🔐 Отправляем данные для регистрации через Supabase:', data);
 
-      const token = authResponse.token || authResponse.access_token;
-      if (!token) {
-        throw new Error('Токен не получен от сервера');
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
+            birthDate: data.birthDate,
+            birthTime: data.birthTime,
+            birthPlace: data.birthPlace,
+          },
+        },
+      });
+
+      if (error) {
+        console.log('❌ Supabase signup error:', error);
+        throw new Error(error.message);
       }
 
-      setStoredToken(token);
-      authResponse.access_token = token;
+      if (!authData.session?.access_token) {
+        // Пользователь создан, но email нужно подтвердить
+        throw new Error('Проверьте ваш email для подтверждения регистрации');
+      }
 
-      return authResponse;
+      console.log('✅ Успешная регистрация через Supabase');
+
+      // Возвращаем совместимый с существующим кодом ответ
+      return {
+        access_token: authData.session.access_token,
+        user: {
+          id: authData.user?.id || '',
+          email: authData.user?.email || '',
+          name: authData.user?.user_metadata?.name || data.name,
+        },
+      };
     } catch (error) {
       console.log('❌ API signup failed:', error);
 
       // Добавляем более понятное сообщение об ошибке
-      if (error.response?.status === 409) {
+      if (error.message?.includes('User already registered')) {
         error.message = 'Пользователь с таким email уже существует';
-      } else if (error.response?.status === 400) {
-        error.message = 'Некорректные данные';
+      } else if (error.message?.includes('Password should be at least')) {
+        error.message = 'Пароль должен содержать минимум 6 символов';
       } else if (error.code === 'ERR_NETWORK') {
         error.message = 'Ошибка сети';
       }
 
+      throw error;
+    }
+  },
+
+  logout: async (): Promise<void> => {
+    try {
+      console.log('🔐 Выход из системы через Supabase');
+
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.log('❌ Supabase logout error:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('✅ Успешный выход из системы');
+    } catch (error) {
+      console.log('❌ API logout failed:', error);
       throw error;
     }
   },

@@ -24,7 +24,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { getStoredToken, authAPI } from './src/services/api';
+import { supabase } from './src/services/supabase';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import TabNavigator from './src/navigation/TabNavigator';
@@ -46,18 +46,19 @@ export default function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const token = await getStoredToken();
-      if (token) {
-        console.log('🔍 Найден токен, пользователь авторизован');
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.log('❌ Ошибка получения сессии:', error);
+        setIsAuthenticated(false);
+      } else if (data.session) {
+        console.log('🔍 Сессия найдена, пользователь авторизован');
         setIsAuthenticated(true);
-        // Не проверяем профиль здесь, чтобы избежать ошибок backend
-        // Проверка будет происходить в компонентах при необходимости
       } else {
-        console.log('❌ Токен не найден, требуется авторизация');
+        console.log('❌ Сессия не найдена, требуется авторизация');
         setIsAuthenticated(false);
       }
-    } catch (error) {
-      console.log('❌ Ошибка проверки авторизации:', error);
+    } catch (e) {
+      console.log('❌ Ошибка проверки авторизации:', e);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

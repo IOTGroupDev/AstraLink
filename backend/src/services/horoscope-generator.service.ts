@@ -58,14 +58,17 @@ export class HoroscopeGeneratorService {
     try {
       // Сначала пытаемся через admin клиент
       this.logger.log('Trying admin client lookup...');
-      const { data: charts, error: adminError } = await this.supabaseService.getUserChartsAdmin(userId);
+      const { data: charts, error: adminError } =
+        await this.supabaseService.getUserChartsAdmin(userId);
 
       if (adminError) {
         this.logger.warn('Admin chart lookup error:', adminError.message);
       } else if (charts && charts.length > 0) {
         chartData = charts[0].data;
         foundVia = 'admin';
-        this.logger.log(`Found chart via admin client, created: ${charts[0].created_at}`);
+        this.logger.log(
+          `Found chart via admin client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
+        );
       }
     } catch (adminError) {
       this.logger.warn('Admin chart lookup failed:', adminError.message);
@@ -75,14 +78,17 @@ export class HoroscopeGeneratorService {
     if (!chartData) {
       try {
         this.logger.log('Trying regular client lookup...');
-        const { data: charts, error: regularError } = await this.supabaseService.getUserCharts(userId);
+        const { data: charts, error: regularError } =
+          await this.supabaseService.getUserCharts(userId);
 
         if (regularError) {
           this.logger.warn('Regular chart lookup error:', regularError.message);
         } else if (charts && charts.length > 0) {
           chartData = charts[0].data;
           foundVia = 'regular';
-          this.logger.log(`Found chart via regular client, created: ${charts[0].created_at}`);
+          this.logger.log(
+            `Found chart via regular client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
+          );
         }
       } catch (regularError) {
         this.logger.error('Regular chart lookup failed:', regularError.message);
@@ -101,7 +107,9 @@ export class HoroscopeGeneratorService {
         if (chart) {
           chartData = chart.data as any;
           foundVia = 'prisma';
-          this.logger.log(`Found chart via Prisma fallback, created: ${chart.createdAt}`);
+          this.logger.log(
+            `Found chart via Prisma fallback, created: ${chart.createdAt?.toString() || 'unknown'}`,
+          );
         }
       } catch (prismaError) {
         this.logger.error('Prisma lookup failed:', prismaError.message);
@@ -109,12 +117,16 @@ export class HoroscopeGeneratorService {
     }
 
     if (!chartData) {
-      this.logger.warn(`No natal chart found for user ${userId} via any method - generating generic horoscope`);
+      this.logger.warn(
+        `No natal chart found for user ${userId} via any method - generating generic horoscope`,
+      );
       // Generate generic horoscope without natal chart data
       return this.generateGenericHoroscope(period, isPremium);
     }
 
-    this.logger.log(`Successfully found natal chart for user ${userId} via ${foundVia}`);
+    this.logger.log(
+      `Successfully found natal chart for user ${userId} via ${foundVia}`,
+    );
 
     try {
       const targetDate = this.getTargetDate(period);
@@ -125,7 +137,9 @@ export class HoroscopeGeneratorService {
 
       try {
         transits = await this.getCurrentTransits(targetDate);
-        this.logger.log(`Calculated transits for ${transits.planets ? Object.keys(transits.planets).length : 0} planets`);
+        this.logger.log(
+          `Calculated transits for ${transits.planets ? Object.keys(transits.planets).length : 0} planets`,
+        );
 
         transitAspects = this.analyzeTransitAspects(
           chartData.planets,
@@ -133,7 +147,9 @@ export class HoroscopeGeneratorService {
         );
         this.logger.log(`Found ${transitAspects.length} transit aspects`);
       } catch (ephemerisError) {
-        this.logger.warn(`Ephemeris calculation failed, using simplified transits: ${ephemerisError.message}`);
+        this.logger.warn(
+          `Ephemeris calculation failed, using simplified transits: ${ephemerisError.message}`,
+        );
         // Create simplified transits without ephemeris calculations
         transits = { planets: {}, date: targetDate };
         transitAspects = [];
@@ -160,9 +176,14 @@ export class HoroscopeGeneratorService {
         );
       }
     } catch (error) {
-      this.logger.error(`Error during horoscope generation for user ${userId}:`, error);
+      this.logger.error(
+        `Error during horoscope generation for user ${userId}:`,
+        error,
+      );
       // If all else fails, return generic horoscope
-      this.logger.log(`Falling back to generic horoscope due to error: ${error.message}`);
+      this.logger.log(
+        `Falling back to generic horoscope due to error: ${error.message}`,
+      );
       return this.generateGenericHoroscope(period, isPremium);
     }
   }
@@ -233,7 +254,9 @@ export class HoroscopeGeneratorService {
     } catch (error) {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
       // Fallback to generic horoscope for premium users when AI fails
-      this.logger.log('Falling back to generic horoscope for premium user due to AI error');
+      this.logger.log(
+        'Falling back to generic horoscope for premium user due to AI error',
+      );
       return this.generateGenericHoroscope(period as any, true);
     }
   }
@@ -610,7 +633,9 @@ export class HoroscopeGeneratorService {
     period: 'day' | 'tomorrow' | 'week' | 'month',
     isPremium: boolean,
   ): HoroscopePrediction {
-    this.logger.log(`Generating generic horoscope for period: ${period}, premium: ${isPremium}`);
+    this.logger.log(
+      `Generating generic horoscope for period: ${period}, premium: ${isPremium}`,
+    );
 
     const targetDate = this.getTargetDate(period);
     const timeFrame = this.getTimeFrame(period);
@@ -638,7 +663,9 @@ export class HoroscopeGeneratorService {
       luckyColors: ['Белый', 'Синий', 'Зеленый'], // Generic colors
       energy: 65, // Neutral energy
       mood: 'Сбалансированное',
-      challenges: isPremium ? ['Будьте внимательны к деталям', 'Избегайте поспешных решений'] : [],
+      challenges: isPremium
+        ? ['Будьте внимательны к деталям', 'Избегайте поспешных решений']
+        : [],
       opportunities: isPremium ? ['Новые знакомства', 'Креативные идеи'] : [],
       generatedBy: 'interpreter',
     };

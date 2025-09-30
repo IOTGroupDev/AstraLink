@@ -22,8 +22,9 @@ import Animated, {
   SlideInRight,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../services/supabase';
 
-import { chartAPI, getStoredToken } from '../services/api';
+import { chartAPI } from '../services/api';
 import { Chart, TransitsResponse } from '../types/chart';
 import AnimatedStars from '../components/AnimatedStars';
 import AstrologicalChart from '../components/AstrologicalChart';
@@ -50,14 +51,19 @@ const MyChartScreen: React.FC = () => {
     try {
       setLoading(true);
 
-      // Проверяем, есть ли токен
-      const token = await getStoredToken();
-      if (!token) {
-        console.log('❌ Токен не найден, требуется авторизация');
+      // Проверяем, есть ли активная сессия Supabase
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        console.log(
+          '❌ Сессия не найдена, требуется авторизация',
+          sessionError
+        );
         // Перенаправляем на страницу входа
-        navigation.navigate('Login');
+        navigation.navigate('Login' as never);
         return;
       }
+      const token = sessionData.session.access_token;
 
       // Для авторизованных пользователей - реальные API вызовы
       try {
@@ -97,7 +103,9 @@ const MyChartScreen: React.FC = () => {
 
         // Обработка ошибок аутентификации
         if (error.response?.status === 401) {
-          console.log('🔄 Перенаправление на страницу входа из-за отсутствия токена');
+          console.log(
+            '🔄 Перенаправление на страницу входа из-за отсутствия токена'
+          );
           navigation.navigate('Login' as never);
           return;
         }
@@ -166,7 +174,9 @@ const MyChartScreen: React.FC = () => {
 
       // Обработка ошибок аутентификации
       if (error.response?.status === 401) {
-        console.log('🔄 Перенаправление на страницу входа из-за отсутствия токена в прогнозах');
+        console.log(
+          '🔄 Перенаправление на страницу входа из-за отсутствия токена в прогнозах'
+        );
         navigation.navigate('Login' as never);
         return;
       }

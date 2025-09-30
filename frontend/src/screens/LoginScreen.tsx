@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
-import { authAPI, setStoredToken } from '../services/api';
+import { authAPI } from '../services/api';
 import { LoginRequest } from '../types';
 import AstralLogo from '../components/AstralLogo';
 import AstralInput from '../components/AstralInput';
@@ -141,7 +141,6 @@ export default function LoginScreen({
         '✅ Успешный вход, получен токен:',
         response.access_token.substring(0, 20) + '...'
       );
-      setStoredToken(response.access_token);
 
       // Небольшая задержка для анимации
       setTimeout(() => {
@@ -175,10 +174,11 @@ export default function LoginScreen({
           'Превышено время ожидания ответа от сервера. Проверьте подключение к интернету и попробуйте еще раз.'
         );
       } else {
-        showErrorModal(
-          'Ошибка входа',
-          'Произошла ошибка при входе в системе. Попробуйте еще раз.'
-        );
+        const msg =
+          typeof error?.message === 'string' && error.message
+            ? error.message
+            : 'Произошла ошибка при входе в систему. Попробуйте еще раз.';
+        showErrorModal('Ошибка входа', msg);
       }
     } finally {
       setLoading(false);

@@ -34,7 +34,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { authAPI, setStoredToken } from '../services/api';
+import { authAPI } from '../services/api';
 import { SignupRequest } from '../types';
 import AnimatedStars from '../components/AnimatedStars';
 import AstrologicalChart from '../components/AstrologicalChart';
@@ -257,7 +257,6 @@ export default function SignupScreen({
       };
 
       const response = await authAPI.signup(signupData);
-      setStoredToken(response.access_token);
 
       // Небольшая задержка для анимации
       setTimeout(() => {
