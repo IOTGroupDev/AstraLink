@@ -148,23 +148,45 @@ const MyChartScreen: React.FC = () => {
         currentPlanets: !!currentPlanets,
       });
 
-      const [dayPredictions, tomorrowPredictions, weekPredictions] =
-        await Promise.all([
-          chartAPI.getPredictions('day'),
-          chartAPI.getPredictions('tomorrow'),
-          chartAPI.getPredictions('week'),
-        ]);
+      const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
+        chartAPI.getPredictions('day'),
+        chartAPI.getPredictions('tomorrow'),
+        chartAPI.getPredictions('week'),
+      ]);
 
       console.log('✅ Получены прогнозы:', {
-        day: dayPredictions,
-        tomorrow: tomorrowPredictions,
-        week: weekPredictions,
+        day: dayResponse,
+        tomorrow: tomorrowResponse,
+        week: weekResponse,
       });
 
+      // Функция для извлечения predictions из ответа
+      const extractPredictions = (response: any) => {
+        // Если есть поле predictions, используем его
+        if (response.predictions && typeof response.predictions === 'object') {
+          return response.predictions;
+        }
+        // Иначе извлекаем нужные поля из корневого объекта
+        return {
+          general: response.general || '',
+          love: response.love || '',
+          career: response.career || '',
+          health: response.health || '',
+          finance: response.finance || '',
+          advice: response.advice || '',
+          luckyNumbers: response.luckyNumbers || [],
+          luckyColors: response.luckyColors || [],
+          energy: response.energy || 50,
+          mood: response.mood || 'Нейтральное',
+          challenges: response.challenges || [],
+          opportunities: response.opportunities || [],
+        };
+      };
+
       const newPredictions = {
-        day: dayPredictions.predictions || {},
-        tomorrow: tomorrowPredictions.predictions || {},
-        week: weekPredictions.predictions || {},
+        day: extractPredictions(dayResponse),
+        tomorrow: extractPredictions(tomorrowResponse),
+        week: extractPredictions(weekResponse),
       };
 
       console.log('🔮 Устанавливаю прогнозы:', newPredictions);
@@ -172,21 +194,60 @@ const MyChartScreen: React.FC = () => {
     } catch (error) {
       console.error('❌ Ошибка загрузки прогнозов:', error);
 
-      // Обработка ошибок аутентификации
-      if (error.response?.status === 401) {
-        console.log(
-          '🔄 Перенаправление на страницу входа из-за отсутствия токена в прогнозах'
-        );
-        navigation.navigate('Login' as never);
-        return;
-      }
+      // Устанавливаем базовые прогнозы при ошибке
+      const fallbackPredictions = {
+        day: {
+          general: 'Загрузка прогноза...',
+          love: '',
+          career: '',
+          health: '',
+          finance: '',
+          advice: 'Доверяйте своей интуиции',
+          luckyNumbers: [7, 14, 21, 42, 77],
+          luckyColors: ['Фиолетовый', 'Золотой'],
+          energy: 75,
+          mood: 'Оптимистичное',
+          challenges: [],
+          opportunities: [],
+        },
+        tomorrow: {
+          general: 'Загрузка прогноза...',
+          love: '',
+          career: '',
+          health: '',
+          finance: '',
+          advice: 'Будьте открыты новому опыту',
+          luckyNumbers: [3, 11, 27, 36, 88],
+          luckyColors: ['Синий', 'Серебряный'],
+          energy: 70,
+          mood: 'Спокойное',
+          challenges: [],
+          opportunities: [],
+        },
+        week: {
+          general: 'Загрузка прогноза...',
+          love: '',
+          career: '',
+          health: '',
+          finance: '',
+          advice: 'Практикуйте благодарность',
+          luckyNumbers: [5, 15, 25, 50, 99],
+          luckyColors: ['Зеленый', 'Белый'],
+          energy: 65,
+          mood: 'Сбалансированное',
+          challenges: [],
+          opportunities: [],
+        },
+      };
 
-      // Устанавливаем пустые прогнозы при ошибке
-      setPredictions({
-        day: { general: 'Ошибка загрузки прогноза на сегодня' },
-        tomorrow: { general: 'Ошибка загрузки прогноза на завтра' },
-        week: { general: 'Ошибка загрузки прогноза на неделю' },
-      });
+      setPredictions(fallbackPredictions);
+
+      // Показываем пользователю информационное сообщение
+      Alert.alert(
+        'Информация',
+        'Прогнозы временно недоступны. Показаны базовые рекомендации.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
