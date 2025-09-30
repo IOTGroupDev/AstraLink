@@ -497,61 +497,34 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             style={styles.periodTabs}
             contentContainerStyle={styles.periodTabsContent}
           >
-            {(['day', 'tomorrow', 'week', 'month'] as HoroscopePeriod[]).map(
-              (period) => (
-                <TouchableOpacity
-                  key={period}
+            {(['day', 'tomorrow', 'week', 'month'] as const).map((period) => (
+              <TouchableOpacity
+                key={period}
+                style={[
+                  styles.periodTab,
+                  activePeriod === period && styles.activePeriodTab,
+                ]}
+                onPress={() => handlePeriodChange(period)}
+              >
+                <Ionicons
+                  name={getPeriodIcon(period) as any}
+                  size={16}
+                  color={activePeriod === period ? '#fff' : '#999'}
+                />
+                <Text
                   style={[
-                    styles.periodTab,
-                    activePeriod === period && styles.activePeriodTab,
+                    styles.periodTabText,
+                    activePeriod === period && styles.activePeriodTabText,
                   ]}
-                  onPress={() => handlePeriodChange(period)}
                 >
-                  <Ionicons
-                    name={getPeriodIcon(period) as any}
-                    size={16}
-                    color={activePeriod === period ? '#fff' : '#999'}
-                  />
-                  <Text
-                    style={[
-                      styles.periodTabText,
-                      activePeriod === period && styles.activePeriodTabText,
-                    ]}
-                  >
-                    {getPeriodTitle(period)}
-                  </Text>
-                </TouchableOpacity>
-              )
-            )}
+                  {getPeriodTitle(period)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
 
-          {/* Энергия дня */}
-          <View style={styles.energySection}>
-            <View style={styles.energyBar}>
-              <LinearGradient
-                colors={['#8B5CF6', '#EC4899']}
-                style={[
-                  styles.energyFill,
-                  { width: `${currentHoroscope.energy || 75}%` },
-                ]}
-              />
-            </View>
-            <View style={styles.energyInfo}>
-              <Text style={styles.energyLabel}>Энергия</Text>
-              <Text style={styles.energyValue}>
-                {currentHoroscope.energy || 75}%
-              </Text>
-              <Text style={styles.moodText}>
-                {currentHoroscope.mood || 'Позитивное'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Основные предсказания */}
-          <ScrollView
-            style={styles.predictionsScroll}
-            showsVerticalScrollIndicator={false}
-          >
+          {/* Контент прогнозов */}
+          <View style={styles.predictionsScroll}>
             {/* Общее */}
             {currentHoroscope.general && (
               <View style={styles.predictionSection}>
@@ -710,7 +683,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                 </View>
               )}
             </View>
-          </ScrollView>
+          </View>
 
           {/* Кнопка обновления */}
           <TouchableOpacity
@@ -868,9 +841,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
   },
-  predictionsScroll: {
-    maxHeight: 400,
-  },
+  predictionsScroll: {},
   predictionSection: {
     marginBottom: 15,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

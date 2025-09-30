@@ -220,50 +220,8 @@ export default function ChartScreen() {
         }
       }
 
-      // Используем моковые данные для демонстрации
-      const mockTransits: TransitData[] = [
-        {
-          planet: 'Марс',
-          aspect: 'Квадрат',
-          target: 'Солнце',
-          date: '2025-09-23',
-          description:
-            'Повышенная активность и энергия. Время для решительных действий.',
-        },
-        {
-          planet: 'Венера',
-          aspect: 'Трин',
-          target: 'Луна',
-          date: '2025-09-24',
-          description:
-            'Гармония в отношениях и творчестве. Благоприятное время для романтики.',
-        },
-        {
-          planet: 'Меркурий',
-          aspect: 'Секстиль',
-          target: 'Юпитер',
-          date: '2025-09-25',
-          description:
-            'Улучшение коммуникации и обучения. Хорошее время для новых знаний.',
-        },
-        {
-          planet: 'Сатурн',
-          aspect: 'Оппозиция',
-          target: 'Марс',
-          date: '2025-09-26',
-          description:
-            'Период ограничений и дисциплины. Важно быть терпеливым.',
-        },
-        {
-          planet: 'Юпитер',
-          aspect: 'Соединение',
-          target: 'Нептун',
-          date: '2025-09-27',
-          description:
-            'Расширение духовного сознания. Время для медитации и размышлений.',
-        },
-      ];
-      setTransits(mockTransits);
+      // Без моков: показываем заглушку (пустой список) и даем пользователю обновить
+      setTransits([]);
     } finally {
       setLoading((prev) => ({ ...prev, transits: false }));
     }
@@ -413,34 +371,45 @@ export default function ChartScreen() {
 
     if (!transits || transits.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name="time-outline"
-            size={60}
-            color="rgba(255, 255, 255, 0.3)"
-          />
-          <Text style={styles.emptyText}>Транзиты не найдены</Text>
-          <TouchableOpacity onPress={loadTransits} style={styles.refreshButton}>
-            <Text style={styles.refreshText}>Обновить</Text>
-          </TouchableOpacity>
+        <View style={styles.loadingContainer}>
+          <ShimmerLoader width={300} height={150} borderRadius={15} />
         </View>
       );
     }
 
     return (
       <Animated.View entering={FadeIn} style={styles.transitsContainer}>
-        <Text style={styles.chartTitle}>Текущие транзиты</Text>
-        {transits.slice(0, 5).map((transit, index) => (
-          <View key={index} style={styles.transitItem}>
-            <View style={styles.transitHeader}>
-              <Text style={styles.transitPlanet}>{transit.planet}</Text>
-              <Text style={styles.transitAspect}>{transit.aspect}</Text>
-              <Text style={styles.transitTarget}>{transit.target}</Text>
-            </View>
-            <Text style={styles.transitDescription}>{transit.description}</Text>
-            <Text style={styles.transitDate}>{transit.date}</Text>
+        <LinearGradient
+          colors={['rgba(139, 92, 246, 0.15)', 'rgba(236, 72, 153, 0.15)']}
+          style={styles.transitsCard}
+        >
+          <View style={styles.transitsHeader}>
+            <Ionicons name="time" size={20} color="#8B5CF6" />
+            <Text style={styles.transitsTitle}>Текущие транзиты</Text>
           </View>
-        ))}
+
+          <View style={styles.transitsList}>
+            {transits.slice(0, 5).map((transit, index) => (
+              <View key={index} style={styles.predictionSection}>
+                <View style={styles.transitHeader}>
+                  <Text style={styles.transitPlanet}>{transit.planet}</Text>
+                  <Text style={styles.transitAspect}>{transit.aspect}</Text>
+                  {!!transit.target && (
+                    <Text style={styles.transitTarget}>{transit.target}</Text>
+                  )}
+                </View>
+                {!!transit.description && (
+                  <Text style={styles.predictionText}>
+                    {transit.description}
+                  </Text>
+                )}
+                {!!transit.date && (
+                  <Text style={styles.transitDate}>{transit.date}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
       </Animated.View>
     );
   };
@@ -688,6 +657,30 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  transitsCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    padding: 20,
+  },
+  transitsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 15,
+  },
+  transitsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textShadowColor: 'rgba(139, 92, 246, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  transitsList: {
+    gap: 12,
   },
   transitItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
