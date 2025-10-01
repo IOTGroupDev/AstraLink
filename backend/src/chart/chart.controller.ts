@@ -134,13 +134,17 @@ import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '../types';
 import { Public } from '../auth/decorators/public.decorator';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { LunarService } from '../services/lunar.service';
 
 @ApiTags('Chart')
 @Controller('chart')
 @UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class ChartController {
-  constructor(private readonly chartService: ChartService) {}
+  constructor(
+    private readonly chartService: ChartService,
+    private readonly lunarService: LunarService,
+  ) {}
 
   @Get('natal')
   @ApiOperation({ summary: 'Получить натальную карту пользователя' })
@@ -299,5 +303,89 @@ export class ChartController {
       message: 'Тестовый расчет завершен',
       data: natalChartData,
     };
+  }
+
+  @Get('moon-phase')
+  @ApiOperation({ summary: 'Получить фазу луны на указанную дату' })
+  @ApiQuery({
+    name: 'date',
+    description:
+      'Дата в формате YYYY-MM-DD (опционально, по умолчанию сегодня)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Фаза луны' })
+  async getMoonPhase(@Request() req, @Query('date') dateStr?: string) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+
+    // Парсим дату
+    const date = dateStr ? new Date(dateStr) : new Date();
+
+    // Получаем натальную карту для определения дома Луны
+    let natalChart: any = null;
+    try {
+      if (userId) {
+        const chart = await this.chartService.getNatalChart(userId);
+        natalChart = chart?.data;
+      }
+    } catch (error) {
+      throw new UnauthorizedException(
+        'Не удалось загрузить натальную карту для moon-phase',
+      );
+    }
+
+    return this.lunarService.getMoonPhase(date, natalChart);
+  }
+
+  @Get('lunar-day')
+  @ApiOperation({ summary: 'Получить текущий лунный день' })
+  @ApiQuery({
+    name: 'date',
+    description: 'Дата в формате YYYY-MM-DD (опционально)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Лунный день' })
+  async getLunarDay(@Query('date') dateStr?: string) {
+    const date = dateStr ? new Date(dateStr) : new Date();
+    return this.lunarService.getLunarDay(date);
+  }
+
+  @Get('lunar-calendar')
+  @ApiOperation({ summary: 'Получить лунный календарь на месяц' })
+  @ApiQuery({
+    name: 'year',
+    description: 'Год',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'month',
+    description: 'Месяц (0-11)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Лунный календарь на месяц' })
+  async getLunarCalendar(
+    @Request() req,
+    @Query('year') yearStr?: string,
+    @Query('month') monthStr?: string,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+
+    const now = new Date();
+    const year = yearStr ? parseInt(yearStr) : now.getFullYear();
+    const month = monthStr ? parseInt(monthStr) : now.getMonth();
+
+    // Получаем натальную карту
+    let natalChart: any = null;
+    try {
+      if (userId) {
+        const chart = await this.chartService.getNatalChart(userId);
+        natalChart = chart?.data;
+      }
+    } catch (error) {
+      throw new UnauthorizedException(
+        'Не удалось загрузить натальную карту для lunar-calendar',
+      );
+    }
+
+    return this.lunarService.getMonthlyCalendar(year, month, natalChart);
   }
 }

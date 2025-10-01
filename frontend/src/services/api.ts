@@ -11,6 +11,9 @@ import {
   UpdateProfileRequest,
   Subscription,
   UpgradeSubscriptionRequest,
+  LunarCalendarDay,
+  LunarDay,
+  MoonPhase,
 } from '../types';
 
 // Определяем базовый URL в зависимости от платформы
@@ -434,5 +437,46 @@ export const chartAPI = {
   getPredictions: async (period: string = 'day'): Promise<any> => {
     const response = await api.get(`/chart/predictions?period=${period}`);
     return response.data;
+  },
+
+  getMoonPhase: async (date?: string): Promise<MoonPhase> => {
+    try {
+      const url = date ? `/chart/moon-phase?date=${date}` : '/chart/moon-phase';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка загрузки фазы луны:', error);
+      throw error;
+    }
+  },
+
+  getLunarDay: async (date?: string): Promise<LunarDay> => {
+    try {
+      const url = date ? `/chart/lunar-day?date=${date}` : '/chart/lunar-day';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка загрузки лунного дня:', error);
+      throw error;
+    }
+  },
+
+  getLunarCalendar: async (
+    year?: number,
+    month?: number
+  ): Promise<LunarCalendarDay[]> => {
+    try {
+      const now = new Date();
+      const targetYear = year ?? now.getFullYear();
+      const targetMonth = month ?? now.getMonth();
+
+      const response = await api.get(
+        `/chart/lunar-calendar?year=${targetYear}&month=${targetMonth}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка загрузки лунного календаря:', error);
+      throw error;
+    }
   },
 };

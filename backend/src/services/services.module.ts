@@ -1,34 +1,3 @@
-// import { Module } from '@nestjs/common';
-// import { EphemerisService } from './ephemeris.service';
-//
-// @Module({
-//   providers: [EphemerisService],
-//   exports: [EphemerisService],
-// })
-// export class ServicesModule {}
-
-// // backend/src/services/services.module.ts (обновленная версия)
-// import { Module } from '@nestjs/common';
-// import { EphemerisService } from './ephemeris.service';
-// import { InterpretationService } from './interpretation.service';
-// import { HoroscopeGeneratorService } from './horoscope-generator.service';
-// import { PrismaModule } from '../prisma/prisma.module';
-//
-// @Module({
-//   imports: [PrismaModule],
-//   providers: [
-//     EphemerisService,
-//     InterpretationService,
-//     HoroscopeGeneratorService,
-//   ],
-//   exports: [
-//     EphemerisService,
-//     InterpretationService,
-//     HoroscopeGeneratorService,
-//   ],
-// })
-// export class ServicesModule {}
-
 // backend/src/services/services.module.ts (финальная версия с AI)
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -38,6 +7,7 @@ import { HoroscopeGeneratorService } from './horoscope-generator.service';
 import { AIService } from './ai.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { LunarService } from './lunar.service';
 
 @Module({
   imports: [
@@ -50,12 +20,14 @@ import { SupabaseModule } from '../supabase/supabase.module';
     EphemerisService,
     InterpretationService,
     HoroscopeGeneratorService,
+    LunarService,
   ],
   exports: [
     AIService, // Экспортируем для использования в других модулях
     EphemerisService,
     InterpretationService,
     HoroscopeGeneratorService,
+    LunarService,
   ],
 })
 export class ServicesModule {}

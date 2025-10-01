@@ -32,6 +32,7 @@ import AnimatedStars from './src/components/AnimatedStars';
 import AstrologicalChart from './src/components/AstrologicalChart';
 import LoadingLogo from './src/components/LoadingLogo';
 import CosmicBackground from './src/components/CosmicBackground';
+import { QueryProvider } from './src/providers/QueryProvider';
 
 const { width, height } = Dimensions.get('window');
 
@@ -99,6 +100,32 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
+      <QueryProvider>
+        <LinearGradient
+          colors={['#0F172A', '#1E293B', '#334155']}
+          style={styles.container}
+        >
+          <StatusBar style="light" />
+          <AnimatedStars />
+          <CosmicBackground />
+          {showSignup ? (
+            <SignupScreen
+              onSignup={handleSignup}
+              onSwitchToLogin={() => setShowSignup(false)}
+            />
+          ) : (
+            <LoginScreen
+              onLogin={handleLogin}
+              onSwitchToSignup={() => setShowSignup(true)}
+            />
+          )}
+        </LinearGradient>
+      </QueryProvider>
+    );
+  }
+
+  return (
+    <QueryProvider>
       <LinearGradient
         colors={['#0F172A', '#1E293B', '#334155']}
         style={styles.container}
@@ -106,33 +133,11 @@ export default function App() {
         <StatusBar style="light" />
         <AnimatedStars />
         <CosmicBackground />
-        {showSignup ? (
-          <SignupScreen
-            onSignup={handleSignup}
-            onSwitchToLogin={() => setShowSignup(false)}
-          />
-        ) : (
-          <LoginScreen
-            onLogin={handleLogin}
-            onSwitchToSignup={() => setShowSignup(true)}
-          />
-        )}
+        <NavigationContainer>
+          <TabNavigator />
+        </NavigationContainer>
       </LinearGradient>
-    );
-  }
-
-  return (
-    <LinearGradient
-      colors={['#0F172A', '#1E293B', '#334155']}
-      style={styles.container}
-    >
-      <StatusBar style="light" />
-      <AnimatedStars />
-      <CosmicBackground />
-      <NavigationContainer>
-        <TabNavigator />
-      </NavigationContainer>
-    </LinearGradient>
+    </QueryProvider>
   );
 }
 

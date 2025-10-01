@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   },
   lunarCalendarContainer: {
     marginHorizontal: 15,
-    marginBottom: 0,
+    marginBottom: 20,
   },
   solarSystemContainer: {
     alignItems: 'center',
