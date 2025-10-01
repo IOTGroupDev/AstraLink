@@ -21,7 +21,7 @@ export interface HoroscopePrediction {
   mood: string;
   challenges: string[];
   opportunities: string[];
-  generatedBy: 'ai' | 'interpreter'; // Индикатор источника
+  generatedBy: 'ai' | 'interpreter';
 }
 
 @Injectable()
@@ -49,14 +49,13 @@ export class HoroscopeGeneratorService {
       `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}`,
     );
 
-    // Ищем натальную карту через Supabase (как в ChartService)
+    // Ищем натальную карту через Supabase
     let chartData: any = null;
     let foundVia = '';
 
     this.logger.log(`Looking for natal chart for user ${userId}`);
 
     try {
-      // Сначала пытаемся через admin клиент
       this.logger.log('Trying admin client lookup...');
       const { data: charts, error: adminError } =
         await this.supabaseService.getUserChartsAdmin(userId);
@@ -74,7 +73,6 @@ export class HoroscopeGeneratorService {
       this.logger.warn('Admin chart lookup failed:', adminError.message);
     }
 
-    // Если не нашли через admin, пробуем обычный клиент
     if (!chartData) {
       try {
         this.logger.log('Trying regular client lookup...');
@@ -95,7 +93,6 @@ export class HoroscopeGeneratorService {
       }
     }
 
-    // Если карта не найдена через Supabase, пробуем через Prisma как fallback
     if (!chartData) {
       this.logger.log('Trying Prisma fallback for chart lookup');
       try {
@@ -120,7 +117,6 @@ export class HoroscopeGeneratorService {
       this.logger.warn(
         `No natal chart found for user ${userId} via any method - generating generic horoscope`,
       );
-      // Generate generic horoscope without natal chart data
       return this.generateGenericHoroscope(period, isPremium);
     }
 
@@ -150,14 +146,11 @@ export class HoroscopeGeneratorService {
         this.logger.warn(
           `Ephemeris calculation failed, using simplified transits: ${ephemerisError.message}`,
         );
-        // Create simplified transits without ephemeris calculations
         transits = { planets: {}, date: targetDate };
         transitAspects = [];
       }
 
-      // СТРОГОЕ РАЗДЕЛЕНИЕ
       if (isPremium) {
-        // PREMIUM: ТОЛЬКО через AI
         return await this.generatePremiumHoroscope(
           chartData,
           transits,
@@ -166,7 +159,6 @@ export class HoroscopeGeneratorService {
           targetDate,
         );
       } else {
-        // FREE: ТОЛЬКО через интерпретатор
         return this.generateFreeHoroscope(
           chartData,
           transits,
@@ -180,7 +172,6 @@ export class HoroscopeGeneratorService {
         `Error during horoscope generation for user ${userId}:`,
         error,
       );
-      // If all else fails, return generic horoscope
       this.logger.log(
         `Falling back to generic horoscope due to error: ${error.message}`,
       );
@@ -190,7 +181,6 @@ export class HoroscopeGeneratorService {
 
   /**
    * PREMIUM: Генерация через AI (Claude или OpenAI)
-   * Если AI недоступен - ошибка, НЕ fallback на правила
    */
   private async generatePremiumHoroscope(
     chartData: any,
@@ -213,7 +203,6 @@ export class HoroscopeGeneratorService {
     const ascendant = chartData.houses?.[1]?.sign || 'Aries';
 
     try {
-      // Подготавливаем контекст для AI
       const aiContext = {
         sunSign,
         moonSign,
@@ -225,10 +214,8 @@ export class HoroscopeGeneratorService {
         period,
       };
 
-      // Генерируем через AI (Claude или OpenAI)
       const aiPredictions = await this.aiService.generateHoroscope(aiContext);
 
-      // Дополняем AI-предсказания расчетными данными
       const energy = this.calculateEnergy(transitAspects);
       const mood = this.determineMood(energy, transitAspects);
       const luckyNumbers = this.generateLuckyNumbers(chartData, targetDate);
@@ -253,7 +240,6 @@ export class HoroscopeGeneratorService {
       };
     } catch (error) {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
-      // Fallback to generic horoscope for premium users when AI fails
       this.logger.log(
         'Falling back to generic horoscope for premium user due to AI error',
       );
@@ -263,7 +249,6 @@ export class HoroscopeGeneratorService {
 
   /**
    * FREE: Генерация через интерпретатор (правила)
-   * Базовые шаблонные предсказания
    */
   private generateFreeHoroscope(
     chartData: any,
@@ -302,14 +287,15 @@ export class HoroscopeGeneratorService {
       luckyColors: this.generateLuckyColors(sunSign, dominantTransit),
       energy,
       mood,
-      challenges: [], // FREE не получает детальных вызовов
-      opportunities: [], // FREE не получает детальных возможностей
+      challenges: [],
+      opportunities: [],
       generatedBy: 'interpreter',
     };
   }
 
-  // Методы интерпретатора для FREE пользователей
-
+  /**
+   * Генерация предсказаний на основе правил
+   */
   private generateRuleBasedPredictions(
     sunSign: string,
     moonSign: string,
@@ -343,16 +329,9 @@ export class HoroscopeGeneratorService {
     };
   }
 
-  private getTimeFrame(period: string): string {
-    const frames = {
-      day: 'Сегодня',
-      tomorrow: 'Завтра',
-      week: 'На этой неделе',
-      month: 'В этом месяце',
-    };
-    return frames[period] || 'Сегодня';
-  }
-
+  /**
+   * УЛУЧШЕННАЯ генерация общего прогноза с учетом периода
+   */
   private generateGeneralPrediction(
     sunSign: string,
     dominantTransit: any,
@@ -361,25 +340,93 @@ export class HoroscopeGeneratorService {
   ): string {
     const tone = this.determinePredictionTone(transitAspects);
 
-    const templates = {
-      positive: [
-        `${timeFrame} звезды благоволят вам. Энергия планет создает благоприятные возможности для действий.`,
-        `${timeFrame} вы ощутите прилив сил. Используйте это время для важных начинаний.`,
-      ],
-      neutral: [
-        `${timeFrame} принесет смешанные энергии. Сохраняйте баланс и следуйте интуиции.`,
-        `${timeFrame} стабильный период. Фокусируйтесь на текущих задачах.`,
-      ],
-      challenging: [
-        `${timeFrame} потребует терпения. Сложности — это возможность для роста.`,
-        `${timeFrame} будьте внимательны к деталям. Осторожность поможет избежать проблем.`,
-      ],
+    const periodSpecific = {
+      Сегодня: {
+        positive: [
+          `${timeFrame} звезды благоволят вам. Энергия планет создает благоприятные возможности для действий.`,
+          `${timeFrame} вы ощутите прилив сил. Используйте это время для важных начинаний.`,
+          `${timeFrame} особенно благоприятный день. Космические энергии поддерживают ваши стремления.`,
+          `${timeFrame} планеты создают гармоничную конфигурацию. Идеальное время для реализации планов.`,
+        ],
+        neutral: [
+          `${timeFrame} принесет смешанные энергии. Сохраняйте баланс и следуйте интуиции.`,
+          `${timeFrame} стабильный период. Фокусируйтесь на текущих задачах.`,
+          `${timeFrame} требует внимательности. Прислушивайтесь к своим ощущениям.`,
+        ],
+        challenging: [
+          `${timeFrame} потребует терпения. Сложности — это возможность для роста.`,
+          `${timeFrame} будьте внимательны к деталям. Осторожность поможет избежать проблем.`,
+          `${timeFrame} звезды испытывают вашу стойкость. Сохраняйте спокойствие.`,
+        ],
+      },
+      Завтра: {
+        positive: [
+          `${timeFrame} откроются новые перспективы. Планеты готовят приятные сюрпризы.`,
+          `${timeFrame} будет насыщенным положительными событиями. Космос благоволит вашим начинаниям.`,
+          `${timeFrame} принесет вдохновение и энергию для свершений.`,
+          `${timeFrame} ожидается благоприятная астрологическая конфигурация.`,
+        ],
+        neutral: [
+          `${timeFrame} сохранится текущая динамика. Продолжайте движение в выбранном направлении.`,
+          `${timeFrame} будет промежуточным этапом. Готовьтесь к будущим изменениям.`,
+          `${timeFrame} планеты займут нейтральные позиции. Время для планирования.`,
+        ],
+        challenging: [
+          `${timeFrame} могут возникнуть препятствия. Будьте готовы к непредвиденным ситуациям.`,
+          `${timeFrame} потребует дополнительных усилий. Не сдавайтесь перед трудностями.`,
+          `${timeFrame} звезды предупреждают о возможных сложностях. Проявите осмотрительность.`,
+        ],
+      },
+      'На этой неделе': {
+        positive: [
+          `${timeFrame} складывается благоприятная астрологическая ситуация для достижения целей.`,
+          `${timeFrame} энергии планет будут способствовать вашему успеху в различных сферах.`,
+          `${timeFrame} открываются широкие возможности. Используйте это время максимально эффективно.`,
+          `${timeFrame} космические влияния создают идеальные условия для прогресса.`,
+        ],
+        neutral: [
+          `${timeFrame} характеризуется стабильными энергиями. Действуйте последовательно.`,
+          `${timeFrame} планеты занимают нейтральные позиции. Сосредоточьтесь на приоритетах.`,
+          `${timeFrame} будет периодом умеренной активности. Распределяйте силы разумно.`,
+        ],
+        challenging: [
+          `${timeFrame} может принести испытания. Воспринимайте их как уроки роста.`,
+          `${timeFrame} потребует от вас гибкости и терпения. Не форсируйте события.`,
+          `${timeFrame} звезды предупреждают о необходимости осторожности в действиях.`,
+        ],
+      },
+      'В этом месяце': {
+        positive: [
+          `${timeFrame} формируется благоприятный астрологический климат для долгосрочных проектов.`,
+          `${timeFrame} планеты создают мощную поддержку ваших устремлений и начинаний.`,
+          `${timeFrame} открывается период больших возможностей и позитивных перемен.`,
+          `${timeFrame} космические энергии будут способствовать реализации ваших планов.`,
+        ],
+        neutral: [
+          `${timeFrame} характеризуется плавным течением событий. Сохраняйте стабильный темп.`,
+          `${timeFrame} планеты создают сбалансированную ситуацию. Действуйте взвешенно.`,
+          `${timeFrame} будет периодом постепенного развития. Терпение принесет результаты.`,
+        ],
+        challenging: [
+          `${timeFrame} может быть непростым. Относитесь к трудностям как к возможностям.`,
+          `${timeFrame} потребует максимальной концентрации и усилий. Не теряйте веры в себя.`,
+          `${timeFrame} звезды испытывают вашу выдержку. Сохраняйте оптимизм и настойчивость.`,
+        ],
+      },
     };
 
-    const pool = templates[tone];
-    return pool[Math.floor(Math.random() * pool.length)];
+    const templates = periodSpecific[timeFrame] || periodSpecific['Сегодня'];
+    const pool = templates[tone] || templates['neutral'];
+
+    const index =
+      Math.abs(new Date().getDate() + timeFrame.length) % pool.length;
+
+    return pool[index];
   }
 
+  /**
+   * УЛУЧШЕННАЯ генерация прогноза для любви
+   */
   private generateLovePrediction(
     sunSign: string,
     moonSign: string,
@@ -390,18 +437,47 @@ export class HoroscopeGeneratorService {
       (a) => a.transitPlanet === 'venus' || a.natalPlanet === 'venus',
     );
 
+    const periodPhrases = {
+      Сегодня: {
+        positive: 'создает романтическую атмосферу',
+        neutral: 'влияет на ваше настроение',
+        negative: 'создает напряжение',
+      },
+      Завтра: {
+        positive: 'обещает приятные встречи',
+        neutral: 'будет способствовать общению',
+        negative: 'может вызвать недопонимание',
+      },
+      'На этой неделе': {
+        positive: 'открывает перспективы для отношений',
+        neutral: 'поддерживает стабильность в паре',
+        negative: 'требует работы над отношениями',
+      },
+      'В этом месяце': {
+        positive: 'создает благоприятные условия для любви',
+        neutral: 'способствует развитию отношений',
+        negative: 'призывает к переосмыслению приоритетов',
+      },
+    };
+
     if (venusAspects.length > 0) {
       const aspect = venusAspects[0];
+      const phrases = periodPhrases[timeFrame] || periodPhrases['Сегодня'];
+
       if (['trine', 'sextile', 'conjunction'].includes(aspect.aspect)) {
-        return `${timeFrame} Венера создает гармоничные аспекты. Хорошее время для романтики и общения с близкими.`;
+        return `${timeFrame} Венера ${phrases.positive}. Хорошее время для романтики и общения с близкими.`;
       } else {
-        return `${timeFrame} Венера в напряженном аспекте. Проявите терпение в отношениях.`;
+        return `${timeFrame} Венера ${phrases.negative}. Проявите терпение в отношениях.`;
       }
     }
 
-    return `${timeFrame} стабильный период в любви. Цените существующие отношения.`;
+    const phrases = periodPhrases[timeFrame] || periodPhrases['Сегодня'];
+    return `${timeFrame} энергии ${phrases.neutral}. Цените существующие отношения.`;
   }
 
+  /**
+   * УЛУЧШЕННАЯ генерация прогноза для карьеры
+   */
   private generateCareerPrediction(
     sunSign: string,
     transitAspects: any[],
@@ -413,18 +489,59 @@ export class HoroscopeGeneratorService {
     const saturnAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'saturn',
     );
+    const marsAspects = transitAspects.filter(
+      (a) => a.transitPlanet === 'mars',
+    );
+
+    const periodActions = {
+      Сегодня: {
+        jupiter: 'сегодняшний день благоприятен для',
+        saturn: 'сегодня требуется',
+        mars: 'сегодня появляется энергия для',
+        neutral: 'сегодня продолжайте работу над',
+      },
+      Завтра: {
+        jupiter: 'завтра откроются возможности для',
+        saturn: 'завтра понадобится',
+        mars: 'завтра будет импульс к',
+        neutral: 'завтра сосредоточьтесь на',
+      },
+      'На этой неделе': {
+        jupiter: 'эта неделя принесет перспективы в',
+        saturn: 'эта неделя потребует',
+        mars: 'эта неделя даст силы для',
+        neutral: 'эта неделя подходит для работы над',
+      },
+      'В этом месяце': {
+        jupiter: 'этот месяц открывает возможности для роста в',
+        saturn: 'этот месяц призывает к',
+        mars: 'этот месяц добавит энергии для продвижения в',
+        neutral: 'этот месяц благоприятен для развития',
+      },
+    };
+
+    const actions = periodActions[timeFrame] || periodActions['Сегодня'];
 
     if (jupiterAspects.length > 0) {
-      return `${timeFrame} Юпитер открывает новые возможности в карьере. Время для инициативы.`;
+      return `${timeFrame} Юпитер ${actions.jupiter} карьерных инициатив. Время для смелых решений.`;
+    }
+
+    if (marsAspects.length > 0) {
+      if (['trine', 'sextile'].includes(marsAspects[0].aspect)) {
+        return `${timeFrame} Марс ${actions.mars} активных действий в работе. Используйте свою энергию конструктивно.`;
+      }
     }
 
     if (saturnAspects.length > 0) {
-      return `${timeFrame} Сатурн требует дисциплины. Сосредоточьтесь на долгосрочных целях.`;
+      return `${timeFrame} Сатурн ${actions.saturn} дисциплина и ответственность. Сосредоточьтесь на долгосрочных целях.`;
     }
 
-    return `${timeFrame} продолжайте работу над текущими проектами. Последовательность важна.`;
+    return `${timeFrame} ${actions.neutral} текущими проектами. Последовательность важна.`;
   }
 
+  /**
+   * Генерация прогноза для здоровья
+   */
   private generateHealthPrediction(
     sunSign: string,
     transitAspects: any[],
@@ -441,6 +558,9 @@ export class HoroscopeGeneratorService {
     return `${timeFrame} ваша энергия на хорошем уровне. Поддерживайте активный образ жизни.`;
   }
 
+  /**
+   * Генерация финансового прогноза
+   */
   private generateFinancePrediction(
     sunSign: string,
     transitAspects: any[],
@@ -460,21 +580,56 @@ export class HoroscopeGeneratorService {
     return `${timeFrame} финансовая ситуация стабильна. Придерживайтесь бюджета.`;
   }
 
+  /**
+   * УЛУЧШЕННАЯ генерация совета с учетом периода
+   */
   private generateAdvice(
     sunSign: string,
     dominantTransit: any,
     timeFrame: string,
   ): string {
-    const advices = [
-      `${timeFrame} доверяйте своей интуиции.`,
-      `${timeFrame} будьте открыты новому опыту.`,
-      `${timeFrame} практикуйте благодарность.`,
-      `${timeFrame} фокусируйтесь на важном.`,
-    ];
+    const periodAdvices = {
+      Сегодня: [
+        'Сегодня доверяйте своей интуиции и не бойтесь делать первый шаг.',
+        'Сегодня будьте открыты новому опыту и неожиданным возможностям.',
+        'Сегодня практикуйте благодарность за все, что имеете.',
+        'Сегодня фокусируйтесь на том, что действительно важно для вас.',
+        'Сегодня прислушивайтесь к своему внутреннему голосу.',
+      ],
+      Завтра: [
+        'Завтра начните день с позитивного настроя и ясных намерений.',
+        'Завтра подготовьтесь к новым возможностям и будьте гибкими.',
+        'Завтра уделите время планированию важных дел.',
+        'Завтра сосредоточьтесь на приоритетах и не распыляйтесь.',
+        'Завтра будьте внимательны к знакам судьбы.',
+      ],
+      'На этой неделе': [
+        'На этой неделе поддерживайте баланс между работой и отдыхом.',
+        'На этой неделе развивайте свои сильные стороны и таланты.',
+        'На этой неделе укрепляйте отношения с близкими людьми.',
+        'На этой неделе не бойтесь выходить из зоны комфорта.',
+        'На этой неделе практикуйте осознанность в каждом действии.',
+      ],
+      'В этом месяце': [
+        'В этом месяце работайте над долгосрочными целями с терпением и упорством.',
+        'В этом месяце инвестируйте в свое развитие и обучение.',
+        'В этом месяце стройте прочный фундамент для будущих достижений.',
+        'В этом месяце уделите внимание своему здоровью и благополучию.',
+        'В этом месяце культивируйте позитивное мышление и оптимизм.',
+      ],
+    };
 
-    return advices[Math.floor(Math.random() * advices.length)];
+    const advices = periodAdvices[timeFrame] || periodAdvices['Сегодня'];
+
+    const index =
+      Math.abs(new Date().getDate() + new Date().getMonth()) % advices.length;
+
+    return advices[index];
   }
 
+  /**
+   * Определение тональности прогноза
+   */
   private determinePredictionTone(
     transitAspects: any[],
   ): 'positive' | 'neutral' | 'challenging' {
@@ -493,8 +648,22 @@ export class HoroscopeGeneratorService {
     return 'neutral';
   }
 
-  // Вспомогательные методы
+  /**
+   * Получение временного фрейма
+   */
+  private getTimeFrame(period: string): string {
+    const frames = {
+      day: 'Сегодня',
+      tomorrow: 'Завтра',
+      week: 'На этой неделе',
+      month: 'В этом месяце',
+    };
+    return frames[period] || 'Сегодня';
+  }
 
+  /**
+   * Получение целевой даты для периода
+   */
   private getTargetDate(period: string): Date {
     const now = new Date();
     switch (period) {
@@ -509,12 +678,18 @@ export class HoroscopeGeneratorService {
     }
   }
 
+  /**
+   * Получение текущих транзитов
+   */
   private async getCurrentTransits(date: Date): Promise<any> {
     const julianDay = this.ephemerisService.dateToJulianDay(date);
     const planets = await this.ephemerisService.calculatePlanets(julianDay);
     return { planets, date };
   }
 
+  /**
+   * Анализ транзитных аспектов
+   */
   private analyzeTransitAspects(natalPlanets: any, transitPlanets: any): any[] {
     const aspects: any[] = [];
 
@@ -542,6 +717,9 @@ export class HoroscopeGeneratorService {
     return aspects.sort((a, b) => b.strength - a.strength);
   }
 
+  /**
+   * Расчет аспекта между двумя долготами
+   */
   private calculateAspect(longitude1: number, longitude2: number): any | null {
     const diff = Math.abs(longitude1 - longitude2);
     const normalizedDiff = Math.min(diff, 360 - diff);
@@ -568,10 +746,16 @@ export class HoroscopeGeneratorService {
     return null;
   }
 
+  /**
+   * Получение доминирующего транзита
+   */
   private getDominantTransit(transitAspects: any[]): any {
     return transitAspects.length > 0 ? transitAspects[0] : null;
   }
 
+  /**
+   * Расчет энергии
+   */
   private calculateEnergy(transitAspects: any[]): number {
     let energy = 50;
 
@@ -588,6 +772,9 @@ export class HoroscopeGeneratorService {
     return Math.min(100, Math.max(0, Math.round(energy)));
   }
 
+  /**
+   * Определение настроения
+   */
   private determineMood(energy: number, transitAspects: any[]): string {
     if (energy > 80) return 'Радостное и вдохновленное';
     if (energy > 60) return 'Позитивное и активное';
@@ -596,6 +783,9 @@ export class HoroscopeGeneratorService {
     return 'Спокойное';
   }
 
+  /**
+   * Генерация счастливых чисел
+   */
   private generateLuckyNumbers(chartData: any, date: Date): number[] {
     const seed = date.getDate() + date.getMonth() * 31;
     const numbers: number[] = [];
@@ -607,6 +797,9 @@ export class HoroscopeGeneratorService {
     return [...new Set(numbers)].slice(0, 5);
   }
 
+  /**
+   * Генерация счастливых цветов
+   */
   private generateLuckyColors(sunSign: string, dominantTransit: any): string[] {
     const signColors: { [key: string]: string[] } = {
       Aries: ['Красный', 'Оранжевый'],
@@ -627,7 +820,7 @@ export class HoroscopeGeneratorService {
   }
 
   /**
-   * Generate generic horoscope when no natal chart is available
+   * Генерация общего гороскопа (когда нет карты)
    */
   private generateGenericHoroscope(
     period: 'day' | 'tomorrow' | 'week' | 'month',
@@ -640,7 +833,6 @@ export class HoroscopeGeneratorService {
     const targetDate = this.getTargetDate(period);
     const timeFrame = this.getTimeFrame(period);
 
-    // Generic predictions that work for everyone
     const genericPredictions = {
       general: `${timeFrame} принесет новые возможности для развития. Слушайте свою интуицию и будьте открыты к изменениям.`,
       love: `${timeFrame} хорошее время для укрепления отношений. Проявите заботу и внимание к близким.`,
@@ -657,11 +849,11 @@ export class HoroscopeGeneratorService {
       love: genericPredictions.love,
       career: genericPredictions.career,
       health: genericPredictions.health,
-      finance: isPremium ? genericPredictions.finance : '', // Finance only for premium
+      finance: isPremium ? genericPredictions.finance : '',
       advice: genericPredictions.advice,
-      luckyNumbers: this.generateLuckyNumbers({}, targetDate), // Empty chart data
-      luckyColors: ['Белый', 'Синий', 'Зеленый'], // Generic colors
-      energy: 65, // Neutral energy
+      luckyNumbers: this.generateLuckyNumbers({}, targetDate),
+      luckyColors: ['Белый', 'Синий', 'Зеленый'],
+      energy: 65,
       mood: 'Сбалансированное',
       challenges: isPremium
         ? ['Будьте внимательны к деталям', 'Избегайте поспешных решений']

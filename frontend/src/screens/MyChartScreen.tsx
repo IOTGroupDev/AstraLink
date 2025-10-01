@@ -28,6 +28,7 @@ import Biorhythms from '../components/Biorhythms';
 import ShimmerLoader from '../components/ShimmerLoader';
 import SolarSystem from '../components/SolarSystem';
 import HoroscopeWidget from '../components/HoroscopeWidget';
+import { LunarCalendarWidget } from '../components/LunarCalendarWidget';
 
 const { width, height } = Dimensions.get('window');
 
@@ -361,6 +362,14 @@ const MyChartScreen: React.FC = () => {
             </Text>
           )}
         </Animated.View>
+
+        {currentPlanets && (
+          <Animated.View entering={SlideInUp.delay(300)}>
+            <View style={styles.lunarCalendarContainer}>
+              <LunarCalendarWidget />
+            </View>
+          </Animated.View>
+        )}
 
         {/* Solar System Widget */}
         {currentPlanets && (
@@ -733,6 +742,10 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(139, 92, 246, 0.7)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
+  },
+  lunarCalendarContainer: {
+    marginHorizontal: 15,
+    marginBottom: 0,
   },
   solarSystemContainer: {
     alignItems: 'center',
