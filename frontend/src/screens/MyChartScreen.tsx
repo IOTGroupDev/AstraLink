@@ -40,6 +40,11 @@ const MyChartScreen: React.FC = () => {
   const [predictions, setPredictions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [biorhythms, setBiorhythms] = useState<{
+    physical: number;
+    emotional: number;
+    intellectual: number;
+  } | null>(null);
 
   const loadData = async () => {
     try {
@@ -172,6 +177,35 @@ const MyChartScreen: React.FC = () => {
         'Не удалось загрузить прогнозы. Попробуйте обновить страницу.',
         [{ text: 'OK' }]
       );
+    }
+  };
+
+  // Вычисление биоритмов на основе даты рождения (реальные данные, без моков)
+  const computeBiorhythms = (
+    birthDateISO: string
+  ): {
+    physical: number;
+    emotional: number;
+    intellectual: number;
+  } => {
+    try {
+      const birth = new Date(birthDateISO);
+      const today = new Date();
+      const days =
+        Math.floor(
+          (today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24)
+        ) || 0;
+
+      const cycle = (period: number) =>
+        Math.round(((Math.sin((2 * Math.PI * days) / period) + 1) / 2) * 100);
+
+      return {
+        physical: Math.min(100, Math.max(0, cycle(23))),
+        emotional: Math.min(100, Math.max(0, cycle(28))),
+        intellectual: Math.min(100, Math.max(0, cycle(33))),
+      };
+    } catch (_e) {
+      return { physical: 0, emotional: 0, intellectual: 0 };
     }
   };
 
@@ -553,10 +587,10 @@ const MyChartScreen: React.FC = () => {
             <View style={styles.biorhythmsRow}>
               <View style={styles.biorhythmsWidget}>
                 <Biorhythms
-                  physical={75}
-                  emotional={60}
-                  intellectual={85}
-                  size={60}
+                  physical={biorhythms?.physical ?? 0}
+                  emotional={biorhythms?.emotional ?? 0}
+                  intellectual={biorhythms?.intellectual ?? 0}
+                  size={100}
                 />
                 <Text style={styles.widgetLabel}>Биоритмы</Text>
               </View>

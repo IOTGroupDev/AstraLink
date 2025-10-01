@@ -1,4 +1,3 @@
-// backend/src/services/services.module.ts (финальная версия с AI)
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EphemerisService } from './ephemeris.service';
