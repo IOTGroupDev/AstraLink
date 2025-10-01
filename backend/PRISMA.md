@@ -98,5 +98,4 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/astralink?schema=pub
 ```
 prisma/
 ├── schema.prisma    # Схема базы данных
-└── seed.ts         # Сидер для тестовых данных
 ```

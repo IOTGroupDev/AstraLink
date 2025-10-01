@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -13,13 +12,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
-  withTiming,
   withSpring,
   withDelay,
   FadeIn,
   SlideInUp,
-  Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 

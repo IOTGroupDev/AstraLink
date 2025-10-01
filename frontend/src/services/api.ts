@@ -275,45 +275,6 @@ export const authAPI = {
   },
 };
 
-// Chart API с реальными вызовами
-// export const chartAPI = {
-//   getNatalChart: async (): Promise<Chart | null> => {
-//     try {
-//       const response = await api.get('/chart/natal');
-//       return response.data;
-//     } catch (error) {
-//       // If 404, user doesn't have a natal chart yet - this is expected
-//       if (error.response?.status === 404) {
-//         console.log(
-//           'ℹ️ Натальная карта не найдена - пользователь должен создать её'
-//         );
-//         return null;
-//       }
-//       throw error;
-//     }
-//   },
-//
-//   createNatalChart: async (data: any): Promise<Chart> => {
-//     const response = await api.post('/chart/natal', { data });
-//     return response.data;
-//   },
-//
-//   getTransits: async (from: string, to: string): Promise<TransitsResponse> => {
-//     const response = await api.get(`/chart/transits?from=${from}&to=${to}`);
-//     return response.data;
-//   },
-//
-//   getCurrentPlanets: async (): Promise<any> => {
-//     const response = await api.get('/chart/current');
-//     return response.data;
-//   },
-//
-//   getPredictions: async (period: string = 'day'): Promise<any> => {
-//     const response = await api.get(`/chart/predictions?period=${period}`);
-//     return response.data;
-//   },
-// };
-
 // User/Profile API
 export const userAPI = {
   getProfile: async (): Promise<UserProfile> => {

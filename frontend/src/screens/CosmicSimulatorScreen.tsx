@@ -8,19 +8,15 @@ import {
   Dimensions,
   Alert,
   PanResponder,
-  Animated as RNAnimated,
   Modal,
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
   withSpring,
-  withTiming,
   FadeIn,
   SlideInUp,
-  interpolate,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
