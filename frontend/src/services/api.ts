@@ -132,8 +132,7 @@ api.interceptors.response.use(
         );
         // Выходим из системы через Supabase
         await supabase.auth.signOut();
-        // В React Native можно использовать navigation для перенаправления
-        // navigation.navigate('Signup');
+        // navigation.navigate('Signup'); // RN navigation (по контексту приложения)
       } else {
         // Попробуем обновить сессию и повторить запрос
         try {
@@ -190,7 +189,7 @@ export const authAPI = {
           name: authData.user?.user_metadata?.name || '',
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.log('❌ API login failed:', error);
 
       // Добавляем более понятное сообщение об ошибке
@@ -244,7 +243,7 @@ export const authAPI = {
           name: authData.user?.user_metadata?.name || data.name,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.log('❌ API signup failed:', error);
 
       // Добавляем более понятное сообщение об ошибке
@@ -348,8 +347,6 @@ export const datingAPI = {
   },
 };
 
-// frontend/src/services/api.ts - Добавить в существующий файл
-
 // Обновленный chartAPI с новыми методами
 export const chartAPI = {
   // Существующие методы
@@ -357,7 +354,7 @@ export const chartAPI = {
     try {
       const response = await api.get('/chart/natal');
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response?.status === 404) {
         console.log('ℹ️ Натальная карта не найдена');
         return null;
@@ -433,12 +430,6 @@ export const chartAPI = {
     return response.data;
   },
 
-  // Устаревший метод - используйте getHoroscope вместо него
-  getPredictions: async (period: string = 'day'): Promise<any> => {
-    const response = await api.get(`/chart/predictions?period=${period}`);
-    return response.data;
-  },
-
   getMoonPhase: async (date?: string): Promise<MoonPhase> => {
     try {
       const url = date ? `/chart/moon-phase?date=${date}` : '/chart/moon-phase';
@@ -478,5 +469,24 @@ export const chartAPI = {
       console.error('Ошибка загрузки лунного календаря:', error);
       throw error;
     }
+  },
+
+  //Реальные биоритмы (Swiss Ephemeris JD) — новый метод
+  getBiorhythms: async (
+    date?: string
+  ): Promise<{
+    date: string;
+    physical: number;
+    emotional: number;
+    intellectual: number;
+  }> => {
+    const url = date ? `/chart/biorhythms?date=${date}` : '/chart/biorhythms';
+    // Явно прокидываем токен в заголовок, чтобы избежать 401 при прямых вызовах
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const response = await api.get(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    return response.data;
   },
 };

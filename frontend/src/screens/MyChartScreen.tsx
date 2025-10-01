@@ -86,6 +86,18 @@ const MyChartScreen: React.FC = () => {
         setChart(chartData);
         setTransits(transitsData);
         setCurrentPlanets(planetsData.planets);
+
+        //Реальные биоритмы с backend (Swiss Ephemeris JD)
+        try {
+          const b = await chartAPI.getBiorhythms();
+          setBiorhythms({
+            physical: b.physical,
+            emotional: b.emotional,
+            intellectual: b.intellectual,
+          });
+        } catch (e) {
+          console.error('Ошибка загрузки биоритмов:', e);
+        }
       } catch (error) {
         console.error('Error loading real chart data:', error);
 
@@ -131,9 +143,9 @@ const MyChartScreen: React.FC = () => {
       console.log('🔮 Загружаю прогнозы...');
 
       const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
-        chartAPI.getPredictions('day'),
-        chartAPI.getPredictions('tomorrow'),
-        chartAPI.getPredictions('week'),
+        chartAPI.getHoroscope('day'),
+        chartAPI.getHoroscope('tomorrow'),
+        chartAPI.getHoroscope('week'),
       ]);
 
       console.log('✅ Получены прогнозы:', {
@@ -219,6 +231,15 @@ const MyChartScreen: React.FC = () => {
       loadAllPredictions();
     }
   }, [currentPlanets, chart]);
+
+  // Обновляем биоритмы при наличии даты рождения в карте
+  useEffect(() => {
+    const birthISO =
+      (chart as any)?.data?.birthDate || (chart as any)?.data?.birth_date;
+    if (birthISO) {
+      setBiorhythms(computeBiorhythms(birthISO));
+    }
+  }, [chart]);
 
   const getCurrentEnergy = () => {
     if (!chart?.data?.aspects) return null;
@@ -586,12 +607,20 @@ const MyChartScreen: React.FC = () => {
           {chart?.data && (
             <View style={styles.biorhythmsRow}>
               <View style={styles.biorhythmsWidget}>
-                <Biorhythms
-                  physical={biorhythms?.physical ?? 0}
-                  emotional={biorhythms?.emotional ?? 0}
-                  intellectual={biorhythms?.intellectual ?? 0}
-                  size={100}
-                />
+                {biorhythms ? (
+                  <Biorhythms
+                    physical={biorhythms.physical}
+                    emotional={biorhythms.emotional}
+                    intellectual={biorhythms.intellectual}
+                    size={100}
+                  />
+                ) : (
+                  <ShimmerLoader
+                    width={width - 80}
+                    height={100}
+                    borderRadius={20}
+                  />
+                )}
                 <Text style={styles.widgetLabel}>Биоритмы</Text>
               </View>
             </View>

@@ -128,27 +128,22 @@ export class ChartController {
     return this.chartService.getCurrentPlanets(userId);
   }
 
-  // @Get('predictions')
-  // @ApiOperation({
-  //   summary:
-  //     'Получить астрологические предсказания (устаревший эндпоинт, используйте /horoscope)',
-  // })
-  // @ApiQuery({
-  //   name: 'period',
-  //   description: 'Период: day, week, month',
-  //   required: false,
-  // })
-  // @ApiResponse({ status: 200, description: 'Предсказания' })
-  // async getPredictions(
-  //   @Request() req,
-  //   @Query('period') period: string = 'day',
-  // ) {
-  //   const userId = req.user?.userId || req.user?.id || req.user?.sub;
-  //   if (!userId) {
-  //     throw new UnauthorizedException('Пользователь не аутентифицирован');
-  //   }
-  //   return this.chartService.getPredictions(userId, period);
-  // }
+  @Get('biorhythms')
+  @ApiOperation({ summary: 'Получить биоритмы на дату' })
+  @ApiQuery({
+    name: 'date',
+    description:
+      'Дата в формате YYYY-MM-DD (опционально, по умолчанию сегодня)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Биоритмы' })
+  async getBiorhythms(@Request() req, @Query('date') date?: string) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getBiorhythms(userId, date);
+  }
 
   @Get('transits')
   @ApiOperation({ summary: 'Получить транзиты' })

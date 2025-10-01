@@ -636,6 +636,117 @@ export class ChartService {
   }
 
   /**
+   * Реальные биоритмы на основе даты рождения пользователя (через Swiss Ephemeris JD)
+   */
+  async getBiorhythms(
+    userId: string,
+    dateStr?: string,
+  ): Promise<{
+    date: string;
+    physical: number;
+    emotional: number;
+    intellectual: number;
+  }> {
+    // Целевая дата (полдень по UTC для стабильности юлианского дня)
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const targetDateNoon = new Date(
+      Date.UTC(
+        targetDate.getUTCFullYear(),
+        targetDate.getUTCMonth(),
+        targetDate.getUTCDate(),
+        12,
+        0,
+        0,
+      ),
+    );
+
+    // Получаем дату рождения пользователя из Supabase
+    const { data: user, error: userErr } = await this.supabaseService
+      .from('users')
+      .select('id, birth_date')
+      .eq('id', userId)
+      .single();
+
+    if (userErr || !user?.birth_date) {
+      // Fallback: если дата рождения в таблице users отсутствует — пробуем взять из сохраненной натальной карты
+      try {
+        const natal = await this.getNatalChart(userId);
+        const bd =
+          (natal as any)?.data?.birthDate || (natal as any)?.data?.birth_date;
+        if (bd) {
+          const birth = new Date(bd as string);
+          const birthNoon = new Date(
+            Date.UTC(
+              birth.getUTCFullYear(),
+              birth.getUTCMonth(),
+              birth.getUTCDate(),
+              12,
+              0,
+              0,
+            ),
+          );
+
+          const jdBirth = this.ephemerisService.dateToJulianDay(birthNoon);
+          const jdTarget =
+            this.ephemerisService.dateToJulianDay(targetDateNoon);
+          const days = Math.max(0, Math.floor(jdTarget - jdBirth));
+
+          const cycle = (period: number) =>
+            Math.round(
+              ((Math.sin((2 * Math.PI * days) / period) + 1) / 2) * 100,
+            );
+
+          const physical = Math.min(100, Math.max(0, cycle(23)));
+          const emotional = Math.min(100, Math.max(0, cycle(28)));
+          const intellectual = Math.min(100, Math.max(0, cycle(33)));
+
+          return {
+            date: targetDateNoon.toISOString().split('T')[0],
+            physical,
+            emotional,
+            intellectual,
+          };
+        }
+      } catch (_e) {
+        // игнорируем, бросим ошибку ниже, если не удалось получить дату
+      }
+
+      throw new NotFoundException('Дата рождения пользователя не найдена');
+    }
+
+    const birth = new Date(user.birth_date as string);
+    const birthNoon = new Date(
+      Date.UTC(
+        birth.getUTCFullYear(),
+        birth.getUTCMonth(),
+        birth.getUTCDate(),
+        12,
+        0,
+        0,
+      ),
+    );
+
+    // Разница в юлианских днях через Swiss Ephemeris (реальный источник)
+    const jdBirth = this.ephemerisService.dateToJulianDay(birthNoon);
+    const jdTarget = this.ephemerisService.dateToJulianDay(targetDateNoon);
+    const days = Math.max(0, Math.floor(jdTarget - jdBirth));
+
+    const cycle = (period: number) =>
+      Math.round(((Math.sin((2 * Math.PI * days) / period) + 1) / 2) * 100);
+
+    const physical = Math.min(100, Math.max(0, cycle(23)));
+    const emotional = Math.min(100, Math.max(0, cycle(28)));
+    const intellectual = Math.min(100, Math.max(0, cycle(33)));
+
+    return {
+      date: targetDateNoon.toISOString().split('T')[0],
+      physical,
+      emotional,
+      intellectual,
+    };
+  }
+
+  /**
    * Получить координаты места рождения
    */
   getLocationCoordinates(birthPlace: string): {
