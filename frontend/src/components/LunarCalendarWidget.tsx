@@ -60,7 +60,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 15,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   moonPhaseContainer: {
     flexDirection: 'row',
