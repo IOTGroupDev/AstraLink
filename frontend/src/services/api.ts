@@ -207,57 +207,106 @@ export const authAPI = {
 
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Отправляем данные для регистрации через Supabase:', data);
+      console.log(
+        '🔐 Отправляем данные для регистрации через Backend API:',
+        data
+      );
 
-      const { data: authData, error } = await supabase.auth.signUp({
+      // ✅ Используем BACKEND вместо прямого вызова Supabase
+      const response = await api.post('/auth/signup', {
         email: data.email,
         password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            birthDate: data.birthDate,
-            birthTime: data.birthTime,
-            birthPlace: data.birthPlace,
-          },
-        },
+        name: data.name,
+        birthDate: data.birthDate,
+        birthTime: data.birthTime,
+        birthPlace: data.birthPlace,
       });
 
-      if (error) {
-        console.log('❌ Supabase signup error:', error);
-        throw new Error(error.message);
-      }
+      console.log('✅ Успешная регистрация через Backend');
 
-      if (!authData.session?.access_token) {
-        // Пользователь создан, но email нужно подтвердить
-        throw new Error('Проверьте ваш email для подтверждения регистрации');
-      }
+      const { user, access_token } = response.data;
 
-      console.log('✅ Успешная регистрация через Supabase');
+      // Устанавливаем сессию в Supabase для последующих запросов
+      await supabase.auth.setSession({
+        access_token,
+        refresh_token: access_token, // В вашем случае используем тот же токен
+      });
 
-      // Возвращаем совместимый с существующим кодом ответ
       return {
-        access_token: authData.session.access_token,
-        user: {
-          id: authData.user?.id || '',
-          email: authData.user?.email || '',
-          name: authData.user?.user_metadata?.name || data.name,
-        },
+        access_token,
+        user,
       };
     } catch (error: any) {
       console.log('❌ API signup failed:', error);
 
-      // Добавляем более понятное сообщение об ошибке
-      if (error.message?.includes('User already registered')) {
+      // Обработка ошибок от backend
+      const errorMessage = error.response?.data?.message || error.message;
+
+      if (errorMessage?.includes('уже существует')) {
         error.message = 'Пользователь с таким email уже существует';
-      } else if (error.message?.includes('Password should be at least')) {
-        error.message = 'Пароль должен содержать минимум 6 символов';
+      } else if (errorMessage?.includes('Некорректная дата')) {
+        error.message = errorMessage;
       } else if (error.code === 'ERR_NETWORK') {
-        error.message = 'Ошибка сети';
+        error.message = 'Ошибка сети. Проверьте подключение к серверу';
       }
 
       throw error;
     }
   },
+
+  // signup: async (data: SignupRequest): Promise<AuthResponse> => {
+  //   try {
+  //     console.log('🔐 Отправляем данные для регистрации через Supabase:', data);
+  //
+  //     const { data: authData, error } = await supabase.auth.signUp({
+  //       email: data.email,
+  //       password: data.password,
+  //       options: {
+  //         data: {
+  //           name: data.name,
+  //           birthDate: data.birthDate,
+  //           birthTime: data.birthTime,
+  //           birthPlace: data.birthPlace,
+  //         },
+  //       },
+  //     });
+  //
+  //     if (error) {
+  //       console.log('❌ Supabase signup error:', error);
+  //       throw new Error(error.message);
+  //     }
+  //
+  //     if (!authData.session?.access_token) {
+  //       // Пользователь создан, но email нужно подтвердить
+  //       throw new Error('Проверьте ваш email для подтверждения регистрации');
+  //     }
+  //
+  //     console.log('✅ Успешная регистрация через Supabase');
+  //
+  //     // Возвращаем совместимый с существующим кодом ответ
+  //     return {
+  //       access_token: authData.session.access_token,
+  //       user: {
+  //         id: authData.user?.id || '',
+  //         email: authData.user?.email || '',
+  //         name: authData.user?.user_metadata?.name || data.name,
+  //       },
+  //     };
+  //   } catch (error: any) {
+  //     console.log('❌ API signup failed:', error);
+  //
+  //     // Добавляем более понятное сообщение об ошибке
+  //     if (error.message?.includes('User already registered')) {
+  //       error.message = 'Пользователь с таким email уже существует';
+  //     } else if (error.message?.includes('Password should be at least')) {
+  //       error.message = 'Пароль должен содержать минимум 6 символов';
+  //     } else if (error.code === 'ERR_NETWORK') {
+  //       error.message = 'Ошибка сети';
+  //     }
+  //
+  //     throw error;
+  //   }
+  // },
 
   logout: async (): Promise<void> => {
     try {

@@ -183,4 +183,8 @@ export class SupabaseService implements OnModuleInit {
       .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
       .subscribe();
   }
+
+  async deleteUser(userId: string) {
+    return await this.getAdminClient().auth.admin.deleteUser(userId);
+  }
 }

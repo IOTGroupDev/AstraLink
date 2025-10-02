@@ -172,16 +172,33 @@ export class SupabaseAuthService {
         }
       }
 
-      // Создаем пользователя через Supabase Auth
+      // // Создаем пользователя через Supabase Auth
+      // const { data, error } = await this.supabaseService.signUp(
+      //   signupDto.email,
+      //   signupDto.password,
+      //   {
+      //     name: signupDto.name,
+      //     birth_date: birthDate.toISOString(),
+      //     birth_time: signupDto.birthTime,
+      //     birth_place: signupDto.birthPlace,
+      //   },
+      // );
+      //
+      // if (error) {
+      //   if (error.message.includes('already registered')) {
+      //     throw new ConflictException(
+      //       'Пользователь с таким email уже существует',
+      //     );
+      //   }
+      //   throw new BadRequestException(error.message);
+      // }
+      //
+      // if (!data.user) {
+      //   throw new BadRequestException('Ошибка создания пользователя');
+      // }
       const { data, error } = await this.supabaseService.signUp(
         signupDto.email,
         signupDto.password,
-        {
-          name: signupDto.name,
-          birth_date: birthDate.toISOString(),
-          birth_time: signupDto.birthTime,
-          birth_place: signupDto.birthPlace,
-        },
       );
 
       if (error) {
@@ -197,11 +214,11 @@ export class SupabaseAuthService {
         throw new BadRequestException('Ошибка создания пользователя');
       }
 
-      // Создаем или обновляем профиль пользователя в нашей таблице users
+      // ✅ Создаем профиль ВРУЧНУЮ с использованием service_role
       const { data: userProfile, error: createError } =
         await this.supabaseService
-          .from('users')
-          .upsert({
+          .fromAdmin('users')
+          .insert({
             id: data.user.id,
             email: signupDto.email,
             name: signupDto.name,
@@ -214,8 +231,30 @@ export class SupabaseAuthService {
 
       if (createError) {
         console.error('Error creating user profile:', createError);
+        // Откатываем создание пользователя в auth.users
+        await this.supabaseService.deleteUser(data.user.id);
         throw new BadRequestException('Ошибка создания профиля пользователя');
       }
+
+      // // Создаем или обновляем профиль пользователя в нашей таблице users
+      // const { data: userProfile, error: createError } =
+      //   await this.supabaseService
+      //     .from('users')
+      //     .upsert({
+      //       id: data.user.id,
+      //       email: signupDto.email,
+      //       name: signupDto.name,
+      //       birth_date: birthDate.toISOString(),
+      //       birth_time: signupDto.birthTime || null,
+      //       birth_place: signupDto.birthPlace || null,
+      //     })
+      //     .select()
+      //     .single();
+      //
+      // if (createError) {
+      //   console.error('Error creating user profile:', createError);
+      //   throw new BadRequestException('Ошибка создания профиля пользователя');
+      // }
 
       // Генерируем натальную карту для нового пользователя (атомарно, без Prisma)
       try {
@@ -234,7 +273,7 @@ export class SupabaseAuthService {
         );
 
         const { error: chartInsertError } =
-          await this.supabaseService.createUserChart(
+          await this.supabaseService.createUserChartAdmin(
             data.user.id,
             natalChartData,
           );
@@ -244,6 +283,8 @@ export class SupabaseAuthService {
             'Error inserting natal chart (non-blocking):',
             chartInsertError,
           );
+        } else {
+          console.log('✅ Natal chart created');
         }
       } catch (chartError) {
         // Не прерываем регистрацию из-за недоступности Swiss Ephemeris
@@ -253,18 +294,45 @@ export class SupabaseAuthService {
         );
       }
 
+      console.log('🎉 Signup completed successfully');
+
+      //   return {
+      //     user: {
+      //       id: data.user.id,
+      //       email: data.user.email || '',
+      //       name: userProfile?.name || signupDto.name,
+      //       birthDate: userProfile?.birth_date
+      //         ? new Date(userProfile.birth_date).toISOString().split('T')[0]
+      //         : signupDto.birthDate,
+      //       birthTime: userProfile?.birth_time || signupDto.birthTime,
+      //       birthPlace: userProfile?.birth_place || signupDto.birthPlace,
+      //       createdAt: userProfile?.created_at || data.user.created_at,
+      //       updatedAt: userProfile?.updated_at || data.user.updated_at,
+      //     },
+      //     access_token: data.session?.access_token || '',
+      //   };
+      // } catch (error) {
+      //   if (
+      //     error instanceof BadRequestException ||
+      //     error instanceof ConflictException
+      //   ) {
+      //     throw error;
+      //   }
+      //   throw new BadRequestException('Ошибка регистрации');
+      // }
+
       return {
         user: {
           id: data.user.id,
           email: data.user.email || '',
-          name: userProfile?.name || signupDto.name,
-          birthDate: userProfile?.birth_date
-            ? new Date(userProfile.birth_date).toISOString().split('T')[0]
-            : signupDto.birthDate,
-          birthTime: userProfile?.birth_time || signupDto.birthTime,
-          birthPlace: userProfile?.birth_place || signupDto.birthPlace,
-          createdAt: userProfile?.created_at || data.user.created_at,
-          updatedAt: userProfile?.updated_at || data.user.updated_at,
+          name: userProfile.name,
+          birthDate: new Date(userProfile.birth_date)
+            .toISOString()
+            .split('T')[0],
+          birthTime: userProfile.birth_time,
+          birthPlace: userProfile.birth_place,
+          createdAt: userProfile.created_at,
+          updatedAt: userProfile.updated_at,
         },
         access_token: data.session?.access_token || '',
       };
@@ -275,6 +343,7 @@ export class SupabaseAuthService {
       ) {
         throw error;
       }
+      console.error('❌ Signup error:', error);
       throw new BadRequestException('Ошибка регистрации');
     }
   }
