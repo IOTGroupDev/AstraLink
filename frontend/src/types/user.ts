@@ -28,12 +28,12 @@ export interface AuthResponse {
   access_token: string;
 }
 
-export interface UserProfile extends User {
+interface UserProfile extends User {
   zodiacSign?: string;
   element?: string;
 }
 
-export interface UpdateProfileRequest {
+interface UpdateProfileRequest {
   name?: string;
   birthDate?: string;
   birthTime?: string;

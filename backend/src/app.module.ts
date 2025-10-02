@@ -11,6 +11,7 @@ import { ConnectionsModule } from './connections/connections.module';
 import { DatingModule } from './dating/dating.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ChartModule,
     ConnectionsModule,
     DatingModule,
+    AnalyticsModule,
     SubscriptionModule,
   ],
   controllers: [AppController],
