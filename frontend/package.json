@@ -31,7 +31,8 @@
     "react-native-screens": "^4.16.0",
     "react-native-svg": "^15.13.0",
     "react-native-vector-icons": "^10.3.0",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "expo-blur": "~15.0.7"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",

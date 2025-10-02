@@ -184,7 +184,40 @@ export class SupabaseService implements OnModuleInit {
       .subscribe();
   }
 
+  // async deleteUser(userId: string) {
+  //   return await this.getAdminClient().auth.admin.deleteUser(userId);
+  // }
+
+  /**
+   * 🗑️ Удаление пользователя из Supabase Auth
+   * Требует admin права (service_role_key)
+   */
   async deleteUser(userId: string) {
-    return await this.getAdminClient().auth.admin.deleteUser(userId);
+    if (!this.adminSupabase) {
+      console.error('❌ Admin client not initialized');
+      return {
+        error: new Error(
+          'SUPABASE_SERVICE_ROLE_KEY is required to delete users',
+        ),
+      };
+    }
+
+    try {
+      console.log(`🗑️ Удаление пользователя ${userId} из Supabase Auth...`);
+
+      const { data, error } =
+        await this.adminSupabase.auth.admin.deleteUser(userId);
+
+      if (error) {
+        console.error('❌ Ошибка удаления пользователя из Auth:', error);
+        return { error };
+      }
+
+      console.log('✅ Пользователь успешно удален из Supabase Auth');
+      return { data, error: null };
+    } catch (error) {
+      console.error('❌ Критическая ошибка при удалении пользователя:', error);
+      return { error };
+    }
   }
 }

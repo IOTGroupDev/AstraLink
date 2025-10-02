@@ -204,12 +204,14 @@ export class SubscriptionService {
     const trialEndsAt = new Date(now);
     trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_CONFIG.duration);
 
-    const { error } = await this.supabaseService.from('subscriptions').insert({
-      user_id: userId,
-      tier: SubscriptionTier.FREE,
-      trial_ends_at: TRIAL_CONFIG.enabled ? trialEndsAt.toISOString() : null,
-      created_at: now.toISOString(),
-    });
+    const { error } = await this.supabaseService
+      .fromAdmin('subscriptions')
+      .insert({
+        user_id: userId,
+        tier: SubscriptionTier.FREE,
+        trial_ends_at: TRIAL_CONFIG.enabled ? trialEndsAt.toISOString() : null,
+        created_at: now.toISOString(),
+      });
 
     if (error) {
       this.logger.error(`Error creating subscription: ${error.message}`);
@@ -234,7 +236,7 @@ export class SubscriptionService {
     expiresAt: string;
   }> {
     const { data: subscription, error } = await this.supabaseService
-      .from('subscriptions')
+      .fromAdmin('subscriptions')
       .select('*')
       .eq('user_id', userId)
       .single();
@@ -260,7 +262,7 @@ export class SubscriptionService {
     trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_CONFIG.duration);
 
     const { error: updateError } = await this.supabaseService
-      .from('subscriptions')
+      .fromAdmin('subscriptions')
       .update({
         tier: TRIAL_CONFIG.tier,
         trial_ends_at: trialEndsAt.toISOString(),
@@ -319,7 +321,7 @@ export class SubscriptionService {
     expiresAt.setMonth(expiresAt.getMonth() + 1); // +1 месяц
 
     const { data: subscription, error } = await this.supabaseService
-      .from('subscriptions')
+      .fromAdmin('subscriptions')
       .upsert({
         user_id: userId,
         tier,
@@ -361,7 +363,7 @@ export class SubscriptionService {
    */
   private async downgradeToFree(userId: string) {
     const { error } = await this.supabaseService
-      .from('subscriptions')
+      .fromAdmin('subscriptions')
       .update({
         tier: SubscriptionTier.FREE,
         expires_at: null,
@@ -388,7 +390,7 @@ export class SubscriptionService {
 
     // Помечаем подписку как отменяемую (будет действовать до expires_at)
     const { error } = await this.supabaseService
-      .from('subscriptions')
+      .fromAdmin('subscriptions')
       .update({
         is_cancelled: true, // Новое поле
         updated_at: new Date().toISOString(),

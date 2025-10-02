@@ -1,4 +1,14 @@
-import { Controller, Get, Put, Request, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Request,
+  Body,
+  UseGuards,
+  Delete,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -36,5 +46,31 @@ export class UserController {
     // Для тестирования используем фиксированный userId
     const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
     return this.userService.updateProfile(userId, updateData);
+  }
+
+  /**
+   * 🗑️ DELETE /user/account
+   * Полное удаление аккаунта пользователя и всех связанных данных
+   *
+   * Удаляет:
+   * - Профиль пользователя из таблицы users
+   * - Все натальные карты (charts)
+   * - Все связи (connections)
+   * - Все данные знакомств (dating_matches)
+   * - Подписку (subscriptions) - удаляется автоматически через CASCADE
+   * - Пользователя из Supabase Auth
+   */
+  @Delete('account')
+  @HttpCode(HttpStatus.OK)
+  async deleteAccount(@Request() req) {
+    const userId = req.user.id;
+    console.log(`🗑️ Запрос на удаление аккаунта пользователя: ${userId}`);
+
+    await this.userService.deleteAccount(userId);
+
+    return {
+      success: true,
+      message: 'Аккаунт и все связанные данные успешно удалены',
+    };
   }
 }

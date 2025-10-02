@@ -34,6 +34,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import PlanetIcon from '../components/PlanetIcon';
 import AstrologicalChart from '../components/AstrologicalChart';
 import NatalChartWidget from '../components/NatalChartWidget';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -88,6 +89,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Animations
   const fadeAnim = useSharedValue(0);
@@ -217,6 +219,36 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       transform: [{ rotate: `${orbRotation.value}deg` }],
     };
   });
+
+  const handleDeleteAccount = async () => {
+    try {
+      console.log('🗑️ Начинаем удаление аккаунта');
+      await userAPI.deleteAccount();
+
+      Alert.alert(
+        'Аккаунт удален',
+        'Ваш аккаунт и все данные были безвозвратно удалены.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              removeStoredToken();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('❌ Ошибка удаления аккаунта:', error);
+      Alert.alert(
+        'Ошибка',
+        error.message || 'Не удалось удалить аккаунт. Попробуйте позже.'
+      );
+    }
+  };
 
   if (loading) {
     return (
@@ -377,7 +409,39 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
+              {/* Разделитель */}
+              <View style={styles.dangerZoneDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dangerZoneLabel}>Опасная зона</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Кнопка удаления аккаунта */}
+              <TouchableOpacity
+                style={[styles.settingItem, styles.deleteAccountItem]}
+                onPress={() => setShowDeleteModal(true)}
+              >
+                <View style={styles.settingIcon}>
+                  <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingText, { color: '#FF6B6B' }]}>
+                    Удалить аккаунт
+                  </Text>
+                  <Text style={styles.deleteAccountSubtext}>
+                    Удалит все ваши данные навсегда
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#FF6B6B" />
+              </TouchableOpacity>
             </View>
+            {/* Delete Account Modal */}
+            <DeleteAccountModal
+              visible={showDeleteModal}
+              onClose={() => setShowDeleteModal(false)}
+              onConfirm={handleDeleteAccount}
+              userName={profile.name}
+            />
           </View>
 
           {/* Registration Info */}
@@ -602,6 +666,35 @@ const styles = StyleSheet.create({
     color: '#8B5CF6',
     fontSize: 14,
     fontWeight: '600',
+  },
+  dangerZoneDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 107, 107, 0.3)',
+  },
+  dangerZoneLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 107, 107, 0.7)',
+    fontWeight: '600',
+    marginHorizontal: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  deleteAccountItem: {
+    backgroundColor: 'rgba(255, 107, 107, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
+  },
+  deleteAccountSubtext: {
+    fontSize: 12,
+    color: 'rgba(255, 107, 107, 0.6)',
+    marginTop: 2,
   },
 });
 

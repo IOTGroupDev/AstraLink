@@ -538,4 +538,40 @@ export const chartAPI = {
     });
     return response.data;
   },
+
+  // 🗑️ НОВЫЙ МЕТОД: Полное удаление аккаунта пользователя
+  deleteAccount: async (): Promise<void> => {
+    try {
+      console.log('🗑️ Отправка запроса на удаление аккаунта');
+
+      // Отправляем DELETE запрос на бэкенд
+      const response = await api.delete('/user/account');
+
+      console.log('✅ Аккаунт успешно удален', response.data);
+
+      // Удаляем токен из локального хранилища
+      await removeStoredToken();
+
+      // Выходим из Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn('⚠️ Ошибка выхода из Supabase:', error);
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Ошибка удаления аккаунта:', error);
+
+      // Обработка специфичных ошибок
+      if (error.response?.status === 401) {
+        throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Пользователь не найден.');
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error('Не удалось удалить аккаунт. Попробуйте позже.');
+      }
+    }
+  },
 };
