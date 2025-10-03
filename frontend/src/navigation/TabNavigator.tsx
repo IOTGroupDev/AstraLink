@@ -5,6 +5,7 @@ import ChartStackNavigator from './ChartStackNavigator';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
+import { ROUTES } from './routes';
 
 const Tab = createBottomTabNavigator();
 
@@ -15,13 +16,13 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'ChartStack') {
+          if (route.name === ROUTES.TABS.CHART_STACK) {
             iconName = focused ? 'planet' : 'planet-outline';
-          } else if (route.name === 'CosmicSimulator') {
+          } else if (route.name === ROUTES.TABS.COSMIC_SIMULATOR) {
             iconName = focused ? 'time' : 'time-outline';
-          } else if (route.name === 'Dating') {
+          } else if (route.name === ROUTES.TABS.DATING) {
             iconName = focused ? 'heart-circle' : 'heart-circle-outline';
-          } else if (route.name === 'Profile') {
+          } else if (route.name === ROUTES.TABS.PROFILE) {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           } else {
             iconName = 'help-outline';
@@ -54,22 +55,22 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen
-        name="ChartStack"
+        name={ROUTES.TABS.CHART_STACK}
         component={ChartStackNavigator}
         options={{ title: 'Карты', headerShown: false }}
       />
       <Tab.Screen
-        name="CosmicSimulator"
+        name={ROUTES.TABS.COSMIC_SIMULATOR}
         component={CosmicSimulatorScreen}
         options={{ title: 'Симулятор', headerShown: false }}
       />
       <Tab.Screen
-        name="Dating"
+        name={ROUTES.TABS.DATING}
         component={DatingScreen}
         options={{ title: 'Dating', headerShown: false }}
       />
       <Tab.Screen
-        name="Profile"
+        name={ROUTES.TABS.PROFILE}
         component={ProfileScreen}
         options={{ title: 'Профиль', headerShown: false }}
       />

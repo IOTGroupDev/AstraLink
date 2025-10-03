@@ -71,3 +71,8 @@ jspm_packages/
 
 # Prisma
 prisma/migrations/
+
+# Frontend generated type artifacts
+frontend/src/types/**/*.js
+frontend/src/types/**/*.js.map
+frontend/src/types/**/*.d.ts

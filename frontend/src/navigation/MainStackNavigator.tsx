@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import TabNavigator from './TabNavigator';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import { ROUTES } from './routes';
 
 const Stack = createStackNavigator();
 
@@ -22,14 +23,14 @@ export default function MainStackNavigator() {
     >
       {/* Основной экран с табами */}
       <Stack.Screen
-        name="MainTabs"
+        name={ROUTES.STACK.MAIN_TABS}
         component={TabNavigator}
         options={{ presentation: 'card' }}
       />
 
       {/* Модальный экран подписок */}
       <Stack.Screen
-        name="Subscription"
+        name={ROUTES.STACK.SUBSCRIPTION}
         component={SubscriptionScreen}
         options={{
           presentation: 'modal',
@@ -39,7 +40,7 @@ export default function MainStackNavigator() {
 
       {/* Модальный экран редактирования профиля */}
       <Stack.Screen
-        name="EditProfileScreen"
+        name={ROUTES.STACK.EDIT_PROFILE}
         component={EditProfileScreen}
         options={{
           presentation: 'modal',
