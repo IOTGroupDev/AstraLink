@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ImageBackground,
   RefreshControl,
   Image,
 } from 'react-native';
@@ -25,6 +24,8 @@ import Card from '../components/ui/Card';
 import PlanetIcon from '../components/PlanetIcon';
 import { colors } from '../theme/tokens';
 import PlanetCard from '../components/PlanetCard';
+import { ROUTES } from '../navigation/routes';
+import { getPlanetImageSource, getPlanetImageUri } from '../assets/planets';
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -45,35 +46,6 @@ const getPlanetColors = (planet: string): string[] => {
     Асцендент: ['#8B5CF6', '#7C3AED', '#5B21B6'],
   };
   return colors[planet] || ['#8B5CF6', '#7C3AED', '#5B21B6'];
-};
-
-const getPlanetImage = (planet: string): string => {
-  // Fixed planet photos (Wikimedia/NASA) to avoid random non-planet images
-  const images: { [key: string]: string } = {
-    Солнце:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Visible_Sun_-_November_16%2C_2012.jpg/640px-Visible_Sun_-_November_16%2C_2012.jpg',
-    Луна: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/640px-FullMoon2010.jpg',
-    Меркурий:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Mercury_in_true_color.jpg/640px-Mercury_in_true_color.jpg',
-    Венера:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Venus-real_color.jpg/640px-Venus-real_color.jpg',
-    Марс: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/640px-OSIRIS_Mars_true_color.jpg',
-    Юпитер:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Jupiter_by_Cassini-Huygens.jpg/640px-Jupiter_by_Cassini-Huygens.jpg',
-    Сатурн:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/640px-Saturn_during_Equinox.jpg',
-    Уран: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/640px-Uranus2.jpg',
-    Нептун:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Neptune_Full.jpg/640px-Neptune_Full.jpg',
-    Плутон:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Nh-pluto-in-true-color_2x_JPEG-edit-frame.jpg/640px-Nh-pluto-in-true-color_2x_JPEG-edit-frame.jpg',
-    Асцендент:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/ESO_-_Milky_Way.jpg/640px-ESO_-_Milky_Way.jpg',
-  };
-  return (
-    images[planet] ||
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Visible_Sun_-_November_16%2C_2012.jpg/640px-Visible_Sun_-_November_16%2C_2012.jpg'
-  );
 };
 
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
@@ -115,10 +87,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     try {
       const urls: string[] = [];
 
-      // Top sections
-      urls.push(getPlanetImage('Солнце'));
-      urls.push(getPlanetImage('Луна'));
-      urls.push(getPlanetImage('Асцендент'));
+      // Top sections (prefetch remote URIs only)
+      urls.push(getPlanetImageUri('Солнце'));
+      urls.push(getPlanetImageUri('Луна'));
+      urls.push(getPlanetImageUri('Асцендент'));
 
       // Planets list
       const list =
@@ -126,7 +98,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         chart?.interpretation?.planets ??
         [];
       for (const p of list) {
-        urls.push(getPlanetImage(p.planet));
+        urls.push(getPlanetImageUri(p.planet));
       }
 
       const unique = Array.from(new Set(urls));
@@ -166,6 +138,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       },
     ],
   }));
+
+  const goToFullChart = () => {
+    navigation.navigate(ROUTES.CHART_STACK.MY_CHART);
+  };
 
   if (loading) {
     return (
@@ -248,6 +224,24 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.placeholder} />
           </View>
 
+          {/* Header Actions */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.actionPrimary]}
+              onPress={goToFullChart}
+            >
+              <Ionicons name="planet" size={16} color="#fff" />
+              <Text style={styles.actionText}>Полная карта</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton} onPress={onRefresh}>
+              <Ionicons name="refresh" size={16} color="#8B5CF6" />
+              <Text style={[styles.actionText, { color: '#8B5CF6' }]}>
+                Обновить
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Natal Chart Widget */}
           <View style={styles.chartSection}>
             <NatalChartWidget chart={chartData} />
@@ -281,7 +275,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Солнце</Text>
             <PlanetCard
               title={`${interpretation.sunSign.planet} в ${interpretation.sunSign.sign}`}
-              imageUri={getPlanetImage('Солнце')}
+              imageSource={getPlanetImageSource('Солнце')}
               interpretation={interpretation.sunSign.interpretation}
               strengths={interpretation.sunSign.strengths}
               challenges={interpretation.sunSign.challenges}
@@ -300,7 +294,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Луна</Text>
             <PlanetCard
               title={`${interpretation.moonSign.planet} в ${interpretation.moonSign.sign}`}
-              imageUri={getPlanetImage('Луна')}
+              imageSource={getPlanetImageSource('Луна')}
               interpretation={interpretation.moonSign.interpretation}
               strengths={interpretation.moonSign.strengths}
               challenges={interpretation.moonSign.challenges}
@@ -319,7 +313,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Асцендент</Text>
             <PlanetCard
               title={`${interpretation.ascendant.planet} в ${interpretation.ascendant.sign}`}
-              imageUri={getPlanetImage('Асцендент')}
+              imageSource={getPlanetImageSource('Асцендент')}
               interpretation={interpretation.ascendant.interpretation}
               strengths={interpretation.ascendant.strengths}
               challenges={interpretation.ascendant.challenges}
@@ -339,7 +333,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               <PlanetCard
                 key={index}
                 title={`${p.planet} в ${p.sign}`}
-                imageUri={getPlanetImage(p.planet)}
+                imageSource={getPlanetImageSource(p.planet)}
                 interpretation={p.interpretation}
                 strengths={p.strengths}
                 challenges={p.challenges}
@@ -876,6 +870,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginLeft: 6,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 10,
+  },
+  actionPrimary: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: 'rgba(139, 92, 246, 0.6)',
+  },
+  actionText: {
+    color: '#fff',
+    fontWeight: '600',
+    marginLeft: 6,
+    fontSize: 12,
   },
 });
 

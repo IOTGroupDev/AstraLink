@@ -17,6 +17,7 @@ interface PlanetCardProps {
 const PlanetCard: React.FC<PlanetCardProps> = ({
   title,
   imageUri,
+  imageSource,
   interpretation,
   strengths = [],
   challenges = [],
