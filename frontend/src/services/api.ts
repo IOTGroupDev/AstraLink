@@ -1,6 +1,12 @@
-import axios from 'axios';
+import { api, API_BASE_URL } from './api/http';
 import { supabase } from './supabase';
 import { tokenService } from './tokenService';
+
+export const removeStoredToken = () => {
+  try {
+    tokenService.clearToken();
+  } catch {}
+};
 import {
   LoginRequest,
   SignupRequest,
@@ -17,116 +23,9 @@ import {
   MoonPhase,
 } from '../types';
 
-// Определяем базовый URL в зависимости от платформы
-const getApiBaseUrl = () => {
-  // В Expo Go всегда используем IP адрес
-  // Можно также использовать переменную окружения
-  const EXPO_API_URL = 'http://192.168.1.14:3000/api';
-  const LOCAL_API_URL = 'http://localhost:3000/api';
+/** API_BASE_URL берется из http.ts (ENV/Expo config) */
 
-  // В веб-версии используем localhost, в мобильной - IP
-  if (typeof window !== 'undefined' && window.location?.protocol === 'http:') {
-    return LOCAL_API_URL;
-  }
-
-  // Для Expo Go используем IP адрес
-  return EXPO_API_URL;
-};
-
-const API_BASE_URL = getApiBaseUrl();
-console.log('🌐 API Base URL:', API_BASE_URL);
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Добавляем токен к запросам
-api.interceptors.request.use(async (config) => {
-  console.log('🔍 Получение токена для запроса:', config.url);
-
-  try {
-    const token = await tokenService.getToken();
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log(
-        '🔐 Добавлен токен к запросу:',
-        config.url,
-        token.substring(0, 20) + '...'
-      );
-    } else {
-      console.log('⚠️ Токен отсутствует для запроса:', config.url);
-      // Для защищенных endpoints возвращаем ошибку вместо отправки запроса
-      if (
-        config.url &&
-        (config.url.includes('/chart/') ||
-          config.url.includes('/user/') ||
-          config.url.includes('/connections/') ||
-          config.url.includes('/dating/') ||
-          config.url.includes('/subscription/')) &&
-        !config.url.includes('/chart/test')
-      ) {
-        // Исключаем тестовый endpoint
-        console.log('🚫 Блокировка запроса без токена:', config.url);
-        return Promise.reject({
-          response: {
-            status: 401,
-            data: { message: 'Требуется аутентификация' },
-          },
-        });
-      }
-    }
-  } catch (error) {
-    console.log('❌ Ошибка в интерцепторе запроса:', error);
-    // Для защищенных endpoints возвращаем ошибку
-    if (
-      config.url &&
-      (config.url.includes('/chart/') ||
-        config.url.includes('/user/') ||
-        config.url.includes('/connections/') ||
-        config.url.includes('/dating/') ||
-        config.url.includes('/subscription/')) &&
-      !config.url.includes('/chart/test')
-    ) {
-      return Promise.reject({
-        response: {
-          status: 401,
-          data: { message: 'Ошибка аутентификации' },
-        },
-      });
-    }
-  }
-
-  return config;
-});
-
-// Обработка ответов и ошибок
-api.interceptors.response.use(
-  (response) => {
-    console.log('✅ API ответ:', response.config.url, response.status);
-    return response;
-  },
-  async (error) => {
-    console.log(
-      '❌ API ошибка:',
-      error.config?.url,
-      error.response?.status,
-      error.message
-    );
-
-    // Обработка ошибок авторизации
-    if (error.response?.status === 401) {
-      console.log('🔄 Ошибка 401, очищаем токен и выходим из системы');
-      tokenService.clearToken();
-      await supabase.auth.signOut();
-    }
-
-    return Promise.reject(error);
-  }
-);
+/** Перехватчики и axios-инстанс централизованы в http.ts */
 
 // Токены теперь управляются Supabase автоматически
 
