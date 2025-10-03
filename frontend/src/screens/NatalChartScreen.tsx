@@ -22,6 +22,7 @@ import NatalChartWidget from '../components/NatalChartWidget';
 import Card from '../components/ui/Card';
 import PlanetIcon from '../components/PlanetIcon';
 import { colors } from '../theme/tokens';
+import PlanetCard from '../components/PlanetCard';
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -209,119 +210,74 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           {/* Sun Sign */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Солнце</Text>
-            <ImageBackground
-              source={{ uri: getPlanetImage('Солнце') }}
-              style={styles.card}
-              imageStyle={styles.cardImage}
-            >
-              <View style={styles.overlay} />
-              <View style={styles.cardContent}>
-                <Text style={styles.planetTitle}>
-                  {interpretation.sunSign.planet} в{' '}
-                  {interpretation.sunSign.sign}
-                </Text>
-                <Text style={styles.planetText}>
-                  {interpretation.sunSign.interpretation}
-                </Text>
-                <View style={styles.keywordsContainer}>
-                  <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
-                  <Text style={styles.keywordsText}>
-                    {interpretation.sunSign.keywords.join(', ')}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
+            <PlanetCard
+              title={`${interpretation.sunSign.planet} в ${interpretation.sunSign.sign}`}
+              imageUri={getPlanetImage('Солнце')}
+              interpretation={interpretation.sunSign.interpretation}
+              strengths={interpretation.sunSign.strengths}
+              challenges={interpretation.sunSign.challenges}
+              planetKey={planetKeyFromName(interpretation.sunSign.planet)}
+            />
+            <View style={styles.keywordsContainer}>
+              <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
+              <Text style={styles.keywordsText}>
+                {interpretation.sunSign.keywords.join(', ')}
+              </Text>
+            </View>
           </View>
 
           {/* Moon Sign */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Луна</Text>
-            <ImageBackground
-              source={{ uri: getPlanetImage('Луна') }}
-              style={styles.card}
-              imageStyle={styles.cardImage}
-            >
-              <View style={styles.overlay} />
-              <View style={styles.cardContent}>
-                <Text style={styles.planetTitle}>
-                  {interpretation.moonSign.planet} в{' '}
-                  {interpretation.moonSign.sign}
-                </Text>
-                <Text style={styles.planetText}>
-                  {interpretation.moonSign.interpretation}
-                </Text>
-                <View style={styles.keywordsContainer}>
-                  <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
-                  <Text style={styles.keywordsText}>
-                    {interpretation.moonSign.keywords.join(', ')}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
+            <PlanetCard
+              title={`${interpretation.moonSign.planet} в ${interpretation.moonSign.sign}`}
+              imageUri={getPlanetImage('Луна')}
+              interpretation={interpretation.moonSign.interpretation}
+              strengths={interpretation.moonSign.strengths}
+              challenges={interpretation.moonSign.challenges}
+              planetKey={planetKeyFromName(interpretation.moonSign.planet)}
+            />
+            <View style={styles.keywordsContainer}>
+              <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
+              <Text style={styles.keywordsText}>
+                {interpretation.moonSign.keywords.join(', ')}
+              </Text>
+            </View>
           </View>
 
           {/* Ascendant */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Асцендент</Text>
-            <ImageBackground
-              source={{ uri: getPlanetImage('Асцендент') }}
-              style={styles.card}
-              imageStyle={styles.cardImage}
-            >
-              <View style={styles.overlay} />
-              <View style={styles.cardContent}>
-                <Text style={styles.planetTitle}>
-                  {interpretation.ascendant.planet} в{' '}
-                  {interpretation.ascendant.sign}
-                </Text>
-                <Text style={styles.planetText}>
-                  {interpretation.ascendant.interpretation}
-                </Text>
-                <View style={styles.keywordsContainer}>
-                  <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
-                  <Text style={styles.keywordsText}>
-                    {interpretation.ascendant.keywords.join(', ')}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
+            <PlanetCard
+              title={`${interpretation.ascendant.planet} в ${interpretation.ascendant.sign}`}
+              imageUri={getPlanetImage('Асцендент')}
+              interpretation={interpretation.ascendant.interpretation}
+              strengths={interpretation.ascendant.strengths}
+              challenges={interpretation.ascendant.challenges}
+            />
+            <View style={styles.keywordsContainer}>
+              <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
+              <Text style={styles.keywordsText}>
+                {interpretation.ascendant.keywords.join(', ')}
+              </Text>
+            </View>
           </View>
 
           {/* Planets */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Планеты</Text>
-            {interpretation.planets.map((planet: any, index: number) => {
-              return (
-                <ImageBackground
-                  key={index}
-                  source={{ uri: getPlanetImage(planet.planet) }}
-                  style={styles.card}
-                  imageStyle={styles.cardImage}
-                >
-                  <View style={styles.overlay} />
-                  <View style={styles.cardContent}>
-                    <Text style={styles.planetTitle}>
-                      {planet.planet} в {planet.sign} ({planet.house} дом)
-                    </Text>
-                    <Text style={styles.planetText}>
-                      {planet.interpretation}
-                    </Text>
-                    <View style={styles.keywordsContainer}>
-                      <Text style={styles.keywordsTitle}>Сильные стороны:</Text>
-                      <Text style={styles.keywordsText}>
-                        {planet.strengths.join(', ')}
-                      </Text>
-                    </View>
-                    <View style={styles.keywordsContainer}>
-                      <Text style={styles.keywordsTitle}>Вызовы:</Text>
-                      <Text style={styles.keywordsText}>
-                        {planet.challenges.join(', ')}
-                      </Text>
-                    </View>
-                  </View>
-                </ImageBackground>
-              );
-            })}
+            {interpretation.planets.map((p: any, index: number) => (
+              <PlanetCard
+                key={index}
+                title={`${p.planet} в ${p.sign}`}
+                imageUri={getPlanetImage(p.planet)}
+                interpretation={p.interpretation}
+                strengths={p.strengths}
+                challenges={p.challenges}
+                planetKey={planetKeyFromName(p.planet)}
+                house={p.house}
+              />
+            ))}
           </View>
 
           {/* Aspects */}
