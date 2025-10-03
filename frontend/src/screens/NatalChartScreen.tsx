@@ -19,6 +19,9 @@ import { chartAPI } from '../services/api/chart.client';
 import CosmicBackground from '../components/CosmicBackground';
 import LoadingLogo from '../components/LoadingLogo';
 import NatalChartWidget from '../components/NatalChartWidget';
+import Card from '../components/ui/Card';
+import PlanetIcon from '../components/PlanetIcon';
+import { colors } from '../theme/tokens';
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -128,6 +131,23 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   const { data } = chartData;
   const interpretation = data?.interpretation;
+
+  // Map localized planet names to PlanetIcon keys
+  const planetKeyFromName = (n: string) => {
+    const map: Record<string, string> = {
+      Солнце: 'sun',
+      Луна: 'moon',
+      Меркурий: 'mercury',
+      Венера: 'venus',
+      Марс: 'mars',
+      Юпитер: 'jupiter',
+      Сатурн: 'saturn',
+      Уран: 'uranus',
+      Нептун: 'neptune',
+      Плутон: 'pluto',
+    };
+    return map[n] || n;
+  };
 
   if (!interpretation) {
     return (
@@ -610,6 +630,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  planetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  houseBadge: {
+    marginLeft: 'auto',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  badgeText: {
+    color: '#8B5CF6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  chip: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipDanger: {
+    backgroundColor: 'rgba(255, 107, 107, 0.10)',
+    borderColor: 'rgba(255, 107, 107, 0.3)',
   },
 });
 
