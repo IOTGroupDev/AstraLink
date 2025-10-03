@@ -15,6 +15,7 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
+import FloatingLabel from './ui/FloatingLabel';
 
 interface DateTimePickerProps {
   value: string;
@@ -186,9 +187,18 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
           onPress={() => setShowPicker(true)}
           activeOpacity={0.7}
         >
-          <Animated.Text style={animatedLabelStyle}>
-            {placeholder} {required && '*'}
-          </Animated.Text>
+          <FloatingLabel
+            label={placeholder}
+            required={required}
+            error={error}
+            progress={labelAnimation}
+            containerStyle={{
+              position: 'absolute',
+              left: 20,
+              top: 25,
+              zIndex: 1,
+            }}
+          />
           {value && (
             <Animated.Text
               style={[

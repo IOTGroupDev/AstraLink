@@ -16,6 +16,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import FloatingLabel from './ui/FloatingLabel';
 
 interface AstralInputProps {
   placeholder: string;
@@ -155,9 +156,12 @@ const AstralInput: React.FC<AstralInputProps> = ({
             autoCapitalize="none"
           />
 
-          <Animated.Text style={[styles.label, animatedLabelStyle]}>
-            {placeholder} {required && '*'}
-          </Animated.Text>
+          <FloatingLabel
+            label={placeholder}
+            required={required}
+            error={error}
+            progress={focusAnimation}
+          />
         </View>
       </Animated.View>
 
