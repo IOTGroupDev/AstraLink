@@ -18,12 +18,10 @@ import Animated, {
   withRepeat,
   withSequence,
 } from 'react-native-reanimated';
-import {
-  userAPI,
-  subscriptionAPI,
-  chartAPI,
-  removeStoredToken,
-} from '../services/api';
+import { userAPI } from '../services/api/user.client';
+import { subscriptionAPI } from '../services/api/subscription.client';
+import { chartAPI } from '../services/api/chart.client';
+import { removeStoredToken } from '../services/api';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
 import ShimmerLoader from '../components/ShimmerLoader';
 import CosmicBackground from '../components/CosmicBackground';

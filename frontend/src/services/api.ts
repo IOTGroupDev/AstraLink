@@ -7,6 +7,14 @@ export const removeStoredToken = () => {
     tokenService.clearToken();
   } catch {}
 };
+
+export const getStoredToken = (): string | null => {
+  try {
+    return tokenService.getCurrentToken();
+  } catch {
+    return null;
+  }
+};
 import {
   LoginRequest,
   SignupRequest,

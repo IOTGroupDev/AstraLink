@@ -18,7 +18,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { chartAPI } from '../services/api';
+import { chartAPI } from '../services/api/chart.client';
 import { useAuth } from '../hooks/useAuth';
 
 const { width } = Dimensions.get('window');

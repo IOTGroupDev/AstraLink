@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { MoonPhaseVisual } from './MoonPhaseVisual';
-import { chartAPI } from '../services/api';
+import { chartAPI } from '../services/api/chart.client';
 import { useAuth } from '../hooks/useAuth';
 
 /**

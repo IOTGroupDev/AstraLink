@@ -29,7 +29,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import AnimatedStars from '../components/AnimatedStars';
 import ShimmerLoader from '../components/ShimmerLoader';
-import { connectionsAPI, getStoredToken } from '../services/api';
+import { connectionsAPI } from '../services/api/connections.client';
+import { getStoredToken } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 

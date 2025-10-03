@@ -31,7 +31,8 @@ import ConnectionCard from '../components/ConnectionCard';
 import CosmicSnapshot from '../components/CosmicSnapshot';
 import AddConnectionModal from '../components/AddConnectionModal';
 import ShimmerLoader from '../components/ShimmerLoader';
-import { connectionsAPI, getStoredToken } from '../services/api';
+import { connectionsAPI } from '../services/api/connections.client';
+import { getStoredToken } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 

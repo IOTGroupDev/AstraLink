@@ -16,7 +16,7 @@ import Animated, {
   SlideInRight,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { chartAPI } from '../services/api';
+import { chartAPI } from '../services/api/chart.client';
 import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/chart';
 import AnimatedStars from '../components/AnimatedStars';

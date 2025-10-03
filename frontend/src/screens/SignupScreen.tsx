@@ -34,7 +34,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { authAPI } from '../services/api';
+import { authAPI } from '../services/api/user.client';
 import { SignupRequest } from '../types';
 import AnimatedStars from '../components/AnimatedStars';
 import AstrologicalChart from '../components/AstrologicalChart';

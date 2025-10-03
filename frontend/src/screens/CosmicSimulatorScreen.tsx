@@ -23,7 +23,8 @@ import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
 
 import AnimatedStars from '../components/AnimatedStars';
 import ShimmerLoader from '../components/ShimmerLoader';
-import { chartAPI, getStoredToken } from '../services/api';
+import { chartAPI } from '../services/api/chart.client';
+import { getStoredToken } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 

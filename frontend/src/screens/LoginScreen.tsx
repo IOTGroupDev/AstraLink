@@ -19,7 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
-import { authAPI } from '../services/api';
+import { authAPI } from '../services/api/user.client';
 import { LoginRequest } from '../types';
 import AstralLogo from '../components/AstralLogo';
 import AstralInput from '../components/AstralInput';

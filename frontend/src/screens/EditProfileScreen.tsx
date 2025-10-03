@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue } from 'react-native-reanimated';
-import { userAPI } from '../services/api';
+import { userAPI } from '../services/api/user.client';
 import { UserProfile, UpdateProfileRequest } from '../types';
 import AstralInput from '../components/AstralInput';
 import AstralDateTimePicker from '../components/DateTimePicker';
