@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { SubscriptionTier } from '../../../../frontend/src/types';
+import { SubscriptionTier } from '../../types';
 
 export const SUBSCRIPTION_KEY = 'requiredSubscription';
 
