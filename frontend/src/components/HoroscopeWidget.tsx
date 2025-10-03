@@ -19,6 +19,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { chartAPI } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   currentPlanets,
   isLoading: initialLoading,
 }) => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [activePeriod, setActivePeriod] = useState<HoroscopePeriod>('day');
   const [allHoroscopes, setAllHoroscopes] = useState<any>(null);
   const [loading, setLoading] = useState(initialLoading);
@@ -59,8 +61,10 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   }, []);
 
   useEffect(() => {
-    loadAllHoroscopes();
-  }, []);
+    if (isAuthenticated) {
+      loadAllHoroscopes();
+    }
+  }, [isAuthenticated]);
 
   const loadAllHoroscopes = async () => {
     try {
@@ -168,7 +172,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     return icons[period];
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -179,6 +183,11 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
         </LinearGradient>
       </View>
     );
+  }
+
+  // Если пользователь не авторизован, не показываем компонент
+  if (!isAuthenticated) {
+    return null;
   }
 
   if (!currentHoroscope) {

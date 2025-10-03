@@ -6,11 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { MoonPhaseVisual } from './MoonPhaseVisual';
 import { chartAPI } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * Виджет лунного календаря с РЕАЛЬНЫМИ данными Swiss Ephemeris
  */
 export const LunarCalendarWidget: React.FC = () => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
   // Получаем реальные данные фазы луны через TanStack Query
   const {
     data: moonPhase,
@@ -23,6 +26,7 @@ export const LunarCalendarWidget: React.FC = () => {
     staleTime: 1000 * 60 * 60, // 1 час - фаза луны меняется медленно
     gcTime: 1000 * 60 * 60 * 24, // Кэшируем на 24 часа
     retry: 2,
+    enabled: isAuthenticated, // Загружаем только если пользователь авторизован
   });
 
   // Получаем лунный день
@@ -32,9 +36,11 @@ export const LunarCalendarWidget: React.FC = () => {
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
     retry: 2,
+    enabled: isAuthenticated, // Загружаем только если пользователь авторизован
   });
 
-  if (isLoading) {
+  // Показываем загрузку если проверяем авторизацию или загружаем данные
+  if (authLoading || isLoading) {
     return (
       <LinearGradient
         colors={['rgba(139, 92, 246, 0.15)', 'rgba(236, 72, 153, 0.15)']}
@@ -48,6 +54,11 @@ export const LunarCalendarWidget: React.FC = () => {
         </View>
       </LinearGradient>
     );
+  }
+
+  // Если пользователь не авторизован, не показываем компонент
+  if (!isAuthenticated) {
+    return null;
   }
 
   if (isError) {

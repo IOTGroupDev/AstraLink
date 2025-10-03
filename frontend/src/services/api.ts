@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { supabase } from './supabase';
+import { tokenService } from './tokenService';
 import {
   LoginRequest,
   SignupRequest,
@@ -44,17 +45,10 @@ const api = axios.create({
 
 // Добавляем токен к запросам
 api.interceptors.request.use(async (config) => {
-  console.log('🔍 Получение сессии для запроса:', config.url);
+  console.log('🔍 Получение токена для запроса:', config.url);
 
   try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      console.log('❌ Ошибка получения сессии:', error);
-      throw error;
-    }
-
-    const token = data.session?.access_token;
-    console.log('🔍 Токен из сессии:', !!token);
+    const token = await tokenService.getToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -125,31 +119,9 @@ api.interceptors.response.use(
 
     // Обработка ошибок авторизации
     if (error.response?.status === 401) {
-      const errorData = error.response.data;
-      if (errorData?.redirectTo === '/signup' || errorData?.requiresAuth) {
-        console.log(
-          '🔄 Перенаправление на регистрацию из-за отсутствия авторизации'
-        );
-        // Выходим из системы через Supabase
-        await supabase.auth.signOut();
-        // navigation.navigate('Signup'); // RN navigation (по контексту приложения)
-      } else {
-        // Попробуем обновить сессию и повторить запрос
-        try {
-          const { data, error: sessionError } =
-            await supabase.auth.getSession();
-          if (sessionError || !data.session) {
-            console.log('❌ Невозможно обновить сессию, выход из системы');
-            await supabase.auth.signOut();
-          } else {
-            console.log('🔄 Сессия обновлена, повторяем запрос');
-            // Можно повторить запрос с новым токеном, но для простоты просто выбрасываем ошибку
-          }
-        } catch (refreshError) {
-          console.log('❌ Ошибка при обновлении сессии:', refreshError);
-          await supabase.auth.signOut();
-        }
-      }
+      console.log('🔄 Ошибка 401, очищаем токен и выходим из системы');
+      tokenService.clearToken();
+      await supabase.auth.signOut();
     }
 
     return Promise.reject(error);
@@ -187,6 +159,7 @@ export const authAPI = {
           id: authData.user?.id || '',
           email: authData.user?.email || '',
           name: authData.user?.user_metadata?.name || '',
+          birthDate: authData.user?.user_metadata?.birthDate || '',
         },
       };
     } catch (error: any) {
@@ -550,7 +523,7 @@ export const chartAPI = {
       console.log('✅ Аккаунт успешно удален', response.data);
 
       // Удаляем токен из локального хранилища
-      await removeStoredToken();
+      tokenService.clearToken();
 
       // Выходим из Supabase
       const { error } = await supabase.auth.signOut();

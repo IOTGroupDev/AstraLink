@@ -16,9 +16,8 @@ import Animated, {
   SlideInRight,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../services/supabase';
-
 import { chartAPI } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/chart';
 import AnimatedStars from '../components/AnimatedStars';
 import AstrologicalChart from '../components/AstrologicalChart';
@@ -34,6 +33,7 @@ const { width, height } = Dimensions.get('window');
 
 const MyChartScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [chart, setChart] = useState<Chart | null>(null);
   const [transits, setTransits] = useState<TransitsResponse | null>(null);
   const [currentPlanets, setCurrentPlanets] = useState<any>(null);
@@ -50,23 +50,14 @@ const MyChartScreen: React.FC = () => {
     try {
       setLoading(true);
 
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
-        console.log(
-          '❌ Сессия не найдена, требуется авторизация',
-          sessionError
-        );
+      if (!isAuthenticated) {
+        console.log('❌ Пользователь не авторизован, перенаправление на вход');
         navigation.navigate('Login' as never);
         return;
       }
-      const token = sessionData.session.access_token;
 
       try {
-        console.log(
-          '🔍 Загружаю реальные данные карты для токена:',
-          token.substring(0, 20) + '...'
-        );
+        console.log('🔍 Загружаю реальные данные карты...');
 
         const [chartData, transitsData, planetsData] = await Promise.all([
           chartAPI.getNatalChart(),
@@ -222,8 +213,10 @@ const MyChartScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAuthenticated && !authLoading) {
+      loadData();
+    }
+  }, [isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (currentPlanets && chart) {
@@ -343,7 +336,7 @@ const MyChartScreen: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <LinearGradient
         colors={['#1a1a2e', '#16213e', '#0f0f23']}
@@ -370,6 +363,11 @@ const MyChartScreen: React.FC = () => {
         </ScrollView>
       </LinearGradient>
     );
+  }
+
+  // Если пользователь не авторизован, не показываем экран
+  if (!isAuthenticated) {
+    return null;
   }
 
   const energy = getCurrentEnergy();
