@@ -1,15 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, ImageBackground } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 import PlanetIcon from './PlanetIcon';
 
 interface PlanetCardProps {
   title: string;
-  imageUri: string;
   interpretation: string;
   strengths?: string[];
   challenges?: string[];
   planetKey?: string; // english key for PlanetIcon (sun, moon, etc)
   house?: number; // optional house badge
+  imageUri?: string; // remote image url
+  imageSource?: ImageSourcePropType; // local require(...) or other source
 }
 
 const PlanetCard: React.FC<PlanetCardProps> = ({
@@ -21,9 +23,11 @@ const PlanetCard: React.FC<PlanetCardProps> = ({
   planetKey,
   house,
 }) => {
+  const src = imageSource ?? (imageUri ? { uri: imageUri } : undefined);
+
   return (
     <ImageBackground
-      source={{ uri: imageUri }}
+      source={src as any}
       style={styles.card}
       imageStyle={styles.cardImage}
     >

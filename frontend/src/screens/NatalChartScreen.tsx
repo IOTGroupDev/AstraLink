@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ImageBackground,
+  RefreshControl,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -77,24 +79,82 @@ const getPlanetImage = (planet: string): string => {
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [horoscopes, setHoroscopes] = useState<any | null>(null);
+  const [activePeriod, setActivePeriod] = useState<
+    'today' | 'tomorrow' | 'week' | 'month'
+  >('today');
+
+  const loadHoroscopes = async () => {
+    try {
+      const data = await chartAPI.getAllHoroscopes();
+      setHoroscopes(data);
+    } catch (error) {
+      console.error('Ошибка загрузки гороскопов:', error);
+    }
+  };
 
   const fadeAnim = useSharedValue(0);
 
   useEffect(() => {
     loadChartData();
+    loadHoroscopes();
     fadeAnim.value = withTiming(1, { duration: 800 });
   }, []);
 
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.all([loadChartData(), loadHoroscopes()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const prefetchPlanetImages = async (chart: any) => {
+    try {
+      const urls: string[] = [];
+
+      // Top sections
+      urls.push(getPlanetImage('Солнце'));
+      urls.push(getPlanetImage('Луна'));
+      urls.push(getPlanetImage('Асцендент'));
+
+      // Planets list
+      const list =
+        chart?.data?.interpretation?.planets ??
+        chart?.interpretation?.planets ??
+        [];
+      for (const p of list) {
+        urls.push(getPlanetImage(p.planet));
+      }
+
+      const unique = Array.from(new Set(urls));
+      await Promise.all(
+        unique.map((u) => {
+          if (u) {
+            return Image.prefetch(u).catch(() => null);
+          }
+          return null;
+        })
+      );
+    } catch {
+      // ignore prefetch errors
+    }
+  };
+
   const loadChartData = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       const data = await chartAPI.getNatalChartWithInterpretation();
       setChartData(data);
+      // Prefetch planet images to reduce flicker
+      await prefetchPlanetImages(data);
     } catch (error: any) {
       console.error('Error loading natal chart:', error);
       Alert.alert('Ошибка', 'Не удалось загрузить натальную карту');
     } finally {
-      setLoading(false);
+      if (!refreshing) setLoading(false);
     }
   };
 
@@ -165,7 +225,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     <View style={styles.container}>
       <CosmicBackground />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8B5CF6"
+          />
+        }
+      >
         <Animated.View style={[styles.content, animatedContainerStyle]}>
           {/* Header */}
           <View style={styles.header}>
@@ -382,6 +451,144 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 )}
               </View>
             </LinearGradient>
+          </View>
+
+          {/* Horoscope */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Гороскоп</Text>
+
+            {horoscopes?.isPremium ? (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="sparkles" size={14} color="#FFD700" />
+                <Text style={styles.premiumText}>Premium интерпретация</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.horoscopeTabRow}>
+              <TouchableOpacity
+                style={[
+                  styles.tabButton,
+                  activePeriod === 'today' && styles.tabButtonActive,
+                ]}
+                onPress={() => setActivePeriod('today')}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activePeriod === 'today' && styles.tabTextActive,
+                  ]}
+                >
+                  Сегодня
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tabButton,
+                  activePeriod === 'tomorrow' && styles.tabButtonActive,
+                ]}
+                onPress={() => setActivePeriod('tomorrow')}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activePeriod === 'tomorrow' && styles.tabTextActive,
+                  ]}
+                >
+                  Завтра
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tabButton,
+                  activePeriod === 'week' && styles.tabButtonActive,
+                ]}
+                onPress={() => setActivePeriod('week')}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activePeriod === 'week' && styles.tabTextActive,
+                  ]}
+                >
+                  Неделя
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tabButton,
+                  activePeriod === 'month' && styles.tabButtonActive,
+                ]}
+                onPress={() => setActivePeriod('month')}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activePeriod === 'month' && styles.tabTextActive,
+                  ]}
+                >
+                  Месяц
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {horoscopes && horoscopes[activePeriod] && (
+              <Card elevation="sm" style={{ marginTop: 12 }}>
+                <Text style={styles.summaryTitle}>Общее:</Text>
+                <Text style={styles.summaryText}>
+                  {horoscopes[activePeriod]?.general || '—'}
+                </Text>
+
+                <Text style={styles.summaryTitle}>Любовь:</Text>
+                <Text style={styles.summaryText}>
+                  {horoscopes[activePeriod]?.love || '—'}
+                </Text>
+
+                <Text style={styles.summaryTitle}>Карьера:</Text>
+                <Text style={styles.summaryText}>
+                  {horoscopes[activePeriod]?.career || '—'}
+                </Text>
+
+                <Text style={styles.summaryTitle}>Здоровье:</Text>
+                <Text style={styles.summaryText}>
+                  {horoscopes[activePeriod]?.health || '—'}
+                </Text>
+
+                <Text style={styles.summaryTitle}>Финансы:</Text>
+                <Text style={styles.summaryText}>
+                  {horoscopes[activePeriod]?.finance || '—'}
+                </Text>
+
+                <Text style={styles.summaryTitle}>Совет:</Text>
+                <Text style={styles.summaryText}>
+                  {horoscopes[activePeriod]?.advice || '—'}
+                </Text>
+
+                <Text style={styles.summaryTitle}>Счастливые числа:</Text>
+                <View style={styles.chipRow}>
+                  {horoscopes[activePeriod]?.luckyNumbers?.map(
+                    (n: number, i: number) => (
+                      <View key={i} style={styles.chip}>
+                        <Text style={styles.badgeText}>{n}</Text>
+                      </View>
+                    )
+                  )}
+                </View>
+
+                <Text style={styles.summaryTitle}>Счастливые цвета:</Text>
+                <View style={styles.chipRow}>
+                  {horoscopes[activePeriod]?.luckyColors?.map(
+                    (c: string, i: number) => (
+                      <View key={i} style={styles.chip}>
+                        <Text style={styles.summaryText}>{c}</Text>
+                      </View>
+                    )
+                  )}
+                </View>
+              </Card>
+            )}
           </View>
         </Animated.View>
       </ScrollView>
@@ -624,6 +831,51 @@ const styles = StyleSheet.create({
   chipDanger: {
     backgroundColor: 'rgba(255, 107, 107, 0.10)',
     borderColor: 'rgba(255, 107, 107, 0.3)',
+  },
+  horoscopeTabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+  },
+  tabButtonActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.6)',
+  },
+  tabText: {
+    color: '#B0B0B0',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  tabTextActive: {
+    color: '#8B5CF6',
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderColor: 'rgba(255, 215, 0, 0.5)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginBottom: 10,
+  },
+  premiumText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
   },
 });
 
