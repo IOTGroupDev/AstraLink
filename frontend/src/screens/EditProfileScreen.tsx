@@ -141,7 +141,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
                 icon="calendar"
                 mode="date"
                 required
-                animationValue={{ value: 1 }}
+                animationValue={animationValue}
               />
 
               <AstralDateTimePicker
@@ -152,7 +152,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
                 }
                 icon="time"
                 mode="time"
-                animationValue={{ value: 1 }}
+                animationValue={animationValue}
               />
 
               <View style={styles.inputGroup}>

@@ -52,10 +52,10 @@ export class UserService {
       return {
         id: userId,
         email: 'test@test.com',
-        name: 'Test User',
+        name: '',
         birthDate: '1990-05-15',
         birthTime: '14:30',
-        birthPlace: 'Moscow',
+        birthPlace: 'Москва',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -64,7 +64,7 @@ export class UserService {
       return {
         id: userId,
         email: 'newuser@astralink.com',
-        name: 'New User',
+        name: '',
         birthDate: '1995-06-15T00:00:00.000Z',
         birthTime: '14:30',
         birthPlace: 'Санкт-Петербург',
@@ -78,18 +78,18 @@ export class UserService {
   }
 
   async updateProfile(userId: string, updateData: UpdateProfileRequest) {
-    // Преобразуем поля для Supabase (birthDate не редактируется, т.к. натальная карта неизменна)
+    // Преобразуем поля для Supabase
     const supabaseData: any = {};
     if (updateData.name !== undefined) supabaseData.name = updateData.name;
+    if (updateData.birthDate !== undefined)
+      supabaseData.birth_date = updateData.birthDate;
     if (updateData.birthTime !== undefined)
       supabaseData.birth_time = updateData.birthTime;
     if (updateData.birthPlace !== undefined)
       supabaseData.birth_place = updateData.birthPlace;
 
-    const { data: user, error } = await this.supabaseService.updateUserProfile(
-      userId,
-      supabaseData,
-    );
+    const { data: user, error } =
+      await this.supabaseService.updateUserProfileAdmin(userId, supabaseData);
 
     if (error || !user) {
       throw new NotFoundException(`Failed to update user with id ${userId}`);

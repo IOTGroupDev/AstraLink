@@ -3,6 +3,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import TabNavigator from './TabNavigator';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -30,6 +31,16 @@ export default function MainStackNavigator() {
       <Stack.Screen
         name="Subscription"
         component={SubscriptionScreen}
+        options={{
+          presentation: 'modal',
+          cardStyle: { backgroundColor: 'transparent' },
+        }}
+      />
+
+      {/* Модальный экран редактирования профиля */}
+      <Stack.Screen
+        name="EditProfileScreen"
+        component={EditProfileScreen}
         options={{
           presentation: 'modal',
           cardStyle: { backgroundColor: 'transparent' },

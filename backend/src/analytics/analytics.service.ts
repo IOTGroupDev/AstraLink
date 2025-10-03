@@ -256,7 +256,7 @@ export class AnalyticsService {
           });
         }
 
-        const stats = statsMap.get(feature)!;
+        const stats = statsMap.get(feature);
         stats.total++;
 
         if (!record.success) {

@@ -45,6 +45,7 @@ export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 
 export const UpdateProfileRequestSchema = z.object({
   name: z.string().min(2).optional(),
+  birthDate: z.string().optional(),
   birthPlace: z.string().optional(),
   birthTime: z.string().optional(),
 });

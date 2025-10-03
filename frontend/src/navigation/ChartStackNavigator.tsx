@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import MyChartScreen from '../screens/MyChartScreen';
+import NatalChartScreen from '../screens/NatalChartScreen';
 
 const Stack = createStackNavigator();
 
@@ -13,6 +14,7 @@ export default function ChartStackNavigator() {
       }}
     >
       <Stack.Screen name="MyChart" component={MyChartScreen} />
+      <Stack.Screen name="NatalChart" component={NatalChartScreen} />
     </Stack.Navigator>
   );
 }

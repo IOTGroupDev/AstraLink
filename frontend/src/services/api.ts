@@ -310,6 +310,11 @@ export const userAPI = {
     const response = await api.put('/user/profile', data);
     return response.data;
   },
+
+  deleteAccount: async (): Promise<void> => {
+    const response = await api.delete('/user/account');
+    return response.data;
+  },
 };
 
 // Alias for backward compatibility

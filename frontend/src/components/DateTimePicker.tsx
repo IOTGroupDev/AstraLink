@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withTiming,
+  interpolate,
+  Easing,
 } from 'react-native-reanimated';
 
 interface DateTimePickerProps {
@@ -38,6 +40,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   animationValue,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
+  const labelAnimation = useSharedValue(0);
   const [date, setDate] = useState(() => {
     if (value) {
       if (mode === 'date') {
@@ -51,6 +54,33 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     }
     return new Date();
   });
+
+  useEffect(() => {
+    // Update date when value changes
+    if (value) {
+      if (mode === 'date') {
+        setDate(new Date(value));
+      } else {
+        const [hours, minutes] = value.split(':');
+        const newDate = new Date();
+        newDate.setHours(parseInt(hours) || 0, parseInt(minutes) || 0);
+        setDate(newDate);
+      }
+    }
+
+    // Update label animation
+    if (value) {
+      labelAnimation.value = withTiming(1, {
+        duration: 200,
+        easing: Easing.out(Easing.quad),
+      });
+    } else {
+      labelAnimation.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.quad),
+      });
+    }
+  }, [value]);
 
   const animatedInputStyle = useAnimatedStyle(() => {
     const scale = animationValue.value;
@@ -81,13 +111,23 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     const opacity = animationValue.value;
 
     return {
-      transform: [{ scale }],
+      transform: [
+        { scale },
+        { translateY: interpolate(labelAnimation.value, [0, 1], [0, -25]) },
+        { scale: interpolate(labelAnimation.value, [0, 1], [1, 0.8]) },
+      ],
       opacity,
       position: 'absolute',
       left: 20,
       top: 25,
-      color: error ? '#FF6B6B' : 'rgba(255, 255, 255, 0.7)',
-      fontSize: 16,
+      color: error
+        ? '#FF6B6B'
+        : interpolate(
+            labelAnimation.value,
+            [0, 1],
+            ['rgba(255, 255, 255, 0.7)', 'rgba(139, 92, 246, 0.9)']
+          ),
+      fontSize: interpolate(labelAnimation.value, [0, 1], [16, 12]),
       fontWeight: '500',
       zIndex: 1,
     };
@@ -146,13 +186,20 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
           onPress={() => setShowPicker(true)}
           activeOpacity={0.7}
         >
-          <Animated.Text
-            style={[animatedLabelStyle, value && { top: 5, fontSize: 12 }]}
-          >
+          <Animated.Text style={animatedLabelStyle}>
             {placeholder} {required && '*'}
           </Animated.Text>
           {value && (
-            <Text style={styles.inputText}>{formatDisplayValue()}</Text>
+            <Animated.Text
+              style={[
+                styles.inputText,
+                {
+                  marginTop: interpolate(labelAnimation.value, [0, 1], [0, 20]),
+                },
+              ]}
+            >
+              {formatDisplayValue()}
+            </Animated.Text>
           )}
         </TouchableOpacity>
       </Animated.View>

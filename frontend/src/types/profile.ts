@@ -8,7 +8,7 @@ export interface UserProfile {
   birthTime: string;
   birthPlace: string;
   avatar?: string;
-  registrationDate: string;
+  createdAt: string;
   isDarkMode: boolean;
 }
 

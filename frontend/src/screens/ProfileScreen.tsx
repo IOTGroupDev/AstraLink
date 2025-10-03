@@ -730,12 +730,14 @@ import {
   chartAPI,
   removeStoredToken,
 } from '../services/api';
-import { UserProfile, Subscription, Chart } from '../types';
+import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
 import ShimmerLoader from '../components/ShimmerLoader';
 import CosmicBackground from '../components/CosmicBackground';
 import ZodiacAvatar from '../components/ZodiacAvatar';
 import SubscriptionCard from '../components/SubscriptionCard';
 import NatalChartWidget from '../components/NatalChartWidget';
+import { useAuth } from '../hooks/useAuth';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -746,22 +748,22 @@ interface ProfileScreenProps {
 // Темы по стихиям
 const ELEMENT_THEMES = {
   fire: {
-    colors: ['#FF6B35', '#F7931E', '#FFD700'],
+    colors: ['#FF6B35', '#F7931E', '#FFD700'] as const,
     glow: '#FF6B35',
     name: 'Огонь',
   },
   water: {
-    colors: ['#4ECDC4', '#44A08D', '#096B72'],
+    colors: ['#4ECDC4', '#44A08D', '#096B72'] as const,
     glow: '#4ECDC4',
     name: 'Вода',
   },
   earth: {
-    colors: ['#8FBC8F', '#556B2F', '#2F4F2F'],
+    colors: ['#8FBC8F', '#556B2F', '#2F4F2F'] as const,
     glow: '#8FBC8F',
     name: 'Земля',
   },
   air: {
-    colors: ['#FFD700', '#8B5CF6', '#DDA0DD'],
+    colors: ['#FFD700', '#8B5CF6', '#DDA0DD'] as const,
     glow: '#FFD700',
     name: 'Воздух',
   },
@@ -784,11 +786,13 @@ const ZODIAC_ELEMENTS = {
 };
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const { user: authUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [chart, setChart] = useState<Chart | null>(null);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Animations
   const fadeAnim = useSharedValue(0);
@@ -847,6 +851,36 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     ]);
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      console.log('🗑️ Начинаем удаление аккаунта');
+      await userAPI.deleteAccount();
+
+      Alert.alert(
+        'Аккаунт удален',
+        'Ваш аккаунт и все данные были безвозвратно удалены.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              removeStoredToken();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('❌ Ошибка удаления аккаунта:', error);
+      Alert.alert(
+        'Ошибка',
+        error.message || 'Не удалось удалить аккаунт. Попробуйте позже.'
+      );
+    }
+  };
+
   // ========================================
   // ОБРАБОТЧИК ПЕРЕХОДА К ПОДПИСКАМ
   // ========================================
@@ -900,7 +934,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.settingsButton}
-                onPress={() => navigation.navigate('EditProfile')}
+                onPress={() => navigation.navigate('EditProfileScreen')}
               >
                 <Ionicons name="settings-outline" size={24} color="#fff" />
               </TouchableOpacity>
@@ -920,7 +954,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               </Animated.View>
             </Animated.View>
 
-            <Text style={styles.userName}>{profile.name}</Text>
+            <Text style={styles.userName}>
+              {profile.name || authUser?.user_metadata?.name || 'Пользователь'}
+            </Text>
             <View style={styles.zodiacContainer}>
               <Text style={styles.zodiacSign}>{zodiacSign}</Text>
               <Text style={styles.elementName}>{elementTheme.name}</Text>
@@ -944,10 +980,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <NatalChartWidget chart={chart} />
                 <TouchableOpacity
                   style={styles.viewFullChartButton}
-                  onPress={() => navigation.navigate('ChartStack')}
+                  onPress={() =>
+                    navigation.navigate('ChartStack', { screen: 'NatalChart' })
+                  }
                 >
                   <Text style={styles.viewFullChartText}>
-                    Посмотреть полную карту
+                    Посмотреть натальную карту с расшифровкой
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -961,7 +999,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <View style={styles.settingsCard}>
               <TouchableOpacity
                 style={styles.settingItem}
-                onPress={() => navigation.navigate('EditProfile')}
+                onPress={() => navigation.navigate('EditProfileScreen')}
               >
                 <View style={styles.settingIcon}>
                   <Ionicons name="person-outline" size={24} color="#8B5CF6" />
@@ -995,7 +1033,43 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
+
+              {/* Разделитель */}
+              <View style={styles.dangerZoneDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dangerZoneLabel}>Опасная зона</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Кнопка удаления аккаунта */}
+              <TouchableOpacity
+                style={[styles.settingItem, styles.deleteAccountItem]}
+                onPress={() => setShowDeleteModal(true)}
+              >
+                <View style={styles.settingIcon}>
+                  <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingText, { color: '#FF6B6B' }]}>
+                    Удалить аккаунт
+                  </Text>
+                  <Text style={styles.deleteAccountSubtext}>
+                    Удалит все ваши данные навсегда
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#FF6B6B" />
+              </TouchableOpacity>
             </View>
+
+            {/* Delete Account Modal */}
+            <DeleteAccountModal
+              visible={showDeleteModal}
+              onClose={() => setShowDeleteModal(false)}
+              onConfirm={handleDeleteAccount}
+              userName={
+                profile.name || authUser?.user_metadata?.name || 'Пользователь'
+              }
+            />
           </View>
 
           {/* Registration Info */}
@@ -1041,8 +1115,10 @@ const getZodiacSign = (birthDate: string): string => {
 };
 
 const getElementTheme = (zodiacSign: string) => {
-  const element = ZODIAC_ELEMENTS[zodiacSign] || 'air';
-  return ELEMENT_THEMES[element];
+  const element = (
+    ZODIAC_ELEMENTS[zodiacSign as ZodiacSign] || 'Air'
+  ).toLowerCase();
+  return ELEMENT_THEMES[element as keyof typeof ELEMENT_THEMES];
 };
 
 const formatRegistrationDate = (dateString: string): string => {
@@ -1205,6 +1281,35 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginTop: 100,
+  },
+  dangerZoneDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 107, 107, 0.3)',
+  },
+  dangerZoneLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 107, 107, 0.7)',
+    fontWeight: '600',
+    marginHorizontal: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  deleteAccountItem: {
+    backgroundColor: 'rgba(255, 107, 107, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
+  },
+  deleteAccountSubtext: {
+    fontSize: 12,
+    color: 'rgba(255, 107, 107, 0.6)',
+    marginTop: 2,
   },
 });
 
