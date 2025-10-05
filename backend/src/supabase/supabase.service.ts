@@ -65,7 +65,8 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async createUser(email: string, password: string, userData?: any) {
-    const { data, error } = await this.supabase.auth.admin.createUser({
+    const admin = this.getAdminClient();
+    const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,

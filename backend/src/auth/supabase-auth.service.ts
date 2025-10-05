@@ -461,10 +461,21 @@ export class SupabaseAuthService {
                 userProfile.birth_time,
                 location,
               );
-            await this.supabaseService.createUserChartAdmin(
-              data.user.id,
-              natalChartData,
-            );
+            {
+              const { error: chartInsertError } =
+                await this.supabaseService.createUserChartAdmin(
+                  data.user.id,
+                  natalChartData,
+                );
+              if (chartInsertError) {
+                console.error(
+                  'Error inserting natal chart during login:',
+                  chartInsertError,
+                );
+              } else {
+                console.log('✅ Natal chart created during login');
+              }
+            }
           } catch (error) {
             console.error('Error creating natal chart during login:', error);
           }
@@ -505,63 +516,116 @@ export class SupabaseAuthService {
 
       console.log('📝 Starting signup for:', signupDto.email);
 
-      // 1. Создаем пользователя в Supabase Auth
-      const { data, error } = await this.supabaseService.signUp(
-        signupDto.email,
-        signupDto.password,
-        {
-          name: signupDto.name,
-          birth_date: birthDate.toISOString(),
-          birth_time: signupDto.birthTime || '00:00',
-          birth_place: signupDto.birthPlace || 'Moscow',
-        },
-      );
+      // 1) Создаем пользователя через Admin API (обходит SMTP/email confirm)
+      const { data: created, error: createError } =
+        await this.supabaseService.createUser(
+          signupDto.email,
+          signupDto.password,
+          {
+            name: signupDto.name,
+            birth_date: birthDate.toISOString(),
+            birth_time: signupDto.birthTime || '00:00',
+            birth_place: signupDto.birthPlace || 'Moscow',
+          },
+        );
 
-      if (error) {
-        if (error.message.includes('already registered')) {
+      if (createError) {
+        if (createError.message?.includes('already registered')) {
           throw new ConflictException(
             'Пользователь с таким email уже существует',
           );
         }
-        throw new BadRequestException(error.message);
+        throw new BadRequestException(createError.message);
       }
 
-      if (!data.user) {
+      const userId = created?.user?.id;
+      const userEmail = created?.user?.email || signupDto.email;
+
+      if (!userId) {
         throw new BadRequestException('Не удалось создать пользователя');
       }
 
-      console.log('✅ User created in auth.users:', data.user.id);
+      console.log('✅ User created in auth.users:', userId);
 
-      // 2. ВАЖНО: Триггер handle_new_user() автоматически создал профиль в public.users
-      // Поэтому мы НЕ создаем профиль вручную, а просто обновляем данные
+      // 1.1) Получаем сессию (access_token) через обычный вход
+      const { data: authData, error: signInError } =
+        await this.supabaseService.signIn(signupDto.email, signupDto.password);
 
-      // Ждем немного, чтобы триггер отработал
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (signInError) {
+        console.warn(
+          '⚠️ Не удалось автоматически войти после создания пользователя:',
+          signInError.message,
+        );
+      }
+      const accessToken = authData?.session?.access_token || '';
 
-      // Обновляем профиль данными из формы регистрации
-      const { error: updateError } = await this.supabaseService
+      // 2) Создаем/обновляем профиль пользователя (совместимо с триггером handle_new_user)
+      const { error: profileError } = await this.supabaseService
         .fromAdmin('users')
-        .update({
-          name: signupDto.name,
-          birth_date: birthDate.toISOString(),
-          birth_time: signupDto.birthTime || '00:00',
-          birth_place: signupDto.birthPlace || 'Moscow',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', data.user.id);
+        .upsert(
+          {
+            id: userId,
+            email: userEmail,
+            name: signupDto.name,
+            birth_date: birthDate.toISOString(),
+            birth_time: signupDto.birthTime || '00:00',
+            birth_place: signupDto.birthPlace || 'Moscow',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' },
+        );
 
-      if (updateError) {
-        console.warn('Warning updating user profile:', updateError.message);
-        // Не прерываем регистрацию из-за этой ошибки
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        // Откатываем создание пользователя в auth
+        await this.supabaseService.deleteUser(userId);
+        const reason =
+          (profileError as any)?.message ||
+          (typeof profileError === 'string'
+            ? profileError
+            : JSON.stringify(profileError));
+        throw new BadRequestException(
+          `Ошибка создания профиля пользователя: ${reason}`,
+        );
       }
 
-      console.log('✅ User profile updated');
+      console.log('✅ User profile created');
 
-      // 3. Получаем обновленный профиль
+      // 3) Получаем обновленный профиль
       const { data: userProfile } =
-        await this.supabaseService.getUserProfileAdmin(data.user.id);
+        await this.supabaseService.getUserProfileAdmin(userId);
 
-      // 4. Создаем натальную карту
+      // 4) Создаем подписку (free с trial)
+      try {
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 7); // 7-day trial
+
+        const { error: subscriptionError } = await this.supabaseService
+          .fromAdmin('subscriptions')
+          .insert({
+            user_id: userId,
+            tier: 'free',
+            trial_ends_at: trialEndsAt.toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (subscriptionError) {
+          console.error(
+            'Error creating subscription (non-blocking):',
+            subscriptionError,
+          );
+        } else {
+          console.log('✅ Free subscription with trial created');
+        }
+      } catch (subscriptionError) {
+        console.error(
+          'Error creating subscription (non-blocking):',
+          subscriptionError,
+        );
+      }
+
+      // 5) Создаем натальную карту
       try {
         const birthDateStr = birthDate.toISOString().split('T')[0];
         const birthTime = signupDto.birthTime || '00:00';
@@ -575,11 +639,21 @@ export class SupabaseAuthService {
           location,
         );
 
-        await this.supabaseService.createUserChartAdmin(
-          data.user.id,
-          natalChartData,
-        );
-        console.log('✅ Natal chart created');
+        {
+          const { error: chartInsertError } =
+            await this.supabaseService.createUserChartAdmin(
+              userId,
+              natalChartData,
+            );
+          if (chartInsertError) {
+            console.error(
+              'Error inserting natal chart during signup:',
+              chartInsertError,
+            );
+          } else {
+            console.log('✅ Natal chart created');
+          }
+        }
       } catch (chartError) {
         console.error('Error creating natal chart (non-blocking):', chartError);
       }
@@ -588,18 +662,18 @@ export class SupabaseAuthService {
 
       return {
         user: {
-          id: data.user.id,
-          email: data.user.email || '',
+          id: userId,
+          email: userEmail,
           name: userProfile?.name || signupDto.name,
           birthDate: userProfile?.birth_date
             ? new Date(userProfile.birth_date).toISOString().split('T')[0]
             : signupDto.birthDate,
           birthTime: userProfile?.birth_time || signupDto.birthTime,
           birthPlace: userProfile?.birth_place || signupDto.birthPlace,
-          createdAt: userProfile?.created_at || data.user.created_at,
-          updatedAt: userProfile?.updated_at || data.user.updated_at,
+          createdAt: userProfile?.created_at,
+          updatedAt: userProfile?.updated_at,
         },
-        access_token: data.session?.access_token || '',
+        access_token: accessToken,
       };
     } catch (error) {
       if (
