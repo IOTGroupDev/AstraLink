@@ -16,11 +16,11 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ChartService } from './chart.service';
-import type { CreateNatalChartRequest, TransitRequest } from '../types';
-import { Public } from '../auth/decorators/public.decorator';
-import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
-import { LunarService } from '../services/lunar.service';
-import type { AuthenticatedRequest } from '../types/auth';
+import type { CreateNatalChartRequest, TransitRequest } from '@/types';
+import { Public } from '@/auth/decorators/public.decorator';
+import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { LunarService } from '@/services/lunar.service';
+import type { AuthenticatedRequest } from '@/types/auth';
 
 @ApiTags('Chart')
 @Controller('chart')

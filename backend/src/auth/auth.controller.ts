@@ -13,10 +13,10 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { SupabaseAuthService } from './supabase-auth.service';
-import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
+import type { LoginRequest, SignupRequest, AuthResponse } from '@/types';
 import { Public } from './decorators/public.decorator';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
-import type { AuthenticatedRequest } from '../types/auth';
+import type { AuthenticatedRequest } from '@/types/auth';
 
 @ApiTags('auth')
 @Controller('auth')

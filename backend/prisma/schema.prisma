@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
 model User {
@@ -23,7 +24,11 @@ model User {
   matches      DatingMatch[]
   subscription Subscription?
 
+  @@schema("public")
   @@map("users")
+  @@index([email])
+  @@index([createdAt])
+  @@index([role])
 }
 
 model Chart {
@@ -34,7 +39,10 @@ model Chart {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@schema("public")
   @@map("charts")
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Connection {
@@ -45,6 +53,7 @@ model Connection {
   targetData Json     @map("target_data")
   createdAt  DateTime @default(now()) @map("created_at")
 
+  @@schema("public")
   @@map("connections")
 }
 
@@ -58,6 +67,7 @@ model DatingMatch {
   rejected      Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
 
+  @@schema("public")
   @@map("dating_matches")
 }
 
@@ -72,5 +82,9 @@ model Subscription {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  @@schema("public")
   @@map("subscriptions")
+  @@index([tier])
+  @@index([expiresAt])
+  @@index([isCancelled])
 }
