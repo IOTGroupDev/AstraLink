@@ -6,6 +6,7 @@ import {
   UseGuards,
   Request,
   Body,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,7 @@ import type {
   SynastryResponse,
   CompositeResponse,
 } from '../types';
+import type { AuthenticatedRequest } from '../types/auth';
 
 @ApiTags('Connections')
 @Controller('connections')
@@ -33,20 +35,25 @@ export class ConnectionsController {
   @ApiOperation({ summary: 'Создать новую связь' })
   @ApiResponse({ status: 201, description: 'Связь создана' })
   async createConnection(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() connectionData: CreateConnectionRequest,
   ) {
-    return this.connectionsService.createConnection(
-      req.user.userId,
-      connectionData,
-    );
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.createConnection(userId, connectionData);
   }
 
   @Get()
   @ApiOperation({ summary: 'Получить список связей пользователя' })
   @ApiResponse({ status: 200, description: 'Список связей' })
-  async getConnections(@Request() req) {
-    return this.connectionsService.getConnections(req.user.userId);
+  async getConnections(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.getConnections(userId);
   }
 
   @Get(':id/synastry')
@@ -55,10 +62,14 @@ export class ConnectionsController {
   @ApiResponse({ status: 200, description: 'Данные синастрии' })
   @ApiResponse({ status: 404, description: 'Связь не найдена' })
   async getSynastry(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('id') connectionId: string,
   ): Promise<SynastryResponse> {
-    return this.connectionsService.getSynastry(req.user.userId, connectionId);
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.getSynastry(userId, connectionId);
   }
 
   @Get(':id/composite')
@@ -67,9 +78,13 @@ export class ConnectionsController {
   @ApiResponse({ status: 200, description: 'Данные композитной карты' })
   @ApiResponse({ status: 404, description: 'Связь не найдена' })
   async getComposite(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('id') connectionId: string,
   ): Promise<CompositeResponse> {
-    return this.connectionsService.getComposite(req.user.userId, connectionId);
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.getComposite(userId, connectionId);
   }
 }

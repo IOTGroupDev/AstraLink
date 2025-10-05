@@ -6,6 +6,7 @@ import {
   Request,
   Body,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,25 +15,39 @@ import {
   ApiBearerAuth,
   ApiProperty,
 } from '@nestjs/swagger';
+import { Request as ExpressRequest } from 'express';
 import { SubscriptionService } from './subscription.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SubscriptionStatusResponse, SubscriptionTier } from '../types';
+
+// Interface for authenticated user on Express Request
+interface AuthenticatedUser {
+  id: string;
+  userId?: string;
+  email: string;
+  name?: string;
+}
+
+// Extend Express Request to include our user type
+interface AuthenticatedRequest extends ExpressRequest {
+  user?: AuthenticatedUser;
+}
 
 /**
  * DTO для ответа "Статус подписки"
  */
 export class SubscriptionStatusResponseDto {
   @ApiProperty({ example: 'premium', description: 'Уровень подписки' })
-  tier: string;
+  tier?: string;
 
   @ApiProperty({
     example: '2025-12-31T23:59:59.000Z',
     description: 'Дата окончания подписки',
   })
-  expiresAt: string;
+  expiresAt?: string;
 
   @ApiProperty({ example: true, description: 'Используется ли Trial' })
-  isTrial: boolean;
+  isTrial?: boolean;
 }
 
 /**
@@ -40,7 +55,7 @@ export class SubscriptionStatusResponseDto {
  */
 export class UpgradeSubscriptionDto {
   @ApiProperty({ example: 'premium', description: 'Новый уровень подписки' })
-  tier: SubscriptionTier;
+  tier?: SubscriptionTier;
 
   @ApiProperty({
     example: 'mock',
@@ -62,13 +77,13 @@ export class UpgradeSubscriptionDto {
  */
 export class UpgradeSubscriptionResponseDto {
   @ApiProperty({ example: true, description: 'Успешно ли выполнен апгрейд' })
-  success: boolean;
+  success?: boolean;
 
   @ApiProperty({
     example: 'Подписка Premium активирована (Mock)',
     description: 'Сообщение',
   })
-  message: string;
+  message?: string;
 
   @ApiProperty({
     type: 'object',
@@ -80,7 +95,7 @@ export class UpgradeSubscriptionResponseDto {
       },
     },
   })
-  subscription: {
+  subscription?: {
     tier: SubscriptionTier;
     expiresAt: string;
   };
@@ -93,8 +108,8 @@ export class UpgradeSubscriptionResponseDto {
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
-  private getUserId(req: any): string {
-    return req.user?.userId || req.user?.id;
+  private getUserId(req: AuthenticatedRequest): string {
+    return req.user?.userId || req.user?.id || '';
   }
 
   /**
@@ -107,7 +122,9 @@ export class SubscriptionController {
     description: 'Статус подписки',
     type: SubscriptionStatusResponseDto,
   })
-  async getStatus(@Request() req): Promise<SubscriptionStatusResponse> {
+  async getStatus(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<SubscriptionStatusResponse> {
     return this.subscriptionService.getStatus(this.getUserId(req));
   }
 
@@ -118,7 +135,7 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Активировать Trial период' })
   @ApiResponse({ status: 200, description: 'Trial активирован' })
   @ApiResponse({ status: 400, description: 'Trial уже был использован' })
-  async activateTrial(@Request() req) {
+  async activateTrial(@Request() req: AuthenticatedRequest) {
     return this.subscriptionService.activateTrial(this.getUserId(req));
   }
 
@@ -130,9 +147,13 @@ export class SubscriptionController {
   @ApiResponse({ status: 200, description: 'Подписка обновлена' })
   @ApiResponse({ status: 400, description: 'Неверный уровень подписки' })
   async upgrade(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() upgradeData: UpgradeSubscriptionDto,
   ): Promise<UpgradeSubscriptionResponseDto> {
+    if (!upgradeData.tier) {
+      throw new BadRequestException('Уровень подписки обязателен');
+    }
+
     return this.subscriptionService.upgrade(
       this.getUserId(req),
       upgradeData.tier,
@@ -147,7 +168,7 @@ export class SubscriptionController {
   @Post('cancel')
   @ApiOperation({ summary: 'Отменить подписку' })
   @ApiResponse({ status: 200, description: 'Подписка отменена' })
-  async cancel(@Request() req) {
+  async cancel(@Request() req: AuthenticatedRequest) {
     return this.subscriptionService.cancel(this.getUserId(req));
   }
 
@@ -167,7 +188,7 @@ export class SubscriptionController {
   @Get('limits')
   @ApiOperation({ summary: 'Проверить лимиты использования' })
   @ApiResponse({ status: 200, description: 'Лимиты использования' })
-  async checkLimits(@Request() req) {
+  async checkLimits(@Request() req: AuthenticatedRequest) {
     return this.subscriptionService.checkUsageLimits(this.getUserId(req));
   }
 
@@ -179,7 +200,7 @@ export class SubscriptionController {
     summary: 'Получить персонализированные рекомендации upgrade',
   })
   @ApiResponse({ status: 200, description: 'Рекомендации на основе FOMO' })
-  async getRecommendations(@Request() req) {
+  async getRecommendations(@Request() req: AuthenticatedRequest) {
     // TODO: Implement personalized recommendations using AnalyticsService
     return { recommendations: [] };
   }
@@ -190,7 +211,7 @@ export class SubscriptionController {
   @Get('payments')
   @ApiOperation({ summary: 'Получить историю платежей' })
   @ApiResponse({ status: 200, description: 'История платежей' })
-  async getPaymentHistory(@Request() req) {
+  async getPaymentHistory(@Request() req: AuthenticatedRequest) {
     const { data, error } = await this.subscriptionService['supabaseService']
       .from('payments')
       .select('*')

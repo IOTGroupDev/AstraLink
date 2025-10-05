@@ -97,9 +97,11 @@ export class SubscriptionService {
         daysRemaining,
       };
     } catch (error) {
-      this.logger.error(`Error in getStatus: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error in getStatus: ${errorMessage}`);
       throw new BadRequestException(
-        `Ошибка получения статуса подписки: ${error.message}`,
+        `Ошибка получения статуса подписки: ${errorMessage}`,
       );
     }
   }

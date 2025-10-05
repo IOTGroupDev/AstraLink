@@ -1,6 +1,20 @@
 import { Controller, Get, Put, Body, UseGuards, Request } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+
+// Interface for authenticated user on Express Request
+interface AuthenticatedUser {
+  id: string;
+  userId?: string;
+  email: string;
+  name?: string;
+}
+
+// Extend Express Request to include our user type
+interface AuthenticatedRequest extends ExpressRequest {
+  user?: AuthenticatedUser;
+}
 
 @Controller('api/user/supabase')
 @UseGuards(SupabaseAuthGuard)
@@ -8,8 +22,8 @@ export class SupabaseUserController {
   constructor(private supabaseService: SupabaseService) {}
 
   @Get('profile')
-  async getProfile(@Request() req) {
-    const userId = req.user.id;
+  async getProfile(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || '';
 
     const { data, error } = await this.supabaseService.getUserProfile(userId);
 
@@ -31,11 +45,14 @@ export class SupabaseUserController {
   }
 
   @Put('profile')
-  async updateProfile(@Request() req, @Body() updateData: any) {
-    const userId = req.user.id;
+  async updateProfile(
+    @Request() req: AuthenticatedRequest,
+    @Body() updateData: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || '';
 
     // Подготавливаем данные для обновления
-    const profileData = {
+    const profileData: Record<string, any> = {
       name: updateData.name,
       birth_date: updateData.birthDate
         ? new Date(updateData.birthDate)
@@ -75,8 +92,8 @@ export class SupabaseUserController {
   }
 
   @Get('charts')
-  async getUserCharts(@Request() req) {
-    const userId = req.user.id;
+  async getUserCharts(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || '';
 
     const { data, error } = await this.supabaseService.getUserCharts(userId);
 

@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class UpgradeSubscriptionDto {
   @ApiProperty({ example: 'premium', description: 'Новый уровень подписки' })
-  tier: string;
+  tier!: string;
 
   @ApiProperty({
     example: 'mock',

@@ -15,9 +15,23 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
 import { Public } from '../auth/decorators/public.decorator';
 import type { UpdateProfileRequest } from '../types';
+
+// Interface for authenticated user on Express Request
+interface AuthenticatedUser {
+  id: string;
+  userId?: string;
+  email: string;
+  name?: string;
+}
+
+// Extend Express Request to include our user type
+interface AuthenticatedRequest extends ExpressRequest {
+  user?: AuthenticatedUser;
+}
 
 @ApiTags('User')
 @Controller('user')
@@ -30,9 +44,12 @@ export class UserController {
   @Get('profile')
   @ApiOperation({ summary: 'Получить профиль пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: AuthenticatedRequest) {
     // Для тестирования используем фиксированный userId
-    const userId = req.user?.userId || '5d995414-c513-47e6-b5dd-004d3f61c60b'; // ID тестового пользователя
+    const userId =
+      req.user?.userId ||
+      req.user?.id ||
+      '5d995414-c513-47e6-b5dd-004d3f61c60b'; // ID тестового пользователя
     return this.userService.getProfile(userId);
   }
 
@@ -40,11 +57,14 @@ export class UserController {
   @ApiOperation({ summary: 'Обновить профиль пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль обновлен' })
   async updateProfile(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() updateData: UpdateProfileRequest,
   ) {
     // Для тестирования используем фиксированный userId
-    const userId = req.user?.userId || 'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
+    const userId =
+      req.user?.userId ||
+      req.user?.id ||
+      'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
     return this.userService.updateProfile(userId, updateData);
   }
 
@@ -62,8 +82,8 @@ export class UserController {
    */
   @Delete('account')
   @HttpCode(HttpStatus.OK)
-  async deleteAccount(@Request() req) {
-    const userId = req.user.id;
+  async deleteAccount(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || '';
     console.log(`🗑️ Запрос на удаление аккаунта пользователя: ${userId}`);
 
     await this.userService.deleteAccount(userId);

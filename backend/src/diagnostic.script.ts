@@ -222,7 +222,7 @@ async function runDiagnostics() {
         .eq('user_id', testUserId);
     }
   } catch (error) {
-    console.log(`   ✅ RLS работает корректно:`, error.message);
+    console.log(`   ✅ RLS работает корректно:`, (error as Error).message);
   }
 
   // 8. Проверка связи users -> subscriptions

@@ -70,7 +70,9 @@ export class HoroscopeGeneratorService {
         );
       }
     } catch (adminError) {
-      this.logger.warn('Admin chart lookup failed:', adminError.message);
+      const errorMessage =
+        adminError instanceof Error ? adminError.message : 'Unknown error';
+      this.logger.warn('Admin chart lookup failed:', errorMessage);
     }
 
     if (!chartData) {
@@ -89,7 +91,11 @@ export class HoroscopeGeneratorService {
           );
         }
       } catch (regularError) {
-        this.logger.error('Regular chart lookup failed:', regularError.message);
+        const errorMessage =
+          regularError instanceof Error
+            ? regularError.message
+            : 'Unknown error';
+        this.logger.error('Regular chart lookup failed:', errorMessage);
       }
     }
 
@@ -109,7 +115,9 @@ export class HoroscopeGeneratorService {
           );
         }
       } catch (prismaError) {
-        this.logger.error('Prisma lookup failed:', prismaError.message);
+        const errorMessage =
+          prismaError instanceof Error ? prismaError.message : 'Unknown error';
+        this.logger.error('Prisma lookup failed:', errorMessage);
       }
     }
 
@@ -143,8 +151,12 @@ export class HoroscopeGeneratorService {
         );
         this.logger.log(`Found ${transitAspects.length} transit aspects`);
       } catch (ephemerisError) {
+        const errorMessage =
+          ephemerisError instanceof Error
+            ? ephemerisError.message
+            : 'Unknown error';
         this.logger.warn(
-          `Ephemeris calculation failed, using simplified transits: ${ephemerisError.message}`,
+          `Ephemeris calculation failed, using simplified transits: ${errorMessage}`,
         );
         transits = { planets: {}, date: targetDate };
         transitAspects = [];
@@ -168,12 +180,14 @@ export class HoroscopeGeneratorService {
         );
       }
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
         `Error during horoscope generation for user ${userId}:`,
         error,
       );
       this.logger.log(
-        `Falling back to generic horoscope due to error: ${error.message}`,
+        `Falling back to generic horoscope due to error: ${errorMessage}`,
       );
       return this.generateGenericHoroscope(period, isPremium);
     }
@@ -415,7 +429,8 @@ export class HoroscopeGeneratorService {
       },
     };
 
-    const templates = periodSpecific[timeFrame] || periodSpecific['Сегодня'];
+    const templates =
+      (periodSpecific as any)[timeFrame] || periodSpecific['Сегодня'];
     const pool = templates[tone] || templates['neutral'];
 
     const index =
@@ -437,7 +452,10 @@ export class HoroscopeGeneratorService {
       (a) => a.transitPlanet === 'venus' || a.natalPlanet === 'venus',
     );
 
-    const periodPhrases = {
+    const periodPhrases: Record<
+      string,
+      { positive: string; neutral: string; negative: string }
+    > = {
       Сегодня: {
         positive: 'создает романтическую атмосферу',
         neutral: 'влияет на ваше настроение',
@@ -493,7 +511,10 @@ export class HoroscopeGeneratorService {
       (a) => a.transitPlanet === 'mars',
     );
 
-    const periodActions = {
+    const periodActions: Record<
+      string,
+      { jupiter: string; saturn: string; mars: string; neutral: string }
+    > = {
       Сегодня: {
         jupiter: 'сегодняшний день благоприятен для',
         saturn: 'сегодня требуется',
@@ -619,7 +640,8 @@ export class HoroscopeGeneratorService {
       ],
     };
 
-    const advices = periodAdvices[timeFrame] || periodAdvices['Сегодня'];
+    const advices =
+      (periodAdvices as any)[timeFrame] || periodAdvices['Сегодня'];
 
     const index =
       Math.abs(new Date().getDate() + new Date().getMonth()) % advices.length;
@@ -658,7 +680,7 @@ export class HoroscopeGeneratorService {
       week: 'На этой неделе',
       month: 'В этом месяце',
     };
-    return frames[period] || 'Сегодня';
+    return (frames as any)[period] || 'Сегодня';
   }
 
   /**

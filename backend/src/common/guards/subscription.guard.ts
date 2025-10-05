@@ -119,7 +119,9 @@ export class SubscriptionGuard implements CanActivate {
         throw error;
       }
 
-      this.logger.error(`Subscription check error: ${error.message}`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Subscription check error: ${errorMessage}`, error);
       throw new ForbiddenException({
         message: 'Ошибка проверки подписки',
         code: 'SUBSCRIPTION_CHECK_ERROR',

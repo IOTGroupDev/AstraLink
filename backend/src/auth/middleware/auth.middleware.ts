@@ -50,7 +50,9 @@ export class AuthMiddleware implements NestMiddleware {
 
       next();
     } catch (error) {
-      console.log('JWT verification error:', error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      console.log('JWT verification error:', errorMessage);
       return this.handleUnauthorized(res, 'Недействительный токен авторизации');
     }
   }

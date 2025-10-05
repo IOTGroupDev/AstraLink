@@ -92,9 +92,11 @@ export class SupabaseAuthGuard implements CanActivate {
             return true;
           }
         } catch (decodeErr) {
+          const errorMessage =
+            decodeErr instanceof Error ? decodeErr.message : 'Unknown error';
           console.error(
             '[SupabaseAuthGuard] JWT decode fallback failed:',
-            decodeErr?.message || decodeErr,
+            errorMessage,
           );
         }
 

@@ -47,7 +47,9 @@ export class AIService {
         this.logger.log('✅ Claude AI (Anthropic) инициализирован');
         return;
       } catch (error) {
-        this.logger.error('❌ Ошибка инициализации Claude:', error.message);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error('❌ Ошибка инициализации Claude:', errorMessage);
       }
     }
 
@@ -58,7 +60,9 @@ export class AIService {
         this.logger.log('✅ OpenAI GPT инициализирован');
         return;
       } catch (error) {
-        this.logger.error('❌ Ошибка инициализации OpenAI:', error.message);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error('❌ Ошибка инициализации OpenAI:', errorMessage);
       }
     }
 

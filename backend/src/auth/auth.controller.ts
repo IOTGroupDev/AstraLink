@@ -16,6 +16,7 @@ import { SupabaseAuthService } from './supabase-auth.service';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../types';
 import { Public } from './decorators/public.decorator';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import type { AuthenticatedRequest } from '../types/auth';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -46,7 +47,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Получить профиль текущего пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  getProfile(@Request() req) {
+  getProfile(@Request() req: AuthenticatedRequest) {
     return req.user;
   }
 }

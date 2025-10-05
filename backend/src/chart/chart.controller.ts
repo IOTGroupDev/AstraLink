@@ -20,6 +20,7 @@ import type { CreateNatalChartRequest, TransitRequest } from '../types';
 import { Public } from '../auth/decorators/public.decorator';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { LunarService } from '../services/lunar.service';
+import type { AuthenticatedRequest } from '../types/auth';
 
 @ApiTags('Chart')
 @Controller('chart')
@@ -35,7 +36,7 @@ export class ChartController {
   @ApiOperation({ summary: 'Получить натальную карту пользователя' })
   @ApiResponse({ status: 200, description: 'Натальная карта' })
   @ApiResponse({ status: 404, description: 'Карта не найдена' })
-  async getNatalChart(@Request() req) {
+  async getNatalChart(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -47,7 +48,7 @@ export class ChartController {
   @ApiOperation({ summary: 'Получить детальную интерпретацию натальной карты' })
   @ApiResponse({ status: 200, description: 'Интерпретация натальной карты' })
   @ApiResponse({ status: 404, description: 'Интерпретация не найдена' })
-  async getChartInterpretation(@Request() req) {
+  async getChartInterpretation(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -61,7 +62,7 @@ export class ChartController {
     status: 200,
     description: 'Полная натальная карта с интерпретацией',
   })
-  async getNatalChartWithInterpretation(@Request() req) {
+  async getNatalChartWithInterpretation(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -73,7 +74,7 @@ export class ChartController {
   @ApiOperation({ summary: 'Создать натальную карту' })
   @ApiResponse({ status: 201, description: 'Карта создана' })
   async createNatalChart(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() chartData: CreateNatalChartRequest,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -94,7 +95,7 @@ export class ChartController {
   })
   @ApiResponse({ status: 200, description: 'Гороскоп на выбранный период' })
   async getHoroscope(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Query('period') period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -109,7 +110,7 @@ export class ChartController {
     summary: 'Получить все гороскопы (день, завтра, неделя, месяц)',
   })
   @ApiResponse({ status: 200, description: 'Все гороскопы' })
-  async getAllHoroscopes(@Request() req) {
+  async getAllHoroscopes(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -120,7 +121,7 @@ export class ChartController {
   @Get('current')
   @ApiOperation({ summary: 'Получить текущие позиции планет' })
   @ApiResponse({ status: 200, description: 'Текущие позиции планет' })
-  async getCurrentPlanets(@Request() req) {
+  async getCurrentPlanets(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -137,7 +138,10 @@ export class ChartController {
     required: false,
   })
   @ApiResponse({ status: 200, description: 'Биоритмы' })
-  async getBiorhythms(@Request() req, @Query('date') date?: string) {
+  async getBiorhythms(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') date?: string,
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -150,7 +154,10 @@ export class ChartController {
   @ApiQuery({ name: 'from', description: 'Дата начала (YYYY-MM-DD)' })
   @ApiQuery({ name: 'to', description: 'Дата окончания (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Данные транзитов' })
-  async getTransits(@Request() req, @Query() query: TransitRequest) {
+  async getTransits(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: TransitRequest,
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
@@ -194,7 +201,10 @@ export class ChartController {
     required: false,
   })
   @ApiResponse({ status: 200, description: 'Фаза луны' })
-  async getMoonPhase(@Request() req, @Query('date') dateStr?: string) {
+  async getMoonPhase(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') dateStr?: string,
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
 
     // Парсим дату
@@ -243,7 +253,7 @@ export class ChartController {
   })
   @ApiResponse({ status: 200, description: 'Лунный календарь на месяц' })
   async getLunarCalendar(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Query('year') yearStr?: string,
     @Query('month') monthStr?: string,
   ) {

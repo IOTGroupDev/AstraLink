@@ -3,16 +3,16 @@ import { SubscriptionTier } from '../../types';
 
 export class SubscriptionStatusResponseDto {
   @ApiProperty({ enum: SubscriptionTier })
-  tier: SubscriptionTier;
+  tier!: SubscriptionTier;
 
   @ApiProperty()
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty()
-  isTrial: boolean;
+  isTrial!: boolean;
 
   @ApiProperty({ type: [String] })
-  features: string[];
+  features!: string[];
 
   @ApiProperty({ required: false })
   expiresAt?: string;

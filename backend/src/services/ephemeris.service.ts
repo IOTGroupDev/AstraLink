@@ -72,7 +72,9 @@ export class EphemerisService implements OnModuleInit {
       this.logger.log('✓ Swiss Ephemeris успешно инициализирован');
       return true;
     } catch (error) {
-      this.logger.error('Не удалось загрузить Swiss Ephemeris:', error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Не удалось загрузить Swiss Ephemeris:', errorMessage);
       this.hasSE = false;
       return false;
     }
@@ -372,7 +374,9 @@ export class EphemerisService implements OnModuleInit {
         throw new Error('Не удалось распарсить результат swe_houses');
       }
     } catch (error) {
-      this.logger.warn('Используем упрощённый расчёт домов:', error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn('Используем упрощённый расчёт домов:', errorMessage);
       for (let i = 1; i <= 12; i++) {
         houses[i] = {
           cusp: (i - 1) * 30,
@@ -500,7 +504,7 @@ export class EphemerisService implements OnModuleInit {
   }
 
   private getAspectWeight(aspectType: string): number {
-    const weights = {
+    const weights: Record<string, number> = {
       conjunction: 0.8,
       sextile: 0.9,
       square: 0.3,

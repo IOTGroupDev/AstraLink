@@ -3,7 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
-  private supabase: SupabaseClient;
+  private supabase!: SupabaseClient;
   private adminSupabase: SupabaseClient | null = null;
 
   onModuleInit() {

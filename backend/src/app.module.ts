@@ -12,6 +12,9 @@ import { DatingModule } from './dating/dating.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { NatalModule } from './modules/natal/natal.module';
+import { SwissModule } from './modules/swiss/swiss.module';
+import { SharedModule } from './modules/shared/shared.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
     DatingModule,
     AnalyticsModule,
     SubscriptionModule,
+    NatalModule,
+    SwissModule,
+    SharedModule,
   ],
   controllers: [AppController],
   providers: [

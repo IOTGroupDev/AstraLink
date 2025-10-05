@@ -32,7 +32,9 @@ export class AnalyticsService {
       });
     } catch (error) {
       // Не прерываем основной запрос из-за ошибки аналитики
-      this.logger.warn(`Failed to record feature usage: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to record feature usage: ${errorMessage}`);
     }
   }
 
@@ -56,7 +58,9 @@ export class AnalyticsService {
       // Увеличиваем счетчик FOMO для этого пользователя
       await this.incrementFOMOCounter(userId, featureName);
     } catch (error) {
-      this.logger.warn(`Failed to record blocked attempt: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to record blocked attempt: ${errorMessage}`);
     }
   }
 
@@ -95,7 +99,9 @@ export class AnalyticsService {
           .eq('id', data.id);
       }
     } catch (error) {
-      this.logger.warn(`Failed to increment FOMO counter: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to increment FOMO counter: ${errorMessage}`);
     }
   }
 
@@ -173,8 +179,10 @@ export class AnalyticsService {
         averageRevenuePerUser: Math.round(averageRevenuePerUser * 100) / 100,
       };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `Error getting subscription analytics: ${error.message}`,
+        `Error getting subscription analytics: ${errorMessage}`,
       );
       throw error;
     }
@@ -214,7 +222,9 @@ export class AnalyticsService {
         ? Math.round((churnedCount / totalPaidCount) * 10000) / 100
         : 0;
     } catch (error) {
-      this.logger.warn(`Failed to calculate churn rate: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to calculate churn rate: ${errorMessage}`);
       return 0;
     }
   }
@@ -256,7 +266,7 @@ export class AnalyticsService {
           });
         }
 
-        const stats = statsMap.get(feature);
+        const stats = statsMap.get(feature)!;
         stats.total++;
 
         if (!record.success) {
@@ -278,7 +288,9 @@ export class AnalyticsService {
         blockedAttempts: stats.blocked,
       }));
     } catch (error) {
-      this.logger.error(`Error getting feature usage stats: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error getting feature usage stats: ${errorMessage}`);
       throw error;
     }
   }
@@ -331,7 +343,9 @@ export class AnalyticsService {
         blockedFeatures: [],
       };
     } catch (error) {
-      this.logger.warn(`Failed to get recommendations: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to get recommendations: ${errorMessage}`);
       return {
         shouldShowOffer: false,
         message: '',
