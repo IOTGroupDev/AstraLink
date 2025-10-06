@@ -35,7 +35,11 @@ export type Sign =
   | 'Aquarius'
   | 'Pisces';
 
-export type PeriodFrame = 'Сегодня' | 'Завтра' | 'На этой неделе' | 'В этом месяце';
+export type PeriodFrame =
+  | 'Сегодня'
+  | 'Завтра'
+  | 'На этой неделе'
+  | 'В этом месяце';
 export type Tone = 'positive' | 'neutral' | 'challenging';
 
 /**
@@ -85,5 +89,12 @@ export const ASPECT_ANGLES: Readonly<Record<AspectType, number>> = {
 /**
  * Harmonious/Challenging aspect sets
  */
-export const HARMONIOUS_ASPECTS: Readonly<AspectType[]> = ['trine', 'sextile', 'conjunction'];
-export const CHALLENGING_ASPECTS: Readonly<AspectType[]> = ['square', 'opposition'];
+export const HARMONIOUS_ASPECTS: Readonly<AspectType[]> = [
+  'trine',
+  'sextile',
+  'conjunction',
+];
+export const CHALLENGING_ASPECTS: Readonly<AspectType[]> = [
+  'square',
+  'opposition',
+];

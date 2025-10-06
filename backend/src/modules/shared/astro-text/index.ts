@@ -146,7 +146,10 @@ function getSignName(sign: Sign, locale: 'ru' | 'en'): string {
 
 // Public API
 
-export function getAspectName(aspect: AspectType, locale: 'ru' | 'en' = 'ru'): string {
+export function getAspectName(
+  aspect: AspectType,
+  locale: 'ru' | 'en' = 'ru',
+): string {
   const d = dicts(locale);
   return d.aspectNames[aspect] || aspect;
 }
@@ -199,9 +202,12 @@ export function getChallenges(
     : ['Импульсивность', 'Нетерпеливость'];
 }
 
-export function getAscendantText(sign: Sign, locale: 'ru' | 'en' = 'ru'): string {
+export function getAscendantText(
+  sign: Sign,
+  locale: 'ru' | 'en' = 'ru',
+): string {
   const d = dicts(locale);
-  const found = d.ascendant[sign] as string | undefined;
+  const found = d.ascendant[sign];
   if (found) return found;
   return locale === 'en'
     ? `Ascendant in ${getSignName(sign, 'en')} shapes your outward image.`
@@ -254,9 +260,15 @@ export function getHouseTheme(
     : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на сферу ${theme}`;
 }
 
-export function getHouseLifeArea(houseNum: number, locale: 'ru' | 'en' = 'ru'): string {
+export function getHouseLifeArea(
+  houseNum: number,
+  locale: 'ru' | 'en' = 'ru',
+): string {
   const d = dicts(locale);
-  return (d.housesAreas[houseNum] as string | undefined) || (locale === 'en' ? 'Life area' : 'Жизненная сфера');
+  return (
+    (d.housesAreas[houseNum] as string | undefined) ||
+    (locale === 'en' ? 'Life area' : 'Жизненная сфера')
+  );
 }
 
 export function getGeneralTemplates(
@@ -264,7 +276,7 @@ export function getGeneralTemplates(
   locale: 'ru' | 'en' = 'ru',
 ): Record<Tone, string[]> {
   const d = dicts(locale);
-  return (d.generalTemplates[frame] as Record<Tone, string[]>) || d.defaultGeneral;
+  return d.generalTemplates[frame] || d.defaultGeneral;
 }
 
 export function getLovePhrases(
@@ -281,13 +293,27 @@ export function getLovePhrases(
 
   if (entry) {
     return {
-      positive: pick(entry.positive, locale === 'en' ? 'creates a romantic atmosphere' : 'поддерживает теплоту в отношениях'),
-      neutral: pick(entry.neutral, locale === 'en' ? 'influences emotions' : 'влияет на эмоции'),
-      negative: pick(entry.negative, locale === 'en' ? 'requires patience' : 'требует терпения'),
+      positive: pick(
+        entry.positive,
+        locale === 'en'
+          ? 'creates a romantic atmosphere'
+          : 'поддерживает теплоту в отношениях',
+      ),
+      neutral: pick(
+        entry.neutral,
+        locale === 'en' ? 'influences emotions' : 'влияет на эмоции',
+      ),
+      negative: pick(
+        entry.negative,
+        locale === 'en' ? 'requires patience' : 'требует терпения',
+      ),
     };
   }
   return {
-    positive: locale === 'en' ? 'creates a romantic atmosphere' : 'поддерживает теплоту в отношениях',
+    positive:
+      locale === 'en'
+        ? 'creates a romantic atmosphere'
+        : 'поддерживает теплоту в отношениях',
     neutral: locale === 'en' ? 'influences emotions' : 'влияет на эмоции',
     negative: locale === 'en' ? 'requires patience' : 'требует терпения',
   };
@@ -307,10 +333,19 @@ export function getCareerActions(
 
   if (entry) {
     return {
-      jupiter: pick(entry.jupiter, locale === 'en' ? 'is favorable for' : 'период благоприятен для'),
+      jupiter: pick(
+        entry.jupiter,
+        locale === 'en' ? 'is favorable for' : 'период благоприятен для',
+      ),
       saturn: pick(entry.saturn, locale === 'en' ? 'requires' : 'понадобится'),
-      mars: pick(entry.mars, locale === 'en' ? 'brings energy for' : 'есть энергия для'),
-      neutral: pick(entry.neutral, locale === 'en' ? 'continue working on' : 'продолжайте работу над'),
+      mars: pick(
+        entry.mars,
+        locale === 'en' ? 'brings energy for' : 'есть энергия для',
+      ),
+      neutral: pick(
+        entry.neutral,
+        locale === 'en' ? 'continue working on' : 'продолжайте работу над',
+      ),
     };
   }
   return {
@@ -326,10 +361,15 @@ export function getAdvicePool(
   locale: 'ru' | 'en' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  return (d.advicePools[frame] as string[] | undefined) || d.defaultGeneral.neutral;
+  return (
+    (d.advicePools[frame] as string[] | undefined) || d.defaultGeneral.neutral
+  );
 }
 
-export function getSignColors(sign: Sign, locale: 'ru' | 'en' = 'ru'): string[] {
+export function getSignColors(
+  sign: Sign,
+  locale: 'ru' | 'en' = 'ru',
+): string[] {
   const d = dicts(locale);
   const found = d.signColors[sign] as string[] | undefined;
   if (found && found.length) return found;
@@ -346,11 +386,9 @@ export function getAspectPairTemplate(
   locale: 'ru' | 'en' = 'ru',
 ): string | undefined {
   const d = dicts(locale);
-  const byAspect = d.aspectPairTemplates[aspect] as
-    | Partial<Record<PlanetKey, Partial<Record<PlanetKey, string>>>>
-    | undefined;
+  const byAspect = d.aspectPairTemplates[aspect];
   if (!byAspect) return undefined;
-  return (byAspect[planetA]?.[planetB] || byAspect[planetB]?.[planetA]) as string | undefined;
+  return byAspect[planetA]?.[planetB] || byAspect[planetB]?.[planetA];
 }
 
 /**
@@ -422,11 +460,14 @@ export function getPlanetHouseFocus(
       },
     };
 
-    const spec =
-      (locale === 'en' ? enSpecials : ruSpecials)[planet]?.[houseNum];
+    const spec = (locale === 'en' ? enSpecials : ruSpecials)[planet]?.[
+      houseNum
+    ];
 
     if (spec) {
-      return locale === 'en' ? `${spec} Area: ${area}.` : `${spec} Сфера: ${area}.`;
+      return locale === 'en'
+        ? `${spec} Area: ${area}.`
+        : `${spec} Сфера: ${area}.`;
     }
     return locale === 'en'
       ? `${getPlanetName(planet, 'en')} activates the area: ${area}.`

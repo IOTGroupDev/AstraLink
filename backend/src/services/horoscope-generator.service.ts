@@ -1,12 +1,21 @@
 // backend/src/services/horoscope-generator.service.ts
 // СТРОГОЕ РАЗДЕЛЕНИЕ: FREE = Интерпретатор, PREMIUM = AI
-import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from './ephemeris.service';
 import { AIService } from './ai.service';
 import { PlanetKey, PLANET_WEIGHTS } from '@/modules/shared/types';
-import { getTransitOrb, getHouseForLongitude, hashSignature } from '@/modules/shared/utils';
+import {
+  getTransitOrb,
+  getHouseForLongitude,
+  hashSignature,
+} from '@/modules/shared/utils';
 import {
   getGeneralTemplates,
   getLovePhrases,
@@ -135,7 +144,9 @@ export class HoroscopeGeneratorService {
       this.logger.warn(
         `No natal chart found for user ${userId} via any method - generating generic horoscope`,
       );
-      throw new NotFoundException('Натальная карта не найдена — невозможно сгенерировать гороскоп без реальных данных рождения.');
+      throw new NotFoundException(
+        'Натальная карта не найдена — невозможно сгенерировать гороскоп без реальных данных рождения.',
+      );
     }
 
     this.logger.log(
@@ -194,8 +205,12 @@ export class HoroscopeGeneratorService {
         `Error during horoscope generation for user ${userId}:`,
         error,
       );
-      this.logger.log(`Aborting horoscope generation due to error: ${errorMessage}`);
-      throw new InternalServerErrorException(`Ошибка генерации гороскопа: ${errorMessage}`);
+      this.logger.log(
+        `Aborting horoscope generation due to error: ${errorMessage}`,
+      );
+      throw new InternalServerErrorException(
+        `Ошибка генерации гороскопа: ${errorMessage}`,
+      );
     }
   }
 
@@ -262,7 +277,10 @@ export class HoroscopeGeneratorService {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
       this.logger.log('Fallback to interpreter (FREE rules) with real data');
       // Fallback на интерпретатор с реальными расчетами (без generic-моков)
-      const dominantTransit = this.getDominantTransit(transitAspects, 'general');
+      const dominantTransit = this.getDominantTransit(
+        transitAspects,
+        'general',
+      );
       const energy = this.calculateEnergy(transitAspects);
       const mood = this.determineMood(energy, transitAspects);
       const predictions = this.generateRuleBasedPredictions(
@@ -283,7 +301,10 @@ export class HoroscopeGeneratorService {
         finance: predictions.finance,
         advice: predictions.advice,
         luckyNumbers: this.generateLuckyNumbers(chartData, targetDate),
-        luckyColors: this.generateLuckyColors(chartData.planets?.sun?.sign || 'Aries', dominantTransit),
+        luckyColors: this.generateLuckyColors(
+          chartData.planets?.sun?.sign || 'Aries',
+          dominantTransit,
+        ),
         energy,
         mood,
         challenges: [],
@@ -413,7 +434,8 @@ export class HoroscopeGeneratorService {
   ): string {
     const tone = this.determinePredictionTone(transitAspects);
     const templates = getGeneralTemplates(timeFrame as any, 'ru');
-    const pool = (templates as any)[tone] || (templates as any)['neutral'] || [];
+    const pool =
+      (templates as any)[tone] || (templates as any)['neutral'] || [];
     if (!pool.length) {
       return `${timeFrame} стабильный период. Действуйте последовательно.`;
     }
@@ -450,18 +472,17 @@ export class HoroscopeGeneratorService {
 
       if (venusAspects.length > 0) {
         const aspect = venusAspects[0];
-        const base =
-          ['trine', 'sextile', 'conjunction'].includes(aspect.aspect)
-            ? `${timeFrame} Венера ${phrases.positive}. Хорошее время для романтики и общения с близкими.`
-            : `${timeFrame} Венера ${phrases.negative}. Проявите терпение в отношениях.`;
+        const base = ['trine', 'sextile', 'conjunction'].includes(aspect.aspect)
+          ? `${timeFrame} Венера ${phrases.positive}. Хорошее время для романтики и общения с близкими.`
+          : `${timeFrame} Венера ${phrases.negative}. Проявите терпение в отношениях.`;
 
         // Добавим фокус по дому (если известен)
         if (dominantTransit?.house) {
           try {
             const focus = getPlanetHouseFocus(
-              (dominantTransit?.transitPlanet || 'venus') as any,
+              dominantTransit?.transitPlanet || 'venus',
               dominantTransit.house,
-              'ru'
+              'ru',
             );
             return `${base} ${focus}`;
           } catch {
@@ -476,9 +497,9 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            (dominantTransit?.transitPlanet || 'venus') as any,
+            dominantTransit?.transitPlanet || 'venus',
             dominantTransit.house,
-            'ru'
+            'ru',
           );
           return `${neutralText} ${focus}`;
         } catch {
@@ -536,9 +557,9 @@ export class HoroscopeGeneratorService {
         if (dominantTransit?.house) {
           try {
             const focus = getPlanetHouseFocus(
-              (dominantTransit?.transitPlanet || 'saturn') as any,
+              dominantTransit?.transitPlanet || 'saturn',
               dominantTransit.house,
-              'ru'
+              'ru',
             );
             return `${base} ${focus}`;
           } catch {
@@ -552,9 +573,9 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            (dominantTransit?.transitPlanet || 'saturn') as any,
+            dominantTransit?.transitPlanet || 'saturn',
             dominantTransit.house,
-            'ru'
+            'ru',
           );
           return `${neutralText} ${focus}`;
         } catch {
@@ -566,7 +587,10 @@ export class HoroscopeGeneratorService {
       if (jupiterAspects.length > 0) {
         return `${timeFrame} Юпитер благоприятен для карьерных инициатив. Время для смелых решений.`;
       }
-      if (marsAspects.length > 0 && ['trine', 'sextile'].includes(marsAspects[0].aspect)) {
+      if (
+        marsAspects.length > 0 &&
+        ['trine', 'sextile'].includes(marsAspects[0].aspect)
+      ) {
         return `${timeFrame} Марс добавляет энергии для активных действий в работе. Используйте её конструктивно.`;
       }
       if (saturnAspects.length > 0) {
@@ -594,9 +618,9 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            (dominantTransit?.transitPlanet || 'mars') as any,
+            dominantTransit?.transitPlanet || 'mars',
             dominantTransit.house,
-            'ru'
+            'ru',
           );
           return `${base} ${focus}`;
         } catch {
@@ -610,9 +634,9 @@ export class HoroscopeGeneratorService {
     if (dominantTransit?.house) {
       try {
         const focus = getPlanetHouseFocus(
-          (dominantTransit?.transitPlanet || 'mars') as any,
+          dominantTransit?.transitPlanet || 'mars',
           dominantTransit.house,
-          'ru'
+          'ru',
         );
         return `${ok} ${focus}`;
       } catch {
@@ -643,9 +667,9 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            (dominantTransit?.transitPlanet || 'jupiter') as any,
+            dominantTransit?.transitPlanet || 'jupiter',
             dominantTransit.house,
-            'ru'
+            'ru',
           );
           return `${base} ${focus}`;
         } catch {
@@ -659,9 +683,9 @@ export class HoroscopeGeneratorService {
     if (dominantTransit?.house) {
       try {
         const focus = getPlanetHouseFocus(
-          (dominantTransit?.transitPlanet || 'jupiter') as any,
+          dominantTransit?.transitPlanet || 'jupiter',
           dominantTransit.house,
-          'ru'
+          'ru',
         );
         return `${neutralText} ${focus}`;
       } catch {
@@ -769,7 +793,9 @@ export class HoroscopeGeneratorService {
     const aspects: any[] = [];
 
     for (const [natalKey, natalPlanet] of Object.entries(natalPlanets)) {
-      for (const [transitKey, transitPlanet] of Object.entries(transitPlanets)) {
+      for (const [transitKey, transitPlanet] of Object.entries(
+        transitPlanets,
+      )) {
         const aspect = this.calculateAspect(
           (natalPlanet as any).longitude,
           (transitPlanet as any).longitude,
@@ -777,10 +803,12 @@ export class HoroscopeGeneratorService {
         );
 
         if (aspect) {
-          const house =
-            natalHouses
-              ? getHouseForLongitude((transitPlanet as any).longitude, natalHouses)
-              : undefined;
+          const house = natalHouses
+            ? getHouseForLongitude(
+                (transitPlanet as any).longitude,
+                natalHouses,
+              )
+            : undefined;
           const isRetrograde = (transitPlanet as any).isRetrograde === true;
 
           aspects.push({
@@ -831,7 +859,9 @@ export class HoroscopeGeneratorService {
     for (const aspect of aspects) {
       const orbDelta = Math.abs(normalizedDiff - aspect.angle);
       const baseOrb =
-        transitPlanet != null ? getTransitOrb(transitPlanet, aspect.type as any) : (defaultOrbs as any)[aspect.type];
+        transitPlanet != null
+          ? getTransitOrb(transitPlanet, aspect.type as any)
+          : (defaultOrbs as any)[aspect.type];
 
       if (orbDelta <= baseOrb) {
         return {
@@ -864,7 +894,8 @@ export class HoroscopeGeneratorService {
     let bestScore = -Infinity;
 
     for (const a of transitAspects) {
-      const weight = PLANET_WEIGHTS[(a.transitPlanet || 'sun') as PlanetKey] || 1;
+      const weight =
+        PLANET_WEIGHTS[(a.transitPlanet || 'sun') as PlanetKey] || 1;
       let score = weight * (a.strength || 0);
 
       // Бонус за релевантный дом для домена
@@ -940,5 +971,4 @@ export class HoroscopeGeneratorService {
     const colors = getSignColors(sunSign as any, 'ru');
     return colors && colors.length ? colors : ['Белый', 'Синий'];
   }
-
 }

@@ -5,7 +5,10 @@ import { ASPECT_ANGLES, PlanetKey, TRANSIT_ORBS } from './types';
  * Сейчас аспект-специфика не учитывается (все аспекты для планеты = один орбис),
  * при необходимости легко расширить до матрицы [planet][aspect].
  */
-export function getTransitOrb(transitPlanet: PlanetKey, _aspect?: keyof typeof ASPECT_ANGLES): number {
+export function getTransitOrb(
+  transitPlanet: PlanetKey,
+  _aspect?: keyof typeof ASPECT_ANGLES,
+): number {
   return TRANSIT_ORBS[transitPlanet] ?? 1;
 }
 
@@ -13,7 +16,10 @@ export function getTransitOrb(transitPlanet: PlanetKey, _aspect?: keyof typeof A
  * Определить дом (1..12) по долготе планеты и структуре домов (с cusp).
  * Работает с wrap-around (дом 12 -> 1).
  */
-export function getHouseForLongitude(longitude: number, houses: Record<number, { cusp: number }> | any): number {
+export function getHouseForLongitude(
+  longitude: number,
+  houses: Record<number, { cusp: number }> | any,
+): number {
   for (let i = 1; i <= 12; i++) {
     const next = i === 12 ? 1 : i + 1;
     const currentCusp = houses?.[i]?.cusp ?? 0;

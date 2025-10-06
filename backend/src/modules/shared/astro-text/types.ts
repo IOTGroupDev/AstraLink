@@ -1,4 +1,3 @@
-
 // backend/src/modules/shared/astro-text/types.ts
 // Shared type aliases for astro-text module to avoid circular deps
 
@@ -35,6 +34,10 @@ export type AspectType =
   | 'trine'
   | 'opposition';
 
-export type PeriodFrame = 'Сегодня' | 'Завтра' | 'На этой неделе' | 'В этом месяце';
+export type PeriodFrame =
+  | 'Сегодня'
+  | 'Завтра'
+  | 'На этой неделе'
+  | 'В этом месяце';
 
 export type Tone = 'positive' | 'neutral' | 'challenging';

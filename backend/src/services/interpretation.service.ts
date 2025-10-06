@@ -243,7 +243,12 @@ export class InterpretationService {
     planet2: string,
     aspect: string,
   ): string {
-    return getAspectInterpretation(aspect as any, planet1 as any, planet2 as any, 'ru');
+    return getAspectInterpretation(
+      aspect as any,
+      planet1 as any,
+      planet2 as any,
+      'ru',
+    );
   }
 
   /**
@@ -370,11 +375,17 @@ export class InterpretationService {
   }
 
   private interpretAscendant(sign: string): string {
-    return getAscendantText(sign as any, 'ru') || `Асцендент в ${sign} формирует ваш внешний образ.`;
+    return (
+      getAscendantText(sign as any, 'ru') ||
+      `Асцендент в ${sign} формирует ваш внешний образ.`
+    );
   }
 
   private interpretHouse(houseNum: number, sign: string): string {
-    return getATHouseTheme(houseNum, sign as any, 'ru') || `${houseNum}-й дом в ${sign} влияет на важную жизненную сферу.`;
+    return (
+      getATHouseTheme(houseNum, sign as any, 'ru') ||
+      `${houseNum}-й дом в ${sign} влияет на важную жизненную сферу.`
+    );
   }
 
   private getHouseLifeArea(houseNum: number): string {
