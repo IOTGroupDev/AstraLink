@@ -10,6 +10,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from '../services/ephemeris.service';
 import { InterpretationService } from '../services/interpretation.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
+import { getSignColors } from '../modules/shared/astro-text';
 
 @Injectable()
 export class ChartService {
@@ -226,7 +227,9 @@ export class ChartService {
     }
 
     // Если карты нет, создаём её
-    throw new NotFoundException('Натальная карта не найдена. Необходимо создать карту, указав дату, время и место рождения.');
+    throw new NotFoundException(
+      'Натальная карта не найдена. Необходимо создать карту, указав дату, время и место рождения.',
+    );
   }
 
   /**
@@ -301,7 +304,9 @@ export class ChartService {
     }
 
     // Если не удалось сохранить
-    throw new InternalServerErrorException('Не удалось сохранить натальную карту');
+    throw new InternalServerErrorException(
+      'Не удалось сохранить натальную карту',
+    );
   }
 
   /**
@@ -572,7 +577,6 @@ export class ChartService {
     let sunPrimaryColor = 'Белый';
     let moonPrimaryColor = 'Серый';
     try {
-      const { getSignColors } = require('@/modules/shared/astro-text');
       const sunColors = getSignColors(sunSign, 'ru') || [];
       const moonColors = getSignColors(moonSign, 'ru') || [];
       sunPrimaryColor = sunColors[0] || sunPrimaryColor;
@@ -581,10 +585,9 @@ export class ChartService {
       // keep defaults
     }
 
-    predictions.luckyColors = [
-      sunPrimaryColor,
-      moonPrimaryColor,
-    ].filter((color, index, self) => self.indexOf(color) === index);
+    predictions.luckyColors = [sunPrimaryColor, moonPrimaryColor].filter(
+      (color, index, self) => self.indexOf(color) === index,
+    );
 
     // Генерируем совет
     if (period === 'day' || period === 'tomorrow') {
