@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Dimensions, Text } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -26,6 +26,7 @@ interface SolarSystemProps {
   currentPlanets: any;
   isLoading?: boolean;
   isNatal?: boolean;
+  showLabels?: boolean;
 }
 
 // Функция для получения отображаемого названия планеты
@@ -52,7 +53,8 @@ const PlanetComponent: React.FC<{
   rotation: Animated.SharedValue<number>;
   scale: Animated.SharedValue<number>;
   isNatal?: boolean;
-}> = ({ planet, rotation, scale, isNatal = false }) => {
+  showLabel?: boolean;
+}> = ({ planet, rotation, scale, isNatal = false, showLabel = false }) => {
   const animatedStyle = useAnimatedStyle(() => {
     // Для натальной карты используем только currentPosition (longitude)
     // Для текущих позиций добавляем вращение
@@ -68,7 +70,9 @@ const PlanetComponent: React.FC<{
   });
 
   return (
-    <Animated.View style={[styles.planet, animatedStyle]}>
+    <Animated.View
+      style={[styles.planet, { top: '50%', left: '50%' }, animatedStyle]}
+    >
       <View
         style={[
           styles.planetBody,
@@ -82,7 +86,11 @@ const PlanetComponent: React.FC<{
       >
         <Ionicons name={planet.icon} size={planet.size * 0.6} color="#FFFFFF" />
       </View>
-      <Text style={styles.planetName}>{getPlanetDisplayName(planet.name)}</Text>
+      {showLabel && (
+        <Text style={styles.planetName}>
+          {getPlanetDisplayName(planet.name)}
+        </Text>
+      )}
     </Animated.View>
   );
 };
@@ -102,6 +110,10 @@ const OrbitComponent: React.FC<{
       style={[
         styles.orbit,
         {
+          top: '50%',
+          left: '50%',
+          marginLeft: -distance,
+          marginTop: -distance,
           width: distance * 2,
           height: distance * 2,
           borderRadius: distance,
@@ -120,15 +132,22 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
   currentPlanets,
   isLoading = false,
   isNatal = false,
+  showLabels = false,
 }) => {
   const rotation = useSharedValue(0);
   const scale = useSharedValue(0.8);
 
-  // Планеты с их орбитальными характеристиками
+  // Планеты с их орбитальными характеристиками (адаптивные дистанции)
+  // Используем ширину карточки: экранная ширина минус внешние отступы (15*2) и внутренние паддинги (20*2)
+  // Добавляем нижнюю границу, чтобы на очень узких экранах система не схлопывалась
+  // Дополнительно уменьшаем максимальный размер и внутренний отступ, чтобы не упираться в границы
+  const CONTAINER_SIZE = Math.min(Math.max(width - 70, 180), 280);
+  const BASE = CONTAINER_SIZE / 2 - 30;
+
   const planets: Planet[] = [
     {
       name: 'mercury',
-      distance: 60,
+      distance: BASE * 0.25,
       size: 8,
       color: '#8C7853',
       speed: 0.8,
@@ -137,7 +156,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'venus',
-      distance: 80,
+      distance: BASE * 0.35,
       size: 12,
       color: '#FFC649',
       speed: 0.6,
@@ -146,7 +165,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'earth',
-      distance: 100,
+      distance: BASE * 0.45,
       size: 14,
       color: '#6B93D6',
       speed: 0.5,
@@ -155,7 +174,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'mars',
-      distance: 130,
+      distance: BASE * 0.55,
       size: 10,
       color: '#C1440E',
       speed: 0.4,
@@ -164,7 +183,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'jupiter',
-      distance: 180,
+      distance: BASE * 0.7,
       size: 24,
       color: '#D8CA9D',
       speed: 0.3,
@@ -173,7 +192,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'saturn',
-      distance: 240,
+      distance: BASE * 0.82,
       size: 20,
       color: '#FAD5A5',
       speed: 0.25,
@@ -182,7 +201,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'uranus',
-      distance: 300,
+      distance: BASE * 0.88,
       size: 16,
       color: '#4FD0E7',
       speed: 0.2,
@@ -191,7 +210,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
     },
     {
       name: 'neptune',
-      distance: 360,
+      distance: BASE * 0.92,
       size: 16,
       color: '#4B70DD',
       speed: 0.15,
@@ -236,7 +255,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.container} pointerEvents="none">
         <View style={styles.loadingContainer}>
           <Animated.Text style={styles.loadingText}>
             Загрузка космических данных...
@@ -247,7 +266,16 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      pointerEvents="none"
+      onLayout={(e) =>
+        setSize({
+          w: e.nativeEvent.layout.width,
+          h: e.nativeEvent.layout.height,
+        })
+      }
+    >
       {/* Солнце в центре */}
       <View style={styles.sunContainer}>
         <Animated.View
@@ -255,7 +283,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
         >
           <Ionicons name="sunny" size={40} color="#FFD700" />
         </Animated.View>
-        <Text style={styles.sunLabel}>Солнце</Text>
+        {showLabels && <Text style={styles.sunLabel}>Солнце</Text>}
       </View>
 
       {/* Орбиты */}
@@ -276,6 +304,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
           rotation={rotation}
           scale={scale}
           isNatal={isNatal}
+          showLabel={showLabels}
         />
       ))}
     </View>
@@ -284,17 +313,23 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
     position: 'relative',
+    overflow: 'hidden',
   },
   sunContainer: {
     position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -25,
+    marginTop: -25,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 0,
   },
   sun: {
     width: 50,
@@ -305,9 +340,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 0,
   },
   sunLabel: {
     color: '#FFFFFF',
@@ -324,15 +359,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 0,
   },
   planetBody: {
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 0,
   },
   planetName: {
     color: 'rgba(255, 255, 255, 0.8)',

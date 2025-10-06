@@ -37,7 +37,7 @@ const AstrologicalChart: React.FC = () => {
   }));
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="none">
       <Animated.View style={[styles.chart, animatedStyle]}>
         <Svg width={width} height={height} style={styles.svg}>
           {/* Outer circle */}
@@ -120,7 +120,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.3,
+    opacity: 0.1,
+    zIndex: -1,
   },
   chart: {
     position: 'absolute',

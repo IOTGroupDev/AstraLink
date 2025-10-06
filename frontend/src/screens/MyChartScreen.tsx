@@ -427,7 +427,7 @@ const MyChartScreen: React.FC = () => {
         {/* Solar System Widget */}
         {currentPlanets && (
           <Animated.View
-            entering={SlideInUp.delay(300)}
+            entering={SlideInUp.delay(400)}
             style={styles.solarSystemWidget}
           >
             <Text style={styles.widgetTitle}>Текущее положение планет</Text>
@@ -443,8 +443,8 @@ const MyChartScreen: React.FC = () => {
         {/* Energy Card */}
         {energy !== null && (
           <Animated.View
-            entering={SlideInUp.delay(400)}
-            style={styles.energyCard}
+            entering={SlideInUp.delay(500)}
+            style={[styles.energyCard, { marginTop: 20 }]}
           >
             <View style={styles.energyHeader}>
               <Text style={styles.cardTitle}>Энергия дня</Text>
@@ -481,7 +481,7 @@ const MyChartScreen: React.FC = () => {
         {/* Main Transit Card */}
         <Animated.View
           entering={SlideInUp.delay(600)}
-          style={styles.transitCard}
+          style={[styles.transitCard, { marginTop: 20 }]}
         >
           <Text style={styles.cardTitle}>Главный транзит</Text>
           {mainTransit ? (
@@ -502,18 +502,23 @@ const MyChartScreen: React.FC = () => {
         </Animated.View>
 
         {/* Horoscope Widget */}
-        <HoroscopeWidget
-          predictions={predictions}
-          currentPlanets={currentPlanets}
-          isLoading={loading || !predictions || !currentPlanets}
-        />
+        <Animated.View
+          entering={SlideInUp.delay(700)}
+          style={{ marginTop: 20, marginBottom: 10 }}
+        >
+          <HoroscopeWidget
+            predictions={predictions}
+            currentPlanets={currentPlanets}
+            isLoading={loading || !predictions || !currentPlanets}
+          />
+        </Animated.View>
 
         {/* Разделитель */}
-        <View style={styles.divider} />
+        <View style={[styles.divider, { marginTop: 20 }]} />
 
         {/* Widgets */}
         <Animated.View
-          entering={SlideInRight.delay(1000)}
+          entering={SlideInRight.delay(800)}
           style={styles.widgetsContainer}
         >
           <Text style={styles.widgetsTitle}>🌟 Астрологические виджеты 🌟</Text>
@@ -731,7 +736,6 @@ const styles = StyleSheet.create({
   widgetsContainer: {
     marginTop: 10,
     marginBottom: 20,
-    zIndex: 1,
   },
   widgetsTitle: {
     fontSize: 18,
@@ -790,9 +794,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139, 92, 246, 0.3)',
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 0,
+    overflow: 'hidden',
+    zIndex: 0,
   },
   widgetTitle: {
     fontSize: 18,
@@ -811,8 +817,14 @@ const styles = StyleSheet.create({
   solarSystemContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 200,
+    width: '100%',
+    height: 300,
     overflow: 'hidden',
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    position: 'relative',
   },
   planetsInfo: {
     fontSize: 14,
