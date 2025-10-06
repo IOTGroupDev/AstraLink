@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -225,7 +226,7 @@ export class ChartService {
     }
 
     // Если карты нет, создаём её
-    return this.createNatalChart(userId, {});
+    throw new NotFoundException('Натальная карта не найдена. Необходимо создать карту, указав дату, время и место рождения.');
   }
 
   /**
@@ -267,20 +268,9 @@ export class ChartService {
       .single();
 
     if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
-      // Fallback данные для демонстрации
-      const fallbackChartData = await this.ephemerisService.calculateNatalChart(
-        '1990-05-15',
-        '14:30',
-        this.getLocationCoordinates('Москва'),
+      throw new BadRequestException(
+        'Отсутствуют обязательные данные рождения (дата, время, место) для создания натальной карты',
       );
-
-      return {
-        id: 'temporary',
-        userId,
-        data: fallbackChartData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
     }
 
     // Рассчитываем натальную карту
@@ -311,13 +301,7 @@ export class ChartService {
     }
 
     // Если не удалось сохранить
-    return {
-      id: 'temporary',
-      userId,
-      data: natalChartData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    throw new InternalServerErrorException('Не удалось сохранить натальную карту');
   }
 
   /**
@@ -584,24 +568,22 @@ export class ChartService {
     const sunSign = current.sun?.sign || 'Aries';
     const moonSign = current.moon?.sign || 'Cancer';
 
-    const signColors: { [key: string]: string } = {
-      Aries: 'Красный',
-      Taurus: 'Зеленый',
-      Gemini: 'Желтый',
-      Cancer: 'Серебряный',
-      Leo: 'Золотой',
-      Virgo: 'Коричневый',
-      Libra: 'Розовый',
-      Scorpio: 'Бордовый',
-      Sagittarius: 'Фиолетовый',
-      Capricorn: 'Серый',
-      Aquarius: 'Синий',
-      Pisces: 'Бирюзовый',
-    };
+    // Use centralized astro-text facade for sign colors
+    let sunPrimaryColor = 'Белый';
+    let moonPrimaryColor = 'Серый';
+    try {
+      const { getSignColors } = require('@/modules/shared/astro-text');
+      const sunColors = getSignColors(sunSign, 'ru') || [];
+      const moonColors = getSignColors(moonSign, 'ru') || [];
+      sunPrimaryColor = sunColors[0] || sunPrimaryColor;
+      moonPrimaryColor = moonColors[0] || moonPrimaryColor;
+    } catch {
+      // keep defaults
+    }
 
     predictions.luckyColors = [
-      signColors[sunSign] || 'Белый',
-      signColors[moonSign] || 'Серый',
+      sunPrimaryColor,
+      moonPrimaryColor,
     ].filter((color, index, self) => self.indexOf(color) === index);
 
     // Генерируем совет

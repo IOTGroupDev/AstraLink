@@ -1,178 +1,89 @@
 /**
- * Общие типы проекта AstraLink
+ * Shared astrology types and constants
  */
 
-// Астрологические типы
-export type Planet =
-  (typeof import('./constants').PLANETS)[keyof typeof import('./constants').PLANETS];
-export type Sign = (typeof import('./constants').SIGNS)[number];
-export type Aspect =
-  (typeof import('./constants').ASPECTS)[keyof typeof import('./constants').ASPECTS];
-export type SubscriptionTier =
-  (typeof import('./constants').SUBSCRIPTION_TIERS)[keyof typeof import('./constants').SUBSCRIPTION_TIERS];
+export type PlanetKey =
+  | 'sun'
+  | 'moon'
+  | 'mercury'
+  | 'venus'
+  | 'mars'
+  | 'jupiter'
+  | 'saturn'
+  | 'uranus'
+  | 'neptune'
+  | 'pluto';
 
-// Интерфейсы для планет и домов
-export interface PlanetPosition {
-  longitude: number;
-  sign: Sign;
-  degree: number;
-  speed?: number;
-}
+export type AspectType =
+  | 'conjunction'
+  | 'sextile'
+  | 'square'
+  | 'trine'
+  | 'opposition';
 
-export interface HousePosition {
-  longitude: number;
-  sign: Sign;
-  degree: number;
-}
+export type Sign =
+  | 'Aries'
+  | 'Taurus'
+  | 'Gemini'
+  | 'Cancer'
+  | 'Leo'
+  | 'Virgo'
+  | 'Libra'
+  | 'Scorpio'
+  | 'Sagittarius'
+  | 'Capricorn'
+  | 'Aquarius'
+  | 'Pisces';
 
-export interface AspectData {
-  planet1: Planet;
-  planet2: Planet;
-  aspect: Aspect;
-  orb: number;
-  strength: number;
-}
+export type PeriodFrame = 'Сегодня' | 'Завтра' | 'На этой неделе' | 'В этом месяце';
+export type Tone = 'positive' | 'neutral' | 'challenging';
 
-// Интерфейсы для карт
-export interface NatalChart {
-  type: 'natal';
-  birthDate: string;
-  location: {
-    latitude: number;
-    longitude: number;
-    timezone: number;
-  };
-  planets: Record<Planet, PlanetPosition>;
-  houses: Record<string, HousePosition>;
-  aspects: AspectData[];
-  calculatedAt: string;
-}
+/**
+ * Recommended transit orbs (in degrees) per transit planet.
+ * Fast planets: ~1°, slow planets: up to ~2°.
+ */
+export const TRANSIT_ORBS: Readonly<Record<PlanetKey, number>> = {
+  sun: 1,
+  moon: 1,
+  mercury: 1,
+  venus: 1,
+  mars: 1,
+  jupiter: 1.5,
+  saturn: 2,
+  uranus: 2,
+  neptune: 2,
+  pluto: 2,
+} as const;
 
-export interface TransitChart {
-  type: 'transit';
-  date: string;
-  planets: Record<Planet, PlanetPosition>;
-  natalChart: NatalChart;
-}
+/**
+ * Weights for transit significance (higher = more important)
+ */
+export const PLANET_WEIGHTS: Readonly<Record<PlanetKey, number>> = {
+  pluto: 10,
+  neptune: 9,
+  uranus: 8,
+  saturn: 7,
+  jupiter: 6,
+  mars: 5,
+  venus: 4,
+  mercury: 3,
+  moon: 2,
+  sun: 1,
+} as const;
 
-// Интерфейсы для подписок
-export interface SubscriptionLimits {
-  natalChart: number | 'full' | 'basic';
-  horoscope: 'ai' | 'interpreter';
-}
+/**
+ * Aspect angles for detection
+ */
+export const ASPECT_ANGLES: Readonly<Record<AspectType, number>> = {
+  conjunction: 0,
+  sextile: 60,
+  square: 90,
+  trine: 120,
+  opposition: 180,
+} as const;
 
-export interface SubscriptionStatus {
-  tier: SubscriptionTier;
-  isActive: boolean;
-  isTrial: boolean;
-  expiresAt?: string;
-  trialEndsAt?: string;
-  features: string[];
-  limits: SubscriptionLimits;
-}
-
-// Интерфейсы для API
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
-export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-// Интерфейсы для ошибок
-export interface AppError {
-  code: string;
-  message: string;
-  statusCode: number;
-  details?: any;
-}
-
-// Интерфейсы для кеширования
-export interface CacheOptions {
-  ttl?: number;
-  key?: string;
-}
-
-// Интерфейсы для координат
-export interface Coordinates {
-  latitude: number;
-  longitude: number;
-  timezone?: number;
-}
-
-// Интерфейсы для биоритмов
-export interface BiorhythmData {
-  date: string;
-  physical: number;
-  emotional: number;
-  intellectual: number;
-}
-
-// Интерфейсы для предсказаний
-export interface PredictionData {
-  period: string;
-  date: string;
-  general: string;
-  love: string;
-  career: string;
-  health: string;
-  finance: string;
-  advice: string;
-  luckyNumbers: number[];
-  luckyColors: string[];
-  energy: number;
-  mood: string;
-  challenges: string[];
-  opportunities: string[];
-  generatedBy: 'ephemeris' | 'ai';
-}
-
-// Утилитарные типы
-export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};
-
-// Типы для валидации
-export type ValidationResult<T> =
-  | {
-      success: true;
-      data: T;
-    }
-  | {
-      success: false;
-      errors: string[];
-    };
-
-// Типы для конфигурации
-export interface AppConfig {
-  database: {
-    url: string;
-  };
-  jwt: {
-    secret: string;
-    refreshSecret: string;
-  };
-  supabase: {
-    url: string;
-    anonKey: string;
-    serviceRoleKey: string;
-  };
-  ai: {
-    openaiKey?: string;
-    anthropicKey?: string;
-  };
-  cache: {
-    ttl: typeof import('./constants').CACHE_TTL;
-  };
-}
+/**
+ * Harmonious/Challenging aspect sets
+ */
+export const HARMONIOUS_ASPECTS: Readonly<AspectType[]> = ['trine', 'sextile', 'conjunction'];
+export const CHALLENGING_ASPECTS: Readonly<AspectType[]> = ['square', 'opposition'];

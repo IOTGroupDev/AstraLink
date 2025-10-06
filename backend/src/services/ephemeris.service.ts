@@ -300,10 +300,18 @@ export class EphemerisService implements OnModuleInit {
 
       if (result && result.longitude !== undefined && !result.error) {
         const longitude = result.longitude;
+        const speed =
+          (typeof result.speedLong === 'number' ? result.speedLong : undefined) ??
+          (typeof result.longitudeSpeed === 'number' ? result.longitudeSpeed : undefined) ??
+          (typeof result.speed === 'number' ? result.speed : 0);
+        const isRetrograde = typeof speed === 'number' ? speed < 0 : false;
+
         planets[planetName] = {
           longitude: longitude,
           sign: this.longitudeToSign(longitude),
           degree: longitude % 30,
+          speed,
+          isRetrograde,
         };
       } else {
         throw new Error(

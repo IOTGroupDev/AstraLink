@@ -1,6 +1,19 @@
 // backend/src/services/interpretation.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  getPlanetInSignText,
+  getKeywords as getATKeywords,
+  getStrengths as getATStrengths,
+  getChallenges as getATChallenges,
+  getAspectName as getATAspectName,
+  getHouseTheme as getATHouseTheme,
+  getHouseLifeArea as getATLifeArea,
+  getAscendantText,
+  getPlanetNameRu,
+  getAspectInterpretation,
+  getAscendantMeta,
+} from '@/modules/shared/astro-text';
 
 export interface PlanetInterpretation {
   planet: string;
@@ -216,87 +229,21 @@ export class InterpretationService {
    * Интерпретация планеты в знаке
    */
   private interpretPlanetInSign(planet: string, sign: string): string {
-    const interpretations: { [key: string]: { [key: string]: string } } = {
-      sun: {
-        Aries:
-          'Солнце в Овне наделяет вас огненной энергией, лидерскими качествами и стремлением к независимости. Вы прирожденный первопроходец.',
-        Taurus:
-          'Солнце в Тельце дает вам стабильность, практичность и любовь к земным удовольствиям. Вы цените комфорт и красоту.',
-        Gemini:
-          'Солнце в Близнецах наделяет вас любознательностью, коммуникабельностью и гибким умом. Вы легко адаптируетесь к переменам.',
-        Cancer:
-          'Солнце в Раке делает вас чувствительным, заботливым и эмоциональным. Семья и дом имеют для вас первостепенное значение.',
-        Leo: 'Солнце во Льве дает вам уверенность, творческий потенциал и стремление к признанию. Вы прирожденный лидер и вдохновитель.',
-        Virgo:
-          'Солнце в Деве наделяет вас аналитическим умом, практичностью и стремлением к совершенству. Вы внимательны к деталям.',
-        Libra:
-          'Солнце в Весах дает вам стремление к гармонии, справедливости и красоте. Вы прирожденный дипломат и миротворец.',
-        Scorpio:
-          'Солнце в Скорпионе наделяет вас интенсивностью, страстью и проницательностью. Вы обладаете мощной внутренней силой.',
-        Sagittarius:
-          'Солнце в Стрельце дает вам оптимизм, свободолюбие и стремление к познанию. Вы философ и искатель приключений.',
-        Capricorn:
-          'Солнце в Козероге наделяет вас амбициозностью, ответственностью и целеустремленностью. Вы построите успешную карьеру.',
-        Aquarius:
-          'Солнце в Водолее дает вам оригинальность, независимость и гуманистические идеалы. Вы - новатор и реформатор.',
-        Pisces:
-          'Солнце в Рыбах наделяет вас чувствительностью, интуицией и творческим воображением. Вы мечтатель и духовный искатель.',
-      },
-      moon: {
-        Aries:
-          'Луна в Овне делает вас эмоционально импульсивным и страстным. Вы быстро реагируете на события и не скрываете чувств.',
-        Taurus:
-          'Луна в Тельце дает эмоциональную стабильность и потребность в комфорте. Вы спокойны и уравновешены.',
-        Gemini:
-          'Луна в Близнецах наделяет вас эмоциональной гибкостью и любознательностью. Вы нуждаетесь в интеллектуальной стимуляции.',
-        Cancer:
-          'Луна в Раке усиливает вашу эмоциональность и интуицию. Вы глубоко чувствуете и нуждаетесь в эмоциональной безопасности.',
-        Leo: 'Луна во Льве дает вам эмоциональную щедрость и потребность в признании. Вы драматичны и выразительны в чувствах.',
-        Virgo:
-          'Луна в Деве делает вас эмоционально сдержанным и практичным. Вы выражаете заботу через конкретные действия.',
-        Libra:
-          'Луна в Весах дает потребность в гармонии и балансе. Вы стремитесь к эмоциональному равновесию в отношениях.',
-        Scorpio:
-          'Луна в Скорпионе наделяет вас интенсивными и глубокими эмоциями. Вы переживаете все очень сильно.',
-        Sagittarius:
-          'Луна в Стрельце дает эмоциональный оптимизм и свободолюбие. Вы нуждаетесь в приключениях и новом опыте.',
-        Capricorn:
-          'Луна в Козероге делает вас эмоционально сдержанным и ответственным. Вы контролируете свои чувства.',
-        Aquarius:
-          'Луна в Водолее дает эмоциональную независимость и оригинальность. Вы цените свободу и дружбу.',
-        Pisces:
-          'Луна в Рыбах наделяет вас высокой эмоциональной чувствительностью и эмпатией. Вы интуитивны и мечтательны.',
-      },
-      // Добавьте интерпретации для других планет
-    };
-
     return (
-      interpretations[planet]?.[sign] ||
+      getPlanetInSignText(planet as any, sign as any, 'ru') ||
       `${this.getPlanetName(planet)} в ${sign} влияет на вашу жизнь уникальным образом.`
     );
   }
 
   /**
-   * Интерпретация аспекта
+   * Интерпретация аспекта через словари (пары планет + фолбэк)
    */
   private interpretAspect(
     planet1: string,
     planet2: string,
     aspect: string,
   ): string {
-    const aspectInterpretations: { [key: string]: string } = {
-      conjunction: 'объединяет энергии, создавая мощный фокус',
-      opposition: 'создает динамическое напряжение, требующее баланса',
-      trine: 'образует гармоничный поток энергии, приносящий удачу',
-      square: 'генерирует вызов, стимулирующий рост и развитие',
-      sextile: 'открывает возможности для творческого сотрудничества',
-    };
-
-    const p1Name = this.getPlanetName(planet1);
-    const p2Name = this.getPlanetName(planet2);
-    const aspectDesc = aspectInterpretations[aspect] || 'взаимодействует с';
-
-    return `${p1Name} ${aspectDesc} ${p2Name}, что влияет на ваш характер и жизненный путь.`;
+    return getAspectInterpretation(aspect as any, planet1 as any, planet2 as any, 'ru');
   }
 
   /**
@@ -388,106 +335,50 @@ export class InterpretationService {
   }
 
   private getPlanetName(key: string): string {
-    const names: { [key: string]: string } = {
-      sun: 'Солнце',
-      moon: 'Луна',
-      mercury: 'Меркурий',
-      venus: 'Венера',
-      mars: 'Марс',
-      jupiter: 'Юпитер',
-      saturn: 'Сатурн',
-      uranus: 'Уран',
-      neptune: 'Нептун',
-      pluto: 'Плутон',
-    };
-    return names[key] || key;
+    return getPlanetNameRu(key as any) || key;
   }
 
   private getAspectName(aspect: string): string {
-    const names: { [key: string]: string } = {
-      conjunction: 'в соединении с',
-      opposition: 'в оппозиции к',
-      trine: 'в тригоне к',
-      square: 'в квадрате к',
-      sextile: 'в секстиле к',
-    };
-    return names[aspect] || aspect;
+    return getATAspectName(aspect as any, 'ru') || aspect;
   }
 
   private getPlanetKeywords(planet: string, sign: string): string[] {
-    // Базовые ключевые слова - упрощенная версия
-    return ['энергичный', 'целеустремленный', 'творческий', 'интуитивный'];
+    return getATKeywords(planet as any, sign as any, 'ru');
   }
 
   private getPlanetStrengths(planet: string, sign: string): string[] {
-    return ['Лидерские качества', 'Креативность', 'Решительность'];
+    return getATStrengths(planet as any, sign as any, 'ru');
   }
 
   private getPlanetChallenges(planet: string, sign: string): string[] {
-    return ['Импульсивность', 'Нетерпеливость'];
+    return getATChallenges(planet as any, sign as any, 'ru');
   }
 
   private getAscendantKeywords(sign: string): string[] {
-    return ['привлекательный', 'харизматичный', 'уверенный'];
+    const meta = getAscendantMeta(sign as any, 'ru');
+    return meta.keywords;
   }
 
   private getAscendantStrengths(sign: string): string[] {
-    return ['Природное обаяние', 'Уверенность в себе'];
+    const meta = getAscendantMeta(sign as any, 'ru');
+    return meta.strengths;
   }
 
   private getAscendantChallenges(sign: string): string[] {
-    return ['Излишняя прямолинейность'];
+    const meta = getAscendantMeta(sign as any, 'ru');
+    return meta.challenges;
   }
 
   private interpretAscendant(sign: string): string {
-    const interpretations: { [key: string]: string } = {
-      Aries:
-        'Асцендент в Овне делает вас энергичным, прямолинейным и инициативным. Вы производите впечатление уверенного лидера.',
-      Taurus:
-        'Асцендент в Тельце придает вам спокойствие, надежность и практичность. Вы кажетесь стабильным и заземленным.',
-      // Добавьте для других знаков
-    };
-    return (
-      interpretations[sign] ||
-      `Асцендент в ${sign} формирует ваш внешний образ.`
-    );
+    return getAscendantText(sign as any, 'ru') || `Асцендент в ${sign} формирует ваш внешний образ.`;
   }
 
   private interpretHouse(houseNum: number, sign: string): string {
-    const houseThemes: { [key: number]: string } = {
-      1: 'личность и самовыражение',
-      2: 'финансы и ценности',
-      3: 'коммуникация и обучение',
-      4: 'дом и семья',
-      5: 'творчество и романтика',
-      6: 'здоровье и служение',
-      7: 'партнерство и брак',
-      8: 'трансформация и общие ресурсы',
-      9: 'философия и путешествия',
-      10: 'карьера и общественное положение',
-      11: 'дружба и устремления',
-      12: 'подсознание и духовность',
-    };
-
-    return `${houseNum}-й дом в ${sign} влияет на сферу ${houseThemes[houseNum]}`;
+    return getATHouseTheme(houseNum, sign as any, 'ru') || `${houseNum}-й дом в ${sign} влияет на важную жизненную сферу.`;
   }
 
   private getHouseLifeArea(houseNum: number): string {
-    const areas: { [key: number]: string } = {
-      1: 'Личность',
-      2: 'Финансы',
-      3: 'Коммуникация',
-      4: 'Дом и семья',
-      5: 'Творчество',
-      6: 'Здоровье',
-      7: 'Партнерство',
-      8: 'Трансформация',
-      9: 'Путешествия',
-      10: 'Карьера',
-      11: 'Дружба',
-      12: 'Духовность',
-    };
-    return areas[houseNum] || 'Жизненная сфера';
+    return getATLifeArea(houseNum, 'ru') || 'Жизненная сфера';
   }
 
   private getAspectSignificance(aspect: string, strength: number): string {

@@ -1,10 +1,20 @@
 // backend/src/services/horoscope-generator.service.ts
 // СТРОГОЕ РАЗДЕЛЕНИЕ: FREE = Интерпретатор, PREMIUM = AI
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from './ephemeris.service';
 import { AIService } from './ai.service';
+import { PlanetKey, PLANET_WEIGHTS } from '@/modules/shared/types';
+import { getTransitOrb, getHouseForLongitude, hashSignature } from '@/modules/shared/utils';
+import {
+  getGeneralTemplates,
+  getLovePhrases,
+  getCareerActions,
+  getAdvicePool,
+  getSignColors,
+  getPlanetHouseFocus,
+} from '@/modules/shared/astro-text';
 
 export interface HoroscopePrediction {
   period: 'day' | 'tomorrow' | 'week' | 'month';
@@ -125,7 +135,7 @@ export class HoroscopeGeneratorService {
       this.logger.warn(
         `No natal chart found for user ${userId} via any method - generating generic horoscope`,
       );
-      return this.generateGenericHoroscope(period, isPremium);
+      throw new NotFoundException('Натальная карта не найдена — невозможно сгенерировать гороскоп без реальных данных рождения.');
     }
 
     this.logger.log(
@@ -148,6 +158,7 @@ export class HoroscopeGeneratorService {
         transitAspects = this.analyzeTransitAspects(
           chartData.planets,
           transits.planets,
+          chartData.houses,
         );
         this.logger.log(`Found ${transitAspects.length} transit aspects`);
       } catch (ephemerisError) {
@@ -155,11 +166,8 @@ export class HoroscopeGeneratorService {
           ephemerisError instanceof Error
             ? ephemerisError.message
             : 'Unknown error';
-        this.logger.warn(
-          `Ephemeris calculation failed, using simplified transits: ${errorMessage}`,
-        );
-        transits = { planets: {}, date: targetDate };
-        transitAspects = [];
+        this.logger.error(`Ephemeris calculation failed: ${errorMessage}`);
+        throw new InternalServerErrorException('Ошибка расчета эфемерид');
       }
 
       if (isPremium) {
@@ -186,10 +194,8 @@ export class HoroscopeGeneratorService {
         `Error during horoscope generation for user ${userId}:`,
         error,
       );
-      this.logger.log(
-        `Falling back to generic horoscope due to error: ${errorMessage}`,
-      );
-      return this.generateGenericHoroscope(period, isPremium);
+      this.logger.log(`Aborting horoscope generation due to error: ${errorMessage}`);
+      throw new InternalServerErrorException(`Ошибка генерации гороскопа: ${errorMessage}`);
     }
   }
 
@@ -254,10 +260,36 @@ export class HoroscopeGeneratorService {
       };
     } catch (error) {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
-      this.logger.log(
-        'Falling back to generic horoscope for premium user due to AI error',
+      this.logger.log('Fallback to interpreter (FREE rules) with real data');
+      // Fallback на интерпретатор с реальными расчетами (без generic-моков)
+      const dominantTransit = this.getDominantTransit(transitAspects, 'general');
+      const energy = this.calculateEnergy(transitAspects);
+      const mood = this.determineMood(energy, transitAspects);
+      const predictions = this.generateRuleBasedPredictions(
+        chartData.planets?.sun?.sign || 'Aries',
+        chartData.planets?.moon?.sign || 'Cancer',
+        dominantTransit,
+        transitAspects,
+        period,
+        targetDate,
       );
-      return this.generateGenericHoroscope(period as any, true);
+      return {
+        period: period as any,
+        date: targetDate.toISOString(),
+        general: predictions.general,
+        love: predictions.love,
+        career: predictions.career,
+        health: predictions.health,
+        finance: predictions.finance,
+        advice: predictions.advice,
+        luckyNumbers: this.generateLuckyNumbers(chartData, targetDate),
+        luckyColors: this.generateLuckyColors(chartData.planets?.sun?.sign || 'Aries', dominantTransit),
+        energy,
+        mood,
+        challenges: [],
+        opportunities: [],
+        generatedBy: 'interpreter',
+      };
     }
   }
 
@@ -276,7 +308,7 @@ export class HoroscopeGeneratorService {
     const sunSign = chartData.planets?.sun?.sign || 'Aries';
     const moonSign = chartData.planets?.moon?.sign || 'Cancer';
 
-    const dominantTransit = this.getDominantTransit(transitAspects);
+    const dominantTransit = this.getDominantTransit(transitAspects, 'general');
     const energy = this.calculateEnergy(transitAspects);
     const mood = this.determineMood(energy, transitAspects);
 
@@ -286,6 +318,7 @@ export class HoroscopeGeneratorService {
       dominantTransit,
       transitAspects,
       period,
+      targetDate,
     );
 
     return {
@@ -316,8 +349,15 @@ export class HoroscopeGeneratorService {
     dominantTransit: any,
     transitAspects: any[],
     period: string,
+    targetDate: Date,
   ): any {
     const timeFrame = this.getTimeFrame(period);
+
+    // Доминирующие транзиты по доменам
+    const domLove = this.getDominantTransit(transitAspects, 'love');
+    const domCareer = this.getDominantTransit(transitAspects, 'career');
+    const domHealth = this.getDominantTransit(transitAspects, 'health');
+    const domFinance = this.getDominantTransit(transitAspects, 'finance');
 
     return {
       general: this.generateGeneralPrediction(
@@ -325,21 +365,39 @@ export class HoroscopeGeneratorService {
         dominantTransit,
         transitAspects,
         timeFrame,
+        targetDate,
       ),
       love: this.generateLovePrediction(
         sunSign,
         moonSign,
         transitAspects,
         timeFrame,
+        domLove,
       ),
-      career: this.generateCareerPrediction(sunSign, transitAspects, timeFrame),
-      health: this.generateHealthPrediction(sunSign, transitAspects, timeFrame),
+      career: this.generateCareerPrediction(
+        sunSign,
+        transitAspects,
+        timeFrame,
+        domCareer,
+      ),
+      health: this.generateHealthPrediction(
+        sunSign,
+        transitAspects,
+        timeFrame,
+        domHealth,
+      ),
       finance: this.generateFinancePrediction(
         sunSign,
         transitAspects,
         timeFrame,
+        domFinance,
       ),
-      advice: this.generateAdvice(sunSign, dominantTransit, timeFrame),
+      advice: this.generateAdvice(
+        sunSign,
+        dominantTransit,
+        timeFrame,
+        targetDate,
+      ),
     };
   }
 
@@ -351,91 +409,25 @@ export class HoroscopeGeneratorService {
     dominantTransit: any,
     transitAspects: any[],
     timeFrame: string,
+    _targetDate: Date,
   ): string {
     const tone = this.determinePredictionTone(transitAspects);
+    const templates = getGeneralTemplates(timeFrame as any, 'ru');
+    const pool = (templates as any)[tone] || (templates as any)['neutral'] || [];
+    if (!pool.length) {
+      return `${timeFrame} стабильный период. Действуйте последовательно.`;
+    }
 
-    const periodSpecific = {
-      Сегодня: {
-        positive: [
-          `${timeFrame} звезды благоволят вам. Энергия планет создает благоприятные возможности для действий.`,
-          `${timeFrame} вы ощутите прилив сил. Используйте это время для важных начинаний.`,
-          `${timeFrame} особенно благоприятный день. Космические энергии поддерживают ваши стремления.`,
-          `${timeFrame} планеты создают гармоничную конфигурацию. Идеальное время для реализации планов.`,
-        ],
-        neutral: [
-          `${timeFrame} принесет смешанные энергии. Сохраняйте баланс и следуйте интуиции.`,
-          `${timeFrame} стабильный период. Фокусируйтесь на текущих задачах.`,
-          `${timeFrame} требует внимательности. Прислушивайтесь к своим ощущениям.`,
-        ],
-        challenging: [
-          `${timeFrame} потребует терпения. Сложности — это возможность для роста.`,
-          `${timeFrame} будьте внимательны к деталям. Осторожность поможет избежать проблем.`,
-          `${timeFrame} звезды испытывают вашу стойкость. Сохраняйте спокойствие.`,
-        ],
-      },
-      Завтра: {
-        positive: [
-          `${timeFrame} откроются новые перспективы. Планеты готовят приятные сюрпризы.`,
-          `${timeFrame} будет насыщенным положительными событиями. Космос благоволит вашим начинаниям.`,
-          `${timeFrame} принесет вдохновение и энергию для свершений.`,
-          `${timeFrame} ожидается благоприятная астрологическая конфигурация.`,
-        ],
-        neutral: [
-          `${timeFrame} сохранится текущая динамика. Продолжайте движение в выбранном направлении.`,
-          `${timeFrame} будет промежуточным этапом. Готовьтесь к будущим изменениям.`,
-          `${timeFrame} планеты займут нейтральные позиции. Время для планирования.`,
-        ],
-        challenging: [
-          `${timeFrame} могут возникнуть препятствия. Будьте готовы к непредвиденным ситуациям.`,
-          `${timeFrame} потребует дополнительных усилий. Не сдавайтесь перед трудностями.`,
-          `${timeFrame} звезды предупреждают о возможных сложностях. Проявите осмотрительность.`,
-        ],
-      },
-      'На этой неделе': {
-        positive: [
-          `${timeFrame} складывается благоприятная астрологическая ситуация для достижения целей.`,
-          `${timeFrame} энергии планет будут способствовать вашему успеху в различных сферах.`,
-          `${timeFrame} открываются широкие возможности. Используйте это время максимально эффективно.`,
-          `${timeFrame} космические влияния создают идеальные условия для прогресса.`,
-        ],
-        neutral: [
-          `${timeFrame} характеризуется стабильными энергиями. Действуйте последовательно.`,
-          `${timeFrame} планеты занимают нейтральные позиции. Сосредоточьтесь на приоритетах.`,
-          `${timeFrame} будет периодом умеренной активности. Распределяйте силы разумно.`,
-        ],
-        challenging: [
-          `${timeFrame} может принести испытания. Воспринимайте их как уроки роста.`,
-          `${timeFrame} потребует от вас гибкости и терпения. Не форсируйте события.`,
-          `${timeFrame} звезды предупреждают о необходимости осторожности в действиях.`,
-        ],
-      },
-      'В этом месяце': {
-        positive: [
-          `${timeFrame} формируется благоприятный астрологический климат для долгосрочных проектов.`,
-          `${timeFrame} планеты создают мощную поддержку ваших устремлений и начинаний.`,
-          `${timeFrame} открывается период больших возможностей и позитивных перемен.`,
-          `${timeFrame} космические энергии будут способствовать реализации ваших планов.`,
-        ],
-        neutral: [
-          `${timeFrame} характеризуется плавным течением событий. Сохраняйте стабильный темп.`,
-          `${timeFrame} планеты создают сбалансированную ситуацию. Действуйте взвешенно.`,
-          `${timeFrame} будет периодом постепенного развития. Терпение принесет результаты.`,
-        ],
-        challenging: [
-          `${timeFrame} может быть непростым. Относитесь к трудностям как к возможностям.`,
-          `${timeFrame} потребует максимальной концентрации и усилий. Не теряйте веры в себя.`,
-          `${timeFrame} звезды испытывают вашу выдержку. Сохраняйте оптимизм и настойчивость.`,
-        ],
-      },
-    };
-
-    const templates =
-      (periodSpecific as any)[timeFrame] || periodSpecific['Сегодня'];
-    const pool = templates[tone] || templates['neutral'];
-
-    const index =
-      Math.abs(new Date().getDate() + timeFrame.length) % pool.length;
-
+    // Детерминированный выбор по сигнатуре транзита (без привязки к дате)
+    const sig = [
+      timeFrame,
+      dominantTransit?.transitPlanet || '-',
+      dominantTransit?.aspect || '-',
+      dominantTransit?.natalPlanet || '-',
+      dominantTransit?.house || 0,
+      dominantTransit?.isRetrograde ? 1 : 0,
+    ];
+    const index = Math.abs(hashSignature(sig)) % pool.length;
     return pool[index];
   }
 
@@ -447,50 +439,64 @@ export class HoroscopeGeneratorService {
     moonSign: string,
     transitAspects: any[],
     timeFrame: string,
+    dominantTransit?: any,
   ): string {
     const venusAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'venus' || a.natalPlanet === 'venus',
     );
 
-    const periodPhrases: Record<
-      string,
-      { positive: string; neutral: string; negative: string }
-    > = {
-      Сегодня: {
-        positive: 'создает романтическую атмосферу',
-        neutral: 'влияет на ваше настроение',
-        negative: 'создает напряжение',
-      },
-      Завтра: {
-        positive: 'обещает приятные встречи',
-        neutral: 'будет способствовать общению',
-        negative: 'может вызвать недопонимание',
-      },
-      'На этой неделе': {
-        positive: 'открывает перспективы для отношений',
-        neutral: 'поддерживает стабильность в паре',
-        negative: 'требует работы над отношениями',
-      },
-      'В этом месяце': {
-        positive: 'создает благоприятные условия для любви',
-        neutral: 'способствует развитию отношений',
-        negative: 'призывает к переосмыслению приоритетов',
-      },
-    };
+    try {
+      const phrases = getLovePhrases(timeFrame as any, 'ru');
 
-    if (venusAspects.length > 0) {
-      const aspect = venusAspects[0];
-      const phrases = periodPhrases[timeFrame] || periodPhrases['Сегодня'];
+      if (venusAspects.length > 0) {
+        const aspect = venusAspects[0];
+        const base =
+          ['trine', 'sextile', 'conjunction'].includes(aspect.aspect)
+            ? `${timeFrame} Венера ${phrases.positive}. Хорошее время для романтики и общения с близкими.`
+            : `${timeFrame} Венера ${phrases.negative}. Проявите терпение в отношениях.`;
 
-      if (['trine', 'sextile', 'conjunction'].includes(aspect.aspect)) {
-        return `${timeFrame} Венера ${phrases.positive}. Хорошее время для романтики и общения с близкими.`;
-      } else {
-        return `${timeFrame} Венера ${phrases.negative}. Проявите терпение в отношениях.`;
+        // Добавим фокус по дому (если известен)
+        if (dominantTransit?.house) {
+          try {
+            const focus = getPlanetHouseFocus(
+              (dominantTransit?.transitPlanet || 'venus') as any,
+              dominantTransit.house,
+              'ru'
+            );
+            return `${base} ${focus}`;
+          } catch {
+            return base;
+          }
+        }
+        return base;
       }
-    }
 
-    const phrases = periodPhrases[timeFrame] || periodPhrases['Сегодня'];
-    return `${timeFrame} энергии ${phrases.neutral}. Цените существующие отношения.`;
+      // Нет явных Венерианских транзитов — нейтральный тон + опциональный фокус дома
+      const neutralText = `${timeFrame} энергии ${phrases.neutral}. Цените существующие отношения.`;
+      if (dominantTransit?.house) {
+        try {
+          const focus = getPlanetHouseFocus(
+            (dominantTransit?.transitPlanet || 'venus') as any,
+            dominantTransit.house,
+            'ru'
+          );
+          return `${neutralText} ${focus}`;
+        } catch {
+          return neutralText;
+        }
+      }
+      return neutralText;
+    } catch {
+      if (venusAspects.length > 0) {
+        const aspect = venusAspects[0];
+        if (['trine', 'sextile', 'conjunction'].includes(aspect.aspect)) {
+          return `${timeFrame} Венера создает романтическую атмосферу. Хорошее время для романтики и общения с близкими.`;
+        } else {
+          return `${timeFrame} Венера создает напряжение. Проявите терпение в отношениях.`;
+        }
+      }
+      return `${timeFrame} энергии влияет на ваши эмоции. Цените существующие отношения.`;
+    }
   }
 
   /**
@@ -500,6 +506,7 @@ export class HoroscopeGeneratorService {
     sunSign: string,
     transitAspects: any[],
     timeFrame: string,
+    dominantTransit?: any,
   ): string {
     const jupiterAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'jupiter',
@@ -511,53 +518,62 @@ export class HoroscopeGeneratorService {
       (a) => a.transitPlanet === 'mars',
     );
 
-    const periodActions: Record<
-      string,
-      { jupiter: string; saturn: string; mars: string; neutral: string }
-    > = {
-      Сегодня: {
-        jupiter: 'сегодняшний день благоприятен для',
-        saturn: 'сегодня требуется',
-        mars: 'сегодня появляется энергия для',
-        neutral: 'сегодня продолжайте работу над',
-      },
-      Завтра: {
-        jupiter: 'завтра откроются возможности для',
-        saturn: 'завтра понадобится',
-        mars: 'завтра будет импульс к',
-        neutral: 'завтра сосредоточьтесь на',
-      },
-      'На этой неделе': {
-        jupiter: 'эта неделя принесет перспективы в',
-        saturn: 'эта неделя потребует',
-        mars: 'эта неделя даст силы для',
-        neutral: 'эта неделя подходит для работы над',
-      },
-      'В этом месяце': {
-        jupiter: 'этот месяц открывает возможности для роста в',
-        saturn: 'этот месяц призывает к',
-        mars: 'этот месяц добавит энергии для продвижения в',
-        neutral: 'этот месяц благоприятен для развития',
-      },
-    };
+    try {
+      const actions = getCareerActions(timeFrame as any, 'ru');
 
-    const actions = periodActions[timeFrame] || periodActions['Сегодня'];
-
-    if (jupiterAspects.length > 0) {
-      return `${timeFrame} Юпитер ${actions.jupiter} карьерных инициатив. Время для смелых решений.`;
-    }
-
-    if (marsAspects.length > 0) {
-      if (['trine', 'sextile'].includes(marsAspects[0].aspect)) {
-        return `${timeFrame} Марс ${actions.mars} активных действий в работе. Используйте свою энергию конструктивно.`;
+      if (jupiterAspects.length > 0) {
+        return `${timeFrame} Юпитер ${actions.jupiter} карьерных инициатив. Время для смелых решений.`;
       }
-    }
 
-    if (saturnAspects.length > 0) {
-      return `${timeFrame} Сатурн ${actions.saturn} дисциплина и ответственность. Сосредоточьтесь на долгосрочных целях.`;
-    }
+      if (marsAspects.length > 0) {
+        if (['trine', 'sextile'].includes(marsAspects[0].aspect)) {
+          return `${timeFrame} Марс ${actions.mars} активных действий в работе. Используйте свою энергию конструктивно.`;
+        }
+      }
 
-    return `${timeFrame} ${actions.neutral} текущими проектами. Последовательность важна.`;
+      if (saturnAspects.length > 0) {
+        const base = `${timeFrame} Сатурн ${actions.saturn} дисциплина и ответственность. Сосредоточьтесь на долгосрочных целях.`;
+        if (dominantTransit?.house) {
+          try {
+            const focus = getPlanetHouseFocus(
+              (dominantTransit?.transitPlanet || 'saturn') as any,
+              dominantTransit.house,
+              'ru'
+            );
+            return `${base} ${focus}`;
+          } catch {
+            return `${base}`;
+          }
+        }
+        return base;
+      }
+
+      const neutralText = `${timeFrame} ${actions.neutral} текущими проектами. Последовательность важна.`;
+      if (dominantTransit?.house) {
+        try {
+          const focus = getPlanetHouseFocus(
+            (dominantTransit?.transitPlanet || 'saturn') as any,
+            dominantTransit.house,
+            'ru'
+          );
+          return `${neutralText} ${focus}`;
+        } catch {
+          return neutralText;
+        }
+      }
+      return neutralText;
+    } catch {
+      if (jupiterAspects.length > 0) {
+        return `${timeFrame} Юпитер благоприятен для карьерных инициатив. Время для смелых решений.`;
+      }
+      if (marsAspects.length > 0 && ['trine', 'sextile'].includes(marsAspects[0].aspect)) {
+        return `${timeFrame} Марс добавляет энергии для активных действий в работе. Используйте её конструктивно.`;
+      }
+      if (saturnAspects.length > 0) {
+        return `${timeFrame} Сатурн требует дисциплины и ответственности. Сосредоточьтесь на долгосрочных целях.`;
+      }
+      return `${timeFrame} продолжайте работу над текущими проектами. Последовательность важна.`;
+    }
   }
 
   /**
@@ -567,16 +583,43 @@ export class HoroscopeGeneratorService {
     sunSign: string,
     transitAspects: any[],
     timeFrame: string,
+    dominantTransit?: any,
   ): string {
     const marsAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'mars',
     );
 
     if (marsAspects.length > 0 && marsAspects[0].aspect === 'square') {
-      return `${timeFrame} будьте внимательны к здоровью. Избегайте перегрузок и отдыхайте.`;
+      const base = `${timeFrame} будьте внимательны к здоровью. Избегайте перегрузок и отдыхайте.`;
+      if (dominantTransit?.house) {
+        try {
+          const focus = getPlanetHouseFocus(
+            (dominantTransit?.transitPlanet || 'mars') as any,
+            dominantTransit.house,
+            'ru'
+          );
+          return `${base} ${focus}`;
+        } catch {
+          return base;
+        }
+      }
+      return base;
     }
 
-    return `${timeFrame} ваша энергия на хорошем уровне. Поддерживайте активный образ жизни.`;
+    const ok = `${timeFrame} ваша энергия на хорошем уровне. Поддерживайте активный образ жизни.`;
+    if (dominantTransit?.house) {
+      try {
+        const focus = getPlanetHouseFocus(
+          (dominantTransit?.transitPlanet || 'mars') as any,
+          dominantTransit.house,
+          'ru'
+        );
+        return `${ok} ${focus}`;
+      } catch {
+        return ok;
+      }
+    }
+    return ok;
   }
 
   /**
@@ -586,6 +629,7 @@ export class HoroscopeGeneratorService {
     sunSign: string,
     transitAspects: any[],
     timeFrame: string,
+    dominantTransit?: any,
   ): string {
     const jupiterAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'jupiter',
@@ -595,10 +639,36 @@ export class HoroscopeGeneratorService {
       jupiterAspects.length > 0 &&
       ['trine', 'sextile'].includes(jupiterAspects[0].aspect)
     ) {
-      return `${timeFrame} Юпитер благоприятствует финансам. Рассмотрите новые возможности.`;
+      const base = `${timeFrame} Юпитер благоприятствует финансам. Рассмотрите новые возможности.`;
+      if (dominantTransit?.house) {
+        try {
+          const focus = getPlanetHouseFocus(
+            (dominantTransit?.transitPlanet || 'jupiter') as any,
+            dominantTransit.house,
+            'ru'
+          );
+          return `${base} ${focus}`;
+        } catch {
+          return base;
+        }
+      }
+      return base;
     }
 
-    return `${timeFrame} финансовая ситуация стабильна. Придерживайтесь бюджета.`;
+    const neutralText = `${timeFrame} финансовая ситуация стабильна. Придерживайтесь бюджета.`;
+    if (dominantTransit?.house) {
+      try {
+        const focus = getPlanetHouseFocus(
+          (dominantTransit?.transitPlanet || 'jupiter') as any,
+          dominantTransit.house,
+          'ru'
+        );
+        return `${neutralText} ${focus}`;
+      } catch {
+        return neutralText;
+      }
+    }
+    return neutralText;
   }
 
   /**
@@ -608,44 +678,23 @@ export class HoroscopeGeneratorService {
     sunSign: string,
     dominantTransit: any,
     timeFrame: string,
+    _targetDate: Date,
   ): string {
-    const periodAdvices = {
-      Сегодня: [
-        'Сегодня доверяйте своей интуиции и не бойтесь делать первый шаг.',
-        'Сегодня будьте открыты новому опыту и неожиданным возможностям.',
-        'Сегодня практикуйте благодарность за все, что имеете.',
-        'Сегодня фокусируйтесь на том, что действительно важно для вас.',
-        'Сегодня прислушивайтесь к своему внутреннему голосу.',
-      ],
-      Завтра: [
-        'Завтра начните день с позитивного настроя и ясных намерений.',
-        'Завтра подготовьтесь к новым возможностям и будьте гибкими.',
-        'Завтра уделите время планированию важных дел.',
-        'Завтра сосредоточьтесь на приоритетах и не распыляйтесь.',
-        'Завтра будьте внимательны к знакам судьбы.',
-      ],
-      'На этой неделе': [
-        'На этой неделе поддерживайте баланс между работой и отдыхом.',
-        'На этой неделе развивайте свои сильные стороны и таланты.',
-        'На этой неделе укрепляйте отношения с близкими людьми.',
-        'На этой неделе не бойтесь выходить из зоны комфорта.',
-        'На этой неделе практикуйте осознанность в каждом действии.',
-      ],
-      'В этом месяце': [
-        'В этом месяце работайте над долгосрочными целями с терпением и упорством.',
-        'В этом месяце инвестируйте в свое развитие и обучение.',
-        'В этом месяце стройте прочный фундамент для будущих достижений.',
-        'В этом месяце уделите внимание своему здоровью и благополучию.',
-        'В этом месяце культивируйте позитивное мышление и оптимизм.',
-      ],
-    };
-
-    const advices =
-      (periodAdvices as any)[timeFrame] || periodAdvices['Сегодня'];
-
-    const index =
-      Math.abs(new Date().getDate() + new Date().getMonth()) % advices.length;
-
+    const advices = getAdvicePool(timeFrame as any, 'ru') || [];
+    if (!advices.length) {
+      return 'Сохраняйте баланс и действуйте последовательно.';
+    }
+    // Детерминированный выбор по сигнатуре (без привязки к дате)
+    const sig = [
+      timeFrame,
+      sunSign,
+      dominantTransit?.transitPlanet || '-',
+      dominantTransit?.aspect || '-',
+      dominantTransit?.natalPlanet || '-',
+      dominantTransit?.house || 0,
+      dominantTransit?.isRetrograde ? 1 : 0,
+    ];
+    const index = Math.abs(hashSignature(sig)) % advices.length;
     return advices[index];
   }
 
@@ -712,25 +761,36 @@ export class HoroscopeGeneratorService {
   /**
    * Анализ транзитных аспектов
    */
-  private analyzeTransitAspects(natalPlanets: any, transitPlanets: any): any[] {
+  private analyzeTransitAspects(
+    natalPlanets: any,
+    transitPlanets: any,
+    natalHouses?: any,
+  ): any[] {
     const aspects: any[] = [];
 
     for (const [natalKey, natalPlanet] of Object.entries(natalPlanets)) {
-      for (const [transitKey, transitPlanet] of Object.entries(
-        transitPlanets,
-      )) {
+      for (const [transitKey, transitPlanet] of Object.entries(transitPlanets)) {
         const aspect = this.calculateAspect(
           (natalPlanet as any).longitude,
           (transitPlanet as any).longitude,
+          transitKey as PlanetKey,
         );
 
         if (aspect) {
+          const house =
+            natalHouses
+              ? getHouseForLongitude((transitPlanet as any).longitude, natalHouses)
+              : undefined;
+          const isRetrograde = (transitPlanet as any).isRetrograde === true;
+
           aspects.push({
             natalPlanet: natalKey,
             transitPlanet: transitKey,
             aspect: aspect.type,
             orb: aspect.orb,
             strength: aspect.strength,
+            house,
+            isRetrograde,
           });
         }
       }
@@ -742,25 +802,42 @@ export class HoroscopeGeneratorService {
   /**
    * Расчет аспекта между двумя долготами
    */
-  private calculateAspect(longitude1: number, longitude2: number): any | null {
-    const diff = Math.abs(longitude1 - longitude2);
+  private calculateAspect(
+    longitudeNatal: number,
+    longitudeTransit: number,
+    transitPlanet?: PlanetKey,
+  ): any | null {
+    const diff = Math.abs(longitudeNatal - longitudeTransit);
     const normalizedDiff = Math.min(diff, 360 - diff);
 
+    // Базовые углы аспектов
     const aspects = [
-      { type: 'conjunction', angle: 0, orb: 8 },
-      { type: 'sextile', angle: 60, orb: 6 },
-      { type: 'square', angle: 90, orb: 8 },
-      { type: 'trine', angle: 120, orb: 8 },
-      { type: 'opposition', angle: 180, orb: 8 },
-    ];
+      { type: 'conjunction', angle: 0 },
+      { type: 'sextile', angle: 60 },
+      { type: 'square', angle: 90 },
+      { type: 'trine', angle: 120 },
+      { type: 'opposition', angle: 180 },
+    ] as const;
+
+    // Орбис: если указан транзитный объект — узкий по планете, иначе дефолт
+    const defaultOrbs: Record<string, number> = {
+      conjunction: 8,
+      sextile: 6,
+      square: 8,
+      trine: 8,
+      opposition: 8,
+    };
 
     for (const aspect of aspects) {
-      const orb = Math.abs(normalizedDiff - aspect.angle);
-      if (orb <= aspect.orb) {
+      const orbDelta = Math.abs(normalizedDiff - aspect.angle);
+      const baseOrb =
+        transitPlanet != null ? getTransitOrb(transitPlanet, aspect.type as any) : (defaultOrbs as any)[aspect.type];
+
+      if (orbDelta <= baseOrb) {
         return {
           type: aspect.type,
-          orb: orb,
-          strength: 1 - orb / aspect.orb,
+          orb: orbDelta,
+          strength: 1 - orbDelta / baseOrb,
         };
       }
     }
@@ -769,10 +846,42 @@ export class HoroscopeGeneratorService {
   }
 
   /**
-   * Получение доминирующего транзита
+   * Доминирующий транзит с учётом веса планеты, силы аспекта и бонуса за релевантный дом домена.
+   * domain: 'love' | 'career' | 'health' | 'finance' | 'general'
    */
-  private getDominantTransit(transitAspects: any[]): any {
-    return transitAspects.length > 0 ? transitAspects[0] : null;
+  private getDominantTransit(transitAspects: any[], domain?: string): any {
+    if (!transitAspects || transitAspects.length === 0) return null;
+
+    const domainHouses: Record<string, number[]> = {
+      love: [5, 7],
+      career: [10],
+      health: [6],
+      finance: [2, 8],
+      general: [],
+    };
+
+    let best: any = null;
+    let bestScore = -Infinity;
+
+    for (const a of transitAspects) {
+      const weight = PLANET_WEIGHTS[(a.transitPlanet || 'sun') as PlanetKey] || 1;
+      let score = weight * (a.strength || 0);
+
+      // Бонус за релевантный дом для домена
+      const houses = domain ? domainHouses[domain] || [] : [];
+      if (a.house && houses.includes(a.house)) {
+        score *= 1.2;
+      }
+
+      // Штраф за ретроградность
+      if (a.isRetrograde) score *= 0.9;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = a;
+      }
+    }
+    return best;
   }
 
   /**
@@ -788,6 +897,11 @@ export class HoroscopeGeneratorService {
         energy += aspect.strength * 10;
       } else if (['square', 'opposition'].includes(aspect.aspect)) {
         energy += aspect.strength * 5;
+      }
+
+      // Небольшая корректировка за ретроградность транзитной планеты
+      if (aspect.isRetrograde) {
+        energy -= aspect.strength * 5;
       }
     });
 
@@ -823,65 +937,8 @@ export class HoroscopeGeneratorService {
    * Генерация счастливых цветов
    */
   private generateLuckyColors(sunSign: string, dominantTransit: any): string[] {
-    const signColors: { [key: string]: string[] } = {
-      Aries: ['Красный', 'Оранжевый'],
-      Taurus: ['Зеленый', 'Розовый'],
-      Gemini: ['Желтый', 'Голубой'],
-      Cancer: ['Серебряный', 'Белый'],
-      Leo: ['Золотой', 'Оранжевый'],
-      Virgo: ['Коричневый', 'Бежевый'],
-      Libra: ['Розовый', 'Голубой'],
-      Scorpio: ['Бордовый', 'Черный'],
-      Sagittarius: ['Фиолетовый', 'Синий'],
-      Capricorn: ['Серый', 'Зеленый'],
-      Aquarius: ['Голубой', 'Серебряный'],
-      Pisces: ['Бирюзовый', 'Лавандовый'],
-    };
-
-    return signColors[sunSign] || ['Белый', 'Синий'];
+    const colors = getSignColors(sunSign as any, 'ru');
+    return colors && colors.length ? colors : ['Белый', 'Синий'];
   }
 
-  /**
-   * Генерация общего гороскопа (когда нет карты)
-   */
-  private generateGenericHoroscope(
-    period: 'day' | 'tomorrow' | 'week' | 'month',
-    isPremium: boolean,
-  ): HoroscopePrediction {
-    this.logger.log(
-      `Generating generic horoscope for period: ${period}, premium: ${isPremium}`,
-    );
-
-    const targetDate = this.getTargetDate(period);
-    const timeFrame = this.getTimeFrame(period);
-
-    const genericPredictions = {
-      general: `${timeFrame} принесет новые возможности для развития. Слушайте свою интуицию и будьте открыты к изменениям.`,
-      love: `${timeFrame} хорошее время для укрепления отношений. Проявите заботу и внимание к близким.`,
-      career: `${timeFrame} сосредоточьтесь на текущих задачах. Ваше упорство принесет результаты.`,
-      health: `${timeFrame} поддерживайте баланс между работой и отдыхом. Здоровье - это основа всего.`,
-      finance: `${timeFrame} будьте внимательны к финансовым решениям. Планируйте расходы разумно.`,
-      advice: `${timeFrame} доверяйте себе и своим способностям. Вы на правильном пути.`,
-    };
-
-    return {
-      period,
-      date: targetDate.toISOString(),
-      general: genericPredictions.general,
-      love: genericPredictions.love,
-      career: genericPredictions.career,
-      health: genericPredictions.health,
-      finance: isPremium ? genericPredictions.finance : '',
-      advice: genericPredictions.advice,
-      luckyNumbers: this.generateLuckyNumbers({}, targetDate),
-      luckyColors: ['Белый', 'Синий', 'Зеленый'],
-      energy: 65,
-      mood: 'Сбалансированное',
-      challenges: isPremium
-        ? ['Будьте внимательны к деталям', 'Избегайте поспешных решений']
-        : [],
-      opportunities: isPremium ? ['Новые знакомства', 'Креативные идеи'] : [],
-      generatedBy: 'interpreter',
-    };
-  }
 }
