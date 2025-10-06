@@ -390,6 +390,37 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
               </>
             )}
 
+            {/* Энергия и настроение */}
+            {(currentHoroscope.energy || currentHoroscope.mood) && (
+              <View style={styles.energyMoodSection}>
+                {currentHoroscope.energy && (
+                  <View style={styles.energyItem}>
+                    <Text style={styles.energyLabel}>Энергия дня</Text>
+                    <View style={styles.energyBar}>
+                      <View
+                        style={[
+                          styles.energyFill,
+                          {
+                            width: `${Math.min(currentHoroscope.energy, 100)}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.energyValue}>
+                      {currentHoroscope.energy}/100
+                    </Text>
+                  </View>
+                )}
+
+                {currentHoroscope.mood && (
+                  <View style={styles.moodItem}>
+                    <Text style={styles.moodLabel}>Настроение</Text>
+                    <Text style={styles.moodText}>{currentHoroscope.mood}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Счастливые числа и цвета */}
             <View style={styles.luckySection}>
               {currentHoroscope.luckyNumbers && (
@@ -708,6 +739,59 @@ const styles = StyleSheet.create({
   upgradeSubtitle: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 11,
+  },
+  energyMoodSection: {
+    marginTop: 10,
+    gap: 15,
+  },
+  energyItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  energyLabel: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  energyBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  energyFill: {
+    height: '100%',
+    backgroundColor: '#8B5CF6',
+    borderRadius: 4,
+  },
+  energyValue: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  moodItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 72, 153, 0.1)',
+  },
+  moodLabel: {
+    color: '#EC4899',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  moodText: {
+    color: '#fff',
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });
 

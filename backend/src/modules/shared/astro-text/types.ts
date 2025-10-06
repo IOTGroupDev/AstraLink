@@ -11,7 +11,11 @@ export type PlanetKey =
   | 'saturn'
   | 'uranus'
   | 'neptune'
-  | 'pluto';
+  | 'pluto'
+  | 'north_node'
+  | 'south_node'
+  | 'lilith'
+  | 'chiron';
 
 export type Sign =
   | 'Aries'

@@ -14,6 +14,7 @@ import {
   getAspectInterpretation,
   getAscendantMeta,
 } from '@/modules/shared/astro-text';
+import { PLANET_RULERSHIPS, getEssentialDignity } from '@/modules/shared/types';
 
 export interface PlanetInterpretation {
   planet: string;
@@ -64,6 +65,7 @@ export class InterpretationService {
   async generateNatalChartInterpretation(
     userId: string,
     chartData: any,
+    locale: 'ru' | 'en' = 'ru',
   ): Promise<NatalChartInterpretation> {
     this.logger.log(`Генерация интерпретации натальной карты для ${userId}`);
 

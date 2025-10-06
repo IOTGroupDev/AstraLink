@@ -14,6 +14,10 @@ export const PLANETS = {
   URANUS: 'uranus',
   NEPTUNE: 'neptune',
   PLUTO: 'pluto',
+  NORTH_NODE: 'north_node',
+  SOUTH_NODE: 'south_node',
+  LILITH: 'lilith',
+  CHIRON: 'chiron',
 } as const;
 
 export const SIGNS = [

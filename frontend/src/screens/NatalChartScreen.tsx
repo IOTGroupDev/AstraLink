@@ -281,11 +281,22 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   <View style={styles.overlay} />
                   <View style={styles.cardContent}>
                     <Text style={styles.planetTitle}>
-                      {planet.planet} в {planet.sign} ({planet.house} дом)
+                      {planet.planet} в {planet.sign} (
+                      {planet.degree.toFixed(1)}°) ({planet.house} дом)
                     </Text>
                     <Text style={styles.planetText}>
                       {planet.interpretation}
                     </Text>
+                    {planet.keywords && planet.keywords.length > 0 && (
+                      <View style={styles.keywordsContainer}>
+                        <Text style={styles.keywordsTitle}>
+                          Ключевые слова:
+                        </Text>
+                        <Text style={styles.keywordsText}>
+                          {planet.keywords.join(', ')}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.keywordsContainer}>
                       <Text style={styles.keywordsTitle}>Сильные стороны:</Text>
                       <Text style={styles.keywordsText}>

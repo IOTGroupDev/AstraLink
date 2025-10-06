@@ -289,6 +289,10 @@ export class EphemerisService implements OnModuleInit {
       7: 'uranus',
       8: 'neptune',
       9: 'pluto',
+      10: 'north_node',
+      11: 'south_node',
+      12: 'lilith',
+      15: 'chiron',
     };
 
     for (const [planetId, planetName] of Object.entries(planetNames)) {

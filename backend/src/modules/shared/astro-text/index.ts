@@ -96,6 +96,10 @@ function getPlanetName(planet: PlanetKey, locale: 'ru' | 'en'): string {
     uranus: 'Уран',
     neptune: 'Нептун',
     pluto: 'Плутон',
+    north_node: 'Северный Узел',
+    south_node: 'Южный Узел',
+    lilith: 'Лилит',
+    chiron: 'Хирон',
   };
   const en: Record<PlanetKey, string> = {
     sun: 'Sun',
@@ -108,6 +112,10 @@ function getPlanetName(planet: PlanetKey, locale: 'ru' | 'en'): string {
     uranus: 'Uranus',
     neptune: 'Neptune',
     pluto: 'Pluto',
+    north_node: 'North Node',
+    south_node: 'South Node',
+    lilith: 'Lilith',
+    chiron: 'Chiron',
   };
   return (locale === 'en' ? en : ru)[planet] || planet;
 }
