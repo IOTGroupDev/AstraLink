@@ -73,6 +73,7 @@ const getPlanetImage = (planet: string): string => {
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(0);
 
   const fadeAnim = useSharedValue(0);
 
@@ -140,286 +141,474 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <CosmicBackground />
+  // Helpers for enrichment
+  const planetRu: Record<string, string> = {
+    sun: 'Солнце',
+    moon: 'Луна',
+    mercury: 'Меркурий',
+    venus: 'Венера',
+    mars: 'Марс',
+    jupiter: 'Юпитер',
+    saturn: 'Сатурн',
+    uranus: 'Уран',
+    neptune: 'Нептун',
+    pluto: 'Плутон',
+  };
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Animated.View style={[styles.content, animatedContainerStyle]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Натальная карта</Text>
-            <View style={styles.placeholder} />
-          </View>
+  const aspectRu: Record<string, string> = {
+    conjunction: 'Соединение',
+    opposition: 'Оппозиция',
+    trine: 'Тригон',
+    square: 'Квадрат',
+    sextile: 'Секстиль',
+  };
 
-          {/* Natal Chart Widget */}
-          <View style={styles.chartSection}>
-            <NatalChartWidget chart={chartData} />
-          </View>
+  const getHouseForLongitude = (longitude: number, houses: any): number => {
+    for (let i = 1; i <= 12; i++) {
+      const current = houses?.[i]?.cusp ?? 0;
+      const next = houses?.[i === 12 ? 1 : i + 1]?.cusp ?? 0;
 
-          {/* Overview */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Общий обзор</Text>
-            <LinearGradient
-              colors={['#8B5CF6', '#06B6D4', '#10B981']}
-              style={styles.card}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons
-                name="planet"
-                size={40}
-                color="rgba(255, 255, 255, 0.2)"
-                style={styles.planetIcon}
-              />
-              <View style={styles.cardContent}>
-                <Text style={styles.overviewText}>
-                  {interpretation.overview}
-                </Text>
-              </View>
-            </LinearGradient>
-          </View>
+      if (current <= next) {
+        if (longitude >= current && longitude < next) return i;
+      } else {
+        if (longitude >= current || longitude < next) return i;
+      }
+    }
+    return 1;
+  };
 
-          {/* Sun Sign */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Солнце</Text>
-            <ImageBackground
-              source={{ uri: getPlanetImage('Солнце') }}
-              style={styles.card}
-              imageStyle={styles.cardImage}
-            >
-              <View style={styles.overlay} />
-              <View style={styles.cardContent}>
-                <Text style={styles.planetTitle}>
-                  {interpretation.sunSign.planet} в{' '}
-                  {interpretation.sunSign.sign}
-                </Text>
-                <Text style={styles.planetText}>
-                  {interpretation.sunSign.interpretation}
-                </Text>
-                <View style={styles.keywordsContainer}>
-                  <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
-                  <Text style={styles.keywordsText}>
-                    {interpretation.sunSign.keywords.join(', ')}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
-          </View>
+  const computePlanetsByHouse = (): Record<number, string[]> => {
+    const houses = (data as any)?.houses || {};
+    const planets = (data as any)?.planets || {};
+    const res: Record<number, string[]> = {};
+    Object.entries(planets).forEach(([key, value]: any) => {
+      const lon = value?.longitude;
+      if (typeof lon !== 'number') return;
+      const h = getHouseForLongitude(lon, houses);
+      if (!res[h]) res[h] = [];
+      res[h].push(planetRu[key] || key);
+    });
+    return res;
+  };
 
-          {/* Moon Sign */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Луна</Text>
-            <ImageBackground
-              source={{ uri: getPlanetImage('Луна') }}
-              style={styles.card}
-              imageStyle={styles.cardImage}
-            >
-              <View style={styles.overlay} />
-              <View style={styles.cardContent}>
-                <Text style={styles.planetTitle}>
-                  {interpretation.moonSign.planet} в{' '}
-                  {interpretation.moonSign.sign}
-                </Text>
-                <Text style={styles.planetText}>
-                  {interpretation.moonSign.interpretation}
-                </Text>
-                <View style={styles.keywordsContainer}>
-                  <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
-                  <Text style={styles.keywordsText}>
-                    {interpretation.moonSign.keywords.join(', ')}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
-          </View>
+  const aspectsRaw = ((data as any)?.aspects || []).map((a: any) => ({
+    planetA: planetRu[a.planetA] || a.planetA,
+    planetB: planetRu[a.planetB] || a.planetB,
+    type: aspectRu[a.aspect] || a.aspect,
+    orb: a.orb,
+    strength: Math.round(((a.strength ?? 0) as number) * 100),
+  }));
 
-          {/* Ascendant */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Асцендент</Text>
-            <ImageBackground
-              source={{ uri: getPlanetImage('Асцендент') }}
-              style={styles.card}
-              imageStyle={styles.cardImage}
-            >
-              <View style={styles.overlay} />
-              <View style={styles.cardContent}>
-                <Text style={styles.planetTitle}>
-                  {interpretation.ascendant.planet} в{' '}
-                  {interpretation.ascendant.sign}
-                </Text>
-                <Text style={styles.planetText}>
-                  {interpretation.ascendant.interpretation}
-                </Text>
-                <View style={styles.keywordsContainer}>
-                  <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
-                  <Text style={styles.keywordsText}>
-                    {interpretation.ascendant.keywords.join(', ')}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
-          </View>
+  const planetsInHouse = computePlanetsByHouse();
 
-          {/* Planets */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Планеты</Text>
-            {interpretation.planets.map((planet: any, index: number) => {
-              return (
-                <ImageBackground
-                  key={index}
-                  source={{ uri: getPlanetImage(planet.planet) }}
-                  style={styles.card}
-                  imageStyle={styles.cardImage}
-                >
-                  <View style={styles.overlay} />
-                  <View style={styles.cardContent}>
-                    <Text style={styles.planetTitle}>
-                      {planet.planet} в {planet.sign} (
-                      {planet.degree.toFixed(1)}°) ({planet.house} дом)
-                    </Text>
-                    <Text style={styles.planetText}>
-                      {planet.interpretation}
-                    </Text>
-                    {planet.keywords && planet.keywords.length > 0 && (
-                      <View style={styles.keywordsContainer}>
-                        <Text style={styles.keywordsTitle}>
-                          Ключевые слова:
-                        </Text>
-                        <Text style={styles.keywordsText}>
-                          {planet.keywords.join(', ')}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.keywordsContainer}>
-                      <Text style={styles.keywordsTitle}>Сильные стороны:</Text>
-                      <Text style={styles.keywordsText}>
-                        {planet.strengths.join(', ')}
-                      </Text>
-                    </View>
-                    <View style={styles.keywordsContainer}>
-                      <Text style={styles.keywordsTitle}>Вызовы:</Text>
-                      <Text style={styles.keywordsText}>
-                        {planet.challenges.join(', ')}
-                      </Text>
-                    </View>
-                  </View>
-                </ImageBackground>
-              );
-            })}
-          </View>
+  const tabs = [
+    { key: 'overview', title: 'Обзор', icon: 'eye-outline' },
+    { key: 'planets', title: 'Планеты', icon: 'planet-outline' },
+    { key: 'aspects', title: 'Аспекты', icon: 'git-network-outline' },
+    { key: 'houses', title: 'Дома', icon: 'home-outline' },
+    { key: 'summary', title: 'Резюме', icon: 'star-outline' },
+  ];
 
-          {/* Aspects */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Аспекты</Text>
-            {interpretation.aspects.map((aspect: any, index: number) => (
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 0: // Обзор
+        return (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {/* Natal Chart Widget */}
+            <View style={styles.chartSection}>
+              <NatalChartWidget chart={chartData} />
+            </View>
+
+            {/* Overview */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Общий обзор</Text>
               <LinearGradient
-                key={index}
-                colors={['#FF6B35', '#FF4500', '#DC143C']}
+                colors={['#8B5CF6', '#06B6D4', '#10B981']}
                 style={styles.card}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
                 <Ionicons
                   name="planet"
-                  size={30}
+                  size={40}
                   color="rgba(255, 255, 255, 0.2)"
                   style={styles.planetIcon}
                 />
                 <View style={styles.cardContent}>
-                  <Text style={styles.aspectTitle}>{aspect.aspect}</Text>
-                  <Text style={styles.aspectText}>{aspect.interpretation}</Text>
-                  <Text style={styles.significanceText}>
-                    {aspect.significance}
+                  <Text style={styles.overviewText}>
+                    {interpretation.overview}
                   </Text>
                 </View>
               </LinearGradient>
-            ))}
-          </View>
+            </View>
 
-          {/* Houses */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Дома</Text>
-            {interpretation.houses.map((house: any, index: number) => (
+            {/* Sun Sign */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Солнце</Text>
+              <ImageBackground
+                source={{ uri: getPlanetImage('Солнце') }}
+                style={styles.card}
+                imageStyle={styles.cardImage}
+              >
+                <View style={styles.overlay} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.planetTitle}>
+                    {interpretation.sunSign.planet} в{' '}
+                    {interpretation.sunSign.sign}
+                  </Text>
+                  <Text style={styles.planetText}>
+                    {interpretation.sunSign.interpretation}
+                  </Text>
+                  <View style={styles.keywordsContainer}>
+                    <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
+                    <Text style={styles.keywordsText}>
+                      {interpretation.sunSign.keywords.join(', ')}
+                    </Text>
+                  </View>
+                </View>
+              </ImageBackground>
+            </View>
+
+            {/* Moon Sign */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Луна</Text>
+              <ImageBackground
+                source={{ uri: getPlanetImage('Луна') }}
+                style={styles.card}
+                imageStyle={styles.cardImage}
+              >
+                <View style={styles.overlay} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.planetTitle}>
+                    {interpretation.moonSign.planet} в{' '}
+                    {interpretation.moonSign.sign}
+                  </Text>
+                  <Text style={styles.planetText}>
+                    {interpretation.moonSign.interpretation}
+                  </Text>
+                  <View style={styles.keywordsContainer}>
+                    <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
+                    <Text style={styles.keywordsText}>
+                      {interpretation.moonSign.keywords.join(', ')}
+                    </Text>
+                  </View>
+                </View>
+              </ImageBackground>
+            </View>
+
+            {/* Ascendant */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Асцендент</Text>
+              <ImageBackground
+                source={{ uri: getPlanetImage('Асцендент') }}
+                style={styles.card}
+                imageStyle={styles.cardImage}
+              >
+                <View style={styles.overlay} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.planetTitle}>
+                    {interpretation.ascendant.planet} в{' '}
+                    {interpretation.ascendant.sign}
+                  </Text>
+                  <Text style={styles.planetText}>
+                    {interpretation.ascendant.interpretation}
+                  </Text>
+                  <View style={styles.keywordsContainer}>
+                    <Text style={styles.keywordsTitle}>Ключевые слова:</Text>
+                    <Text style={styles.keywordsText}>
+                      {interpretation.ascendant.keywords.join(', ')}
+                    </Text>
+                  </View>
+                </View>
+              </ImageBackground>
+            </View>
+          </ScrollView>
+        );
+
+      case 1: // Планеты
+        return (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Планеты</Text>
+              {interpretation.planets.map((planet: any, index: number) => {
+                return (
+                  <ImageBackground
+                    key={index}
+                    source={{ uri: getPlanetImage(planet.planet) }}
+                    style={styles.card}
+                    imageStyle={styles.cardImage}
+                  >
+                    <View style={styles.overlay} />
+                    <View style={styles.cardContent}>
+                      <Text style={styles.planetTitle}>
+                        {planet.planet} в {planet.sign} (
+                        {planet.degree.toFixed(1)}°) ({planet.house} дом)
+                      </Text>
+                      <Text style={styles.planetText}>
+                        {planet.interpretation}
+                      </Text>
+                      {planet.keywords && planet.keywords.length > 0 && (
+                        <View style={styles.keywordsContainer}>
+                          <Text style={styles.keywordsTitle}>
+                            Ключевые слова:
+                          </Text>
+                          <Text style={styles.keywordsText}>
+                            {planet.keywords.join(', ')}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.keywordsContainer}>
+                        <Text style={styles.keywordsTitle}>
+                          Сильные стороны:
+                        </Text>
+                        <Text style={styles.keywordsText}>
+                          {planet.strengths.join(', ')}
+                        </Text>
+                      </View>
+                      <View style={styles.keywordsContainer}>
+                        <Text style={styles.keywordsTitle}>Вызовы:</Text>
+                        <Text style={styles.keywordsText}>
+                          {planet.challenges.join(', ')}
+                        </Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                );
+              })}
+            </View>
+          </ScrollView>
+        );
+
+      case 2: // Аспекты
+        return (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {/* Precise aspects with orb/strength */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Точные аспекты</Text>
+              {aspectsRaw.map((asp: any, index: number) => (
+                <View key={index} style={styles.card}>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.aspectTitle}>
+                      {asp.planetA} — {asp.type} — {asp.planetB}
+                    </Text>
+
+                    <View style={styles.chipRow}>
+                      <View style={styles.chip}>
+                        <Text style={styles.chipText}>
+                          Орб:{' '}
+                          {typeof asp.orb === 'number'
+                            ? asp.orb.toFixed(1)
+                            : asp.orb}
+                          °
+                        </Text>
+                      </View>
+                      <View style={styles.chip}>
+                        <Text style={styles.chipText}>
+                          Сила: {asp.strength}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.meter}>
+                      <View
+                        style={[
+                          styles.meterFill,
+                          {
+                            width: `${Math.min(100, Math.max(0, asp.strength))}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Аспекты</Text>
+              {interpretation.aspects.map((aspect: any, index: number) => (
+                <LinearGradient
+                  key={index}
+                  colors={['#FF6B35', '#FF4500', '#DC143C']}
+                  style={styles.card}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Ionicons
+                    name="planet"
+                    size={30}
+                    color="rgba(255, 255, 255, 0.2)"
+                    style={styles.planetIcon}
+                  />
+                  <View style={styles.cardContent}>
+                    <Text style={styles.aspectTitle}>{aspect.aspect}</Text>
+                    <Text style={styles.aspectText}>
+                      {aspect.interpretation}
+                    </Text>
+                    <Text style={styles.significanceText}>
+                      {aspect.significance}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              ))}
+            </View>
+          </ScrollView>
+        );
+
+      case 3: // Дома
+        return (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Дома</Text>
+              {interpretation.houses.map((house: any, index: number) => (
+                <LinearGradient
+                  key={index}
+                  colors={['#32CD32', '#228B22', '#006400']}
+                  style={styles.card}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Ionicons
+                    name="home"
+                    size={30}
+                    color="rgba(255, 255, 255, 0.2)"
+                    style={styles.planetIcon}
+                  />
+                  <View style={styles.cardContent}>
+                    <Text style={styles.houseTitle}>
+                      {house.house} дом в {house.sign}
+                    </Text>
+                    <Text style={styles.houseArea}>{house.lifeArea}</Text>
+
+                    {planetsInHouse[house.house] &&
+                      planetsInHouse[house.house].length > 0 && (
+                        <View style={styles.chipRow}>
+                          {planetsInHouse[house.house].map(
+                            (p: string, i: number) => (
+                              <View key={i} style={styles.chip}>
+                                <Text style={styles.chipText}>{p}</Text>
+                              </View>
+                            )
+                          )}
+                        </View>
+                      )}
+
+                    <Text style={styles.houseText}>{house.interpretation}</Text>
+                  </View>
+                </LinearGradient>
+              ))}
+            </View>
+          </ScrollView>
+        );
+
+      case 4: // Резюме
+        return (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Резюме</Text>
               <LinearGradient
-                key={index}
-                colors={['#32CD32', '#228B22', '#006400']}
+                colors={['#FFD700', '#FF69B4', '#8B5CF6']}
                 style={styles.card}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
                 <Ionicons
-                  name="home"
+                  name="star"
                   size={30}
                   color="rgba(255, 255, 255, 0.2)"
                   style={styles.planetIcon}
                 />
                 <View style={styles.cardContent}>
-                  <Text style={styles.houseTitle}>
-                    {house.house} дом в {house.sign}
+                  <Text style={styles.summaryTitle}>Черты личности:</Text>
+                  <Text style={styles.summaryText}>
+                    {interpretation.summary.personalityTraits.join(', ')}
                   </Text>
-                  <Text style={styles.houseArea}>{house.lifeArea}</Text>
-                  <Text style={styles.houseText}>{house.interpretation}</Text>
+
+                  <Text style={styles.summaryTitle}>Жизненные темы:</Text>
+                  <Text style={styles.summaryText}>
+                    {interpretation.summary.lifeThemes.join(', ')}
+                  </Text>
+
+                  <Text style={styles.summaryTitle}>Кармические уроки:</Text>
+                  <Text style={styles.summaryText}>
+                    {interpretation.summary.karmaLessons.join(', ')}
+                  </Text>
+
+                  <Text style={styles.summaryTitle}>Таланты:</Text>
+                  <Text style={styles.summaryText}>
+                    {interpretation.summary.talents.join(', ')}
+                  </Text>
+
+                  <Text style={styles.summaryTitle}>Рекомендации:</Text>
+                  {interpretation.summary.recommendations.map(
+                    (rec: string, index: number) => (
+                      <Text key={index} style={styles.recommendationText}>
+                        • {rec}
+                      </Text>
+                    )
+                  )}
                 </View>
               </LinearGradient>
-            ))}
-          </View>
+            </View>
+          </ScrollView>
+        );
 
-          {/* Summary */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Резюме</Text>
-            <LinearGradient
-              colors={['#FFD700', '#FF69B4', '#8B5CF6']}
-              style={styles.card}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <CosmicBackground />
+
+      {/* Header - outside animation */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Натальная карта</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      {/* Tabs - outside animation */}
+      <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScrollContent}
+        >
+          {tabs.map((tab, index) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, activeTab === index && styles.activeTab]}
+              onPress={() => setActiveTab(index)}
             >
               <Ionicons
-                name="star"
-                size={30}
-                color="rgba(255, 255, 255, 0.2)"
-                style={styles.planetIcon}
+                name={tab.icon as any}
+                size={20}
+                color={activeTab === index ? '#8B5CF6' : '#B0B0B0'}
               />
-              <View style={styles.cardContent}>
-                <Text style={styles.summaryTitle}>Черты личности:</Text>
-                <Text style={styles.summaryText}>
-                  {interpretation.summary.personalityTraits.join(', ')}
-                </Text>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === index && styles.activeTabText,
+                ]}
+              >
+                {tab.title}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-                <Text style={styles.summaryTitle}>Жизненные темы:</Text>
-                <Text style={styles.summaryText}>
-                  {interpretation.summary.lifeThemes.join(', ')}
-                </Text>
-
-                <Text style={styles.summaryTitle}>Кармические уроки:</Text>
-                <Text style={styles.summaryText}>
-                  {interpretation.summary.karmaLessons.join(', ')}
-                </Text>
-
-                <Text style={styles.summaryTitle}>Таланты:</Text>
-                <Text style={styles.summaryText}>
-                  {interpretation.summary.talents.join(', ')}
-                </Text>
-
-                <Text style={styles.summaryTitle}>Рекомендации:</Text>
-                {interpretation.summary.recommendations.map(
-                  (rec: string, index: number) => (
-                    <Text key={index} style={styles.recommendationText}>
-                      • {rec}
-                    </Text>
-                  )
-                )}
-              </View>
-            </LinearGradient>
-          </View>
-        </Animated.View>
-      </ScrollView>
+      {/* Tab Content - with animation */}
+      <Animated.View style={[styles.tabContent, animatedContainerStyle]}>
+        {renderTabContent()}
+      </Animated.View>
     </View>
   );
 };
@@ -433,16 +622,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 100,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 60,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   backButton: {
     width: 44,
@@ -621,6 +807,74 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Tab styles
+  tabsContainer: {
+    marginBottom: 20,
+    marginHorizontal: -20, // Compensate for content padding
+  },
+  tabsScrollContent: {
+    paddingHorizontal: 20,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  activeTab: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: '#8B5CF6',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#B0B0B0',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  activeTabText: {
+    color: '#8B5CF6',
+    fontWeight: '600',
+  },
+  tabContent: {
+    flex: 1,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipText: {
+    color: '#8B5CF6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  meter: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  meterFill: {
+    height: '100%',
+    backgroundColor: '#8B5CF6',
+    borderRadius: 4,
   },
 });
 

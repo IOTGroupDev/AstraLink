@@ -245,6 +245,9 @@ export const authAPI = {
   },
 };
 
+// Alias for backward compatibility
+export const removeStoredToken = tokenService.clearToken;
+
 // User/Profile API
 export const userAPI = {
   getProfile: async (): Promise<UserProfile> => {

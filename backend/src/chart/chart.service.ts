@@ -76,10 +76,11 @@ export class ChartService {
         natalChartData,
       );
 
-    // Сохраняем карту с интерпретацией
+    // Сохраняем карту с интерпретацией (включая версию)
     const chartWithInterpretation = {
       ...natalChartData,
       interpretation,
+      interpretationVersion: 'v3',
     };
 
     return await this.prisma.chart.create({
@@ -105,18 +106,19 @@ export class ChartService {
 
     const chartData = chart.data as any;
 
-    // Если интерпретация отсутствует, генерируем её
-    if (!chartData.interpretation) {
+    // Если интерпретация отсутствует или версия устарела — регенерируем под v3
+    if (!chartData.interpretation || chartData.interpretationVersion !== 'v3') {
       const interpretation =
         await this.interpretationService.generateNatalChartInterpretation(
           userId,
           chartData,
         );
 
-      // Обновляем карту с интерпретацией
+      // Обновляем карту с интерпретацией и версией
       const updatedData = {
         ...chartData,
         interpretation,
+        interpretationVersion: 'v3',
       };
 
       await this.prisma.chart.update({

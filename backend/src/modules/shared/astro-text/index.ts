@@ -152,6 +152,290 @@ function getSignName(sign: Sign, locale: 'ru' | 'en'): string {
   return (locale === 'en' ? en : ru)[sign] || (sign as string);
 }
 
+/**
+ * Trait dictionaries to generate non-repetitive keywords/strengths/challenges
+ * per planet × sign. Kept intentionally concise but distinct.
+ */
+type Trait = { keywords: string[]; strengths: string[]; challenges: string[] };
+
+const PLANET_TRAITS_RU: Record<PlanetKey, Trait> = {
+  sun: {
+    keywords: ['самовыражение', 'воля', 'эго'],
+    strengths: ['Лидерство', 'Уверенность', 'Творчество'],
+    challenges: ['Эгоцентризм', 'Доминирование'],
+  },
+  moon: {
+    keywords: ['эмоции', 'интуиция', 'привычки'],
+    strengths: ['Сочувствие', 'Забота', 'Адаптивность'],
+    challenges: ['Перепады настроения', 'Ранимость'],
+  },
+  mercury: {
+    keywords: ['мышление', 'речь', 'обучение'],
+    strengths: ['Аналитичность', 'Коммуникабельность'],
+    challenges: ['Поспешность выводов', 'Болтливость'],
+  },
+  venus: {
+    keywords: ['привязанности', 'ценности', 'эстетика'],
+    strengths: ['Дипломатия', 'Чуткость', 'Обаяние'],
+    challenges: ['Избалованность', 'Идеализация'],
+  },
+  mars: {
+    keywords: ['действие', 'энергия', 'воля'],
+    strengths: ['Решительность', 'Смелость'],
+    challenges: ['Импульсивность', 'Конфликтность'],
+  },
+  jupiter: {
+    keywords: ['рост', 'смысл', 'удача'],
+    strengths: ['Оптимизм', 'Широта взглядов'],
+    challenges: ['Излишний риск', 'Самоуверенность'],
+  },
+  saturn: {
+    keywords: ['структура', 'границы', 'ответственность'],
+    strengths: ['Дисциплина', 'Стойкость'],
+    challenges: ['Жесткость', 'Страх ошибок'],
+  },
+  uranus: {
+    keywords: ['свобода', 'инновации', 'революция'],
+    strengths: ['Оригинальность', 'Независимость'],
+    challenges: ['Непредсказуемость', 'Отстраненность'],
+  },
+  neptune: {
+    keywords: ['воображение', 'вера', 'растворение'],
+    strengths: ['Интуиция', 'Вдохновение'],
+    challenges: ['Иллюзии', 'Границы размыты'],
+  },
+  pluto: {
+    keywords: ['сила', 'кризис', 'трансформация'],
+    strengths: ['Проницательность', 'Регенерация'],
+    challenges: ['Контроль', 'Одержимость'],
+  },
+  north_node: {
+    keywords: ['рост', 'вектор', 'предназначение'],
+    strengths: ['Устремленность'],
+    challenges: ['Неуверенность пути'],
+  },
+  south_node: {
+    keywords: ['опыт', 'инерция', 'прошлое'],
+    strengths: ['Наследованные навыки'],
+    challenges: ['Застревание в старом'],
+  },
+  lilith: {
+    keywords: ['тень', 'инстинкт', 'свобода'],
+    strengths: ['Аутентичность'],
+    challenges: ['Крайности', 'Бунтарство'],
+  },
+  chiron: {
+    keywords: ['рана', 'исцеление', 'мудрость'],
+    strengths: ['Эмпатия', 'Наставничество'],
+    challenges: ['Гиперчувствительность'],
+  },
+};
+
+const PLANET_TRAITS_EN: Record<PlanetKey, Trait> = {
+  sun: {
+    keywords: ['self-expression', 'will', 'identity'],
+    strengths: ['Leadership', 'Confidence', 'Creativity'],
+    challenges: ['Egocentrism', 'Dominance'],
+  },
+  moon: {
+    keywords: ['emotions', 'intuition', 'habits'],
+    strengths: ['Empathy', 'Care', 'Adaptability'],
+    challenges: ['Mood swings', 'Sensitivity'],
+  },
+  mercury: {
+    keywords: ['thinking', 'speech', 'learning'],
+    strengths: ['Analytic', 'Communication'],
+    challenges: ['Hasty conclusions', 'Chatter'],
+  },
+  venus: {
+    keywords: ['attachments', 'values', 'aesthetics'],
+    strengths: ['Diplomacy', 'Sensitivity', 'Charm'],
+    challenges: ['Indulgence', 'Idealization'],
+  },
+  mars: {
+    keywords: ['action', 'energy', 'drive'],
+    strengths: ['Decisiveness', 'Courage'],
+    challenges: ['Impulsiveness', 'Aggression'],
+  },
+  jupiter: {
+    keywords: ['growth', 'meaning', 'luck'],
+    strengths: ['Optimism', 'Broad outlook'],
+    challenges: ['Over-risk', 'Overconfidence'],
+  },
+  saturn: {
+    keywords: ['structure', 'limits', 'duty'],
+    strengths: ['Discipline', 'Endurance'],
+    challenges: ['Rigidity', 'Fear of failure'],
+  },
+  uranus: {
+    keywords: ['freedom', 'innovation', 'revolt'],
+    strengths: ['Originality', 'Independence'],
+    challenges: ['Unpredictability', 'Detachment'],
+  },
+  neptune: {
+    keywords: ['imagination', 'faith', 'dissolution'],
+    strengths: ['Intuition', 'Inspiration'],
+    challenges: ['Illusions', 'Weak boundaries'],
+  },
+  pluto: {
+    keywords: ['power', 'crisis', 'transformation'],
+    strengths: ['Insight', 'Regeneration'],
+    challenges: ['Control', 'Obsession'],
+  },
+  north_node: {
+    keywords: ['growth', 'vector', 'purpose'],
+    strengths: ['Aspiration'],
+    challenges: ['Path uncertainty'],
+  },
+  south_node: {
+    keywords: ['experience', 'inertia', 'past'],
+    strengths: ['Inherited skills'],
+    challenges: ['Stuck in old'],
+  },
+  lilith: {
+    keywords: ['shadow', 'instinct', 'freedom'],
+    strengths: ['Authenticity'],
+    challenges: ['Extremes', 'Rebellion'],
+  },
+  chiron: {
+    keywords: ['wound', 'healing', 'wisdom'],
+    strengths: ['Empathy', 'Mentorship'],
+    challenges: ['Hypersensitivity'],
+  },
+};
+
+const SIGN_TRAITS_RU: Record<Sign, Trait> = {
+  Aries: {
+    keywords: ['инициатива', 'прямота', 'скорость'],
+    strengths: ['Смелость', 'Предприимчивость'],
+    challenges: ['Поспешность', 'Резкость'],
+  },
+  Taurus: {
+    keywords: ['устойчивость', 'практика', 'ценности'],
+    strengths: ['Надежность', 'Терпение'],
+    challenges: ['Упрямство', 'Инертность'],
+  },
+  Gemini: {
+    keywords: ['коммуникация', 'гибкость', 'ум'],
+    strengths: ['Обучаемость', 'Связность'],
+    challenges: ['Поверхностность', 'Разброс'],
+  },
+  Cancer: {
+    keywords: ['забота', 'интуиция', 'семья'],
+    strengths: ['Сочувствие', 'Хранительство'],
+    challenges: ['Ранимость', 'Зависимость'],
+  },
+  Leo: {
+    keywords: ['яркость', 'творчество', 'сцена'],
+    strengths: ['Харизма', 'Щедрость'],
+    challenges: ['Пафос', 'Гордость'],
+  },
+  Virgo: {
+    keywords: ['детали', 'служение', 'анализ'],
+    strengths: ['Системность', 'Точность'],
+    challenges: ['Критичность', 'Тревожность'],
+  },
+  Libra: {
+    keywords: ['баланс', 'партнерство', 'эстетика'],
+    strengths: ['Тактичность', 'Дипломатия'],
+    challenges: ['Нерешительность', 'Зависимость от мнений'],
+  },
+  Scorpio: {
+    keywords: ['глубина', 'сила', 'правда'],
+    strengths: ['Проницательность', 'Стойкость'],
+    challenges: ['Подозрительность', 'Ревность'],
+  },
+  Sagittarius: {
+    keywords: ['смысл', 'поиск', 'свобода'],
+    strengths: ['Оптимизм', 'Честность'],
+    challenges: ['Излишняя прямота', 'Неусидчивость'],
+  },
+  Capricorn: {
+    keywords: ['структура', 'цели', 'долг'],
+    strengths: ['Ответственность', 'Стратегичность'],
+    challenges: ['Жесткость', 'Холодность'],
+  },
+  Aquarius: {
+    keywords: ['новаторство', 'сообщество', 'независимость'],
+    strengths: ['Идеи', 'Объективность'],
+    challenges: ['Отстраненность', 'Упрямство'],
+  },
+  Pisces: {
+    keywords: ['эмпатия', 'воображение', 'духовность'],
+    strengths: ['Интуиция', 'Сочувствие'],
+    challenges: ['Рассеянность', 'Идеализация'],
+  },
+};
+
+const SIGN_TRAITS_EN: Record<Sign, Trait> = {
+  Aries: {
+    keywords: ['initiative', 'direct', 'fast'],
+    strengths: ['Courage', 'Enterprise'],
+    challenges: ['Haste', 'Bluntness'],
+  },
+  Taurus: {
+    keywords: ['stability', 'practical', 'values'],
+    strengths: ['Reliability', 'Patience'],
+    challenges: ['Stubbornness', 'Inertia'],
+  },
+  Gemini: {
+    keywords: ['communication', 'flexible', 'mind'],
+    strengths: ['Learnability', 'Connectedness'],
+    challenges: ['Superficiality', 'Scattered'],
+  },
+  Cancer: {
+    keywords: ['care', 'intuition', 'family'],
+    strengths: ['Empathy', 'Nurturing'],
+    challenges: ['Sensitivity', 'Dependency'],
+  },
+  Leo: {
+    keywords: ['brightness', 'creativity', 'stage'],
+    strengths: ['Charisma', 'Generosity'],
+    challenges: ['Pomposity', 'Pride'],
+  },
+  Virgo: {
+    keywords: ['details', 'service', 'analysis'],
+    strengths: ['System', 'Precision'],
+    challenges: ['Criticism', 'Anxiety'],
+  },
+  Libra: {
+    keywords: ['balance', 'partnership', 'aesthetics'],
+    strengths: ['Tact', 'Diplomacy'],
+    challenges: ['Indecision', 'Dependence on opinions'],
+  },
+  Scorpio: {
+    keywords: ['depth', 'power', 'truth'],
+    strengths: ['Insight', 'Resilience'],
+    challenges: ['Suspicion', 'Jealousy'],
+  },
+  Sagittarius: {
+    keywords: ['meaning', 'quest', 'freedom'],
+    strengths: ['Optimism', 'Honesty'],
+    challenges: ['Over-frankness', 'Restlessness'],
+  },
+  Capricorn: {
+    keywords: ['structure', 'goals', 'duty'],
+    strengths: ['Responsibility', 'Strategic thinking'],
+    challenges: ['Rigidity', 'Coldness'],
+  },
+  Aquarius: {
+    keywords: ['innovation', 'community', 'independence'],
+    strengths: ['Ideas', 'Objectivity'],
+    challenges: ['Detachment', 'Stubbornness'],
+  },
+  Pisces: {
+    keywords: ['empathy', 'imagination', 'spirituality'],
+    strengths: ['Intuition', 'Compassion'],
+    challenges: ['Distractibility', 'Idealization'],
+  },
+};
+
+// Helper to merge and deduplicate with cap
+function mergeTraits(a: string[] = [], b: string[] = [], cap = 6): string[] {
+  const uniq = Array.from(new Set([...a, ...b].filter(Boolean)));
+  return uniq.slice(0, cap);
+}
+
 // Public API
 
 export function getAspectName(
@@ -180,34 +464,39 @@ export function getPlanetInSignText(
 }
 
 export function getKeywords(
-  _planet: PlanetKey,
-  _sign: Sign,
+  planet: PlanetKey,
+  sign: Sign,
   locale: 'ru' | 'en' = 'ru',
 ): string[] {
-  // Until per-planet tables are introduced
-  return locale === 'en'
-    ? ['energetic', 'goal-oriented', 'creative', 'intuitive']
-    : ['энергичный', 'целеустремленный', 'творческий', 'интуитивный'];
+  const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
+  const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
+  const pk = (P[planet]?.keywords || []).slice(0, 3);
+  const sk = (S[sign]?.keywords || []).slice(0, 3);
+  return mergeTraits(pk, sk, 6);
 }
 
 export function getStrengths(
-  _planet: PlanetKey,
-  _sign: Sign,
+  planet: PlanetKey,
+  sign: Sign,
   locale: 'ru' | 'en' = 'ru',
 ): string[] {
-  return locale === 'en'
-    ? ['Leadership', 'Creativity', 'Decisiveness']
-    : ['Лидерские качества', 'Креативность', 'Решительность'];
+  const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
+  const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
+  const ps = (P[planet]?.strengths || []).slice(0, 3);
+  const ss = (S[sign]?.strengths || []).slice(0, 3);
+  return mergeTraits(ps, ss, 6);
 }
 
 export function getChallenges(
-  _planet: PlanetKey,
-  _sign: Sign,
+  planet: PlanetKey,
+  sign: Sign,
   locale: 'ru' | 'en' = 'ru',
 ): string[] {
-  return locale === 'en'
-    ? ['Impulsiveness', 'Impatience']
-    : ['Импульсивность', 'Нетерпеливость'];
+  const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
+  const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
+  const pc = (P[planet]?.challenges || []).slice(0, 3);
+  const sc = (S[sign]?.challenges || []).slice(0, 3);
+  return mergeTraits(pc, sc, 6);
 }
 
 export function getAscendantText(

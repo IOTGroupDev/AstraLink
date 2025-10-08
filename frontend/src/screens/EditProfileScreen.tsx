@@ -12,8 +12,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue } from 'react-native-reanimated';
-import { userAPI } from '../services/api';
-import { UserProfile, UpdateProfileRequest } from '../types';
+import { userAPI, chartAPI } from '../services/api';
+import { UserProfile, UpdateProfileRequest, Chart } from '../types';
 import AstralInput from '../components/AstralInput';
 import AstralDateTimePicker from '../components/DateTimePicker';
 import CosmicBackground from '../components/CosmicBackground';
@@ -27,6 +27,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
   navigation,
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [chart, setChart] = useState<Chart | null>(null);
   const [formData, setFormData] = useState<UpdateProfileRequest>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,13 +42,30 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const profileData = await userAPI.getProfile();
+      const [profileData, chartData] = await Promise.all([
+        userAPI.getProfile(),
+        chartAPI.getNatalChart().catch(() => null), // Не прерываем загрузку если нет карты
+      ]);
+
       setProfile(profileData);
+      setChart(chartData);
+
+      // Используем данные из натальной карты, если она существует, иначе из профиля
+      const birthData = chartData?.data
+        ? {
+            birthDate: chartData.data.birthDate || profileData.birthDate,
+            birthTime: chartData.data.birthTime || profileData.birthTime,
+            birthPlace: chartData.data.birthPlace || profileData.birthPlace,
+          }
+        : {
+            birthDate: profileData.birthDate,
+            birthTime: profileData.birthTime,
+            birthPlace: profileData.birthPlace,
+          };
+
       setFormData({
         name: profileData.name,
-        birthDate: profileData.birthDate,
-        birthTime: profileData.birthTime,
-        birthPlace: profileData.birthPlace,
+        ...birthData,
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -179,6 +197,12 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
               <Text style={styles.infoText}>
                 Точные данные рождения необходимы для составления персональной
                 натальной карты и расчета транзитов.
+                {chart && (
+                  <Text style={styles.sourceText}>
+                    {'\n\n'}Данные загружены из вашей натальной карты для
+                    максимальной точности.
+                  </Text>
+                )}
               </Text>
             </View>
 
@@ -293,6 +317,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginLeft: 10,
+  },
+  sourceText: {
+    color: '#8B5CF6',
+    fontSize: 13,
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
   saveButton: {
     borderRadius: 25,
