@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ImageBackground,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -75,6 +76,15 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
+  // "Подробнее" modal state
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsTitle, setDetailsTitle] = useState<string>('');
+  const [detailsLines, setDetailsLines] = useState<string[]>([]);
+
+  // Simple in-memory cache for details to avoid repeat network calls
+  const [detailsCache, setDetailsCache] = useState<Record<string, string[]>>({});
+
   const fadeAnim = useSharedValue(0);
 
   useEffect(() => {
@@ -103,6 +113,83 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       },
     ],
   }));
+
+  /**
+   * Helpers for enrichment
+   * RU planet and aspect maps used across screen and for reverse lookup
+   */
+  const planetRu: Record<string, string> = {
+    sun: 'Солнце',
+    moon: 'Луна',
+    mercury: 'Меркурий',
+    venus: 'Венера',
+    mars: 'Марс',
+    jupiter: 'Юпитер',
+    saturn: 'Сатурн',
+    uranus: 'Уран',
+    neptune: 'Нептун',
+    pluto: 'Плутон',
+  };
+  
+  const aspectRu: Record<string, string> = {
+    conjunction: 'Соединение',
+    opposition: 'Оппозиция',
+    trine: 'Тригон',
+    square: 'Квадрат',
+    sextile: 'Секстиль',
+  };
+  
+  // Reverse map RU planet name -> key (sun, moon, ...)
+  const planetKeyByRu = React.useMemo(() => {
+    const entries = Object.entries(planetRu).map(([k, v]) => [v, k]);
+    return Object.fromEntries(entries as [string, string][]);
+  }, []);
+
+  const resolvePlanetKey = (ruName: string): string => {
+    return planetKeyByRu[ruName] || ruName;
+  };
+
+  const closeDetails = () => {
+    setDetailsVisible(false);
+    setDetailsTitle('');
+    setDetailsLines([]);
+    setDetailsLoading(false);
+  };
+
+  const openDetails = async (
+    params:
+      | { type: 'planet'; planet: string; sign: string; locale?: 'ru' | 'en' | 'es' }
+      | { type: 'ascendant'; sign: string; locale?: 'ru' | 'en' | 'es' }
+      | { type: 'house'; houseNum: number | string; sign: string; locale?: 'ru' | 'en' | 'es' }
+      | { type: 'aspect'; aspect: string; planetA: string; planetB: string; locale?: 'ru' | 'en' | 'es' },
+    title: string,
+  ) => {
+    try {
+      setDetailsTitle(title);
+      setDetailsVisible(true);
+
+      // cache key
+      const cacheKey = JSON.stringify(params);
+      const cached = detailsCache[cacheKey];
+      if (cached && cached.length) {
+        setDetailsLines(cached);
+        setDetailsLoading(false);
+        return;
+      }
+
+      setDetailsLoading(true);
+      const res = await chartAPI.getInterpretationDetails(params as any);
+      const lines = Array.isArray(res?.lines) ? res.lines : [];
+      setDetailsLines(lines);
+      setDetailsCache((prev) => ({ ...prev, [cacheKey]: lines }));
+    } catch (e) {
+      console.error('Ошибка загрузки деталей:', e);
+      Alert.alert('Ошибка', 'Не удалось загрузить детали');
+      setDetailsLines([]);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -141,27 +228,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
-  // Helpers for enrichment
-  const planetRu: Record<string, string> = {
-    sun: 'Солнце',
-    moon: 'Луна',
-    mercury: 'Меркурий',
-    venus: 'Венера',
-    mars: 'Марс',
-    jupiter: 'Юпитер',
-    saturn: 'Сатурн',
-    uranus: 'Уран',
-    neptune: 'Нептун',
-    pluto: 'Плутон',
-  };
-
-  const aspectRu: Record<string, string> = {
-    conjunction: 'Соединение',
-    opposition: 'Оппозиция',
-    trine: 'Тригон',
-    square: 'Квадрат',
-    sextile: 'Секстиль',
-  };
+  // Helpers defined above (planetRu, aspectRu)
 
   const getHouseForLongitude = (longitude: number, houses: any): number => {
     for (let i = 1; i <= 12; i++) {
@@ -265,6 +332,22 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       {interpretation.sunSign.keywords.join(', ')}
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.detailsButton}
+                    onPress={() =>
+                      openDetails(
+                        {
+                          type: 'planet',
+                          planet: resolvePlanetKey(interpretation.sunSign.planet),
+                          sign: interpretation.sunSign.sign,
+                          locale: 'ru',
+                        },
+                        `${interpretation.sunSign.planet} в ${interpretation.sunSign.sign} — Подробнее`,
+                      )
+                    }
+                  >
+                    <Text style={styles.detailsButtonText}>Подробнее</Text>
+                  </TouchableOpacity>
                 </View>
               </ImageBackground>
             </View>
@@ -292,6 +375,22 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       {interpretation.moonSign.keywords.join(', ')}
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.detailsButton}
+                    onPress={() =>
+                      openDetails(
+                        {
+                          type: 'planet',
+                          planet: resolvePlanetKey(interpretation.moonSign.planet),
+                          sign: interpretation.moonSign.sign,
+                          locale: 'ru',
+                        },
+                        `${interpretation.moonSign.planet} в ${interpretation.moonSign.sign} — Подробнее`,
+                      )
+                    }
+                  >
+                    <Text style={styles.detailsButtonText}>Подробнее</Text>
+                  </TouchableOpacity>
                 </View>
               </ImageBackground>
             </View>
@@ -319,6 +418,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       {interpretation.ascendant.keywords.join(', ')}
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.detailsButton}
+                    onPress={() =>
+                      openDetails(
+                        {
+                          type: 'ascendant',
+                          sign: interpretation.ascendant.sign,
+                          locale: 'ru',
+                        },
+                        `Асцендент в ${interpretation.ascendant.sign} — Подробнее`,
+                      )
+                    }
+                  >
+                    <Text style={styles.detailsButtonText}>Подробнее</Text>
+                  </TouchableOpacity>
                 </View>
               </ImageBackground>
             </View>
@@ -371,6 +485,23 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                           {planet.challenges.join(', ')}
                         </Text>
                       </View>
+
+                      <TouchableOpacity
+                        style={styles.detailsButton}
+                        onPress={() =>
+                          openDetails(
+                            {
+                              type: 'planet',
+                              planet: resolvePlanetKey(planet.planet),
+                              sign: planet.sign,
+                              locale: 'ru',
+                            },
+                            `${planet.planet} в ${planet.sign} — Подробнее`,
+                          )
+                        }
+                      >
+                        <Text style={styles.detailsButtonText}>Подробнее</Text>
+                      </TouchableOpacity>
                     </View>
                   </ImageBackground>
                 );
@@ -494,6 +625,23 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       )}
 
                     <Text style={styles.houseText}>{house.interpretation}</Text>
+
+                    <TouchableOpacity
+                      style={styles.detailsButton}
+                      onPress={() =>
+                        openDetails(
+                          {
+                            type: 'house',
+                            houseNum: house.house,
+                            sign: house.sign,
+                            locale: 'ru',
+                          },
+                          `${house.house} дом в ${house.sign} — Подробнее`,
+                        )
+                      }
+                    >
+                      <Text style={styles.detailsButtonText}>Подробнее</Text>
+                    </TouchableOpacity>
                   </View>
                 </LinearGradient>
               ))}
@@ -609,6 +757,38 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       <Animated.View style={[styles.tabContent, animatedContainerStyle]}>
         {renderTabContent()}
       </Animated.View>
+
+      {/* Подробнее Modal */}
+      <Modal
+        visible={detailsVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={closeDetails}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{detailsTitle}</Text>
+            {detailsLoading ? (
+              <Text style={styles.modalLine}>Загрузка...</Text>
+            ) : (
+              <ScrollView>
+                {detailsLines && detailsLines.length > 0 ? (
+                  detailsLines.map((line, idx) => (
+                    <Text key={idx} style={styles.modalLine}>
+                      {line}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.modalLine}>Детали отсутствуют</Text>
+                )}
+              </ScrollView>
+            )}
+            <TouchableOpacity style={styles.modalCloseButton} onPress={closeDetails}>
+              <Text style={styles.modalCloseText}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -760,12 +940,25 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 14,
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  houseTheme: {
+    color: '#B0B0B0',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  houseRuling: {
+    color: '#8B5CF6',
+    fontSize: 13,
+    fontWeight: '500',
     marginBottom: 8,
   },
   houseText: {
     color: '#fff',
     fontSize: 14,
     lineHeight: 22,
+    marginBottom: 10,
   },
   summaryTitle: {
     color: '#FFD700',
@@ -875,6 +1068,65 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#8B5CF6',
     borderRadius: 4,
+  },
+
+  // "Подробнее" button
+  detailsButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+  },
+  detailsButtonText: {
+    color: '#8B5CF6',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    maxHeight: '70%',
+    backgroundColor: '#111',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+    padding: 16,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  modalLine: {
+    color: '#B0B0B0',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  modalCloseButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });
 

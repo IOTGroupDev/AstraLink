@@ -65,6 +65,9 @@ export default function CosmicSimulatorScreen() {
   const [noteText, setNoteText] = useState('');
   const [transitsLoading, setTransitsLoading] = useState(false);
 
+// Tabs and full details
+const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'aspects' | 'transits'>('overview');
+const [interpretation, setInterpretation] = useState<any>(null);
   // Анимации
   const planetRotation = useSharedValue(0);
   const timelinePosition = useSharedValue(0.5); // 0 = прошлое, 1 = будущее
@@ -88,11 +91,13 @@ export default function CosmicSimulatorScreen() {
 
   const loadNatalChart = async () => {
     try {
-      const chart = await chartAPI.getNatalChart();
-      setNatalChart(chart);
+      // Загружаем полную карту с интерпретацией для вкладок "Дома" и "Аспекты"
+      const chartFull = await chartAPI.getNatalChartWithInterpretation();
+      setNatalChart(chartFull);
+      setInterpretation(chartFull?.data?.interpretation || null);
     } catch (error) {
       console.error('Ошибка загрузки натальной карты:', error);
-      // Моковые данные для демонстрации
+      // Моковые данные для демонстрации (без интерпретации)
       setNatalChart({
         data: {
           planets: {
@@ -107,8 +112,10 @@ export default function CosmicSimulatorScreen() {
             neptune: { sign: 'Pisces', degree: 14.8, longitude: 344.8 },
             pluto: { sign: 'Scorpio', degree: 9.1, longitude: 219.1 },
           },
+          interpretation: null,
         },
       });
+      setInterpretation(null);
     } finally {
       setLoading(false);
     }
@@ -820,7 +827,7 @@ export default function CosmicSimulatorScreen() {
     );
   };
 
-  if (loading) {
+ if (loading) {
     return (
       <LinearGradient
         colors={['#0F172A', '#1E293B', '#334155']}

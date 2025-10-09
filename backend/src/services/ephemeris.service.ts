@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { RedisService } from '../redis/redis.service';
 
 let swisseph: any;
 
@@ -7,6 +8,8 @@ export class EphemerisService implements OnModuleInit {
   private readonly logger = new Logger(EphemerisService.name);
   private hasSE = false;
   private initializationAttempted = false;
+
+  constructor(private readonly redis: RedisService) {}
 
   async onModuleInit() {
     await this.initializeSwissEphemeris();
@@ -180,6 +183,15 @@ export class EphemerisService implements OnModuleInit {
   async getTransits(userId: string, from: Date, to: Date): Promise<any[]> {
     await this.ensureSwissEphemeris();
 
+    const fromISO = from.toISOString().split('T')[0];
+    const toISO = to.toISOString().split('T')[0];
+    const cacheKey = `ephe:transits:${userId}:${fromISO}:${toISO}`;
+    const cached = await this.redis.get<any[]>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
+
     const transits: any[] = [];
     const currentDate = new Date(from);
 
@@ -195,6 +207,9 @@ export class EphemerisService implements OnModuleInit {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    // TTL ≈ number of days in range + 1 day (in seconds)
+    const days = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86400000));
+    await this.redis.set(cacheKey, transits, days * 86400);
     return transits;
   }
 
@@ -277,6 +292,13 @@ export class EphemerisService implements OnModuleInit {
       throw new Error('Некорректная дата для расчёта планет');
     }
 
+    const cacheKey = `ephe:planets:${Math.round(julianDay * 1000)}`;
+    const cached = await this.redis.get<any>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
+
     const planets: any = {};
     const planetNames = {
       0: 'sun',
@@ -332,6 +354,7 @@ export class EphemerisService implements OnModuleInit {
       throw new Error('Не удалось рассчитать ни одной планеты');
     }
 
+    await this.redis.set(cacheKey, planets, 21600);
     return planets;
   }
 

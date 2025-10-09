@@ -10,7 +10,13 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from '../services/ephemeris.service';
 import { InterpretationService } from '../services/interpretation.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
-import { getSignColors } from '../modules/shared/astro-text';
+import {
+  getSignColors,
+  getExtendedPlanetInSign,
+  getExtendedAscendant,
+  getExtendedHouseSign,
+} from '../modules/shared/astro-text';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ChartService {
@@ -20,6 +26,7 @@ export class ChartService {
     private ephemerisService: EphemerisService,
     private interpretationService: InterpretationService,
     private horoscopeService: HoroscopeGeneratorService,
+    private redis: RedisService,
   ) {}
 
   /**
@@ -83,12 +90,20 @@ export class ChartService {
       interpretationVersion: 'v3',
     };
 
-    return await this.prisma.chart.create({
+    const created = await this.prisma.chart.create({
       data: {
         userId,
         data: chartWithInterpretation,
       },
     });
+
+    // Invalidate cached horoscopes and user-specific transits after new chart is created
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+    } catch {}
+
+    return created;
   }
 
   /**
@@ -125,6 +140,12 @@ export class ChartService {
         where: { id: chart.id },
         data: { data: updatedData },
       });
+
+      // Invalidate cached horoscopes and user-specific transits after interpretation regeneration
+      try {
+        await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+        await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+      } catch {}
 
       return {
         ...chart,
@@ -296,6 +317,12 @@ export class ChartService {
     );
 
     if (newChart) {
+      // Invalidate cached horoscopes and user-specific transits after (re)creating chart via Supabase
+      try {
+        await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+        await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+      } catch {}
+
       return {
         id: newChart.id,
         userId: newChart.user_id,
@@ -733,6 +760,81 @@ export class ChartService {
     };
   }
 
+  /**
+   * Ленивые детали интерпретации (“Подробнее”)
+   * Возвращает массив до 15 строк для показа в UI.
+   */
+  async getInterpretationDetails(
+    _userId: string,
+    query: {
+      type: 'planet' | 'ascendant' | 'house' | 'aspect';
+      planet?: string;
+      sign?: string;
+      houseNum?: number | string;
+      aspect?: string;
+      planetA?: string;
+      planetB?: string;
+      locale?: 'ru' | 'en' | 'es';
+    },
+  ): Promise<{ lines: string[] }> {
+    const locale = (query.locale as 'ru' | 'en' | 'es') || 'ru';
+    const type = query.type;
+
+    if (!type) {
+      throw new BadRequestException('Параметр type обязателен');
+    }
+
+    switch (type) {
+      case 'planet': {
+        const { planet, sign } = query;
+        if (!planet || !sign) {
+          throw new BadRequestException('Для type=planet нужны planet и sign');
+        }
+        try {
+          const lines = getExtendedPlanetInSign(planet as any, sign as any, locale);
+          return { lines: Array.isArray(lines) ? lines.slice(0, 15) : [] };
+        } catch {
+          return { lines: [] };
+        }
+      }
+
+      case 'ascendant': {
+        const { sign } = query;
+        if (!sign) {
+          throw new BadRequestException('Для type=ascendant нужен sign');
+        }
+        try {
+          const lines = getExtendedAscendant(sign as any, locale);
+          return { lines: Array.isArray(lines) ? lines.slice(0, 15) : [] };
+        } catch {
+          return { lines: [] };
+        }
+      }
+
+      case 'house': {
+        const { houseNum, sign } = query;
+        const num =
+          typeof houseNum === 'string' ? parseInt(houseNum, 10) : (houseNum as number);
+        if (!num || !sign) {
+          throw new BadRequestException('Для type=house нужны houseNum и sign');
+        }
+        try {
+          const lines = getExtendedHouseSign(num, sign as any, locale);
+          return { lines: Array.isArray(lines) ? lines.slice(0, 15) : [] };
+        } catch {
+          return { lines: [] };
+        }
+      }
+
+      case 'aspect': {
+        // Расширенные аспекты пока не реализованы — возвращаем пустой список
+        return { lines: [] };
+      }
+
+      default:
+        throw new BadRequestException('Неизвестный type');
+    }
+  }
   /**
    * Получить координаты места рождения
    */

@@ -278,4 +278,36 @@ export class ChartController {
 
     return this.lunarService.getMonthlyCalendar(year, month, natalChart);
   }
+
+  @Get('interpretation/details')
+  @ApiOperation({ summary: 'Получить расширенные детали интерпретации (“Подробнее”)' })
+  @ApiQuery({ name: 'type', description: 'Тип блока: planet | ascendant | house | aspect', required: true })
+  @ApiQuery({ name: 'planet', required: false })
+  @ApiQuery({ name: 'sign', required: false })
+  @ApiQuery({ name: 'houseNum', required: false })
+  @ApiQuery({ name: 'aspect', required: false })
+  @ApiQuery({ name: 'planetA', required: false })
+  @ApiQuery({ name: 'planetB', required: false })
+  @ApiQuery({ name: 'locale', description: 'ru | en | es', required: false })
+  @ApiResponse({ status: 200, description: 'Массив строк для показа в “Подробнее”' })
+  async getInterpretationDetails(
+    @Request() req: AuthenticatedRequest,
+    @Query()
+    query: {
+      type: 'planet' | 'ascendant' | 'house' | 'aspect';
+      planet?: string;
+      sign?: string;
+      houseNum?: number | string;
+      aspect?: string;
+      planetA?: string;
+      planetB?: string;
+      locale?: 'ru' | 'en' | 'es';
+    },
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getInterpretationDetails(userId, query);
+  }
 }

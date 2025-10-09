@@ -466,6 +466,31 @@ export const chartAPI = {
     return response.data;
   },
 
+  // Новый метод: получить расширенные детали интерпретации (“Подробнее”)
+  getInterpretationDetails: async (params: {
+    type: 'planet' | 'ascendant' | 'house' | 'aspect';
+    planet?: string;
+    sign?: string;
+    houseNum?: number | string;
+    aspect?: string;
+    planetA?: string;
+    planetB?: string;
+    locale?: 'ru' | 'en' | 'es';
+  }): Promise<{ lines: string[] }> => {
+    const qs = new URLSearchParams();
+    qs.set('type', params.type);
+    if (params.planet) qs.set('planet', params.planet);
+    if (params.sign) qs.set('sign', params.sign);
+    if (params.houseNum != null) qs.set('houseNum', String(params.houseNum));
+    if (params.aspect) qs.set('aspect', params.aspect);
+    if (params.planetA) qs.set('planetA', params.planetA);
+    if (params.planetB) qs.set('planetB', params.planetB);
+    if (params.locale) qs.set('locale', params.locale);
+
+    const url = `/chart/interpretation/details?${qs.toString()}`;
+    const response = await api.get(url);
+    return response.data;
+  },
   // 🗑️ НОВЫЙ МЕТОД: Полное удаление аккаунта пользователя
   deleteAccount: async (): Promise<void> => {
     try {

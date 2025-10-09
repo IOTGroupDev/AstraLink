@@ -34,6 +34,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import NatalChartWidget from '../components/NatalChartWidget';
 import { useAuth } from '../hooks/useAuth';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import { supabase } from '../services/supabase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -154,21 +155,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Выйти',
-        style: 'destructive',
-        onPress: () => {
-          removeStoredToken();
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          });
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+
+      // Clear stored token
+      removeStoredToken();
+
+      // Navigate to login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Ошибка при выходе:', error);
+      // Even if sign out fails, clear token and navigate
+      removeStoredToken();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    }
   };
 
   const handleDeleteAccount = async () => {

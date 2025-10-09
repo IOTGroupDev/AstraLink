@@ -15,6 +15,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { NatalModule } from './modules/natal/natal.module';
 import { SwissModule } from './modules/swiss/swiss.module';
 import { SharedModule } from './modules/shared/shared.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SharedModule } from './modules/shared/shared.module';
     NatalModule,
     SwissModule,
     SharedModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [

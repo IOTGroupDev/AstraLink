@@ -15,6 +15,11 @@ import {
   SIGN_COLORS_RU,
   ASPECT_PAIR_TEMPLATES_RU,
   ASCENDANT_META_RU,
+  HOUSE_SIGN_INTERPRETATIONS_RU,
+  // Extended RU dictionaries
+  PLANET_IN_SIGN_EXT_RU,
+  ASCENDANT_EXT_RU,
+  HOUSE_SIGN_INTERPRETATIONS_EXT_RU,
 } from './ru/data';
 import {
   ASPECT_NAMES_EN,
@@ -29,11 +34,36 @@ import {
   SIGN_COLORS_EN,
   ASPECT_PAIR_TEMPLATES_EN,
   ASCENDANT_META_EN,
+  HOUSE_SIGN_INTERPRETATIONS_EN,
+  // Extended EN dictionaries
+  PLANET_IN_SIGN_EXT_EN,
+  ASCENDANT_EXT_EN,
+  HOUSE_SIGN_INTERPRETATIONS_EXT_EN,
 } from './en/data';
+import {
+  ASPECT_NAMES_ES,
+  PLANET_IN_SIGN_ES,
+  ASCENDANT_ES,
+  HOUSES_THEMES_ES,
+  HOUSES_AREAS_ES,
+  GENERAL_TEMPLATES_ES,
+  LOVE_PERIOD_PHRASES_ES,
+  CAREER_PERIOD_ACTIONS_ES,
+  ADVICE_POOLS_ES,
+  SIGN_COLORS_ES,
+  ASPECT_PAIR_TEMPLATES_ES,
+  ASCENDANT_META_ES,
+  HOUSE_SIGN_INTERPRETATIONS_ES,
+  // Extended ES dictionaries
+  PLANET_IN_SIGN_EXT_ES,
+  ASCENDANT_EXT_ES,
+  HOUSE_SIGN_INTERPRETATIONS_EXT_ES,
+} from './es/data';
 
 // Fallbacks
 const DEFAULT_COLORS_RU = ['Белый', 'Синий'];
 const DEFAULT_COLORS_EN = ['White', 'Blue'];
+const DEFAULT_COLORS_ES = ['Blanco', 'Azul'];
 
 const DEFAULT_GENERAL_RU: Record<Tone, string[]> = {
   positive: ['Позитивная астрологическая картина поддерживает ваши начинания.'],
@@ -47,8 +77,14 @@ const DEFAULT_GENERAL_EN: Record<Tone, string[]> = {
   challenging: ['You will need patience and attention to detail.'],
 };
 
+const DEFAULT_GENERAL_ES: Record<Tone, string[]> = {
+  positive: ['Configuración favorable apoya tus iniciativas.'],
+  neutral: ['Período estable — actúa con constancia.'],
+  challenging: ['Se requiere paciencia y atención al detalle.'],
+};
+
 // Locale dictionaries router
-function dicts(locale: 'ru' | 'en') {
+function dicts(locale: 'ru' | 'en' | 'es') {
   if (locale === 'en') {
     return {
       aspectNames: ASPECT_NAMES_EN,
@@ -62,8 +98,34 @@ function dicts(locale: 'ru' | 'en') {
       advicePools: ADVICE_POOLS_EN,
       signColors: SIGN_COLORS_EN,
       aspectPairTemplates: ASPECT_PAIR_TEMPLATES_EN,
+      houseSignInterpretations: HOUSE_SIGN_INTERPRETATIONS_EN,
+      // Expose extended EN dictionaries
+      planetInSignExt: PLANET_IN_SIGN_EXT_EN,
+      ascendantExt: ASCENDANT_EXT_EN,
+      houseSignInterpretationsExt: HOUSE_SIGN_INTERPRETATIONS_EXT_EN,
       defaultGeneral: DEFAULT_GENERAL_EN,
       defaultColors: DEFAULT_COLORS_EN,
+    };
+  } else if (locale === 'es') {
+    return {
+      aspectNames: ASPECT_NAMES_ES,
+      planetInSign: PLANET_IN_SIGN_ES,
+      ascendant: ASCENDANT_ES,
+      housesThemes: HOUSES_THEMES_ES,
+      housesAreas: HOUSES_AREAS_ES,
+      generalTemplates: GENERAL_TEMPLATES_ES,
+      lovePhrases: LOVE_PERIOD_PHRASES_ES,
+      careerActions: CAREER_PERIOD_ACTIONS_ES,
+      advicePools: ADVICE_POOLS_ES,
+      signColors: SIGN_COLORS_ES,
+      aspectPairTemplates: ASPECT_PAIR_TEMPLATES_ES,
+      houseSignInterpretations: HOUSE_SIGN_INTERPRETATIONS_ES,
+      // Expose extended ES dictionaries
+      planetInSignExt: PLANET_IN_SIGN_EXT_ES,
+      ascendantExt: ASCENDANT_EXT_ES,
+      houseSignInterpretationsExt: HOUSE_SIGN_INTERPRETATIONS_EXT_ES,
+      defaultGeneral: DEFAULT_GENERAL_ES,
+      defaultColors: DEFAULT_COLORS_ES,
     };
   }
   return {
@@ -78,13 +140,18 @@ function dicts(locale: 'ru' | 'en') {
     advicePools: ADVICE_POOLS_RU,
     signColors: SIGN_COLORS_RU,
     aspectPairTemplates: ASPECT_PAIR_TEMPLATES_RU,
+    houseSignInterpretations: HOUSE_SIGN_INTERPRETATIONS_RU,
+    // Expose extended RU dictionaries
+    planetInSignExt: PLANET_IN_SIGN_EXT_RU,
+    ascendantExt: ASCENDANT_EXT_RU,
+    houseSignInterpretationsExt: HOUSE_SIGN_INTERPRETATIONS_EXT_RU,
     defaultGeneral: DEFAULT_GENERAL_RU,
     defaultColors: DEFAULT_COLORS_RU,
   };
 }
 
 // Helpers: localized planet/sign names for generic fallbacks
-function getPlanetName(planet: PlanetKey, locale: 'ru' | 'en'): string {
+function getPlanetName(planet: PlanetKey, locale: 'ru' | 'en' | 'es'): string {
   const ru: Record<PlanetKey, string> = {
     sun: 'Солнце',
     moon: 'Луна',
@@ -120,7 +187,7 @@ function getPlanetName(planet: PlanetKey, locale: 'ru' | 'en'): string {
   return (locale === 'en' ? en : ru)[planet] || planet;
 }
 
-function getSignName(sign: Sign, locale: 'ru' | 'en'): string {
+function getSignName(sign: Sign, locale: 'ru' | 'en' | 'es'): string {
   const ru: Record<Sign, string> = {
     Aries: 'Овен',
     Taurus: 'Телец',
@@ -436,11 +503,62 @@ function mergeTraits(a: string[] = [], b: string[] = [], cap = 6): string[] {
   return uniq.slice(0, cap);
 }
 
+/**
+ * Extended details (15 lines max recommended)
+ */
+export function getExtendedPlanetInSign(
+  planet: PlanetKey,
+  sign: Sign,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string[] {
+  const d = dicts(locale);
+  const byPlanet = (d as any).planetInSignExt?.[planet] as
+    | Partial<Record<Sign, string[]>>
+    | undefined;
+  if (!byPlanet) return [];
+  return byPlanet[sign] || [];
+}
+
+export function getExtendedAscendant(
+  sign: Sign,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string[] {
+  const d = dicts(locale);
+  const ext = (d as any).ascendantExt as Partial<Record<Sign, string[]>> | undefined;
+  if (!ext) return [];
+  return ext[sign] || [];
+}
+
+export function getExtendedHouseSign(
+  houseNum: number,
+  sign: Sign,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string[] {
+  const d = dicts(locale);
+  const byHouse = (d as any).houseSignInterpretationsExt?.[
+    houseNum
+  ] as Partial<Record<Sign, string[]>> | undefined;
+  if (!byHouse) return [];
+  return byHouse[sign] || [];
+}
+
+/**
+ * Placeholder: no extended aspect templates yet
+ */
+export function getExtendedAspect(
+  _aspect: AspectType,
+  _planetA: PlanetKey,
+  _planetB: PlanetKey,
+  _locale: 'ru' | 'en' | 'es' = 'ru',
+): string[] {
+  return [];
+}
+
 // Public API
 
 export function getAspectName(
   aspect: AspectType,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const d = dicts(locale);
   return d.aspectNames[aspect] || aspect;
@@ -449,7 +567,7 @@ export function getAspectName(
 export function getPlanetInSignText(
   planet: PlanetKey,
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const d = dicts(locale);
   const bySign = d.planetInSign[planet] || {};
@@ -466,7 +584,7 @@ export function getPlanetInSignText(
 export function getKeywords(
   planet: PlanetKey,
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
   const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
@@ -478,7 +596,7 @@ export function getKeywords(
 export function getStrengths(
   planet: PlanetKey,
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
   const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
@@ -490,7 +608,7 @@ export function getStrengths(
 export function getChallenges(
   planet: PlanetKey,
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
   const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
@@ -501,7 +619,7 @@ export function getChallenges(
 
 export function getAscendantText(
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const d = dicts(locale);
   const found = d.ascendant[sign];
@@ -513,7 +631,7 @@ export function getAscendantText(
 
 export function getAscendantMeta(
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): { keywords: string[]; strengths: string[]; challenges: string[] } {
   if (locale === 'en') {
     const meta = (ASCENDANT_META_EN as any)?.[sign] as
@@ -543,7 +661,7 @@ export function getAscendantMeta(
 export function getHouseTheme(
   houseNum: number,
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const d = dicts(locale);
   const theme = d.housesThemes[houseNum] as string | undefined;
@@ -559,7 +677,7 @@ export function getHouseTheme(
 
 export function getHouseLifeArea(
   houseNum: number,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const d = dicts(locale);
   return (
@@ -568,9 +686,28 @@ export function getHouseLifeArea(
   );
 }
 
+export function getHouseSignInterpretation(
+  houseNum: number,
+  sign: Sign,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string {
+  const d = dicts(locale);
+  const byHouse = d.houseSignInterpretations[houseNum];
+  if (!byHouse) {
+    return locale === 'en'
+      ? `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`
+      : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+  }
+  const found = byHouse[sign];
+  if (found) return found;
+  return locale === 'en'
+    ? `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`
+    : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+}
+
 export function getGeneralTemplates(
   frame: PeriodFrame,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): Record<Tone, string[]> {
   const d = dicts(locale);
   return d.generalTemplates[frame] || d.defaultGeneral;
@@ -578,7 +715,7 @@ export function getGeneralTemplates(
 
 export function getLovePhrases(
   frame: PeriodFrame,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): { positive: string; neutral: string; negative: string } {
   const d = dicts(locale);
   const entry = d.lovePhrases[frame] as
@@ -618,7 +755,7 @@ export function getLovePhrases(
 
 export function getCareerActions(
   frame: PeriodFrame,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): { jupiter: string; saturn: string; mars: string; neutral: string } {
   const d = dicts(locale);
   const entry = d.careerActions[frame] as
@@ -655,7 +792,7 @@ export function getCareerActions(
 
 export function getAdvicePool(
   frame: PeriodFrame,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
   return (
@@ -665,12 +802,14 @@ export function getAdvicePool(
 
 export function getSignColors(
   sign: Sign,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
   const found = d.signColors[sign] as string[] | undefined;
   if (found && found.length) return found;
-  return locale === 'en' ? DEFAULT_COLORS_EN : DEFAULT_COLORS_RU;
+  return locale === 'en'
+    ? DEFAULT_COLORS_EN
+    : (locale === 'es' ? DEFAULT_COLORS_ES : DEFAULT_COLORS_RU);
 }
 
 /**
@@ -680,7 +819,7 @@ export function getAspectPairTemplate(
   aspect: AspectType,
   planetA: PlanetKey,
   planetB: PlanetKey,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string | undefined {
   const d = dicts(locale);
   const byAspect = d.aspectPairTemplates[aspect];
@@ -695,7 +834,7 @@ export function getAspectInterpretation(
   aspect: AspectType,
   planetA: PlanetKey,
   planetB: PlanetKey,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const specific = getAspectPairTemplate(aspect, planetA, planetB, locale);
   if (specific) return specific;
@@ -716,7 +855,7 @@ export function getAspectInterpretation(
 export function getPlanetHouseFocus(
   planet: PlanetKey,
   houseNum: number,
-  locale: 'ru' | 'en' = 'ru',
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   try {
     const area = getHouseLifeArea(houseNum, locale);

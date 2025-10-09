@@ -10,7 +10,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from './ephemeris.service';
 import { AIService } from './ai.service';
-import { PlanetKey, PLANET_WEIGHTS } from '@/modules/shared/types';
+import { RedisService } from '../redis/redis.service';
+import { PlanetKey, PLANET_WEIGHTS, getEssentialDignity, DignityLevel } from '@/modules/shared/types';
 import {
   getTransitOrb,
   getHouseForLongitude,
@@ -52,6 +53,7 @@ export class HoroscopeGeneratorService {
     private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
     private aiService: AIService,
+    private redis: RedisService,
   ) {}
 
   /**
@@ -157,6 +159,47 @@ export class HoroscopeGeneratorService {
       const targetDate = this.getTargetDate(period);
       this.logger.log(`Target date for ${period}: ${targetDate.toISOString()}`);
 
+      // Redis caching: key per userId + period + date bucket
+      const dateKey = (() => {
+        const d = new Date(targetDate);
+        if (period === 'month') {
+          return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+        }
+        if (period === 'week') {
+          const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+          const day = (tmp.getUTCDay() + 6) % 7; // Monday=0
+          tmp.setUTCDate(tmp.getUTCDate() - day); // start of week (Mon)
+          return tmp.toISOString().split('T')[0];
+        }
+        // day/tomorrow => cache per UTC date
+        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().split('T')[0];
+      })();
+      const cacheKey = `horoscope:${userId}:${period}:${dateKey}`;
+      const ttlSec = (() => {
+        const now = new Date();
+        const nd = new Date(targetDate);
+        let end: Date;
+        if (period === 'month') {
+          end = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth() + 1, 1, 0, 0, 0));
+        } else if (period === 'week') {
+          const tmp = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), nd.getUTCDate()));
+          const day = (tmp.getUTCDay() + 6) % 7;
+          tmp.setUTCDate(tmp.getUTCDate() + (7 - day)); // start of next week (Mon 00:00 UTC)
+          end = new Date(Date.UTC(tmp.getUTCFullYear(), tmp.getUTCMonth(), tmp.getUTCDate(), 0, 0, 0));
+        } else {
+          // day/tomorrow => end of that UTC day
+          end = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), nd.getUTCDate() + 1, 0, 0, 0));
+        }
+        const sec = Math.max(60, Math.floor((end.getTime() - now.getTime()) / 1000));
+        return sec;
+      })();
+
+      const cached = await this.redis.get<HoroscopePrediction>(cacheKey);
+      if (cached) {
+        this.logger.debug(`Cache hit: ${cacheKey}`);
+        return cached;
+      }
+
       let transits: any;
       let transitAspects: any[] = [];
 
@@ -181,23 +224,31 @@ export class HoroscopeGeneratorService {
         throw new InternalServerErrorException('Ошибка расчета эфемерид');
       }
 
+      let result: HoroscopePrediction;
       if (isPremium) {
-        return await this.generatePremiumHoroscope(
+        result = await this.generatePremiumHoroscope(
           chartData,
           transits,
           transitAspects,
           period,
           targetDate,
+          cacheKey,
+          ttlSec,
         );
       } else {
-        return this.generateFreeHoroscope(
+        result = this.generateFreeHoroscope(
           chartData,
           transits,
           transitAspects,
           period,
           targetDate,
+          cacheKey,
+          ttlSec,
         );
       }
+      // cache result until end of period bucket
+      await this.redis.set(cacheKey, result, ttlSec);
+      return result;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -223,6 +274,8 @@ export class HoroscopeGeneratorService {
     transitAspects: any[],
     period: string,
     targetDate: Date,
+    cacheKey: string,
+    ttlSec: number,
   ): Promise<HoroscopePrediction> {
     this.logger.log('💎 PREMIUM: Генерация через AI');
 
@@ -256,7 +309,7 @@ export class HoroscopeGeneratorService {
       const luckyNumbers = this.generateLuckyNumbers(chartData, targetDate);
       const luckyColors = this.generateLuckyColors(sunSign, transitAspects[0]);
 
-      return {
+      const result: HoroscopePrediction = {
         period: period as any,
         date: targetDate.toISOString(),
         general: aiPredictions.general,
@@ -273,6 +326,7 @@ export class HoroscopeGeneratorService {
         opportunities: aiPredictions.opportunities || [],
         generatedBy: 'ai',
       };
+      return result;
     } catch (error) {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
       this.logger.log('Fallback to interpreter (FREE rules) with real data');
@@ -290,8 +344,9 @@ export class HoroscopeGeneratorService {
         transitAspects,
         period,
         targetDate,
+        chartData,
       );
-      return {
+      const result: HoroscopePrediction = {
         period: period as any,
         date: targetDate.toISOString(),
         general: predictions.general,
@@ -311,6 +366,7 @@ export class HoroscopeGeneratorService {
         opportunities: [],
         generatedBy: 'interpreter',
       };
+      return result;
     }
   }
 
@@ -323,6 +379,8 @@ export class HoroscopeGeneratorService {
     transitAspects: any[],
     period: string,
     targetDate: Date,
+    cacheKey: string,
+    ttlSec: number,
   ): HoroscopePrediction {
     this.logger.log('🆓 FREE: Генерация через интерпретатор (правила)');
 
@@ -340,9 +398,10 @@ export class HoroscopeGeneratorService {
       transitAspects,
       period,
       targetDate,
+      chartData,
     );
 
-    return {
+    const result: HoroscopePrediction = {
       period: period as any,
       date: targetDate.toISOString(),
       general: predictions.general,
@@ -359,6 +418,7 @@ export class HoroscopeGeneratorService {
       opportunities: [],
       generatedBy: 'interpreter',
     };
+    return result;
   }
 
   /**
@@ -371,6 +431,7 @@ export class HoroscopeGeneratorService {
     transitAspects: any[],
     period: string,
     targetDate: Date,
+    chartData: any,
   ): any {
     const timeFrame = this.getTimeFrame(period);
 
@@ -418,6 +479,7 @@ export class HoroscopeGeneratorService {
         dominantTransit,
         timeFrame,
         targetDate,
+        chartData,
       ),
     };
   }
@@ -450,7 +512,11 @@ export class HoroscopeGeneratorService {
       dominantTransit?.isRetrograde ? 1 : 0,
     ];
     const index = Math.abs(hashSignature(sig)) % pool.length;
-    return pool[index];
+    let txt = pool[index];
+    if (dominantTransit) {
+      txt = this.appendTransitWindow(txt, dominantTransit, timeFrame);
+    }
+    return txt;
   }
 
   /**
@@ -702,24 +768,37 @@ export class HoroscopeGeneratorService {
     sunSign: string,
     dominantTransit: any,
     timeFrame: string,
-    _targetDate: Date,
+    targetDate: Date,
+    chartData: any,
   ): string {
     const advices = getAdvicePool(timeFrame as any, 'ru') || [];
-    if (!advices.length) {
-      return 'Сохраняйте баланс и действуйте последовательно.';
+    const basePick = advices.length
+      ? advices[
+          Math.abs(
+            hashSignature([
+              timeFrame,
+              sunSign,
+              dominantTransit?.transitPlanet || '-',
+              dominantTransit?.aspect || '-',
+              dominantTransit?.natalPlanet || '-',
+              dominantTransit?.house || 0,
+              dominantTransit?.isRetrograde ? 1 : 0,
+            ]),
+          ) % advices.length
+        ]
+      : 'Сохраняйте баланс и действуйте последовательно.';
+
+    // Жизненные циклы (Сатурн, Юпитер, Узлы, Хирон)
+    const cycles = this.getLifeCycles(chartData, targetDate);
+    let text = basePick;
+    if (cycles.length) {
+      text = `${text} Циклы: ${cycles.join(', ')}.`;
     }
-    // Детерминированный выбор по сигнатуре (без привязки к дате)
-    const sig = [
-      timeFrame,
-      sunSign,
-      dominantTransit?.transitPlanet || '-',
-      dominantTransit?.aspect || '-',
-      dominantTransit?.natalPlanet || '-',
-      dominantTransit?.house || 0,
-      dominantTransit?.isRetrograde ? 1 : 0,
-    ];
-    const index = Math.abs(hashSignature(sig)) % advices.length;
-    return advices[index];
+
+    // Окно влияния доминирующего транзита
+    text = this.appendTransitWindow(text, dominantTransit, timeFrame);
+
+    return text;
   }
 
   /**
@@ -810,6 +889,14 @@ export class HoroscopeGeneratorService {
               )
             : undefined;
           const isRetrograde = (transitPlanet as any).isRetrograde === true;
+          const transitSign = (transitPlanet as any).sign;
+          const transitSpeed = (transitPlanet as any).speed;
+          let dignity: DignityLevel = 'neutral';
+          try {
+            dignity = getEssentialDignity(transitKey as PlanetKey, transitSign);
+          } catch {
+            dignity = 'neutral';
+          }
 
           aspects.push({
             natalPlanet: natalKey,
@@ -819,6 +906,9 @@ export class HoroscopeGeneratorService {
             strength: aspect.strength,
             house,
             isRetrograde,
+            transitSign,
+            transitSpeed,
+            dignity,
           });
         }
       }
@@ -898,6 +988,23 @@ export class HoroscopeGeneratorService {
         PLANET_WEIGHTS[(a.transitPlanet || 'sun') as PlanetKey] || 1;
       let score = weight * (a.strength || 0);
 
+      // Эссенциальное достоинство усиливает/ослабляет вклад
+      const dignityMap: Record<DignityLevel, number> = {
+        ruler: 1.15,
+        exalted: 1.1,
+        triplicity: 1.05,
+        neutral: 1.0,
+        detriment: 0.9,
+        fall: 0.85,
+      };
+      const dignityLevel: DignityLevel = (a.dignity as DignityLevel) || 'neutral';
+      score *= dignityMap[dignityLevel] ?? 1.0;
+
+      // Длительность транзита — медленные/долгие получают небольшой бонус
+      const days = this.estimateTransitDurationDays(a);
+      const durFactor = Math.min(1.3, 1.0 + Math.max(0, days) / 60); // до +30%
+      score *= durFactor;
+
       // Бонус за релевантный дом для домена
       const houses = domain ? domainHouses[domain] || [] : [];
       if (a.house && houses.includes(a.house)) {
@@ -948,6 +1055,84 @@ export class HoroscopeGeneratorService {
     if (energy > 40) return 'Сбалансированное';
     if (energy > 20) return 'Задумчивое';
     return 'Спокойное';
+  }
+/**
+   * Оценка длительности транзита (примерно) в днях на основе орбиса и скорости транзитной планеты.
+   * Используем планетарный орбис из getTransitOrb и фактическую скорость (deg/day) из эфемерид.
+   */
+  private estimateTransitDurationDays(a: any): number {
+    try {
+      const baseOrb =
+        getTransitOrb(((a?.transitPlanet as string) || 'sun') as PlanetKey, a?.aspect) || 6;
+      const remaining = Math.max(0, baseOrb - (a?.orb ?? 0));
+      const speedAbs = Math.abs(a?.transitSpeed ?? 0); // deg/day (может быть 0 при стационарности)
+      const minSpeed = 0.1; // чтобы исключить деление на 0 и учесть стационарные периоды
+      const speed = Math.max(minSpeed, speedAbs);
+
+      // В обе стороны от точного аспекта (до/после) — грубо умножаем на 2
+      const days = (remaining / speed) * 2;
+      return Math.max(1, Math.min(120, Math.round(days)));
+    } catch {
+      // Базовый фолбэк
+      return 7;
+    }
+  }
+
+  /**
+   * Добавляет к тексту информацию об окне влияния доминирующего транзита (в днях).
+   * Для day/tomorrow короче формулировка, для week/month — общая.
+   */
+  private appendTransitWindow(text: string, dominantTransit: any, timeFrame: string): string {
+    try {
+      if (!dominantTransit) return text;
+      const days = this.estimateTransitDurationDays(dominantTransit);
+      const suffix =
+        timeFrame === 'Сегодня' || timeFrame === 'Завтра'
+          ? ` Окно ~${days} дн.`
+          : ` Окно влияния ~${days} дн.`;
+      return `${text} ${suffix}`.trim();
+    } catch {
+      return text;
+    }
+  }
+
+  /**
+   * Ключевые жизненные циклы по возрасту (приближенно):
+   * - Сатурново возвращение ~29.5 и ~58.6 лет
+   * - Возвращение Юпитера каждые ~12 лет
+   * - Возврат Лунных Узлов ~18.6 лет; инверсия ~9.3 лет
+   * - Возвращение Хирона ~50.9 лет
+   */
+  private getLifeCycles(chartData: any, targetDate: Date): string[] {
+    const cycles: string[] = [];
+    try {
+      const bdISO: string | undefined =
+        chartData?.birthDate || chartData?.data?.birthDate || chartData?.meta?.birthDate;
+      if (!bdISO) return cycles;
+
+      const birth = new Date(bdISO);
+      const age = (targetDate.getTime() - birth.getTime()) / (365.2425 * 24 * 3600 * 1000);
+      const near = (val: number, center: number, tol: number) => Math.abs(val - center) <= tol;
+
+      if (near(age, 29.5, 1.5) || near(age, 58.6, 1.5)) {
+        cycles.push('Сатурново возвращение');
+      }
+      if (near(age, 12.0, 1.0) || near(age, 24.0, 1.0) || near(age, 36.0, 1.0) || near(age, 48.0, 1.0)) {
+        cycles.push('Возвращение Юпитера');
+      }
+      if (near(age, 18.6, 1.0) || near(age, 37.2, 1.0)) {
+        cycles.push('Возврат Лунных Узлов');
+      }
+      if (near(age, 9.3, 0.8) || near(age, 27.9, 0.8)) {
+        cycles.push('Инверсия Лунных Узлов');
+      }
+      if (near(age, 50.9, 2.0)) {
+        cycles.push('Возвращение Хирона');
+      }
+    } catch {
+      // ignore
+    }
+    return Array.from(new Set(cycles)).slice(0, 3);
   }
 
   /**
