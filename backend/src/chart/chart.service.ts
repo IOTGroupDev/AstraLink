@@ -101,7 +101,10 @@ export class ChartService {
     try {
       await this.redis.deleteByPattern(`horoscope:${userId}:*`);
       await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
-    } catch {}
+    } catch (_e) {
+      // Ignore Redis errors during chart creation
+      void 0;
+    }
 
     return created;
   }
@@ -145,7 +148,10 @@ export class ChartService {
       try {
         await this.redis.deleteByPattern(`horoscope:${userId}:*`);
         await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
-      } catch {}
+      } catch (_e) {
+        // Ignore Redis errors during interpretation regeneration
+        void 0;
+      }
 
       return {
         ...chart,
@@ -321,7 +327,10 @@ export class ChartService {
       try {
         await this.redis.deleteByPattern(`horoscope:${userId}:*`);
         await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
-      } catch {}
+      } catch (_e) {
+        // Ignore Redis errors during chart creation via Supabase
+        void 0;
+      }
 
       return {
         id: newChart.id,

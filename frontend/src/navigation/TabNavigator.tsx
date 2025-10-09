@@ -5,6 +5,7 @@ import ChartStackNavigator from './ChartStackNavigator';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
+import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -21,6 +22,8 @@ export default function TabNavigator() {
             iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'Dating') {
             iconName = focused ? 'heart-circle' : 'heart-circle-outline';
+          } else if (route.name === 'Advisor') {
+            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           } else {
@@ -67,6 +70,11 @@ export default function TabNavigator() {
         name="Dating"
         component={DatingScreen}
         options={{ title: 'Dating', headerShown: false }}
+      />
+      <Tab.Screen
+        name="Advisor"
+        component={AdvisorChatScreen}
+        options={{ title: 'Советник', headerShown: false }}
       />
       <Tab.Screen
         name="Profile"
