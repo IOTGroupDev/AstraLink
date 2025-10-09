@@ -8,6 +8,7 @@ import { SubscriptionModule } from '@/subscription/subscription.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
 import { AuthModule } from '@/auth/auth.module';
 import { SubscriptionGuard } from '@/common/guards/subscription.guard';
+import { SupabaseModule } from '@/supabase/supabase.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SubscriptionGuard } from '@/common/guards/subscription.guard';
     RedisModule,
     SubscriptionModule,
     AnalyticsModule,
+    SupabaseModule,
     forwardRef(() => ChartModule),
     forwardRef(() => AuthModule),
   ],
