@@ -1,7 +1,8 @@
-import { supabase } from './supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class TokenService {
   private static instance: TokenService;
+  private static STORAGE_KEY = 'al_token';
   private currentToken: string | null = null;
   private tokenPromise: Promise<string | null> | null = null;
 
@@ -15,12 +16,13 @@ class TokenService {
   }
 
   async getToken(): Promise<string | null> {
-    // Если уже есть активный запрос токена, ждем его
+    if (this.currentToken) {
+      return this.currentToken;
+    }
     if (this.tokenPromise) {
       return this.tokenPromise;
     }
 
-    // Создаем новый запрос токена
     this.tokenPromise = this.fetchToken();
     const token = await this.tokenPromise;
     this.tokenPromise = null;
@@ -28,26 +30,31 @@ class TokenService {
     return token;
   }
 
+  async setToken(token: string | null): Promise<void> {
+    this.currentToken = token;
+    try {
+      if (token) {
+        await AsyncStorage.setItem(TokenService.STORAGE_KEY, token);
+      } else {
+        await AsyncStorage.removeItem(TokenService.STORAGE_KEY);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }
+
   private async fetchToken(): Promise<string | null> {
     try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.log('❌ Ошибка получения сессии:', error);
-        return null;
-      }
-
-      const token = data.session?.access_token || null;
+      const token = await AsyncStorage.getItem(TokenService.STORAGE_KEY);
       this.currentToken = token;
-
       if (token) {
         console.log('🔐 Токен получен:', token.substring(0, 20) + '...');
       } else {
         console.log('⚠️ Токен отсутствует');
       }
-
       return token;
     } catch (error) {
-      console.log('❌ Ошибка при получении токена:', error);
+      console.log('❌ Ошибка при получении токена из хранилища:', error);
       return null;
     }
   }
@@ -55,6 +62,8 @@ class TokenService {
   clearToken(): void {
     this.currentToken = null;
     this.tokenPromise = null;
+    // fire-and-forget
+    AsyncStorage.removeItem(TokenService.STORAGE_KEY).catch(() => {});
   }
 
   getCurrentToken(): string | null {

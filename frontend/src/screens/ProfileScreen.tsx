@@ -34,7 +34,6 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import NatalChartWidget from '../components/NatalChartWidget';
 import { useAuth } from '../hooks/useAuth';
 import DeleteAccountModal from '../components/DeleteAccountModal';
-import { supabase } from '../services/supabase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -157,9 +156,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const handleLogout = async () => {
     try {
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-
       // Clear stored token
       removeStoredToken();
 
@@ -301,7 +297,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </Animated.View>
 
             <Text style={styles.userName}>
-              {profile.name || authUser?.user_metadata?.name || 'Пользователь'}
+              {profile.name || authUser?.name || 'Пользователь'}
             </Text>
             <View style={styles.zodiacContainer}>
               <Text style={styles.zodiacSign}>{zodiacSign}</Text>

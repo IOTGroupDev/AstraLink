@@ -1,14 +1,22 @@
-import { createClient } from '@supabase/supabase-js';
+// Frontend Supabase client is intentionally disabled.
+// Per AstraLink rules, the mobile/web app must call our NestJS backend only.
+// If this module gets imported accidentally, it will throw at runtime to prevent misuse.
 
-// // These should be set in your environment variables
-const SUPABASE_URL = 'https://ayoucajwdyinyhamousz.supabase.co';
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo';
+const DISABLED_MSG =
+  'Supabase client is disabled on the frontend. Use backend REST API wrappers in src/services/api.ts';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false, // Disable for mobile apps
+type AnyRecord = Record<string, unknown>;
+
+export const supabase = new Proxy<AnyRecord>({} as AnyRecord, {
+  get() {
+    throw new Error(DISABLED_MSG);
   },
-});
+  apply() {
+    throw new Error(DISABLED_MSG);
+  },
+}) as any;
+
+// Note:
+// - Keep this file present so legacy imports compile, but guard all access.
+// - All authentication and data access must go through our backend endpoints
+//   implemented in the NestJS service.

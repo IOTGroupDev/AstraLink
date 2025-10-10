@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { supabase } from './supabase';
 import { tokenService } from './tokenService';
 import {
   LoginRequest,
@@ -119,53 +118,53 @@ api.interceptors.response.use(
 
     // Обработка ошибок авторизации
     if (error.response?.status === 401) {
-      console.log('🔄 Ошибка 401, очищаем токен и выходим из системы');
+      console.log('🔄 Ошибка 401, очищаем токен');
       tokenService.clearToken();
-      await supabase.auth.signOut();
     }
 
     return Promise.reject(error);
   }
 );
 
-// Токены теперь управляются Supabase автоматически
+// Токены управляются локально через tokenService
 
-// Auth API с использованием Supabase
+// Auth API через backend
 export const authAPI = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Отправляем данные для входа через Supabase:', data);
+      console.log('🔐 Отправляем данные для входа через Backend API:', {
+        email: data.email,
+      });
 
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+      const response = await api.post('/auth/login', {
         email: data.email,
         password: data.password,
       });
 
-      if (error) {
-        console.log('❌ Supabase login error:', error);
-        throw new Error(error.message);
+      const { access_token, user } = response.data;
+
+      if (!access_token) {
+        throw new Error('Токен не получен от Backend');
       }
 
-      if (!authData.session?.access_token) {
-        throw new Error('Токен не получен от Supabase');
-      }
+      // Сохраняем токен для дальнейших запросов
+      await tokenService.setToken(access_token);
 
-      console.log('✅ Успешный вход через Supabase');
+      console.log('✅ Успешный вход через Backend');
 
-      // Возвращаем совместимый с существующим кодом ответ
       return {
-        access_token: authData.session.access_token,
-        user: {
-          id: authData.user?.id || '',
-          email: authData.user?.email || '',
-          name: authData.user?.user_metadata?.name || '',
-          birthDate: authData.user?.user_metadata?.birthDate || '',
-        },
+        access_token,
+        user,
       };
     } catch (error: any) {
       console.log('❌ API login failed:', error);
 
-      // Добавляем более понятное сообщение об ошибке
+      // Нормализуем сообщение об ошибке
+      const errorMessage = error.response?.data?.message || error.message;
+      if (typeof errorMessage === 'string') {
+        error.message = errorMessage;
+      }
+
       if (error.message?.includes('Invalid login credentials')) {
         error.message = 'Неверный email или пароль';
       } else if (error.message?.includes('Email not confirmed')) {
@@ -185,7 +184,6 @@ export const authAPI = {
         data
       );
 
-      // ✅ Используем BACKEND вместо прямого вызова Supabase
       const response = await api.post('/auth/signup', {
         email: data.email,
         password: data.password,
@@ -199,11 +197,8 @@ export const authAPI = {
 
       const { user, access_token } = response.data;
 
-      // Устанавливаем сессию в Supabase для последующих запросов
-      await supabase.auth.setSession({
-        access_token,
-        refresh_token: access_token, // В вашем случае используем тот же токен
-      });
+      // Сохраняем токен в локальном хранилище
+      await tokenService.setToken(access_token);
 
       return {
         access_token,
@@ -229,13 +224,10 @@ export const authAPI = {
 
   logout: async (): Promise<void> => {
     try {
-      console.log('🔐 Выход из системы через Supabase');
+      console.log('🔐 Выход из системы');
 
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.log('❌ Supabase logout error:', error);
-        throw new Error(error.message);
-      }
+      // Очищаем локальный токен
+      tokenService.clearToken();
 
       console.log('✅ Успешный выход из системы');
     } catch (error) {
@@ -458,8 +450,7 @@ export const chartAPI = {
   }> => {
     const url = date ? `/chart/biorhythms?date=${date}` : '/chart/biorhythms';
     // Явно прокидываем токен в заголовок, чтобы избежать 401 при прямых вызовах
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
+    const token = await tokenService.getToken();
     const response = await api.get(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
@@ -504,12 +495,6 @@ export const chartAPI = {
       // Удаляем токен из локального хранилища
       tokenService.clearToken();
 
-      // Выходим из Supabase
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.warn('⚠️ Ошибка выхода из Supabase:', error);
-      }
-
       return response.data;
     } catch (error: any) {
       console.error('❌ Ошибка удаления аккаунта:', error);
@@ -531,16 +516,40 @@ export const chartAPI = {
 // Advisor API — Premium only
 export const advisorAPI = {
   evaluate: async (data: {
-    topic: 'contract' | 'meeting' | 'date' | 'travel' | 'purchase' | 'health' | 'negotiation' | 'custom';
+    topic:
+      | 'contract'
+      | 'meeting'
+      | 'date'
+      | 'travel'
+      | 'purchase'
+      | 'health'
+      | 'negotiation'
+      | 'custom';
     date: string; // YYYY-MM-DD
     timezone?: string;
     customNote?: string;
   }): Promise<{
     verdict: 'good' | 'neutral' | 'challenging';
     score: number;
-    factors: { label: string; weight: number; value: number; contribution: number }[];
-    aspects: { planetA: string; planetB: string; type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition'; orb: number; impact: number }[];
-    houses: { house: number; theme: string; relevant: boolean; impact: number }[];
+    factors: {
+      label: string;
+      weight: number;
+      value: number;
+      contribution: number;
+    }[];
+    aspects: {
+      planetA: string;
+      planetB: string;
+      type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
+      orb: number;
+      impact: number;
+    }[];
+    houses: {
+      house: number;
+      theme: string;
+      relevant: boolean;
+      impact: number;
+    }[];
     bestWindows: { startISO: string; endISO: string; score: number }[];
     explanation: string;
     generatedBy: 'rules' | 'hybrid';

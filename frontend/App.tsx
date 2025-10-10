@@ -159,7 +159,6 @@ import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { supabase } from './src/services/supabase';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
@@ -167,6 +166,8 @@ import AnimatedStars from './src/components/AnimatedStars';
 import LoadingLogo from './src/components/LoadingLogo';
 import CosmicBackground from './src/components/CosmicBackground';
 import { QueryProvider } from './src/providers/QueryProvider';
+import { tokenService } from './src/services/tokenService';
+import { userAPI } from './src/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -181,15 +182,16 @@ export default function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.log('❌ Ошибка получения сессии:', error);
-        setIsAuthenticated(false);
-      } else if (data.session) {
-        console.log('🔍 Сессия найдена, пользователь авторизован');
-        setIsAuthenticated(true);
+      const token = await tokenService.getToken();
+      if (token) {
+        try {
+          // Дополнительно подтверждаем валидность токена запросом профиля
+          await userAPI.getProfile();
+          setIsAuthenticated(true);
+        } catch {
+          setIsAuthenticated(false);
+        }
       } else {
-        console.log('❌ Сессия не найдена, требуется авторизация');
         setIsAuthenticated(false);
       }
     } catch (e) {
