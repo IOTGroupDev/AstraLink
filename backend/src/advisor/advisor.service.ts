@@ -32,7 +32,10 @@ export class AdvisorService {
     private readonly chartService: ChartService,
   ) {}
 
-  async evaluate(userId: string, dto: EvaluateAdviceDto): Promise<AdviceResponseDto> {
+  async evaluate(
+    userId: string,
+    dto: EvaluateAdviceDto,
+  ): Promise<AdviceResponseDto> {
     const tz = dto.timezone || 'UTC';
     const cacheKey = `advisor:${userId}:${dto.date}:${dto.topic}:${tz}`;
 
@@ -66,7 +69,10 @@ export class AdvisorService {
     const factors: AdvisorFactor[] = [];
 
     // Topic weights (planet influence per topic)
-    const topicPlanetWeights: Record<string, Partial<Record<PlanetKey, number>>> = {
+    const topicPlanetWeights: Record<
+      string,
+      Partial<Record<PlanetKey, number>>
+    > = {
       contract: { mercury: 15, jupiter: 8, saturn: 6, sun: 4 },
       meeting: { mercury: 12, venus: 6, sun: 6, jupiter: 6 },
       negotiation: { mercury: 14, jupiter: 8, saturn: 6, moon: 4 },
@@ -74,11 +80,22 @@ export class AdvisorService {
       travel: { jupiter: 12, mercury: 8, moon: 4 },
       purchase: { mercury: 10, venus: 8, saturn: 4 },
       health: { sun: 8, moon: 8, mars: 8, saturn: 4 },
-      custom: { sun: 6, moon: 6, mercury: 6, venus: 6, mars: 6, jupiter: 6, saturn: 6 },
+      custom: {
+        sun: 6,
+        moon: 6,
+        mercury: 6,
+        venus: 6,
+        mars: 6,
+        jupiter: 6,
+        saturn: 6,
+      },
     };
 
     // Aspect base weights (positive/negative) and orb policy
-    const aspectWeights: Record<AdvisorAspect['type'], { base: number; orb: number }> = {
+    const aspectWeights: Record<
+      AdvisorAspect['type'],
+      { base: number; orb: number }
+    > = {
       conjunction: { base: 10, orb: 8 },
       sextile: { base: 8, orb: 6 },
       square: { base: -10, orb: 8 },
@@ -88,13 +105,21 @@ export class AdvisorService {
 
     // Calculate aspects and factor contributions per planet vs its natal position
     for (const p of trackedPlanets) {
-      const cur = (currentPlanets as any)[p];
+      const cur = currentPlanets[p];
       const nat = (natalPlanets as any)[p];
       if (!cur || !nat) continue;
 
-      const a = this.calculateAspect(cur.longitude, nat.longitude, aspectWeights);
+      const a = this.calculateAspect(
+        cur.longitude,
+        nat.longitude,
+        aspectWeights,
+      );
       if (a) {
-        const impactSigned = this.aspectImpactSigned(a.type, a.orb, aspectWeights);
+        const impactSigned = this.aspectImpactSigned(
+          a.type,
+          a.orb,
+          aspectWeights,
+        );
         aspects.push({
           planetA: p,
           planetB: p,
@@ -115,8 +140,13 @@ export class AdvisorService {
     }
 
     // Mercury retrograde penalty for topics relying on clarity/tech/contracts
-    const merc = (currentPlanets as any).mercury;
-    const mercRetroPenaltyTopics = new Set(['contract', 'purchase', 'meeting', 'negotiation']);
+    const merc = currentPlanets.mercury;
+    const mercRetroPenaltyTopics = new Set([
+      'contract',
+      'purchase',
+      'meeting',
+      'negotiation',
+    ]);
     if (merc?.isRetrograde && mercRetroPenaltyTopics.has(dto.topic)) {
       const penalty = -12;
       factors.push({
@@ -131,7 +161,8 @@ export class AdvisorService {
     let score = 50 + factors.reduce((acc, f) => acc + f.contribution, 0);
     score = Math.round(Math.min(100, Math.max(0, score)));
 
-    const verdict: AdvisorVerdict = score >= 70 ? 'good' : score >= 50 ? 'neutral' : 'challenging';
+    const verdict: AdvisorVerdict =
+      score >= 70 ? 'good' : score >= 50 ? 'neutral' : 'challenging';
 
     // Best windows MVP: whole day as a single window (hourly windows can be added later)
     const bestWindows = [
@@ -178,7 +209,11 @@ export class AdvisorService {
     const diff = Math.abs(longitude1 - longitude2);
     const normalizedDiff = Math.min(diff, 360 - diff);
 
-    const candidates: Array<{ type: AdvisorAspect['type']; angle: number; orb: number }> = [
+    const candidates: Array<{
+      type: AdvisorAspect['type'];
+      angle: number;
+      orb: number;
+    }> = [
       { type: 'conjunction', angle: 0, orb: specs.conjunction.orb },
       { type: 'sextile', angle: 60, orb: specs.sextile.orb },
       { type: 'square', angle: 90, orb: specs.square.orb },

@@ -208,7 +208,10 @@ export class EphemerisService implements OnModuleInit {
     }
 
     // TTL ≈ number of days in range + 1 day (in seconds)
-    const days = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86400000));
+    const days = Math.max(
+      1,
+      Math.ceil((to.getTime() - from.getTime()) / 86400000),
+    );
     await this.redis.set(cacheKey, transits, days * 86400);
     return transits;
   }

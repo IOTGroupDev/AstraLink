@@ -11,7 +11,12 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from './ephemeris.service';
 import { AIService } from './ai.service';
 import { RedisService } from '../redis/redis.service';
-import { PlanetKey, PLANET_WEIGHTS, getEssentialDignity, DignityLevel } from '@/modules/shared/types';
+import {
+  PlanetKey,
+  PLANET_WEIGHTS,
+  getEssentialDignity,
+  DignityLevel,
+} from '@/modules/shared/types';
 import {
   getTransitOrb,
   getHouseForLongitude,
@@ -166,13 +171,19 @@ export class HoroscopeGeneratorService {
           return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
         }
         if (period === 'week') {
-          const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+          const tmp = new Date(
+            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+          );
           const day = (tmp.getUTCDay() + 6) % 7; // Monday=0
           tmp.setUTCDate(tmp.getUTCDate() - day); // start of week (Mon)
           return tmp.toISOString().split('T')[0];
         }
         // day/tomorrow => cache per UTC date
-        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().split('T')[0];
+        return new Date(
+          Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+        )
+          .toISOString()
+          .split('T')[0];
       })();
       const cacheKey = `horoscope:${userId}:${period}:${dateKey}`;
       const ttlSec = (() => {
@@ -180,17 +191,42 @@ export class HoroscopeGeneratorService {
         const nd = new Date(targetDate);
         let end: Date;
         if (period === 'month') {
-          end = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth() + 1, 1, 0, 0, 0));
+          end = new Date(
+            Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth() + 1, 1, 0, 0, 0),
+          );
         } else if (period === 'week') {
-          const tmp = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), nd.getUTCDate()));
+          const tmp = new Date(
+            Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), nd.getUTCDate()),
+          );
           const day = (tmp.getUTCDay() + 6) % 7;
           tmp.setUTCDate(tmp.getUTCDate() + (7 - day)); // start of next week (Mon 00:00 UTC)
-          end = new Date(Date.UTC(tmp.getUTCFullYear(), tmp.getUTCMonth(), tmp.getUTCDate(), 0, 0, 0));
+          end = new Date(
+            Date.UTC(
+              tmp.getUTCFullYear(),
+              tmp.getUTCMonth(),
+              tmp.getUTCDate(),
+              0,
+              0,
+              0,
+            ),
+          );
         } else {
           // day/tomorrow => end of that UTC day
-          end = new Date(Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), nd.getUTCDate() + 1, 0, 0, 0));
+          end = new Date(
+            Date.UTC(
+              nd.getUTCFullYear(),
+              nd.getUTCMonth(),
+              nd.getUTCDate() + 1,
+              0,
+              0,
+              0,
+            ),
+          );
         }
-        const sec = Math.max(60, Math.floor((end.getTime() - now.getTime()) / 1000));
+        const sec = Math.max(
+          60,
+          Math.floor((end.getTime() - now.getTime()) / 1000),
+        );
         return sec;
       })();
 
@@ -997,7 +1033,8 @@ export class HoroscopeGeneratorService {
         detriment: 0.9,
         fall: 0.85,
       };
-      const dignityLevel: DignityLevel = (a.dignity as DignityLevel) || 'neutral';
+      const dignityLevel: DignityLevel =
+        (a.dignity as DignityLevel) || 'neutral';
       score *= dignityMap[dignityLevel] ?? 1.0;
 
       // Длительность транзита — медленные/долгие получают небольшой бонус
@@ -1056,14 +1093,17 @@ export class HoroscopeGeneratorService {
     if (energy > 20) return 'Задумчивое';
     return 'Спокойное';
   }
-/**
+  /**
    * Оценка длительности транзита (примерно) в днях на основе орбиса и скорости транзитной планеты.
    * Используем планетарный орбис из getTransitOrb и фактическую скорость (deg/day) из эфемерид.
    */
   private estimateTransitDurationDays(a: any): number {
     try {
       const baseOrb =
-        getTransitOrb(((a?.transitPlanet as string) || 'sun') as PlanetKey, a?.aspect) || 6;
+        getTransitOrb(
+          ((a?.transitPlanet as string) || 'sun') as PlanetKey,
+          a?.aspect,
+        ) || 6;
       const remaining = Math.max(0, baseOrb - (a?.orb ?? 0));
       const speedAbs = Math.abs(a?.transitSpeed ?? 0); // deg/day (может быть 0 при стационарности)
       const minSpeed = 0.1; // чтобы исключить деление на 0 и учесть стационарные периоды
@@ -1082,7 +1122,11 @@ export class HoroscopeGeneratorService {
    * Добавляет к тексту информацию об окне влияния доминирующего транзита (в днях).
    * Для day/tomorrow короче формулировка, для week/month — общая.
    */
-  private appendTransitWindow(text: string, dominantTransit: any, timeFrame: string): string {
+  private appendTransitWindow(
+    text: string,
+    dominantTransit: any,
+    timeFrame: string,
+  ): string {
     try {
       if (!dominantTransit) return text;
       const days = this.estimateTransitDurationDays(dominantTransit);
@@ -1107,17 +1151,27 @@ export class HoroscopeGeneratorService {
     const cycles: string[] = [];
     try {
       const bdISO: string | undefined =
-        chartData?.birthDate || chartData?.data?.birthDate || chartData?.meta?.birthDate;
+        chartData?.birthDate ||
+        chartData?.data?.birthDate ||
+        chartData?.meta?.birthDate;
       if (!bdISO) return cycles;
 
       const birth = new Date(bdISO);
-      const age = (targetDate.getTime() - birth.getTime()) / (365.2425 * 24 * 3600 * 1000);
-      const near = (val: number, center: number, tol: number) => Math.abs(val - center) <= tol;
+      const age =
+        (targetDate.getTime() - birth.getTime()) /
+        (365.2425 * 24 * 3600 * 1000);
+      const near = (val: number, center: number, tol: number) =>
+        Math.abs(val - center) <= tol;
 
       if (near(age, 29.5, 1.5) || near(age, 58.6, 1.5)) {
         cycles.push('Сатурново возвращение');
       }
-      if (near(age, 12.0, 1.0) || near(age, 24.0, 1.0) || near(age, 36.0, 1.0) || near(age, 48.0, 1.0)) {
+      if (
+        near(age, 12.0, 1.0) ||
+        near(age, 24.0, 1.0) ||
+        near(age, 36.0, 1.0) ||
+        near(age, 48.0, 1.0)
+      ) {
         cycles.push('Возвращение Юпитера');
       }
       if (near(age, 18.6, 1.0) || near(age, 37.2, 1.0)) {

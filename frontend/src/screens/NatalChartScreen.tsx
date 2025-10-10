@@ -83,7 +83,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [detailsLines, setDetailsLines] = useState<string[]>([]);
 
   // Simple in-memory cache for details to avoid repeat network calls
-  const [detailsCache, setDetailsCache] = useState<Record<string, string[]>>({});
+  const [detailsCache, setDetailsCache] = useState<Record<string, string[]>>(
+    {}
+  );
 
   const fadeAnim = useSharedValue(0);
 
@@ -130,7 +132,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     neptune: 'Нептун',
     pluto: 'Плутон',
   };
-  
+
   const aspectRu: Record<string, string> = {
     conjunction: 'Соединение',
     opposition: 'Оппозиция',
@@ -138,7 +140,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     square: 'Квадрат',
     sextile: 'Секстиль',
   };
-  
+
   // Reverse map RU planet name -> key (sun, moon, ...)
   const planetKeyByRu = React.useMemo(() => {
     const entries = Object.entries(planetRu).map(([k, v]) => [v, k]);
@@ -158,11 +160,27 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   const openDetails = async (
     params:
-      | { type: 'planet'; planet: string; sign: string; locale?: 'ru' | 'en' | 'es' }
+      | {
+          type: 'planet';
+          planet: string;
+          sign: string;
+          locale?: 'ru' | 'en' | 'es';
+        }
       | { type: 'ascendant'; sign: string; locale?: 'ru' | 'en' | 'es' }
-      | { type: 'house'; houseNum: number | string; sign: string; locale?: 'ru' | 'en' | 'es' }
-      | { type: 'aspect'; aspect: string; planetA: string; planetB: string; locale?: 'ru' | 'en' | 'es' },
-    title: string,
+      | {
+          type: 'house';
+          houseNum: number | string;
+          sign: string;
+          locale?: 'ru' | 'en' | 'es';
+        }
+      | {
+          type: 'aspect';
+          aspect: string;
+          planetA: string;
+          planetB: string;
+          locale?: 'ru' | 'en' | 'es';
+        },
+    title: string
   ) => {
     try {
       setDetailsTitle(title);
@@ -338,11 +356,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       openDetails(
                         {
                           type: 'planet',
-                          planet: resolvePlanetKey(interpretation.sunSign.planet),
+                          planet: resolvePlanetKey(
+                            interpretation.sunSign.planet
+                          ),
                           sign: interpretation.sunSign.sign,
                           locale: 'ru',
                         },
-                        `${interpretation.sunSign.planet} в ${interpretation.sunSign.sign} — Подробнее`,
+                        `${interpretation.sunSign.planet} в ${interpretation.sunSign.sign} — Подробнее`
                       )
                     }
                   >
@@ -381,11 +401,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       openDetails(
                         {
                           type: 'planet',
-                          planet: resolvePlanetKey(interpretation.moonSign.planet),
+                          planet: resolvePlanetKey(
+                            interpretation.moonSign.planet
+                          ),
                           sign: interpretation.moonSign.sign,
                           locale: 'ru',
                         },
-                        `${interpretation.moonSign.planet} в ${interpretation.moonSign.sign} — Подробнее`,
+                        `${interpretation.moonSign.planet} в ${interpretation.moonSign.sign} — Подробнее`
                       )
                     }
                   >
@@ -427,7 +449,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                           sign: interpretation.ascendant.sign,
                           locale: 'ru',
                         },
-                        `Асцендент в ${interpretation.ascendant.sign} — Подробнее`,
+                        `Асцендент в ${interpretation.ascendant.sign} — Подробнее`
                       )
                     }
                   >
@@ -496,7 +518,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                               sign: planet.sign,
                               locale: 'ru',
                             },
-                            `${planet.planet} в ${planet.sign} — Подробнее`,
+                            `${planet.planet} в ${planet.sign} — Подробнее`
                           )
                         }
                       >
@@ -636,7 +658,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                             sign: house.sign,
                             locale: 'ru',
                           },
-                          `${house.house} дом в ${house.sign} — Подробнее`,
+                          `${house.house} дом в ${house.sign} — Подробнее`
                         )
                       }
                     >
@@ -783,7 +805,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 )}
               </ScrollView>
             )}
-            <TouchableOpacity style={styles.modalCloseButton} onPress={closeDetails}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={closeDetails}
+            >
               <Text style={styles.modalCloseText}>Закрыть</Text>
             </TouchableOpacity>
           </View>

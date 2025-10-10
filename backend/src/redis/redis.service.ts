@@ -8,7 +8,8 @@ export class RedisService {
   private client: Redis | null = null;
 
   constructor(private readonly config: ConfigService) {
-    const url = this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+    const url =
+      this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
     try {
       this.client = new IORedis(url, {
         maxRetriesPerRequest: 3,
@@ -17,7 +18,9 @@ export class RedisService {
       });
 
       this.client.on('error', (err) => {
-        this.logger.error(`Redis error: ${err instanceof Error ? err.message : String(err)}`);
+        this.logger.error(
+          `Redis error: ${err instanceof Error ? err.message : String(err)}`,
+        );
       });
       this.client.on('connect', () => this.logger.log('Redis connected'));
       this.client.on('ready', () => this.logger.log('Redis ready'));
@@ -39,12 +42,18 @@ export class RedisService {
       if (!raw) return null;
       return JSON.parse(raw) as T;
     } catch (e) {
-      this.logger.warn(`Redis GET failed for key=${key}: ${(e as Error).message}`);
+      this.logger.warn(
+        `Redis GET failed for key=${key}: ${(e as Error).message}`,
+      );
       return null;
     }
   }
 
-  async set<T = any>(key: string, value: T, ttlSeconds?: number): Promise<boolean> {
+  async set<T = any>(
+    key: string,
+    value: T,
+    ttlSeconds?: number,
+  ): Promise<boolean> {
     if (!this.client) return false;
     try {
       const payload = JSON.stringify(value);
@@ -55,7 +64,9 @@ export class RedisService {
       }
       return true;
     } catch (e) {
-      this.logger.warn(`Redis SET failed for key=${key}: ${(e as Error).message}`);
+      this.logger.warn(
+        `Redis SET failed for key=${key}: ${(e as Error).message}`,
+      );
       return false;
     }
   }
@@ -66,7 +77,9 @@ export class RedisService {
       await this.client.del(key);
       return true;
     } catch (e) {
-      this.logger.warn(`Redis DEL failed for key=${key}: ${(e as Error).message}`);
+      this.logger.warn(
+        `Redis DEL failed for key=${key}: ${(e as Error).message}`,
+      );
       return false;
     }
   }
@@ -87,16 +100,24 @@ export class RedisService {
       let cursor = '0';
       let total = 0;
       do {
-        const res = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        const res = await this.client.scan(
+          cursor,
+          'MATCH',
+          pattern,
+          'COUNT',
+          100,
+        );
         cursor = res[0];
-        const keys = res[1] as string[];
+        const keys = res[1];
         if (keys.length) {
           total += await this.client.del(...keys);
         }
       } while (cursor !== '0');
       return total;
     } catch (e) {
-      this.logger.warn(`Redis deleteByPattern failed for pattern=${pattern}: ${(e as Error).message}`);
+      this.logger.warn(
+        `Redis deleteByPattern failed for pattern=${pattern}: ${(e as Error).message}`,
+      );
       return 0;
     }
   }

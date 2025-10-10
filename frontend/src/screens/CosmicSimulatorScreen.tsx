@@ -65,9 +65,11 @@ export default function CosmicSimulatorScreen() {
   const [noteText, setNoteText] = useState('');
   const [transitsLoading, setTransitsLoading] = useState(false);
 
-// Tabs and full details
-const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'aspects' | 'transits'>('overview');
-const [interpretation, setInterpretation] = useState<any>(null);
+  // Tabs and full details
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'houses' | 'aspects' | 'transits'
+  >('overview');
+  const [interpretation, setInterpretation] = useState<any>(null);
   // Анимации
   const planetRotation = useSharedValue(0);
   const timelinePosition = useSharedValue(0.5); // 0 = прошлое, 1 = будущее
@@ -827,7 +829,7 @@ const [interpretation, setInterpretation] = useState<any>(null);
     );
   };
 
- if (loading) {
+  if (loading) {
     return (
       <LinearGradient
         colors={['#0F172A', '#1E293B', '#334155']}

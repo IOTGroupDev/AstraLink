@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  TextInput,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSubscription } from '../hooks/useSubscription';
@@ -33,7 +40,9 @@ export default function AdvisorChatScreen() {
 
   // Inputs
   const [selectedTopic, setSelectedTopic] = useState<Topic>('contract');
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+  const [date, setDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  ); // YYYY-MM-DD
   const [customNote, setCustomNote] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -41,8 +50,19 @@ export default function AdvisorChatScreen() {
   const [result, setResult] = useState<null | {
     verdict: 'good' | 'neutral' | 'challenging';
     score: number;
-    factors: { label: string; weight: number; value: number; contribution: number }[];
-    aspects: { planetA: string; planetB: string; type: string; orb: number; impact: number }[];
+    factors: {
+      label: string;
+      weight: number;
+      value: number;
+      contribution: number;
+    }[];
+    aspects: {
+      planetA: string;
+      planetB: string;
+      type: string;
+      orb: number;
+      impact: number;
+    }[];
     bestWindows: { startISO: string; endISO: string; score: number }[];
     explanation: string;
   }>(null);
@@ -61,7 +81,12 @@ export default function AdvisorChatScreen() {
     setResult(null);
     setLoading(true);
     try {
-      const payload = { topic: selectedTopic, date, timezone, customNote: customNote || undefined };
+      const payload = {
+        topic: selectedTopic,
+        date,
+        timezone,
+        customNote: customNote || undefined,
+      };
       const data = await advisorAPI.evaluate(payload);
       setResult(data);
     } catch (e: any) {
@@ -71,7 +96,8 @@ export default function AdvisorChatScreen() {
         factors: [],
         aspects: [],
         bestWindows: [],
-        explanation: e?.response?.data?.message || 'Ошибка запроса. Попробуйте позже.',
+        explanation:
+          e?.response?.data?.message || 'Ошибка запроса. Попробуйте позже.',
       });
     } finally {
       setLoading(false);
@@ -80,13 +106,37 @@ export default function AdvisorChatScreen() {
 
   if (!premium) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0A0A0F', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#0A0A0F',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
         <Ionicons name="lock-closed" size={72} color="#8B5CF6" />
-        <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
+        <Text
+          style={{
+            color: '#FFFFFF',
+            fontSize: 20,
+            fontWeight: '600',
+            marginTop: 12,
+            textAlign: 'center',
+          }}
+        >
           Доступно только для Premium
         </Text>
-        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
-          Персональный советник: «Хороший ли день для …» с реальными транзитами и натальной картой.
+        <Text
+          style={{
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: 14,
+            marginTop: 8,
+            textAlign: 'center',
+          }}
+        >
+          Персональный советник: «Хороший ли день для …» с реальными транзитами
+          и натальной картой.
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -104,7 +154,9 @@ export default function AdvisorChatScreen() {
             borderRadius: 12,
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Перейти на Premium</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+            Перейти на Premium
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -117,7 +169,14 @@ export default function AdvisorChatScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
+        <Text
+          style={{
+            color: '#FFFFFF',
+            fontSize: 18,
+            fontWeight: '700',
+            marginBottom: 12,
+          }}
+        >
           Советник: хороший ли день…
         </Text>
 
@@ -130,7 +189,9 @@ export default function AdvisorChatScreen() {
                 key={t.key}
                 onPress={() => setSelectedTopic(t.key)}
                 style={{
-                  backgroundColor: active ? '#8B5CF6' : 'rgba(255,255,255,0.08)',
+                  backgroundColor: active
+                    ? '#8B5CF6'
+                    : 'rgba(255,255,255,0.08)',
                   borderColor: active ? '#A78BFA' : 'rgba(255,255,255,0.15)',
                   borderWidth: 1,
                   paddingHorizontal: 12,
@@ -138,7 +199,14 @@ export default function AdvisorChatScreen() {
                   borderRadius: 999,
                 }}
               >
-                <Text style={{ color: '#FFFFFF', fontWeight: active ? '700' : '500' }}>{t.label}</Text>
+                <Text
+                  style={{
+                    color: '#FFFFFF',
+                    fontWeight: active ? '700' : '500',
+                  }}
+                >
+                  {t.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -146,7 +214,9 @@ export default function AdvisorChatScreen() {
 
         {/* Date input (YYYY-MM-DD) */}
         <View style={{ marginTop: 16 }}>
-          <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>Дата (YYYY-MM-DD)</Text>
+          <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>
+            Дата (YYYY-MM-DD)
+          </Text>
           <TextInput
             value={date}
             onChangeText={setDate}
@@ -167,7 +237,9 @@ export default function AdvisorChatScreen() {
 
         {/* Custom note */}
         <View style={{ marginTop: 12 }}>
-          <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>Контекст (опционально)</Text>
+          <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>
+            Контекст (опционально)
+          </Text>
           <TextInput
             value={customNote}
             onChangeText={setCustomNote}
@@ -226,22 +298,24 @@ export default function AdvisorChatScreen() {
               }}
             >
               <Text style={{ color: '#9CA3AF' }}>Вердикт</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              >
                 <Ionicons
                   name={
                     result.verdict === 'good'
                       ? 'checkmark-circle'
                       : result.verdict === 'neutral'
-                      ? 'remove-circle'
-                      : 'close-circle'
+                        ? 'remove-circle'
+                        : 'close-circle'
                   }
                   size={20}
                   color={
                     result.verdict === 'good'
                       ? '#10B981'
                       : result.verdict === 'neutral'
-                      ? '#F59E0B'
-                      : '#EF4444'
+                        ? '#F59E0B'
+                        : '#EF4444'
                   }
                 />
                 <Text
@@ -250,8 +324,8 @@ export default function AdvisorChatScreen() {
                       result.verdict === 'good'
                         ? '#10B981'
                         : result.verdict === 'neutral'
-                        ? '#F59E0B'
-                        : '#EF4444',
+                          ? '#F59E0B'
+                          : '#EF4444',
                     fontWeight: '700',
                   }}
                 >
@@ -259,7 +333,9 @@ export default function AdvisorChatScreen() {
                 </Text>
               </View>
               {!!result.explanation && (
-                <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 6 }}>{result.explanation}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 6 }}>
+                  {result.explanation}
+                </Text>
               )}
             </View>
 
@@ -275,14 +351,32 @@ export default function AdvisorChatScreen() {
                   gap: 6,
                 }}
               >
-                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>Лучшие окна</Text>
+                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
+                  Лучшие окна
+                </Text>
                 {result.bestWindows.map((w, idx) => (
-                  <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 2 }}>
+                  <View
+                    key={idx}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginVertical: 2,
+                    }}
+                  >
                     <Text style={{ color: '#FFFFFF' }}>
-                      {new Date(w.startISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
-                      {new Date(w.endISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(w.startISO).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}{' '}
+                      -{' '}
+                      {new Date(w.endISO).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </Text>
-                    <Text style={{ color: '#A78BFA', fontWeight: '600' }}>{w.score}</Text>
+                    <Text style={{ color: '#A78BFA', fontWeight: '600' }}>
+                      {w.score}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -300,10 +394,13 @@ export default function AdvisorChatScreen() {
                   gap: 6,
                 }}
               >
-                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>Аспекты (натал ↔ текущие)</Text>
+                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
+                  Аспекты (натал ↔ текущие)
+                </Text>
                 {result.aspects.map((a, idx) => (
                   <Text key={idx} style={{ color: '#FFFFFF' }}>
-                    {a.planetA} {a.type} {a.planetB} · орб {a.orb.toFixed(2)}° · влияние {a.impact.toFixed(2)}
+                    {a.planetA} {a.type} {a.planetB} · орб {a.orb.toFixed(2)}° ·
+                    влияние {a.impact.toFixed(2)}
                   </Text>
                 ))}
               </View>
@@ -321,10 +418,13 @@ export default function AdvisorChatScreen() {
                   gap: 6,
                 }}
               >
-                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>Факторы</Text>
+                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
+                  Факторы
+                </Text>
                 {result.factors.map((f, idx) => (
                   <Text key={idx} style={{ color: '#FFFFFF' }}>
-                    {f.label}: вклад {Math.round(f.contribution)} (вес {f.weight}, сила {(f.value * 100).toFixed(0)}%)
+                    {f.label}: вклад {Math.round(f.contribution)} (вес{' '}
+                    {f.weight}, сила {(f.value * 100).toFixed(0)}%)
                   </Text>
                 ))}
               </View>

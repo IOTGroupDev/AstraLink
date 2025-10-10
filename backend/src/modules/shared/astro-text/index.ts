@@ -524,7 +524,9 @@ export function getExtendedAscendant(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const ext = (d as any).ascendantExt as Partial<Record<Sign, string[]>> | undefined;
+  const ext = (d as any).ascendantExt as
+    | Partial<Record<Sign, string[]>>
+    | undefined;
   if (!ext) return [];
   return ext[sign] || [];
 }
@@ -535,9 +537,9 @@ export function getExtendedHouseSign(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const byHouse = (d as any).houseSignInterpretationsExt?.[
-    houseNum
-  ] as Partial<Record<Sign, string[]>> | undefined;
+  const byHouse = (d as any).houseSignInterpretationsExt?.[houseNum] as
+    | Partial<Record<Sign, string[]>>
+    | undefined;
   if (!byHouse) return [];
   return byHouse[sign] || [];
 }
@@ -809,7 +811,9 @@ export function getSignColors(
   if (found && found.length) return found;
   return locale === 'en'
     ? DEFAULT_COLORS_EN
-    : (locale === 'es' ? DEFAULT_COLORS_ES : DEFAULT_COLORS_RU);
+    : locale === 'es'
+      ? DEFAULT_COLORS_ES
+      : DEFAULT_COLORS_RU;
 }
 
 /**

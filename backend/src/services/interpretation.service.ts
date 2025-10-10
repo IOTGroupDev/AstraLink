@@ -224,16 +224,32 @@ export class InterpretationService {
     const housesInterpretation = Object.entries(houses).map(
       ([houseNum, houseData]: [string, any]) => {
         const houseNumber = parseInt(houseNum);
-        const planetsInHouse = this.getPlanetsInHouse(houseNumber, planets, houses);
+        const planetsInHouse = this.getPlanetsInHouse(
+          houseNumber,
+          planets,
+          houses,
+        );
 
         return {
           house: houseNumber,
           sign: houseData.sign,
-          interpretation: this.interpretHouse(houseNumber, houseData.sign, locale),
+          interpretation: this.interpretHouse(
+            houseNumber,
+            houseData.sign,
+            locale,
+          ),
           lifeArea: this.getHouseLifeArea(houseNumber, locale),
           keywords: this.getHouseKeywords(houseNumber, houseData.sign, locale),
-          strengths: this.getHouseStrengths(houseNumber, houseData.sign, locale),
-          challenges: this.getHouseChallenges(houseNumber, houseData.sign, locale),
+          strengths: this.getHouseStrengths(
+            houseNumber,
+            houseData.sign,
+            locale,
+          ),
+          challenges: this.getHouseChallenges(
+            houseNumber,
+            houseData.sign,
+            locale,
+          ),
           planets: planetsInHouse,
           theme: getHouseTheme(houseNumber, houseData.sign, locale),
           rulingPlanet: this.getHouseRulingPlanet(houseNumber, locale),
@@ -463,7 +479,12 @@ Together, these form a coherent portrait of your personality and life path.`;
     const karmaLessons = this.analyzeKarmaLessons(aspects, planets, locale);
 
     // Расширенные рекомендации
-    const recommendations = this.generateDetailedRecommendations(planets, aspects, houses, locale);
+    const recommendations = this.generateDetailedRecommendations(
+      planets,
+      aspects,
+      houses,
+      locale,
+    );
 
     // Жизненная цель, отношения, карьера
     const lifePurpose = this.analyzeLifePurpose(planets, houses, locale);
@@ -471,7 +492,11 @@ Together, these form a coherent portrait of your personality and life path.`;
     const careerPath = this.analyzeCareerPath(planets, houses, locale);
     const spiritualPath = this.analyzeSpiritualPath(planets, houses, locale);
     const healthFocus = this.analyzeHealthFocus(planets, houses, locale);
-    const financialApproach = this.analyzeFinancialApproach(planets, houses, locale);
+    const financialApproach = this.analyzeFinancialApproach(
+      planets,
+      houses,
+      locale,
+    );
 
     return {
       personalityTraits: [...new Set(personalityTraits)].slice(0, 8),
@@ -589,7 +614,11 @@ Together, these form a coherent portrait of your personality and life path.`;
     return 'Слабое влияние';
   }
 
-  private getPlanetsInHouse(houseNum: number, planets: any, houses: any): string[] {
+  private getPlanetsInHouse(
+    houseNum: number,
+    planets: any,
+    houses: any,
+  ): string[] {
     const result: string[] = [];
     Object.entries(planets).forEach(([key, planet]: [string, any]) => {
       const planetHouse = this.getPlanetHouse(planet.longitude, houses);
@@ -600,7 +629,11 @@ Together, these form a coherent portrait of your personality and life path.`;
     return result;
   }
 
-  private getHouseKeywords(houseNum: number, sign: string, locale: 'ru' | 'en'): string[] {
+  private getHouseKeywords(
+    houseNum: number,
+    sign: string,
+    locale: 'ru' | 'en',
+  ): string[] {
     // Simplified house keywords based on sign traits
     const basicKeywords: Record<number, string[]> = {
       1: ['самовыражение', 'инициатива'],
@@ -619,7 +652,11 @@ Together, these form a coherent portrait of your personality and life path.`;
     return basicKeywords[houseNum] || [];
   }
 
-  private getHouseStrengths(houseNum: number, sign: string, locale: 'ru' | 'en'): string[] {
+  private getHouseStrengths(
+    houseNum: number,
+    sign: string,
+    locale: 'ru' | 'en',
+  ): string[] {
     const basicStrengths: Record<number, string[]> = {
       1: ['Лидерство', 'Инициатива'],
       2: ['Надежность', 'Практичность'],
@@ -637,7 +674,11 @@ Together, these form a coherent portrait of your personality and life path.`;
     return basicStrengths[houseNum] || [];
   }
 
-  private getHouseChallenges(houseNum: number, sign: string, locale: 'ru' | 'en'): string[] {
+  private getHouseChallenges(
+    houseNum: number,
+    sign: string,
+    locale: 'ru' | 'en',
+  ): string[] {
     const basicChallenges: Record<number, string[]> = {
       1: ['Импульсивность', 'Эгоцентризм'],
       2: ['Жадность', 'Материализм'],
@@ -673,15 +714,27 @@ Together, these form a coherent portrait of your personality and life path.`;
     return rulingPlanets[houseNum] || '';
   }
 
-  private analyzeDominantElements(planets: PlanetInterpretation[], locale: 'ru' | 'en'): string[] {
+  private analyzeDominantElements(
+    planets: PlanetInterpretation[],
+    locale: 'ru' | 'en',
+  ): string[] {
     const elements = { fire: 0, earth: 0, air: 0, water: 0 };
     const signElements: Record<string, keyof typeof elements> = {
-      Aries: 'fire', Taurus: 'earth', Gemini: 'air', Cancer: 'water',
-      Leo: 'fire', Virgo: 'earth', Libra: 'air', Scorpio: 'water',
-      Sagittarius: 'fire', Capricorn: 'earth', Aquarius: 'air', Pisces: 'water',
+      Aries: 'fire',
+      Taurus: 'earth',
+      Gemini: 'air',
+      Cancer: 'water',
+      Leo: 'fire',
+      Virgo: 'earth',
+      Libra: 'air',
+      Scorpio: 'water',
+      Sagittarius: 'fire',
+      Capricorn: 'earth',
+      Aquarius: 'air',
+      Pisces: 'water',
     };
 
-    planets.forEach(planet => {
+    planets.forEach((planet) => {
       const element = signElements[planet.sign];
       if (element) elements[element]++;
     });
@@ -691,24 +744,37 @@ Together, these form a coherent portrait of your personality and life path.`;
       .sort((a, b) => b[1] - a[1])
       .slice(0, 2)
       .map(([element]) => {
-        const names = locale === 'en'
-          ? { fire: 'Fire', earth: 'Earth', air: 'Air', water: 'Water' }
-          : { fire: 'Огонь', earth: 'Земля', air: 'Воздух', water: 'Вода' };
+        const names =
+          locale === 'en'
+            ? { fire: 'Fire', earth: 'Earth', air: 'Air', water: 'Water' }
+            : { fire: 'Огонь', earth: 'Земля', air: 'Воздух', water: 'Вода' };
         return names[element as keyof typeof names];
       });
 
     return dominant;
   }
 
-  private analyzeDominantQualities(planets: PlanetInterpretation[], locale: 'ru' | 'en'): string[] {
+  private analyzeDominantQualities(
+    planets: PlanetInterpretation[],
+    locale: 'ru' | 'en',
+  ): string[] {
     const qualities = { cardinal: 0, fixed: 0, mutable: 0 };
     const signQualities: Record<string, keyof typeof qualities> = {
-      Aries: 'cardinal', Taurus: 'fixed', Gemini: 'mutable', Cancer: 'cardinal',
-      Leo: 'fixed', Virgo: 'mutable', Libra: 'cardinal', Scorpio: 'fixed',
-      Sagittarius: 'mutable', Capricorn: 'cardinal', Aquarius: 'fixed', Pisces: 'mutable',
+      Aries: 'cardinal',
+      Taurus: 'fixed',
+      Gemini: 'mutable',
+      Cancer: 'cardinal',
+      Leo: 'fixed',
+      Virgo: 'mutable',
+      Libra: 'cardinal',
+      Scorpio: 'fixed',
+      Sagittarius: 'mutable',
+      Capricorn: 'cardinal',
+      Aquarius: 'fixed',
+      Pisces: 'mutable',
     };
 
-    planets.forEach(planet => {
+    planets.forEach((planet) => {
       const quality = signQualities[planet.sign];
       if (quality) qualities[quality]++;
     });
@@ -718,32 +784,47 @@ Together, these form a coherent portrait of your personality and life path.`;
       .sort((a, b) => b[1] - a[1])
       .slice(0, 2)
       .map(([quality]) => {
-        const names = locale === 'en'
-          ? { cardinal: 'Cardinal', fixed: 'Fixed', mutable: 'Mutable' }
-          : { cardinal: 'Кардинальный', fixed: 'Фиксированный', mutable: 'Мутабельный' };
+        const names =
+          locale === 'en'
+            ? { cardinal: 'Cardinal', fixed: 'Fixed', mutable: 'Mutable' }
+            : {
+                cardinal: 'Кардинальный',
+                fixed: 'Фиксированный',
+                mutable: 'Мутабельный',
+              };
         return names[quality as keyof typeof names];
       });
 
     return dominant;
   }
 
-  private analyzeLifeThemes(aspects: any[], houses: any[], locale: 'ru' | 'en'): string[] {
+  private analyzeLifeThemes(
+    aspects: any[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string[] {
     const themes: string[] = [];
 
     // Analyze aspects for themes
-    aspects.forEach(aspect => {
+    aspects.forEach((aspect) => {
       if (aspect.strength > 0.6) {
-        if (aspect.type.includes('квадрат') || aspect.type.includes('оппозиц')) {
+        if (
+          aspect.type.includes('квадрат') ||
+          aspect.type.includes('оппозиц')
+        ) {
           themes.push(locale === 'en' ? 'Personal Growth' : 'Личный рост');
         }
-        if (aspect.type.includes('тригон') || aspect.type.includes('секстиль')) {
+        if (
+          aspect.type.includes('тригон') ||
+          aspect.type.includes('секстиль')
+        ) {
           themes.push(locale === 'en' ? 'Harmony' : 'Гармония');
         }
       }
     });
 
     // Analyze houses for themes
-    houses.forEach(house => {
+    houses.forEach((house) => {
       if (house.planets.length > 1) {
         themes.push(locale === 'en' ? 'Complex Dynamics' : 'Сложная динамика');
       }
@@ -752,262 +833,371 @@ Together, these form a coherent portrait of your personality and life path.`;
     return [...new Set(themes)].slice(0, 6);
   }
 
-  private analyzeKarmaLessons(aspects: any[], planets: PlanetInterpretation[], locale: 'ru' | 'en'): string[] {
+  private analyzeKarmaLessons(
+    aspects: any[],
+    planets: PlanetInterpretation[],
+    locale: 'ru' | 'en',
+  ): string[] {
     const lessons: string[] = [];
 
     // Challenging aspects indicate lessons
-    const challengingAspects = aspects.filter(a => a.strength > 0.5 && (a.type.includes('квадрат') || a.type.includes('оппозиц')));
+    const challengingAspects = aspects.filter(
+      (a) =>
+        a.strength > 0.5 &&
+        (a.type.includes('квадрат') || a.type.includes('оппозиц')),
+    );
     if (challengingAspects.length > 3) {
       lessons.push(locale === 'en' ? 'Mastering Balance' : 'Освоение баланса');
     }
 
     // Retrograde planets indicate inner work
-    const retrogradeCount = planets.filter(p => p.interpretation.includes('Ретроградность')).length;
+    const retrogradeCount = planets.filter((p) =>
+      p.interpretation.includes('Ретроградность'),
+    ).length;
     if (retrogradeCount > 2) {
-      lessons.push(locale === 'en' ? 'Inner Reflection' : 'Внутренняя рефлексия');
+      lessons.push(
+        locale === 'en' ? 'Inner Reflection' : 'Внутренняя рефлексия',
+      );
     }
 
-    return lessons.length > 0 ? lessons : [
-      locale === 'en' ? 'Self-Acceptance' : 'Самопринятие',
-      locale === 'en' ? 'Patience' : 'Терпение',
-      locale === 'en' ? 'Growth Through Challenge' : 'Рост через вызовы',
-    ];
+    return lessons.length > 0
+      ? lessons
+      : [
+          locale === 'en' ? 'Self-Acceptance' : 'Самопринятие',
+          locale === 'en' ? 'Patience' : 'Терпение',
+          locale === 'en' ? 'Growth Through Challenge' : 'Рост через вызовы',
+        ];
   }
 
-  private generateDetailedRecommendations(planets: PlanetInterpretation[], aspects: any[], houses: any[], locale: 'ru' | 'en'): string[] {
+  private generateDetailedRecommendations(
+    planets: PlanetInterpretation[],
+    aspects: any[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string[] {
     const recommendations: string[] = [];
 
     // Planet-based recommendations
-    const strongPlanets = planets.filter(p => p.strengths.length > 0);
+    const strongPlanets = planets.filter((p) => p.strengths.length > 0);
     if (strongPlanets.length > 0) {
-      recommendations.push(locale === 'en'
-        ? 'Leverage your natural strengths for personal and professional growth'
-        : 'Используйте свои природные сильные стороны для личного и профессионального роста');
+      recommendations.push(
+        locale === 'en'
+          ? 'Leverage your natural strengths for personal and professional growth'
+          : 'Используйте свои природные сильные стороны для личного и профессионального роста',
+      );
     }
 
     // Aspect-based recommendations
-    const harmoniousAspects = aspects.filter(a => a.type.includes('тригон') || a.type.includes('секстиль'));
-    const challengingAspects = aspects.filter(a => a.type.includes('квадрат') || a.type.includes('оппозиц'));
+    const harmoniousAspects = aspects.filter(
+      (a) => a.type.includes('тригон') || a.type.includes('секстиль'),
+    );
+    const challengingAspects = aspects.filter(
+      (a) => a.type.includes('квадрат') || a.type.includes('оппозиц'),
+    );
 
     if (harmoniousAspects.length > challengingAspects.length) {
-      recommendations.push(locale === 'en'
-        ? 'Build upon your natural talents and harmonious energies'
-        : 'Строите на своих природных талантах и гармоничных энергиях');
+      recommendations.push(
+        locale === 'en'
+          ? 'Build upon your natural talents and harmonious energies'
+          : 'Строите на своих природных талантах и гармоничных энергиях',
+      );
     } else {
-      recommendations.push(locale === 'en'
-        ? 'Work on integrating challenging aspects for greater wholeness'
-        : 'Работайте над интеграцией сложных аспектов для большей целостности');
+      recommendations.push(
+        locale === 'en'
+          ? 'Work on integrating challenging aspects for greater wholeness'
+          : 'Работайте над интеграцией сложных аспектов для большей целостности',
+      );
     }
 
     // House-based recommendations
-    const activeHouses = houses.filter(h => h.planets.length > 0);
+    const activeHouses = houses.filter((h) => h.planets.length > 0);
     if (activeHouses.length > 6) {
-      recommendations.push(locale === 'en'
-        ? 'Focus on balancing multiple life areas'
-        : 'Фокусируйтесь на балансе различных жизненных сфер');
+      recommendations.push(
+        locale === 'en'
+          ? 'Focus on balancing multiple life areas'
+          : 'Фокусируйтесь на балансе различных жизненных сфер',
+      );
     }
 
     return recommendations.slice(0, 8);
   }
 
-  private analyzeLifePurpose(planets: PlanetInterpretation[], houses: any[], locale: 'ru' | 'en'): string {
+  private analyzeLifePurpose(
+    planets: PlanetInterpretation[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string {
     // Analyze sun, moon, and 10th house for life purpose
-    const sun = planets.find(p => p.planet === (locale === 'en' ? 'Sun' : 'Солнце'));
-    const moon = planets.find(p => p.planet === (locale === 'en' ? 'Moon' : 'Луна'));
+    const sun = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Sun' : 'Солнце'),
+    );
+    const moon = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Moon' : 'Луна'),
+    );
     const tenthHouse = houses.find((h: any) => h.house === 10);
 
-    let purpose = locale === 'en'
-      ? 'Your life purpose involves '
-      : 'Ваша жизненная цель связана с ';
+    let purpose =
+      locale === 'en'
+        ? 'Your life purpose involves '
+        : 'Ваша жизненная цель связана с ';
 
     if (sun) {
-      purpose += locale === 'en'
-        ? `expressing your ${sun.sign} essence through leadership and creativity`
-        : `выражением своей ${sun.sign} сущности через лидерство и творчество`;
+      purpose +=
+        locale === 'en'
+          ? `expressing your ${sun.sign} essence through leadership and creativity`
+          : `выражением своей ${sun.sign} сущности через лидерство и творчество`;
     }
 
     if (tenthHouse && tenthHouse.planets.length > 0) {
-      purpose += locale === 'en'
-        ? ', contributing to society through your professional calling'
-        : ', внесением вклада в общество через профессиональное призвание';
+      purpose +=
+        locale === 'en'
+          ? ', contributing to society through your professional calling'
+          : ', внесением вклада в общество через профессиональное призвание';
     }
 
     return purpose;
   }
 
-  private analyzeRelationships(aspects: any[], houses: any[], locale: 'ru' | 'en'): string {
+  private analyzeRelationships(
+    aspects: any[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string {
     const seventhHouse = houses.find((h: any) => h.house === 7);
-    const venusAspects = aspects.filter(a => a.planetA === 'Venus' || a.planetB === 'Venus');
+    const venusAspects = aspects.filter(
+      (a) => a.planetA === 'Venus' || a.planetB === 'Venus',
+    );
 
-    let relationships = locale === 'en'
-      ? 'In relationships, you seek '
-      : 'В отношениях вы ищете ';
+    let relationships =
+      locale === 'en'
+        ? 'In relationships, you seek '
+        : 'В отношениях вы ищете ';
 
     if (seventhHouse && seventhHouse.planets.length > 0) {
-      relationships += locale === 'en'
-        ? 'deep partnership and mutual growth'
-        : 'глубокое партнерство и взаимный рост';
+      relationships +=
+        locale === 'en'
+          ? 'deep partnership and mutual growth'
+          : 'глубокое партнерство и взаимный рост';
     } else {
-      relationships += locale === 'en'
-        ? 'harmony and understanding'
-        : 'гармонию и понимание';
+      relationships +=
+        locale === 'en' ? 'harmony and understanding' : 'гармонию и понимание';
     }
 
     if (venusAspects.length > 0) {
-      relationships += locale === 'en'
-        ? ', with Venus influencing your approach to love and connection'
-        : ', где Венера влияет на ваш подход к любви и связи';
+      relationships +=
+        locale === 'en'
+          ? ', with Venus influencing your approach to love and connection'
+          : ', где Венера влияет на ваш подход к любви и связи';
     }
 
     return relationships;
   }
 
-  private analyzeCareerPath(planets: PlanetInterpretation[], houses: any[], locale: 'ru' | 'en'): string {
+  private analyzeCareerPath(
+    planets: PlanetInterpretation[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string {
     const tenthHouse = houses.find((h: any) => h.house === 10);
     const sixthHouse = houses.find((h: any) => h.house === 6);
-    const mars = planets.find(p => p.planet === (locale === 'en' ? 'Mars' : 'Марс'));
-    const saturn = planets.find(p => p.planet === (locale === 'en' ? 'Saturn' : 'Сатурн'));
-    const jupiter = planets.find(p => p.planet === (locale === 'en' ? 'Jupiter' : 'Юпитер'));
+    const mars = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Mars' : 'Марс'),
+    );
+    const saturn = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Saturn' : 'Сатурн'),
+    );
+    const jupiter = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Jupiter' : 'Юпитер'),
+    );
 
-    let career = locale === 'en'
-      ? 'Your career path involves '
-      : 'Ваш карьерный путь включает ';
+    let career =
+      locale === 'en'
+        ? 'Your career path involves '
+        : 'Ваш карьерный путь включает ';
 
     if (tenthHouse && tenthHouse.planets.length > 0) {
-      career += locale === 'en'
-        ? 'leadership and public recognition'
-        : 'лидерство и общественное признание';
+      career +=
+        locale === 'en'
+          ? 'leadership and public recognition'
+          : 'лидерство и общественное признание';
     } else if (sixthHouse && sixthHouse.planets.length > 0) {
-      career += locale === 'en'
-        ? 'service and practical contribution'
-        : 'служение и практический вклад';
+      career +=
+        locale === 'en'
+          ? 'service and practical contribution'
+          : 'служение и практический вклад';
     } else {
-      career += locale === 'en'
-        ? 'finding meaning through work that aligns with your values'
-        : 'нахождение смысла через работу, которая соответствует вашим ценностям';
+      career +=
+        locale === 'en'
+          ? 'finding meaning through work that aligns with your values'
+          : 'нахождение смысла через работу, которая соответствует вашим ценностям';
     }
 
     if (mars && mars.strengths.length > 0) {
-      career += locale === 'en'
-        ? ', with Mars providing the drive to achieve your goals'
-        : ', где Марс дает импульс для достижения целей';
+      career +=
+        locale === 'en'
+          ? ', with Mars providing the drive to achieve your goals'
+          : ', где Марс дает импульс для достижения целей';
     }
 
     if (saturn && saturn.strengths.length > 0) {
-      career += locale === 'en'
-        ? '. Saturn brings discipline and long-term planning'
-        : '. Сатурн привносит дисциплину и долгосрочное планирование';
+      career +=
+        locale === 'en'
+          ? '. Saturn brings discipline and long-term planning'
+          : '. Сатурн привносит дисциплину и долгосрочное планирование';
     }
 
     if (jupiter && jupiter.strengths.length > 0) {
-      career += locale === 'en'
-        ? '. Jupiter expands opportunities and brings optimism'
-        : '. Юпитер расширяет возможности и привносит оптимизм';
+      career +=
+        locale === 'en'
+          ? '. Jupiter expands opportunities and brings optimism'
+          : '. Юпитер расширяет возможности и привносит оптимизм';
     }
 
     return career;
   }
 
-  private analyzeSpiritualPath(planets: PlanetInterpretation[], houses: any[], locale: 'ru' | 'en'): string {
+  private analyzeSpiritualPath(
+    planets: PlanetInterpretation[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string {
     const twelfthHouse = houses.find((h: any) => h.house === 12);
     const ninthHouse = houses.find((h: any) => h.house === 9);
-    const neptune = planets.find(p => p.planet === (locale === 'en' ? 'Neptune' : 'Нептун'));
-    const pluto = planets.find(p => p.planet === (locale === 'en' ? 'Pluto' : 'Плутон'));
+    const neptune = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Neptune' : 'Нептун'),
+    );
+    const pluto = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Pluto' : 'Плутон'),
+    );
 
-    let spiritual = locale === 'en'
-      ? 'Your spiritual path involves '
-      : 'Ваш духовный путь включает ';
+    let spiritual =
+      locale === 'en'
+        ? 'Your spiritual path involves '
+        : 'Ваш духовный путь включает ';
 
     if (neptune && neptune.strengths.length > 0) {
-      spiritual += locale === 'en'
-        ? 'deep intuition and connection to the divine'
-        : 'глубокую интуицию и связь с божественным';
+      spiritual +=
+        locale === 'en'
+          ? 'deep intuition and connection to the divine'
+          : 'глубокую интуицию и связь с божественным';
     } else if (pluto && pluto.strengths.length > 0) {
-      spiritual += locale === 'en'
-        ? 'transformation and rebirth through spiritual practices'
-        : 'трансформацию и возрождение через духовные практики';
+      spiritual +=
+        locale === 'en'
+          ? 'transformation and rebirth through spiritual practices'
+          : 'трансформацию и возрождение через духовные практики';
     } else if (twelfthHouse && twelfthHouse.planets.length > 0) {
-      spiritual += locale === 'en'
-        ? 'exploring the subconscious and universal consciousness'
-        : 'исследование подсознания и универсального сознания';
+      spiritual +=
+        locale === 'en'
+          ? 'exploring the subconscious and universal consciousness'
+          : 'исследование подсознания и универсального сознания';
     } else if (ninthHouse && ninthHouse.planets.length > 0) {
-      spiritual += locale === 'en'
-        ? 'seeking wisdom through philosophy and higher learning'
-        : 'поиск мудрости через философию и высшее обучение';
+      spiritual +=
+        locale === 'en'
+          ? 'seeking wisdom through philosophy and higher learning'
+          : 'поиск мудрости через философию и высшее обучение';
     } else {
-      spiritual += locale === 'en'
-        ? 'personal growth through meditation and self-reflection'
-        : 'личностный рост через медитацию и саморефлексию';
+      spiritual +=
+        locale === 'en'
+          ? 'personal growth through meditation and self-reflection'
+          : 'личностный рост через медитацию и саморефлексию';
     }
 
     return spiritual;
   }
 
-  private analyzeHealthFocus(planets: PlanetInterpretation[], houses: any[], locale: 'ru' | 'en'): string {
+  private analyzeHealthFocus(
+    planets: PlanetInterpretation[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string {
     const sixthHouse = houses.find((h: any) => h.house === 6);
     const firstHouse = houses.find((h: any) => h.house === 1);
-    const moon = planets.find(p => p.planet === (locale === 'en' ? 'Moon' : 'Луна'));
-    const mars = planets.find(p => p.planet === (locale === 'en' ? 'Mars' : 'Марс'));
+    const moon = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Moon' : 'Луна'),
+    );
+    const mars = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Mars' : 'Марс'),
+    );
 
-    let health = locale === 'en'
-      ? 'Your health focus involves '
-      : 'Ваш фокус на здоровье включает ';
+    let health =
+      locale === 'en'
+        ? 'Your health focus involves '
+        : 'Ваш фокус на здоровье включает ';
 
     if (sixthHouse && sixthHouse.planets.length > 0) {
-      health += locale === 'en'
-        ? 'daily routines and preventive care'
-        : 'ежедневные рутины и профилактический уход';
+      health +=
+        locale === 'en'
+          ? 'daily routines and preventive care'
+          : 'ежедневные рутины и профилактический уход';
     } else if (moon && moon.strengths.length > 0) {
-      health += locale === 'en'
-        ? 'emotional well-being and stress management'
-        : 'эмоциональное благополучие и управление стрессом';
+      health +=
+        locale === 'en'
+          ? 'emotional well-being and stress management'
+          : 'эмоциональное благополучие и управление стрессом';
     } else if (mars && mars.strengths.length > 0) {
-      health += locale === 'en'
-        ? 'physical activity and maintaining vitality'
-        : 'физическую активность и поддержание жизнеспособности';
+      health +=
+        locale === 'en'
+          ? 'physical activity and maintaining vitality'
+          : 'физическую активность и поддержание жизнеспособности';
     } else if (firstHouse && firstHouse.planets.length > 0) {
-      health += locale === 'en'
-        ? 'overall vitality and immune system support'
-        : 'общую жизнеспособность и поддержку иммунной системы';
+      health +=
+        locale === 'en'
+          ? 'overall vitality and immune system support'
+          : 'общую жизнеспособность и поддержку иммунной системы';
     } else {
-      health += locale === 'en'
-        ? 'balanced lifestyle with attention to body and mind'
-        : 'сбалансированный образ жизни с вниманием к телу и разуму';
+      health +=
+        locale === 'en'
+          ? 'balanced lifestyle with attention to body and mind'
+          : 'сбалансированный образ жизни с вниманием к телу и разуму';
     }
 
     return health;
   }
 
-  private analyzeFinancialApproach(planets: PlanetInterpretation[], houses: any[], locale: 'ru' | 'en'): string {
+  private analyzeFinancialApproach(
+    planets: PlanetInterpretation[],
+    houses: any[],
+    locale: 'ru' | 'en',
+  ): string {
     const secondHouse = houses.find((h: any) => h.house === 2);
     const eighthHouse = houses.find((h: any) => h.house === 8);
-    const venus = planets.find(p => p.planet === (locale === 'en' ? 'Venus' : 'Венера'));
-    const jupiter = planets.find(p => p.planet === (locale === 'en' ? 'Jupiter' : 'Юпитер'));
+    const venus = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Venus' : 'Венера'),
+    );
+    const jupiter = planets.find(
+      (p) => p.planet === (locale === 'en' ? 'Jupiter' : 'Юпитер'),
+    );
 
-    let finance = locale === 'en'
-      ? 'Your financial approach involves '
-      : 'Ваш финансовый подход включает ';
+    let finance =
+      locale === 'en'
+        ? 'Your financial approach involves '
+        : 'Ваш финансовый подход включает ';
 
     if (venus && venus.strengths.length > 0) {
-      finance += locale === 'en'
-        ? 'appreciating value and investing in quality'
-        : 'оценку ценности и инвестиции в качество';
+      finance +=
+        locale === 'en'
+          ? 'appreciating value and investing in quality'
+          : 'оценку ценности и инвестиции в качество';
     } else if (jupiter && jupiter.strengths.length > 0) {
-      finance += locale === 'en'
-        ? 'optimistic growth and expanding resources'
-        : 'оптимистичный рост и расширение ресурсов';
+      finance +=
+        locale === 'en'
+          ? 'optimistic growth and expanding resources'
+          : 'оптимистичный рост и расширение ресурсов';
     } else if (secondHouse && secondHouse.planets.length > 0) {
-      finance += locale === 'en'
-        ? 'building security through steady accumulation'
-        : 'построение безопасности через стабильное накопление';
+      finance +=
+        locale === 'en'
+          ? 'building security through steady accumulation'
+          : 'построение безопасности через стабильное накопление';
     } else if (eighthHouse && eighthHouse.planets.length > 0) {
-      finance += locale === 'en'
-        ? 'joint resources and strategic investments'
-        : 'совместные ресурсы и стратегические инвестиции';
+      finance +=
+        locale === 'en'
+          ? 'joint resources and strategic investments'
+          : 'совместные ресурсы и стратегические инвестиции';
     } else {
-      finance += locale === 'en'
-        ? 'practical money management and long-term planning'
-        : 'практичное управление деньгами и долгосрочное планирование';
+      finance +=
+        locale === 'en'
+          ? 'practical money management and long-term planning'
+          : 'практичное управление деньгами и долгосрочное планирование';
     }
 
     return finance;

@@ -800,7 +800,11 @@ export class ChartService {
           throw new BadRequestException('Для type=planet нужны planet и sign');
         }
         try {
-          const lines = getExtendedPlanetInSign(planet as any, sign as any, locale);
+          const lines = getExtendedPlanetInSign(
+            planet as any,
+            sign as any,
+            locale,
+          );
           return { lines: Array.isArray(lines) ? lines.slice(0, 15) : [] };
         } catch {
           return { lines: [] };
@@ -823,7 +827,9 @@ export class ChartService {
       case 'house': {
         const { houseNum, sign } = query;
         const num =
-          typeof houseNum === 'string' ? parseInt(houseNum, 10) : (houseNum as number);
+          typeof houseNum === 'string'
+            ? parseInt(houseNum, 10)
+            : (houseNum as number);
         if (!num || !sign) {
           throw new BadRequestException('Для type=house нужны houseNum и sign');
         }

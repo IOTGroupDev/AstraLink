@@ -6,7 +6,12 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { EvaluateAdviceDto } from './dto/evaluate-advice.dto';
 import { AdviceResponseDto } from './dto/advice-response.dto';
 import { AdvisorService } from './advisor.service';
@@ -24,7 +29,9 @@ export class AdvisorController {
   constructor(private readonly advisor: AdvisorService) {}
 
   @Post('evaluate')
-  @ApiOperation({ summary: 'Премиум: совет — хороший ли день для заданной темы' })
+  @ApiOperation({
+    summary: 'Премиум: совет — хороший ли день для заданной темы',
+  })
   @RequiresSubscription(SubscriptionTier.PREMIUM, SubscriptionTier.MAX)
   @ApiResponse({ status: 201, description: 'Совет с оценкой и метриками' })
   async evaluate(

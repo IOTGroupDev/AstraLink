@@ -17,10 +17,12 @@ export const PLANET_IN_SIGN_ES: Partial<
 > = {
   sun: {
     Aries: 'El Sol en Aries aporta iniciativa, vitalidad y liderazgo.',
-    Taurus: 'El Sol en Tauro aporta consistencia, practicidad y amor por la calidad.',
+    Taurus:
+      'El Sol en Tauro aporta consistencia, practicidad y amor por la calidad.',
   },
   moon: {
-    Aries: 'La Luna en Aries intensifica la espontaneidad emocional y la pasión.',
+    Aries:
+      'La Luna en Aries intensifica la espontaneidad emocional y la pasión.',
     Taurus: 'La Luna en Tauro estabiliza las emociones y ama la comodidad.',
   },
 };
@@ -30,8 +32,10 @@ export const HOUSE_SIGN_INTERPRETATIONS_ES: Partial<
   Record<number, Partial<Record<Sign, string>>>
 > = {
   1: {
-    Aries: 'Casa 1 en Aries: autoexpresión dinámica, presencia audaz y líder natural.',
-    Taurus: 'Casa 1 en Tauro: personalidad estable, práctica y confiable; elegancia serena.',
+    Aries:
+      'Casa 1 en Aries: autoexpresión dinámica, presencia audaz y líder natural.',
+    Taurus:
+      'Casa 1 en Tauro: personalidad estable, práctica y confiable; elegancia serena.',
   },
 };
 
@@ -197,21 +201,39 @@ export const CAREER_PERIOD_ACTIONS_ES: Record<
   },
   Завтра: {
     jupiter: ['mañana abre posibilidades para', 'mañana conviene expandir en'],
-    saturn: ['mañana exige planificación para', 'mañana organiza y sistematiza'],
+    saturn: [
+      'mañana exige planificación para',
+      'mañana organiza y sistematiza',
+    ],
     mars: ['mañana trae impulso para', 'mañana puedes acelerar en'],
     neutral: ['mañana enfócate en', 'mañana continúa refinando'],
   },
   'На этой неделе': {
-    jupiter: ['esta semana favorece crecer en', 'esta semana apoya el escalado de'],
+    jupiter: [
+      'esta semana favorece crecer en',
+      'esta semana apoya el escalado de',
+    ],
     saturn: ['esta semana requiere', 'esta semana es para estructurar'],
     mars: ['esta semana añade empuje para', 'esta semana permite un avance en'],
-    neutral: ['esta semana conviene trabajo constante en', 'esta semana consolida resultados en'],
+    neutral: [
+      'esta semana conviene trabajo constante en',
+      'esta semana consolida resultados en',
+    ],
   },
   'В этом месяце': {
-    jupiter: ['este mes abre crecimiento en', 'este mes apoya iniciativas estratégicas en'],
+    jupiter: [
+      'este mes abre crecimiento en',
+      'este mes apoya iniciativas estratégicas en',
+    ],
     saturn: ['este mes llama a', 'este mes es para disciplina en'],
-    mars: ['este mes añade energía para progresar en', 'este mes fortalece el momentum en'],
-    neutral: ['este mes favorece el desarrollo de', 'este mes mejora procesos en'],
+    mars: [
+      'este mes añade energía para progresar en',
+      'este mes fortalece el momentum en',
+    ],
+    neutral: [
+      'este mes favorece el desarrollo de',
+      'este mes mejora procesos en',
+    ],
   },
 };
 
@@ -270,12 +292,14 @@ export const ASPECT_PAIR_TEMPLATES_ES: Partial<
   },
   trine: {
     mercury: {
-      jupiter: 'Mercurio trígono Júpiter trae claridad, aprendizaje y oportunidad.',
+      jupiter:
+        'Mercurio trígono Júpiter trae claridad, aprendizaje y oportunidad.',
     },
   },
   square: {
     mars: {
-      saturn: 'Marte cuadratura Saturno exige paciencia y disciplina estructurada.',
+      saturn:
+        'Marte cuadratura Saturno exige paciencia y disciplina estructurada.',
     },
   },
 };
