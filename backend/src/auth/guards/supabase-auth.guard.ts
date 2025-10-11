@@ -74,19 +74,22 @@ export class SupabaseAuthGuard implements CanActivate {
         // Development fallback: decode JWT without verifying signature to extract user id
         try {
           const decoded = jwt.decode(token) as any;
-          if (decoded?.sub) {
+          const userId =
+            decoded?.sub || decoded?.user_id || decoded?.userId || decoded?.id;
+
+          if (userId) {
             request.user = {
-              userId: decoded.sub,
-              id: decoded.sub,
-              email: decoded.email,
-              role: decoded.role,
+              userId,
+              id: userId,
+              email: decoded?.email,
+              role: decoded?.role,
               rawUser: decoded,
             };
             console.log(
               '[SupabaseAuthGuard] Fallback decode success, user attached:',
               {
-                userId: decoded.sub,
-                hasEmail: !!decoded.email,
+                userId,
+                hasEmail: !!decoded?.email,
               },
             );
             return true;

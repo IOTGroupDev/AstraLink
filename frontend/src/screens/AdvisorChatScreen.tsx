@@ -32,6 +32,41 @@ const topics: { key: Topic; label: string }[] = [
   { key: 'health', label: 'Здоровье' },
   { key: 'custom', label: 'Другое' },
 ];
+// Verdict color mapping and helpers
+const VERDICT_COLORS = {
+  good: '#10B981', // green
+  neutral: '#F59E0B', // yellow
+  challenging: '#EF4444', // red
+} as const;
+
+function getVerdictColor(
+  verdict: 'good' | 'neutral' | 'challenging',
+  provided?: string
+): string {
+  // Canonical palette, ignore unexpected provided colors to keep UI consistent
+  return VERDICT_COLORS[verdict] ?? (provided || '#A78BFA');
+}
+
+function hexToRgba(hex: string, alpha = 1): string {
+  try {
+    const sanitized = hex.replace('#', '');
+    const full =
+      sanitized.length === 3
+        ? sanitized
+            .split('')
+            .map((c) => c + c)
+            .join('')
+        : sanitized;
+    const int = parseInt(full, 16);
+    const r = (int >> 16) & 255;
+    const g = (int >> 8) & 255;
+    const b = int & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  } catch {
+    // Fallback to brand purple tint if hex parsing fails
+    return `rgba(167, 139, 250, ${alpha})`;
+  }
+}
 
 export default function AdvisorChatScreen() {
   const navigation = useNavigation<any>();
@@ -49,6 +84,7 @@ export default function AdvisorChatScreen() {
   // Result
   const [result, setResult] = useState<null | {
     verdict: 'good' | 'neutral' | 'challenging';
+    color: string;
     score: number;
     factors: {
       label: string;
@@ -92,6 +128,7 @@ export default function AdvisorChatScreen() {
     } catch (e: any) {
       setResult({
         verdict: 'challenging',
+        color: '#EF4444',
         score: 0,
         factors: [],
         aspects: [],
@@ -298,40 +335,50 @@ export default function AdvisorChatScreen() {
               }}
             >
               <Text style={{ color: '#9CA3AF' }}>Вердикт</Text>
-              <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-              >
-                <Ionicons
-                  name={
-                    result.verdict === 'good'
-                      ? 'checkmark-circle'
-                      : result.verdict === 'neutral'
-                        ? 'remove-circle'
-                        : 'close-circle'
-                  }
-                  size={20}
-                  color={
-                    result.verdict === 'good'
-                      ? '#10B981'
-                      : result.verdict === 'neutral'
-                        ? '#F59E0B'
-                        : '#EF4444'
-                  }
-                />
-                <Text
-                  style={{
-                    color:
-                      result.verdict === 'good'
-                        ? '#10B981'
-                        : result.verdict === 'neutral'
-                          ? '#F59E0B'
-                          : '#EF4444',
-                    fontWeight: '700',
-                  }}
-                >
-                  {result.verdict.toUpperCase()} — {result.score} / 100
-                </Text>
-              </View>
+              {(() => {
+                const verdictColor = getVerdictColor(
+                  result.verdict,
+                  result.color
+                );
+                const bg = hexToRgba(verdictColor, 0.12);
+                const border = hexToRgba(verdictColor, 0.4);
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      backgroundColor: bg,
+                      borderColor: border,
+                      borderWidth: 1,
+                      borderRadius: 999,
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      alignSelf: 'flex-start',
+                    }}
+                  >
+                    <Ionicons
+                      name={
+                        result.verdict === 'good'
+                          ? 'checkmark-circle'
+                          : result.verdict === 'neutral'
+                            ? 'remove-circle'
+                            : 'close-circle'
+                      }
+                      size={20}
+                      color={verdictColor}
+                    />
+                    <Text
+                      style={{
+                        color: verdictColor,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {result.verdict.toUpperCase()} — {result.score} / 100
+                    </Text>
+                  </View>
+                );
+              })()}
               {!!result.explanation && (
                 <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 6 }}>
                   {result.explanation}
@@ -374,7 +421,12 @@ export default function AdvisorChatScreen() {
                         minute: '2-digit',
                       })}
                     </Text>
-                    <Text style={{ color: '#A78BFA', fontWeight: '600' }}>
+                    <Text
+                      style={{
+                        color: getVerdictColor(result.verdict, result.color),
+                        fontWeight: '600',
+                      }}
+                    >
                       {w.score}
                     </Text>
                   </View>

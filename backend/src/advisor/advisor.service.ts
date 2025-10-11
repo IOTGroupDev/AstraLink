@@ -164,6 +164,13 @@ export class AdvisorService {
     const verdict: AdvisorVerdict =
       score >= 70 ? 'good' : score >= 50 ? 'neutral' : 'challenging';
 
+    const color: string =
+      verdict === 'good'
+        ? '#10B981'
+        : verdict === 'neutral'
+          ? '#F59E0B'
+          : '#EF4444';
+
     // Best windows MVP: whole day as a single window (hourly windows can be added later)
     const bestWindows = [
       {
@@ -183,6 +190,7 @@ export class AdvisorService {
 
     const response: AdviceResponseDto = {
       verdict,
+      color,
       score,
       factors,
       aspects,

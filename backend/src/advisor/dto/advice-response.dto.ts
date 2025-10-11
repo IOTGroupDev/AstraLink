@@ -30,6 +30,7 @@ export interface AdvisorTimeWindow {
 
 export class AdviceResponseDto {
   verdict!: AdvisorVerdict;
+  color!: string; // hex color for the verdict
   score!: number; // 0..100
 
   factors!: AdvisorFactor[];

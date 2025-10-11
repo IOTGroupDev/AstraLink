@@ -9,12 +9,18 @@ import {
   FEATURE_MATRIX,
   TRIAL_CONFIG,
 } from '../types';
+import { AIService } from '../services/ai.service';
+import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private aiService: AIService,
+    private horoscopeService: HoroscopeGeneratorService,
+  ) {}
 
   /**
    * Получить статус подписки пользователя
@@ -276,6 +282,70 @@ export class SubscriptionService {
     }
 
     this.logger.log(`User ${userId} upgraded to ${tier}`);
+
+    // PREMIUM: пересчитать/перезаписать интерпретацию натальной карты через AI и прогреть гороскопы
+    try {
+      // 1) Находим последнюю карту пользователя (через Admin)
+      const { data: charts } =
+        await this.supabaseService.getUserChartsAdmin(userId);
+      const chartRec =
+        Array.isArray(charts) && charts.length > 0 ? charts[0] : null;
+
+      // 2) Если есть AI — генерируем premium-интерпретацию и сохраняем в карту
+      if (chartRec && this.aiService.isAvailable()) {
+        const chartData = chartRec.data || {};
+        try {
+          const aiText = await this.aiService.generateChartInterpretation({
+            planets: chartData?.planets,
+            houses: chartData?.houses,
+            aspects: chartData?.aspects || [],
+            userProfile: undefined,
+          });
+
+          const updatedData = {
+            ...chartData,
+            interpretation: aiText,
+            interpretationVersion: 'ai-v1',
+            generatedBy: 'ai',
+          };
+
+          await this.supabaseService
+            .fromAdmin('charts')
+            .update({
+              data: updatedData,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', chartRec.id);
+        } catch (e) {
+          this.logger.warn(
+            `AI interpretation generation failed for ${userId}: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+        }
+      }
+
+      // 3) Прогреваем PREMIUM-гороскоп (day/tomorrow/week/month) в Redis-кэше
+      try {
+        await Promise.all(
+          (['day', 'tomorrow', 'week', 'month'] as const).map((p) =>
+            this.horoscopeService.generateHoroscope(userId, p, true),
+          ),
+        );
+      } catch (e) {
+        this.logger.warn(
+          `Horoscope prewarm failed for ${userId}: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Premium post-upgrade assets step failed for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
 
     return {
       success: true,

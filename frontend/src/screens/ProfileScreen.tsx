@@ -263,6 +263,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const zodiacSign =
     chart?.data?.planets?.sun?.sign || getZodiacSign(profile.birthDate);
   const elementTheme = getElementTheme(zodiacSign);
+  const themePrimary = elementTheme.colors[0];
 
   return (
     <View style={styles.container}>
@@ -275,7 +276,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <Text style={styles.title}>Мой космический профиль</Text>
             <View style={styles.headerActions}>
               <TouchableOpacity
-                style={styles.settingsButton}
+                style={[
+                  styles.settingsButton,
+                  { backgroundColor: hexToRgba(themePrimary, 0.2) },
+                ]}
                 onPress={() => navigation.navigate('EditProfileScreen')}
               >
                 <Ionicons name="settings-outline" size={24} color="#fff" />
@@ -286,7 +290,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
             <Animated.View style={[styles.orbContainer, animatedOrbStyle]}>
-              <Animated.View style={[styles.orbGlow, animatedGlowStyle]}>
+              <Animated.View
+                style={[
+                  styles.orbGlow,
+                  { shadowColor: elementTheme.glow },
+                  animatedGlowStyle,
+                ]}
+              >
                 <LinearGradient
                   colors={elementTheme.colors}
                   style={styles.orbGradient}
@@ -300,7 +310,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               {profile.name || authUser?.name || 'Пользователь'}
             </Text>
             <View style={styles.zodiacContainer}>
-              <Text style={styles.zodiacSign}>{zodiacSign}</Text>
+              <Text style={[styles.zodiacSign, { color: themePrimary }]}>
+                {zodiacSign}
+              </Text>
               <Text style={styles.elementName}>{elementTheme.name}</Text>
             </View>
           </View>
@@ -318,7 +330,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {chart && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Натальная карта</Text>
-              <View style={styles.chartCard}>
+              <View
+                style={[
+                  styles.chartCard,
+                  { borderColor: hexToRgba(themePrimary, 0.3) },
+                ]}
+              >
                 <NatalChartWidget chart={chart} />
                 <Animated.View
                   style={[
@@ -332,10 +349,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     activeOpacity={0.8}
                   >
                     <Animated.View
-                      style={[styles.buttonGlow, animatedButtonGlowStyle]}
+                      style={[
+                        styles.buttonGlow,
+                        { backgroundColor: themePrimary },
+                        animatedButtonGlowStyle,
+                      ]}
                     />
                     <LinearGradient
-                      colors={['#8B5CF6', '#7C3AED', '#5B21B6']}
+                      colors={elementTheme.colors as any}
                       style={styles.buttonGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -362,27 +383,50 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Настройки</Text>
 
-            <View style={styles.settingsCard}>
+            <View
+              style={[
+                styles.settingsCard,
+                { borderColor: hexToRgba(themePrimary, 0.3) },
+              ]}
+            >
               <TouchableOpacity
                 style={styles.settingItem}
                 onPress={() => navigation.navigate('EditProfileScreen')}
               >
-                <View style={styles.settingIcon}>
-                  <Ionicons name="person-outline" size={24} color="#8B5CF6" />
+                <View
+                  style={[
+                    styles.settingIcon,
+                    { backgroundColor: hexToRgba(themePrimary, 0.1) },
+                  ]}
+                >
+                  <Ionicons
+                    name="person-outline"
+                    size={24}
+                    color={themePrimary}
+                  />
                 </View>
                 <Text style={styles.settingText}>Редактировать профиль</Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
 
               <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="moon-outline" size={24} color="#8B5CF6" />
+                <View
+                  style={[
+                    styles.settingIcon,
+                    { backgroundColor: hexToRgba(themePrimary, 0.1) },
+                  ]}
+                >
+                  <Ionicons
+                    name="moon-outline"
+                    size={24}
+                    color={themePrimary}
+                  />
                 </View>
                 <Text style={styles.settingText}>Тёмная тема</Text>
                 <Switch
                   value={darkMode}
                   onValueChange={setDarkMode}
-                  trackColor={{ false: '#767577', true: '#8B5CF6' }}
+                  trackColor={{ false: '#767577', true: themePrimary }}
                   thumbColor={darkMode ? '#fff' : '#f4f3f4'}
                 />
               </View>
@@ -487,6 +531,22 @@ const getElementTheme = (zodiacSign: string) => {
   return ELEMENT_THEMES[element as keyof typeof ELEMENT_THEMES];
 };
 
+const hexToRgba = (hex: string, alpha: number) => {
+  const clean = hex.replace('#', '');
+  const bigint = parseInt(
+    clean.length === 3
+      ? clean
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : clean,
+    16
+  );
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 const formatRegistrationDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString('ru-RU', {

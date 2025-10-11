@@ -15,36 +15,40 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    const bootstrap = async () => {
+    const applyProfile = async (token: string | null) => {
+      if (!mounted) return;
+      if (!token) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
       try {
-        const token = await tokenService.getToken();
+        const profile = await userAPI.getProfile();
         if (!mounted) return;
-
-        if (token) {
-          // Пытаемся получить профиль пользователя для заполнения user
-          try {
-            const profile = await userAPI.getProfile();
-            if (!mounted) return;
-            setUser({
-              id: profile.id,
-              email: profile.email,
-              name: profile.name,
-            });
-          } catch {
-            // Если профиль недоступен — считаем, что пользователь неавторизован
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
+        setUser({
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+        });
+      } catch {
+        setUser(null);
       } finally {
         if (mounted) setIsLoading(false);
       }
     };
 
-    bootstrap();
+    // Initial load (resolves expired token via tokenService)
+    tokenService.getToken().then((t) => applyProfile(t));
+
+    // React to token changes (login/logout/expired-cleared)
+    const unsubscribe = tokenService.subscribe((t) => {
+      setIsLoading(true);
+      void applyProfile(t);
+    });
+
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, []);
 

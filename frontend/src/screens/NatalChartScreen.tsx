@@ -151,6 +151,175 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     return planetKeyByRu[ruName] || ruName;
   };
 
+  // -------- Details helpers (fallback when backend returns no lines) --------
+
+  const formatDegree = (deg?: number): string => {
+    if (typeof deg !== 'number' || !isFinite(deg)) return '-';
+    const d = Math.floor(deg);
+    const m = Math.round((deg - d) * 60);
+    return `${d}° ${m}'`;
+  };
+
+  const findInterpretationPlanet = (ruName: string): any | null => {
+    try {
+      return (
+        interpretation?.planets?.find((p: any) => p.planet === ruName) ?? null
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  const generatePlanetDetails = (
+    planetRuName: string,
+    sign: string
+  ): string[] => {
+    const key = resolvePlanetKey(planetRuName);
+    const p = (data as any)?.planets?.[key];
+    const houses = (data as any)?.houses || {};
+    const house =
+      p?.longitude != null ? getHouseForLongitude(p.longitude, houses) : null;
+    const deg = (p?.degree ??
+      (typeof p?.longitude === 'number' ? p.longitude % 30 : undefined)) as
+      | number
+      | undefined;
+
+    const lines: string[] = [];
+    lines.push(
+      `${planetRuName} в ${sign}${
+        typeof deg === 'number' ? ` — ${formatDegree(deg)}` : ''
+      }${house ? `, дом ${house}` : ''}`
+    );
+
+    const planetAspects = (((data as any)?.aspects as any[]) || []).filter(
+      (a: any) => a.planetA === key || a.planetB === key
+    );
+    if (planetAspects.length) {
+      const byType: Record<string, number> = {};
+      planetAspects.forEach((a) => {
+        byType[a.aspect] = (byType[a.aspect] || 0) + 1;
+      });
+      const summary = Object.entries(byType)
+        .map(([t, c]) => `${aspectRu[t] || t}: ${c}`)
+        .join(', ');
+      lines.push(`Аспекты: ${planetAspects.length} (${summary})`);
+    }
+
+    const interp = findInterpretationPlanet(planetRuName);
+    if (interp) {
+      if (interp.strengths?.length)
+        lines.push(`Сильные стороны: ${interp.strengths.join(', ')}`);
+      if (interp.challenges?.length)
+        lines.push(`Вызовы: ${interp.challenges.join(', ')}`);
+      if (interp.keywords?.length)
+        lines.push(`Ключевые слова: ${interp.keywords.join(', ')}`);
+    }
+
+    return lines;
+  };
+
+  const generateAscendantDetails = (sign: string): string[] => {
+    const houses = (data as any)?.houses || {};
+    const cusp = houses?.[1]?.cusp;
+    const lines: string[] = [];
+    lines.push(
+      `Асцендент в ${sign}${
+        typeof cusp === 'number'
+          ? ` — ${formatDegree((cusp as number) % 30)}`
+          : ''
+      }`
+    );
+
+    const inFirst = (() => {
+      const planets = (data as any)?.planets || {};
+      const res: string[] = [];
+      Object.entries(planets).forEach(([key, p]: any) => {
+        if (typeof p?.longitude === 'number') {
+          const h = getHouseForLongitude(p.longitude, houses);
+          if (h === 1) {
+            const ru = planetRu[key] || key;
+            res.push(ru);
+          }
+        }
+      });
+      return res;
+    })();
+    if (inFirst.length) lines.push(`Планеты в 1 доме: ${inFirst.join(', ')}`);
+
+    if (interpretation?.ascendant?.keywords?.length)
+      lines.push(
+        `Ключевые слова: ${interpretation.ascendant.keywords.join(', ')}`
+      );
+    if (interpretation?.ascendant?.interpretation)
+      lines.push(interpretation.ascendant.interpretation);
+
+    return lines;
+  };
+
+  const generateHouseDetails = (houseNum: number, sign: string): string[] => {
+    const houses = (data as any)?.houses || {};
+    const cusp = houses?.[houseNum]?.cusp;
+    const lines: string[] = [];
+    lines.push(
+      `${houseNum} дом в ${sign}${
+        typeof cusp === 'number'
+          ? ` — ${formatDegree((cusp as number) % 30)}`
+          : ''
+      }`
+    );
+
+    const inHouse = (() => {
+      const planets = (data as any)?.planets || {};
+      const res: string[] = [];
+      Object.entries(planets).forEach(([key, p]: any) => {
+        if (typeof p?.longitude === 'number') {
+          const h = getHouseForLongitude(p.longitude, houses);
+          if (h === houseNum) {
+            const ru = planetRu[key] || key;
+            res.push(ru);
+          }
+        }
+      });
+      return res;
+    })();
+    if (inHouse.length) lines.push(`Планеты в доме: ${inHouse.join(', ')}`);
+
+    const houseInterp = interpretation?.houses?.find(
+      (h: any) => h.house === houseNum
+    );
+    if (houseInterp?.lifeArea) lines.push(`Сфера: ${houseInterp.lifeArea}`);
+    if (houseInterp?.interpretation) lines.push(houseInterp.interpretation);
+
+    return lines;
+  };
+
+  const generateAspectDetails = (
+    aspect: string,
+    planetAru: string,
+    planetBru: string
+  ): string[] => {
+    const aKey = resolvePlanetKey(planetAru);
+    const bKey = resolvePlanetKey(planetBru);
+    const match = (((data as any)?.aspects as any[]) || []).find(
+      (x: any) =>
+        ((x.planetA === aKey && x.planetB === bKey) ||
+          (x.planetA === bKey && x.planetB === aKey)) &&
+        x.aspect === aspect
+    );
+    const lines: string[] = [];
+    const title = `${planetAru} — ${aspectRu[aspect] || aspect} — ${planetBru}`;
+    if (match) {
+      lines.push(title);
+      if (typeof match.orb === 'number')
+        lines.push(`Орб: ${match.orb.toFixed(1)}°`);
+      if (typeof match.strength === 'number')
+        lines.push(`Сила: ${Math.round(match.strength * 100)}%`);
+    } else {
+      lines.push(title);
+    }
+    return lines;
+  };
+
   const closeDetails = () => {
     setDetailsVisible(false);
     setDetailsTitle('');
@@ -196,12 +365,42 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       }
 
       setDetailsLoading(true);
-      const res = await chartAPI.getInterpretationDetails(params as any);
-      const lines = Array.isArray(res?.lines) ? res.lines : [];
+
+      let lines: string[] = [];
+      try {
+        const res = await chartAPI.getInterpretationDetails(params as any);
+        if (Array.isArray(res?.lines) && res.lines.length) {
+          lines = res.lines;
+        }
+      } catch (apiErr) {
+        console.error('Ошибка загрузки деталей:', apiErr);
+      }
+
+      // Fallback generation if backend returned nothing
+      if (!lines.length) {
+        if (params.type === 'planet') {
+          lines = generatePlanetDetails(params.planet, params.sign);
+        } else if (params.type === 'ascendant') {
+          lines = generateAscendantDetails(params.sign);
+        } else if (params.type === 'house') {
+          const n =
+            typeof params.houseNum === 'string'
+              ? parseInt(params.houseNum, 10)
+              : params.houseNum;
+          lines = generateHouseDetails(n, params.sign);
+        } else if (params.type === 'aspect') {
+          lines = generateAspectDetails(
+            params.aspect,
+            params.planetA,
+            params.planetB
+          );
+        }
+      }
+
       setDetailsLines(lines);
       setDetailsCache((prev) => ({ ...prev, [cacheKey]: lines }));
     } catch (e) {
-      console.error('Ошибка загрузки деталей:', e);
+      console.error('Ошибка построения деталей:', e);
       Alert.alert('Ошибка', 'Не удалось загрузить детали');
       setDetailsLines([]);
     } finally {

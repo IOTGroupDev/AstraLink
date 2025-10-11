@@ -7,6 +7,7 @@ import {
   Request,
   Body,
   UnauthorizedException,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -31,9 +32,23 @@ export class DatingController {
   @ApiOperation({ summary: 'Получить список кандидатов для знакомств' })
   @ApiResponse({ status: 200, description: 'Список кандидатов' })
   async getMatches(
-    @Request() _req: AuthenticatedRequest,
+    @Request() req: AuthenticatedRequest,
+    @Query('ageMin') ageMin?: string,
+    @Query('ageMax') ageMax?: string,
+    @Query('city') city?: string,
+    @Query('limit') limit?: string,
   ): Promise<DatingMatchResponse[]> {
-    return this.datingService.getMatches();
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    const filters = {
+      ageMin: ageMin ? parseInt(ageMin, 10) : undefined,
+      ageMax: ageMax ? parseInt(ageMax, 10) : undefined,
+      city: city?.trim() || undefined,
+      limit: limit ? Math.max(1, Math.min(50, parseInt(limit, 10))) : undefined,
+    };
+    return this.datingService.getMatches(userId, filters);
   }
 
   @Post('match/:id/like')

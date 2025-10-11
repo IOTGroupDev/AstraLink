@@ -530,6 +530,7 @@ export const advisorAPI = {
     customNote?: string;
   }): Promise<{
     verdict: 'good' | 'neutral' | 'challenging';
+    color: string;
     score: number;
     factors: {
       label: string;
