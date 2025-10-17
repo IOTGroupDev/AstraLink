@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Onboarding1Art from '../components/Onboarding1Art';
+import OnboardingFirstMainSvg from '../components/OnboardingFirstMainSvg';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -94,6 +95,11 @@ export default function Onboarding1Screen({
         />
 
         {/* Figma SVG ornament */}
+        <OnboardingFirstMainSvg
+          width={FRAME_W}
+          height={834}
+          style={styles.svgArt}
+        />
         {/*<Onboarding1Art width={FRAME_W} height={834} style={styles.svgArt} />*/}
 
         {/* Stars layer */}
@@ -170,7 +176,7 @@ const styles = StyleSheet.create({
   textBlock: {
     position: 'absolute',
     left: 24,
-    top: 535, // approx per new ref (text above CTA)
+    top: 600, // moved down to be near the CTA button
     width: FRAME_W - 48,
   },
   titleText: {

@@ -168,6 +168,13 @@ import CosmicBackground from './src/components/CosmicBackground';
 import { QueryProvider } from './src/providers/QueryProvider';
 import { tokenService } from './src/services/tokenService';
 import { userAPI } from './src/services/api';
+import {
+  useFonts,
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+} from '@expo-google-fonts/montserrat';
+import { Text as RNText } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -175,6 +182,25 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showSignup, setShowSignup] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      // Глобально задаём шрифт по умолчанию для Text
+      // @ts-ignore
+      RNText.defaultProps = RNText.defaultProps || {};
+      // @ts-ignore
+      RNText.defaultProps.style = [
+        RNText.defaultProps.style,
+        { fontFamily: 'Montserrat_400Regular' },
+      ];
+    }
+  }, [fontsLoaded]);
 
   useEffect(() => {
     checkAuthStatus();
@@ -214,6 +240,18 @@ export default function App() {
     setIsAuthenticated(false);
     setShowSignup(false);
   };
+
+  if (!fontsLoaded) {
+    return (
+      <LinearGradient
+        colors={['#0F172A', '#1E293B', '#334155']}
+        style={styles.loadingContainer}
+      >
+        <StatusBar style="light" />
+        <LoadingLogo />
+      </LinearGradient>
+    );
+  }
 
   if (isLoading) {
     return (

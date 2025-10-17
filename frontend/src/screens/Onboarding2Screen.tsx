@@ -115,11 +115,11 @@ export default function Onboarding2Screen({ navigation }: Props) {
   return (
     <View style={styles.root}>
       <View style={[styles.frame, { transform: [{ scale }] }]}>
-        <Image
-          source={require('../../assets/figma/onboarding2_bg.png')}
-          style={styles.fullBg}
-          resizeMode="cover"
-        />
+        {/*<Image*/}
+        {/*  source={require('../../assets/figma/onboarding2_bg.png')}*/}
+        {/*  style={styles.fullBg}*/}
+        {/*  resizeMode="cover"*/}
+        {/*/>*/}
 
         <LinearGradient
           colors={['#6F1F85', 'rgba(111,31,133,0)']}
@@ -141,11 +141,11 @@ export default function Onboarding2Screen({ navigation }: Props) {
             accessibilityRole="button"
             style={styles.backWrap}
           >
-            <Image
-              source={require('../../assets/figma/onboarding2_arrow.png')}
-              style={styles.backIcon}
-              resizeMode="contain"
-            />
+            {/*<Image*/}
+            {/*  source={require('../../assets/figma/onboarding2_arrow.png')}*/}
+            {/*  style={styles.backIcon}*/}
+            {/*  resizeMode="contain"*/}
+            {/*/>*/}
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>Дата рождения</Text>
