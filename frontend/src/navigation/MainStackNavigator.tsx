@@ -30,11 +30,11 @@ export default function MainStackNavigator() {
         options={{ presentation: 'card' }}
       />
       {/* Онбординг шаг 2 */}
-      {/*<Stack.Screen*/}
-      {/*  name="Onboarding2"*/}
-      {/*  component={Onboarding2Screen}*/}
-      {/*  options={{ presentation: 'card' }}*/}
-      {/*/>*/}
+      <Stack.Screen
+        name="Onboarding2"
+        component={Onboarding2Screen}
+        options={{ presentation: 'card' }}
+      />
       {/* Основной экран с табами */}
       <Stack.Screen
         name="MainTabs"

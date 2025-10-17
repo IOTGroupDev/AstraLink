@@ -64,25 +64,24 @@ function clamp(v: number, min: number, max: number) {
 
 function getItemVisualStyle(
   index: number,
-  selectedIndex: number,
+  floatingIndex: number,
   padCount: number
 ) {
-  const dist = Math.abs(index - selectedIndex);
+  const dist = Math.abs(index - floatingIndex);
 
-  if (dist === 0) {
-    return { opacity: 1, scale: 1 };
+  if (dist < 0.01) {
+    return { opacity: 1, scale: 1, fontSize: 26, fontWeight: '600' as const };
   }
 
-  // Очень выраженный 3D эффект цилиндра с перспективой
-  const t = dist / padCount; // 0 в центре, 1 на краях
+  const t = dist / padCount;
 
-  // Экспоненциальное уменьшение - элементы очень маленькие на краях
-  const scale = Math.max(0.3, 1 - Math.pow(t, 1.2) * 0.7);
+  const scale = Math.max(0.4, 1 - Math.pow(t, 1.0) * 0.6);
+  const opacity = Math.max(0.2, 1 - Math.pow(t, 0.8) * 0.8);
 
-  // Сильное затухание
-  const opacity = Math.max(0.15, 1 - Math.pow(t, 0.9) * 0.85);
+  const fontSize = Math.max(16, 26 - dist * 3);
+  const fontWeight = dist < 0.5 ? '600' : '400';
 
-  return { opacity, scale };
+  return { opacity, scale, fontSize, fontWeight: fontWeight as '600' | '400' };
 }
 
 const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
@@ -98,7 +97,6 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
     selectionBackgroundColor = 'rgba(255, 255, 255, 0.12)',
   } = props;
 
-  // 1. Вычисляем начальное значение
   const initial = useMemo<DateParts>(() => {
     if (value) return value;
     const now = new Date();
@@ -109,23 +107,30 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
     };
   }, []);
 
-  // 2. State для выбранных значений
   const [day, setDay] = useState(initial.day);
   const [month, setMonth] = useState(initial.month);
   const [year, setYear] = useState(initial.year);
 
-  // 3. State для индексов прокрутки
-  const [scrollDayIndex, setScrollDayIndex] = useState(initial.day - 1);
-  const [scrollMonthIndex, setScrollMonthIndex] = useState(initial.month - 1);
-  const [scrollYearIndex, setScrollYearIndex] = useState(0);
+  const [floatingDayIndex, setFloatingDayIndex] = useState(initial.day - 1);
+  const [floatingMonthIndex, setFloatingMonthIndex] = useState(
+    initial.month - 1
+  );
+  const [floatingYearIndex, setFloatingYearIndex] = useState(0);
 
-  // 4. Константы
+  const isScrollingDay = useRef(false);
+  const isScrollingMonth = useRef(false);
+  const isScrollingYear = useRef(false);
+
+  // Таймеры для отложенного центрирования
+  const snapTimerDay = useRef<NodeJS.Timeout | null>(null);
+  const snapTimerMonth = useRef<NodeJS.Timeout | null>(null);
+  const snapTimerYear = useRef<NodeJS.Timeout | null>(null);
+
   const monthNames = locale === 'ru' ? RU_MONTHS_SHORT : EN_MONTHS_SHORT;
   const padCount = Math.floor(visibleRows / 2);
   const containerH = itemHeight * visibleRows;
   const paddingHeight = padCount * itemHeight;
 
-  // 5. Массивы данных (useMemo)
   const days = useMemo(() => {
     const maxDay = daysInMonth(year, month);
     return Array.from({ length: maxDay }, (_, i) => i + 1);
@@ -141,17 +146,14 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
     return result;
   }, [minYear, maxYear]);
 
-  // 6. Refs
   const dayRef = useRef<ScrollView | null>(null);
   const monthRef = useRef<ScrollView | null>(null);
   const yearRef = useRef<ScrollView | null>(null);
 
-  // 7. Вычисляемые индексы (ПОСЛЕ определения массивов)
   const dayIndex = day - 1;
   const monthIndex = month - 1;
   const yearIndex = years.indexOf(year);
 
-  // 8. Effects
   useEffect(() => {
     const maxDay = daysInMonth(year, month);
     if (day > maxDay) {
@@ -181,56 +183,112 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
         animated: false,
       });
 
-      setScrollDayIndex(dayIndex);
-      setScrollMonthIndex(monthIndex);
+      setFloatingDayIndex(dayIndex);
+      setFloatingMonthIndex(monthIndex);
       if (yearIndex >= 0) {
-        setScrollYearIndex(yearIndex);
+        setFloatingYearIndex(yearIndex);
       }
     }, 150);
 
     return () => clearTimeout(timer);
   }, [dayIndex, monthIndex, yearIndex, itemHeight]);
 
-  // 9. Handlers
-  const handleSnap = (
+  const handleScroll = (
     e: NativeSyntheticEvent<NativeScrollEvent>,
     type: 'day' | 'month' | 'year'
   ) => {
     const y = e.nativeEvent.contentOffset.y;
-    const idx = Math.round(y / itemHeight);
-    const snapped = idx * itemHeight;
-
-    let newDay = day;
-    let newMonth = month;
-    let newYear = year;
+    const floatIdx = y / itemHeight;
 
     if (type === 'day') {
-      dayRef.current?.scrollTo({ y: snapped, animated: true });
-      newDay = clamp(idx + 1, 1, days.length);
-      setDay(newDay);
-      setScrollDayIndex(idx);
+      isScrollingDay.current = true;
+      setFloatingDayIndex(floatIdx);
+
+      if (snapTimerDay.current) clearTimeout(snapTimerDay.current);
+
+      snapTimerDay.current = setTimeout(() => {
+        finalizeScroll('day');
+      }, 200);
     } else if (type === 'month') {
-      monthRef.current?.scrollTo({ y: snapped, animated: true });
-      newMonth = clamp(idx + 1, 1, 12);
-      setMonth(newMonth);
-      setScrollMonthIndex(idx);
+      isScrollingMonth.current = true;
+      setFloatingMonthIndex(floatIdx);
+
+      if (snapTimerMonth.current) clearTimeout(snapTimerMonth.current);
+
+      snapTimerMonth.current = setTimeout(() => {
+        finalizeScroll('month');
+      }, 200);
     } else {
-      yearRef.current?.scrollTo({ y: snapped, animated: true });
-      newYear = years[clamp(idx, 0, years.length - 1)];
-      setYear(newYear);
-      setScrollYearIndex(idx);
+      isScrollingYear.current = true;
+      setFloatingYearIndex(floatIdx);
+
+      if (snapTimerYear.current) clearTimeout(snapTimerYear.current);
+
+      snapTimerYear.current = setTimeout(() => {
+        finalizeScroll('year');
+      }, 200);
+    }
+  };
+
+  // ИСПРАВЛЕНИЕ: плавное центрирование
+  const finalizeScroll = (type: 'day' | 'month' | 'year') => {
+    let ref: React.RefObject<ScrollView>;
+    let floatingIndex: number;
+    let maxIndex: number;
+
+    if (type === 'day') {
+      ref = dayRef;
+      floatingIndex = floatingDayIndex;
+      maxIndex = days.length - 1;
+      isScrollingDay.current = false;
+    } else if (type === 'month') {
+      ref = monthRef;
+      floatingIndex = floatingMonthIndex;
+      maxIndex = 11;
+      isScrollingMonth.current = false;
+    } else {
+      ref = yearRef;
+      floatingIndex = floatingYearIndex;
+      maxIndex = years.length - 1;
+      isScrollingYear.current = false;
     }
 
-    if (onChange) {
-      onChange({ day: newDay, month: newMonth, year: newYear });
-    }
+    const targetIdx = clamp(Math.round(floatingIndex), 0, maxIndex);
+    const targetY = targetIdx * itemHeight;
+
+    // Плавное центрирование с анимацией
+    ref.current?.scrollTo({ y: targetY, animated: true });
+
+    // Обновляем состояние после небольшой задержки для синхронизации с анимацией
+    setTimeout(() => {
+      if (type === 'day') {
+        const newDay = targetIdx + 1;
+        setDay(newDay);
+        setFloatingDayIndex(targetIdx);
+        if (onChange) onChange({ day: newDay, month, year });
+      } else if (type === 'month') {
+        const newMonth = targetIdx + 1;
+        setMonth(newMonth);
+        setFloatingMonthIndex(targetIdx);
+        if (onChange) onChange({ day, month: newMonth, year });
+      } else {
+        const newYear = years[targetIdx];
+        setYear(newYear);
+        setFloatingYearIndex(targetIdx);
+        if (onChange) onChange({ day, month, year: newYear });
+      }
+    }, 100);
+  };
+
+  const handleScrollEnd = (type: 'day' | 'month' | 'year') => {
+    finalizeScroll(type);
   };
 
   const renderColumn = (
     data: number[],
     ref: React.RefObject<ScrollView>,
-    currentScrollIndex: number,
-    onSnap: (e: NativeSyntheticEvent<NativeScrollEvent>) => void,
+    currentFloatingIndex: number,
+    type: 'day' | 'month' | 'year',
     formatter?: (v: number) => string,
     width?: number
   ) => {
@@ -241,16 +299,16 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
           style={StyleSheet.absoluteFill}
           contentContainerStyle={{ paddingVertical: paddingHeight }}
           showsVerticalScrollIndicator={false}
-          snapToInterval={itemHeight}
-          snapToAlignment="start"
-          decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.95}
-          onScrollEndDrag={onSnap}
-          onMomentumScrollEnd={onSnap}
+          decelerationRate={0.985}
+          onScroll={(e) => handleScroll(e, type)}
           scrollEventThrottle={16}
         >
           {data.map((value, index) => {
-            const isSelected = index === currentScrollIndex;
-            const vis = getItemVisualStyle(index, currentScrollIndex, padCount);
+            const vis = getItemVisualStyle(
+              index,
+              currentFloatingIndex,
+              padCount
+            );
 
             return (
               <View
@@ -259,27 +317,26 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
                   styles.item,
                   {
                     height: itemHeight,
+                    transform: [{ scale: vis.scale }],
                   },
                 ]}
               >
-                <View
-                  style={{
-                    transform: [{ scale: vis.scale }],
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
+                <Text
+                  style={[
+                    styles.itemText,
+                    {
+                      opacity: vis.opacity,
+                      fontSize: vis.fontSize,
+                      fontFamily:
+                        vis.fontWeight === '600'
+                          ? 'Montserrat_600SemiBold'
+                          : 'Montserrat_400Regular',
+                    },
+                  ]}
+                  numberOfLines={1}
                 >
-                  <Text
-                    style={[
-                      styles.itemText,
-                      isSelected && styles.selectedText,
-                      { opacity: vis.opacity },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {formatter ? formatter(value) : String(value)}
-                  </Text>
-                </View>
+                  {formatter ? formatter(value) : String(value)}
+                </Text>
               </View>
             );
           })}
@@ -306,32 +363,18 @@ const DateWheelPicker: React.FC<DateWheelPickerProps> = (props) => {
       )}
 
       <View style={styles.columnsContainer}>
-        {renderColumn(
-          days,
-          dayRef,
-          scrollDayIndex,
-          (e) => handleSnap(e, 'day'),
-          undefined,
-          70
-        )}
+        {renderColumn(days, dayRef, floatingDayIndex, 'day', undefined, 70)}
 
         {renderColumn(
           months,
           monthRef,
-          scrollMonthIndex,
-          (e) => handleSnap(e, 'month'),
+          floatingMonthIndex,
+          'month',
           (v) => monthNames[v - 1],
           100
         )}
 
-        {renderColumn(
-          years,
-          yearRef,
-          scrollYearIndex,
-          (e) => handleSnap(e, 'year'),
-          undefined,
-          70
-        )}
+        {renderColumn(years, yearRef, floatingYearIndex, 'year', undefined, 70)}
       </View>
     </View>
   );
@@ -361,25 +404,15 @@ const styles = StyleSheet.create({
   column: {
     overflow: 'hidden',
     position: 'relative',
-    flexShrink: 0,
   },
   item: {
-    width: '100%',
-    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 2,
   },
   itemText: {
     color: '#FFFFFF',
-    fontSize: 16,
     textAlign: 'center',
-    includeFontPadding: false,
-    fontFamily: 'Montserrat_400Regular',
-  },
-  selectedText: {
-    fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 26,
-    includeFontPadding: false,
   },
 });
 

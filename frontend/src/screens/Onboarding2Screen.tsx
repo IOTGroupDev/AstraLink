@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Image,
 } from 'react-native';
 import DateWheelPicker, { DateParts } from '../components/DateWheelPicker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -115,25 +114,45 @@ export default function Onboarding2Screen({ navigation }: Props) {
   return (
     <View style={styles.root}>
       <View style={[styles.frame, { transform: [{ scale }] }]}>
-        {/*<Image*/}
-        {/*  source={require('../../assets/figma/onboarding2_bg.png')}*/}
-        {/*  style={styles.fullBg}*/}
-        {/*  resizeMode="cover"*/}
-        {/*/>*/}
-
+        {/* Основной космический градиент */}
         <LinearGradient
-          colors={['#6F1F85', 'rgba(111,31,133,0)']}
+          colors={['#16082a', '#0d0518', '#0a0312', '#000000']}
+          locations={[0, 0.3, 0.7, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.fullBg}
+        />
+
+        {/* Фиолетовый акцентный градиент сверху */}
+        <LinearGradient
+          colors={['#6F1F85', 'rgba(111,31,133,0.5)', 'rgba(111,31,133,0)']}
+          locations={[0, 0.2, 0.5]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.gradientOverlay}
         />
 
-        {STARS.map((p, idx) => (
-          <View
-            key={`star-${idx}`}
-            style={[styles.star, { left: p.x, top: p.y }]}
-          />
-        ))}
+        {/* Звездное поле с разной глубиной */}
+        {STARS.map((p, idx) => {
+          const size = idx % 3 === 0 ? 3 : idx % 5 === 0 ? 2 : 4;
+          const opacity = idx % 4 === 0 ? 0.5 : idx % 3 === 0 ? 0.2 : 0.3;
+          return (
+            <View
+              key={`star-${idx}`}
+              style={[
+                styles.star,
+                {
+                  left: p.x,
+                  top: p.y,
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
+                  opacity: opacity,
+                },
+              ]}
+            />
+          );
+        })}
 
         <View style={styles.headerRow}>
           <TouchableOpacity
@@ -141,11 +160,7 @@ export default function Onboarding2Screen({ navigation }: Props) {
             accessibilityRole="button"
             style={styles.backWrap}
           >
-            {/*<Image*/}
-            {/*  source={require('../../assets/figma/onboarding2_arrow.png')}*/}
-            {/*  style={styles.backIcon}*/}
-            {/*  resizeMode="contain"*/}
-            {/*/>*/}
+            <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>Дата рождения</Text>
@@ -247,11 +262,7 @@ const styles = StyleSheet.create({
   },
   star: {
     position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
     backgroundColor: '#D9D9D9',
-    opacity: 0.3,
   },
   headerRow: {
     position: 'absolute',
@@ -268,9 +279,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backIcon: {
-    width: 36,
-    height: 36,
+  backArrow: {
+    color: COLORS.text,
+    fontSize: 28,
+    lineHeight: 36,
   },
   headerTitle: {
     flex: 1,
@@ -308,7 +320,7 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     top: 0,
-    alignItems: 'center',
+    width: 382,
   },
   actionButton: {
     position: 'absolute',
