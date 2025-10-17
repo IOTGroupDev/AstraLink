@@ -10,6 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Onboarding1Art from '../components/Onboarding1Art';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -92,6 +93,9 @@ export default function Onboarding1Screen({
           style={styles.fullBg}
         />
 
+        {/* Figma SVG ornament */}
+        {/*<Onboarding1Art width={FRAME_W} height={834} style={styles.svgArt} />*/}
+
         {/* Stars layer */}
         {STARS.map((p, idx) => (
           <View
@@ -147,6 +151,14 @@ const styles = StyleSheet.create({
     top: 0,
     width: FRAME_W,
     height: FRAME_H,
+  },
+  svgArt: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: FRAME_W,
+    height: 834,
+    pointerEvents: 'none',
   },
   star: {
     position: 'absolute',
