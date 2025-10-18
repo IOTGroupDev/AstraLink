@@ -10,7 +10,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, {
   Circle,
-  Path,
   Defs,
   LinearGradient as SvgGradient,
   Stop,
@@ -66,10 +65,10 @@ const CosmicBackground: React.FC = () => {
   }));
 
   return (
-    <View style={styles.container}>
-      {/* Background cosmic elements */}
+    <View style={styles.container} pointerEvents="none">
+      {/*Background cosmic elements */}
       <Animated.View style={[styles.cosmicLayer, animatedStyle1]}>
-        <Svg width={width} height={height} style={styles.svg}>
+        <Svg width={width} height={height}>
           <Defs>
             <SvgGradient
               id="cosmicGradient1"
@@ -78,13 +77,13 @@ const CosmicBackground: React.FC = () => {
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.1" />
-              <Stop offset="50%" stopColor="#3B82F6" stopOpacity="0.05" />
-              <Stop offset="100%" stopColor="#1E40AF" stopOpacity="0.1" />
+              {/* ✅ Изменено: stopOpacity теперь число */}
+              <Stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.1} />
+              <Stop offset="50%" stopColor="#3B82F6" stopOpacity={0.05} />
+              <Stop offset="100%" stopColor="#1E40AF" stopOpacity={0.1} />
             </SvgGradient>
           </Defs>
 
-          {/* Large cosmic circles */}
           <Circle
             cx={width * 0.2}
             cy={height * 0.3}
@@ -113,7 +112,7 @@ const CosmicBackground: React.FC = () => {
       </Animated.View>
 
       <Animated.View style={[styles.cosmicLayer, animatedStyle2]}>
-        <Svg width={width} height={height} style={styles.svg}>
+        <Svg width={width} height={height}>
           <Defs>
             <SvgGradient
               id="cosmicGradient2"
@@ -122,13 +121,13 @@ const CosmicBackground: React.FC = () => {
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor="#F59E0B" stopOpacity="0.08" />
-              <Stop offset="50%" stopColor="#EF4444" stopOpacity="0.05" />
-              <Stop offset="100%" stopColor="#DC2626" stopOpacity="0.08" />
+              {/* ✅ Изменено: stopOpacity теперь число */}
+              <Stop offset="0%" stopColor="#F59E0B" stopOpacity={0.08} />
+              <Stop offset="50%" stopColor="#EF4444" stopOpacity={0.05} />
+              <Stop offset="100%" stopColor="#DC2626" stopOpacity={0.08} />
             </SvgGradient>
           </Defs>
 
-          {/* Medium cosmic elements */}
           <Circle
             cx={width * 0.1}
             cy={height * 0.8}
@@ -149,7 +148,7 @@ const CosmicBackground: React.FC = () => {
       </Animated.View>
 
       <Animated.View style={[styles.cosmicLayer, animatedStyle3]}>
-        <Svg width={width} height={height} style={styles.svg}>
+        <Svg width={width} height={height}>
           <Defs>
             <SvgGradient
               id="cosmicGradient3"
@@ -158,13 +157,13 @@ const CosmicBackground: React.FC = () => {
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor="#10B981" stopOpacity="0.06" />
-              <Stop offset="50%" stopColor="#059669" stopOpacity="0.04" />
-              <Stop offset="100%" stopColor="#047857" stopOpacity="0.06" />
+              {/* ✅ Изменено: stopOpacity теперь число */}
+              <Stop offset="0%" stopColor="#10B981" stopOpacity={0.06} />
+              <Stop offset="50%" stopColor="#059669" stopOpacity={0.04} />
+              <Stop offset="100%" stopColor="#047857" stopOpacity={0.06} />
             </SvgGradient>
           </Defs>
 
-          {/* Small cosmic elements */}
           <Circle
             cx={width * 0.3}
             cy={height * 0.9}
@@ -201,9 +200,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  svg: {
-    position: 'absolute',
   },
 });
 

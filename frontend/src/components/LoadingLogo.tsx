@@ -1,3 +1,4 @@
+// LoadingLogo.tsx
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
@@ -49,19 +50,17 @@ const LoadingLogo: React.FC = () => {
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    // transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
     shadowOpacity: interpolate(glow.value, [0, 1], [0.3, 0.8]),
   }));
 
   const pulseStyle = useAnimatedStyle(() => ({
-    // transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.1]) }],
     opacity: interpolate(pulse.value, [0, 1], [0.6, 1]),
   }));
 
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.logoContainer, animatedStyle]}>
-        <Svg width={LOGO_SIZE} height={LOGO_SIZE} style={styles.svg}>
+        <Svg width={LOGO_SIZE} height={LOGO_SIZE}>
           <Defs>
             <SvgGradient
               id="cosmicGradient"
@@ -70,23 +69,26 @@ const LoadingLogo: React.FC = () => {
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="1" />
-              <Stop offset="30%" stopColor="#3B82F6" stopOpacity="1" />
-              <Stop offset="60%" stopColor="#1E40AF" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#0F172A" stopOpacity="1" />
+              {/* ✅ Изменено: stopOpacity теперь число */}
+              <Stop offset="0%" stopColor="#8B5CF6" stopOpacity={1} />
+              <Stop offset="30%" stopColor="#3B82F6" stopOpacity={1} />
+              <Stop offset="60%" stopColor="#1E40AF" stopOpacity={1} />
+              <Stop offset="100%" stopColor="#0F172A" stopOpacity={1} />
             </SvgGradient>
             <SvgGradient id="innerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#F59E0B" stopOpacity="1" />
-              <Stop offset="50%" stopColor="#EF4444" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#DC2626" stopOpacity="1" />
+              {/* ✅ Изменено: stopOpacity теперь число */}
+              <Stop offset="0%" stopColor="#F59E0B" stopOpacity={1} />
+              <Stop offset="50%" stopColor="#EF4444" stopOpacity={1} />
+              <Stop offset="100%" stopColor="#DC2626" stopOpacity={1} />
             </SvgGradient>
             <SvgGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
-              <Stop offset="100%" stopColor="#3B82F6" stopOpacity="0.3" />
+              {/* ✅ Изменено: stopOpacity теперь число */}
+              <Stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.8} />
+              <Stop offset="100%" stopColor="#3B82F6" stopOpacity={0.3} />
             </SvgGradient>
           </Defs>
 
-          {/* Outer glow ring */}
+          {/* ✅ Изменено: opacity теперь число */}
           <Circle
             cx={LOGO_SIZE / 2}
             cy={LOGO_SIZE / 2}
@@ -94,10 +96,9 @@ const LoadingLogo: React.FC = () => {
             stroke="url(#glowGradient)"
             strokeWidth="4"
             fill="none"
-            opacity="0.6"
+            opacity={0.6}
           />
 
-          {/* Main outer ring */}
           <Circle
             cx={LOGO_SIZE / 2}
             cy={LOGO_SIZE / 2}
@@ -107,7 +108,6 @@ const LoadingLogo: React.FC = () => {
             fill="none"
           />
 
-          {/* Inner ring */}
           <Circle
             cx={LOGO_SIZE / 2}
             cy={LOGO_SIZE / 2}
@@ -117,7 +117,6 @@ const LoadingLogo: React.FC = () => {
             fill="none"
           />
 
-          {/* Center cosmic star */}
           <Path
             d={`M ${LOGO_SIZE / 2} ${LOGO_SIZE * 0.1} 
                  L ${LOGO_SIZE * 0.4} ${LOGO_SIZE * 0.35} 
@@ -133,7 +132,6 @@ const LoadingLogo: React.FC = () => {
             fill="url(#innerGradient)"
           />
 
-          {/* Orbiting cosmic elements */}
           {Array.from({ length: 8 }, (_, i) => {
             const angle = i * 45 * (Math.PI / 180);
             const x = LOGO_SIZE / 2 + Math.cos(angle) * (LOGO_SIZE * 0.38);
@@ -166,9 +164,6 @@ const styles = StyleSheet.create({
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 30,
-  },
-  svg: {
-    position: 'absolute',
   },
   textContainer: {
     alignItems: 'center',

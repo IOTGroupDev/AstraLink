@@ -1,15 +1,34 @@
+// src/providers/QueryProvider.tsx
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  focusManager,
+} from '@tanstack/react-query';
+import { AppState, Platform } from 'react-native';
 
-// Создаем клиент с оптимальными настройками
+// ✅ Настройка focusManager для React Native
+focusManager.setEventListener((handleFocus) => {
+  if (Platform.OS !== 'web') {
+    const subscription = AppState.addEventListener('change', (state) => {
+      handleFocus(state === 'active');
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 минут - данные считаются свежими
-      gcTime: 1000 * 60 * 30, // 30 минут - кэш хранится в памяти
-      retry: 2, // Повторить запрос 2 раза при ошибке
-      refetchOnWindowFocus: false, // Не обновлять при фокусе окна
-      refetchOnReconnect: true, // Обновить при восстановлении сети
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
+      retry: 2,
+      refetchOnReconnect: true,
+      // ✅ Теперь можно включить - будет использовать AppState
+      refetchOnMount: 'always',
     },
     mutations: {
       retry: 1,

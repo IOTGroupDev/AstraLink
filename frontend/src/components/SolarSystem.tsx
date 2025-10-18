@@ -266,16 +266,7 @@ const SolarSystem: React.FC<SolarSystemProps> = ({
   }
 
   return (
-    <View
-      style={styles.container}
-      pointerEvents="none"
-      onLayout={(e) =>
-        setSize({
-          w: e.nativeEvent.layout.width,
-          h: e.nativeEvent.layout.height,
-        })
-      }
-    >
+    <View style={styles.container} pointerEvents="none">
       {/* Солнце в центре */}
       <View style={styles.sunContainer}>
         <Animated.View

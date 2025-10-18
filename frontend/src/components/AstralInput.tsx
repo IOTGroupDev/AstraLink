@@ -1,19 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  TextInput,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, TextInput, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   withRepeat,
   interpolate,
   Easing,
+  interpolateColor, // ✅ Добавьте это для цветов!
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -28,6 +22,7 @@ interface AstralInputProps {
   icon?: keyof typeof Ionicons.glyphMap;
   required?: boolean;
   animationValue: Animated.SharedValue<number>;
+  isFocused?: boolean;
   error?: boolean;
   errorMessage?: string;
 }
@@ -43,6 +38,7 @@ const AstralInput: React.FC<AstralInputProps> = ({
   icon,
   required = false,
   animationValue,
+  isFocused: isFocusedProp,
   error = false,
   errorMessage,
 }) => {
@@ -91,7 +87,8 @@ const AstralInput: React.FC<AstralInputProps> = ({
       };
     }
     return {
-      borderColor: interpolate(
+      // ✅ Используем interpolateColor для анимации цветов
+      borderColor: interpolateColor(
         focusAnimation.value,
         [0, 1],
         ['rgba(139, 92, 246, 0.3)', 'rgba(139, 92, 246, 0.8)']
@@ -108,9 +105,10 @@ const AstralInput: React.FC<AstralInputProps> = ({
       { translateY: interpolate(focusAnimation.value, [0, 1], [0, -20]) },
       { scale: interpolate(focusAnimation.value, [0, 1], [1, 0.8]) },
     ],
+    // ✅ Используем interpolateColor для анимации цветов
     color: error
       ? '#FF4444'
-      : interpolate(
+      : interpolateColor(
           focusAnimation.value,
           [0, 1],
           ['rgba(255, 255, 255, 0.7)', 'rgba(139, 92, 246, 0.9)']
@@ -141,13 +139,13 @@ const AstralInput: React.FC<AstralInputProps> = ({
             style={styles.input}
             value={value}
             onChangeText={onChangeText}
-            onFocus={(e) => {
+            onFocus={() => {
               setIsFocused(true);
-              onFocus?.(e);
+              onFocus?.();
             }}
-            onBlur={(e) => {
+            onBlur={() => {
               setIsFocused(false);
-              onBlur?.(e);
+              onBlur?.();
             }}
             secureTextEntry={secureTextEntry}
             keyboardType={keyboardType}
@@ -161,9 +159,9 @@ const AstralInput: React.FC<AstralInputProps> = ({
         </View>
       </Animated.View>
 
-      {error && errorMessage && (
+      {error && errorMessage ? ( // ✅ Добавлена проверка
         <Text style={styles.errorText}>{errorMessage}</Text>
-      )}
+      ) : null}
     </Animated.View>
   );
 };

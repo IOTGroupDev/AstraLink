@@ -1,3 +1,4 @@
+// frontend/src/screens/ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -87,7 +88,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [chart, setChart] = useState<Chart | null>(null);
   const [loading, setLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState<boolean>(true); // ✅ Явно указан тип boolean
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Animations
@@ -130,7 +131,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       const [profileData, subscriptionData, chartData] = await Promise.all([
         userAPI.getProfile(),
         subscriptionAPI.getStatus(),
-        chartAPI.getNatalChart().catch(() => null), // Не прерываем загрузку если нет карты
+        chartAPI.getNatalChart().catch(() => null),
       ]);
 
       setProfile(profileData);
@@ -144,7 +145,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Функция для обновления данных после создания натальной карты
   const refreshProfileData = async () => {
     try {
       const chartData = await chartAPI.getNatalChart();
@@ -156,17 +156,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const handleLogout = async () => {
     try {
-      // Clear stored token
       removeStoredToken();
-
-      // Navigate to login screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Login' }],
       });
     } catch (error) {
       console.error('Ошибка при выходе:', error);
-      // Even if sign out fails, clear token and navigate
       removeStoredToken();
       navigation.reset({
         index: 0,
@@ -205,12 +201,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  // ========================================
-  // ОБРАБОТЧИК ПЕРЕХОДА К ПОДПИСКАМ
-  // ========================================
   const handleUpgradeSubscription = () => {
-    // Навигация к экрану подписок через Stack Navigator
     navigation.navigate('Subscription');
+  };
+
+  // ✅ Обработчик для Switch - гарантирует boolean
+  const handleDarkModeChange = (value: boolean) => {
+    setDarkMode(value);
   };
 
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -259,9 +256,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   }
 
-  // Определяем знак зодиака: из натальной карты (если есть) или по дате рождения
-  const zodiacSign =
+  // ✅ Безопасное определение знака зодиака с fallback
+  const zodiacSignRaw =
     chart?.data?.planets?.sun?.sign || getZodiacSign(profile.birthDate);
+  const zodiacSign = zodiacSignRaw || 'Aquarius'; // ✅ Fallback если undefined
   const elementTheme = getElementTheme(zodiacSign);
   const themePrimary = elementTheme.colors[0];
 
@@ -423,9 +421,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   />
                 </View>
                 <Text style={styles.settingText}>Тёмная тема</Text>
+                {/* ✅ Исправлен Switch */}
                 <Switch
-                  value={darkMode}
-                  onValueChange={setDarkMode}
+                  value={darkMode === true}
+                  onValueChange={handleDarkModeChange}
                   trackColor={{ false: '#767577', true: themePrimary }}
                   thumbColor={darkMode ? '#fff' : '#f4f3f4'}
                 />
@@ -526,9 +525,11 @@ const getZodiacSign = (birthDate: string): string => {
 
 const getElementTheme = (zodiacSign: string) => {
   const element = (
-    ZODIAC_ELEMENTS[zodiacSign as ZodiacSign] || 'Air'
+    ZODIAC_ELEMENTS[zodiacSign as ZodiacSign] || 'air'
   ).toLowerCase();
-  return ELEMENT_THEMES[element as keyof typeof ELEMENT_THEMES];
+  return (
+    ELEMENT_THEMES[element as keyof typeof ELEMENT_THEMES] || ELEMENT_THEMES.air
+  );
 };
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -547,6 +548,7 @@ const hexToRgba = (hex: string, alpha: number) => {
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
 const formatRegistrationDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString('ru-RU', {
