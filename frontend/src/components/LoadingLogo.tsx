@@ -49,12 +49,12 @@ const LoadingLogo: React.FC = () => {
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
+    // transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
     shadowOpacity: interpolate(glow.value, [0, 1], [0.3, 0.8]),
   }));
 
   const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.1]) }],
+    // transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.1]) }],
     opacity: interpolate(pulse.value, [0, 1], [0.6, 1]),
   }));
 
