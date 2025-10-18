@@ -6,6 +6,8 @@ import SubscriptionScreen from '../screens/SubscriptionScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import Onboarding1Screen from '../screens/Onboarding1Screen';
 import Onboarding2Screen from '../screens/Onboarding2Screen';
+import Onboarding3Screen from '../screens/Onboarding3Screen';
+import Onboarding4Screen from '../screens/Onboarding4Screen';
 
 const Stack = createStackNavigator();
 
@@ -33,6 +35,18 @@ export default function MainStackNavigator() {
       <Stack.Screen
         name="Onboarding2"
         component={Onboarding2Screen}
+        options={{ presentation: 'card' }}
+      />
+      {/* Онбординг шаг 3 */}
+      <Stack.Screen
+        name="Onboarding3"
+        component={Onboarding3Screen}
+        options={{ presentation: 'card' }}
+      />
+      {/* Онбординг шаг 4 */}
+      <Stack.Screen
+        name="Onboarding4"
+        component={Onboarding4Screen}
         options={{ presentation: 'card' }}
       />
       {/* Основной экран с табами */}
