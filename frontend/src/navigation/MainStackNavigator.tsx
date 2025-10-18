@@ -4,10 +4,10 @@ import { createStackNavigator } from '@react-navigation/stack';
 import TabNavigator from './TabNavigator';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
-import Onboarding1Screen from '../screens/Onboarding1Screen';
-import Onboarding2Screen from '../screens/Onboarding2Screen';
-import Onboarding3Screen from '../screens/Onboarding3Screen';
-import Onboarding4Screen from '../screens/Onboarding4Screen';
+import OnboardingFirstScreen from '../screens/Onboarding/OnboardingFirstScreen';
+import OnboardingSecondScreen from '../screens/Onboarding/OnboardingSecondScreen';
+import OnboardingThirdScreen from '../screens/Onboarding/OnboardingThirdScreen';
+import OnboardingFourthScreen from '../screens/Onboarding/OnboardingFourthScreen';
 
 const Stack = createStackNavigator();
 
@@ -28,25 +28,25 @@ export default function MainStackNavigator() {
       {/* Онбординг шаг 1 (первая страница показа) */}
       <Stack.Screen
         name="Onboarding1"
-        component={Onboarding1Screen}
+        component={OnboardingFirstScreen}
         options={{ presentation: 'card' }}
       />
       {/* Онбординг шаг 2 */}
       <Stack.Screen
         name="Onboarding2"
-        component={Onboarding2Screen}
+        component={OnboardingSecondScreen}
         options={{ presentation: 'card' }}
       />
       {/* Онбординг шаг 3 */}
       <Stack.Screen
         name="Onboarding3"
-        component={Onboarding3Screen}
+        component={OnboardingThirdScreen}
         options={{ presentation: 'card' }}
       />
       {/* Онбординг шаг 4 */}
       <Stack.Screen
         name="Onboarding4"
-        component={Onboarding4Screen}
+        component={OnboardingFourthScreen}
         options={{ presentation: 'card' }}
       />
       {/* Основной экран с табами */}

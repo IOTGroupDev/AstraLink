@@ -9,7 +9,7 @@ interface PiscesSvgProps {
 
 export const PiscesSvg: React.FC<PiscesSvgProps> = ({
   width = 430,
-  height = 834,
+  height = 333,
   style,
 }) => {
   return <PiscesSVG width={width} height={height} style={style} />;

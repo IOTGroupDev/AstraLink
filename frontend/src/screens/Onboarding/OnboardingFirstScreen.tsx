@@ -1,4 +1,4 @@
-// frontend/src/screens/Onboarding1Screen.tsx
+// frontend/src/screens/OnboardingFirstScreen.tsx
 // Simple first step screen that scales 430×932 frame to device width.
 // CTA navigates to Onboarding2.
 import React, { useMemo } from 'react';
@@ -10,8 +10,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Onboarding1Art from '../components/Onboarding1Art';
-import OnboardingFirstMainSvg from '../components/OnboardingFirstMainSvg';
+import Onboarding1Art from '../../components/Onboarding1Art';
+import OnboardingFirstMainSvg from '../../components/OnboardingFirstMainSvg';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -74,7 +74,7 @@ interface Onboarding1ScreenProps {
   };
 }
 
-export default function Onboarding1Screen({
+export default function OnboardingFirstScreen({
   navigation,
 }: Onboarding1ScreenProps) {
   const scale = useMemo(() => SCREEN_W / FRAME_W, []);

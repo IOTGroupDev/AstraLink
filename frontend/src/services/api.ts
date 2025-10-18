@@ -4,7 +4,6 @@ import {
   LoginRequest,
   SignupRequest,
   AuthResponse,
-  User,
   Chart,
   TransitsResponse,
   UserProfile,

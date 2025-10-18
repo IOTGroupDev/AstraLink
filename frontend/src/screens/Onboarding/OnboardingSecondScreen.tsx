@@ -1,5 +1,4 @@
-// frontend/src/screens/Onboarding4Screen.tsx
-// Step 3/3 — Время рождения (по макету Figma), стилистически согласован с Onboarding2
+// frontend/src/screens/OnboardingSecondScreen.tsx
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -8,14 +7,9 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import DateWheelPicker, { DateParts } from '../../components/DateWheelPicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useOnboardingStore } from '../stores/onboarding.store';
-import AstralDateTimePicker from '../components/DateTimePicker';
-import Animated, {
-  useSharedValue,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import { useOnboardingStore } from '../../stores/onboarding.store';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -27,9 +21,15 @@ const POS = {
     height: 56,
     horizontalPadding: 16,
   },
+  panelGlass: { left: 24, top: 520, w: 382, h: 38, radius: 19 },
   actionButton: { left: 24, top: 818, w: 382, h: 60, radius: 58 },
   homeIndicator: { left: 145, top: 920, w: 140, h: 4 },
 };
+
+const VISIBLE_ROWS = 8;
+const PICKER_ITEM_HEIGHT = 40;
+const PICKER_HEIGHT = VISIBLE_ROWS * PICKER_ITEM_HEIGHT;
+const PICKER_BOTTOM = 230;
 
 const COLORS = {
   bg: '#101010',
@@ -88,41 +88,27 @@ interface Props {
   };
 }
 
-export default function Onboarding4Screen({ navigation }: Props) {
+export default function OnboardingSecondScreen({ navigation }: Props) {
   const scale = useMemo(() => SCREEN_W / FRAME_W, []);
 
-  const storedBirthTime = useOnboardingStore((s) => s.data.birthTime);
-  const setBirthTimeInStore = useOnboardingStore((s) => s.setBirthTime);
+  const storedBirthDate = useOnboardingStore((state) => state.data.birthDate);
+  const setBirthDateInStore = useOnboardingStore((state) => state.setBirthDate);
 
-  const [timeValue, setTimeValue] = useState<string>(() => {
-    if (storedBirthTime) {
-      const h = String(storedBirthTime.hour).padStart(2, '0');
-      const m = String(storedBirthTime.minute).padStart(2, '0');
-      return `${h}:${m}`;
-    }
-    // Дефолт — 12:00
-    return '12:00';
+  const [birthDate, setBirthDate] = useState<DateParts>(() => {
+    if (storedBirthDate) return storedBirthDate;
+    const now = new Date();
+    return {
+      day: now.getDate(),
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+    };
   });
-
-  const anim = useSharedValue(0);
-  React.useEffect(() => {
-    anim.value = withTiming(1, {
-      duration: 450,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, []);
 
   const goBack = () => navigation.goBack();
 
   const onNext = () => {
-    // timeValue формат "HH:MM"
-    const [hoursStr, minutesStr] = timeValue.split(':');
-    const hour = Math.max(0, Math.min(23, parseInt(hoursStr || '0', 10)));
-    const minute = Math.max(0, Math.min(59, parseInt(minutesStr || '0', 10)));
-    setBirthTimeInStore({ hour, minute });
-
-    // Следующий шаг онбординга (плейсхолдер). Если будет Onboarding4 — сюда.
-    navigation.navigate('MainTabs');
+    setBirthDateInStore(birthDate);
+    navigation.navigate('Onboarding3');
   };
 
   return (
@@ -146,7 +132,7 @@ export default function Onboarding4Screen({ navigation }: Props) {
           style={styles.gradientOverlay}
         />
 
-        {/* Звёзды */}
+        {/* Звездное поле с разной глубиной */}
         {STARS.map((p, idx) => {
           const size = idx % 3 === 0 ? 3 : idx % 5 === 0 ? 2 : 4;
           const opacity = idx % 4 === 0 ? 0.5 : idx % 3 === 0 ? 0.2 : 0.3;
@@ -168,7 +154,6 @@ export default function Onboarding4Screen({ navigation }: Props) {
           );
         })}
 
-        {/* Хедер */}
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={goBack}
@@ -178,34 +163,41 @@ export default function Onboarding4Screen({ navigation }: Props) {
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Время рождения</Text>
+          <Text style={styles.headerTitle}>Дата рождения</Text>
 
           <Text style={styles.headerStep} numberOfLines={1}>
-            3/3
+            1/3
           </Text>
         </View>
 
-        {/* Описание */}
         <View style={[styles.centerTextWrap, { top: 160 }]}>
           <Text style={styles.centerText}>
-            Укажите время рождения — это улучшит точность расчётов.
+            Введите дату рождения - узнаем, кто вы по гороскопу!
           </Text>
         </View>
 
-        {/* Ввод времени — reanimated инпут с нативным DateTimePicker */}
-        <View style={[styles.timeInputWrap, { top: 240 }]}>
-          <AstralDateTimePicker
-            value={timeValue}
-            onChangeText={setTimeValue}
-            placeholder="Время рождения"
-            icon="time-outline"
-            mode="time"
-            required={true}
-            animationValue={anim}
+        <View
+          style={[
+            styles.pickerWrap,
+            {
+              top: FRAME_H - PICKER_BOTTOM - PICKER_HEIGHT,
+              height: PICKER_HEIGHT,
+            },
+          ]}
+        >
+          <DateWheelPicker
+            value={birthDate}
+            onChange={(d) => setBirthDate(d)}
+            minYear={1900}
+            maxYear={new Date().getFullYear()}
+            visibleRows={8}
+            itemHeight={40}
+            locale="en"
+            selectionStyle="pill"
+            selectionBackgroundColor="rgba(255,255,255,0.12)"
           />
         </View>
 
-        {/* CTA */}
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={onNext}
@@ -223,7 +215,6 @@ export default function Onboarding4Screen({ navigation }: Props) {
           <Text style={styles.ctaText}>ДАЛЕЕ</Text>
         </TouchableOpacity>
 
-        {/* Home indicator */}
         <View
           style={[
             styles.homeIndicator,
@@ -275,10 +266,10 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     position: 'absolute',
-    top: 79,
+    top: 60,
     left: 24,
     right: 24,
-    height: POS.header.height,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -308,6 +299,7 @@ const styles = StyleSheet.create({
     fontSize: TYPE.step.fontSize,
     lineHeight: TYPE.step.lineHeight,
     fontFamily: TYPE.step.fontFamily,
+    opacity: 0,
   },
   centerTextWrap: {
     position: 'absolute',
@@ -323,10 +315,12 @@ const styles = StyleSheet.create({
     lineHeight: TYPE.subtitle.lineHeight,
     fontFamily: TYPE.subtitle.fontFamily,
   },
-  timeInputWrap: {
+  pickerWrap: {
     position: 'absolute',
     left: 24,
     right: 24,
+    top: 0,
+    width: 382,
   },
   actionButton: {
     position: 'absolute',
