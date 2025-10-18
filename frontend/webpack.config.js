@@ -25,6 +25,7 @@ module.exports = async function (env, argv) {
       'node_modules/zustand/shallow.js'
     ),
     zustand: path.resolve(__dirname, 'node_modules/zustand/index.js'),
+    '@assets': path.resolve(__dirname, 'assets'),
   };
 
   console.log('✅ Expo Webpack forced to use CommonJS Zustand build');

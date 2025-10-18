@@ -7,11 +7,27 @@ config.resolver.alias = {
   ...(config.resolver.alias || {}),
   'zustand/middleware': require.resolve('zustand/middleware'),
   zustand: require.resolve('zustand'),
+  '@assets': require('path').resolve(__dirname, 'assets'),
 };
 
-// Allow .mjs extensions for ESM packages
+// SVG Transformer configuration
+config.transformer = {
+  ...config.transformer,
+  babelTransformerPath: require.resolve('react-native-svg-transformer'),
+};
+
+// Combine source extensions: SVG + MJS + defaults
 config.resolver.sourceExts = Array.from(
-  new Set([...(config.resolver.sourceExts || []), 'mjs'])
+  new Set([
+    ...(config.resolver.sourceExts || []),
+    'mjs',
+    'svg', // Добавляем svg как source
+  ])
+);
+
+// Remove SVG from asset extensions (чтобы не обрабатывался как изображение)
+config.resolver.assetExts = config.resolver.assetExts.filter(
+  (ext) => ext !== 'svg'
 );
 
 module.exports = config;
