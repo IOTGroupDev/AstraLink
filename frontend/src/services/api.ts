@@ -20,7 +20,7 @@ const getApiBaseUrl = () => {
   // В Expo Go всегда используем IP адрес
   // Можно также использовать переменную окружения
   const EXPO_API_URL = 'http://192.168.1.69:3000/api';
-  const LOCAL_API_URL = 'http://192.168.1.69:3000/api';
+  const LOCAL_API_URL = 'http://localhost:3000/api';
 
   // В веб-версии используем localhost, в мобильной - IP
   if (typeof window !== 'undefined' && window.location?.protocol === 'http:') {

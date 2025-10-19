@@ -20,8 +20,15 @@ export default function MainStackNavigator() {
     //     headerShown: false,
     //   }}
     // >
+    // <Stack.Navigator
+    //   initialRouteName="OnboardingLaunch" // ✅ Начинаем с экрана запуска
+    //   screenOptions={{
+    //     headerShown: false,
+    //     cardStyle: { backgroundColor: 'transparent' },
+    //   }}
+    // >
     <Stack.Navigator
-      initialRouteName="OnboardingLaunch" // ✅ Начинаем с экрана запуска
+      initialRouteName="login" // ✅ Начинаем с экрана запуска
       screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: 'transparent' },
