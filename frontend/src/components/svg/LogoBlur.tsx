@@ -7,7 +7,7 @@ interface LogoBlurSvgProps {
   style?: any;
 }
 
-export const LogoBlurSvg: React.FC<LogoBlurSvgProps> = ({
+const LogoBlurSvg: React.FC<LogoBlurSvgProps> = ({
   width = 430,
   height = 834,
   style,

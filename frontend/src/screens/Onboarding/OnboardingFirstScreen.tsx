@@ -1,6 +1,3 @@
-// frontend/src/screens/OnboardingFirstScreen.tsx
-// Simple first step screen that scales 430×932 frame to device width.
-// CTA navigates to Onboarding2.
 import React, { useMemo } from 'react';
 import {
   View,
@@ -9,9 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Onboarding1Art from '../../components/Onboarding1Art';
 import OnboardingFirstMainSvg from '../../components/OnboardingFirstMainSvg';
+import CosmicBackground from '../../components/CosmicBackground';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -29,38 +25,6 @@ const COLORS = {
   btnBg: '#ECECEC',
   btnText: '#000000',
 };
-
-// Small star field (2x2 px dots), slight opacity variance
-const STARS: Array<{ x: number; y: number; o?: number }> = [
-  { x: 373, y: 268, o: 0.3 },
-  { x: 257, y: 251, o: 0.28 },
-  { x: 128, y: 74, o: 0.26 },
-  { x: 347, y: 49, o: 0.24 },
-  { x: 95, y: 20, o: 0.28 },
-  { x: 259, y: 124, o: 0.26 },
-  { x: 307, y: 373, o: 0.3 },
-  { x: 323, y: 383, o: 0.28 },
-  { x: 382, y: 392, o: 0.28 },
-  { x: 389, y: 466, o: 0.26 },
-  { x: 132, y: 399, o: 0.28 },
-  { x: 84, y: 428, o: 0.3 },
-  { x: 108, y: 296, o: 0.22 },
-  { x: 215, y: 313, o: 0.25 },
-  { x: 45, y: 570, o: 0.24 },
-  { x: 138, y: 562, o: 0.26 },
-  { x: 238, y: 524, o: 0.25 },
-  { x: 277, y: 562, o: 0.26 },
-  { x: 360, y: 596, o: 0.25 },
-  { x: 73, y: 692, o: 0.28 },
-  { x: 164, y: 609, o: 0.28 },
-  { x: 303, y: 696, o: 0.25 },
-  { x: 179, y: 743, o: 0.26 },
-  { x: 417, y: 799, o: 0.3 },
-  { x: 14, y: 175, o: 0.22 },
-  { x: 25, y: 357, o: 0.22 },
-  { x: 29, y: 795, o: 0.22 },
-  { x: 197, y: 677, o: 0.25 },
-];
 
 const TYPE = {
   h1: { fontSize: 24, lineHeight: 28, fontFamily: 'Montserrat_600SemiBold' },
@@ -85,30 +49,9 @@ export default function OnboardingFirstScreen({
 
   return (
     <View style={styles.root}>
+      <CosmicBackground />
       <View style={[styles.frame, { transform: [{ scale }] }]}>
-        {/* Background vertical gradient (deep purple to black) */}
-        <LinearGradient
-          colors={[COLORS.bgTop, COLORS.bgBottom]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.fullBg}
-        />
-
-        {/* Figma SVG ornament */}
-        <OnboardingFirstMainSvg
-          width={FRAME_W}
-          height={834}
-          style={styles.svgArt}
-        />
-        {/*<Onboarding1Art width={FRAME_W} height={834} style={styles.svgArt} />*/}
-
-        {/* Stars layer */}
-        {STARS.map((p, idx) => (
-          <View
-            key={`star-${idx}`}
-            style={[styles.star, { left: p.x, top: p.y, opacity: p.o ?? 0.28 }]}
-          />
-        ))}
+        <OnboardingFirstMainSvg />
 
         {/* Title + subtitle block */}
         <View style={styles.textBlock}>
@@ -130,9 +73,6 @@ export default function OnboardingFirstScreen({
         >
           <Text style={styles.ctaText}>ДАЛЕЕ</Text>
         </TouchableOpacity>
-
-        {/* Home indicator */}
-        <View style={styles.homeIndicator} />
       </View>
     </View>
   );
@@ -150,28 +90,6 @@ const styles = StyleSheet.create({
     height: FRAME_H,
     borderRadius: 60,
     overflow: 'hidden',
-  },
-  fullBg: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: FRAME_W,
-    height: FRAME_H,
-  },
-  svgArt: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: FRAME_W,
-    height: 834,
-    pointerEvents: 'none',
-  },
-  star: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D9D9D9',
   },
   textBlock: {
     position: 'absolute',
@@ -211,14 +129,5 @@ const styles = StyleSheet.create({
     fontSize: TYPE.cta.fontSize,
     lineHeight: TYPE.cta.lineHeight,
     fontFamily: TYPE.cta.fontFamily,
-  },
-  homeIndicator: {
-    position: 'absolute',
-    left: 145,
-    top: 920,
-    width: 140,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: COLORS.white,
   },
 });

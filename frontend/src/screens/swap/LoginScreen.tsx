@@ -19,11 +19,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
-import { authAPI } from '../services/api';
-import { LoginRequest } from '../types';
-import AstralLogo from '../components/AstralLogo';
-import AstralInput from '../components/AstralInput';
-import ErrorModal from '../components/ErrorModal';
+import { authAPI } from '../../services/api';
+import { LoginRequest } from '../../types/index';
+import AstralLogo from '../../components/AstralLogo';
+import AstralInput from '../../components/AstralInput';
+import ErrorModal from '../../components/ErrorModal';
 
 interface LoginScreenProps {
   onLogin: () => void;

@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     top: 60,
   },
   positionBottom: {
-    bottom: 90, // Над tab bar
+    bottom: 90,
   },
   backgroundGlow: {
     position: 'absolute',

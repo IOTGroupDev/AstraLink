@@ -10,7 +10,7 @@ import Svg, {
   RadialGradient,
   Stop,
 } from 'react-native-svg';
-import { ZodiacSignKey } from '../../services/zodiac.service';
+import { ZodiacSignKey } from '../../../services/zodiac.service';
 
 interface ConstellationViewProps {
   signKey: ZodiacSignKey;

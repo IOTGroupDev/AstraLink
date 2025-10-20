@@ -2,7 +2,7 @@
 // Маппинг знаков зодиака на SVG компоненты
 
 import React from 'react';
-import { ZodiacSignKey } from '../../services/zodiac.service';
+import { ZodiacSignKey } from '../../../services/zodiac.service';
 
 // Импорты SVG компонентов (предполагается, что они все созданы аналогично AriesSVG)
 import AriesSVG from '@assets/zodiac/aries.svg';

@@ -5,9 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -21,11 +21,7 @@ import CosmicBackground from '../components/CosmicBackground';
 import AstralInput from '../components/AstralInput';
 import AstralCheckbox from '../components/AstralCheckbox';
 import AstralTimePicker from '../components/AstralTimePicker';
-import ArrowBackSvg from '../components/assets/ArrowBackSvg';
-import PersonSvg from '../components/assets/PersonSvg';
-import LocationSvg from '../components/assets/LocationSvg';
-
-const { width: screenWidth } = Dimensions.get('window');
+import ArrowBackSvg from '../components/svg/ArrowBackSvg';
 
 const RegisterScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -45,105 +41,121 @@ const RegisterScreen: React.FC = () => {
     });
   }, []);
 
+  const handleContinue = () => {
+    // Валидация
+    if (!name.trim() || !birthPlace.trim()) {
+      return;
+    }
+    navigation.navigate('Onboarding2' as never);
+  };
+
   return (
     <View style={styles.container}>
-      {/* Cosmic Background */}
+      {/* Оптимизированный космический фон */}
       <CosmicBackground />
 
-      {/* Gradient Overlay */}
-
-      {/* Content */}
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.contentContainer}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
-        <Animated.View entering={FadeIn.delay(100)} style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <Animated.View entering={FadeIn.delay(100)} style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.7}
+            >
+              <ArrowBackSvg width={36} height={36} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Регистрация</Text>
+            <View style={styles.placeholder} />
+          </Animated.View>
+
+          {/* Description */}
+          <Animated.View
+            entering={FadeIn.delay(200)}
+            style={styles.descriptionContainer}
           >
-            <ArrowBackSvg width={36} height={36} />
+            <Text style={styles.description}>
+              Введите ваши имя, время{'\n'}и место рождения
+            </Text>
+          </Animated.View>
+
+          {/* Form */}
+          <Animated.View
+            entering={FadeIn.delay(300)}
+            style={styles.formContainer}
+          >
+            {/* Time Section */}
+            <View style={styles.timeSection}>
+              <Text style={styles.timeTitle}>Ваше время рождения</Text>
+
+              <AstralCheckbox
+                checked={dontKnowTime}
+                onToggle={() => setDontKnowTime(!dontKnowTime)}
+                label="не знаю точное время"
+                animationValue={animationValue}
+              />
+
+              {!dontKnowTime && (
+                <AstralTimePicker
+                  selectedHour={selectedHour}
+                  selectedMinute={selectedMinute}
+                  onHourChange={setSelectedHour}
+                  onMinuteChange={setSelectedMinute}
+                  animationValue={animationValue}
+                  visible={!dontKnowTime}
+                />
+              )}
+            </View>
+
+            {/* Name Input */}
+            <AstralInput
+              placeholder="Ваше имя"
+              value={name}
+              onChangeText={setName}
+              icon="person-outline"
+              required={true}
+              animationValue={animationValue}
+            />
+
+            {/* Birth Place Input */}
+            <AstralInput
+              placeholder="Ваше место рождения"
+              value={birthPlace}
+              onChangeText={setBirthPlace}
+              icon="location-outline"
+              required={true}
+              animationValue={animationValue}
+            />
+          </Animated.View>
+        </ScrollView>
+
+        {/* Action Button */}
+        <Animated.View
+          entering={FadeIn.delay(500)}
+          style={styles.actionButtonContainer}
+        >
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              (!name.trim() || !birthPlace.trim()) &&
+                styles.actionButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            activeOpacity={0.8}
+            disabled={!name.trim() || !birthPlace.trim()}
+          >
+            <Text style={styles.actionButtonText}>перейти к приложению</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Регистрация</Text>
-          <View style={styles.stepIndicator}>
-            <Text style={styles.stepText}>1/3</Text>
-          </View>
         </Animated.View>
-
-        {/* Description */}
-        <Animated.View
-          entering={FadeIn.delay(200)}
-          style={styles.descriptionContainer}
-        >
-          <Text style={styles.description}>
-            Введите ваши имя, время{'\n'}и место рождения
-          </Text>
-        </Animated.View>
-
-        {/* Form */}
-        <Animated.View
-          entering={FadeIn.delay(300)}
-          style={styles.formContainer}
-        >
-          {/* Time Section */}
-          <View style={styles.timeSection}>
-            <Text style={styles.timeTitle}>Ваше время рождения</Text>
-
-            <AstralCheckbox
-              checked={dontKnowTime}
-              onToggle={() => setDontKnowTime(!dontKnowTime)}
-              label="не знаю точное время"
-              animationValue={animationValue}
-            />
-
-            <AstralTimePicker
-              selectedHour={selectedHour}
-              selectedMinute={selectedMinute}
-              onHourChange={setSelectedHour}
-              onMinuteChange={setSelectedMinute}
-              animationValue={animationValue}
-              visible={!dontKnowTime}
-            />
-          </View>
-
-          {/* Name Input */}
-          <AstralInput
-            placeholder="Ваше имя"
-            value={name}
-            onChangeText={setName}
-            icon="person-outline"
-            required={true}
-            animationValue={animationValue}
-          />
-
-          {/* Birth Place Input */}
-          <AstralInput
-            placeholder="Ваше место рождения"
-            value={birthPlace}
-            onChangeText={setBirthPlace}
-            icon="location-outline"
-            required={true}
-            animationValue={animationValue}
-          />
-        </Animated.View>
-      </ScrollView>
-
-      {/* Action Button */}
-      <Animated.View
-        entering={FadeIn.delay(500)}
-        style={styles.actionButtonContainer}
-      >
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Onboarding2' as never)}
-        >
-          <Text style={styles.actionButtonText}>перейти к приложению</Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* Bottom Element */}
-      <View style={styles.bottomElement} />
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -153,8 +165,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#101010',
   },
-  gradientBackground: {
-    ...StyleSheet.absoluteFillObject,
+  keyboardAvoid: {
+    flex: 1,
   },
   scrollContainer: {
     flex: 1,
@@ -162,10 +174,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingTop: 79,
-    paddingBottom: 79,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100%',
+    paddingBottom: 140,
   },
   header: {
     flexDirection: 'row',
@@ -186,17 +195,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
+    flex: 1,
   },
-  stepIndicator: {
+  placeholder: {
     width: 36,
-    alignItems: 'flex-end',
-  },
-  stepText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 20,
-    fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'right',
   },
   descriptionContainer: {
     width: '100%',
@@ -212,8 +214,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    flex: 1,
-    justifyContent: 'center',
     gap: 20,
   },
   timeSection: {
@@ -243,6 +243,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     height: 60,
   },
+  actionButtonDisabled: {
+    backgroundColor: 'rgba(236, 236, 236, 0.4)',
+  },
   actionButtonText: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 20,
@@ -251,10 +254,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     lineHeight: 24.38,
   },
-  bottomElement: {
+  bottomIndicator: {
     position: 'absolute',
     bottom: 12,
-    left: 145,
+    left: '50%',
+    marginLeft: -70,
     width: 140,
     height: 4,
     backgroundColor: '#FFFFFF',

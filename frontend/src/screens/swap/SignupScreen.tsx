@@ -34,12 +34,12 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { authAPI } from '../services/api';
-import { SignupRequest } from '../types';
-import AnimatedStars from '../components/AnimatedStars';
-import AstrologicalChart from '../components/AstrologicalChart';
-import AstralLogo from '../components/AstralLogo';
-import AstralInput from '../components/AstralInput';
+import { authAPI } from '../../services/api';
+import { SignupRequest } from '../../types/index';
+import AnimatedStars from '../../components/AnimatedStars';
+import AstrologicalChart from '../../components/AstrologicalChart';
+import AstralLogo from '../../components/AstralLogo';
+import AstralInput from '../../components/AstralInput';
 
 const { width, height } = Dimensions.get('window');
 

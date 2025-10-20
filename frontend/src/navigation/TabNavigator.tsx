@@ -7,6 +7,14 @@ import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import HoroscopeScreen from '../screens/HoroscopeScreen';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
+import SimulationSvg from '../components/svg/tabs/SimulationSvg';
+import DatingSvg from '../components/svg/tabs/DatingSvg';
+import AdviserSvg from '../components/svg/tabs/AdviserSvg';
+import ProfileSvg from '../components/svg/tabs/ProfileSvg';
 
 const Tab = createBottomTabNavigator();
 
@@ -17,32 +25,61 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'ChartStack') {
-            iconName = focused ? 'planet' : 'planet-outline';
+          if (route.name === 'Horoscope') {
+            return <HoroscopeSvg size={size} color={color} />;
+            // iconName = focused ? 'planet' : 'planet-outline';
           } else if (route.name === 'CosmicSimulator') {
-            iconName = focused ? 'time' : 'time-outline';
+            return <SimulationSvg size={size} color={color} />;
+            // iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'Dating') {
-            iconName = focused ? 'heart-circle' : 'heart-circle-outline';
+            return <DatingSvg size={size} color={color} />;
+            // iconName = focused ? 'heart-circle' : 'heart-circle-outline';
           } else if (route.name === 'Advisor') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+            return <AdviserSvg size={size} color={color} />;
+            // iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
+            return <ProfileSvg size={size} color={color} />;
+            // iconName = focused ? 'person-circle' : 'person-circle-outline';
           } else {
-            iconName = 'help-outline';
+            // iconName = 'help-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          // return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#8B5CF6',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
+        tabBarActiveTintColor: '#fff',
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
         tabBarStyle: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          position: 'absolute',
           borderTopWidth: 1,
           borderTopColor: 'rgba(139, 92, 246, 0.3)',
-          paddingBottom: 5,
+          paddingBottom: 50,
           paddingTop: 5,
-          height: 60,
+          height: 108,
+          backgroundColor: 'transparent', // важно для прозрачности
         },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={50}
+            tint="dark"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              overflow: 'hidden',
+            }}
+          >
+            <LinearGradient
+              colors={['rgba(167, 114, 181, 0.3)', 'rgba(26, 7, 31, 0.3)']}
+              style={{ flex: 1 }}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+            />
+          </BlurView>
+        ),
         headerStyle: {
           backgroundColor: 'transparent',
           borderBottomWidth: 0,
@@ -58,15 +95,15 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen
-        name="Registration"
-        component={RegisterScreen}
-        options={{ title: 'Карты', headerShown: false }}
+        name="Horoscope"
+        component={HoroscopeScreen}
+        options={{ title: 'Гороскоп', headerShown: false }}
       />
-      <Tab.Screen
-        name="ChartStack"
-        component={ChartStackNavigator}
-        options={{ title: 'Карты', headerShown: false }}
-      />
+      {/*<Tab.Screen*/}
+      {/*  name="ChartStack"*/}
+      {/*  component={ChartStackNavigator}*/}
+      {/*  options={{ title: 'Карты', headerShown: false }}*/}
+      {/*/>*/}
       <Tab.Screen
         name="CosmicSimulator"
         component={CosmicSimulatorScreen}

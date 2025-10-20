@@ -434,8 +434,8 @@ import {
 } from 'react-native';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useZodiac } from '../../hooks/useZodiac';
-import { ZodiacConstellationSvg } from '../../components/zodiac/zodiacSvgMap';
-import { StarfieldBackground } from '../../components/zodiac/StarfieldBackground';
+import { ZodiacConstellationSvg } from '../../components/svg/zodiac/zodiacSvgMap';
+import { StarfieldBackground } from '../../components/svg/zodiac/StarfieldBackground';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 

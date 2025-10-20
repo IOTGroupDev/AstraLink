@@ -6,8 +6,8 @@ import { StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import LoginNewScreen from './src/screens/LoginNewScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import SignupScreen from './src/screens/SignupScreen';
+import LoginScreen from './src/screens/swap/LoginScreen';
+import SignupScreen from './src/screens/swap/SignupScreen';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
 import AnimatedStars from './src/components/AnimatedStars';
 import LoadingLogo from './src/components/LoadingLogo';
