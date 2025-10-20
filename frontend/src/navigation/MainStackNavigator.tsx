@@ -9,6 +9,7 @@ import OnboardingFirstScreen from '../screens/Onboarding/OnboardingFirstScreen';
 import OnboardingSecondScreen from '../screens/Onboarding/OnboardingSecondScreen';
 import OnboardingThirdScreen from '../screens/Onboarding/OnboardingThirdScreen';
 import OnboardingFourthScreen from '../screens/Onboarding/OnboardingFourthScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 
 const Stack = createStackNavigator();
 
@@ -38,6 +39,12 @@ export default function MainStackNavigator() {
       <Stack.Screen
         name="Onboarding1"
         component={OnboardingFirstScreen}
+        options={{ presentation: 'card' }}
+      />
+      {/* Онбординг шаг 1 (первая страница показа) */}
+      <Stack.Screen
+        name="Registration1"
+        component={RegisterScreen}
         options={{ presentation: 'card' }}
       />
       {/* Онбординг шаг 2 */}

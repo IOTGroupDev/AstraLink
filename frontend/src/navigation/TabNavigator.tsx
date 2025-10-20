@@ -6,6 +6,7 @@ import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -56,6 +57,11 @@ export default function TabNavigator() {
         headerBackground: () => null,
       })}
     >
+      <Tab.Screen
+        name="Registration"
+        component={RegisterScreen}
+        options={{ title: 'Карты', headerShown: false }}
+      />
       <Tab.Screen
         name="ChartStack"
         component={ChartStackNavigator}
