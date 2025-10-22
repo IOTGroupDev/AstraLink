@@ -27,12 +27,12 @@ import * as Linking from 'expo-linking';
 
 // Конфигурация deep linking
 const linking = {
-  prefixes: [
-    'astralink://', // для мобильных
-    'http://localhost:8081', // для web dev
-    'http://localhost:19006', // для web dev (альтернативный порт)
-    'https://yourdomain.com', // для production
-  ],
+  // Убираем localhost-prefixes — на iPhone это ведёт в Safari на localhost.
+  // Добавляем:
+  // - astralink:// для standalone
+  // - Linking.createURL('/') для Expo Go exp://<host>/--/
+  // - https://auth.expo.io для AuthSession proxy редиректов
+  prefixes: ['astralink://', Linking.createURL('/'), 'https://auth.expo.io'],
   config: {
     screens: {
       // Onboarding
@@ -45,7 +45,7 @@ const linking = {
       SignUp: 'signup',
       AuthEmail: 'auth/email',
       MagicLinkWaiting: 'auth/waiting',
-      AuthCallback: 'auth/callback', // 👈 Важно!
+      AuthCallback: 'auth/callback',
 
       // Main
       MainTabs: {

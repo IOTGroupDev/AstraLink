@@ -551,6 +551,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import CosmicBackground from '../../components/CosmicBackground';
 import { supabase } from '../../services/supabase';
+import { tokenService } from '../../services/tokenService';
 
 type RouteParams = { email?: string };
 
@@ -592,16 +593,17 @@ export default function MagicLinkWaitingScreen() {
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Слушаем изменение auth-состояния
+  // Слушаем изменение auth-состояния + BroadcastChannel для web
   useEffect(() => {
+    // Mobile: слушаем auth state change
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.access_token) {
           try {
             setChecking(true);
-            console.log('✅ Сессия получена через magic link');
+            console.log('✅ Сессия получена через magic link (mobile)');
 
-            // Переходим на экран загрузки данных или главный экран
+            // Переходим на экран загрузки данных
             navigation.reset({
               index: 0,
               routes: [{ name: 'UserDataLoader' }],
@@ -614,6 +616,105 @@ export default function MagicLinkWaitingScreen() {
         }
       }
     );
+
+    // Web: слушаем BroadcastChannel + fallback на localStorage
+    if (Platform.OS === 'web') {
+      let bc: BroadcastChannel | null = null;
+
+      try {
+        // @ts-ignore
+        bc = new BroadcastChannel('supabase-auth');
+        bc.onmessage = async (event: MessageEvent) => {
+          try {
+            const msg: any = event?.data;
+            console.log('📡 BroadcastChannel message received:', msg);
+            if (msg?.type === 'SIGNED_IN' && msg?.accessToken) {
+              console.log(
+                '📡 BroadcastChannel: SIGNED_IN received, setting session'
+              );
+              const { error } = await supabase.auth.setSession({
+                access_token: msg.accessToken,
+                refresh_token: msg.refreshToken || '',
+              });
+              if (error) {
+                console.error(
+                  '❌ setSession from BroadcastChannel failed:',
+                  error
+                );
+                return;
+              }
+              console.log(
+                '✅ Session set from BroadcastChannel, navigating to UserDataLoader'
+              );
+              // Переходим на экран загрузки данных
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'UserDataLoader' }],
+              });
+            }
+          } catch (e) {
+            console.error('BroadcastChannel handler error:', e);
+          }
+        };
+        console.log('📡 BroadcastChannel listener set up successfully');
+      } catch (e) {
+        console.warn(
+          'BroadcastChannel init failed, will rely on storage fallback:',
+          e
+        );
+      }
+
+      // Fallback: onstorage триггер с локальным токеном
+      const onStorage = async (e: StorageEvent) => {
+        try {
+          console.log('🔔 Storage event received:', e.key, e.newValue);
+          if (e.key === 'al_token_broadcast' && e.newValue) {
+            console.log('🔔 Storage fallback: broadcast flag received');
+            // Пытаемся установить сессию из сохраненного токена
+            const token = await tokenService.getToken();
+            console.log(
+              '🔑 Token from storage:',
+              token ? 'found' : 'not found'
+            );
+            if (token) {
+              const { error } = await supabase.auth.setSession({
+                access_token: token,
+                refresh_token: '',
+              });
+              if (error) {
+                console.error(
+                  '❌ setSession from storage fallback failed:',
+                  error
+                );
+                return;
+              }
+              console.log(
+                '✅ Session set from storage fallback, navigating to UserDataLoader'
+              );
+              // Переходим на экран загрузки данных
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'UserDataLoader' }],
+              });
+            }
+          }
+        } catch (err) {
+          console.error('storage fallback handler error:', err);
+        }
+      };
+      window.addEventListener('storage', onStorage);
+      console.log('🔔 Storage event listener set up');
+
+      return () => {
+        sub.subscription?.unsubscribe?.();
+        window.removeEventListener('storage', onStorage);
+        if (bc) {
+          try {
+            bc.close();
+          } catch {}
+        }
+      };
+    }
 
     return () => {
       sub.subscription?.unsubscribe?.();

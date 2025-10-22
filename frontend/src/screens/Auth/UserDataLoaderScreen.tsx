@@ -10,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import CosmicBackground from '../../components/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { tokenService } from '../../services/tokenService';
-import { userAPI } from '../../services/api';
+import { userAPI, chartAPI } from '../../services/api';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useAuthStore } from '../../stores/auth.store';
 
@@ -51,34 +51,34 @@ const UserDataLoaderScreen: React.FC = () => {
   };
 
   const needsOnboarding = (profile: any): boolean => {
-    return (
-      !profile?.birth_date || !profile?.birth_time || !profile?.birth_place
-    );
+    // Поддерживаем обе формы полей: snake_case (из БД) и camelCase (из backend API)
+    const birthDate = profile?.birth_date ?? profile?.birthDate;
+    const birthTime = profile?.birth_time ?? profile?.birthTime;
+    const birthPlace = profile?.birth_place ?? profile?.birthPlace;
+    return !birthDate || !birthTime || !birthPlace;
   };
 
-  const verifyProvisioning = async (userId: string) => {
-    // Проверяем профиль
-    const { data: dbProfile } = await supabase
-      .from('users')
-      .select(
-        'id, birth_date, birth_time, birth_place, name, email, created_at, updated_at'
-      )
-      .eq('id', userId)
-      .single();
+  const verifyProvisioning = async (_userId: string) => {
+    // Получаем профиль и карту ТОЛЬКО через backend API (обходит RLS)
+    let dbProfile: any = null;
+    try {
+      dbProfile = await userAPI.getProfile();
+    } catch (_e) {
+      // Профиль может отсутствовать до апдейта — это не фатально
+    }
 
     const profileOk =
-      !!dbProfile?.birth_date &&
-      !!dbProfile?.birth_time &&
-      !!dbProfile?.birth_place;
+      !!dbProfile?.birthDate &&
+      !!dbProfile?.birthTime &&
+      !!dbProfile?.birthPlace;
 
-    // Проверяем наличие хотя бы одной карты
-    const { data: charts } = await supabase
-      .from('charts')
-      .select('id')
-      .eq('user_id', userId)
-      .limit(1);
-
-    const chartOk = Array.isArray(charts) && charts.length > 0;
+    let chartOk = false;
+    try {
+      const chart = await chartAPI.getNatalChart();
+      chartOk = !!chart;
+    } catch (_e) {
+      chartOk = false;
+    }
 
     return { profileOk, chartOk, dbProfile };
   };
@@ -119,17 +119,14 @@ const UserDataLoaderScreen: React.FC = () => {
       const userEmail = session.user.email || '';
 
       setStatus('Проверка профиля...');
-      // Проверяем существующий профиль
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        // код "no rows" не считаем фатальным
+      // Проверяем существующий профиль через backend API (без прямого доступа к БД)
+      let profile: any = null;
+      try {
+        profile = await userAPI.getProfile();
+      } catch (e) {
+        // код "no rows" или RLS-ограничение на клиенте нам не важно — всё делаем через backend
         // eslint-disable-next-line no-console
-        console.warn('Profile check warning:', profileError);
+        console.warn('Profile check warning (backend):', e);
       }
 
       const hasOnboardingData =
@@ -138,16 +135,16 @@ const UserDataLoaderScreen: React.FC = () => {
 
       if (profileComplete) {
         setStatus('Профиль заполнен. Завершаем вход...');
-        // Локальное состояние пользователя
+        // Локальное состояние пользователя (данные с backend API - camelCase)
         login({
           id: userId,
           email: userEmail,
           name: profile?.name || 'Пользователь',
-          birthDate: profile?.birth_date
-            ? new Date(profile.birth_date).toISOString().split('T')[0]
+          birthDate: profile?.birthDate
+            ? new Date(profile.birthDate).toISOString().split('T')[0]
             : undefined,
-          birthTime: profile?.birth_time || undefined,
-          birthPlace: profile?.birth_place || undefined,
+          birthTime: profile?.birthTime || undefined,
+          birthPlace: profile?.birthPlace || undefined,
           role: 'user',
         });
 
@@ -191,11 +188,11 @@ const UserDataLoaderScreen: React.FC = () => {
         id: userId,
         email: userEmail,
         name: dbProfile?.name || onboardingData.name || 'Пользователь',
-        birthDate: dbProfile?.birth_date
-          ? new Date(dbProfile.birth_date).toISOString().split('T')[0]
+        birthDate: dbProfile?.birthDate
+          ? new Date(dbProfile.birthDate).toISOString().split('T')[0]
           : updatePayload.birthDate,
-        birthTime: dbProfile?.birth_time || updatePayload.birthTime,
-        birthPlace: dbProfile?.birth_place || updatePayload.birthPlace,
+        birthTime: dbProfile?.birthTime || updatePayload.birthTime,
+        birthPlace: dbProfile?.birthPlace || updatePayload.birthPlace,
         role: 'user',
       });
 

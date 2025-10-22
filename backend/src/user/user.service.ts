@@ -98,7 +98,6 @@ export class UserService {
     let email: string | null = null;
     try {
       const { data: authRes, error: authErr } =
-        // @ts-expect-error - типы supabase-js admin могут отличаться
         await admin.auth.admin.getUserById(userId);
       if (!authErr) {
         // supabase-js v2: data = { user }

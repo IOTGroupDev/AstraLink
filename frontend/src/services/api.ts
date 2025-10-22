@@ -815,6 +815,7 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 import { Platform } from 'react-native';
 
@@ -938,9 +939,17 @@ api.interceptors.response.use(
  */
 function getRedirectUri(): string {
   try {
-    const isExpoGo = Constants.appOwnership === 'expo';
+    // В DEV всегда используем AuthSession proxy (универсальный редирект, не привязан к localhost)
+    if (__DEV__) {
+      const url = AuthSession.makeRedirectUri({
+        useProxy: true,
+        path: 'auth/callback',
+      });
+      console.log('🔗 DEV redirect via AuthSession proxy:', url);
+      return url;
+    }
 
-    // Для веба проверяем наличие window.location
+    // PROD — веб
     if (
       Platform.OS === 'web' &&
       typeof window !== 'undefined' &&
@@ -949,12 +958,13 @@ function getRedirectUri(): string {
       return `${window.location.origin}/auth/callback`;
     }
 
-    // Для мобильных платформ используем AuthSession.makeRedirectUri
-    return AuthSession.makeRedirectUri({
-      useProxy: isExpoGo,
+    // PROD — native (standalone)
+    const url = AuthSession.makeRedirectUri({
       scheme: 'astralink',
       path: 'auth/callback',
     });
+    console.log('🔗 PROD native redirect URI via makeRedirectUri:', url);
+    return url;
   } catch (error) {
     console.error('❌ Ошибка получения redirect URI:', error);
     // Fallback на стандартный URI
@@ -1068,7 +1078,7 @@ export const authAPI = {
     try {
       console.log('📧 Отправка Magic Link через Supabase на:', email);
 
-      // Получаем правильный redirect URI
+      // Получаем корректный redirect URI для текущей среды (web / Expo Go / standalone)
       const emailRedirectTo = getRedirectUri();
       console.log('🔗 Redirect URI:', emailRedirectTo);
 
@@ -1076,7 +1086,7 @@ export const authAPI = {
         email,
         options: {
           shouldCreateUser: true, // Создаем пользователя если не существует
-          emailRedirectTo, // ✅ Используем безопасную функцию
+          emailRedirectTo, // Позволяет Safari/почтовому клиенту вернуть в Expo Go через exp://.../--/auth/callback
         },
       });
 

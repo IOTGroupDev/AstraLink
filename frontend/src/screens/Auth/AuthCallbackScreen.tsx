@@ -95,8 +95,9 @@ const AuthCallbackScreen: React.FC = () => {
           );
         }
 
-        // Оповещаем вкладку ожидания (BroadcastChannel) + fallback на localStorage
+        // Оповещаем вкладку ожидания (BroadcastChannel) + дублируем в localStorage
         try {
+          // @ts-ignore
           const bc = new BroadcastChannel('supabase-auth');
           bc.postMessage({
             type: 'SIGNED_IN',
@@ -105,10 +106,22 @@ const AuthCallbackScreen: React.FC = () => {
             ts: Date.now(),
           });
           bc.close();
-        } catch (_e) {
+          console.log('📡 BroadcastChannel message sent successfully');
+        } catch (bcError) {
+          console.warn('⚠️ BroadcastChannel failed:', bcError);
+        } finally {
+          // Всегда пишем флаги в localStorage, чтобы другая вкладка могла опросить
           try {
+            if (accessToken) {
+              localStorage.setItem('al_token_value', accessToken);
+            }
             localStorage.setItem('al_token_broadcast', String(Date.now()));
-          } catch {}
+            console.log(
+              '💾 localStorage flags written (al_token_value, al_token_broadcast)'
+            );
+          } catch (storageError) {
+            console.error('❌ localStorage write failed:', storageError);
+          }
         }
 
         // Очищаем URL и передаём управление загрузчику данных
