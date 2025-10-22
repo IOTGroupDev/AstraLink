@@ -27,6 +27,18 @@ const AuthEmailScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  //   function getRedirectUri() {
+  //   const isExpoGo = Constants.appOwnership === 'expo';
+  //   // Итоговые варианты:
+  //   // - Expo Go: прокси-URL от Expo (useProxy: true)
+  //   // - Standalone/Dev Client: astralink://auth/callback  (совпадает с app.json)
+  //   return AuthSession.makeRedirectUri({
+  //     useProxy: isExpoGo,
+  //     scheme: 'astralink',
+  //     path: 'auth/callback', // <- host "auth" + pathPrefix "/callback" из intentFilters
+  //   });
+  // }
+
   const validateEmail = (text: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(text);
@@ -301,3 +313,104 @@ const styles = StyleSheet.create({
 });
 
 export default AuthEmailScreen;
+
+// import React, { useState } from 'react';
+// import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+// import * as AuthSession from 'expo-auth-session';
+// import Constants from 'expo-constants';
+// import { useNavigation } from '@react-navigation/native';
+// import { supabase } from '../../services/supabase'; // <- поправь путь, если у тебя другой
+//
+// function getRedirectUri() {
+//   const isExpoGo = Constants.appOwnership === 'expo';
+//   // Итоговые варианты:
+//   // - Expo Go: прокси-URL от Expo (useProxy: true)
+//   // - Standalone/Dev Client: astralink://auth/callback  (совпадает с app.json)
+//   return AuthSession.makeRedirectUri({
+//     useProxy: isExpoGo,
+//     scheme: 'astralink',
+//     path: 'auth/callback', // <- host "auth" + pathPrefix "/callback" из intentFilters
+//   });
+// }
+//
+// function validateEmail(email: string) {
+//   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+// }
+//
+// export default function AuthEmailScreen() {
+//   const navigation = useNavigation<any>();
+//   const [email, setEmail] = useState('');
+//   const [sending, setSending] = useState(false);
+//   const [error, setError] = useState<string | null>(null);
+//
+//   const onSend = async () => {
+//     setError(null);
+//
+//     if (!validateEmail(email)) {
+//       setError('Некорректный email');
+//       return;
+//     }
+//
+//     try {
+//       setSending(true);
+//
+//       const emailRedirectTo = getRedirectUri();
+//
+//       const { error } = await supabase.auth.signInWithOtp({
+//         email,
+//         options: {
+//           shouldCreateUser: true,
+//           emailRedirectTo, // 👈 Критично. Без этого в Expo Go часто падает с "origin of undefined"
+//         },
+//       });
+//
+//       if (error) throw error;
+//
+//       // Идём на экран ожидания
+//       navigation.navigate('MagicLinkWaiting', { email });
+//     } catch (e: any) {
+//       setError(e?.message ?? 'Ошибка отправки письма');
+//     } finally {
+//       setSending(false);
+//     }
+//   };
+//
+//   return (
+//     <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
+//       <View style={styles.container}>
+//         <Text style={styles.title}>Вход по email</Text>
+//         <Text style={styles.subtitle}>Мы отправим ссылку для входа</Text>
+//
+//         <TextInput
+//           placeholder="you@example.com"
+//           autoCapitalize="none"
+//           keyboardType="email-address"
+//           value={email}
+//           onChangeText={setEmail}
+//           style={styles.input}
+//         />
+//
+//         {!!error && <Text style={styles.error}>{error}</Text>}
+//
+//         <TouchableOpacity onPress={onSend} style={[styles.button, sending && styles.buttonDisabled]} disabled={sending}>
+//           {sending ? <ActivityIndicator /> : <Text style={styles.buttonText}>Отправить ссылку</Text>}
+//         </TouchableOpacity>
+//       </View>
+//     </KeyboardAvoidingView>
+//   );
+// }
+//
+// const styles = StyleSheet.create({
+//   container: { flex: 1, padding: 24, justifyContent: 'center' },
+//   title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+//   subtitle: { fontSize: 14, opacity: 0.7, textAlign: 'center', marginBottom: 24 },
+//   input: {
+//     borderWidth: 1, borderColor: '#ddd', borderRadius: 12, padding: 14, fontSize: 16,
+//   },
+//   error: { color: '#d00', marginTop: 10, marginBottom: 4, textAlign: 'center' },
+//   button: {
+//     marginTop: 16, backgroundColor: '#111', padding: 14, borderRadius: 12, alignItems: 'center',
+//   },
+//   buttonDisabled: { opacity: 0.5 },
+//   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+// });

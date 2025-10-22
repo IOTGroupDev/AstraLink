@@ -151,6 +151,8 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import SignUpScreen from '../screens/Auth/SignUpScreen';
 import AuthEmailScreen from '../screens/Auth/AuthEmailScreen';
 import MagicLinkWaitingScreen from '../screens/Auth/MagicLinkWaitingScreen';
+import AuthCallbackScreen from '../screens/Auth/AuthCallbackScreen';
+import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 
 import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
 
@@ -166,7 +168,7 @@ export default function MainStackNavigator() {
       return 'Onboarding1'; // Показываем онбординг
     }
     if (!isAuthenticated) {
-      return 'Login'; // Показываем логин
+      return 'SignUp'; // Показываем экран входа/регистрации
     }
     return 'MainTabs'; // Показываем главное приложение
   };
@@ -179,6 +181,23 @@ export default function MainStackNavigator() {
         cardStyle: { backgroundColor: 'transparent' },
       }}
     >
+      {/* Auth utility screens - доступны всегда */}
+      <Stack.Screen
+        name="AuthCallback"
+        component={AuthCallbackScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name="UserDataLoader"
+        component={UserDataLoaderScreen}
+        options={{ presentation: 'card' }}
+      />
+      {/* Main App Root - регистрируем всегда, чтобы reset('MainTabs') был валиден */}
+      <Stack.Screen
+        name="MainTabs"
+        component={TabNavigator}
+        options={{ headerShown: false }}
+      />
       {/* Onboarding Flow */}
       {!onboardingCompleted && (
         <>
@@ -249,7 +268,7 @@ export default function MainStackNavigator() {
       {/* Main App Flow */}
       {isAuthenticated && (
         <>
-          <Stack.Screen name="MainTabs" component={TabNavigator} />
+          {/* MainTabs зарегистрирован всегда выше */}
           <Stack.Screen
             name="Subscription"
             component={SubscriptionScreen}

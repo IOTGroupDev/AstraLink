@@ -17,8 +17,8 @@ import {
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
-import { Public } from '../auth/decorators/public.decorator';
 import type { UpdateProfileRequest } from '../types';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 
 // Interface for authenticated user on Express Request
 interface AuthenticatedUser {
@@ -35,8 +35,7 @@ interface AuthenticatedRequest extends ExpressRequest {
 
 @ApiTags('User')
 @Controller('user')
-@UseGuards() // Отключаем глобальный guard
-@Public() // Временно делаем все эндпоинты публичными для тестирования
+@UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -45,12 +44,8 @@ export class UserController {
   @ApiOperation({ summary: 'Получить профиль пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })
   async getProfile(@Request() req: AuthenticatedRequest) {
-    // Для тестирования используем фиксированный userId
-    const userId =
-      req.user?.userId ||
-      req.user?.id ||
-      '5d995414-c513-47e6-b5dd-004d3f61c60b'; // ID тестового пользователя
-    return this.userService.getProfile(userId);
+    const userId = req.user?.userId || req.user?.id;
+    return this.userService.getProfile(userId as string);
   }
 
   @Put('profile')
@@ -60,12 +55,8 @@ export class UserController {
     @Request() req: AuthenticatedRequest,
     @Body() updateData: UpdateProfileRequest,
   ) {
-    // Для тестирования используем фиксированный userId
-    const userId =
-      req.user?.userId ||
-      req.user?.id ||
-      'c875b4bc-302f-4e37-b123-359bee558163'; // ID созданного пользователя
-    return this.userService.updateProfile(userId, updateData);
+    const userId = req.user?.userId || req.user?.id;
+    return this.userService.updateProfile(userId as string, updateData);
   }
 
   /**
@@ -83,7 +74,7 @@ export class UserController {
   @Delete('account')
   @HttpCode(HttpStatus.OK)
   async deleteAccount(@Request() req: AuthenticatedRequest) {
-    const userId = req.user?.userId || req.user?.id || '';
+    const userId = (req.user?.userId || req.user?.id) as string;
     console.log(`🗑️ Запрос на удаление аккаунта пользователя: ${userId}`);
 
     await this.userService.deleteAccount(userId);

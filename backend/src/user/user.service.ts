@@ -5,10 +5,14 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import type { UpdateProfileRequest } from '../types';
+import { ChartService } from '../chart/chart.service';
 
 @Injectable()
 export class UserService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private chartService: ChartService,
+  ) {}
 
   async getProfile(userId: string) {
     // 1) Пытаемся получить профиль через admin-клиент (обходит RLS, если задан SERVICE ROLE)
@@ -78,31 +82,141 @@ export class UserService {
   }
 
   async updateProfile(userId: string, updateData: UpdateProfileRequest) {
-    // Преобразуем поля для Supabase
-    const supabaseData: any = {};
-    if (updateData.name !== undefined) supabaseData.name = updateData.name;
+    // Подготовка данных для users
+    const patch: any = {};
+    if (updateData.name !== undefined) patch.name = updateData.name;
     if (updateData.birthDate !== undefined)
-      supabaseData.birth_date = updateData.birthDate;
+      patch.birth_date = updateData.birthDate;
     if (updateData.birthTime !== undefined)
-      supabaseData.birth_time = updateData.birthTime;
+      patch.birth_time = updateData.birthTime;
     if (updateData.birthPlace !== undefined)
-      supabaseData.birth_place = updateData.birthPlace;
+      patch.birth_place = updateData.birthPlace;
 
-    const { data: user, error } =
-      await this.supabaseService.updateUserProfileAdmin(userId, supabaseData);
+    const admin = this.supabaseService.getAdminClient();
 
-    if (error || !user) {
-      throw new NotFoundException(`Failed to update user with id ${userId}`);
+    // 1) Получаем email пользователя из Auth (для первичного upsert)
+    let email: string | null = null;
+    try {
+      const { data: authRes, error: authErr } =
+        // @ts-expect-error - типы supabase-js admin могут отличаться
+        await admin.auth.admin.getUserById(userId);
+      if (!authErr) {
+        // supabase-js v2: data = { user }
+        const u = (authRes as any)?.user;
+        email = u?.email ?? null;
+      }
+    } catch (_e) {
+      // ничего, попробуем без email
     }
 
+    // 2) Читаем текущий профиль
+    let profile: any | null = null;
+    try {
+      const { data } = await this.supabaseService.getUserProfileAdmin(userId);
+      profile = data ?? null;
+    } catch {
+      profile = null;
+    }
+
+    const nowISO = new Date().toISOString();
+
+    // 3) Если профиля нет — создаём запись (upsert через insert/select)
+    if (!profile) {
+      const insertPayload: any = {
+        id: userId,
+        email: email || undefined,
+        ...patch,
+        created_at: nowISO,
+        updated_at: nowISO,
+      };
+
+      const { data: inserted, error: insertErr } = await admin
+        .from('users')
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (insertErr || !inserted) {
+        throw new InternalServerErrorException(
+          `Failed to upsert user profile for ${userId}`,
+        );
+      }
+
+      profile = inserted;
+    } else if (Object.keys(patch).length > 0) {
+      // 4) Иначе — обновляем изменённые поля
+      const { data: updated, error: updErr } =
+        await this.supabaseService.updateUserProfileAdmin(userId, patch);
+
+      if (updErr || !updated) {
+        throw new InternalServerErrorException(
+          `Failed to update user profile for ${userId}`,
+        );
+      }
+      profile = updated;
+    }
+
+    // 5) Гарантируем подписку FREE при отсутствии
+    try {
+      const { data: sub } =
+        await this.supabaseService.getUserSubscription(userId);
+      if (!sub) {
+        await this.supabaseService.createSubscription({
+          user_id: userId,
+          tier: 'free',
+        });
+      }
+    } catch (_e) {
+      // Не валим поток, подписку можно создать позже
+    }
+
+    // 6) Если есть все данные рождения и нет карты — создаём натальную карту
+    try {
+      const birthDateISO = (profile?.birth_date ?? patch.birth_date) as
+        | string
+        | undefined;
+      const birthTime = (profile?.birth_time ?? patch.birth_time) as
+        | string
+        | undefined;
+      const birthPlace = (profile?.birth_place ?? patch.birth_place) as
+        | string
+        | undefined;
+
+      const hasAll = !!birthDateISO && !!birthTime && !!birthPlace;
+
+      if (hasAll) {
+        // есть ли карты?
+        let charts: any[] | null = null;
+        try {
+          const { data } =
+            await this.supabaseService.getUserChartsAdmin(userId);
+          charts = data ?? null;
+        } catch {
+          charts = null;
+        }
+
+        if (!charts || charts.length === 0) {
+          await this.chartService.createNatalChartWithInterpretation(
+            userId,
+            new Date(birthDateISO).toISOString().split('T')[0],
+            birthTime,
+            birthPlace,
+          );
+        }
+      }
+    } catch (_e) {
+      // не блокируем обновление профиля
+    }
+
+    // Возвращаем нормализованный профиль
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      birthDate: user.birth_date,
-      birthTime: user.birth_time,
-      birthPlace: user.birth_place,
-      updatedAt: user.updated_at,
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      birthDate: profile.birth_date,
+      birthTime: profile.birth_time,
+      birthPlace: profile.birth_place,
+      updatedAt: profile.updated_at || nowISO,
     };
   }
 

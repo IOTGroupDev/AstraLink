@@ -132,7 +132,7 @@ export default function App() {
   return (
     <QueryProvider>
       <StatusBar style="light" />
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <MainStackNavigator />
       </NavigationContainer>
     </QueryProvider>
