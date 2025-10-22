@@ -123,6 +123,7 @@ const AstralTimePicker: React.FC<AstralTimePickerProps> = ({
         {/* Часы */}
         <View style={styles.wheel}>
           <FlatList
+            nestedScrollEnabled={true}
             ref={hourListRef}
             data={hours}
             keyExtractor={(item) => `hour-${item}`}
@@ -156,6 +157,7 @@ const AstralTimePicker: React.FC<AstralTimePickerProps> = ({
         {/* Минуты */}
         <View style={styles.wheel}>
           <FlatList
+            nestedScrollEnabled={true}
             ref={minuteListRef}
             data={minutes}
             keyExtractor={(item) => `minute-${item}`}

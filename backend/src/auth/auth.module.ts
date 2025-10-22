@@ -10,6 +10,8 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { ChartModule } from '../chart/chart.module';
 import { ServicesModule } from '../services/services.module';
+import { CacheModule } from '@nestjs/common/cache';
+import { redisStore } from 'cache-manager-redis-yet';
 
 @Module({
   imports: [

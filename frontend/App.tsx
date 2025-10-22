@@ -1,34 +1,76 @@
-// frontend/App.tsx
+// frontend/App.tsx - С правильным flow и биометрией
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Text as RNText } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as SplashScreen from 'expo-splash-screen';
 
-import LoginNewScreen from './src/screens/LoginNewScreen';
-import LoginScreen from './src/screens/swap/LoginScreen';
-import SignupScreen from './src/screens/swap/SignupScreen';
-import MainStackNavigator from './src/navigation/MainStackNavigator';
-import AnimatedStars from './src/components/AnimatedStars';
-import LoadingLogo from './src/components/LoadingLogo';
-import CosmicBackground from './src/components/CosmicBackground';
-import { QueryProvider } from './src/providers/QueryProvider';
-import { tokenService } from './src/services/tokenService';
-import { userAPI } from './src/services/api';
 import {
   useFonts,
   Montserrat_400Regular,
   Montserrat_500Medium,
   Montserrat_600SemiBold,
 } from '@expo-google-fonts/montserrat';
-import { Text as RNText } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+import SplashScreenComponent from './src/screens/SplashScreen';
+import MainStackNavigator from './src/navigation/MainStackNavigator';
+import { QueryProvider } from './src/providers/QueryProvider';
+import { useAuthStore } from './src/stores/auth.store';
+import { tokenService } from './src/services/tokenService';
+import { userAPI } from './src/services/api';
+
+// Prevent auto-hide splash
+SplashScreen.preventAutoHideAsync();
+
+import * as Linking from 'expo-linking';
+
+// Конфигурация deep linking
+const linking = {
+  prefixes: [
+    'astralink://', // для мобильных
+    'http://localhost:8081', // для web dev
+    'http://localhost:19006', // для web dev (альтернативный порт)
+    'https://yourdomain.com', // для production
+  ],
+  config: {
+    screens: {
+      // Onboarding
+      Onboarding1: 'onboarding/1',
+      Onboarding2: 'onboarding/2',
+      Onboarding3: 'onboarding/3',
+      Onboarding4: 'onboarding/4',
+
+      // Auth
+      SignUp: 'signup',
+      AuthEmail: 'auth/email',
+      MagicLinkWaiting: 'auth/waiting',
+      AuthCallback: 'auth/callback', // 👈 Важно!
+
+      // Main
+      MainTabs: {
+        path: '',
+        screens: {
+          Home: 'home',
+          Profile: 'profile',
+          // ... другие табы
+        },
+      },
+    },
+  },
+};
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showSignup, setShowSignup] = useState(false);
+  const {
+    isAuthenticated,
+    initializing,
+    onboardingCompleted,
+    initialize,
+    setUser,
+    logout,
+  } = useAuthStore();
+
+  const [appReady, setAppReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
@@ -50,110 +92,49 @@ export default function App() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    checkAuthStatus();
+    initializeApp();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const initializeApp = async () => {
     try {
+      // Инициализируем auth store (загружаем настройки)
+      await initialize();
+
+      // Проверяем токен и восстанавливаем сессию
       const token = await tokenService.getToken();
       if (token) {
         try {
-          // Дополнительно подтверждаем валидность токена запросом профиля
-          await userAPI.getProfile();
-          setIsAuthenticated(true);
-        } catch {
-          setIsAuthenticated(false);
+          // Подтверждаем валидность токена запросом профиля
+          const user = await userAPI.getProfile();
+          setUser(user);
+          console.log('✅ Session restored:', user.email);
+        } catch (error) {
+          console.log('❌ Token invalid, logging out');
+          logout();
         }
-      } else {
-        setIsAuthenticated(false);
       }
-    } catch (e) {
-      console.log('❌ Ошибка проверки авторизации:', e);
-      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('App initialization error:', error);
     } finally {
-      setIsLoading(false);
+      setAppReady(true);
+      // Hide splash screen
+      setTimeout(() => {
+        SplashScreen.hideAsync();
+      }, 500);
     }
   };
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleSignup = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setShowSignup(false);
-  };
-
-  if (!fontsLoaded) {
-    return (
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
-        style={styles.loadingContainer}
-      >
-        <StatusBar style="light" />
-        <LoadingLogo />
-      </LinearGradient>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
-        style={styles.loadingContainer}
-      >
-        <StatusBar style="light" />
-        <AnimatedStars />
-        <CosmicBackground />
-        <LoadingLogo />
-      </LinearGradient>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <QueryProvider>
-        <LinearGradient
-          colors={['#0F172A', '#1E293B', '#334155']}
-          style={styles.container}
-        >
-          <StatusBar style="light" />
-          <AnimatedStars />
-          <CosmicBackground />
-          {showSignup ? (
-            <SignupScreen
-              onSignup={handleSignup}
-              onSwitchToLogin={() => setShowSignup(false)}
-            />
-          ) : (
-            <LoginNewScreen
-              onLogin={handleLogin}
-              onSwitchToSignup={() => setShowSignup(true)}
-            />
-          )}
-        </LinearGradient>
-      </QueryProvider>
-    );
+  // Показываем splash пока загружаются шрифты или идет инициализация
+  if (!fontsLoaded || !appReady || initializing) {
+    return <SplashScreenComponent />;
   }
 
   return (
     <QueryProvider>
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
-        style={styles.container}
-      >
-        <StatusBar style="light" />
-        <AnimatedStars />
-        <CosmicBackground />
-        <NavigationContainer>
-          {/* Изменено: используем MainStackNavigator вместо TabNavigator */}
-          <MainStackNavigator />
-        </NavigationContainer>
-      </LinearGradient>
+      <StatusBar style="light" />
+      <NavigationContainer>
+        <MainStackNavigator />
+      </NavigationContainer>
     </QueryProvider>
   );
 }
@@ -161,10 +142,5 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

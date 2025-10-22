@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
   Switch,
+  SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import NatalChartWidget from '../components/NatalChartWidget';
 import { useAuth } from '../hooks/useAuth';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import { useAuthStore } from '../stores/auth.store';
 
 const { width, height } = Dimensions.get('window');
 
@@ -98,6 +100,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const buttonGlowAnim = useSharedValue(0);
   const buttonScaleAnim = useSharedValue(1);
 
+  const {
+    biometricAvailable,
+    biometricEnabled,
+    biometricType,
+    setBiometricEnabled,
+    logout,
+  } = useAuthStore();
+
   useEffect(() => {
     // Animations
     fadeAnim.value = withTiming(1, { duration: 800 });
@@ -154,21 +164,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      removeStoredToken();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    } catch (error) {
-      console.error('Ошибка при выходе:', error);
-      removeStoredToken();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    }
+  const handleLogout = () => {
+    Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
+      {
+        text: 'Отмена',
+        style: 'cancel',
+      },
+      {
+        text: 'Выйти',
+        style: 'destructive',
+        onPress: () => {
+          logout();
+          // Навигация произойдет автоматически
+        },
+      },
+    ]);
   };
 
   const handleDeleteAccount = async () => {
@@ -264,7 +274,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const themePrimary = elementTheme.colors[0];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <CosmicBackground />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -492,7 +502,42 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
         </Animated.View>
       </ScrollView>
-    </View>
+      {/* ДОБАВИТЬ: Секция безопасности */}
+      {biometricAvailable && (
+        <View style={styles.securitySection}>
+          <Text style={styles.sectionTitle}>Безопасность</Text>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <Ionicons
+                name="finger-print"
+                size={24}
+                color="rgba(255,255,255,0.7)"
+              />
+              <View style={styles.settingText}>
+                <Text style={styles.settingTitle}>Вход с {biometricType}</Text>
+                <Text style={styles.settingDescription}>
+                  Быстрый вход с биометрией
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={setBiometricEnabled}
+              trackColor={{ false: '#3A3A3C', true: 'rgba(139, 92, 246, 0.5)' }}
+              thumbColor={biometricEnabled ? '#8B5CF6' : '#f4f3f4'}
+              ios_backgroundColor="#3A3A3C"
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Кнопка выхода (обновите существующую или добавьте) */}
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={20} color="#fff" />
+        <Text style={styles.logoutText}>Выйти из аккаунта</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 };
 
@@ -646,12 +691,7 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 30,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 15,
-  },
+
   chartCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
@@ -774,6 +814,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 107, 107, 0.6)',
     marginTop: 2,
+  },
+  securitySection: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 16,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    borderRadius: 16,
+    height: 56,
+    marginHorizontal: 16,
+    marginTop: 24,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

@@ -6,7 +6,6 @@ import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
-import RegisterScreen from '../screens/RegisterScreen';
 import HoroscopeScreen from '../screens/HoroscopeScreen';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';

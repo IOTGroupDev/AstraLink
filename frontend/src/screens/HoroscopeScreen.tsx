@@ -72,7 +72,7 @@ const HoroscopeScreen: React.FC = () => {
           {/* Заголовок с размытием */}
           <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
             <View style={styles.headerIconContainer}>
-              <HoroscopeSvg width={60} height={60} />
+              <HoroscopeSvg size={60} />
             </View>
             <Text style={styles.headerTitle}>Гороскоп</Text>
             <Text style={styles.headerSubtitle}>Астрологический дашборд</Text>
@@ -118,9 +118,6 @@ const HoroscopeScreen: React.FC = () => {
             })}
           </View>
         </BlurView>
-
-        {/* Home Indicator */}
-        <View style={styles.homeIndicator} />
       </SafeAreaView>
     </View>
   );

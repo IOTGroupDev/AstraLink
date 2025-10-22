@@ -1,10 +1,15 @@
+// src/services/tokenService.ts - С SecureStore и биометрией
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Platform } from 'react-native';
 
 type TokenListener = (token: string | null) => void;
 
 class TokenService {
   private static instance: TokenService;
-  private static STORAGE_KEY = 'al_token';
+  private static SECURE_KEY = 'al_token_secure'; // Для SecureStore
+  private static SETTINGS_PREFIX = 'al_settings_'; // Для настроек
 
   private currentToken: string | null = null;
   private tokenPromise: Promise<string | null> | null = null;
@@ -43,12 +48,10 @@ class TokenService {
       const pad = base64.length % 4;
       if (pad) base64 += '='.repeat(4 - pad);
 
-      // Prefer global atob if available (RN polyfills usually provide it)
       // @ts-ignore
       if (typeof globalThis.atob === 'function') {
         // @ts-ignore
         const bin = globalThis.atob(base64);
-        // Convert binary string to UTF-8
         let utf8 = '';
         for (let i = 0; i < bin.length; i++) {
           const c = bin.charCodeAt(i);
@@ -57,8 +60,7 @@ class TokenService {
         return decodeURIComponent(utf8);
       }
 
-      // Fallback to Buffer if present (web/node)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // @ts-ignore
       const B: any = (globalThis as unknown as { Buffer?: any }).Buffer;
       if (B) {
         return B.from(base64, 'base64').toString('utf8');
@@ -93,6 +95,141 @@ class TokenService {
     }
   }
 
+  // ============ БИОМЕТРИЯ ============
+
+  async checkBiometricSupport(): Promise<{
+    available: boolean;
+    type: string | null;
+  }> {
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      if (!compatible) return { available: false, type: null };
+
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!enrolled) return { available: false, type: null };
+
+      const types =
+        await LocalAuthentication.supportedAuthenticationTypesAsync();
+      let biometricType = null;
+
+      if (
+        types.includes(
+          LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION
+        )
+      ) {
+        biometricType = Platform.OS === 'ios' ? 'Face ID' : 'Face Recognition';
+      } else if (
+        types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)
+      ) {
+        biometricType = Platform.OS === 'ios' ? 'Touch ID' : 'Fingerprint';
+      } else if (types.includes(LocalAuthentication.AuthenticationType.IRIS)) {
+        biometricType = 'Iris';
+      }
+
+      return { available: true, type: biometricType };
+    } catch (error) {
+      console.error('Biometric check error:', error);
+      return { available: false, type: null };
+    }
+  }
+
+  async authenticateWithBiometrics(): Promise<boolean> {
+    try {
+      const { available, type } = await this.checkBiometricSupport();
+
+      if (!available) {
+        return false;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: `Войти с помощью ${type || 'биометрии'}`,
+        fallbackLabel: 'Использовать пароль',
+        cancelLabel: 'Отмена',
+        disableDeviceFallback: false,
+      });
+
+      return result.success;
+    } catch (error) {
+      console.error('Biometric authentication error:', error);
+      return false;
+    }
+  }
+
+  // ============ НАСТРОЙКИ ============
+
+  async getBiometricEnabled(): Promise<boolean> {
+    try {
+      const value = await AsyncStorage.getItem(
+        TokenService.SETTINGS_PREFIX + 'biometric_enabled'
+      );
+      return value === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  async setBiometricEnabled(enabled: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        TokenService.SETTINGS_PREFIX + 'biometric_enabled',
+        enabled.toString()
+      );
+    } catch (error) {
+      console.error('Error setting biometric enabled:', error);
+    }
+  }
+
+  async getRememberMe(): Promise<boolean> {
+    try {
+      const value = await AsyncStorage.getItem(
+        TokenService.SETTINGS_PREFIX + 'remember_me'
+      );
+      return value !== 'false'; // По умолчанию true
+    } catch {
+      return true;
+    }
+  }
+
+  async setRememberMe(remember: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        TokenService.SETTINGS_PREFIX + 'remember_me',
+        remember.toString()
+      );
+
+      // Если отключили, удаляем токен
+      if (!remember) {
+        await this.clearToken();
+      }
+    } catch (error) {
+      console.error('Error setting remember me:', error);
+    }
+  }
+
+  async getOnboardingCompleted(): Promise<boolean> {
+    try {
+      const value = await AsyncStorage.getItem(
+        TokenService.SETTINGS_PREFIX + 'onboarding_completed'
+      );
+      return value === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  async setOnboardingCompleted(completed: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        TokenService.SETTINGS_PREFIX + 'onboarding_completed',
+        completed.toString()
+      );
+    } catch (error) {
+      console.error('Error setting onboarding completed:', error);
+    }
+  }
+
+  // ============ ТОКЕНЫ (SecureStore) ============
+
   async getToken(): Promise<string | null> {
     // If we have a token in memory, validate freshness
     if (this.currentToken) {
@@ -119,12 +256,31 @@ class TokenService {
     this.currentToken = token;
     try {
       if (token) {
-        await AsyncStorage.setItem(TokenService.STORAGE_KEY, token);
+        // Проверяем rememberMe перед сохранением
+        const rememberMe = await this.getRememberMe();
+        if (rememberMe) {
+          // Используем SecureStore для безопасного хранения
+          if (Platform.OS !== 'web') {
+            await SecureStore.setItemAsync(TokenService.SECURE_KEY, token);
+          } else {
+            // Fallback для web
+            await AsyncStorage.setItem(TokenService.SECURE_KEY, token);
+          }
+          console.log('🔐 Token saved to SecureStore');
+        } else {
+          console.log('⚠️ RememberMe is false, token not saved');
+        }
       } else {
-        await AsyncStorage.removeItem(TokenService.STORAGE_KEY);
+        // Удаляем токен из обоих хранилищ
+        if (Platform.OS !== 'web') {
+          await SecureStore.deleteItemAsync(TokenService.SECURE_KEY);
+        } else {
+          await AsyncStorage.removeItem(TokenService.SECURE_KEY);
+        }
+        console.log('🗑️ Token removed from SecureStore');
       }
-    } catch {
-      // ignore storage errors
+    } catch (error) {
+      console.error('Error saving token:', error);
     } finally {
       this.notify(token);
     }
@@ -132,7 +288,14 @@ class TokenService {
 
   private async fetchToken(): Promise<string | null> {
     try {
-      const token = await AsyncStorage.getItem(TokenService.STORAGE_KEY);
+      let token: string | null = null;
+
+      // Читаем из SecureStore (или AsyncStorage на web)
+      if (Platform.OS !== 'web') {
+        token = await SecureStore.getItemAsync(TokenService.SECURE_KEY);
+      } else {
+        token = await AsyncStorage.getItem(TokenService.SECURE_KEY);
+      }
 
       if (!token) {
         this.currentToken = null;
@@ -144,13 +307,20 @@ class TokenService {
         console.log('⚠️ Найден просроченный токен в хранилище, удаляю');
         this.currentToken = null;
         // fire-and-forget
-        AsyncStorage.removeItem(TokenService.STORAGE_KEY).catch(() => {});
+        if (Platform.OS !== 'web') {
+          SecureStore.deleteItemAsync(TokenService.SECURE_KEY).catch(() => {});
+        } else {
+          AsyncStorage.removeItem(TokenService.SECURE_KEY).catch(() => {});
+        }
         this.notify(null);
         return null;
       }
 
       this.currentToken = token;
-      console.log('🔐 Токен получен:', token.substring(0, 20) + '...');
+      console.log(
+        '🔓 Токен получен из SecureStore:',
+        token.substring(0, 20) + '...'
+      );
       return token;
     } catch (error) {
       console.log('❌ Ошибка при получении токена из хранилища:', error);
@@ -162,7 +332,11 @@ class TokenService {
     this.currentToken = null;
     this.tokenPromise = null;
     // fire-and-forget
-    AsyncStorage.removeItem(TokenService.STORAGE_KEY).catch(() => {});
+    if (Platform.OS !== 'web') {
+      SecureStore.deleteItemAsync(TokenService.SECURE_KEY).catch(() => {});
+    } else {
+      AsyncStorage.removeItem(TokenService.SECURE_KEY).catch(() => {});
+    }
     this.notify(null);
   }
 

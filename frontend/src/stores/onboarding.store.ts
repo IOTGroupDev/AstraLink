@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface OnboardingData {
+  name?: string;
   birthDate?: {
     day: number;
     month: number;
@@ -24,6 +25,7 @@ export interface OnboardingData {
 
 interface OnboardingStore {
   data: OnboardingData;
+  setName: (name: string) => void;
   setBirthDate: (date: { day: number; month: number; year: number }) => void;
   setBirthTime: (time: { hour: number; minute: number }) => void;
   setBirthPlace: (place: {
@@ -44,6 +46,10 @@ export const useOnboardingStore = create<OnboardingStore>()(
   persist(
     (set) => ({
       data: initialState,
+      setName: (name) =>
+        set((state) => ({
+          data: { ...state.data, name },
+        })),
       setBirthDate: (date) =>
         set((state) => ({
           data: { ...state.data, birthDate: date },
@@ -72,6 +78,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
 // Selectors
 export const useOnboardingData = () =>
   useOnboardingStore((state) => state.data);
+export const useName = () => useOnboardingStore((state) => state.data.name);
 export const useBirthDate = () =>
   useOnboardingStore((state) => state.data.birthDate);
 export const useBirthTime = () =>

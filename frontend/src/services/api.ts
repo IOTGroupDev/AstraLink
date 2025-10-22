@@ -14,6 +14,11 @@ import {
   LunarDay,
   MoonPhase,
 } from '../types';
+import * as WebBrowser from 'expo-web-browser';
+import { supabase } from './supabase';
+import { Platform } from 'react-native';
+
+WebBrowser.maybeCompleteAuthSession();
 
 // Определяем базовый URL в зависимости от платформы
 const getApiBaseUrl = () => {
@@ -217,6 +222,323 @@ export const authAPI = {
         error.message = 'Ошибка сети. Проверьте подключение к серверу';
       }
 
+      throw error;
+    }
+  },
+
+  /**
+   * Отправка OTP кода через Supabase
+   */
+  sendVerificationCode: async (
+    email: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    try {
+      console.log('📧 Отправка Magic Link через Supabase на:', email);
+
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true, // Создаем пользователя если не существует
+          // ⚠️ ВАЖНО: Замените 'myapp' на вашу схему приложения из app.json
+          emailRedirectTo: Platform.select({
+            ios: 'astralink://auth/callback',
+            android: 'astralink://auth/callback',
+            web: `${window.location.origin}/auth/callback`,
+            default: 'astralink://auth/callback',
+          }),
+        },
+      });
+
+      if (error) {
+        console.error('❌ Ошибка отправки Magic Link:', error);
+        throw error;
+      }
+
+      console.log('✅ Magic Link отправлен');
+
+      return {
+        success: true,
+        message: 'Ссылка отправлена на email',
+      };
+    } catch (error: any) {
+      console.error('❌ Ошибка отправки ссылки:', error);
+
+      if (error.message?.includes('rate limit')) {
+        error.message = 'Слишком много попыток. Подождите минуту';
+      } else if (error.message?.includes('Invalid email')) {
+        error.message = 'Некорректный email';
+      } else {
+        error.message = error.message || 'Не удалось отправить ссылку';
+      }
+
+      throw error;
+    }
+  },
+
+  /**
+   * Проверка OTP кода через Supabase
+   */
+  verifyCode: async (
+    email: string,
+    code: string
+  ): Promise<{
+    success: boolean;
+    valid: boolean;
+    message: string;
+  }> => {
+    try {
+      console.log('🔍 Проверка OTP кода для:', email);
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email',
+      });
+
+      if (error) {
+        console.error('❌ Ошибка проверки OTP:', error);
+        throw error;
+      }
+
+      if (!data.session) {
+        throw new Error('Не удалось создать сессию');
+      }
+
+      console.log('✅ OTP код подтвержден, сессия создана');
+
+      // Сохраняем токен
+      await tokenService.setToken(data.session.access_token);
+
+      return {
+        success: true,
+        valid: true,
+        message: 'Email подтвержден',
+      };
+    } catch (error: any) {
+      console.error('❌ Ошибка проверки кода:', error);
+
+      if (error.message?.includes('expired')) {
+        error.message = 'Код истек. Запросите новый код';
+      } else if (error.message?.includes('invalid')) {
+        error.message = 'Неверный код';
+      } else {
+        error.message = error.message || 'Ошибка проверки кода';
+      }
+
+      throw error;
+    }
+  },
+
+  /**
+   * Завершение регистрации с уже подтвержденным email
+   */
+  completeSignup: async (data: {
+    userId: string;
+    name: string;
+    birthDate: string;
+    birthTime: string;
+    birthPlace: string;
+  }): Promise<AuthResponse> => {
+    try {
+      console.log('📝 Завершение регистрации');
+
+      // Отправляем дополнительные данные на backend
+      const response = await api.post('/auth/complete-signup', {
+        userId: data.userId,
+        name: data.name,
+        birthDate: data.birthDate,
+        birthTime: data.birthTime,
+        birthPlace: data.birthPlace,
+      });
+
+      console.log('✅ Регистрация завершена');
+
+      return {
+        access_token: response.data.access_token || '',
+        user: response.data.user,
+      };
+    } catch (error: any) {
+      console.error('❌ Ошибка завершения регистрации:', error);
+
+      if (error.response?.data?.message) {
+        error.message = error.response.data.message;
+      } else if (error.code === 'ERR_NETWORK') {
+        error.message = 'Ошибка сети. Проверьте подключение';
+      }
+
+      throw error;
+    }
+  },
+
+  googleSignIn: async (): Promise<AuthResponse> => {
+    try {
+      console.log('🔐 Начинаем Google OAuth');
+
+      const rememberMe = await tokenService.getRememberMe();
+      if (!rememberMe) {
+        console.log('⚠️ RememberMe отключен, включаем временно для OAuth');
+        await tokenService.setRememberMe(true);
+      }
+
+      // ⚠️ ВАЖНО: Замените 'myapp' на вашу схему приложения
+      const redirectUrl = Platform.select({
+        ios: 'myapp://auth/callback',
+        android: 'myapp://auth/callback',
+        web: `${window.location.origin}/auth/callback`,
+        default: 'myapp://auth/callback',
+      });
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) {
+        console.error('❌ Ошибка OAuth:', error);
+        throw error;
+      }
+
+      if (!data.url) {
+        throw new Error('Не получен URL для авторизации');
+      }
+
+      console.log('🌐 Открываем OAuth URL');
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectUrl
+      );
+
+      if (result.type !== 'success') {
+        throw new Error('Авторизация отменена');
+      }
+
+      console.log('✅ OAuth успешно завершен, получаем сессию');
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError || !sessionData.session) {
+        console.error('❌ Ошибка получения сессии:', sessionError);
+        throw new Error('Не удалось получить сессию после авторизации');
+      }
+
+      const { access_token, user } = sessionData.session;
+
+      if (!user) {
+        throw new Error('Пользователь не найден в сессии');
+      }
+
+      console.log('👤 Пользователь:', user.email);
+
+      await tokenService.setToken(access_token);
+      console.log('✅ Токен сохранен в SecureStore');
+
+      try {
+        console.log('🔄 Синхронизация профиля с backend');
+
+        const response = await api.post('/auth/google-callback', {
+          access_token,
+          user: {
+            id: user.id,
+            email: user.email,
+            name:
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              user.email?.split('@')[0],
+          },
+        });
+
+        console.log('✅ Профиль синхронизирован с backend');
+
+        return {
+          access_token,
+          user: response.data.user,
+        };
+      } catch (backendError: any) {
+        console.warn(
+          '⚠️ Backend недоступен, используем данные от Supabase:',
+          backendError.message
+        );
+
+        return {
+          access_token,
+          user: {
+            id: user.id,
+            email: user.email || '',
+            name:
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              'Пользователь',
+            role: 'user',
+          },
+        };
+      }
+    } catch (error: any) {
+      console.error('❌ Google OAuth failed:', error);
+
+      tokenService.clearToken();
+
+      if (
+        error.message?.includes('отменена') ||
+        error.message?.includes('cancel')
+      ) {
+        error.message = 'Авторизация отменена пользователем';
+      } else if (
+        error.message?.includes('network') ||
+        error.code === 'ERR_NETWORK'
+      ) {
+        error.message = 'Ошибка сети. Проверьте подключение к интернету';
+      } else if (!error.message) {
+        error.message = 'Ошибка авторизации через Google';
+      }
+
+      throw error;
+    }
+  },
+
+  // Apple OAuth с биометрией (если включена)
+  appleSignIn: async (): Promise<AuthResponse> => {
+    try {
+      console.log('🍎 Apple OAuth - в разработке');
+
+      // TODO: Реализовать Apple OAuth аналогично Google
+      // Можно добавить биометрическую проверку перед OAuth:
+      // const biometricEnabled = await tokenService.getBiometricEnabled();
+      // if (biometricEnabled) {
+      //   const authenticated = await tokenService.authenticateWithBiometrics();
+      //   if (!authenticated) {
+      //     throw new Error('Биометрическая аутентификация не пройдена');
+      //   }
+      // }
+
+      throw new Error('Apple Sign In пока не реализован');
+    } catch (error: any) {
+      console.error('❌ Apple OAuth failed:', error);
+      throw error;
+    }
+  },
+
+  // VK OAuth
+  vkSignIn: async (): Promise<AuthResponse> => {
+    try {
+      console.log('🔵 VK OAuth - в разработке');
+
+      // TODO: Реализовать VK OAuth
+      // VK не поддерживается напрямую в Supabase
+      // Нужна кастомная реализация через VK API
+
+      throw new Error('VK Sign In пока не реализован');
+    } catch (error: any) {
+      console.error('❌ VK OAuth failed:', error);
       throw error;
     }
   },

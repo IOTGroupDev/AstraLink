@@ -109,7 +109,7 @@ const OnboardingLaunchScreen: React.FC<OnboardingLaunchScreenProps> = ({
       {/* Кнопка "Пропустить" */}
       <TouchableOpacity
         style={styles.skipButton}
-        onPress={() => navigation.navigate('MainTabs')}
+        // onPress={() => navigation.navigate('MainTabs')}
       >
         <Text style={styles.skipText}>Пропустить</Text>
         <Ionicons name="arrow-forward" size={16} color="#8B5CF6" />

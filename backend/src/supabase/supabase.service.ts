@@ -1,3 +1,228 @@
+// import { Injectable, OnModuleInit } from '@nestjs/common';
+// import { createClient, SupabaseClient } from '@supabase/supabase-js';
+//
+// @Injectable()
+// export class SupabaseService implements OnModuleInit {
+//   private supabase!: SupabaseClient;
+//   private adminSupabase: SupabaseClient | null = null;
+//
+//   onModuleInit() {
+//     const supabaseUrl = process.env.SUPABASE_URL;
+//     const supabaseKey = process.env.SUPABASE_ANON_KEY;
+//
+//     if (!supabaseUrl || !supabaseKey) {
+//       throw new Error('Supabase URL and Anon Key are required');
+//     }
+//
+//     this.supabase = createClient(supabaseUrl, supabaseKey);
+//     console.log('✅ Supabase client initialized');
+//
+//     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+//     if (serviceRoleKey) {
+//       this.adminSupabase = createClient(supabaseUrl, serviceRoleKey);
+//       console.log('✅ Supabase admin client initialized');
+//     } else {
+//       console.warn(
+//         '⚠️ SUPABASE_SERVICE_ROLE_KEY not set. Admin operations will be unavailable and RLS may cause 404.',
+//       );
+//     }
+//   }
+//
+//   getClient(): SupabaseClient {
+//     return this.supabase;
+//   }
+//
+//   // Optional: get admin client or throw helpful error
+//   getAdminClient(): SupabaseClient {
+//     if (!this.adminSupabase) {
+//       throw new Error(
+//         'SUPABASE_SERVICE_ROLE_KEY is required for admin operations',
+//       );
+//     }
+//     return this.adminSupabase;
+//   }
+//
+//   // Database methods
+//   from(table: string) {
+//     return this.supabase.from(table);
+//   }
+//
+//   // Admin database access (bypasses RLS using service role)
+//   fromAdmin(table: string) {
+//     return this.getAdminClient().from(table);
+//   }
+//
+//   // Auth methods
+//   async signUp(email: string, password: string, userData?: any) {
+//     const { data, error } = await this.supabase.auth.signUp({
+//       email,
+//       password,
+//       options: {
+//         data: userData,
+//       },
+//     });
+//     return { data, error };
+//   }
+//
+//   async createUser(email: string, password?: string, userData?: any) {
+//     const admin = this.getAdminClient();
+//     const { data, error } = await admin.auth.admin.createUser({
+//       email,
+//       // password,
+//       email_confirm: true,
+//       user_metadata: userData,
+//     });
+//     return { data, error };
+//   }
+//
+//   async signIn(email: string, password: string) {
+//     const { data, error } = await this.supabase.auth.signInWithPassword({
+//       email,
+//       password,
+//     });
+//     return { data, error };
+//   }
+//
+//   async signOut() {
+//     const { error } = await this.supabase.auth.signOut();
+//     return { error };
+//   }
+//
+//   async getUser(token: string) {
+//     const { data, error } = await this.supabase.auth.getUser(token);
+//     return { data, error };
+//   }
+//
+//   // Secure user data methods (anon client, RLS applies)
+//   async getUserProfile(userId: string) {
+//     const { data, error } = await this.supabase
+//       .from('users')
+//       .select('*')
+//       .eq('id', userId)
+//       .single();
+//     return { data, error };
+//   }
+//
+//   async updateUserProfile(userId: string, profileData: any) {
+//     const { data, error } = await this.supabase
+//       .from('users')
+//       .update(profileData)
+//       .eq('id', userId)
+//       .select()
+//       .single();
+//     return { data, error };
+//   }
+//
+//   async createUserChart(userId: string, chartData: any) {
+//     const { data, error } = await this.supabase
+//       .from('charts')
+//       .insert({
+//         user_id: userId,
+//         data: chartData,
+//       })
+//       .select()
+//       .single();
+//     return { data, error };
+//   }
+//
+//   async getUserCharts(userId: string) {
+//     const { data, error } = await this.supabase
+//       .from('charts')
+//       .select('*')
+//       .eq('user_id', userId)
+//       .order('created_at', { ascending: false });
+//     return { data, error };
+//   }
+//
+//   // Admin helpers (service role; ignores RLS)
+//   async getUserProfileAdmin(userId: string) {
+//     const { data, error } = await this.getAdminClient()
+//       .from('users')
+//       .select(
+//         'id, email, name, birth_date, birth_time, birth_place, created_at, updated_at',
+//       )
+//       .eq('id', userId)
+//       .single();
+//     return { data, error };
+//   }
+//
+//   async updateUserProfileAdmin(userId: string, profileData: any) {
+//     const { data, error } = await this.getAdminClient()
+//       .from('users')
+//       .update(profileData)
+//       .eq('id', userId)
+//       .select()
+//       .single();
+//     return { data, error };
+//   }
+//
+//   async createUserChartAdmin(userId: string, chartData: any) {
+//     const { data, error } = await this.getAdminClient()
+//       .from('charts')
+//       .insert({
+//         user_id: userId,
+//         data: chartData,
+//       })
+//       .select()
+//       .single();
+//     return { data, error };
+//   }
+//
+//   async getUserChartsAdmin(userId: string) {
+//     const { data, error } = await this.getAdminClient()
+//       .from('charts')
+//       .select('*')
+//       .eq('user_id', userId)
+//       .order('created_at', { ascending: false });
+//     return { data, error };
+//   }
+//
+//   // Real-time subscriptions
+//   subscribe(table: string, callback: (payload: any) => void) {
+//     return this.supabase
+//       .channel(`${table}_changes`)
+//       .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
+//       .subscribe();
+//   }
+//
+//   // async deleteUser(userId: string) {
+//   //   return await this.getAdminClient().auth.admin.deleteUser(userId);
+//   // }
+//
+//   /**
+//    * 🗑️ Удаление пользователя из Supabase Auth
+//    * Требует admin права (service_role_key)
+//    */
+//   async deleteUser(userId: string) {
+//     if (!this.adminSupabase) {
+//       console.error('❌ Admin client not initialized');
+//       return {
+//         error: new Error(
+//           'SUPABASE_SERVICE_ROLE_KEY is required to delete users',
+//         ),
+//       };
+//     }
+//
+//     try {
+//       console.log(`🗑️ Удаление пользователя ${userId} из Supabase Auth...`);
+//
+//       const { data, error } =
+//         await this.adminSupabase.auth.admin.deleteUser(userId);
+//
+//       if (error) {
+//         console.error('❌ Ошибка удаления пользователя из Auth:', error);
+//         return { error };
+//       }
+//
+//       console.log('✅ Пользователь успешно удален из Supabase Auth');
+//       return { data, error: null };
+//     } catch (error) {
+//       console.error('❌ Критическая ошибка при удалении пользователя:', error);
+//       return { error };
+//     }
+//   }
+// }
+
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -28,11 +253,12 @@ export class SupabaseService implements OnModuleInit {
     }
   }
 
+  // ==================== Client Getters ====================
+
   getClient(): SupabaseClient {
     return this.supabase;
   }
 
-  // Optional: get admin client or throw helpful error
   getAdminClient(): SupabaseClient {
     if (!this.adminSupabase) {
       throw new Error(
@@ -42,152 +268,123 @@ export class SupabaseService implements OnModuleInit {
     return this.adminSupabase;
   }
 
-  // Database methods
+  // ==================== Database Methods ====================
+
+  /**
+   * Обычный доступ к таблице (с учетом RLS)
+   */
   from(table: string) {
     return this.supabase.from(table);
   }
 
-  // Admin database access (bypasses RLS using service role)
+  /**
+   * Админский доступ к таблице (обходит RLS)
+   */
   fromAdmin(table: string) {
     return this.getAdminClient().from(table);
   }
 
-  // Auth methods
-  async signUp(email: string, password: string, userData?: any) {
-    const { data, error } = await this.supabase.auth.signUp({
+  // ==================== Passwordless Auth Methods ====================
+
+  /**
+   * 🔗 Отправка Magic Link на email
+   * Пользователь получит письмо со ссылкой для входа
+   */
+  async signInWithOTP(email: string) {
+    const { data, error } = await this.supabase.auth.signInWithOtp({
       email,
-      password,
       options: {
-        data: userData,
+        // emailRedirectTo: `${process.env.FRONTEND_URL}/auth/callback`,
       },
     });
     return { data, error };
   }
 
-  async createUser(email: string, password: string, userData?: any) {
+  /**
+   * ✅ Верификация OTP токена
+   * Используется после клика по magic link
+   */
+  async verifyOTP(token: string, type: 'email' | 'magiclink' = 'magiclink') {
+    const { data, error } = await this.supabase.auth.verifyOtp({
+      token_hash: token,
+      type,
+    });
+    return { data, error };
+  }
+
+  /**
+   * 📧 Отправка verification email
+   * Отправляет письмо для подтверждения email при регистрации
+   */
+  async sendVerificationEmail(email: string) {
+    // Supabase автоматически отправляет verification email при создании пользователя
+    // Этот метод можно использовать для повторной отправки
+    const { data, error } = await this.supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    return { data, error };
+  }
+
+  /**
+   * 🆕 Создание пользователя БЕЗ пароля через Admin API
+   * Email будет автоматически подтвержден
+   */
+  async createUserWithoutPassword(
+    email: string,
+    userData?: Record<string, any>,
+  ) {
     const admin = this.getAdminClient();
+
     const { data, error } = await admin.auth.admin.createUser({
       email,
-      password,
-      email_confirm: true,
-      user_metadata: userData,
+      email_confirm: true, // Автоматически подтверждаем email
+      user_metadata: userData || {},
     });
+
     return { data, error };
   }
 
-  async signIn(email: string, password: string) {
-    const { data, error } = await this.supabase.auth.signInWithPassword({
+  /**
+   * 🔐 Создание пользователя С паролем через Admin API
+   * (Оставлено для совместимости, если понадобится)
+   */
+  async createUser(
+    email: string,
+    password?: string,
+    userData?: Record<string, any>,
+  ) {
+    const admin = this.getAdminClient();
+
+    const createPayload: any = {
       email,
-      password,
-    });
+      email_confirm: true,
+      user_metadata: userData || {},
+    };
+
+    if (password) {
+      createPayload.password = password;
+    }
+
+    const { data, error } = await admin.auth.admin.createUser(createPayload);
     return { data, error };
   }
 
+  /**
+   * 🚪 Выход из системы
+   */
   async signOut() {
     const { error } = await this.supabase.auth.signOut();
     return { error };
   }
 
+  /**
+   * 👤 Получить данные пользователя по токену
+   */
   async getUser(token: string) {
     const { data, error } = await this.supabase.auth.getUser(token);
     return { data, error };
   }
-
-  // Secure user data methods (anon client, RLS applies)
-  async getUserProfile(userId: string) {
-    const { data, error } = await this.supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    return { data, error };
-  }
-
-  async updateUserProfile(userId: string, profileData: any) {
-    const { data, error } = await this.supabase
-      .from('users')
-      .update(profileData)
-      .eq('id', userId)
-      .select()
-      .single();
-    return { data, error };
-  }
-
-  async createUserChart(userId: string, chartData: any) {
-    const { data, error } = await this.supabase
-      .from('charts')
-      .insert({
-        user_id: userId,
-        data: chartData,
-      })
-      .select()
-      .single();
-    return { data, error };
-  }
-
-  async getUserCharts(userId: string) {
-    const { data, error } = await this.supabase
-      .from('charts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  }
-
-  // Admin helpers (service role; ignores RLS)
-  async getUserProfileAdmin(userId: string) {
-    const { data, error } = await this.getAdminClient()
-      .from('users')
-      .select(
-        'id, email, name, birth_date, birth_time, birth_place, created_at, updated_at',
-      )
-      .eq('id', userId)
-      .single();
-    return { data, error };
-  }
-
-  async updateUserProfileAdmin(userId: string, profileData: any) {
-    const { data, error } = await this.getAdminClient()
-      .from('users')
-      .update(profileData)
-      .eq('id', userId)
-      .select()
-      .single();
-    return { data, error };
-  }
-
-  async createUserChartAdmin(userId: string, chartData: any) {
-    const { data, error } = await this.getAdminClient()
-      .from('charts')
-      .insert({
-        user_id: userId,
-        data: chartData,
-      })
-      .select()
-      .single();
-    return { data, error };
-  }
-
-  async getUserChartsAdmin(userId: string) {
-    const { data, error } = await this.getAdminClient()
-      .from('charts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  }
-
-  // Real-time subscriptions
-  subscribe(table: string, callback: (payload: any) => void) {
-    return this.supabase
-      .channel(`${table}_changes`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
-      .subscribe();
-  }
-
-  // async deleteUser(userId: string) {
-  //   return await this.getAdminClient().auth.admin.deleteUser(userId);
-  // }
 
   /**
    * 🗑️ Удаление пользователя из Supabase Auth
@@ -220,5 +417,187 @@ export class SupabaseService implements OnModuleInit {
       console.error('❌ Критическая ошибка при удалении пользователя:', error);
       return { error };
     }
+  }
+
+  // ==================== User Profile Methods (RLS) ====================
+
+  /**
+   * Получить профиль пользователя (с учетом RLS)
+   */
+  async getUserProfile(userId: string) {
+    const { data, error } = await this.supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    return { data, error };
+  }
+
+  /**
+   * Обновить профиль пользователя (с учетом RLS)
+   */
+  async updateUserProfile(userId: string, profileData: any) {
+    const { data, error } = await this.supabase
+      .from('users')
+      .update({
+        ...profileData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  // ==================== User Profile Methods (Admin) ====================
+
+  /**
+   * Получить профиль пользователя через админа (обходит RLS)
+   */
+  async getUserProfileAdmin(userId: string) {
+    const { data, error } = await this.getAdminClient()
+      .from('users')
+      .select(
+        'id, email, name, birth_date, birth_time, birth_place, created_at, updated_at',
+      )
+      .eq('id', userId)
+      .single();
+    return { data, error };
+  }
+
+  /**
+   * Обновить профиль пользователя через админа (обходит RLS)
+   */
+  async updateUserProfileAdmin(userId: string, profileData: any) {
+    const { data, error } = await this.getAdminClient()
+      .from('users')
+      .update({
+        ...profileData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  // ==================== Chart Methods (RLS) ====================
+
+  /**
+   * Создать натальную карту (с учетом RLS)
+   */
+  async createUserChart(userId: string, chartData: any) {
+    const { data, error } = await this.supabase
+      .from('charts')
+      .insert({
+        user_id: userId,
+        data: chartData,
+      })
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  /**
+   * Получить карты пользователя (с учетом RLS)
+   */
+  async getUserCharts(userId: string) {
+    const { data, error } = await this.supabase
+      .from('charts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  }
+
+  // ==================== Chart Methods (Admin) ====================
+
+  /**
+   * Создать натальную карту через админа (обходит RLS)
+   */
+  async createUserChartAdmin(userId: string, chartData: any) {
+    const { data, error } = await this.getAdminClient()
+      .from('charts')
+      .insert({
+        user_id: userId,
+        data: chartData,
+      })
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  /**
+   * Получить карты пользователя через админа (обходит RLS)
+   */
+  async getUserChartsAdmin(userId: string) {
+    const { data, error } = await this.getAdminClient()
+      .from('charts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  }
+
+  // ==================== Real-time Subscriptions ====================
+
+  /**
+   * Подписаться на изменения в таблице
+   */
+  subscribe(table: string, callback: (payload: any) => void) {
+    return this.supabase
+      .channel(`${table}_changes`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
+      .subscribe();
+  }
+
+  // ==================== Subscription Methods ====================
+
+  /**
+   * Получить подписку пользователя
+   */
+  async getUserSubscription(userId: string) {
+    const { data, error } = await this.getAdminClient()
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    return { data, error };
+  }
+
+  /**
+   * Создать подписку
+   */
+  async createSubscription(subscriptionData: {
+    user_id: string;
+    tier: string;
+    trial_ends_at?: string;
+  }) {
+    const { data, error } = await this.getAdminClient()
+      .from('subscriptions')
+      .insert({
+        ...subscriptionData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  /**
+   * Обновить подписку
+   */
+  async updateSubscription(userId: string, subscriptionData: any) {
+    const { data, error } = await this.getAdminClient()
+      .from('subscriptions')
+      .update({
+        ...subscriptionData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+    return { data, error };
   }
 }
