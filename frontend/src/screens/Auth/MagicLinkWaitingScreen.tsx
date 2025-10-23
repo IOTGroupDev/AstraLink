@@ -542,6 +542,7 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  TextInput,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as AuthSession from 'expo-auth-session';
@@ -552,6 +553,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import CosmicBackground from '../../components/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { tokenService } from '../../services/tokenService';
+import { authAPI } from '../../services/api';
 
 type RouteParams = { email?: string };
 
@@ -592,6 +594,8 @@ export default function MagicLinkWaitingScreen() {
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   // Слушаем изменение auth-состояния + BroadcastChannel для web
   useEffect(() => {
@@ -743,25 +747,54 @@ export default function MagicLinkWaitingScreen() {
     try {
       setResending(true);
 
-      const emailRedirectTo = getRedirectUri();
-      console.log('🔗 Resend redirect URI:', emailRedirectTo);
-
+      // Для OTP emailRedirectTo не требуется
       const { error: resendError } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo,
         },
       });
 
       if (resendError) throw resendError;
 
-      console.log('✅ Magic link отправлен повторно');
+      console.log('✅ OTP повторно отправлен');
     } catch (e: any) {
       console.error('❌ Ошибка повторной отправки:', e);
       setError(e?.message ?? 'Не удалось отправить повторно');
     } finally {
       setResending(false);
+    }
+  };
+
+  const onVerifyCode = async () => {
+    try {
+      setError(null);
+      if (!email) {
+        setError('Email не указан');
+        return;
+      }
+      if (!code || code.trim().length < 6) {
+        setError('Введите 6-значный код из письма');
+        return;
+      }
+      setVerifying(true);
+
+      // Проверяем OTP код — создаст session при успехе
+      await authAPI.verifyCode(email, code.trim());
+
+      // Переходим на экран загрузки данных
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'UserDataLoader' }],
+      });
+    } catch (e: any) {
+      console.error('❌ Ошибка подтверждения кода:', e);
+      const msg =
+        e?.message ||
+        'Не удалось подтвердить код. Убедитесь, что вы ввели его правильно';
+      setError(msg);
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -837,6 +870,34 @@ export default function MagicLinkWaitingScreen() {
             {error}
           </Animated.Text>
         )}
+
+        {/* Ввод 6-значного кода из письма */}
+        <Animated.View
+          entering={FadeInDown.duration(600).delay(550)}
+          style={styles.codeContainer}
+        >
+          <TextInput
+            value={code}
+            onChangeText={(t) => setCode(t.replace(/\\D/g, '').slice(0, 6))}
+            placeholder="Введите 6-значный код"
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            keyboardType="number-pad"
+            maxLength={6}
+            style={styles.codeInput}
+          />
+          <TouchableOpacity
+            onPress={onVerifyCode}
+            style={[styles.primaryButton, { marginTop: 12 }]}
+            disabled={verifying}
+            activeOpacity={0.8}
+          >
+            {verifying ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Подтвердить код</Text>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
 
         {/* Кнопки действий */}
         <Animated.View
@@ -967,6 +1028,25 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     width: '100%',
     gap: 12,
+  },
+  codeContainer: {
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  codeInput: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderRadius: 12,
+    color: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 18,
+    letterSpacing: 4,
+    textAlign: 'center',
   },
   primaryButton: {
     width: '100%',

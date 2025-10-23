@@ -22,12 +22,6 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated';
-import {
-  userAPI,
-  subscriptionAPI,
-  chartAPI,
-  removeStoredToken,
-} from '../services/api';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
 import ShimmerLoader from '../components/ShimmerLoader';
 import CosmicBackground from '../components/CosmicBackground';
@@ -37,6 +31,8 @@ import NatalChartWidget from '../components/NatalChartWidget';
 import { useAuth } from '../hooks/useAuth';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 import { useAuthStore } from '../stores/auth.store';
+import { userAPI, chartAPI } from '../services/api';
+import { tokenService } from '../services/tokenService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -140,7 +136,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       const [profileData, subscriptionData, chartData] = await Promise.all([
         userAPI.getProfile(),
-        subscriptionAPI.getStatus(),
+        userAPI.getSubscription(),
         chartAPI.getNatalChart().catch(() => null),
       ]);
 
@@ -193,7 +189,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {
             text: 'OK',
             onPress: () => {
-              removeStoredToken();
+              tokenService.clearToken();
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Login' }],
@@ -485,9 +481,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               visible={showDeleteModal}
               onClose={() => setShowDeleteModal(false)}
               onConfirm={handleDeleteAccount}
-              userName={
-                profile.name || authUser?.user_metadata?.name || 'Пользователь'
-              }
+              userName={profile.name || authUser?.name || 'Пользователь'}
             />
           </View>
 

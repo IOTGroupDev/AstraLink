@@ -59,16 +59,20 @@ const AuthEmailScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      console.log('📧 Отправка magic link на:', email);
+      console.log('📧 Отправка OTP кода на:', email);
 
       // Отправляем magic link через Supabase
       const result = await authAPI.sendVerificationCode(email);
 
-      console.log('✅ Magic link успешно отправлен:', result);
+      console.log('✅ OTP успешно отправлен:', result);
 
-      // Переходим на экран ожидания подтверждения
+      // Переходим на экран ввода кода
       // @ts-ignore
-      navigation.navigate('MagicLinkWaiting', { email });
+      navigation.navigate('OptCode', {
+        email,
+        codeLength: 6,
+        shouldCreateUser: true,
+      });
     } catch (error: any) {
       console.error('❌ Ошибка отправки magic link:', error);
 
@@ -180,7 +184,7 @@ const AuthEmailScreen: React.FC = () => {
                 entering={FadeInDown.duration(600).delay(300)}
                 style={styles.infoText}
               >
-                Мы отправим ссылку для входа на вашу почту
+                Мы отправим 6‑значный код на вашу почту
               </Animated.Text>
             </View>
 

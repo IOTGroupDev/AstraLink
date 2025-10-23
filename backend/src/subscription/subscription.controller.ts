@@ -34,23 +34,6 @@ interface AuthenticatedRequest extends ExpressRequest {
 }
 
 /**
- * DTO для ответа "Статус подписки"
- */
-export class SubscriptionStatusResponseDto {
-  @ApiProperty({ example: 'premium', description: 'Уровень подписки' })
-  tier?: string;
-
-  @ApiProperty({
-    example: '2025-12-31T23:59:59.000Z',
-    description: 'Дата окончания подписки',
-  })
-  expiresAt?: string;
-
-  @ApiProperty({ example: true, description: 'Используется ли Trial' })
-  isTrial?: boolean;
-}
-
-/**
  * DTO для апгрейда подписки
  */
 export class UpgradeSubscriptionDto {
@@ -120,7 +103,6 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'Статус подписки',
-    type: SubscriptionStatusResponseDto,
   })
   async getStatus(
     @Request() req: AuthenticatedRequest,

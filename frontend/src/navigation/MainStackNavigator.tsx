@@ -155,6 +155,7 @@ import AuthCallbackScreen from '../screens/Auth/AuthCallbackScreen';
 import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 
 import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
+import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 
 const Stack = createStackNavigator();
 
@@ -231,9 +232,14 @@ export default function MainStackNavigator() {
             component={AuthEmailScreen}
             options={{ presentation: 'card' }}
           />
+          {/*<Stack.Screen*/}
+          {/*  name="MagicLinkWaiting"*/}
+          {/*  component={MagicLinkWaitingScreen}*/}
+          {/*  options={{ presentation: 'card' }}*/}
+          {/*/>      */}
           <Stack.Screen
-            name="MagicLinkWaiting"
-            component={MagicLinkWaitingScreen}
+            name="OptCode"
+            component={OptCodeScreen}
             options={{ presentation: 'card' }}
           />
         </>
@@ -257,9 +263,14 @@ export default function MainStackNavigator() {
             component={AuthEmailScreen}
             options={{ presentation: 'card' }}
           />
+          {/*<Stack.Screen*/}
+          {/*  name="MagicLinkWaiting"*/}
+          {/*  component={MagicLinkWaitingScreen}*/}
+          {/*  options={{ presentation: 'card' }}*/}
+          {/*/>         */}
           <Stack.Screen
-            name="MagicLinkWaiting"
-            component={MagicLinkWaitingScreen}
+            name="OptCode"
+            component={OptCodeScreen}
             options={{ presentation: 'card' }}
           />
         </>

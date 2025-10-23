@@ -44,7 +44,8 @@ const linking = {
       // Auth
       SignUp: 'signup',
       AuthEmail: 'auth/email',
-      MagicLinkWaiting: 'auth/waiting',
+      // MagicLinkWaiting: 'auth/waiting',
+      OptCode: 'auth/opt',
       AuthCallback: 'auth/callback',
 
       // Main

@@ -818,6 +818,7 @@ import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 import { Platform } from 'react-native';
+import { SubscriptionTier } from '../types/subscription';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -1067,7 +1068,7 @@ export const authAPI = {
   },
 
   /**
-   * ✅ ИСПРАВЛЕНО: Отправка OTP кода через Supabase с правильным redirect URI
+   * Отправка OTP (код на email), без emailRedirectTo
    */
   sendVerificationCode: async (
     email: string
@@ -1076,40 +1077,35 @@ export const authAPI = {
     message: string;
   }> => {
     try {
-      console.log('📧 Отправка Magic Link через Supabase на:', email);
-
-      // Получаем корректный redirect URI для текущей среды (web / Expo Go / standalone)
-      const emailRedirectTo = getRedirectUri();
-      console.log('🔗 Redirect URI:', emailRedirectTo);
+      console.log('📧 Отправка OTP через Supabase на:', email);
 
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          shouldCreateUser: true, // Создаем пользователя если не существует
-          emailRedirectTo, // Позволяет Safari/почтовому клиенту вернуть в Expo Go через exp://.../--/auth/callback
+          shouldCreateUser: true,
         },
       });
 
       if (error) {
-        console.error('❌ Ошибка отправки Magic Link:', error);
+        console.error('❌ Ошибка отправки OTP:', error);
         throw error;
       }
 
-      console.log('✅ Magic Link отправлен');
+      console.log('✅ OTP отправлен');
 
       return {
         success: true,
-        message: 'Ссылка отправлена на email',
+        message: 'Код отправлен на email',
       };
     } catch (error: any) {
-      console.error('❌ Ошибка отправки ссылки:', error);
+      console.error('❌ Ошибка отправки OTP:', error);
 
       if (error.message?.includes('rate limit')) {
         error.message = 'Слишком много попыток. Подождите минуту';
       } else if (error.message?.includes('Invalid email')) {
         error.message = 'Некорректный email';
       } else {
-        error.message = error.message || 'Не удалось отправить ссылку';
+        error.message = error.message || 'Не удалось отправить код';
       }
 
       throw error;
@@ -1312,6 +1308,36 @@ export const userAPI = {
 
   cancelSubscription: async (): Promise<void> => {
     await api.post('/user/subscription/cancel');
+  },
+
+  // 🗑️ НОВЫЙ МЕТОД: Полное удаление аккаунта пользователя
+  deleteAccount: async (): Promise<void> => {
+    try {
+      console.log('🗑️ Отправка запроса на удаление аккаунта');
+
+      // Отправляем DELETE запрос на бэкенд
+      const response = await api.delete('/user/account');
+
+      console.log('✅ Аккаунт успешно удален', response.data);
+
+      // Удаляем токен из локального хранилища
+      tokenService.clearToken();
+
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Ошибка удаления аккаунта:', error);
+
+      // Обработка специфичных ошибок
+      if (error.response?.status === 401) {
+        throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Пользователь не найден.');
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error('Не удалось удалить аккаунт. Попробуйте позже.');
+      }
+    }
   },
 };
 
@@ -1523,35 +1549,6 @@ export const chartAPI = {
     const response = await api.get(url);
     return response.data;
   },
-  // 🗑️ НОВЫЙ МЕТОД: Полное удаление аккаунта пользователя
-  deleteAccount: async (): Promise<void> => {
-    try {
-      console.log('🗑️ Отправка запроса на удаление аккаунта');
-
-      // Отправляем DELETE запрос на бэкенд
-      const response = await api.delete('/user/account');
-
-      console.log('✅ Аккаунт успешно удален', response.data);
-
-      // Удаляем токен из локального хранилища
-      tokenService.clearToken();
-
-      return response.data;
-    } catch (error: any) {
-      console.error('❌ Ошибка удаления аккаунта:', error);
-
-      // Обработка специфичных ошибок
-      if (error.response?.status === 401) {
-        throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
-      } else if (error.response?.status === 404) {
-        throw new Error('Пользователь не найден.');
-      } else if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      } else {
-        throw new Error('Не удалось удалить аккаунт. Попробуйте позже.');
-      }
-    }
-  },
 };
 
 // Advisor API — Premium only
@@ -1603,4 +1600,45 @@ export const advisorAPI = {
     const response = await api.post('/advisor/evaluate', data);
     return response.data;
   },
+};
+
+// Subscription API
+export const subscriptionAPI = {
+  getStatus: async (): Promise<Subscription> => {
+    const response = await api.get('/subscription/status');
+    return response.data;
+  },
+  activateTrial: async (): Promise<any> => {
+    const response = await api.post('/subscription/trial/activate');
+    return response.data;
+  },
+  upgrade: async (
+    tier: SubscriptionTier,
+    paymentMethod: 'apple' | 'google' | 'mock' = 'mock',
+    transactionId?: string
+  ): Promise<any> => {
+    const response = await api.post('/subscription/upgrade', {
+      tier,
+      paymentMethod,
+      transactionId,
+    });
+    return response.data;
+  },
+  cancel: async (): Promise<any> => {
+    const response = await api.post('/subscription/cancel');
+    return response.data;
+  },
+};
+
+// Non-blocking sync token getter used by some legacy screens (fallback to null)
+export const getStoredToken = (): string | null => {
+  try {
+    // If tokenService exposes a cached token, use it; otherwise return null.
+    // Real API calls attach token via interceptor.
+    // @ts-ignore
+    const cached = tokenService?._cachedToken;
+    return typeof cached === 'string' ? cached : null;
+  } catch {
+    return null;
+  }
 };

@@ -8,6 +8,8 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,8 +19,12 @@ import {
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
-import type { UpdateProfileRequest } from '../types';
+import type {
+  SubscriptionStatusResponse,
+  UpdateProfileRequest,
+} from '../types';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { SubscriptionService } from '@/subscription/subscription.service';
 
 // Interface for authenticated user on Express Request
 interface AuthenticatedUser {
@@ -38,7 +44,10 @@ interface AuthenticatedRequest extends ExpressRequest {
 @UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly subscriptionService: SubscriptionService,
+  ) {}
 
   @Get('profile')
   @ApiOperation({ summary: 'Получить профиль пользователя' })
@@ -57,6 +66,27 @@ export class UserController {
   ) {
     const userId = req.user?.userId || req.user?.id;
     return this.userService.updateProfile(userId as string, updateData);
+  }
+
+  private getUserId(req: Request): string {
+    // подстрой под то, как ты прокидываешь user в req (JWT/Passport/Supabase)
+    // Часто: req.user?.id или req['user']?.id
+    const userId =
+      (req as any).user?.id ||
+      (req as any).user?.sub || // JWT sub
+      (req as any).authUserId; // если где-то так положил
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return userId;
+  }
+
+  @Get('subscription')
+  async getMySubscription(
+    @Req() req: Request,
+  ): Promise<SubscriptionStatusResponse> {
+    const userId = this.getUserId(req);
+    return this.subscriptionService.getStatus(userId);
   }
 
   /**
