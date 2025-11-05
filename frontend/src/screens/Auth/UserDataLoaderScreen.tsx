@@ -10,7 +10,12 @@ import { useNavigation } from '@react-navigation/native';
 import CosmicBackground from '../../components/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { tokenService } from '../../services/tokenService';
-import { userAPI, chartAPI } from '../../services/api';
+import {
+  userAPI,
+  chartAPI,
+  subscriptionAPI,
+  authAPI,
+} from '../../services/api';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useAuthStore } from '../../stores/auth.store';
 
@@ -59,7 +64,7 @@ const UserDataLoaderScreen: React.FC = () => {
   };
 
   const verifyProvisioning = async (_userId: string) => {
-    // Получаем профиль и карту ТОЛЬКО через backend API (обходит RLS)
+    // Получаем профиль/карту/подписку ТОЛЬКО через backend API (обходит RLS)
     let dbProfile: any = null;
     try {
       dbProfile = await userAPI.getProfile();
@@ -80,7 +85,15 @@ const UserDataLoaderScreen: React.FC = () => {
       chartOk = false;
     }
 
-    return { profileOk, chartOk, dbProfile };
+    let subscriptionOk = false;
+    try {
+      const sub = await subscriptionAPI.getStatus();
+      subscriptionOk = !!sub && (sub.isActive ?? true);
+    } catch (_e) {
+      subscriptionOk = false;
+    }
+
+    return { profileOk, chartOk, subscriptionOk, dbProfile };
   };
 
   const goMainTabs = () => {
@@ -97,6 +110,7 @@ const UserDataLoaderScreen: React.FC = () => {
   const run = async () => {
     try {
       setStatus('Получение сессии...');
+
       // Получаем сессию
       const {
         data: { session },
@@ -112,118 +126,188 @@ const UserDataLoaderScreen: React.FC = () => {
         return;
       }
 
-      // Сохраняем токен локально (на всякий случай)
+      // Сохраняем токен локально
       await tokenService.setToken(session.access_token);
 
       const userId = session.user.id;
       const userEmail = session.user.email || '';
 
       setStatus('Проверка профиля...');
-      // Проверяем существующий профиль через backend API (без прямого доступа к БД)
+
+      // Проверяем существующий профиль через backend API
       let profile: any = null;
       try {
         profile = await userAPI.getProfile();
       } catch (e) {
-        // код "no rows" или RLS-ограничение на клиенте нам не важно — всё делаем через backend
-        // eslint-disable-next-line no-console
         console.warn('Profile check warning (backend):', e);
       }
 
+      // Проверяем: есть ли данные онбординга в локальном стораже
       const hasOnboardingData =
-        !!onboardingData?.name && !!onboardingData?.birthDate; // birthTime/place опционально
-      const profileComplete = profile ? !needsOnboarding(profile) : false;
+        !!onboardingData?.name &&
+        !!onboardingData?.birthDate &&
+        !!onboardingData?.birthTime &&
+        !!onboardingData?.birthPlace;
 
-      if (profileComplete) {
-        setStatus('Профиль заполнен. Завершаем вход...');
-        // Локальное состояние пользователя (данные с backend API - camelCase)
+      // Если профиль полный - просто проверяем наличие карты и подписки
+      if (profile && !needsOnboarding(profile)) {
+        setStatus('Профиль полный. Проверка карты и подписки...');
+
+        // Проверяем карту и подписку
+        const verification = await verifyProvisioning(userId);
+
+        // Если чего-то не хватает - создаём через completeSignup (идемпотентный метод)
+        if (!verification.chartOk || !verification.subscriptionOk) {
+          setStatus('Создание карты и подписки...');
+
+          try {
+            await authAPI.completeSignup({
+              userId,
+              name: profile.name || 'Пользователь',
+              birthDate: profile.birthDate
+                ? new Date(profile.birthDate).toISOString().split('T')[0]
+                : '1990-01-01',
+              birthTime: profile.birthTime || '12:00',
+              birthPlace: profile.birthPlace || 'Moscow',
+            });
+          } catch (completeError) {
+            console.error('Error completing signup:', completeError);
+          }
+
+          // Ждём пока всё создастся
+          const maxAttempts = 1;
+          let success = false;
+
+          for (let i = 0; i < maxAttempts; i++) {
+            setStatus(
+              `Проверка подготовки (попытка ${i + 1}/${maxAttempts})...`
+            );
+            await new Promise((r) => setTimeout(r, 700));
+
+            const res = await verifyProvisioning(userId);
+            if (res.chartOk && res.subscriptionOk) {
+              success = true;
+              profile = res.dbProfile || profile;
+              break;
+            }
+          }
+
+          if (!success) {
+            setStatus('Не удалось завершить подготовку. Попробуйте перезайти.');
+            return;
+          }
+        }
+
+        // Сохраняем пользователя в локальный стор
         login({
           id: userId,
           email: userEmail,
-          name: profile?.name || 'Пользователь',
-          birthDate: profile?.birthDate
+          name: profile.name || 'Пользователь',
+          birthDate: profile.birthDate
             ? new Date(profile.birthDate).toISOString().split('T')[0]
             : undefined,
-          birthTime: profile?.birthTime || undefined,
-          birthPlace: profile?.birthPlace || undefined,
+          birthTime: profile.birthTime || undefined,
+          birthPlace: profile.birthPlace || undefined,
           role: 'user',
         });
 
-        // Ставим флаги онбординга (оба стора)
+        // Ставим флаги онбординга
         setOnboardingCompletedFlag(true);
         await setAuthOnboardingCompleted(true);
 
-        // На главный экран
+        setStatus('Переход на главный экран...');
         goMainTabs();
         return;
       }
 
-      if (!hasOnboardingData) {
-        setStatus('Нет данных онбординга. Переход к шагам онбординга...');
-        // @ts-ignore
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Onboarding1' }],
+      // Если профиля нет или он неполный, но есть данные онбординга - завершаем регистрацию
+      if (hasOnboardingData) {
+        setStatus('Завершение регистрации...');
+
+        // Вызываем completeSignup на backend (создаст/обновит профиль, создаст карту и подписку)
+        await authAPI.completeSignup({
+          userId,
+          name: onboardingData.name!,
+          birthDate: formatBirthDate(),
+          birthTime: formatBirthTime(),
+          birthPlace: onboardingData.birthPlace?.city || 'Moscow',
         });
-        return;
-      }
 
-      // Идемпотентный update на backend (создаст/обновит профиль, FREE подписку и натальную карту при наличии данных)
-      setStatus('Обновление профиля на сервере...');
-      const updatePayload = {
-        name: onboardingData.name!,
-        birthDate: formatBirthDate(),
-        birthTime: formatBirthTime(),
-        birthPlace: onboardingData.birthPlace?.city || 'Moscow',
-      };
+        // Верифицируем, что всё создалось
+        setStatus('Проверка данных...');
+        const maxAttempts = 1;
+        let provisionOk = false;
+        let dbProfile: any = null;
 
-      await userAPI.updateProfile(updatePayload);
+        for (let i = 0; i < maxAttempts; i++) {
+          setStatus(`Проверка подготовки (попытка ${i + 1}/${maxAttempts})...`);
+          await new Promise((r) => setTimeout(r, 700));
 
-      // Верификация, что профиль и карта действительно созданы
-      setStatus('Верификация данных...');
-      const { profileOk, chartOk, dbProfile } =
-        await verifyProvisioning(userId);
+          const res = await verifyProvisioning(userId);
+          dbProfile = res.dbProfile || dbProfile;
 
-      // Обновляем локальное состояние и только затем чистим сторы
-      login({
-        id: userId,
-        email: userEmail,
-        name: dbProfile?.name || onboardingData.name || 'Пользователь',
-        birthDate: dbProfile?.birthDate
-          ? new Date(dbProfile.birthDate).toISOString().split('T')[0]
-          : updatePayload.birthDate,
-        birthTime: dbProfile?.birthTime || updatePayload.birthTime,
-        birthPlace: dbProfile?.birthPlace || updatePayload.birthPlace,
-        role: 'user',
-      });
+          if (res.profileOk && res.chartOk && res.subscriptionOk) {
+            provisionOk = true;
+            break;
+          }
+        }
 
-      if (profileOk && chartOk) {
+        if (!provisionOk) {
+          setStatus('Не удалось завершить регистрацию. Попробуйте перезайти.');
+          return;
+        }
+
+        // Сохраняем пользователя в локальный стор
+        login({
+          id: userId,
+          email: userEmail,
+          name: dbProfile?.name || onboardingData.name || 'Пользователь',
+          birthDate: dbProfile?.birthDate
+            ? new Date(dbProfile.birthDate).toISOString().split('T')[0]
+            : formatBirthDate(),
+          birthTime: dbProfile?.birthTime || formatBirthTime(),
+          birthPlace:
+            dbProfile?.birthPlace ||
+            onboardingData.birthPlace?.city ||
+            'Moscow',
+          role: 'user',
+        });
+
+        // Ставим флаги онбординга и очищаем временные данные
         setStatus('Завершение онбординга...');
         setOnboardingCompletedFlag(true);
         await setAuthOnboardingCompleted(true);
+
         try {
           resetOnboarding();
         } catch {
           // ignore
         }
-      } else {
-        // Если вдруг provisioning не подтвердился — не очищаем onboarding-данные
-        setStatus(
-          'Профиль не подтверждён, повторная проверка на главном экране...'
-        );
+
+        setStatus('Переход на главный экран...');
+        goMainTabs();
+        return;
       }
 
-      // На главный экран
-      setStatus('Переход на главный экран...');
-      goMainTabs();
-    } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.error('UserDataLoader error:', e);
-      // В случае ошибки возвращаем на SignUp, чтобы не зависнуть
+      // Если ни профиля нет, ни данных онбординга - отправляем на онбординг
+      setStatus('Переход к онбордингу...');
       // @ts-ignore
       navigation.reset({
         index: 0,
-        routes: [{ name: 'SignUp' }],
+        routes: [{ name: 'Onboarding1' }],
       });
+    } catch (e: any) {
+      console.error('UserDataLoader error:', e);
+      setStatus('Произошла ошибка. Переход к входу...');
+
+      // В случае ошибки возвращаем на SignUp
+      setTimeout(() => {
+        // @ts-ignore
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'SignUp' }],
+        });
+      }, 2000);
     }
   };
 

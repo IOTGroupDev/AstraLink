@@ -182,7 +182,7 @@ export class SubscriptionController {
     summary: 'Получить персонализированные рекомендации upgrade',
   })
   @ApiResponse({ status: 200, description: 'Рекомендации на основе FOMO' })
-  async getRecommendations(@Request() req: AuthenticatedRequest) {
+  async getRecommendations(@Request() _req: AuthenticatedRequest) {
     // TODO: Implement personalized recommendations using AnalyticsService
     return { recommendations: [] };
   }

@@ -1,13 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EphemerisService } from '../services/ephemeris.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import type { DatingMatchResponse } from '../types';
+
+type CandidateBadge = 'high' | 'medium' | 'low';
+interface CandidateRow {
+  user_id: string;
+  badge: CandidateBadge;
+  primary_photo_path: string | null;
+}
 
 @Injectable()
 export class DatingService {
   constructor(
     private prisma: PrismaService,
     private ephemerisService: EphemerisService,
+    private supabaseService: SupabaseService,
   ) {}
   // Helpers for improved matching
 
@@ -163,6 +172,83 @@ export class DatingService {
 
     score = Math.max(0, Math.min(100, Math.round(score)));
     return score;
+  }
+
+  /**
+   * Получить кандидатов через Supabase RPC get_candidates_for_me
+   * Требуется user access token для корректного auth.uid() в RLS.
+   */
+  async getCandidatesViaSupabase(userAccessToken: string, limit = 20) {
+    const safeLimit = Math.max(1, Math.min(50, limit));
+    const { data, error } = await this.supabaseService.rpcWithToken<
+      CandidateRow[]
+    >('get_candidates_for_me', { p_limit: safeLimit }, userAccessToken);
+
+    if (error) {
+      return [];
+    }
+    const rows: CandidateRow[] = Array.isArray(data) ? data : [];
+
+    // Подпишем URL для primary_photo_path, если есть права service role
+    const mapped = await Promise.all(
+      rows.map(async (r) => {
+        let photoUrl: string | null = null;
+        if (r.primary_photo_path) {
+          photoUrl = await this.supabaseService.createSignedUrl(
+            'user-photos',
+            r.primary_photo_path,
+            900,
+          );
+        }
+        return {
+          userId: r.user_id,
+          badge: r.badge,
+          photoUrl,
+        };
+      }),
+    );
+    return mapped;
+  }
+
+  /**
+   * Отправить лайк/действие через Supabase RPC create_like
+   * Возвращает matchId (uuid) при взаимности, иначе null
+   */
+  async likeUserViaSupabase(
+    userAccessToken: string,
+    targetUserId: string,
+    action: 'like' | 'super_like' | 'pass' = 'like',
+  ) {
+    const { data, error } = await this.supabaseService.rpcWithToken<
+      string | null
+    >(
+      'create_like',
+      { p_target_user_id: targetUserId, p_action: action },
+      userAccessToken,
+    );
+    if (error) {
+      return { success: false, matchId: null, message: 'Like failed' };
+    }
+    return {
+      success: true,
+      matchId: data ?? null,
+      message: data ? 'Mutual match' : 'Action recorded',
+    };
+  }
+
+  /**
+   * Триггернуть ночной ранк кандидатов вручную (админ RPC).
+   * Возвращает success:true, если RPC отработал без ошибки.
+   */
+  async runRankCandidatesNightly(): Promise<{ success: boolean }> {
+    const { error } = await this.supabaseService.rpcAdmin(
+      'rank_candidates_nightly',
+      {},
+    );
+    if (error) {
+      return { success: false };
+    }
+    return { success: true };
   }
 
   async getMatches(

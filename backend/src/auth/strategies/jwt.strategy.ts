@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(request: any, payload: any) {
+  validate(request: any, _payload: any) {
     // Для development просто декодируем Supabase токен без проверки подписи
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
     if (!token) {

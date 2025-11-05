@@ -17,6 +17,7 @@ import { SwissModule } from './modules/swiss/swiss.module';
 import { SharedModule } from './modules/shared/shared.module';
 import { RedisModule } from './redis/redis.module';
 import { AdvisorModule } from './advisor/advisor.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AdvisorModule } from './advisor/advisor.module';
     SwissModule,
     SharedModule,
     RedisModule,
+    ChatModule,
     AdvisorModule,
   ],
   controllers: [AppController],

@@ -8,6 +8,8 @@ export class EphemerisService implements OnModuleInit {
   private readonly logger = new Logger(EphemerisService.name);
   private hasSE = false;
   private initializationAttempted = false;
+  private lastInitErrorMsg: string | null = null;
+  private lastInitErrorTime = 0;
 
   constructor(private readonly redis: RedisService) {}
 
@@ -30,7 +32,7 @@ export class EphemerisService implements OnModuleInit {
       swisseph = require('swisseph');
 
       if (!swisseph || typeof swisseph !== 'object') {
-        this.logger.error('Swiss Ephemeris модуль загружен некорректно');
+        this.logger.warn('Swiss Ephemeris модуль загружен некорректно');
         return false;
       }
 
@@ -62,7 +64,7 @@ export class EphemerisService implements OnModuleInit {
           this.logger.log(`Установлен путь к эфемерисным файлам: ${path}`);
           pathSet = true;
           break;
-        } catch (error) {
+        } catch (_error) {
           this.logger.debug(`Не удалось установить путь ${path}`);
         }
       }
@@ -75,9 +77,29 @@ export class EphemerisService implements OnModuleInit {
       this.logger.log('✓ Swiss Ephemeris успешно инициализирован');
       return true;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Не удалось загрузить Swiss Ephemeris:', errorMessage);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : (() => {
+                try {
+                  return JSON.stringify(error);
+                } catch {
+                  return '[non-serializable error]';
+                }
+              })();
+      const now = Date.now();
+      if (
+        this.lastInitErrorMsg === msg &&
+        now - this.lastInitErrorTime < 60000
+      ) {
+        this.logger.debug('Swiss Ephemeris init error repeated (suppressed)');
+      } else {
+        this.logger.warn(`Не удалось загрузить Swiss Ephemeris: ${msg}`);
+        this.lastInitErrorMsg = msg;
+        this.lastInitErrorTime = now;
+      }
       this.hasSE = false;
       return false;
     }
@@ -91,7 +113,7 @@ export class EphemerisService implements OnModuleInit {
       return;
     }
 
-    this.logger.warn('Попытка реинициализации Swiss Ephemeris...');
+    this.logger.debug('Попытка реинициализации Swiss Ephemeris...');
     const success = await this.initializeSwissEphemeris();
 
     if (!success) {

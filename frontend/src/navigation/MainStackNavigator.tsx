@@ -156,6 +156,7 @@ import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 
 import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
 import OptCodeScreen from '../screens/Auth/OptCodeScreen';
+import ChatDialogScreen from '../screens/ChatDialogScreen';
 
 const Stack = createStackNavigator();
 
@@ -295,6 +296,11 @@ export default function MainStackNavigator() {
               presentation: 'modal',
               cardStyle: { backgroundColor: 'transparent' },
             }}
+          />
+          <Stack.Screen
+            name="ChatDialog"
+            component={ChatDialogScreen}
+            options={{ presentation: 'card' }}
           />
         </>
       )}

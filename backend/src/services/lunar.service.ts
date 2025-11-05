@@ -215,7 +215,7 @@ export class LunarService {
   private checkVoidOfCourse(
     planets: any,
     moonLongitude: number,
-    moonSign: string,
+    _moonSign: string,
   ): boolean {
     // Упрощенная проверка: Луна без курса если близка к границе знака
     // и не делает мажорных аспектов
@@ -257,8 +257,8 @@ export class LunarService {
   private async getNextPhaseDate(
     currentDate: Date,
     currentPhase: number,
-    moonLongitude: number,
-    sunLongitude: number,
+    _moonLongitude: number,
+    _sunLongitude: number,
   ): Promise<string> {
     // Определяем следующую ключевую фазу
     let targetPhase: number;
@@ -328,7 +328,7 @@ export class LunarService {
    */
   private generateRecommendations(
     phase: number,
-    phaseName: string,
+    _phaseName: string,
     moonSign: string,
     isVoidOfCourse: boolean,
   ): {

@@ -226,9 +226,25 @@ export class ChartService {
   }
 
   /**
-   * Получить натальную карту (базовый метод для обратной совместимости)
+   * Получить натальную карту (проверяем Prisma → затем Supabase Admin → затем Supabase RLS)
    */
   async getNatalChart(userId: string) {
+    // 1) Пробуем взять из Prisma (основной источник истины для карт)
+    const prismaChart = await this.prisma.chart.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (prismaChart) {
+      return {
+        id: prismaChart.id,
+        userId: prismaChart.userId,
+        data: prismaChart.data as any,
+        createdAt: prismaChart.createdAt,
+        updatedAt: prismaChart.updatedAt,
+      };
+    }
+
+    // 2) Фолбэк: Supabase Admin (если карта была создана там)
     try {
       const res = await this.supabaseService.getUserChartsAdmin(userId);
       if (res.data && res.data.length > 0) {
@@ -242,20 +258,23 @@ export class ChartService {
         };
       }
     } catch (_e) {
-      const { data } = await this.supabaseService.getUserCharts(userId);
-      if (data && data.length > 0) {
-        const chart = data[0];
-        return {
-          id: chart.id,
-          userId: chart.user_id,
-          data: chart.data,
-          createdAt: chart.created_at,
-          updatedAt: chart.updated_at,
-        };
-      }
+      // ignore admin errors, fallback to RLS client
     }
 
-    // Если карты нет, создаём её
+    // 3) Фолбэк: Supabase RLS-клиент (на случай отсутствия SERVICE ROLE)
+    const { data } = await this.supabaseService.getUserCharts(userId);
+    if (data && data.length > 0) {
+      const chart = data[0];
+      return {
+        id: chart.id,
+        userId: chart.user_id,
+        data: chart.data,
+        createdAt: chart.created_at,
+        updatedAt: chart.updated_at,
+      };
+    }
+
+    // 4) Если карты нет — возвращаем 404
     throw new NotFoundException(
       'Натальная карта не найдена. Необходимо создать карту, указав дату, время и место рождения.',
     );

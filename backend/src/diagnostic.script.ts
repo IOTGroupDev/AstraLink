@@ -44,7 +44,7 @@ async function runDiagnostics() {
   // 2. Проверка подключения к Supabase
   console.log('2️⃣ Проверка подключения к Supabase:');
   try {
-    const { data, error } = await adminClient
+    const { error } = await adminClient
       .from('_test_connection')
       .select('*')
       .limit(1);
@@ -53,7 +53,7 @@ async function runDiagnostics() {
     } else {
       console.log('   ✅ Подключение установлено');
     }
-  } catch (error) {
+  } catch (_error) {
     console.log('   ✅ Подключение установлено (ошибка таблицы - норма)');
   }
 
@@ -135,7 +135,7 @@ async function runDiagnostics() {
     } else {
       console.log('   ❌ RLS политики НЕ НАЙДЕНЫ! Это проблема!');
     }
-  } catch (error) {
+  } catch (_error) {
     console.log('   ⚠️  Проверка RLS пропущена (требуется расширенный доступ)');
   }
 
@@ -198,7 +198,7 @@ async function runDiagnostics() {
     '\n7️⃣ Тест создания подписки с Regular Client (ожидается ошибка RLS):',
   );
   try {
-    const { data, error } = await regularClient
+    const { error } = await regularClient
       .from('subscriptions')
       .insert({
         user_id: testUserId,

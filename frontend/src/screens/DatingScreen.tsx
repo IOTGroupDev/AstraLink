@@ -972,6 +972,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -987,6 +988,10 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { datingAPI } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../services/supabase';
+import { useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -1039,21 +1044,127 @@ const DECORATIVE_DOTS = [
 ];
 
 export default function DatingScreen() {
-  const [currentUser] = useState(mockUser);
+  const [candidates, setCandidates] = useState<
+    Array<{
+      userId: string;
+      badge: 'high' | 'medium' | 'low';
+      photoUrl: string | null;
+    }>
+  >([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const current = candidates[currentIndex] || null;
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotate = useSharedValue(0);
+  const { user } = useAuth();
+  const navigation = useNavigation<any>();
 
-  const handleLike = () => {
-    console.log('💜 Лайк:', currentUser.name);
+  // Загрузка кандидатов при монтировании
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await datingAPI.getCandidates(20);
+        setCandidates(data);
+        setCurrentIndex(0);
+      } catch (e) {
+        console.log('❌ Ошибка загрузки кандидатов:', e);
+      }
+    })();
+  }, []);
+
+  // Realtime: уведомление о взаимной симпатии (match)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`matches-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'matches' },
+        (payload) => {
+          try {
+            const m: any = (payload as any).new;
+            if (!m) return;
+            if (m.user_a_id === user.id || m.user_b_id === user.id) {
+              const otherId =
+                m.user_a_id === user.id ? m.user_b_id : m.user_a_id;
+              Alert.alert('✨ Совпадение', 'У вас взаимная симпатия!', [
+                { text: 'Закрыть', style: 'cancel' },
+                {
+                  text: 'Открыть чат',
+                  onPress: () =>
+                    navigation.navigate('ChatDialog', { otherUserId: otherId }),
+                },
+              ]);
+            }
+          } catch {}
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
+    };
+  }, [user?.id]);
+
+  // Helpers
+  const getBadgeLabel = (b?: 'high' | 'medium' | 'low'): string =>
+    b === 'high' ? 'Высокая' : b === 'medium' ? 'Средняя' : 'Низкая';
+
+  const getBadgeBg = (b?: 'high' | 'medium' | 'low'): string =>
+    b === 'high'
+      ? 'rgba(16,185,129,0.25)'
+      : b === 'medium'
+        ? 'rgba(245,158,11,0.25)'
+        : 'rgba(239,68,68,0.25)';
+
+  const goNext = () => {
+    setCurrentIndex((idx) => (idx + 1 < candidates.length ? idx + 1 : idx));
+    translateX.value = 0;
+    translateY.value = 0;
+    rotate.value = 0;
   };
 
-  const handlePass = () => {
-    console.log('❌ Пропустить:', currentUser.name);
+  const handleLike = async () => {
+    if (!current) return;
+    try {
+      const res = await datingAPI.like(current.userId, 'like');
+      console.log('💜 Лайк:', current.userId, res);
+      if (res?.matchId) {
+        Alert.alert('✨ Совпадение', 'У вас взаимная симпатия!', [
+          { text: 'Закрыть', style: 'cancel' },
+          {
+            text: 'Открыть чат',
+            onPress: () =>
+              navigation.navigate('ChatDialog', {
+                otherUserId: current.userId,
+              }),
+          },
+        ]);
+      }
+    } catch (e) {
+      console.log('❌ Ошибка лайка:', e);
+    } finally {
+      goNext();
+    }
+  };
+
+  const handlePass = async () => {
+    if (!current) return;
+    try {
+      await datingAPI.like(current.userId, 'pass');
+    } catch (e) {
+      console.log('❌ Ошибка pass:', e);
+    } finally {
+      goNext();
+    }
   };
 
   const handleMessage = () => {
-    console.log('💬 Сообщение:', currentUser.name);
+    if (!current) return;
+    navigation.navigate('ChatDialog', { otherUserId: current.userId });
   };
 
   const onGestureEvent = (event: any) => {
@@ -1094,7 +1205,7 @@ export default function DatingScreen() {
     translateX.value = 0;
     translateY.value = 0;
     rotate.value = 0;
-  }, [currentUser]);
+  }, [currentIndex]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -1155,7 +1266,7 @@ export default function DatingScreen() {
               <View style={styles.cardInner}>
                 {/* Фото пользователя */}
                 <Image
-                  source={{ uri: currentUser.photo }}
+                  source={{ uri: current?.photoUrl || mockUser.photo }}
                   style={styles.photo}
                   resizeMode="cover"
                 />
@@ -1202,97 +1313,33 @@ export default function DatingScreen() {
                   showsVerticalScrollIndicator={false}
                   bounces={false}
                 >
-                  {/* Основная инфа */}
-                  <View style={styles.basicInfo}>
-                    <Text style={styles.userName}>
-                      {currentUser.name}, {currentUser.age}
-                    </Text>
-                    <Text style={styles.zodiacSign}>
-                      {currentUser.zodiacSign}
-                    </Text>
-                  </View>
-
-                  {/* Локация */}
-                  <View style={styles.locationRow}>
-                    <Ionicons
-                      name="location-outline"
-                      size={16}
-                      color="rgba(255,255,255,0.7)"
-                    />
-                    <Text style={styles.locationText}>
-                      {currentUser.distance} км от вас
-                    </Text>
-                  </View>
-
-                  {/* Био */}
-                  <Text style={styles.bioText}>{currentUser.bio}</Text>
-
                   {/* Детальный блок с темным фоном */}
                   <BlurView
                     intensity={20}
                     tint="dark"
                     style={styles.detailsBlock}
                   >
-                    {/* Совместимость */}
+                    {/* Совместимость — бейдж без чисел */}
                     <View style={styles.compatibilitySection}>
-                      <View style={styles.compatibilityHeader}>
-                        <Text style={styles.compatibilityLabel}>
-                          Совместимость
-                        </Text>
-                        <Text style={styles.compatibilityValue}>
-                          {currentUser.compatibility}%
-                        </Text>
-                      </View>
-                      <View style={styles.progressBar}>
-                        <LinearGradient
-                          colors={['#10B981', '#34D399']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
+                      <Text style={styles.compatibilityLabel}>
+                        Совместимость
+                      </Text>
+                      <View style={styles.badgeRow}>
+                        <View
                           style={[
-                            styles.progressFill,
-                            { width: `${currentUser.compatibility}%` },
+                            styles.badgePill,
+                            {
+                              backgroundColor: getBadgeBg(
+                                current?.badge || 'low'
+                              ),
+                            },
                           ]}
-                        />
-                      </View>
-                    </View>
-
-                    {/* Детали профиля */}
-                    <View style={styles.profileDetails}>
-                      <View style={styles.detailRow}>
-                        <Ionicons
-                          name="briefcase-outline"
-                          size={16}
-                          color="#fff"
-                        />
-                        <Text style={styles.detailText}>
-                          {currentUser.occupation}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Ionicons
-                          name="resize-outline"
-                          size={16}
-                          color="#fff"
-                        />
-                        <Text style={styles.detailText}>
-                          {currentUser.height}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Ionicons name="heart-outline" size={16} color="#fff" />
-                        <Text style={styles.detailText}>
-                          {currentUser.relationshipGoals}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Интересы - теги */}
-                    <View style={styles.interestsContainer}>
-                      {currentUser.interests.map((interest, idx) => (
-                        <View key={idx} style={styles.interestTag}>
-                          <Text style={styles.interestText}>{interest}</Text>
+                        >
+                          <Text style={styles.badgeText}>
+                            {getBadgeLabel(current?.badge || 'low')}
+                          </Text>
                         </View>
-                      ))}
+                      </View>
                     </View>
                   </BlurView>
                 </ScrollView>
@@ -1474,6 +1521,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#10B981',
+  },
+  badgeRow: {
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  badgePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   progressBar: {
     height: 6,

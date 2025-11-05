@@ -1,39 +1,77 @@
-/**
- * frontend/src/services/supabase.ts
- * Конфигурация Supabase клиента для OTP-потока:
- * - PKCE включён (не мешает OTP и пригодится для OAuth)
- * - autoRefreshToken: true
- * - persistSession: true
- * - detectSessionInUrl: false (OTP не требует разбор URL)
- */
-import { createClient } from '@supabase/supabase-js';
+// src/services/supabase.ts
+// Клиент Supabase + синхронизация access_token ↔ tokenService.
 
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
+import { tokenService } from './tokenService';
+
+// В app.json (expo.extra) должны быть SUPABASE_URL и SUPABASE_ANON_KEY
+const supabaseUrl =
+  Constants.expoConfig?.extra?.SUPABASE_URL ||
   'https://ayoucajwdyinyhamousz.supabase.co';
-const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+
+const supabaseAnonKey =
+  Constants.expoConfig?.extra?.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo';
 
-if (!SUPABASE_URL) {
-  console.error('❌ EXPO_PUBLIC_SUPABASE_URL не настроен!');
-}
-if (!SUPABASE_ANON_KEY) {
-  console.error('❌ EXPO_PUBLIC_SUPABASE_ANON_KEY не настроен!');
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn(
+    '⚠️ SUPABASE_URL или SUPABASE_ANON_KEY не заданы в app.json -> expo.extra'
+  );
 }
 
-console.log('🔐 Инициализация Supabase клиента (OTP)');
-console.log('📍 URL:', SUPABASE_URL);
-console.log(
-  '🔑 API Key:',
-  SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : 'НЕ НАЙДЕН'
-);
+console.log('🔐 Инициализация Supabase клиента');
+console.log('📍 URL:', supabaseUrl);
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    flowType: 'pkce',
-    autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // storage по умолчанию корректно работает в web через localStorage
   },
 });
+
+// Bootstrap-процедура: дожидаемся tokenService.init(), затем подтягиваем сессию
+let initPromise: Promise<void> | null = null;
+
+export const initSupabaseSync = async () => {
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    try {
+      console.log('🔄 Initializing Supabase sync...');
+
+      // Инициализируем tokenService
+      await tokenService.init();
+
+      // Получаем текущую сессию из Supabase
+      const { data } = await supabase.auth.getSession();
+      const access = data.session?.access_token ?? null;
+
+      // Синхронизируем с tokenService
+      await tokenService.setToken(access);
+
+      // Подписываемся на изменения auth в Supabase
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        const accessToken = session?.access_token ?? null;
+        console.log(
+          '🔄 Auth state changed:',
+          _event,
+          accessToken ? 'token present' : 'no token'
+        );
+        await tokenService.setToken(accessToken);
+      });
+
+      console.log('✅ Supabase sync initialized');
+    } catch (error) {
+      console.error('❌ Supabase sync initialization error:', error);
+      await tokenService.setToken(null);
+    }
+  })();
+
+  return initPromise;
+};
+
+// Автоматически запускаем инициализацию при импорте
+initSupabaseSync();

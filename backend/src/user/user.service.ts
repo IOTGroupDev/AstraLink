@@ -220,6 +220,100 @@ export class UserService {
   }
 
   /**
+   * Блокировка пользователя (вставка в public.user_blocks под RLS)
+   * Схема таблицы (текущая): user_id text, blocked_user_id text, created_at
+   */
+  async blockUserWithToken(userAccessToken: string, blockedUserId: string) {
+    // Получаем текущего пользователя из токена
+    const { data: u, error: uErr } =
+      await this.supabaseService.getUser(userAccessToken);
+    if (uErr || !u?.user) {
+      throw new InternalServerErrorException(
+        'Cannot resolve current user from token',
+      );
+    }
+    const uid = u.user.id;
+    if (!uid) {
+      throw new InternalServerErrorException('Invalid auth user id');
+    }
+
+    // Контекстный клиент с Authorization: Bearer <token>
+    const client = this.supabaseService.getClientForToken(userAccessToken);
+    const { error: insErr } = await client
+      .from('user_blocks')
+      .insert({ user_id: uid, blocked_user_id: blockedUserId });
+
+    if (insErr) {
+      throw new InternalServerErrorException(
+        `Failed to block user: ${insErr.message || 'unknown error'}`,
+      );
+    }
+    return { success: true };
+  }
+
+  /**
+   * Список блокировок текущего пользователя
+   */
+  async listBlocksWithToken(
+    userAccessToken: string,
+  ): Promise<{ blockedUserId: string; createdAt: string }[]> {
+    const { data: u, error: uErr } =
+      await this.supabaseService.getUser(userAccessToken);
+    if (uErr || !u?.user) {
+      throw new InternalServerErrorException(
+        'Cannot resolve current user from token',
+      );
+    }
+    const uid = u.user.id;
+    const client = this.supabaseService.getClientForToken(userAccessToken);
+    const { data, error } = await client
+      .from('user_blocks')
+      .select('blocked_user_id, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new InternalServerErrorException(
+        `Failed to fetch blocks: ${error.message || 'unknown error'}`,
+      );
+    }
+    return (data ?? []).map((row: any) => ({
+      blockedUserId: row.blocked_user_id as string,
+      createdAt: row.created_at as string,
+    }));
+  }
+
+  /**
+   * Жалоба на пользователя (вставка в public.user_reports под RLS)
+   * Схема таблицы (текущая): id uuid, reporter_id text, reported_user_id text, reason text, created_at
+   */
+  async reportUserWithToken(
+    userAccessToken: string,
+    reportedUserId: string,
+    reason: string,
+  ) {
+    const { data: u, error: uErr } =
+      await this.supabaseService.getUser(userAccessToken);
+    if (uErr || !u?.user) {
+      throw new InternalServerErrorException(
+        'Cannot resolve current user from token',
+      );
+    }
+    const uid = u.user.id;
+    const client = this.supabaseService.getClientForToken(userAccessToken);
+    const { error: insErr } = await client
+      .from('user_reports')
+      .insert({ reporter_id: uid, reported_user_id: reportedUserId, reason });
+
+    if (insErr) {
+      throw new InternalServerErrorException(
+        `Failed to report user: ${insErr.message || 'unknown error'}`,
+      );
+    }
+    return { success: true };
+  }
+
+  /**
    * 🗑️ Полное удаление аккаунта пользователя
    *
    * Каскадно удаляет все данные пользователя:

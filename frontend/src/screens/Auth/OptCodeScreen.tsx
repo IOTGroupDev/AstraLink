@@ -161,7 +161,8 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       <CosmicBackground />
       <KeyboardAvoidingView
         style={styles.wrapper}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        contentContainerStyle={{ flexGrow: 1 }}
+        behavior={Platform.select({ ios: 'padding', android: 'height' })}
       >
         <View style={styles.headerRow}>
           <Pressable
@@ -180,29 +181,31 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           <Text style={styles.email}>{email}</Text>
         </View>
 
-        <View style={styles.otpRow}>
-          {Array.from({ length: CODE_LENGTH }).map((_, i) => (
-            <TextInput
-              key={i}
-              ref={(el) => (inputsRef.current[i] = el)}
-              value={digits[i]}
-              onChangeText={(v) => onChangeDigit(i, v)}
-              onKeyPress={(e) => onKeyPress(i, e)}
-              keyboardType="number-pad"
-              maxLength={1}
-              textContentType="oneTimeCode"
-              selectionColor="white"
-              style={[styles.box, digits[i] ? styles.boxFilled : null]}
-              returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
-              autoFocus={i === 0}
-              onSubmitEditing={() => {
-                if (i === CODE_LENGTH - 1) handleSubmit();
-              }}
-            />
-          ))}
-        </View>
+        <View style={styles.centerArea}>
+          <View style={styles.otpRow}>
+            {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+              <TextInput
+                key={i}
+                ref={(el) => (inputsRef.current[i] = el)}
+                value={digits[i]}
+                onChangeText={(v) => onChangeDigit(i, v)}
+                onKeyPress={(e) => onKeyPress(i, e)}
+                keyboardType="number-pad"
+                maxLength={1}
+                textContentType="oneTimeCode"
+                selectionColor="white"
+                style={[styles.box, digits[i] ? styles.boxFilled : null]}
+                returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
+                autoFocus={i === 0}
+                onSubmitEditing={() => {
+                  if (i === CODE_LENGTH - 1) handleSubmit();
+                }}
+              />
+            ))}
+          </View>
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && <Text style={styles.error}>{error}</Text>}
+        </View>
 
         <Pressable
           onPress={handleSubmit}
@@ -272,8 +275,14 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
   },
+  centerArea: {
+    flex: 1,
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingTop: 40,
+  },
   otpRow: {
-    marginTop: 36,
+    marginTop: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },

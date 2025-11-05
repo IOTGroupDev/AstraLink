@@ -310,8 +310,8 @@ export class HoroscopeGeneratorService {
     transitAspects: any[],
     period: string,
     targetDate: Date,
-    cacheKey: string,
-    ttlSec: number,
+    _cacheKey: string,
+    _ttlSec: number,
   ): Promise<HoroscopePrediction> {
     this.logger.log('💎 PREMIUM: Генерация через AI');
 
@@ -415,8 +415,8 @@ export class HoroscopeGeneratorService {
     transitAspects: any[],
     period: string,
     targetDate: Date,
-    cacheKey: string,
-    ttlSec: number,
+    _cacheKey: string,
+    _ttlSec: number,
   ): HoroscopePrediction {
     this.logger.log('🆓 FREE: Генерация через интерпретатор (правила)');
 
@@ -1086,7 +1086,7 @@ export class HoroscopeGeneratorService {
   /**
    * Определение настроения
    */
-  private determineMood(energy: number, transitAspects: any[]): string {
+  private determineMood(energy: number, _transitAspects: any[]): string {
     if (energy > 80) return 'Радостное и вдохновленное';
     if (energy > 60) return 'Позитивное и активное';
     if (energy > 40) return 'Сбалансированное';
@@ -1206,7 +1206,10 @@ export class HoroscopeGeneratorService {
   /**
    * Генерация счастливых цветов
    */
-  private generateLuckyColors(sunSign: string, dominantTransit: any): string[] {
+  private generateLuckyColors(
+    sunSign: string,
+    _dominantTransit: any,
+  ): string[] {
     const colors = getSignColors(sunSign as any, 'ru');
     return colors && colors.length ? colors : ['Белый', 'Синий'];
   }

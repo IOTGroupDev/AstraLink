@@ -1199,6 +1199,7 @@ export class SupabaseAuthService {
       const { userId, name, birthDate, birthTime, birthPlace } = dto;
 
       console.log('📝 Completing signup for user:', userId);
+      console.log('📝 Completing signup for user:', dto);
 
       // Валидация даты рождения
       const parsedBirthDate = new Date(birthDate);

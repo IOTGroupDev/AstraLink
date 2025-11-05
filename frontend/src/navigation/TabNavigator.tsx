@@ -14,6 +14,7 @@ import SimulationSvg from '../components/svg/tabs/SimulationSvg';
 import DatingSvg from '../components/svg/tabs/DatingSvg';
 import AdviserSvg from '../components/svg/tabs/AdviserSvg';
 import ProfileSvg from '../components/svg/tabs/ProfileSvg';
+import ChatListScreen from '../screens/ChatListScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -36,6 +37,14 @@ export default function TabNavigator() {
           } else if (route.name === 'Advisor') {
             return <AdviserSvg size={size} color={color} />;
             // iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+          } else if (route.name === 'Messages') {
+            return (
+              <Ionicons
+                name={focused ? 'chatbubbles' : 'chatbubbles-outline'}
+                size={size}
+                color={color}
+              />
+            );
           } else if (route.name === 'Profile') {
             return <ProfileSvg size={size} color={color} />;
             // iconName = focused ? 'person-circle' : 'person-circle-outline';
@@ -117,6 +126,11 @@ export default function TabNavigator() {
         name="Advisor"
         component={AdvisorChatScreen}
         options={{ title: 'Советник', headerShown: false }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={ChatListScreen}
+        options={{ title: 'Сообщения', headerShown: false }}
       />
       <Tab.Screen
         name="Profile"

@@ -1,4 +1,4 @@
-// src/services/tokenService.ts - С SecureStore и биометрией
+// src/services/tokenService.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -8,90 +8,93 @@ type TokenListener = (token: string | null) => void;
 
 class TokenService {
   private static instance: TokenService;
-  private static SECURE_KEY = 'al_token_secure'; // Для SecureStore
-  private static SETTINGS_PREFIX = 'al_settings_'; // Для настроек
+  private static SECURE_KEY = 'al_token_secure';
+  private static SETTINGS_PREFIX = 'al_settings_';
+
+  private ready = false;
+  private readyPromise: Promise<void> | null = null;
 
   private currentToken: string | null = null;
-  private tokenPromise: Promise<string | null> | null = null;
-  private listeners: Set<TokenListener> = new Set();
+  private listeners = new Set<TokenListener>();
 
   private constructor() {}
 
-  static getInstance(): TokenService {
-    if (!TokenService.instance) {
-      TokenService.instance = new TokenService();
-    }
+  static getInstance() {
+    if (!TokenService.instance) TokenService.instance = new TokenService();
     return TokenService.instance;
   }
 
-  // Subscribe to token changes (set/clear). Returns unsubscribe fn.
-  subscribe(listener: TokenListener): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+  /** Должен быть вызван на старте приложения (см. App.tsx) */
+  init() {
+    if (this.readyPromise) return this.readyPromise;
+
+    this.readyPromise = (async () => {
+      try {
+        const stored =
+          Platform.OS !== 'web'
+            ? await SecureStore.getItemAsync(TokenService.SECURE_KEY)
+            : await AsyncStorage.getItem(TokenService.SECURE_KEY);
+
+        this.currentToken = stored || null;
+      } catch {
+        this.currentToken = null;
+      } finally {
+        this.ready = true;
+        this.notify(this.currentToken);
+      }
+    })();
+
+    return this.readyPromise;
+  }
+
+  async waitUntilReady() {
+    if (this.ready) return;
+    if (this.readyPromise) await this.readyPromise;
+  }
+
+  /** Получить токен (гарантировано после init) */
+  async getToken() {
+    if (!this.ready) await this.waitUntilReady();
+    return this.currentToken;
+  }
+
+  /** Установить/очистить токен и сохранить его в хранилище */
+  async setToken(token: string | null) {
+    this.currentToken = token;
+
+    try {
+      if (token) {
+        if (Platform.OS !== 'web') {
+          await SecureStore.setItemAsync(TokenService.SECURE_KEY, token);
+        } else {
+          await AsyncStorage.setItem(TokenService.SECURE_KEY, token);
+        }
+      } else {
+        if (Platform.OS !== 'web') {
+          await SecureStore.deleteItemAsync(TokenService.SECURE_KEY);
+        } else {
+          await AsyncStorage.removeItem(TokenService.SECURE_KEY);
+        }
+      }
+    } finally {
+      this.notify(this.currentToken);
+    }
+  }
+
+  clearToken() {
+    return this.setToken(null);
+  }
+
+  subscribe(fn: TokenListener) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
   }
 
   private notify(token: string | null) {
     for (const l of this.listeners) {
       try {
         l(token);
-      } catch {
-        // ignore listener errors
-      }
-    }
-  }
-
-  private decodeBase64Url(input: string): string {
-    try {
-      let base64 = input.replace(/-/g, '+').replace(/_/g, '/');
-      const pad = base64.length % 4;
-      if (pad) base64 += '='.repeat(4 - pad);
-
-      // @ts-ignore
-      if (typeof globalThis.atob === 'function') {
-        // @ts-ignore
-        const bin = globalThis.atob(base64);
-        let utf8 = '';
-        for (let i = 0; i < bin.length; i++) {
-          const c = bin.charCodeAt(i);
-          utf8 += '%' + ('00' + c.toString(16)).slice(-2);
-        }
-        return decodeURIComponent(utf8);
-      }
-
-      // @ts-ignore
-      const B: any = (globalThis as unknown as { Buffer?: any }).Buffer;
-      if (B) {
-        return B.from(base64, 'base64').toString('utf8');
-      }
-    } catch {
-      // ignore
-    }
-    return '';
-  }
-
-  private parseJwt(token: string): Record<string, unknown> | null {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) return null;
-      const payloadStr = this.decodeBase64Url(parts[1]);
-      if (!payloadStr) return null;
-      return JSON.parse(payloadStr);
-    } catch {
-      return null;
-    }
-  }
-
-  private isExpired(token: string, skewSec = 0): boolean {
-    try {
-      const payload = this.parseJwt(token) as { exp?: number } | null;
-      const expSec = payload?.exp ? Number(payload.exp) : undefined;
-      if (!expSec || !Number.isFinite(expSec)) return false;
-      const nowSec = Math.floor(Date.now() / 1000);
-      return nowSec >= expSec - skewSec;
-    } catch {
-      return false;
+      } catch {}
     }
   }
 
@@ -228,120 +231,20 @@ class TokenService {
     }
   }
 
-  // ============ ТОКЕНЫ (SecureStore) ============
+  // ============ УТИЛИТЫ ============
 
-  async getToken(): Promise<string | null> {
-    // If we have a token in memory, validate freshness
-    if (this.currentToken) {
-      if (this.isExpired(this.currentToken, 0)) {
-        console.log('⚠️ Token expired in memory, clearing');
-        this.clearToken();
-      } else {
-        return this.currentToken;
-      }
-    }
-
-    if (this.tokenPromise) {
-      return this.tokenPromise;
-    }
-
-    this.tokenPromise = this.fetchToken();
-    const token = await this.tokenPromise;
-    this.tokenPromise = null;
-
-    return token;
-  }
-
-  async setToken(token: string | null): Promise<void> {
-    this.currentToken = token;
+  /** Очистить все данные (полный logout) */
+  async clearAll(): Promise<void> {
     try {
-      if (token) {
-        // Проверяем rememberMe перед сохранением
-        const rememberMe = await this.getRememberMe();
-        if (rememberMe) {
-          // Используем SecureStore для безопасного хранения
-          if (Platform.OS !== 'web') {
-            await SecureStore.setItemAsync(TokenService.SECURE_KEY, token);
-          } else {
-            // Fallback для web
-            await AsyncStorage.setItem(TokenService.SECURE_KEY, token);
-          }
-          console.log('🔐 Token saved to SecureStore');
-        } else {
-          console.log('⚠️ RememberMe is false, token not saved');
-        }
-      } else {
-        // Удаляем токен из обоих хранилищ
-        if (Platform.OS !== 'web') {
-          await SecureStore.deleteItemAsync(TokenService.SECURE_KEY);
-        } else {
-          await AsyncStorage.removeItem(TokenService.SECURE_KEY);
-        }
-        console.log('🗑️ Token removed from SecureStore');
-      }
+      await this.clearToken();
+      await AsyncStorage.multiRemove([
+        TokenService.SETTINGS_PREFIX + 'biometric_enabled',
+        TokenService.SETTINGS_PREFIX + 'remember_me',
+        TokenService.SETTINGS_PREFIX + 'onboarding_completed',
+      ]);
     } catch (error) {
-      console.error('Error saving token:', error);
-    } finally {
-      this.notify(token);
+      console.error('Error clearing all data:', error);
     }
-  }
-
-  private async fetchToken(): Promise<string | null> {
-    try {
-      let token: string | null = null;
-
-      // Читаем из SecureStore (или AsyncStorage на web)
-      if (Platform.OS !== 'web') {
-        token = await SecureStore.getItemAsync(TokenService.SECURE_KEY);
-      } else {
-        token = await AsyncStorage.getItem(TokenService.SECURE_KEY);
-      }
-
-      if (!token) {
-        this.currentToken = null;
-        console.log('⚠️ Токен отсутствует');
-        return null;
-      }
-
-      if (this.isExpired(token, 0)) {
-        console.log('⚠️ Найден просроченный токен в хранилище, удаляю');
-        this.currentToken = null;
-        // fire-and-forget
-        if (Platform.OS !== 'web') {
-          SecureStore.deleteItemAsync(TokenService.SECURE_KEY).catch(() => {});
-        } else {
-          AsyncStorage.removeItem(TokenService.SECURE_KEY).catch(() => {});
-        }
-        this.notify(null);
-        return null;
-      }
-
-      this.currentToken = token;
-      console.log(
-        '🔓 Токен получен из SecureStore:',
-        token.substring(0, 20) + '...'
-      );
-      return token;
-    } catch (error) {
-      console.log('❌ Ошибка при получении токена из хранилища:', error);
-      return null;
-    }
-  }
-
-  clearToken(): void {
-    this.currentToken = null;
-    this.tokenPromise = null;
-    // fire-and-forget
-    if (Platform.OS !== 'web') {
-      SecureStore.deleteItemAsync(TokenService.SECURE_KEY).catch(() => {});
-    } else {
-      AsyncStorage.removeItem(TokenService.SECURE_KEY).catch(() => {});
-    }
-    this.notify(null);
-  }
-
-  getCurrentToken(): string | null {
-    return this.currentToken;
   }
 }
 

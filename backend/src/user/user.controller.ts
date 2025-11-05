@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Post,
   Request,
   Body,
   UseGuards,
@@ -19,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
+import { BlockUserDto, ReportUserDto } from './dto/moderation.dto';
 import type {
   SubscriptionStatusResponse,
   UpdateProfileRequest,
@@ -81,12 +83,67 @@ export class UserController {
     return userId;
   }
 
+  // Нужен для Supabase RLS-контекста (auth.uid()) — используем Bearer токен пользователя
+  private getAccessToken(req: any): string {
+    const auth = req?.headers?.authorization || '';
+    const [scheme, token] = auth.split(' ');
+    if (!token || String(scheme).toLowerCase() !== 'bearer') {
+      throw new UnauthorizedException('Missing bearer token');
+    }
+    return token;
+  }
+
   @Get('subscription')
   async getMySubscription(
     @Req() req: Request,
   ): Promise<SubscriptionStatusResponse> {
     const userId = this.getUserId(req);
     return this.subscriptionService.getStatus(userId);
+  }
+
+  // POST /api/user/block — заблокировать пользователя
+  @Post('block')
+  @ApiOperation({ summary: 'Заблокировать пользователя' })
+  @ApiResponse({ status: 200, description: 'Пользователь заблокирован' })
+  async blockUser(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: BlockUserDto,
+  ) {
+    if (!dto?.blockedUserId) {
+      throw new UnauthorizedException('blockedUserId is required');
+    }
+    const token = this.getAccessToken(req as any);
+    return this.userService.blockUserWithToken(token, dto.blockedUserId);
+  }
+
+  // GET /api/user/blocks — список заблокированных
+  @Get('blocks')
+  @ApiOperation({
+    summary: 'Список заблокированных пользователей текущего пользователя',
+  })
+  @ApiResponse({ status: 200, description: 'Список блокировок' })
+  async listBlocks(@Request() req: AuthenticatedRequest) {
+    const token = this.getAccessToken(req as any);
+    return this.userService.listBlocksWithToken(token);
+  }
+
+  // POST /api/user/report — пожаловаться на пользователя
+  @Post('report')
+  @ApiOperation({ summary: 'Пожаловаться на пользователя' })
+  @ApiResponse({ status: 200, description: 'Жалоба отправлена' })
+  async reportUser(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: ReportUserDto,
+  ) {
+    if (!dto?.reportedUserId || !dto?.reason) {
+      throw new UnauthorizedException('reportedUserId and reason are required');
+    }
+    const token = this.getAccessToken(req as any);
+    return this.userService.reportUserWithToken(
+      token,
+      dto.reportedUserId,
+      dto.reason,
+    );
   }
 
   /**

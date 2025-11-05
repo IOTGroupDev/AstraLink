@@ -201,7 +201,7 @@ export class AuthController {
    * Для пользователей, зарегистрированных через OAuth без данных о рождении
    */
   @Public()
-  @Post('complete-signup')
+  @Post('complete-signup-OAuth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Завершить регистрацию для OAuth пользователей',
@@ -220,7 +220,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Успешный выход' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async logout(
-    @Request() req: AuthenticatedRequest,
+    @Request() _req: AuthenticatedRequest,
   ): Promise<{ success: boolean }> {
     // Можно добавить логику очистки токенов на сервере если нужно
     return { success: true };

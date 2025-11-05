@@ -82,4 +82,63 @@ export class DatingController {
     }
     return this.datingService.rejectMatch(userId, matchId);
   }
+
+  // New: get candidates via Supabase RPC cache (badge only)
+  @Get('candidates')
+  @ApiOperation({
+    summary: 'Получить кандидатов (кэш совместимости, только бейджи)',
+  })
+  @ApiResponse({ status: 200, description: 'Список кандидатов' })
+  async getCandidates(
+    @Request() req: AuthenticatedRequest,
+    @Query('limit') limit?: string,
+  ) {
+    const token = this.getAccessToken(req);
+    const safeLimit = limit
+      ? Math.max(1, Math.min(50, parseInt(limit, 10)))
+      : 20;
+    return this.datingService.getCandidatesViaSupabase(token, safeLimit);
+  }
+
+  // New: like/super_like/pass via Supabase RPC
+  @Post('like')
+  @ApiOperation({ summary: 'Поставить действие: like/super_like/pass' })
+  @ApiResponse({
+    status: 200,
+    description: 'Действие записано, при взаимности возвращается matchId',
+  })
+  async likeUser(
+    @Request() req: AuthenticatedRequest,
+    @Body()
+    body: { targetUserId: string; action?: 'like' | 'super_like' | 'pass' },
+  ) {
+    const token = this.getAccessToken(req);
+    if (!body?.targetUserId) {
+      throw new UnauthorizedException('targetUserId is required');
+    }
+    const action = body.action ?? 'like';
+    return this.datingService.likeUserViaSupabase(
+      token,
+      body.targetUserId,
+      action,
+    );
+  }
+
+  @Post('rank/run')
+  @ApiOperation({ summary: 'Запустить ночной ранк кандидатов вручную (admin)' })
+  @ApiResponse({ status: 200, description: 'Задача запущена' })
+  async runRankCandidates() {
+    const res = await this.datingService.runRankCandidatesNightly();
+    return res;
+  }
+
+  // Helper to extract bearer token (needed for Supabase RLS auth.uid())
+  private getAccessToken(req: any): string {
+    const auth = req?.headers?.authorization || '';
+    const [scheme, token] = auth.split(' ');
+    if (!token || String(scheme).toLowerCase() !== 'bearer') {
+      throw new UnauthorizedException('Missing bearer token');
+    }
+    return token;
+  }
 }

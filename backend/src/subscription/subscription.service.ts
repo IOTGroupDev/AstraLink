@@ -125,7 +125,7 @@ export class SubscriptionService {
     trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_CONFIG.duration);
 
     // ✅ КРИТИЧНО: Используем fromAdmin!
-    const { data, error } = await this.supabaseService
+    const { error } = await this.supabaseService
       .fromAdmin('subscriptions')
       .upsert(
         {
@@ -444,7 +444,7 @@ export class SubscriptionService {
   /**
    * Проверить лимиты использования
    */
-  async checkUsageLimits(userId: string) {
+  async checkUsageLimits(_userId: string) {
     return {
       consultationsUsed: 0,
       consultationsLimit: 2,

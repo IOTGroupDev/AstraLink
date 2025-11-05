@@ -192,7 +192,7 @@ export class ChartController {
     };
   }
 
-  @Get('moon-phase')
+  @Get('moon-moon-phase')
   @ApiOperation({ summary: 'Получить фазу луны на указанную дату' })
   @ApiQuery({
     name: 'date',
@@ -217,9 +217,9 @@ export class ChartController {
         const chart = await this.chartService.getNatalChart(userId);
         natalChart = chart?.data;
       }
-    } catch (error) {
+    } catch (_error) {
       throw new UnauthorizedException(
-        'Не удалось загрузить натальную карту для moon-phase',
+        'Не удалось загрузить натальную карту для moon-moon-phase',
       );
     }
 
@@ -270,7 +270,7 @@ export class ChartController {
         const chart = await this.chartService.getNatalChart(userId);
         natalChart = chart?.data;
       }
-    } catch (error) {
+    } catch (_error) {
       throw new UnauthorizedException(
         'Не удалось загрузить натальную карту для lunar-calendar',
       );

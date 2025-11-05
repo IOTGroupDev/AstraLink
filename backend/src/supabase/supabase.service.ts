@@ -268,6 +268,21 @@ export class SupabaseService implements OnModuleInit {
     return this.adminSupabase;
   }
 
+  /**
+   * Клиент с контекстом пользователя (JWT), чтобы auth.uid() работал в RLS/RPC
+   */
+  getClientForToken(token: string): SupabaseClient {
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY!;
+    return createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    });
+  }
+
   // ==================== Database Methods ====================
 
   /**
@@ -282,6 +297,63 @@ export class SupabaseService implements OnModuleInit {
    */
   fromAdmin(table: string) {
     return this.getAdminClient().from(table);
+  }
+
+  /**
+   * Вызов RPC от имени пользователя (по его токену)
+   */
+  async rpcWithToken<T = any>(
+    fn: string,
+    args: Record<string, any> | undefined,
+    token: string,
+  ): Promise<{ data: T | null; error: any }> {
+    const client = this.getClientForToken(token);
+    const { data, error } = await client.rpc(fn, args ?? {});
+    return { data: (data as T) ?? null, error };
+  }
+
+  /**
+   * Вызов RPC от имени администратора (service role)
+   */
+  async rpcAdmin<T = any>(
+    fn: string,
+    args?: Record<string, any>,
+  ): Promise<{ data: T | null; error: any }> {
+    const admin = this.getAdminClient();
+    const { data, error } = await admin.rpc(fn, args ?? {});
+    return { data: (data as T) ?? null, error };
+  }
+
+  /**
+   * Создать подписанную ссылку на объект в Storage (требует service role)
+   */
+  async createSignedUrl(
+    bucket: string,
+    path: string,
+    expiresInSec = 900,
+  ): Promise<string | null> {
+    if (!this.adminSupabase) return null;
+    const { data, error } = await this.adminSupabase.storage
+      .from(bucket)
+      .createSignedUrl(path, expiresInSec);
+    if (error) return null;
+    return data?.signedUrl ?? null;
+  }
+
+  /**
+   * Create a one-time signed upload URL for Storage (requires service role).
+   * Client uploads the file directly via PUT to the returned signed URL.
+   */
+  async createSignedUploadUrl(
+    bucket: string,
+    path: string,
+  ): Promise<{ signedUrl: string; token: string } | null> {
+    if (!this.adminSupabase) return null;
+    const { data, error } = await this.adminSupabase.storage
+      .from(bucket)
+      .createSignedUploadUrl(path);
+    if (error || !data) return null;
+    return { signedUrl: data.signedUrl, token: data.token };
   }
 
   // ==================== Passwordless Auth Methods ====================

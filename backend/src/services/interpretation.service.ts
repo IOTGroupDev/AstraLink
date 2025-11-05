@@ -631,8 +631,8 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private getHouseKeywords(
     houseNum: number,
-    sign: string,
-    locale: 'ru' | 'en',
+    _sign: string,
+    _locale: 'ru' | 'en',
   ): string[] {
     // Simplified house keywords based on sign traits
     const basicKeywords: Record<number, string[]> = {
@@ -654,8 +654,8 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private getHouseStrengths(
     houseNum: number,
-    sign: string,
-    locale: 'ru' | 'en',
+    _sign: string,
+    _locale: 'ru' | 'en',
   ): string[] {
     const basicStrengths: Record<number, string[]> = {
       1: ['Лидерство', 'Инициатива'],
@@ -676,8 +676,8 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private getHouseChallenges(
     houseNum: number,
-    sign: string,
-    locale: 'ru' | 'en',
+    _sign: string,
+    _locale: 'ru' | 'en',
   ): string[] {
     const basicChallenges: Record<number, string[]> = {
       1: ['Импульсивность', 'Эгоцентризм'],
@@ -930,9 +930,6 @@ Together, these form a coherent portrait of your personality and life path.`;
     // Analyze sun, moon, and 10th house for life purpose
     const sun = planets.find(
       (p) => p.planet === (locale === 'en' ? 'Sun' : 'Солнце'),
-    );
-    const moon = planets.find(
-      (p) => p.planet === (locale === 'en' ? 'Moon' : 'Луна'),
     );
     const tenthHouse = houses.find((h: any) => h.house === 10);
 
