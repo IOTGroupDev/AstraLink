@@ -3,14 +3,14 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 
 // Импорт SVG компонентов
-import { NewMoonSvg } from './svg/moon-phase/NewMoonSvg';
-import { WaxingCrescentSvg } from './svg/moon-phase/WaxingCrescentSvg';
-import { FirstQuarterSvg } from './svg/moon-phase/FirstQuarterSvg';
-import { WaxingGibbousSvg } from './svg/moon-phase/WaxingGibbousSvg';
-import { FullMoonSvg } from './svg/moon-phase/FullMoonSvg';
-import { WaningGibbousSvg } from './svg/moon-phase/WaningGibbousSvg';
-import { LastQuarterSvg } from './svg/moon-phase/LastQuarterSvg';
-import { WaningCrescentSvg } from './svg/moon-phase/WaningCrescentSvg';
+import { NewMoonSvg } from '../svg/moon-phase/NewMoonSvg';
+import { WaxingCrescentSvg } from '../svg/moon-phase/WaxingCrescentSvg';
+import { FirstQuarterSvg } from '../svg/moon-phase/FirstQuarterSvg';
+import { WaxingGibbousSvg } from '../svg/moon-phase/WaxingGibbousSvg';
+import { FullMoonSvg } from '../svg/moon-phase/FullMoonSvg';
+import { WaningGibbousSvg } from '../svg/moon-phase/WaningGibbousSvg';
+import { LastQuarterSvg } from '../svg/moon-phase/LastQuarterSvg';
+import { WaningCrescentSvg } from '../svg/moon-phase/WaningCrescentSvg';
 
 interface MoonPhaseVisualProps {
   phase: number; // 0-1 (0 = новолуние, 0.5 = полнолуние, 1 = новолуние)

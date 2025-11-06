@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../services/supabase';
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 import { tokenService } from '../../services/tokenService';
 
 const AuthCallbackScreen: React.FC = () => {

@@ -15,6 +15,9 @@ import DatingSvg from '../components/svg/tabs/DatingSvg';
 import AdviserSvg from '../components/svg/tabs/AdviserSvg';
 import ProfileSvg from '../components/svg/tabs/ProfileSvg';
 import ChatListScreen from '../screens/ChatListScreen';
+import MyChartScreen from '../screens/swap/MyChartScreen';
+import SplashScreen from '../screens/swap/SplashScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -116,6 +119,11 @@ export default function TabNavigator() {
         name="CosmicSimulator"
         component={CosmicSimulatorScreen}
         options={{ title: 'Симулятор', headerShown: false }}
+      />
+      <Tab.Screen
+        name="WelcomeScreen"
+        component={WelcomeScreen}
+        options={{ title: 'test', headerShown: false }}
       />
       <Tab.Screen
         name="Dating"

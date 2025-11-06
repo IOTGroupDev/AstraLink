@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 figma-mcp-server/
-figma-export/
-figma_fetch.sh
+.figma-export/
+.figma_fetch.sh
 .kilocode
 npm-debug.log*
 yarn-debug.log*

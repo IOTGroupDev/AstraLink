@@ -355,9 +355,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import CosmicBackground from '../components/CosmicBackground';
+import CosmicBackground from '../components/shared/CosmicBackground';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
-import { LunarCalendarWidget } from '../components/LunarCalendarWidget';
+import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 
 // Иконки для навигации
 const NatalIcon = ({ color = '#FFFFFF' }) => (

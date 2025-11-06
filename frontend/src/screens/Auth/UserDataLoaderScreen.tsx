@@ -7,7 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { tokenService } from '../../services/tokenService';
 import {

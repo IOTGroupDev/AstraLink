@@ -39,7 +39,7 @@ export const StarSvg: React.FC<StarSvgProps> = ({
           width="64.9968"
           height="62.006"
           filterUnits="userSpaceOnUse"
-          color-interpolation-filters="sRGB"
+          colorInterpolationFilters="sRGB"
         >
           <feFlood floodOpacity="0" result="BackgroundImageFix" />
           <feBlend

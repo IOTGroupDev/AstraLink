@@ -17,10 +17,10 @@ import Animated, {
 import { useNavigation } from '@react-navigation/native';
 
 // Components
-import CosmicBackground from '../../components/CosmicBackground';
-import AstralInput from '../../components/AstralInput';
-import AstralCheckbox from '../../components/AstralCheckbox';
-import AstralTimePicker from '../../components/AstralTimePicker';
+import CosmicBackground from '../../components/shared/CosmicBackground';
+import AstralInput from '../../components/shared/AstralInput';
+import AstralCheckbox from '../../components/shared/AstralCheckbox';
+import AstralTimePicker from '../../components/shared/AstralTimePicker';
 import ArrowBackSvg from '../../components/svg/ArrowBackSvg';
 
 // Store

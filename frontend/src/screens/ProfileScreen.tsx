@@ -1150,13 +1150,13 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
-import ShimmerLoader from '../components/ShimmerLoader';
-import CosmicBackground from '../components/CosmicBackground';
-import ZodiacAvatar from '../components/ZodiacAvatar';
-import SubscriptionCard from '../components/SubscriptionCard';
-import NatalChartWidget from '../components/NatalChartWidget';
+import ShimmerLoader from '../components/swap/old/ShimmerLoader';
+import CosmicBackground from '../components/shared/CosmicBackground';
+import ZodiacAvatar from '../components/profile/ZodiacAvatar';
+import SubscriptionCard from '../components/profile/SubscriptionCard';
+import NatalChartWidget from '../components/profile/NatalChartWidget';
 import { useAuth } from '../hooks/useAuth';
-import DeleteAccountModal from '../components/DeleteAccountModal';
+import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores/auth.store';
 import { userAPI, chartAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';

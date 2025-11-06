@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import DateWheelPicker, { DateParts } from '../../components/DateWheelPicker';
+import DateWheelPicker, {
+  DateParts,
+} from '../../components/shared/DateWheelPicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboardingStore } from '../../stores/onboarding.store';
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 

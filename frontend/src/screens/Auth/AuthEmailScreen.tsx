@@ -15,8 +15,8 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-import CosmicBackground from '../../components/CosmicBackground';
-import AstralInput from '../../components/AstralInput';
+import CosmicBackground from '../../components/shared/CosmicBackground';
+import AstralInput from '../../components/shared/AstralInput';
 import { authAPI } from '../../services/api';
 
 const AuthEmailScreen: React.FC = () => {

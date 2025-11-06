@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboardingStore } from '../../stores/onboarding.store';
-import AstralDateTimePicker from '../../components/DateTimePicker';
+import AstralDateTimePicker from '../../components/shared/DateTimePicker';
 import Animated, {
   useSharedValue,
   withTiming,

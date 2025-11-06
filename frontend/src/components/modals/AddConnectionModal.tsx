@@ -21,8 +21,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-import AstralInput from './AstralInput';
-import AstralDateTimePicker from './DateTimePicker';
+import AstralInput from '../shared/AstralInput';
+import AstralDateTimePicker from '../shared/DateTimePicker';
 
 interface AddConnectionModalProps {
   visible: boolean;

@@ -968,14 +968,12 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
+  ScrollView,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -988,70 +986,56 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { datingAPI } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
+import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../hooks/useAuth';
+import { datingAPI } from '../services/api';
+import { supabase } from '../services/supabase';
+import CosmicChat from '../components/dating/CosmicChat';
 
 const { width, height } = Dimensions.get('window');
 
-// Мокированные данные по макету Figma
-const mockUser = {
-  name: 'Елена',
-  age: 28,
-  zodiacSign: 'Рыбы',
-  distance: 5,
-  bio: 'Люблю астрологию и медитации под звездным небом. Ищу духовную связь и гармонию в отношениях.',
-  compatibility: 87,
-  occupation: 'Астролог',
-  height: '165 см',
-  relationshipGoals: 'Серьезные отношения',
-  interests: ['Философия', 'Книги', 'Эзотерика', 'Астрология'],
-  photo:
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&h=1200&fit=crop',
-};
-
-// Координаты декоративных точек из Figma
+// Декоративные точки из Figma
 const DECORATIVE_DOTS = [
-  { x: 370, y: 273 },
-  { x: 254, y: 256 },
-  { x: 125, y: 79 },
-  { x: 344, y: 54 },
-  { x: 92, y: 25 },
-  { x: 256, y: 129 },
-  { x: 304, y: 378 },
-  { x: 320, y: 388 },
-  { x: 379, y: 397 },
-  { x: 386, y: 471 },
-  { x: 129, y: 404 },
-  { x: 81, y: 433 },
-  { x: 105, y: 301 },
-  { x: 212, y: 318 },
-  { x: 42, y: 575 },
-  { x: 135, y: 567 },
-  { x: 235, y: 529 },
-  { x: 274, y: 567 },
-  { x: 357, y: 601 },
-  { x: 70, y: 697 },
-  { x: 161, y: 614 },
-  { x: 300, y: 701 },
-  { x: 176, y: 748 },
-  { x: 414, y: 804 },
-  { x: 11, y: 180 },
-  { x: 22, y: 362 },
-  { x: 26, y: 800 },
-  { x: 194, y: 682 },
+  { x: 35, y: 103 },
+  { x: 395, y: 83 },
+  { x: 68, y: 240 },
+  { x: 362, y: 320 },
+  { x: 38, y: 470 },
+  { x: 392, y: 450 },
+  { x: 70, y: 625 },
+  { x: 360, y: 705 },
+  { x: 42, y: 830 },
+  { x: 388, y: 880 },
 ];
 
 export default function DatingScreen() {
-  const [candidates, setCandidates] = useState<
-    Array<{
-      userId: string;
-      badge: 'high' | 'medium' | 'low';
-      photoUrl: string | null;
-    }>
-  >([]);
+  // Тип данных из API
+  type ApiCandidate = {
+    userId: string;
+    badge: 'high' | 'medium' | 'low';
+    photoUrl: string | null;
+  };
+
+  // Расширенный тип с дополнительными полями (если нужны)
+  type Candidate = ApiCandidate & {
+    name?: string;
+    age?: number;
+    zodiacSign?: string;
+    bio?: string;
+    interests?: string[];
+    distance?: number;
+  };
+
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [chatVisible, setChatVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    name: string;
+    zodiacSign: string;
+    compatibility: number;
+  } | null>(null);
+
   const current = candidates[currentIndex] || null;
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -1064,7 +1048,18 @@ export default function DatingScreen() {
     (async () => {
       try {
         const data = await datingAPI.getCandidates(20);
-        setCandidates(data);
+        // API возвращает минимальный набор полей
+        // Можно добавить моковые данные для демонстрации
+        const enrichedData = data.map((candidate: ApiCandidate) => ({
+          ...candidate,
+          name: 'Пользователь', // Можно будет получить из профиля
+          age: 25,
+          zodiacSign: 'Лев',
+          bio: 'Интересная личность',
+          interests: ['Астрология', 'Путешествия'],
+          distance: Math.floor(Math.random() * 20) + 1,
+        }));
+        setCandidates(enrichedData);
         setCurrentIndex(0);
       } catch (e) {
         console.log('❌ Ошибка загрузки кандидатов:', e);
@@ -1120,6 +1115,9 @@ export default function DatingScreen() {
         ? 'rgba(245,158,11,0.25)'
         : 'rgba(239,68,68,0.25)';
 
+  const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low'): number =>
+    b === 'high' ? 85 : b === 'medium' ? 65 : 45;
+
   const goNext = () => {
     setCurrentIndex((idx) => (idx + 1 < candidates.length ? idx + 1 : idx));
     translateX.value = 0;
@@ -1164,7 +1162,19 @@ export default function DatingScreen() {
 
   const handleMessage = () => {
     if (!current) return;
-    navigation.navigate('ChatDialog', { otherUserId: current.userId });
+
+    // Открываем CosmicChat как модальное окно
+    setSelectedUser({
+      name: current.name || 'Пользователь',
+      zodiacSign: current.zodiacSign || 'Неизвестно',
+      compatibility: getCompatibilityFromBadge(current.badge),
+    });
+    setChatVisible(true);
+  };
+
+  const handleCloseChat = () => {
+    setChatVisible(false);
+    setSelectedUser(null);
   };
 
   const onGestureEvent = (event: any) => {
@@ -1248,105 +1258,160 @@ export default function DatingScreen() {
           <BlurView intensity={10} tint="dark" style={styles.header}>
             {/* Иконка Dating */}
             <View style={styles.iconContainer}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="heart" size={30} color="#fff" />
-              </View>
+              <LinearGradient
+                colors={['#6F1F87', '#2F0A37']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.iconCircle}
+              >
+                <Ionicons name="heart" size={28} color="#fff" />
+              </LinearGradient>
             </View>
 
-            <Text style={styles.title}>Знакомства</Text>
-            <Text style={styles.subtitle}>Астрологические совпадения</Text>
+            <Text style={styles.title}>Dating</Text>
+            <Text style={styles.subtitle}>Найди свою звезду</Text>
           </BlurView>
 
-          {/* Основная карточка */}
-          <PanGestureHandler
-            onGestureEvent={onGestureEvent}
-            onHandlerStateChange={onHandlerStateChange}
-          >
-            <Animated.View style={[styles.card, animatedCardStyle]}>
-              <View style={styles.cardInner}>
-                {/* Фото пользователя */}
-                <Image
-                  source={{ uri: current?.photoUrl || mockUser.photo }}
-                  style={styles.photo}
-                  resizeMode="cover"
-                />
-
-                {/* Градиент оверлей снизу */}
+          {/* Карточка */}
+          <View style={{ alignItems: 'center', marginTop: 20 }}>
+            <PanGestureHandler
+              onGestureEvent={onGestureEvent}
+              onHandlerStateChange={onHandlerStateChange}
+            >
+              <Animated.View style={[styles.card, animatedCardStyle]}>
                 <LinearGradient
-                  colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.9)']}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={styles.gradientOverlay}
-                />
-
-                {/* Боковые кнопки */}
-                <View style={styles.sideButtons}>
-                  <TouchableOpacity
-                    style={styles.sideButton}
-                    onPress={handlePass}
-                  >
-                    <Ionicons name="close" size={20} color="#6F1F87" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.sideButton}
-                    onPress={handleLike}
-                  >
-                    <Ionicons name="heart" size={18} color="#6F1F87" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.sideButton}
-                    onPress={handleMessage}
-                  >
-                    <Ionicons
-                      name="chatbubble-ellipses"
-                      size={18}
-                      color="#6F1F87"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Информационный блок снизу */}
-                <ScrollView
-                  style={styles.infoContainer}
-                  showsVerticalScrollIndicator={false}
-                  bounces={false}
+                  colors={['rgba(111, 31, 135, 0.4)', 'rgba(47, 10, 55, 0.4)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.cardInner}
                 >
-                  {/* Детальный блок с темным фоном */}
-                  <BlurView
-                    intensity={20}
-                    tint="dark"
-                    style={styles.detailsBlock}
+                  {/* Фото (заглушка) */}
+                  <View style={styles.photo} />
+
+                  {/* Градиент снизу */}
+                  <LinearGradient
+                    colors={[
+                      'transparent',
+                      'rgba(0,0,0,0.3)',
+                      'rgba(0,0,0,0.8)',
+                    ]}
+                    style={styles.gradientOverlay}
+                  />
+
+                  {/* Боковые кнопки (лайк, сообщение) */}
+                  <View style={styles.sideButtons}>
+                    <TouchableOpacity
+                      style={styles.sideButton}
+                      onPress={handleLike}
+                    >
+                      <Ionicons name="heart" size={18} color="#6F1F87" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.sideButton}
+                      onPress={handleMessage}
+                    >
+                      <Ionicons
+                        name="chatbubble-ellipses"
+                        size={18}
+                        color="#6F1F87"
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Информационный блок снизу */}
+                  <ScrollView
+                    style={styles.infoContainer}
+                    showsVerticalScrollIndicator={false}
+                    bounces={false}
                   >
-                    {/* Совместимость — бейдж без чисел */}
-                    <View style={styles.compatibilitySection}>
-                      <Text style={styles.compatibilityLabel}>
-                        Совместимость
-                      </Text>
-                      <View style={styles.badgeRow}>
-                        <View
-                          style={[
-                            styles.badgePill,
-                            {
-                              backgroundColor: getBadgeBg(
-                                current?.badge || 'low'
-                              ),
-                            },
-                          ]}
-                        >
-                          <Text style={styles.badgeText}>
-                            {getBadgeLabel(current?.badge || 'low')}
+                    {/* Детальный блок с темным фоном */}
+                    <BlurView
+                      intensity={20}
+                      tint="dark"
+                      style={styles.detailsBlock}
+                    >
+                      {/* Имя и возраст */}
+                      <View style={styles.basicInfo}>
+                        <Text style={styles.userName}>
+                          {current?.name || 'Пользователь'},{' '}
+                          {current?.age || '—'}
+                        </Text>
+                        <Text style={styles.zodiacSign}>
+                          {current?.zodiacSign || '—'}
+                        </Text>
+                      </View>
+
+                      {/* Расстояние */}
+                      {current?.distance != null && (
+                        <View style={styles.locationRow}>
+                          <Ionicons
+                            name="location"
+                            size={14}
+                            color="rgba(255,255,255,0.7)"
+                          />
+                          <Text style={styles.locationText}>
+                            {current.distance} км от вас
                           </Text>
                         </View>
+                      )}
+
+                      {/* Био */}
+                      <Text style={styles.bioText}>
+                        {current?.bio || 'Нет описания'}
+                      </Text>
+
+                      {/* Совместимость — бейдж без чисел */}
+                      <View style={styles.compatibilitySection}>
+                        <Text style={styles.compatibilityLabel}>
+                          Совместимость
+                        </Text>
+                        <View style={styles.badgeRow}>
+                          <View
+                            style={[
+                              styles.badgePill,
+                              {
+                                backgroundColor: getBadgeBg(
+                                  current?.badge || 'low'
+                                ),
+                              },
+                            ]}
+                          >
+                            <Text style={styles.badgeText}>
+                              {getBadgeLabel(current?.badge || 'low')}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </BlurView>
-                </ScrollView>
-              </View>
-            </Animated.View>
-          </PanGestureHandler>
+
+                      {/* Интересы */}
+                      {current &&
+                        current.interests &&
+                        current.interests.length > 0 && (
+                          <View style={styles.interestsContainer}>
+                            {current.interests.map((int, idx) => (
+                              <View key={idx} style={styles.interestTag}>
+                                <Text style={styles.interestText}>{int}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                    </BlurView>
+                  </ScrollView>
+                </LinearGradient>
+              </Animated.View>
+            </PanGestureHandler>
+          </View>
         </View>
+
+        {/* Модальное окно чата */}
+        {chatVisible && selectedUser && (
+          <CosmicChat
+            visible={chatVisible}
+            user={selectedUser}
+            onClose={handleCloseChat}
+          />
+        )}
       </View>
     </GestureHandlerRootView>
   );
@@ -1418,6 +1483,7 @@ const styles = StyleSheet.create({
     height: 566,
     borderRadius: 20,
     overflow: 'hidden',
+    width: width - 48,
   },
   cardInner: {
     flex: 1,
@@ -1429,6 +1495,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
+    backgroundColor: 'rgba(111, 31, 135, 0.3)',
   },
   gradientOverlay: {
     position: 'absolute',
@@ -1506,21 +1573,10 @@ const styles = StyleSheet.create({
   compatibilitySection: {
     marginBottom: 12,
   },
-  compatibilityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
   compatibilityLabel: {
     fontSize: 16,
     fontWeight: '500',
     color: '#fff',
-  },
-  compatibilityValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#10B981',
   },
   badgeRow: {
     alignItems: 'center',
@@ -1536,30 +1592,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  profileDetails: {
-    marginBottom: 12,
-    gap: 4,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#fff',
   },
   interestsContainer: {
     flexDirection: 'row',

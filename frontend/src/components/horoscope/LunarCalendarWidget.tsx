@@ -4,12 +4,12 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { MoonPhaseVisual } from './MoonPhaseVisual';
-import { chartAPI } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
-import { LunaSvg } from './svg/moon-phase/Luna';
-import { StarSvg } from './svg/moon-phase/Star';
-import { HouseSvg } from './svg/moon-phase/House';
-import { CaseSvg } from './svg/moon-phase/Case';
+import { chartAPI } from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
+import { LunaSvg } from '../svg/moon-phase/Luna';
+import { StarSvg } from '../svg/moon-phase/Star';
+import { HouseSvg } from '../svg/moon-phase/House';
+import { CaseSvg } from '../svg/moon-phase/Case';
 
 export const LunarCalendarWidget: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();

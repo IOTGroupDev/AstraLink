@@ -48,7 +48,7 @@ export const HouseSvg: React.FC<HouseSvgProps> = ({
           width="65.0001"
           height="62"
           filterUnits="userSpaceOnUse"
-          color-interpolation-filters="sRGB"
+          colorInterpolationFilters="sRGB"
         >
           <feFlood floodOpacity="0" result="BackgroundImageFix" />
           <feBlend

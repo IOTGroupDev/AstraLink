@@ -23,8 +23,8 @@ import Animated, {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useSubscription } from '../hooks/useSubscription';
-import { TRIAL_CONFIG } from '../types/subscription';
+import { useSubscription } from '../../hooks/useSubscription';
+import { TRIAL_CONFIG } from '../../types/subscription';
 
 const { width } = Dimensions.get('window');
 

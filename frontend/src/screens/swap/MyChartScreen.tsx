@@ -16,18 +16,31 @@ import Animated, {
   SlideInRight,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { chartAPI } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
-import { Chart, TransitsResponse } from '../types/chart';
-import AnimatedStars from '../components/AnimatedStars';
-import AstrologicalChart from '../components/AstrologicalChart';
-import PlanetIcon from '../components/PlanetIcon';
-import EnergyIndicator from '../components/EnergyIndicator';
-import Biorhythms from '../components/Biorhythms';
-import ShimmerLoader from '../components/ShimmerLoader';
-import SolarSystem from '../components/SolarSystem';
-import HoroscopeWidget from '../components/HoroscopeWidget';
-import { LunarCalendarWidget } from '../components/LunarCalendarWidget';
+import { chartAPI } from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
+import { Chart, TransitsResponse } from '../../types/index';
+import AnimatedStars from '../../components/shared/AnimatedStars';
+import AstrologicalChart from '../../components/swap/AstrologicalChart';
+import PlanetIcon from '../../components/profile/PlanetIcon';
+import EnergyIndicator from '../../components/shared/EnergyIndicator';
+import Biorhythms from '../../components/swap/Biorhythms';
+import ShimmerLoader from '../../components/swap/old/ShimmerLoader';
+import SolarSystem from '../../components/swap/old/SolarSystem';
+import HoroscopeWidget from '../../components/horoscope/HoroscopeWidget';
+import { LunarCalendarWidget } from '../../components/horoscope/LunarCalendarWidget';
+import ZodiacWheel from '../../components/swap/old/ZodiacWheel';
+import { AnimatedView } from 'react-native-reanimated/lib/typescript/component/View';
+import ConnectionCard from '../../components/swap/ConnectionCard';
+import ZodiacAvatar from '../../components/profile/ZodiacAvatar';
+import SettingsItem from '../../components/shared/SettingsItem';
+import { MoonPhaseVisual } from '../../components/horoscope/MoonPhaseVisual';
+import Onboarding1Art from '../../components/onboarding/Onboarding1Art';
+import NatalChartScreen from '../NatalChartScreen';
+import NatalChartWidget from '../../components/profile/NatalChartWidget';
+import PremiumFeature from '../../components/shared/PremiumFeature/PremiumFeature';
+import CosmicChat from '../../components/dating/CosmicChat';
+import { noop } from '@tanstack/react-query';
+import LoadingLogo from '../../components/swap/LoadingLogo';
 
 const { width, height } = Dimensions.get('window');
 
@@ -446,6 +459,9 @@ const MyChartScreen: React.FC = () => {
             entering={SlideInUp.delay(500)}
             style={[styles.energyCard, { marginTop: 20 }]}
           >
+            <View>
+              <ZodiacWheel />
+            </View>
             <View style={styles.energyHeader}>
               <Text style={styles.cardTitle}>Энергия дня</Text>
               {dailyAdvice && (
@@ -605,28 +621,41 @@ const MyChartScreen: React.FC = () => {
               </View>
             )}
           </ScrollView>
+          {chart?.data && (
+            <View>
+              <Text>TUT</Text>
+              <EnergyIndicator energy={50} />
+            </View>
+          )}
 
           {/* Biorhythms Widget */}
           {chart?.data && (
-            <View style={styles.biorhythmsRow}>
-              <View style={styles.biorhythmsWidget}>
-                {biorhythms ? (
-                  <Biorhythms
-                    physical={biorhythms.physical}
-                    emotional={biorhythms.emotional}
-                    intellectual={biorhythms.intellectual}
-                    size={100}
-                  />
-                ) : (
-                  <ShimmerLoader
-                    width={width - 80}
-                    height={100}
-                    borderRadius={20}
-                  />
-                )}
-                <Text style={styles.widgetLabel}>Биоритмы</Text>
-              </View>
-            </View>
+            <>
+              <PremiumFeature
+                feature={'b'}
+                children={
+                  <View style={styles.biorhythmsRow}>
+                    <View style={styles.biorhythmsWidget}>
+                      {biorhythms ? (
+                        <Biorhythms
+                          physical={biorhythms.physical}
+                          emotional={biorhythms.emotional}
+                          intellectual={biorhythms.intellectual}
+                          size={100}
+                        />
+                      ) : (
+                        <ShimmerLoader
+                          width={width - 80}
+                          height={100}
+                          borderRadius={20}
+                        />
+                      )}
+                      <Text style={styles.widgetLabel}>Биоритмы</Text>
+                    </View>
+                  </View>
+                }
+              />
+            </>
           )}
         </Animated.View>
       </ScrollView>

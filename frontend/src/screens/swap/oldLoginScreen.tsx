@@ -21,9 +21,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { authAPI } from '../../services/api';
 import { LoginRequest } from '../../types/index';
-import AstralLogo from '../../components/AstralLogo';
-import AstralInput from '../../components/AstralInput';
-import ErrorModal from '../../components/ErrorModal';
+import AstralLogo from '../../components/shared/AstralLogo';
+import AstralInput from '../../components/shared/AstralInput';
+import ErrorModal from '../../components/modals/ErrorModal';
 
 interface LoginScreenProps {
   onLogin: () => void;

@@ -550,7 +550,7 @@ import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { tokenService } from '../../services/tokenService';
 import { authAPI } from '../../services/api';

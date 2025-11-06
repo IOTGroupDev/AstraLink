@@ -12,10 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useAuthStore } from '../stores/auth.store';
+import { useAuthStore } from '../stores';
 import { authAPI, userAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
-import CosmicBackground from '../components/CosmicBackground';
+import CosmicBackground from '../components/shared/CosmicBackground';
 
 // Define your navigation type
 type RootStackParamList = {

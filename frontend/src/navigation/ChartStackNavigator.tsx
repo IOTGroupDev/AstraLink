@@ -1,6 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import MyChartScreen from '../screens/MyChartScreen';
+import MyChartScreen from '../screens/swap/MyChartScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
 
 const Stack = createStackNavigator();

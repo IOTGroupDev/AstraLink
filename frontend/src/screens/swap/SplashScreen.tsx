@@ -9,9 +9,9 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import LoadingLogo from '../components/LoadingLogo';
-import AnimatedStars from '../components/AnimatedStars';
-import CosmicBackground from '../components/CosmicBackground';
+import LoadingLogo from '../../components/swap/LoadingLogo';
+import AnimatedStars from '../../components/shared/AnimatedStars';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 
 const { width } = Dimensions.get('window');
 

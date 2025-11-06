@@ -30,9 +30,9 @@ import {
   getTierColors,
   TRIAL_CONFIG,
 } from '../types/subscription';
-import CosmicBackground from '../components/CosmicBackground';
-import LoadingLogo from '../components/LoadingLogo';
-import SubscriptionCard from '../components/SubscriptionCard';
+import CosmicBackground from '../components/shared/CosmicBackground';
+import LoadingLogo from '../components/swap/LoadingLogo';
+import SubscriptionCard from '../components/profile/SubscriptionCard';
 
 const { width, height } = Dimensions.get('window');
 

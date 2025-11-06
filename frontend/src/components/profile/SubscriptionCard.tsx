@@ -391,7 +391,7 @@ import Animated, {
   withRepeat,
   withSequence,
 } from 'react-native-reanimated';
-import { Subscription } from '../types';
+import { Subscription } from '../../types/index';
 
 const { width } = Dimensions.get('window');
 

@@ -36,10 +36,10 @@ import Svg, {
 
 import { authAPI } from '../../services/api';
 import { SignupRequest } from '../../types/index';
-import AnimatedStars from '../../components/AnimatedStars';
-import AstrologicalChart from '../../components/AstrologicalChart';
-import AstralLogo from '../../components/AstralLogo';
-import AstralInput from '../../components/AstralInput';
+import AnimatedStars from '../../components/shared/AnimatedStars';
+import AstrologicalChart from '../../components/swap/AstrologicalChart';
+import AstralLogo from '../../components/shared/AstralLogo';
+import AstralInput from '../../components/shared/AstralInput';
 
 const { width, height } = Dimensions.get('window');
 

@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 import { useNavigation } from '@react-navigation/native';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../stores/auth.store';

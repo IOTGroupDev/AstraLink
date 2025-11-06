@@ -9,7 +9,7 @@ import {
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useZodiac } from '../../hooks/useZodiac';
 import { ZodiacConstellationSvg } from '../../components/svg/zodiac/zodiacSvgMap';
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 

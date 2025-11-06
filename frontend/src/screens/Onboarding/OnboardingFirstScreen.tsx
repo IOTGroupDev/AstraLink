@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import OnboardingFirstMainSvg from '../../components/OnboardingFirstMainSvg';
-import CosmicBackground from '../../components/CosmicBackground';
+import OnboardingFirstMainSvg from '../../components/onboarding/OnboardingFirstMainSvg';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 

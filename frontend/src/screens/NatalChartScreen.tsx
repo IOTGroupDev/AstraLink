@@ -17,9 +17,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { chartAPI } from '../services/api';
-import CosmicBackground from '../components/CosmicBackground';
-import LoadingLogo from '../components/LoadingLogo';
-import NatalChartWidget from '../components/NatalChartWidget';
+import CosmicBackground from '../components/shared/CosmicBackground';
+import LoadingLogo from '../components/swap/LoadingLogo';
+import NatalChartWidget from '../components/profile/NatalChartWidget';
 
 interface NatalChartScreenProps {
   navigation: any;

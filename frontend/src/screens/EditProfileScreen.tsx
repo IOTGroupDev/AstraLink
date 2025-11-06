@@ -14,10 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { userAPI, chartAPI } from '../services/api';
 import { UserProfile, UpdateProfileRequest, Chart } from '../types';
-import AstralInput from '../components/AstralInput';
-import AstralDateTimePicker from '../components/DateTimePicker';
-import CosmicBackground from '../components/CosmicBackground';
-import LoadingLogo from '../components/LoadingLogo';
+import AstralInput from '../components/shared/AstralInput';
+import AstralDateTimePicker from '../components/shared/DateTimePicker';
+import CosmicBackground from '../components/shared/CosmicBackground';
+import LoadingLogo from '../components/swap/LoadingLogo';
 
 interface EditProfileScreenProps {
   navigation: any;

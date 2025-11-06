@@ -13,20 +13,13 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 
-import CosmicBackground from '../../components/CosmicBackground';
+import CosmicBackground from '../../components/shared/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { StackScreenProps } from '@react-navigation/stack';
 
-type RootStackParamList = {
-  OtpCode: {
-    email: string;
-    codeLength?: number;
-    shouldCreateUser?: boolean;
-  };
-  UserDataLoader: undefined; // 👈 добавлен переход сюда
-};
+import type { RootStackParamList } from '../../types/navigation';
 
-type Props = StackScreenProps<RootStackParamList, 'OtpCode'>;
+type Props = StackScreenProps<RootStackParamList, 'OptCode'>;
 
 const RESEND_SECONDS = 30;
 
@@ -105,12 +98,57 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     setSubmitting(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      // На всякий случай выходим из старой сессии, чтобы избежать конфликтов
+      try {
+        await supabase.auth.signOut();
+      } catch {}
+
+      // Основная попытка верификации 6-значного OTP
+      const { data, error } = await supabase.auth.verifyOtp({
         type: 'email',
-        email,
+        email: String(email).trim().toLowerCase(),
         token: code,
       });
-      if (error) throw error;
+
+      if (error) {
+        // Обработка "истёк" / "неверный" — отправляем новый код автоматически
+        const msg = error?.message ?? '';
+        const codeName = (error?.code || '').toLowerCase();
+        const isExpired =
+          codeName === 'otp_expired' || /expired|invalid token/i.test(msg);
+
+        if (isExpired) {
+          // Переотправляем код немедленно
+          try {
+            const resend = await supabase.auth.signInWithOtp({
+              email: String(email).trim().toLowerCase(),
+              options: { shouldCreateUser },
+            });
+            if (resend.error) {
+              setError(
+                resend.error.message ||
+                  'Код истёк. Не удалось отправить новый код.'
+              );
+            } else {
+              setError(
+                'Код истёк. Мы отправили новый код на почту — введите его целиком.'
+              );
+              setDigits(Array(CODE_LENGTH).fill(''));
+              setResendIn(RESEND_SECONDS);
+              lastSubmittedCode.current = null;
+            }
+          } catch (reErr: any) {
+            setError(
+              reErr?.message ||
+                'Код истёк. Не удалось отправить новый код, попробуйте ещё раз.'
+            );
+          }
+          return;
+        }
+
+        // Иные ошибки
+        throw error;
+      }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -121,12 +159,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       const msg = err?.message ?? '';
       const codeName = (err?.code || '').toLowerCase();
 
-      if (codeName === 'otp_expired' || /expired|invalid token/i.test(msg)) {
-        setError('Код истёк. Запроси новый и введи его целиком.');
-        setDigits(Array(CODE_LENGTH).fill(''));
-        setResendIn(0);
-        lastSubmittedCode.current = null;
-      } else if (/rate limit/i.test(msg)) {
+      if (/rate limit/i.test(msg)) {
         setError('Слишком много попыток. Подожди немного и попробуй снова.');
         lastSubmittedCode.current = null;
       } else {

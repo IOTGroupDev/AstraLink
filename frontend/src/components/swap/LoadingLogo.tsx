@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import CosmicBackground from './CosmicBackground';
-import LogoBlurSvg from './svg/LogoBlur';
+import CosmicBackground from '../shared/CosmicBackground';
+import LogoBlurSvg from '../svg/LogoBlur';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_WIDTH = width * 3;

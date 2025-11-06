@@ -16,14 +16,14 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { DatingService } from './dating.service';
 import type { DatingMatchResponse } from '../types';
 import type { AuthenticatedRequest } from '../types/auth';
 
 @ApiTags('Dating')
 @Controller('dating')
-@UseGuards(JwtAuthGuard)
+@UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class DatingController {
   constructor(private readonly datingService: DatingService) {}

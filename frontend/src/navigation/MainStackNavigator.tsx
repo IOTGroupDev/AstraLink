@@ -139,6 +139,7 @@
 // src/navigation/MainStackNavigator.tsx - С правильной логикой навигации
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
+import type { RootStackParamList } from '../types/navigation';
 
 import TabNavigator from './TabNavigator';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
@@ -157,8 +158,9 @@ import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
 import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 import ChatDialogScreen from '../screens/ChatDialogScreen';
+import ChatListScreen from '../screens/ChatListScreen';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 export default function MainStackNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -200,6 +202,7 @@ export default function MainStackNavigator() {
         component={TabNavigator}
         options={{ headerShown: false }}
       />
+
       {/* Onboarding Flow */}
       {!onboardingCompleted && (
         <>
@@ -255,7 +258,7 @@ export default function MainStackNavigator() {
             options={{ presentation: 'card' }}
           />
           <Stack.Screen
-            name="Registration1"
+            name="Onboarding4"
             component={OnboardingFourthScreen}
             options={{ presentation: 'card' }}
           />
@@ -302,6 +305,7 @@ export default function MainStackNavigator() {
             component={ChatDialogScreen}
             options={{ presentation: 'card' }}
           />
+          <Stack.Screen name="ChatList" component={ChatListScreen} />
         </>
       )}
     </Stack.Navigator>

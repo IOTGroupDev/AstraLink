@@ -24,13 +24,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
-import AnimatedStars from '../../components/AnimatedStars';
-import CosmicBackground from '../../components/CosmicBackground';
-import ZodiacWheel from '../../components/ZodiacWheel';
-import ConnectionCard from '../../components/ConnectionCard';
-import CosmicSnapshot from '../../components/CosmicSnapshot';
-import AddConnectionModal from '../../components/AddConnectionModal';
-import ShimmerLoader from '../../components/ShimmerLoader';
+import AnimatedStars from '../../components/shared/AnimatedStars';
+import CosmicBackground from '../../components/shared/CosmicBackground';
+import ZodiacWheel from '../../components/swap/old/ZodiacWheel';
+import ConnectionCard from '../../components/swap/ConnectionCard';
+import CosmicSnapshot from '../../components/dating/CosmicSnapshot';
+import AddConnectionModal from '../../components/modals/AddConnectionModal';
+import ShimmerLoader from '../../components/swap/old/ShimmerLoader';
 import { connectionsAPI, getStoredToken } from '../../services/api';
 
 const { width, height } = Dimensions.get('window');
