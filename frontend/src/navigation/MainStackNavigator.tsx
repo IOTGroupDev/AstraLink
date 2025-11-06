@@ -159,6 +159,8 @@ import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
 import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import NatalChartWidget from '../components/profile/NatalChartWidget';
+import NatalChartScreen from '../screens/NatalChartScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -306,6 +308,11 @@ export default function MainStackNavigator() {
             options={{ presentation: 'card' }}
           />
           <Stack.Screen name="ChatList" component={ChatListScreen} />
+          <Stack.Screen
+            name="NatalChart"
+            component={NatalChartScreen}
+            options={{ presentation: 'modal' }}
+          />
         </>
       )}
     </Stack.Navigator>

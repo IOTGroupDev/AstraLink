@@ -120,11 +120,11 @@ export default function TabNavigator() {
         component={CosmicSimulatorScreen}
         options={{ title: 'Симулятор', headerShown: false }}
       />
-      <Tab.Screen
-        name="WelcomeScreen"
-        component={WelcomeScreen}
-        options={{ title: 'test', headerShown: false }}
-      />
+      {/*<Tab.Screen*/}
+      {/*  name="WelcomeScreen"*/}
+      {/*  component={WelcomeScreen}*/}
+      {/*  options={{ title: 'test', headerShown: false }}*/}
+      {/*/>*/}
       <Tab.Screen
         name="Dating"
         component={DatingScreen}

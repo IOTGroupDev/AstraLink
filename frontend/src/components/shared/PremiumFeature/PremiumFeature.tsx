@@ -19,14 +19,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 
-import { useSubscription } from '../hooks/useSubscription';
+import { useSubscription } from '../../../hooks/useSubscription';
 import {
   SubscriptionTier,
   getTierName,
   getTierColors,
   UPGRADE_SUGGESTIONS,
   FEATURE_REQUIREMENTS,
-} from '../types/subscription';
+} from '../../../types';
 
 const { width } = Dimensions.get('window');
 
@@ -34,8 +34,8 @@ interface PremiumFeatureProps {
   /** Ключ функции из FEATURE_REQUIREMENTS */
   feature: keyof typeof FEATURE_REQUIREMENTS;
 
-  /** Контент, который будет показан при наличии доступа */
-  children: React.ReactNode;
+  /** Контент, который будет показан при наличии доступа (опционально) */
+  children?: React.ReactNode;
 
   /** Кастомное сообщение (опционально) */
   customMessage?: string;
@@ -48,6 +48,16 @@ interface PremiumFeatureProps {
 
   /** Callback при нажатии на upgrade */
   onUpgradePress?: () => void;
+
+  /**
+   * Режим отображения без доступа:
+   * - 'hide': скрывает контент полностью, показывает upgrade prompt
+   * - 'lock': показывает контент с overlay и замком поверх него
+   */
+  lockMode?: 'hide' | 'lock';
+
+  /** Компактный режим блокировки (для lockMode='lock') */
+  compactLock?: boolean;
 }
 
 /**
@@ -58,9 +68,11 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   feature,
   children,
   customMessage,
-  customTitle,
+  customTitle = 'Premium',
   showTrialButton = true,
   onUpgradePress,
+  lockMode = 'hide',
+  compactLock = false,
 }) => {
   const navigation = useNavigation();
   const {
@@ -105,7 +117,7 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
 
   // Если есть доступ - показываем контент
   if (hasFeature(feature)) {
-    return <>{children}</>;
+    return children ? <>{children}</> : null;
   }
 
   // Получаем информацию о требуемой подписке
@@ -133,12 +145,114 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
     }
   };
 
+  // Режим LOCK - показываем контент с overlay
+  if (lockMode === 'lock' && children) {
+    return (
+      <View style={styles.lockContainer}>
+        {/* Затемнённый контент */}
+        <View style={styles.lockedContent}>{children}</View>
+
+        {/* Overlay с замком */}
+        <TouchableOpacity
+          style={styles.lockOverlay}
+          onPress={handleUpgrade}
+          activeOpacity={0.95}
+        >
+          <Animated.View
+            style={[StyleSheet.absoluteFillObject, animatedGlowStyle]}
+          >
+            <LinearGradient
+              colors={[
+                requiredTierColors[0],
+                requiredTierColors[1],
+                'transparent',
+              ]}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+          </Animated.View>
+
+          <LinearGradient
+            colors={['rgba(0, 0, 0, 0.85)', 'rgba(0, 0, 0, 0.75)']}
+            style={styles.lockOverlayGradient}
+          >
+            {compactLock ? (
+              // Компактный режим - только иконка
+              <View style={styles.compactLockContent}>
+                <View style={styles.compactIconContainer}>
+                  <LinearGradient
+                    colors={[requiredTierColors[0], requiredTierColors[1]]}
+                    style={styles.compactIconGradient}
+                  >
+                    <Ionicons name="lock-closed" size={24} color="#fff" />
+                  </LinearGradient>
+                </View>
+                <Text style={styles.compactLockText}>Premium</Text>
+              </View>
+            ) : (
+              // Полный режим - с кнопками
+              <View style={styles.fullLockContent}>
+                <View style={styles.lockIconContainer}>
+                  <LinearGradient
+                    colors={[requiredTierColors[0], requiredTierColors[1]]}
+                    style={styles.lockIconGradient}
+                  >
+                    <Ionicons name="lock-closed" size={32} color="#fff" />
+                  </LinearGradient>
+                </View>
+
+                <Text style={styles.lockTitle}>
+                  {customTitle || suggestion?.featureName || 'Премиум функция'}
+                </Text>
+
+                {requiredTier && (
+                  <View style={styles.lockTierBadge}>
+                    <LinearGradient
+                      colors={[requiredTierColors[0], requiredTierColors[1]]}
+                      style={styles.tierBadgeGradient}
+                    >
+                      <Ionicons
+                        name={(suggestion?.icon as any) || 'star'}
+                        size={14}
+                        color="#fff"
+                        style={styles.tierIcon}
+                      />
+                      <Text style={styles.tierText}>
+                        {getTierName(requiredTier)}
+                      </Text>
+                    </LinearGradient>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.lockUpgradeButton}
+                  onPress={handleUpgrade}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={[requiredTierColors[0], requiredTierColors[1]]}
+                    style={styles.lockUpgradeGradient}
+                  >
+                    <Ionicons name="arrow-up" size={18} color="#fff" />
+                    <Text style={styles.lockUpgradeText}>Разблокировать</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Режим HIDE - показываем полный upgrade prompt
   return (
     <Animated.View style={[styles.container, animatedScaleStyle]}>
       {/* Background Glow */}
       <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
         <LinearGradient
-          colors={[...requiredTierColors, 'transparent']}
+          colors={[requiredTierColors[0], requiredTierColors[1], 'transparent']}
           style={StyleSheet.absoluteFillObject}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -153,7 +267,7 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
         {/* Lock Icon */}
         <View style={styles.iconContainer}>
           <LinearGradient
-            colors={requiredTierColors}
+            colors={[requiredTierColors[0], requiredTierColors[1]]}
             style={styles.iconGradient}
           >
             <Ionicons name="lock-closed" size={40} color="#fff" />
@@ -176,7 +290,7 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
         {requiredTier && (
           <View style={styles.tierBadge}>
             <LinearGradient
-              colors={requiredTierColors}
+              colors={[requiredTierColors[0], requiredTierColors[1]]}
               style={styles.tierBadgeGradient}
             >
               <Ionicons
@@ -228,7 +342,7 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={requiredTierColors}
+            colors={[requiredTierColors[0], requiredTierColors[1]]}
             style={styles.upgradeGradient}
           >
             <Ionicons name="arrow-up" size={20} color="#fff" />
@@ -369,6 +483,98 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  // Стили для режима LOCK
+  lockContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  lockedContent: {
+    opacity: 0.3,
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  lockOverlayGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  // Компактный режим
+  compactLockContent: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactIconContainer: {
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  compactIconGradient: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactLockText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Полный режим блокировки
+  fullLockContent: {
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+  },
+  lockIconContainer: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  lockIconGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  lockTierBadge: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  lockUpgradeButton: {
+    width: '80%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  lockUpgradeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  lockUpgradeText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });
 

@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import CosmicBackground from '../../components/shared/CosmicBackground';
 import AstralInput from '../../components/shared/AstralInput';
 import { authAPI } from '../../services/api';
+import ArrowBackSvg from '../../components/svg/ArrowBackSvg';
 
 const AuthEmailScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -120,19 +121,10 @@ const AuthEmailScreen: React.FC = () => {
             >
               <TouchableOpacity
                 onPress={() => navigation.goBack()}
-                style={styles.backButton}
                 activeOpacity={0.7}
                 disabled={isLoading}
               >
-                <Ionicons
-                  name="arrow-back"
-                  size={28}
-                  color={
-                    isLoading
-                      ? 'rgba(255, 255, 255, 0.3)'
-                      : 'rgba(255, 255, 255, 0.7)'
-                  }
-                />
+                <ArrowBackSvg />
               </TouchableOpacity>
 
               <Text style={styles.title}>Регистрация</Text>
@@ -140,16 +132,16 @@ const AuthEmailScreen: React.FC = () => {
               <View style={styles.placeholder} />
             </Animated.View>
 
+            {/* Текст-подсказка */}
+            <Animated.Text
+              entering={FadeInDown.duration(600).delay(200)}
+              style={styles.subtitle}
+            >
+              Введите ваш{'\n'}Email
+            </Animated.Text>
+
             {/* Контент */}
             <View style={styles.content}>
-              {/* Текст-подсказка */}
-              <Animated.Text
-                entering={FadeInDown.duration(600).delay(200)}
-                style={styles.subtitle}
-              >
-                Введите ваш{'\n'}Email
-              </Animated.Text>
-
               {/* Поле ввода */}
               <View style={styles.inputContainer}>
                 <AstralInput
@@ -237,16 +229,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 46,
+    marginBottom: 12,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   title: {
-    fontFamily: 'Montserrat_600SemiBold',
+    fontWeight: '600',
     fontSize: 24,
     color: '#FFFFFF',
     lineHeight: 28,
@@ -261,26 +248,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subtitle: {
-    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
     fontSize: 22,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
     lineHeight: 27,
-    marginBottom: 90,
+    marginBottom: 12,
+    marginTop: 24,
   },
   inputContainer: {
     width: '100%',
     marginBottom: 16,
   },
   errorText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
     fontSize: 14,
     color: '#FF6B6B',
     marginTop: 8,
     marginLeft: 4,
   },
   infoText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
@@ -309,7 +297,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   buttonText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontWeight: '500',
     fontSize: 20,
     color: '#000000',
     letterSpacing: 0.5,
@@ -317,104 +305,3 @@ const styles = StyleSheet.create({
 });
 
 export default AuthEmailScreen;
-
-// import React, { useState } from 'react';
-// import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-// import * as AuthSession from 'expo-auth-session';
-// import Constants from 'expo-constants';
-// import { useNavigation } from '@react-navigation/native';
-// import { supabase } from '../../services/supabase'; // <- поправь путь, если у тебя другой
-//
-// function getRedirectUri() {
-//   const isExpoGo = Constants.appOwnership === 'expo';
-//   // Итоговые варианты:
-//   // - Expo Go: прокси-URL от Expo (useProxy: true)
-//   // - Standalone/Dev Client: astralink://auth/callback  (совпадает с app.json)
-//   return AuthSession.makeRedirectUri({
-//     useProxy: isExpoGo,
-//     scheme: 'astralink',
-//     path: 'auth/callback', // <- host "auth" + pathPrefix "/callback" из intentFilters
-//   });
-// }
-//
-// function validateEmail(email: string) {
-//   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-// }
-//
-// export default function AuthEmailScreen() {
-//   const navigation = useNavigation<any>();
-//   const [email, setEmail] = useState('');
-//   const [sending, setSending] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-//
-//   const onSend = async () => {
-//     setError(null);
-//
-//     if (!validateEmail(email)) {
-//       setError('Некорректный email');
-//       return;
-//     }
-//
-//     try {
-//       setSending(true);
-//
-//       const emailRedirectTo = getRedirectUri();
-//
-//       const { error } = await supabase.auth.signInWithOtp({
-//         email,
-//         options: {
-//           shouldCreateUser: true,
-//           emailRedirectTo, // 👈 Критично. Без этого в Expo Go часто падает с "origin of undefined"
-//         },
-//       });
-//
-//       if (error) throw error;
-//
-//       // Идём на экран ожидания
-//       navigation.navigate('MagicLinkWaiting', { email });
-//     } catch (e: any) {
-//       setError(e?.message ?? 'Ошибка отправки письма');
-//     } finally {
-//       setSending(false);
-//     }
-//   };
-//
-//   return (
-//     <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
-//       <View style={styles.container}>
-//         <Text style={styles.title}>Вход по email</Text>
-//         <Text style={styles.subtitle}>Мы отправим ссылку для входа</Text>
-//
-//         <TextInput
-//           placeholder="you@example.com"
-//           autoCapitalize="none"
-//           keyboardType="email-address"
-//           value={email}
-//           onChangeText={setEmail}
-//           style={styles.input}
-//         />
-//
-//         {!!error && <Text style={styles.error}>{error}</Text>}
-//
-//         <TouchableOpacity onPress={onSend} style={[styles.button, sending && styles.buttonDisabled]} disabled={sending}>
-//           {sending ? <ActivityIndicator /> : <Text style={styles.buttonText}>Отправить ссылку</Text>}
-//         </TouchableOpacity>
-//       </View>
-//     </KeyboardAvoidingView>
-//   );
-// }
-//
-// const styles = StyleSheet.create({
-//   container: { flex: 1, padding: 24, justifyContent: 'center' },
-//   title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-//   subtitle: { fontSize: 14, opacity: 0.7, textAlign: 'center', marginBottom: 24 },
-//   input: {
-//     borderWidth: 1, borderColor: '#ddd', borderRadius: 12, padding: 14, fontSize: 16,
-//   },
-//   error: { color: '#d00', marginTop: 10, marginBottom: 4, textAlign: 'center' },
-//   button: {
-//     marginTop: 16, backgroundColor: '#111', padding: 14, borderRadius: 12, alignItems: 'center',
-//   },
-//   buttonDisabled: { opacity: 0.5 },
-//   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-// });

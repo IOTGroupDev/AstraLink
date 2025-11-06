@@ -18,6 +18,7 @@ import { supabase } from '../../services/supabase';
 import { StackScreenProps } from '@react-navigation/stack';
 
 import type { RootStackParamList } from '../../types/navigation';
+import ArrowBackSvg from '../../components/svg/ArrowBackSvg';
 
 type Props = StackScreenProps<RootStackParamList, 'OptCode'>;
 
@@ -35,6 +36,10 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
   const inputsRef = useRef<Array<TextInput | null>>([]);
   const submitLock = useRef(false);
   const lastSubmittedCode = useRef<string | null>(null);
+
+  const setInputRef = (idx: number) => (el: TextInput | null) => {
+    inputsRef.current[idx] = el;
+  };
 
   // Таймер повторной отправки
   useEffect(() => {
@@ -203,10 +208,10 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
             hitSlop={12}
             style={styles.backHit}
           >
-            <Text style={styles.back}>‹</Text>
+            <ArrowBackSvg />
           </Pressable>
           <Text style={styles.title}>Регистрация</Text>
-          <View style={{ width: 28 }} />
+          <View style={{ width: 45 }} />
         </View>
 
         <View style={{ height: 90, justifyContent: 'center' }}>
@@ -219,7 +224,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
             {Array.from({ length: CODE_LENGTH }).map((_, i) => (
               <TextInput
                 key={i}
-                ref={(el) => (inputsRef.current[i] = el)}
+                ref={setInputRef(i)}
                 value={digits[i]}
                 onChangeText={(v) => onChangeDigit(i, v)}
                 onKeyPress={(e) => onKeyPress(i, e)}
@@ -240,22 +245,6 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           {!!error && <Text style={styles.error}>{error}</Text>}
         </View>
 
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-          style={({ pressed }) => [
-            styles.cta,
-            !canSubmit ? styles.ctaDisabled : null,
-            pressed ? { opacity: 0.9 } : null,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.ctaText}>далее</Text>
-          )}
-        </Pressable>
-
         <View style={styles.resendRow}>
           <Text style={styles.resendHint}>Не пришёл код?</Text>
           <Pressable
@@ -272,6 +261,22 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
             </Text>
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          style={({ pressed }) => [
+            styles.cta,
+            !canSubmit ? styles.ctaDisabled : null,
+            pressed ? { opacity: 0.9 } : null,
+          ]}
+        >
+          {submitting ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.ctaText}>далее</Text>
+          )}
+        </Pressable>
       </KeyboardAvoidingView>
     </View>
   );
@@ -281,8 +286,8 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 120,
     justifyContent: 'flex-start',
   },
   headerRow: {
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backHit: { padding: 4 },
+  backHit: { padding: 5 },
   back: { color: '#fff', fontSize: 28, lineHeight: 28 },
   title: {
     color: '#fff',
@@ -300,8 +305,9 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 22,
+    fontSize: 20,
     textAlign: 'center',
+    marginTop: 25,
   },
   email: {
     marginTop: 8,
@@ -342,7 +348,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 24,
     right: 24,
-    bottom: 24,
+    bottom: 45,
     height: 60,
     backgroundColor: '#6F1F86',
     borderRadius: 58,
@@ -359,6 +365,7 @@ const styles = StyleSheet.create({
   },
   resendRow: {
     marginTop: 24,
+    marginBottom: 12,
     alignItems: 'center',
   },
   resendHint: { color: 'rgba(255,255,255,0.7)' },

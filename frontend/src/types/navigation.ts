@@ -30,6 +30,8 @@ export type RootStackParamList = {
     displayName?: string | null;
     primaryPhotoUrl?: string | null;
   };
+
+  NatalChart: undefined;
 };
 
 declare global {
