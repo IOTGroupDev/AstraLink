@@ -242,8 +242,8 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
-import { OnboardingHeader } from '../../components/onboarding/OnboardingHeader';
-import { OnboardingButton } from '../../components/onboarding/OnboardingButton';
+import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
+import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import { ZodiacConstellationSvg } from '../../components/svg/zodiac/zodiacSvgMap';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useZodiac } from '../../hooks/useZodiac';
@@ -252,7 +252,7 @@ import {
   ONBOARDING_TYPOGRAPHY,
   ONBOARDING_LAYOUT,
   FRAME,
-} from '../../components/onboarding/constants/onboarding.constants';
+} from '../../constants/onboarding.constants';
 
 type RootStackParamList = {
   Onboarding3: undefined;
@@ -270,6 +270,10 @@ export default function OnboardingThirdScreen() {
   const day = birthDate?.day ?? 1;
   const month = birthDate?.month ?? 1;
   const { zodiacSign, dateRange } = useZodiac(day, month);
+
+  console.log('birthdate', birthDate);
+  console.log('day', day);
+  console.log('zodiac', zodiacSign);
 
   const handleBack = () => navigation.goBack();
   const handleNext = () => navigation.navigate('Onboarding4');
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
   pillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 10,
     marginBottom: 30,
   },
   pill: {
@@ -356,7 +360,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     color: ONBOARDING_COLORS.text,
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: 'Montserrat_500Medium',
     letterSpacing: 0.5,
   },

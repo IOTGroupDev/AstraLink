@@ -78,7 +78,7 @@ import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
   ONBOARDING_LAYOUT,
-} from '../../components/onboarding/constants/onboarding.constants';
+} from '../../constants/onboarding.constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface OnboardingButtonProps {

@@ -39,7 +39,7 @@ import React, { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CosmicBackground from '../shared/CosmicBackground';
-import { ONBOARDING_COLORS } from './constants/onboarding.constants';
+import { ONBOARDING_COLORS } from '../../constants/onboarding.constants';
 
 interface OnboardingLayoutProps {
   children: ReactNode;

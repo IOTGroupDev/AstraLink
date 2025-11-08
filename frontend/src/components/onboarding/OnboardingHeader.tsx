@@ -100,7 +100,7 @@ import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
   ONBOARDING_LAYOUT,
-} from './constants/onboarding.constants';
+} from '../../constants/onboarding.constants';
 
 interface OnboardingHeaderProps {
   title?: string;

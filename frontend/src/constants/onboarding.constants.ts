@@ -64,6 +64,6 @@ export const ONBOARDING_LAYOUT = {
   headerTopOffset: 16,
   horizontalPadding: 24,
   buttonHeight: 60,
-  buttonBottomOffset: 98,
+  buttonBottomOffset: 16,
   buttonBorderRadius: 58,
 } as const;
