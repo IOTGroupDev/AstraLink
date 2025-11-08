@@ -1,5 +1,13 @@
-// App.tsx
-// Гейт запуска UI: не рендерим навигацию, пока не загрузили токен из storage.
+import 'react-native-reanimated';
+import 'react-native-gesture-handler';
+import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
+
+import { TextEncoder, TextDecoder } from 'text-encoding';
+if (typeof globalThis.TextEncoder === 'undefined')
+  (globalThis as any).TextEncoder = TextEncoder;
+if (typeof globalThis.TextDecoder === 'undefined')
+  (globalThis as any).TextDecoder = TextDecoder;
 
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
@@ -7,6 +15,7 @@ import { ActivityIndicator, View, Text } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
 import { initSupabaseSync } from './src/services/supabase';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const queryClient = new QueryClient();
 
@@ -34,39 +43,43 @@ export default function App() {
 
   if (!booted) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 20,
-        }}
-      >
-        <ActivityIndicator size="large" color="#8B5CF6" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
-          Загрузка приложения...
-        </Text>
-        {error && (
-          <Text
-            style={{
-              marginTop: 8,
-              fontSize: 14,
-              color: '#ef4444',
-              textAlign: 'center',
-            }}
-          >
-            Ошибка: {error}
+      <SafeAreaProvider>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
+            Загрузка приложения...
           </Text>
-        )}
-      </View>
+          {error && (
+            <Text
+              style={{
+                marginTop: 8,
+                fontSize: 14,
+                color: '#ef4444',
+                textAlign: 'center',
+              }}
+            >
+              Ошибка: {error}
+            </Text>
+          )}
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <NavigationContainer>
-        <MainStackNavigator />
-      </NavigationContainer>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <NavigationContainer>
+          <MainStackNavigator />
+        </NavigationContainer>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

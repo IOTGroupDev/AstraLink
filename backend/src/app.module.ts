@@ -18,6 +18,8 @@ import { SharedModule } from './modules/shared/shared.module';
 import { RedisModule } from './redis/redis.module';
 import { AdvisorModule } from './advisor/advisor.module';
 import { ChatModule } from './chat/chat.module';
+import { HealthModule } from '@/health/health.module';
+import { DebugController } from '@/debug/debug.controller';
 
 @Module({
   imports: [
@@ -40,8 +42,9 @@ import { ChatModule } from './chat/chat.module';
     RedisModule,
     ChatModule,
     AdvisorModule,
+    HealthModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, DebugController],
   providers: [
     AppService,
     // {
