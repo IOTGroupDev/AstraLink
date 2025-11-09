@@ -27,12 +27,6 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
 
   const energyLevel = getEnergyLevel(energy);
 
-  // Вычисление угла дуги для круговой диаграммы (в радианах)
-  // Начинаем с нижней точки (270°) и идем по часовой
-  const startAngle = (270 * Math.PI) / 180; // 4.712 радиан
-  const progressAngle = (energy / 100) * 2 * Math.PI;
-  const endAngle = startAngle + progressAngle;
-
   // Параметры круга
   const size = 72;
   const center = size / 2;
@@ -90,7 +84,7 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
                 </RadialGradient>
               </Defs>
 
-              <G rotation="-90" origin={`${center}, ${center}`}>
+              <G rotation="-90" originX={center} originY={center}>
                 {/* Background Circle (полупрозрачный) */}
                 <Circle
                   cx={center}

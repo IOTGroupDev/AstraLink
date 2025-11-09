@@ -675,9 +675,7 @@ export const chartAPI = {
 
   getMoonPhase: async (date?: string): Promise<MoonPhase> => {
     try {
-      const url = date
-        ? `/chart/moon-phase?date=${date}`
-        : '/chart/moon-moon-phase';
+      const url = date ? `/chart/moon-phase?date=${date}` : '/chart/moon-phase';
       const response = await api.get(url);
       return response.data;
     } catch (error) {

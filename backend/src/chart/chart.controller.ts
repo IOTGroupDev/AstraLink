@@ -192,7 +192,8 @@ export class ChartController {
     };
   }
 
-  @Get('moon-moon-phase')
+  @Get('moon-phase')
+  @Get('moon-moon-phase') // legacy alias for backward compatibility
   @ApiOperation({ summary: 'Получить фазу луны на указанную дату' })
   @ApiQuery({
     name: 'date',
@@ -219,7 +220,7 @@ export class ChartController {
       }
     } catch (_error) {
       throw new UnauthorizedException(
-        'Не удалось загрузить натальную карту для moon-moon-phase',
+        'Не удалось загрузить натальную карту для moon-phase',
       );
     }
 

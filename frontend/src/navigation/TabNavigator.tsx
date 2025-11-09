@@ -17,6 +17,7 @@ import ChatListScreen from '../screens/ChatListScreen';
 import MyChartScreen from '../screens/swap/MyChartScreen';
 import SplashScreen from '../screens/swap/SplashScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import SimulatorScreen from '../screens/swap/Old_simulator';
 
 const Tab = createBottomTabNavigator();
 
@@ -140,6 +141,7 @@ export default function TabNavigator() {
         options={{ title: 'Профиль', headerShown: false }}
       />
       <Tab.Screen name="MyChart" component={MyChartScreen} />
+      <Tab.Screen name="Simul" component={SimulatorScreen} />
     </Tab.Navigator>
   );
 }
