@@ -1,178 +1,174 @@
-// frontend/src/components/HoroscopeWidget.tsx (исправленная версия)
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   Dimensions,
+  TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import { SvgXml } from 'react-native-svg';
 import { chartAPI } from '../../services/api';
-import { useAuth } from '../../hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 
+const svgIcons = {
+  star: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="#8B5CF6"/>
+</svg>`,
+
+  heart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M20.84 4.61C20.3292 4.099 19.7228 3.69365 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69365 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.57831 8.50903 2.99872 7.05 2.99872C5.59096 2.99872 4.19169 3.57831 3.16 4.61C2.1283 5.64169 1.54871 7.04097 1.54871 8.5C1.54871 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39469C21.7563 5.72728 21.351 5.12084 20.84 4.61Z" fill="#F75B93"/>
+</svg>`,
+
+  briefcase: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" fill="#207EDB"/>
+<path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21" fill="#207EDB"/>
+</svg>`,
+
+  accessibility: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="5" r="3" fill="#ED9C3A"/>
+<path d="M9 10H15M12 10V20M10 13L8 20M14 13L16 20" stroke="#ED9C3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+
+  wallet: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21 4H3C1.89543 4 1 4.89543 1 6V18C1 19.1046 1.89543 20 3 20H21C22.1046 20 23 19.1046 23 18V6C23 4.89543 22.1046 4 21 4Z" fill="#07A482"/>
+<path d="M1 10H23" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+
+  checkmark: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="12" r="10" fill="none" stroke="#8B5CF6" stroke-width="2"/>
+<path d="M8 12L11 15L16 9" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+};
+
 interface HoroscopeWidgetProps {
   predictions: any;
-  currentPlanets: any;
-  isLoading: boolean;
+  currentPlanets?: any;
+  isLoading?: boolean;
 }
 
-type HoroscopePeriod = 'day' | 'tomorrow' | 'week' | 'month';
+type TabType = 'day' | 'tomorrow' | 'week';
+
+interface Category {
+  id: string;
+  title: string;
+  icon: keyof typeof svgIcons;
+  dataKey: string;
+}
+
+const categories: Category[] = [
+  { id: 'general', title: 'Общее', icon: 'star', dataKey: 'general' },
+  { id: 'love', title: 'Любовь', icon: 'heart', dataKey: 'love' },
+  { id: 'career', title: 'Карьера', icon: 'briefcase', dataKey: 'career' },
+  { id: 'health', title: 'Здоровье', icon: 'accessibility', dataKey: 'health' },
+  { id: 'finance', title: 'Финансы', icon: 'wallet', dataKey: 'finance' },
+  { id: 'advice', title: 'Совет дня', icon: 'checkmark', dataKey: 'advice' },
+];
+
+const tabs = [
+  { id: 'day' as TabType, label: 'Сегодня' },
+  { id: 'tomorrow' as TabType, label: 'Завтра' },
+  { id: 'week' as TabType, label: 'Эта неделя' },
+];
 
 const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   predictions: initialPredictions,
-  currentPlanets,
   isLoading: initialLoading,
 }) => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [activePeriod, setActivePeriod] = useState<HoroscopePeriod>('day');
+  const [activeTab, setActiveTab] = useState<TabType>('day');
   const [allHoroscopes, setAllHoroscopes] = useState<any>(null);
-  const [loading, setLoading] = useState(initialLoading);
-  const [isPremium, setIsPremium] = useState(false);
-
-  // Анимации
-  const glowAnim = useSharedValue(0);
-  const scaleAnim = useSharedValue(1);
-  const fadeAnim = useSharedValue(0);
-
-  useEffect(() => {
-    glowAnim.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000 }),
-        withTiming(0.3, { duration: 2000 })
-      ),
-      -1,
-      true
-    );
-
-    fadeAnim.value = withTiming(1, { duration: 800 });
-  }, []);
+  const [loading, setLoading] = useState(initialLoading || false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null
+  );
+  const [selectedContent, setSelectedContent] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (initialPredictions) {
+      const normalized = {
+        day: initialPredictions.day || initialPredictions.today,
+        tomorrow: initialPredictions.tomorrow,
+        week: initialPredictions.week,
+      };
+      setAllHoroscopes(normalized);
+    } else {
       loadAllHoroscopes();
     }
-  }, [isAuthenticated]);
+  }, [initialPredictions]);
 
   const loadAllHoroscopes = async () => {
     try {
       setLoading(true);
-      console.log('🔮 Загрузка всех гороскопов...');
+      const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
+        chartAPI.getHoroscope('day'),
+        chartAPI.getHoroscope('tomorrow'),
+        chartAPI.getHoroscope('week'),
+      ]);
 
-      const response = await chartAPI.getAllHoroscopes();
-
-      console.log('📦 Получен ответ от API:', {
-        hasToday: !!response.today,
-        hasTomorrow: !!response.tomorrow,
-        hasWeek: !!response.week,
-        hasMonth: !!response.month,
-      });
-
-      // Нормализуем ключи с backend: today -> day
-      const normalized = {
-        day: response.today,
-        tomorrow: response.tomorrow,
-        week: response.week,
-        month: response.month,
+      const extractPredictions = (response: any) => {
+        if (response.predictions && typeof response.predictions === 'object') {
+          return response.predictions;
+        }
+        return response;
       };
 
-      // Проверяем, что данные разные
-      console.log('🔍 Проверка уникальности данных:');
-      console.log('Day general:', normalized.day?.general?.substring(0, 50));
-      console.log(
-        'Tomorrow general:',
-        normalized.tomorrow?.general?.substring(0, 50)
-      );
-      console.log('Week general:', normalized.week?.general?.substring(0, 50));
-      console.log(
-        'Month general:',
-        normalized.month?.general?.substring(0, 50)
-      );
-
-      setAllHoroscopes(normalized);
-      setIsPremium(response.isPremium || false);
-
-      console.log('✅ Гороскопы загружены успешно');
+      setAllHoroscopes({
+        day: extractPredictions(dayResponse),
+        tomorrow: extractPredictions(tomorrowResponse),
+        week: extractPredictions(weekResponse),
+      });
     } catch (error) {
-      console.error('❌ Ошибка загрузки гороскопов:', error);
+      console.error('Ошибка загрузки гороскопов:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePeriodChange = (period: HoroscopePeriod) => {
-    console.log('📅 Изменение периода на:', period);
-    scaleAnim.value = withSequence(withSpring(0.95), withSpring(1));
-    setActivePeriod(period);
+  const currentHoroscope = allHoroscopes?.[activeTab];
+
+  const getCategoryContent = (dataKey: string) => {
+    if (!currentHoroscope) return '';
+    return currentHoroscope[dataKey] || '';
   };
 
-  // Используем useMemo для мемоизации текущего гороскопа
-  const currentHoroscope = useMemo(() => {
-    if (!allHoroscopes) {
-      console.log('⚠️ allHoroscopes пока null');
-      return null;
+  const truncateText = (text: string, lines: number = 3) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    const maxChars = lines * 40;
+    let result = '';
+    for (const word of words) {
+      if ((result + word).length > maxChars) {
+        return result.trim() + '...';
+      }
+      result += word + ' ';
     }
-
-    const horoscope = allHoroscopes[activePeriod];
-    console.log(`🔮 Текущий гороскоп для ${activePeriod}:`, {
-      hasGeneral: !!horoscope?.general,
-      generalStart: horoscope?.general?.substring(0, 50),
-    });
-
-    return horoscope;
-  }, [allHoroscopes, activePeriod]);
-
-  // Отладка: отслеживание изменений
-  useEffect(() => {
-    console.log('🔄 Период изменился:', activePeriod);
-    console.log('📊 Текущий гороскоп:', currentHoroscope ? 'загружен' : 'null');
-  }, [activePeriod]);
-
-  const animatedGlowStyle = useAnimatedStyle(() => ({
-    opacity: glowAnim.value,
-  }));
-
-  const animatedScaleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleAnim.value }],
-  }));
-
-  const animatedFadeStyle = useAnimatedStyle(() => ({
-    opacity: fadeAnim.value,
-  }));
-
-  const getPeriodTitle = (period: HoroscopePeriod): string => {
-    const titles = {
-      day: 'Сегодня',
-      tomorrow: 'Завтра',
-      week: 'Эта неделя',
-      month: 'Этот месяц',
-    };
-    return titles[period];
+    return result.trim();
   };
 
-  const getPeriodIcon = (period: HoroscopePeriod): string => {
-    const icons = {
-      day: 'sunny',
-      tomorrow: 'moon',
-      week: 'calendar',
-      month: 'calendar-outline',
-    };
-    return icons[period];
+  const handleCategoryPress = (category: Category) => {
+    const content = getCategoryContent(category.dataKey);
+    if (content) {
+      setSelectedCategory(category);
+      setSelectedContent(content);
+      setModalVisible(true);
+    }
   };
 
-  if (authLoading || loading) {
+  const closeModal = () => {
+    setModalVisible(false);
+    setTimeout(() => {
+      setSelectedCategory(null);
+      setSelectedContent('');
+    }, 300);
+  };
+
+  if (loading) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -185,324 +181,191 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     );
   }
 
-  // Если пользователь не авторизован, не показываем компонент
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  if (!currentHoroscope) {
-    console.log('⚠️ Нет данных для отображения');
-    return null;
-  }
-
   return (
-    <Animated.View style={[styles.container, animatedFadeStyle]}>
-      {/* Фоновое свечение */}
-      <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
-        <LinearGradient
-          colors={[
-            'rgba(139, 92, 246, 0.3)',
-            'rgba(236, 72, 153, 0.3)',
-            'transparent',
-          ]}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </Animated.View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['rgba(35, 0, 45, 0.4)', 'rgba(56, 8, 72, 0.4)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>✨ Гороскоп</Text>
+        </View>
 
-      {/* Карточка гороскопа */}
-      <Animated.View style={[styles.card, animatedScaleStyle]}>
-        <LinearGradient
-          colors={['rgba(139, 92, 246, 0.15)', 'rgba(236, 72, 153, 0.15)']}
-          style={styles.cardGradient}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsContainer}
+          contentContainerStyle={styles.tabsContent}
         >
-          {/* Заголовок */}
-          <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <Ionicons name="sparkles" size={24} color="#8B5CF6" />
-              <Text style={styles.title}>Гороскоп</Text>
-              {isPremium && (
-                <View style={styles.premiumBadge}>
-                  <Ionicons name="diamond" size={12} color="#FFD700" />
-                  <Text style={styles.premiumText}>AI</Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Табы периодов */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.periodTabs}
-            contentContainerStyle={styles.periodTabsContent}
-          >
-            {(['day', 'tomorrow', 'week', 'month'] as const).map((period) => (
-              <TouchableOpacity
-                key={period}
+          {tabs.map((tab) => (
+            <Pressable
+              key={tab.id}
+              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
+              onPress={() => setActiveTab(tab.id)}
+            >
+              <Text
                 style={[
-                  styles.periodTab,
-                  activePeriod === period && styles.activePeriodTab,
+                  styles.tabText,
+                  activeTab === tab.id && styles.tabTextActive,
                 ]}
-                onPress={() => handlePeriodChange(period)}
               >
-                <Ionicons
-                  name={getPeriodIcon(period) as any}
-                  size={16}
-                  color={activePeriod === period ? '#fff' : '#999'}
-                />
-                <Text
-                  style={[
-                    styles.periodTabText,
-                    activePeriod === period && styles.activePeriodTabText,
-                  ]}
-                >
-                  {getPeriodTitle(period)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
-          {/* Контент прогнозов */}
-          <View style={styles.predictionsScroll} key={activePeriod}>
-            {/* Общее */}
-            {currentHoroscope.general && (
-              <View style={styles.predictionSection}>
-                <View style={styles.predictionHeader}>
-                  <Ionicons name="star" size={18} color="#8B5CF6" />
-                  <Text style={styles.predictionTitle}>Общее</Text>
+        <View style={styles.contentContainer}>
+          {categories.map((category) => {
+            const content = getCategoryContent(category.dataKey);
+            if (!content) return null;
+
+            return (
+              <Pressable
+                key={category.id}
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress(category)}
+              >
+                <View style={styles.categoryHeader}>
+                  <SvgXml
+                    xml={svgIcons[category.icon]}
+                    width={24}
+                    height={24}
+                  />
+                  <Text style={styles.categoryTitle}>{category.title}</Text>
                 </View>
-                <Text style={styles.predictionText}>
-                  {currentHoroscope.general}
+
+                <Text style={styles.categoryContent} numberOfLines={3}>
+                  {truncateText(content, 3)}
                 </Text>
-              </View>
-            )}
+              </Pressable>
+            );
+          })}
 
-            {/* Любовь */}
-            {currentHoroscope.love && (
-              <View style={styles.predictionSection}>
-                <View style={styles.predictionHeader}>
-                  <Ionicons name="heart" size={18} color="#EC4899" />
-                  <Text style={styles.predictionTitle}>Любовь</Text>
+          {currentHoroscope?.luckyNumbers &&
+            currentHoroscope.luckyNumbers.length > 0 && (
+              <View style={styles.categoryCard}>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryTitle}>Счастливые числа</Text>
                 </View>
-                <Text style={styles.predictionText}>
-                  {currentHoroscope.love}
-                </Text>
-              </View>
-            )}
 
-            {/* Карьера */}
-            {currentHoroscope.career && (
-              <View style={styles.predictionSection}>
-                <View style={styles.predictionHeader}>
-                  <Ionicons name="briefcase" size={18} color="#10B981" />
-                  <Text style={styles.predictionTitle}>Карьера</Text>
-                </View>
-                <Text style={styles.predictionText}>
-                  {currentHoroscope.career}
-                </Text>
-              </View>
-            )}
-
-            {/* Здоровье */}
-            {currentHoroscope.health && (
-              <View style={styles.predictionSection}>
-                <View style={styles.predictionHeader}>
-                  <Ionicons name="fitness" size={18} color="#F59E0B" />
-                  <Text style={styles.predictionTitle}>Здоровье</Text>
-                </View>
-                <Text style={styles.predictionText}>
-                  {currentHoroscope.health}
-                </Text>
-              </View>
-            )}
-
-            {/* Финансы (для премиум) */}
-            {isPremium && currentHoroscope.finance && (
-              <View style={styles.predictionSection}>
-                <View style={styles.predictionHeader}>
-                  <Ionicons name="cash" size={18} color="#10B981" />
-                  <Text style={styles.predictionTitle}>Финансы</Text>
-                  <View style={styles.premiumLabel}>
-                    <Ionicons name="diamond" size={10} color="#FFD700" />
-                  </View>
-                </View>
-                <Text style={styles.predictionText}>
-                  {currentHoroscope.finance}
-                </Text>
-              </View>
-            )}
-
-            {/* Совет */}
-            {currentHoroscope.advice && (
-              <View style={[styles.predictionSection, styles.adviceSection]}>
-                <View style={styles.predictionHeader}>
-                  <Ionicons name="bulb" size={18} color="#F59E0B" />
-                  <Text style={styles.predictionTitle}>Совет дня</Text>
-                </View>
-                <Text style={styles.adviceText}>{currentHoroscope.advice}</Text>
-              </View>
-            )}
-
-            {/* Вызовы и возможности (для премиум) */}
-            {isPremium && (
-              <>
-                {currentHoroscope.challenges &&
-                  currentHoroscope.challenges.length > 0 && (
-                    <View style={styles.listSection}>
-                      <View style={styles.predictionHeader}>
-                        <Ionicons
-                          name="alert-circle"
-                          size={18}
-                          color="#EF4444"
-                        />
-                        <Text style={styles.predictionTitle}>Вызовы</Text>
+                <View style={styles.luckyNumbersContainer}>
+                  {currentHoroscope.luckyNumbers.map(
+                    (num: number, idx: number) => (
+                      <View key={idx} style={styles.luckyNumber}>
+                        <Text style={styles.luckyNumberText}>{num}</Text>
                       </View>
-                      {currentHoroscope.challenges.map(
-                        (challenge: string, index: number) => (
-                          <View key={index} style={styles.listItem}>
-                            <View style={styles.listDot} />
-                            <Text style={styles.listText}>{challenge}</Text>
-                          </View>
-                        )
-                      )}
-                    </View>
+                    )
                   )}
-
-                {currentHoroscope.opportunities &&
-                  currentHoroscope.opportunities.length > 0 && (
-                    <View style={styles.listSection}>
-                      <View style={styles.predictionHeader}>
-                        <Ionicons name="rocket" size={18} color="#10B981" />
-                        <Text style={styles.predictionTitle}>Возможности</Text>
-                      </View>
-                      {currentHoroscope.opportunities.map(
-                        (opportunity: string, index: number) => (
-                          <View key={index} style={styles.listItem}>
-                            <View
-                              style={[styles.listDot, styles.opportunityDot]}
-                            />
-                            <Text style={styles.listText}>{opportunity}</Text>
-                          </View>
-                        )
-                      )}
-                    </View>
-                  )}
-              </>
+                </View>
+              </View>
             )}
 
-            {/* Энергия и настроение */}
-            {(currentHoroscope.energy || currentHoroscope.mood) && (
-              <View style={styles.energyMoodSection}>
-                {currentHoroscope.energy && (
-                  <View style={styles.energyItem}>
-                    <Text style={styles.energyLabel}>Энергия дня</Text>
-                    <View style={styles.energyBar}>
+          {currentHoroscope?.luckyColors &&
+            currentHoroscope.luckyColors.length > 0 && (
+              <View style={styles.categoryCard}>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryTitle}>Счастливые цвета</Text>
+                </View>
+
+                <View style={styles.luckyColorsContainer}>
+                  {currentHoroscope.luckyColors.map(
+                    (color: string, idx: number) => (
                       <View
+                        key={idx}
                         style={[
-                          styles.energyFill,
-                          {
-                            width: `${Math.min(currentHoroscope.energy, 100)}%`,
-                          },
+                          styles.luckyColorCircle,
+                          { backgroundColor: color.toLowerCase() },
                         ]}
                       />
-                    </View>
-                    <Text style={styles.energyValue}>
-                      {currentHoroscope.energy}/100
+                    )
+                  )}
+                </View>
+              </View>
+            )}
+
+          <TouchableOpacity style={styles.aiButton}>
+            <LinearGradient
+              colors={['#8B5CF6', '#EC4899']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.aiButtonGradient}
+            >
+              <Ionicons name="sparkles" size={20} color="#fff" />
+              <Text style={styles.aiButtonText}>Получить AI прогноз</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <LinearGradient
+              colors={['rgba(35, 0, 45, 0.98)', 'rgba(56, 8, 72, 0.98)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalGradient}
+            >
+              <View style={styles.modalHeader}>
+                {selectedCategory && (
+                  <View style={styles.modalTitleContainer}>
+                    <SvgXml
+                      xml={svgIcons[selectedCategory.icon]}
+                      width={28}
+                      height={28}
+                    />
+                    <Text style={styles.modalTitle}>
+                      {selectedCategory.title}
                     </Text>
                   </View>
                 )}
-
-                {currentHoroscope.mood && (
-                  <View style={styles.moodItem}>
-                    <Text style={styles.moodLabel}>Настроение</Text>
-                    <Text style={styles.moodText}>{currentHoroscope.mood}</Text>
-                  </View>
-                )}
+                <TouchableOpacity
+                  onPress={closeModal}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
               </View>
-            )}
 
-            {/* Счастливые числа и цвета */}
-            <View style={styles.luckySection}>
-              {currentHoroscope.luckyNumbers && (
-                <View style={styles.luckyItem}>
-                  <Text style={styles.luckyLabel}>Счастливые числа</Text>
-                  <View style={styles.luckyNumbersContainer}>
-                    {currentHoroscope.luckyNumbers.map(
-                      (num: number, index: number) => (
-                        <View key={index} style={styles.luckyNumber}>
-                          <Text style={styles.luckyNumberText}>{num}</Text>
-                        </View>
-                      )
-                    )}
-                  </View>
-                </View>
-              )}
-
-              {currentHoroscope.luckyColors && (
-                <View style={styles.luckyItem}>
-                  <Text style={styles.luckyLabel}>Счастливые цвета</Text>
-                  <View style={styles.luckyColorsContainer}>
-                    {currentHoroscope.luckyColors.map(
-                      (color: string, index: number) => (
-                        <View key={index} style={styles.luckyColor}>
-                          <Text style={styles.luckyColorText}>{color}</Text>
-                        </View>
-                      )
-                    )}
-                  </View>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Кнопка обновления */}
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={loadAllHoroscopes}
-          >
-            <Ionicons name="refresh" size={16} color="#8B5CF6" />
-            <Text style={styles.refreshText}>Обновить</Text>
-          </TouchableOpacity>
-
-          {/* Баннер для бесплатных пользователей */}
-          {!isPremium && (
-            <TouchableOpacity style={styles.upgradeBanner}>
-              <LinearGradient
-                colors={['rgba(139, 92, 246, 0.2)', 'rgba(236, 72, 153, 0.2)']}
-                style={styles.upgradeBannerGradient}
+              <ScrollView
+                style={styles.modalScroll}
+                showsVerticalScrollIndicator={false}
               >
-                <Ionicons name="diamond" size={20} color="#FFD700" />
-                <View style={styles.upgradeTextContainer}>
-                  <Text style={styles.upgradeTitle}>Получите AI-прогноз</Text>
-                  <Text style={styles.upgradeSubtitle}>
-                    Детальный анализ с персонализированными рекомендациями
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-        </LinearGradient>
-      </Animated.View>
-    </Animated.View>
+                <Text style={styles.modalText}>{selectedContent}</Text>
+              </ScrollView>
+            </LinearGradient>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 20,
-    marginHorizontal: 15,
+    marginVertical: 15,
+    marginHorizontal: 20,
   },
-  backgroundGlow: {
-    position: 'absolute',
-    top: -20,
-    left: -20,
-    right: -20,
-    bottom: -20,
-    borderRadius: 30,
+  card: {
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 164, 255, 0.1)',
+    overflow: 'hidden',
   },
   loadingCard: {
-    borderRadius: 20,
+    borderRadius: 12,
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -512,286 +375,168 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  card: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-  },
-  cardGradient: {
-    padding: 20,
-  },
   header: {
     marginBottom: 20,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(139, 92, 246, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
-  premiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  premiumText: {
-    color: '#FFD700',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  periodTabs: {
+  tabsContainer: {
     marginBottom: 20,
   },
-  periodTabsContent: {
+  tabsContent: {
     gap: 10,
+    paddingHorizontal: 4,
   },
-  periodTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    gap: 6,
+  tab: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 59,
+    backgroundColor: 'rgba(243, 200, 255, 1)',
   },
-  activePeriodTab: {
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+  tabActive: {
+    backgroundColor: '#8D26A9',
   },
-  periodTabText: {
-    color: '#999',
+  tabText: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  activePeriodTabText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  predictionsScroll: {},
-  predictionSection: {
-    marginBottom: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.1)',
-  },
-  predictionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  predictionTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  predictionText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  adviceSection: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  adviceText: {
-    color: 'rgba(255, 255, 255, 0.95)',
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  premiumLabel: {
-    marginLeft: 'auto',
-  },
-  listSection: {
-    marginBottom: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.1)',
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 8,
-    gap: 10,
-  },
-  listDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
-    marginTop: 6,
-  },
-  opportunityDot: {
-    backgroundColor: '#10B981',
-  },
-  listText: {
-    flex: 1,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  luckySection: {
-    marginTop: 10,
-    gap: 15,
-  },
-  luckyItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 15,
-  },
-  luckyLabel: {
-    color: '#999',
-    fontSize: 12,
-    marginBottom: 10,
     fontWeight: '600',
+    color: '#8D26A9',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  contentContainer: {
+    gap: 10,
+  },
+  categoryCard: {
+    backgroundColor: 'rgba(10, 10, 10, 0.35)',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 164, 255, 0.2)',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  categoryContent: {
+    fontSize: 14,
+    lineHeight: 17,
+    color: '#FFFFFF',
+    fontWeight: '400',
   },
   luckyNumbersContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   luckyNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
+    width: 36,
+    height: 36,
+    borderRadius: 36,
+    backgroundColor: 'rgba(243, 200, 255, 1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   luckyNumberText: {
-    color: '#8B5CF6',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#8D26A9',
   },
   luckyColorsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
-  luckyColor: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
+  luckyColorCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  luckyColorText: {
-    color: '#8B5CF6',
-    fontSize: 12,
-    fontWeight: '600',
+  aiButton: {
+    marginTop: 10,
   },
-  refreshButton: {
+  aiButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    marginTop: 15,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
     gap: 8,
   },
-  refreshText: {
-    color: '#8B5CF6',
-    fontSize: 14,
-    fontWeight: '600',
+  aiButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
-  upgradeBanner: {
-    marginTop: 15,
-    borderRadius: 12,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    borderRadius: 20,
     overflow: 'hidden',
   },
-  upgradeBannerGradient: {
+  modalGradient: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 164, 255, 0.3)',
+  },
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    gap: 12,
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(237, 164, 255, 0.2)',
   },
-  upgradeTextContainer: {
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     flex: 1,
   },
-  upgradeTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
-  upgradeSubtitle: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 11,
+  closeButton: {
+    padding: 4,
   },
-  energyMoodSection: {
-    marginTop: 10,
-    gap: 15,
+  modalScroll: {
+    maxHeight: 500,
+    padding: 20,
   },
-  energyItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.1)',
-  },
-  energyLabel: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  energyBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  energyFill: {
-    height: '100%',
-    backgroundColor: '#8B5CF6',
-    borderRadius: 4,
-  },
-  energyValue: {
-    color: '#8B5CF6',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  moodItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.1)',
-  },
-  moodLabel: {
-    color: '#EC4899',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  moodText: {
-    color: '#fff',
-    fontSize: 14,
-    fontStyle: 'italic',
+  modalText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#FFFFFF',
+    fontWeight: '400',
   },
 });
 

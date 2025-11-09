@@ -1,7 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import ChartStackNavigator from './ChartStackNavigator';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
@@ -110,11 +109,6 @@ export default function TabNavigator() {
         component={HoroscopeScreen}
         options={{ title: 'Гороскоп', headerShown: false }}
       />
-      {/*<Tab.Screen*/}
-      {/*  name="ChartStack"*/}
-      {/*  component={ChartStackNavigator}*/}
-      {/*  options={{ title: 'Карты', headerShown: false }}*/}
-      {/*/>*/}
       <Tab.Screen
         name="CosmicSimulator"
         component={CosmicSimulatorScreen}
@@ -145,6 +139,7 @@ export default function TabNavigator() {
         component={ProfileScreen}
         options={{ title: 'Профиль', headerShown: false }}
       />
+      <Tab.Screen name="MyChart" component={MyChartScreen} />
     </Tab.Navigator>
   );
 }

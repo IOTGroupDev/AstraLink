@@ -27,13 +27,31 @@ WebBrowser.maybeCompleteAuthSession();
 // Base URL selection (Expo Go / Web / Native)
 // --------------------------------------------------
 const getApiBaseUrl = () => {
-  // 1) ENV overrides (recommended for prod/staging)
+  // 1) ENV overrides (prod/staging)
   const ENV =
     typeof process !== 'undefined' && (process as any)?.env
       ? (process as any).env
       : ({} as any);
   const ENV_URL: string | undefined = ENV.EXPO_PUBLIC_API_URL || ENV.API_URL;
-  if (ENV_URL) return ENV_URL;
+
+  // Special case for Web: prefer same-host to avoid CORS during dev
+  if (Platform.OS === 'web') {
+    try {
+      if (ENV_URL && typeof window !== 'undefined' && window.location) {
+        const envHost = new URL(ENV_URL).hostname;
+        const curHost = window.location.hostname;
+        // Use ENV_URL only if it matches current host (so no CORS); otherwise ignore it on web
+        if (envHost === curHost) {
+          return ENV_URL;
+        }
+      }
+    } catch {
+      // ignore parse errors and continue with detection
+    }
+  } else {
+    // Native: accept ENV_URL as-is (LAN/IP setup for device/emulator)
+    if (ENV_URL) return ENV_URL;
+  }
 
   // 2) Try to detect host (LAN / emulator) dynamically
   const detectHost = (): string | null => {

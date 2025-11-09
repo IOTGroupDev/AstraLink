@@ -1433,476 +1433,206 @@
 //   },
 // });
 
-import React, { useState, useMemo, useEffect } from 'react';
+// src/screens/CosmicSimulatorScreen.tsx - Refactored with TabScreenLayout
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
-  ScrollView,
-  PanResponder,
-  Animated as RNAnimated,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withDelay,
-  Easing,
-  interpolate,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Line, G } from 'react-native-svg';
+import { TabScreenLayout } from '../components/layout/TabScreenLayout';
+import SimulationSvg from '../components/svg/tabs/SimulationSvg';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
-// Star interface
-interface Star {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
-  delay: number;
-  duration: number;
+interface PlanetPosition {
+  name: string;
+  longitude: number;
+  sign: string;
+  degree: number;
 }
 
-// Generate stars
-const generateStars = (count: number): Star[] => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    x: Math.random() * SCREEN_WIDTH,
-    y: Math.random() * SCREEN_HEIGHT,
-    size: Math.random() * 1.5 + 2.5,
-    opacity: Math.random() * 0.25 + 0.35,
-    delay: Math.random() * 3000,
-    duration: Math.random() * 4000 + 3000,
-  }));
-};
+interface TransitData {
+  planet: string;
+  aspect: string;
+  target: string;
+  orb: number;
+  date: string;
+  description: string;
+  type: 'harmonious' | 'challenging' | 'neutral';
+}
 
-// Star component
-const StarComponent: React.FC<{ star: Star }> = React.memo(({ star }) => {
-  const opacity = useSharedValue(star.opacity);
-
-  useEffect(() => {
-    opacity.value = withDelay(
-      star.delay,
-      withRepeat(
-        withTiming(star.opacity * 0.4, {
-          duration: star.duration,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        -1,
-        true
-      )
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View
-      style={[
-        styles.star,
-        {
-          left: star.x,
-          top: star.y,
-          width: star.size,
-          height: star.size,
-          borderRadius: star.size / 2,
-        },
-        animatedStyle,
-      ]}
-    />
-  );
-});
-
-// Animated gradient layer
-const AnimatedGradientLayer: React.FC<{ delay: number; duration: number }> =
-  React.memo(({ delay, duration }) => {
-    const progress = useSharedValue(0);
-
-    useEffect(() => {
-      progress.value = withDelay(
-        delay,
-        withRepeat(
-          withTiming(1, {
-            duration,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          -1,
-          true
-        )
-      );
-    }, []);
-
-    const animatedStyle = useAnimatedStyle(() => {
-      const opacity = interpolate(progress.value, [0, 0.5, 1], [0.3, 0.6, 0.3]);
-      return { opacity };
-    });
-
-    return (
-      <Animated.View style={[styles.gradientLayer, animatedStyle]}>
-        <LinearGradient
-          colors={['rgba(100, 30, 130, 0.18)', 'rgba(0, 0, 0, 0)']}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.gradient}
-        />
-      </Animated.View>
-    );
-  });
-
-// Background component
-const CosmicBackground: React.FC = () => {
-  const stars = useMemo(() => generateStars(70), []);
-
-  return (
-    <View style={styles.backgroundContainer}>
-      {/* Base gradient */}
-      <LinearGradient
-        colors={['#1e0a28', '#120819', '#0a050f']}
-        locations={[0, 0.5, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gradient}
-      />
-
-      {/* Animated gradient layers */}
-      <AnimatedGradientLayer delay={0} duration={12000} />
-      <AnimatedGradientLayer delay={4000} duration={16000} />
-      <AnimatedGradientLayer delay={8000} duration={14000} />
-
-      {/* Stars */}
-      {stars.map((star) => (
-        <StarComponent key={star.id} star={star} />
-      ))}
-    </View>
-  );
-};
-
-// Main component
 export default function CosmicSimulatorScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [sliderPosition, setSliderPosition] = useState(0.5);
+  const [transitPlanets, setTransitPlanets] = useState<PlanetPosition[]>([]);
+  const [activeTransits, setActiveTransits] = useState<TransitData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const startDate = new Date(2020, 0, 1);
-  const endDate = new Date(2030, 11, 31);
-  const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
-  const currentDays = (currentDate - startDate) / (1000 * 60 * 60 * 24);
-  const progress = Math.max(0, Math.min(1, currentDays / totalDays));
+  // Временные параметры (5 лет назад - 5 лет вперед)
+  const startDate = new Date();
+  startDate.setFullYear(startDate.getFullYear() - 5);
+  const endDate = new Date();
+  endDate.setFullYear(endDate.getFullYear() + 5);
 
-  const transits = [
+  useEffect(() => {
+    // Здесь будет логика загрузки данных
+    setLoading(false);
+  }, []);
+
+  const getTransitColor = (type: string) => {
+    switch (type) {
+      case 'harmonious':
+        return '#10b981';
+      case 'challenging':
+        return '#ef4444';
+      default:
+        return '#6366f1';
+    }
+  };
+
+  // Моковые транзиты для демонстрации
+  const transits: TransitData[] = [
     {
-      planet: 'Saturn',
-      aspect: 'square',
-      target: 'Sun',
-      orb: 2.5,
-      type: 'challenging' as const,
+      planet: 'Сатурн',
+      aspect: 'квадрат',
+      target: 'Солнце',
+      orb: 2.3,
+      date: currentDate.toISOString(),
+      description: 'Период проверки вашей уверенности в себе на прочность.',
+      type: 'challenging',
     },
     {
-      planet: 'Jupiter',
-      aspect: 'trine',
-      target: 'Venus',
-      orb: 1.8,
-      type: 'harmonious' as const,
-    },
-    {
-      planet: 'Uranus',
-      aspect: 'sextile',
-      target: 'Mercury',
-      orb: 3.2,
-      type: 'harmonious' as const,
+      planet: 'Юпитер',
+      aspect: 'тригон',
+      target: 'Венера',
+      orb: 1.5,
+      date: currentDate.toISOString(),
+      description: 'Благоприятное время для любви и творчества.',
+      type: 'harmonious',
     },
   ];
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (evt, gestureState) => {
-        const sliderWidth = SCREEN_WIDTH * 0.75;
-        const newPosition = Math.max(
-          0,
-          Math.min(1, gestureState.moveX / sliderWidth)
-        );
-        setSliderPosition(newPosition);
-        const newDate = new Date(
-          startDate.getTime() + newPosition * totalDays * 24 * 60 * 60 * 1000
-        );
-        setCurrentDate(newDate);
-      },
-    })
-  ).current;
-
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    const todayProgress =
-      (today.getTime() - startDate.getTime()) /
-      (totalDays * 24 * 60 * 60 * 1000);
-    setSliderPosition(Math.max(0, Math.min(1, todayProgress)));
-  };
-
-  const addDay = () => {
-    const nextDay = new Date(currentDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    if (nextDay <= endDate) {
-      setCurrentDate(nextDay);
-      const newProgress =
-        (nextDay - startDate) / (totalDays * 24 * 60 * 60 * 1000);
-      setSliderPosition(Math.max(0, Math.min(1, newProgress)));
-    }
-  };
-
-  const addYear = () => {
-    const nextYear = new Date(currentDate);
-    nextYear.setFullYear(nextYear.getFullYear() + 1);
-    if (nextYear <= endDate) {
-      setCurrentDate(nextYear);
-      const newProgress =
-        (nextYear - startDate) / (totalDays * 24 * 60 * 60 * 1000);
-      setSliderPosition(Math.max(0, Math.min(1, newProgress)));
-    }
-  };
-
-  const getTransitColor = (type: 'harmonious' | 'challenging' | 'neutral') => {
-    if (type === 'harmonious') return '#22C55E';
-    if (type === 'challenging') return '#EF4444';
-    return '#6B7280';
-  };
-
   return (
-    <View style={styles.container}>
-      <CosmicBackground />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
+    <>
+      <StatusBar barStyle="light-content" />
+      <TabScreenLayout>
+        {/* Заголовок */}
+        <Animated.View entering={FadeIn} style={styles.header}>
           <View style={styles.iconWrapper}>
-            <Ionicons name="time" size={48} color="#fff" />
+            <SimulationSvg size={48} color="#A78BFA" />
           </View>
-          <Text style={styles.title}>Cosmic Time Machine</Text>
-          <Text style={styles.subtitle}>Астрологический Симулятор</Text>
-        </View>
+          <Text style={styles.title}>Космический симулятор</Text>
+          <Text style={styles.subtitle}>Анализ транзитов и времени</Text>
+        </Animated.View>
 
-        {/* Astrological Chart */}
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.02)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.chartCard}
-        >
-          <Svg width={SCREEN_WIDTH * 0.85} height={300} viewBox="0 0 400 400">
-            {/* Outer dashed circle */}
-            <Circle
-              cx="200"
-              cy="200"
-              r="150"
-              fill="none"
-              stroke="rgba(255, 255, 255, 0.15)"
-              strokeWidth="2"
-              strokeDasharray="7,7"
-            />
-
-            {/* Inner circle */}
-            <Circle
-              cx="200"
-              cy="200"
-              r="100"
-              fill="rgba(139, 92, 246, 0.1)"
-              stroke="rgba(139, 92, 246, 0.25)"
-              strokeWidth="2"
-            />
-
-            {/* Natal planets */}
-            {[
-              { x: 250, y: 227 },
-              { x: 271, y: 271 },
-              { x: 200, y: 300 },
-              { x: 129, y: 271 },
-            ].map((planet, i) => (
-              <Circle
-                key={`natal-${i}`}
-                cx={planet.x}
-                cy={planet.y}
-                r="6"
-                fill="#ffffff"
-              />
-            ))}
-
-            {/* Transit planets */}
-            {[
-              { angle: 30, color: '#C0C0C0' },
-              { angle: 90, color: '#4FD1C7' },
-              { angle: 180, color: '#3B82F6' },
-              { angle: 270, color: '#8B5CF6' },
-            ].map((planet, i) => {
-              const rad = (planet.angle * Math.PI) / 180;
-              const x = 200 + 150 * Math.cos(rad);
-              const y = 200 + 150 * Math.sin(rad);
-              return (
-                <Circle
-                  key={`transit-${i}`}
-                  cx={x}
-                  cy={y}
-                  r="8"
-                  fill={planet.color}
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="1"
-                />
-              );
-            })}
-
-            {/* Aspect lines */}
-            <Line
-              x1="250"
-              y1="227"
-              x2="313"
-              y2="106"
-              stroke="#22C55E"
-              strokeWidth="2"
-              strokeDasharray="4,4"
-              opacity="0.6"
-            />
-            <Line
-              x1="250"
-              y1="227"
-              x2="235"
-              y2="323"
-              stroke="#22C55E"
-              strokeWidth="2"
-              strokeDasharray="4,4"
-              opacity="0.6"
-            />
-            <Line
-              x1="200"
-              y1="100"
-              x2="200"
-              y2="300"
-              stroke="#EF4444"
-              strokeWidth="2"
-              strokeDasharray="4,4"
-              opacity="0.6"
-            />
-          </Svg>
-        </LinearGradient>
-
-        {/* Timeline Section */}
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.02)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.timelineCard}
-        >
-          <Text style={styles.sectionTitle}>Машина Времени</Text>
-
-          {/* Year labels */}
-          <View style={styles.yearLabelsContainer}>
-            <Text style={styles.yearLabel}>2020</Text>
-            <Text style={styles.currentDate}>
-              {currentDate.toLocaleDateString('ru-RU', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </Text>
-            <Text style={styles.yearLabel}>2030</Text>
-          </View>
-
-          {/* Timeline slider */}
-          <View
-            style={[styles.sliderTrack, { width: SCREEN_WIDTH * 0.75 }]}
-            {...panResponder.panHandlers}
+        {/* Временная линия */}
+        <Animated.View entering={SlideInUp.delay(100)}>
+          <LinearGradient
+            colors={['rgba(139, 92, 246, 0.1)', 'rgba(167, 139, 250, 0.05)']}
+            style={styles.timelineCard}
           >
-            <View
-              style={[styles.sliderProgress, { width: `${progress * 100}%` }]}
-            />
-            <View style={[styles.sliderHandle, { left: `${progress * 100}%` }]}>
-              <Ionicons name="time" size={16} color="#fff" />
-            </View>
-          </View>
+            <Text style={styles.sectionTitle}>Временная линия</Text>
 
-          {/* Controls */}
-          <View style={styles.controlsContainer}>
-            <TouchableOpacity style={styles.controlButton} onPress={goToToday}>
-              <Text style={styles.controlButtonText}>Сегодня</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={addDay}>
-              <Text style={styles.controlButtonText}>+1 День</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={addYear}>
-              <Text style={styles.controlButtonText}>+1 Год</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-
-        {/* Active Transits */}
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.02)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.transitsCard}
-        >
-          <View style={styles.transitsHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Ключевые Транзиты</Text>
-              <Text style={styles.transitCount}>
-                {transits.length} из {transits.length}
+            {/* Метки годов */}
+            <View style={styles.yearLabelsContainer}>
+              <Text style={styles.yearLabel}>{startDate.getFullYear()}</Text>
+              <Text style={styles.currentDate}>
+                {currentDate.toLocaleDateString('ru-RU', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </Text>
+              <Text style={styles.yearLabel}>{endDate.getFullYear()}</Text>
             </View>
-            <TouchableOpacity>
-              <Ionicons name="refresh" size={18} color="#A78BFA" />
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.transitsList}>
-            {transits.map((transit, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.transitItem,
-                  { borderLeftColor: getTransitColor(transit.type) },
-                ]}
-              >
-                <View style={styles.transitContent}>
-                  <Text style={styles.transitTitle}>
-                    {transit.planet}{' '}
-                    <Text style={styles.transitAspect}>{transit.aspect}</Text>{' '}
-                    {transit.target}
-                  </Text>
-                  <Text style={styles.transitDescription} numberOfLines={1}>
-                    Период проверки вашей уверенности в себе на прочность.
-                  </Text>
-                </View>
-                <View style={styles.transitOrb}>
-                  <Text style={styles.transitOrbText}>±{transit.orb}°</Text>
-                </View>
+            {/* Слайдер (упрощенная версия) */}
+            <View style={styles.sliderTrack}>
+              <View style={[styles.sliderProgress, { width: '50%' }]} />
+              <View style={[styles.sliderHandle, { left: '50%' }]}>
+                <Ionicons name="calendar" size={16} color="#fff" />
               </View>
-            ))}
-          </View>
+            </View>
 
-          {transits.length > 3 && (
-            <TouchableOpacity style={styles.showMoreButton}>
-              <Text style={styles.showMoreText}>
-                Показать все {transits.length} транзитов
-              </Text>
-            </TouchableOpacity>
-          )}
-        </LinearGradient>
+            {/* Кнопки управления */}
+            <View style={styles.controlsContainer}>
+              <TouchableOpacity style={styles.controlButton}>
+                <Text style={styles.controlButtonText}>-1 год</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.controlButton}>
+                <Text style={styles.controlButtonText}>-1 месяц</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.controlButton}>
+                <Text style={styles.controlButtonText}>Сегодня</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.controlButton}>
+                <Text style={styles.controlButtonText}>+1 месяц</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.controlButton}>
+                <Text style={styles.controlButtonText}>+1 год</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </Animated.View>
 
-        {/* Why feel button */}
+        {/* Активные транзиты */}
+        <Animated.View entering={SlideInUp.delay(200)}>
+          <LinearGradient
+            colors={['rgba(139, 92, 246, 0.1)', 'rgba(167, 139, 250, 0.05)']}
+            style={styles.transitsCard}
+          >
+            <View style={styles.transitsHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Активные транзиты</Text>
+                <Text style={styles.transitCount}>
+                  {transits.length} влияний
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.transitsList}>
+              {transits.map((transit, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.transitItem,
+                    { borderLeftColor: getTransitColor(transit.type) },
+                  ]}
+                >
+                  <View style={styles.transitContent}>
+                    <Text style={styles.transitTitle}>
+                      {transit.planet}{' '}
+                      <Text style={styles.transitAspect}>{transit.aspect}</Text>{' '}
+                      {transit.target}
+                    </Text>
+                    <Text style={styles.transitDescription} numberOfLines={1}>
+                      {transit.description}
+                    </Text>
+                  </View>
+                  <View style={styles.transitOrb}>
+                    <Text style={styles.transitOrbText}>±{transit.orb}°</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {transits.length > 3 && (
+              <TouchableOpacity style={styles.showMoreButton}>
+                <Text style={styles.showMoreText}>
+                  Показать все {transits.length} транзитов
+                </Text>
+              </TouchableOpacity>
+            )}
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Кнопка "Почему я это чувствую?" */}
         <TouchableOpacity style={styles.whyButton}>
           <LinearGradient
             colors={['#9333ea', '#7e22ce']}
@@ -1914,38 +1644,12 @@ export default function CosmicSimulatorScreen() {
             <Text style={styles.whyButtonText}>Почему я это чувствую?</Text>
           </LinearGradient>
         </TouchableOpacity>
-      </ScrollView>
-    </View>
+      </TabScreenLayout>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  backgroundContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gradientLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  star: {
-    position: 'absolute',
-    backgroundColor: '#fff',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 50,
-    paddingBottom: 50,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
   header: {
     alignItems: 'center',
     marginBottom: 32,
@@ -1964,17 +1668,8 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: 'rgba(255, 255, 255, 0.7)',
   },
-  chartCard: {
-    width: SCREEN_WIDTH * 0.9,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.2)',
-    alignItems: 'center',
-  },
   timelineCard: {
-    width: SCREEN_WIDTH * 0.9,
+    width: '100%',
     borderRadius: 24,
     padding: 20,
     marginBottom: 24,
@@ -2053,7 +1748,7 @@ const styles = StyleSheet.create({
     color: '#A78BFA',
   },
   transitsCard: {
-    width: SCREEN_WIDTH * 0.9,
+    width: '100%',
     borderRadius: 24,
     padding: 20,
     marginBottom: 24,
@@ -2128,7 +1823,7 @@ const styles = StyleSheet.create({
     color: '#A78BFA',
   },
   whyButton: {
-    width: SCREEN_WIDTH * 0.9,
+    width: '100%',
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -2146,5 +1841,3 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
-
-const useRef = React.useRef;

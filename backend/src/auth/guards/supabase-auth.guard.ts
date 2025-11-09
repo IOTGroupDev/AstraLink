@@ -19,6 +19,11 @@ export class SupabaseAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
+    // Разрешаем CORS preflight без проверки токена
+    if (request.method === 'OPTIONS') {
+      return true;
+    }
+
     // Respect @Public() metadata to bypass auth
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
