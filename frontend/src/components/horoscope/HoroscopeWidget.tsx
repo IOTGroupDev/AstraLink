@@ -237,7 +237,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                   <Text style={styles.categoryTitle}>{category.title}</Text>
                 </View>
 
-                <Text style={styles.categoryContent} numberOfLines={3}>
+                <Text style={styles.categoryContent} numberOfLines={4}>
                   {truncateText(content, 3)}
                 </Text>
               </Pressable>
@@ -355,7 +355,6 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginVertical: 15,
-    marginHorizontal: 20,
   },
   card: {
     borderRadius: 12,
@@ -382,7 +381,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
     letterSpacing: 0.5,
   },
   tabsContainer: {
@@ -434,7 +432,7 @@ const styles = StyleSheet.create({
   },
   categoryContent: {
     fontSize: 14,
-    lineHeight: 17,
+    lineHeight: 20,
     color: '#FFFFFF',
     fontWeight: '400',
   },
