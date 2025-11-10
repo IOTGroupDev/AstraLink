@@ -471,8 +471,6 @@ const UserDataLoaderScreen: React.FC = () => {
         return;
       }
 
-      await tokenService.setToken(session.access_token);
-
       const userId = session.user.id;
       const userEmail = session.user.email || '';
 

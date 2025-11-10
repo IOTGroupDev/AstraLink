@@ -23,7 +23,7 @@ function getLocalIP(): string {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { cors: false });
 
   app.use(compression());
   app.setGlobalPrefix('api');
@@ -36,15 +36,30 @@ async function bootstrap() {
     }),
   );
 
-  // CORS — dev: отражаем Origin и разрешаем стандартные заголовки/методы
+  // // CORS — dev: отражаем Origin и разрешаем стандартные заголовки/методы
+  // app.enableCors({
+  //   origin: true, // отразит Origin запроса, добавит Access-Control-Allow-Origin
+  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  //   allowedHeaders:
+  //     'Authorization, Content-Type, X-Requested-With, Accept, Origin',
+  //   credentials: false, // мы используем Bearer-токены, cookie не нужны
+  //   preflightContinue: false,
+  //   optionsSuccessStatus: 204,
+  // });
+
   app.enableCors({
-    origin: true, // отразит Origin запроса, добавит Access-Control-Allow-Origin
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders:
-      'Authorization, Content-Type, X-Requested-With, Accept, Origin',
-    credentials: false, // мы используем Bearer-токены, cookie не нужны
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
+    origin: [
+      // web на этом же хосте
+      /^(http|https):\/\/localhost(:\d+)?$/,
+      // LAN (замени на свой диапазон при необходимости)
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/,
+      // Expo dev URLs (tunnel/LAN)
+      /\.exp\.direct$/,
+      /\.expo\.dev$/,
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Debug'],
   });
 
   // Swagger документация

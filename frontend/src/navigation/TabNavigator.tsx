@@ -140,8 +140,6 @@ export default function TabNavigator() {
         component={ProfileScreen}
         options={{ title: 'Профиль', headerShown: false }}
       />
-      <Tab.Screen name="MyChart" component={MyChartScreen} />
-      <Tab.Screen name="Simul" component={SimulatorScreen} />
     </Tab.Navigator>
   );
 }

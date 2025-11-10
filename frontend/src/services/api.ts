@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { tokenService } from './tokenService';
+import axios, { AxiosError, AxiosHeaders } from 'axios';
 import {
   LoginRequest,
   SignupRequest,
@@ -27,98 +26,132 @@ WebBrowser.maybeCompleteAuthSession();
 // Base URL selection (Expo Go / Web / Native)
 // --------------------------------------------------
 const getApiBaseUrl = () => {
-  // 1) ENV overrides (prod/staging)
-  const ENV =
-    typeof process !== 'undefined' && (process as any)?.env
-      ? (process as any).env
-      : ({} as any);
-  const ENV_URL: string | undefined = ENV.EXPO_PUBLIC_API_URL || ENV.API_URL;
+  // // 1) ENV overrides (prod/staging)
+  // const ENV =
+  //   typeof process !== 'undefined' && (process as any)?.env
+  //     ? (process as any).env
+  //     : ({} as any);
+  // const ENV_URL: string | undefined = ENV.EXPO_PUBLIC_API_URL || ENV.API_URL;
+  //
+  // // Special case for Web: prefer same-host to avoid CORS during dev
+  // if (Platform.OS === 'web') {
+  //   try {
+  //     if (ENV_URL && typeof window !== 'undefined' && window.location) {
+  //       const envHost = new URL(ENV_URL).hostname;
+  //       const curHost = window.location.hostname;
+  //       // Use ENV_URL only if it matches current host (so no CORS); otherwise ignore it on web
+  //       if (envHost === curHost) {
+  //         return ENV_URL;
+  //       }
+  //     }
+  //   } catch {
+  //     // ignore parse errors and continue with detection
+  //   }
+  // } else {
+  //   // Native: accept ENV_URL as-is (LAN/IP setup for device/emulator)
+  //   if (ENV_URL) return ENV_URL;
+  // }
+  //
+  // // 2) Try to detect host (LAN / emulator) dynamically
+  // const detectHost = (): string | null => {
+  //   try {
+  //     // Web: use current hostname
+  //     if (
+  //       Platform.OS === 'web' &&
+  //       typeof window !== 'undefined' &&
+  //       window.location
+  //     ) {
+  //       return window.location.hostname || null;
+  //     }
+  //
+  //     // Native (Expo Go): use host from Expo Constants
+  //     // Try multiple fields to be robust across SDK versions
+  //     const anyConst: any = Constants as any;
+  //     const hostUri: string | undefined =
+  //       anyConst?.expoConfig?.hostUri ||
+  //       anyConst?.manifest2?.extra?.expoGo?.developerHost ||
+  //       anyConst?.manifest?.debuggerHost;
+  //
+  //     if (hostUri) {
+  //       // Examples:
+  //       // - "192.168.1.100:19000"
+  //       // - "localhost:19000"
+  //       const host = hostUri.split(':')[0];
+  //       return host || null;
+  //     }
+  //   } catch {
+  //     // ignore
+  //   }
+  //   return null;
+  // };
+  //
+  // const host = detectHost();
+  //
+  // // Android emulator special-case
+  // if (Platform.OS === 'android') {
+  //   if (!host || host === 'localhost' || host === '127.0.0.1') {
+  //     // 10.0.2.2 maps to host machine from Android emulator
+  //     return 'http://10.0.2.2:3000/api';
+  //   }
+  // }
+  //
+  // // No host detected -> assume local backend on dev machine
+  // if (!host) {
+  //   return 'http://localhost:3000/api';
+  // }
+  //
+  // // Determine if host looks local/LAN
+  // const isLocalOrLan =
+  //   host === 'localhost' ||
+  //   host === '127.0.0.1' ||
+  //   /^192\.168\./.test(host) ||
+  //   /^10\./.test(host);
+  //
+  // // 3) Web production without ENV: warn and try same host:3000
+  // if (Platform.OS === 'web' && !isLocalOrLan) {
+  //   console.warn(
+  //     '[API] EXPO_PUBLIC_API_URL not set for web production. Using fallback http://' +
+  //       host +
+  //       ':3000/api'
+  //   );
+  // }
+  //
+  // // 4) Default: use detected host on port 3000 with /api prefix
+  // return `http://${host}:3000/api`;
 
-  // Special case for Web: prefer same-host to avoid CORS during dev
-  if (Platform.OS === 'web') {
-    try {
-      if (ENV_URL && typeof window !== 'undefined' && window.location) {
-        const envHost = new URL(ENV_URL).hostname;
-        const curHost = window.location.hostname;
-        // Use ENV_URL only if it matches current host (so no CORS); otherwise ignore it on web
-        if (envHost === curHost) {
-          return ENV_URL;
-        }
-      }
-    } catch {
-      // ignore parse errors and continue with detection
-    }
-  } else {
-    // Native: accept ENV_URL as-is (LAN/IP setup for device/emulator)
-    if (ENV_URL) return ENV_URL;
+  // 1) Явная переменная окружения имеет приоритет
+  const envUrl =
+    (typeof process !== 'undefined' &&
+      (process as any)?.env?.EXPO_PUBLIC_API_URL) ||
+    (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_URL;
+  if (envUrl) return envUrl;
+
+  // 2) Web (браузер/Expo Web): используем текущий origin
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.location
+  ) {
+    return `${window.location.origin}/api`;
   }
 
-  // 2) Try to detect host (LAN / emulator) dynamically
-  const detectHost = (): string | null => {
-    try {
-      // Web: use current hostname
-      if (
-        Platform.OS === 'web' &&
-        typeof window !== 'undefined' &&
-        window.location
-      ) {
-        return window.location.hostname || null;
-      }
+  // 3) Попробуем взять хост из Expo (для LAN/туннеля)
+  const anyConst: any = Constants;
+  const hostUri: string | undefined =
+    anyConst?.expoGoConfig?.hostUri ||
+    anyConst?.expoConfig?.hostUri ||
+    anyConst?.manifest2?.extra?.expoClient?.hostUri ||
+    anyConst?.manifest?.hostUri;
 
-      // Native (Expo Go): use host from Expo Constants
-      // Try multiple fields to be robust across SDK versions
-      const anyConst: any = Constants as any;
-      const hostUri: string | undefined =
-        anyConst?.expoConfig?.hostUri ||
-        anyConst?.manifest2?.extra?.expoGo?.developerHost ||
-        anyConst?.manifest?.debuggerHost;
-
-      if (hostUri) {
-        // Examples:
-        // - "192.168.1.100:19000"
-        // - "localhost:19000"
-        const host = hostUri.split(':')[0];
-        return host || null;
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  };
-
-  const host = detectHost();
-
-  // Android emulator special-case
-  if (Platform.OS === 'android') {
-    if (!host || host === 'localhost' || host === '127.0.0.1') {
-      // 10.0.2.2 maps to host machine from Android emulator
-      return 'http://10.0.2.2:3000/api';
-    }
+  if (hostUri) {
+    // hostUri часто вида "192.168.1.69:8081" или "rknloqc-andreiya-8081.exp.direct"
+    const host = hostUri.split(':')[0]; // до первого двоеточия
+    // если это домен *.exp.direct — всё равно пробуем 3000
+    return `http://${host}:3000/api`;
   }
 
-  // No host detected -> assume local backend on dev machine
-  if (!host) {
-    return 'http://localhost:3000/api';
-  }
-
-  // Determine if host looks local/LAN
-  const isLocalOrLan =
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    /^192\.168\./.test(host) ||
-    /^10\./.test(host);
-
-  // 3) Web production without ENV: warn and try same host:3000
-  if (Platform.OS === 'web' && !isLocalOrLan) {
-    console.warn(
-      '[API] EXPO_PUBLIC_API_URL not set for web production. Using fallback http://' +
-        host +
-        ':3000/api'
-    );
-  }
-
-  // 4) Default: use detected host on port 3000 with /api prefix
-  return `http://${host}:3000/api`;
+  // 4) Фолбэк — localhost (рабочий для твоего кейса сейчас)
+  return 'http://localhost:3000/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -138,7 +171,9 @@ api.interceptors.request.use(async (config) => {
   console.log('🔍 Получение токена для запроса:', config.url);
 
   try {
-    const token = await tokenService.getToken();
+    // ✅ ИЗМЕНЕНИЕ: берем токен из Supabase напрямую
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
 
     if (token) {
       (config.headers as any).Authorization = `Bearer ${token}`;
@@ -149,7 +184,6 @@ api.interceptors.request.use(async (config) => {
       );
     } else {
       console.log('⚠️ Токен отсутствует для запроса:', config.url);
-      // Блокируем защищенные эндпоинты без токена (кроме явных публичных)
       const url = config.url || '';
       const isProtected =
         (url.includes('/chart/') ||
@@ -255,6 +289,125 @@ function getRedirectUri(): string {
   } catch (error) {
     console.error('❌ Ошибка получения redirect URI:', error);
     return 'astralink://auth/callback';
+  }
+}
+
+function headersToPlain(h: any): Record<string, string> {
+  if (!h) return {};
+  const out: Record<string, string> = {};
+  // AxiosHeaders v1/v2
+  if (typeof (h as AxiosHeaders).forEach === 'function') {
+    (h as AxiosHeaders).forEach((v: any, k: string) => (out[k] = String(v)));
+    return out;
+  }
+  // Plain object
+  for (const k of Object.keys(h)) out[k] = String(h[k]);
+  return out;
+}
+
+function safeJsonify(value: any) {
+  try {
+    if (typeof value === 'string') return value;
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return String(value);
+  }
+}
+
+export interface DebugHttpDump {
+  durationMs: number;
+  request: {
+    method?: string;
+    baseURL?: string;
+    url?: string;
+    fullUrl?: string;
+    headers: Record<string, string>;
+    data?: any;
+    params?: any;
+  };
+  response?: {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    data: any;
+  };
+  error?: {
+    message: string;
+    code?: string;
+    isAxiosError: boolean;
+  };
+}
+
+/**
+ * Делает GET /health и возвращает полный дамп запроса/ответа
+ */
+export async function testBackendDebug(): Promise<DebugHttpDump> {
+  const started = Date.now();
+  try {
+    const res = await api.get('/health', {
+      headers: { 'X-Debug': 'on' },
+    });
+
+    const durationMs = Date.now() - started;
+    const cfg = res.config || {};
+    const baseURL = (cfg as any).baseURL || '';
+    const url = (cfg as any).url || '';
+    const fullUrl = `${baseURL}${url}`;
+
+    return {
+      durationMs,
+      request: {
+        method: (cfg as any).method,
+        baseURL,
+        url,
+        fullUrl,
+        headers: headersToPlain((cfg as any).headers),
+        data: safeJsonify((cfg as any).data),
+        params: safeJsonify((cfg as any).params),
+      },
+      response: {
+        status: res.status,
+        statusText: res.statusText,
+        headers: headersToPlain(res.headers),
+        data: safeJsonify(res.data),
+      },
+    };
+  } catch (e) {
+    const err = e as AxiosError;
+    const durationMs = Date.now() - started;
+    const cfg = err.config || {};
+    const baseURL = (cfg as any).baseURL || '';
+    const url = (cfg as any).url || '';
+    const fullUrl = `${baseURL}${url}`;
+
+    const dump: DebugHttpDump = {
+      durationMs,
+      request: {
+        method: (cfg as any).method,
+        baseURL,
+        url,
+        fullUrl,
+        headers: headersToPlain((cfg as any).headers),
+        data: safeJsonify((cfg as any).data),
+        params: safeJsonify((cfg as any).params),
+      },
+      error: {
+        message: err.message,
+        code: err.code,
+        isAxiosError: !!(err as any).isAxiosError,
+      },
+    };
+
+    if (err.response) {
+      dump.response = {
+        status: err.response.status,
+        statusText: err.response.statusText || '',
+        headers: headersToPlain(err.response.headers || {}),
+        data: safeJsonify(err.response.data),
+      };
+    }
+
+    return dump;
   }
 }
 
@@ -716,16 +869,17 @@ export const chartAPI = {
   getBiorhythms: async (
     date?: string
   ): Promise<{
-    date: string;
     physical: number;
     emotional: number;
     intellectual: number;
+    date: string;
+    physicalPhase: 'peak' | 'high' | 'low' | 'critical';
+    emotionalPhase: 'peak' | 'high' | 'low' | 'critical';
+    intellectualPhase: 'peak' | 'high' | 'low' | 'critical';
   }> => {
     const url = date ? `/chart/biorhythms?date=${date}` : '/chart/biorhythms';
-    const token = await tokenService.getToken();
-    const response = await api.get(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
+    // ✅ Убран tokenService - токен добавится автоматически через interceptor
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -836,19 +990,6 @@ export const subscriptionAPI = {
     const response = await api.post('/subscription/cancel');
     return response.data;
   },
-};
-
-// --------------------------------------------------
-// Token (legacy helper)
-// --------------------------------------------------
-export const getStoredToken = (): string | null => {
-  try {
-    // @ts-ignore — optional cache in tokenService implementation
-    const cached = tokenService?._cachedToken;
-    return typeof cached === 'string' ? cached : null;
-  } catch {
-    return null;
-  }
 };
 
 // --------------------------------------------------
