@@ -39,7 +39,7 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
 
   return (
     <LinearGradient
-      colors={['rgba(35, 0, 45, 0.4)', 'rgba(89, 1, 114, 0.4)']}
+      colors={['rgba(35, 0, 45, 0.4)', 'rgba(158,0,200,0.4)']}
       start={{ x: 0.5, y: 1 }}
       end={{ x: 0.5, y: 0 }}
       style={styles.container}
@@ -55,16 +55,16 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
             {/* Фоновое свечение */}
             <View style={styles.glowContainer}>
               <Svg width={glowSize} height={glowSize} style={styles.glowSvg}>
-                <Defs>
-                  <RadialGradient id="glowGradient" cx="50%" cy="50%">
-                    <Stop offset="11.06%" stopColor="rgba(230, 139, 255, 0)" />
-                    <Stop
-                      offset="100%"
-                      stopColor="rgba(230, 139, 255, 1)"
-                      stopOpacity={0.3}
-                    />
-                  </RadialGradient>
-                </Defs>
+                {/*<Defs>*/}
+                {/*  <RadialGradient id="glowGradient" cx="50%" cy="50%">*/}
+                {/*    <Stop offset="11.06%" stopColor="rgba(230, 139, 255, 1)" />*/}
+                {/*    <Stop*/}
+                {/*      offset="100%"*/}
+                {/*      stopColor="rgba(230, 139, 255, .1)"*/}
+                {/*      stopOpacity={0.3}*/}
+                {/*    />*/}
+                {/*  </RadialGradient>*/}
+                {/*</Defs>*/}
                 <Circle
                   cx={glowRadius}
                   cy={glowRadius}

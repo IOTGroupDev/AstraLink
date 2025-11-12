@@ -27,6 +27,7 @@ import type {
 } from '../types';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SubscriptionService } from '@/subscription/subscription.service';
+import { SupabaseService } from '@/supabase/supabase.service';
 
 // Interface for authenticated user on Express Request
 interface AuthenticatedUser {
@@ -49,6 +50,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   @Get('profile')
@@ -170,5 +172,74 @@ export class UserController {
       success: true,
       message: 'Аккаунт и все связанные данные успешно удалены',
     };
+  }
+
+  @Get('profile-extended')
+  async getExtendedProfile(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id;
+    const token = this.getAccessToken(req as any);
+
+    // Создаем клиент с токеном пользователя для RLS
+    const client = this.supabaseService.createClientWithToken(token);
+
+    const { data, error } = await client
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    // PGRST116 = no rows found - это нормально для нового пользователя
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error getting extended profile:', error);
+      throw error;
+    }
+
+    // Возвращаем дефолтный профиль если не найден
+    return (
+      data || {
+        user_id: userId,
+        bio: null,
+        preferences: {},
+        is_onboarded: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    );
+  }
+
+  @Put('profile-extended')
+  async updateExtendedProfile(
+    @Request() req: AuthenticatedRequest,
+    @Body() updateData: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id;
+    const token = this.getAccessToken(req as any);
+
+    // Создаем клиент с токеном пользователя для RLS
+    const client = this.supabaseService.createClientWithToken(token);
+
+    // Формируем payload, чтобы передавать только указанные поля
+    const payload: any = {
+      user_id: userId,
+      bio: updateData?.bio ?? null,
+      preferences: updateData?.preferences ?? {},
+      updated_at: new Date().toISOString(),
+    };
+    if (typeof updateData?.is_onboarded === 'boolean') {
+      payload.is_onboarded = updateData.is_onboarded;
+    }
+
+    const { data, error } = await client
+      .from('user_profiles')
+      .upsert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating extended profile:', error);
+      throw error;
+    }
+
+    return data;
   }
 }

@@ -59,6 +59,7 @@ interface Category {
   title: string;
   icon: keyof typeof svgIcons;
   dataKey: string;
+  border?: boolean;
 }
 
 const categories: Category[] = [
@@ -67,7 +68,13 @@ const categories: Category[] = [
   { id: 'career', title: 'Карьера', icon: 'briefcase', dataKey: 'career' },
   { id: 'health', title: 'Здоровье', icon: 'accessibility', dataKey: 'health' },
   { id: 'finance', title: 'Финансы', icon: 'wallet', dataKey: 'finance' },
-  { id: 'advice', title: 'Совет дня', icon: 'checkmark', dataKey: 'advice' },
+  {
+    id: 'advice',
+    title: 'Совет дня',
+    icon: 'checkmark',
+    dataKey: 'advice',
+    border: true,
+  },
 ];
 
 const tabs = [
@@ -233,6 +240,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                     xml={svgIcons[category.icon]}
                     width={24}
                     height={24}
+                    style={category.border ? styles.categoryActive : null}
                   />
                   <Text style={styles.categoryTitle}>{category.title}</Text>
                 </View>
@@ -435,6 +443,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#FFFFFF',
     fontWeight: '400',
+  },
+  categoryActive: {
+    borderColor: '#EDA4FF',
   },
   luckyNumbersContainer: {
     flexDirection: 'row',

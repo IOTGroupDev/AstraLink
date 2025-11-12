@@ -55,6 +55,7 @@ export class UserPhotosService {
       .limit(1);
 
     if (listErr) {
+      console.error('❌ Check existing photos error:', listErr);
       throw new BadRequestException('Failed to check existing photos');
     }
 
@@ -65,27 +66,30 @@ export class UserPhotosService {
       .from('user_photos')
       .insert({
         user_id: userId,
-        path,
+        storage_path: path, // ✅ Используем storage_path
         is_primary: isFirst,
         created_at: now,
       })
-      .select('id, user_id, path, is_primary, created_at')
+      .select('id, user_id, storage_path, is_primary, created_at') // ✅ storage_path
       .single();
 
     if (error || !data) {
-      throw new BadRequestException('Failed to confirm user photo');
+      console.error('❌ Insert photo error:', error);
+      throw new BadRequestException(
+        `Failed to confirm user photo: ${error?.message || 'unknown'}`,
+      );
     }
 
     const url = await this.supabaseService.createSignedUrl(
       this.BUCKET,
-      data.path,
+      data.storage_path, // ✅ storage_path
       900,
     );
 
     return {
       id: data.id,
       userId: data.user_id,
-      path: data.path,
+      path: data.storage_path, // ✅ storage_path
       isPrimary: !!data.is_primary,
       url,
       createdAt:
@@ -102,11 +106,12 @@ export class UserPhotosService {
     const admin = this.supabaseService.getAdminClient();
     const { data, error } = await admin
       .from('user_photos')
-      .select('id, user_id, path, is_primary, created_at')
+      .select('id, user_id, storage_path, is_primary, created_at') // ✅ storage_path
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('❌ List photos error:', error);
       throw new BadRequestException('Failed to list user photos');
     }
 
@@ -116,13 +121,13 @@ export class UserPhotosService {
     for (const r of rows) {
       const url = await this.supabaseService.createSignedUrl(
         this.BUCKET,
-        r.path,
+        r.storage_path, // ✅ storage_path
         900,
       );
       result.push({
         id: r.id,
         userId: r.user_id,
-        path: r.path,
+        path: r.storage_path, // ✅ storage_path
         isPrimary: !!r.is_primary,
         url,
         createdAt:
@@ -164,7 +169,7 @@ export class UserPhotosService {
     // Найдем запись чтобы знать path
     const { data: photo, error: readErr } = await admin
       .from('user_photos')
-      .select('id, user_id, path, is_primary')
+      .select('id, user_id, storage_path, is_primary') // ✅ storage_path
       .eq('id', photoId)
       .eq('user_id', userId)
       .single();
@@ -176,11 +181,11 @@ export class UserPhotosService {
     // Удаляем объект из Storage
     const { error: storageErr } = await admin.storage
       .from(this.BUCKET)
-      .remove([photo.path]);
+      .remove([photo.storage_path]); // ✅ storage_path
 
     if (storageErr) {
+      console.error('⚠️ Storage delete error:', storageErr);
       // Логируем, но продолжаем удаление записи, чтобы не зависеть от Storage состояния
-      // throw new BadRequestException('Failed to remove storage object');
     }
 
     // Удаляем запись
@@ -191,6 +196,7 @@ export class UserPhotosService {
       .eq('user_id', userId);
 
     if (delErr) {
+      console.error('❌ Delete photo row error:', delErr);
       throw new BadRequestException('Failed to delete photo row');
     }
 

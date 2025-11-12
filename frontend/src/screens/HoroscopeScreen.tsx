@@ -40,6 +40,56 @@ const HoroscopeScreen: React.FC = () => {
     intellectual: number;
   } | null>(null);
 
+  // Клиентский расчёт биоритмов (fallback), если сервер вернул плоские 50/50/50
+  const computeClientBiorhythms = (
+    birthDateISO?: string,
+    targetDateISO?: string
+  ) => {
+    try {
+      if (!birthDateISO) return null;
+      const birth = new Date(birthDateISO);
+      if (isNaN(birth.getTime())) return null;
+
+      // Целевая дата = сегодня (локальная) либо переданная
+      const now = targetDateISO ? new Date(targetDateISO) : new Date();
+
+      // Используем «полдень по UTC» для обеих дат, чтобы исключить сдвиги по часовым поясам
+      const toUTCNoon = (d: Date) =>
+        new Date(
+          Date.UTC(
+            d.getUTCFullYear(),
+            d.getUTCMonth(),
+            d.getUTCDate(),
+            12,
+            0,
+            0
+          )
+        );
+
+      const birthNoonUTC = toUTCNoon(birth);
+      const targetNoonUTC = toUTCNoon(now);
+
+      const dayMs = 24 * 60 * 60 * 1000;
+      const days = Math.max(
+        0,
+        Math.floor((targetNoonUTC.getTime() - birthNoonUTC.getTime()) / dayMs)
+      );
+
+      const cycle = (period: number) =>
+        Math.round(((Math.sin((2 * Math.PI * days) / period) + 1) / 2) * 100);
+
+      const clamp = (v: number) => Math.min(100, Math.max(0, v));
+
+      return {
+        physical: clamp(cycle(23)),
+        emotional: clamp(cycle(28)),
+        intellectual: clamp(cycle(33)),
+      };
+    } catch {
+      return null;
+    }
+  };
+
   // Загрузка основных данных
   const loadData = async () => {
     try {
@@ -75,15 +125,75 @@ const HoroscopeScreen: React.FC = () => {
 
         // Загружаем биоритмы
         try {
-          const b = await chartAPI.getBiorhythms();
-          setBiorhythms({
+          // Локальная дата пользователя (YYYY-MM-DD), чтобы избежать смещения по UTC на бэкенде
+          const now = new Date();
+          const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+            now.getDate()
+          ).padStart(2, '0')}`;
+
+          const b = await chartAPI.getBiorhythms(localDateStr);
+
+          // Если значения "плоские" около 50% (из-за даты/часового пояса), пересчитываем на клиенте из даты рождения
+          const isNum = (v: any) => typeof v === 'number' && Number.isFinite(v);
+          const near50 = (v: number) => Math.abs(v - 50) <= 1;
+          const looksFlat =
+            isNum(b?.physical) &&
+            isNum(b?.emotional) &&
+            isNum(b?.intellectual) &&
+            near50(b.physical) &&
+            near50(b.emotional) &&
+            near50(b.intellectual);
+
+          const birthISO =
+            (chartData?.data as any)?.birthDate ||
+            (chartData?.data as any)?.birth_date ||
+            chartData?.birthDate ||
+            (chartData as any)?.birth_date;
+
+          const clientCalc = looksFlat
+            ? computeClientBiorhythms(birthISO, localDateStr)
+            : null;
+
+          const finalValues = clientCalc ?? {
             physical: b.physical,
             emotional: b.emotional,
             intellectual: b.intellectual,
+          };
+
+          setBiorhythms(finalValues);
+
+          console.log('✅ Биоритмы:', {
+            api: b,
+            clientFallbackUsed: !!clientCalc,
+            client: clientCalc,
+            requestedDate: localDateStr,
+            birthDateUsed: birthISO,
           });
-          console.log('✅ Получены биоритмы:', b);
         } catch (e) {
           console.error('❌ Ошибка загрузки биоритмов:', e);
+          // Попробуем хотя бы клиентский расчёт, если есть дата рождения
+          try {
+            const now = new Date();
+            const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+              now.getDate()
+            ).padStart(2, '0')}`;
+            const birthISO =
+              (chartData?.data as any)?.birthDate ||
+              (chartData?.data as any)?.birth_date ||
+              chartData?.birthDate ||
+              (chartData as any)?.birth_date;
+
+            const clientCalc = computeClientBiorhythms(birthISO, localDateStr);
+            if (clientCalc) {
+              setBiorhythms(clientCalc);
+              console.log(
+                'ℹ️ Поставлены клиентские биоритмы (fallback):',
+                clientCalc
+              );
+            }
+          } catch {
+            // ignore
+          }
         }
       } catch (error: any) {
         console.error('❌ Ошибка загрузки данных карты:', error);
@@ -310,6 +420,34 @@ const HoroscopeScreen: React.FC = () => {
   const energyMessage = getEnergyMessage();
   const mainTransit = getMainTransit();
 
+  // Нормализация данных для PlanetaryRecommendationWidget
+  const natalPlanetsObj = React.useMemo(() => {
+    return chart?.data?.planets || chart?.planets || null;
+  }, [chart]);
+
+  const transitPlanetsArr = React.useMemo(() => {
+    try {
+      if (!currentPlanets) return [];
+      if (Array.isArray(currentPlanets)) {
+        return currentPlanets.filter(
+          (p: any) =>
+            p && typeof p.longitude === 'number' && typeof p.name === 'string'
+        );
+      }
+      // Преобразуем объект вида { sun: { longitude, ... }, ... } в массив
+      return Object.entries(currentPlanets)
+        .map(([name, p]: any) => ({
+          name: String(name),
+          longitude: Number(p?.longitude),
+          sign: p?.sign,
+          degree: p?.degree,
+        }))
+        .filter((p) => Number.isFinite(p.longitude));
+    } catch {
+      return [];
+    }
+  }, [currentPlanets]);
+
   // Логирование для отладки
   console.log('📊 Данные виджетов:', {
     energyValue,
@@ -353,12 +491,17 @@ const HoroscopeScreen: React.FC = () => {
 
           {/* Основной контент */}
           <View style={styles.contentContainer}>
-            {/* Виджет лунного календаря */}
-            <LunarCalendarWidget />
-            <PlanetaryRecommendationWidget
-              natalPlanets={currentPlanets}
-              transitPlanets={transits}
-            />
+            {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
+            <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
+
+            {/* Рекомендация дня (нормализованные данные для виджета) */}
+            {natalPlanetsObj && transitPlanetsArr.length > 0 && (
+              <PlanetaryRecommendationWidget
+                natalPlanets={natalPlanetsObj}
+                transitPlanets={transitPlanetsArr}
+              />
+            )}
+
             {/* Виджет энергии */}
             {!loading && (
               <EnergyWidget energy={energyValue} message={energyMessage} />
@@ -369,6 +512,9 @@ const HoroscopeScreen: React.FC = () => {
               <MainTransitWidget transitData={mainTransit} />
             )}
 
+            {/* Гороскоп виджет */}
+            {predictions && <HoroscopeWidget predictions={predictions} />}
+
             {/* Виджет Биоритмы */}
             {biorhythms && (
               <BiorhythmsWidget
@@ -377,20 +523,6 @@ const HoroscopeScreen: React.FC = () => {
                 intellectual={biorhythms.intellectual}
               />
             )}
-
-            {/* Гороскоп виджет */}
-            {predictions && <HoroscopeWidget predictions={predictions} />}
-
-            {/* Виджет Совет дня */}
-            {chart?.data?.planets &&
-              currentPlanets &&
-              Array.isArray(currentPlanets) &&
-              currentPlanets.length > 0 && (
-                <PlanetaryRecommendationWidget
-                  natalPlanets={chart.data.planets}
-                  transitPlanets={currentPlanets}
-                />
-              )}
 
             {/* Placeholder для будущих виджетов */}
             {loading && (

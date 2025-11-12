@@ -19,12 +19,31 @@ import { supabase } from './supabase';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { SubscriptionTier } from '../types/subscription';
+import { tokenService } from './tokenService';
+import { useAuthStore } from '../stores/auth.store';
+import {
+  StartConversationRequest,
+  StartConversationResponse,
+} from '../types/chat';
 
 WebBrowser.maybeCompleteAuthSession();
 
 // --------------------------------------------------
 // Base URL selection (Expo Go / Web / Native)
 // --------------------------------------------------
+
+// Ensure base URL ends with /api (because backend uses global prefix 'api')
+function ensureApiBase(url: string): string {
+  try {
+    const u = (url || '').trim();
+    if (!u) return '/api';
+    if (u.endsWith('/api')) return u;
+    return u.replace(/\/+$/, '') + '/api';
+  } catch {
+    return url;
+  }
+}
+
 const getApiBaseUrl = () => {
   // // 1) ENV overrides (prod/staging)
   // const ENV =
@@ -124,7 +143,7 @@ const getApiBaseUrl = () => {
     (typeof process !== 'undefined' &&
       (process as any)?.env?.EXPO_PUBLIC_API_URL) ||
     (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_URL;
-  if (envUrl) return envUrl;
+  if (envUrl) return ensureApiBase(envUrl);
 
   // 2) Web (браузер/Expo Web): используем текущий origin
   if (
@@ -239,6 +258,22 @@ api.interceptors.response.use(
       error.response?.status,
       error.message
     );
+
+    const url: string | undefined = error.config?.url;
+
+    // Ранние 401/404 на /user/profile или /auth/complete-signup могут происходить при рестарте backend.
+    // НЕ выполняем auto signOut/clearToken, чтобы не терять сессию Supabase. Дадим UI/повторным попыткам восстановиться.
+    if (
+      (error.response?.status === 401 || error.response?.status === 404) &&
+      url &&
+      (url.includes('/user/profile') || url.includes('/auth/complete-signup'))
+    ) {
+      console.log(
+        '⏳ Профиль временно недоступен (',
+        error.response?.status,
+        '), сессию не сбрасываем.'
+      );
+    }
 
     if (error.response?.status === 401) {
       // Не очищаем токен автоматически на любой 401.
@@ -1127,3 +1162,44 @@ export const userPhotosAPI = {
     return response.data as { success: boolean };
   },
 };
+
+// --------------------------------------------------
+// User Extended Profile API (bio, interests, etc)
+// --------------------------------------------------
+export const userExtendedProfileAPI = {
+  getUserProfile: async (): Promise<{
+    user_id: string;
+    bio?: string;
+    gender?: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+    zodiac_sign?: string;
+    preferences: {
+      interests?: string[];
+      [key: string]: any;
+    };
+    last_active: string;
+    is_onboarded: boolean;
+    created_at: string;
+    updated_at: string;
+  }> => {
+    const response = await api.get('/user/profile-extended');
+    return response.data;
+  },
+
+  updateUserProfile: async (data: {
+    bio?: string;
+    preferences?: {
+      interests?: string[];
+      [key: string]: any;
+    };
+    is_onboarded?: boolean;
+  }): Promise<any> => {
+    const response = await api.put('/user/profile-extended', data);
+    return response.data;
+  },
+};
+
+export const startConversation = (data: StartConversationRequest) =>
+  api.post<StartConversationResponse>('/chat/conversations/start', data);

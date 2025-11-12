@@ -174,6 +174,47 @@ const calculateActiveTransits = (
     return [];
   }
 };
+// Дополнительные утилиты для рекомендаций
+const planetRu: Record<string, string> = {
+  sun: 'Солнце',
+  moon: 'Луна',
+  mercury: 'Меркурий',
+  venus: 'Венера',
+  mars: 'Марс',
+  jupiter: 'Юпитер',
+  saturn: 'Сатурн',
+  uranus: 'Уран',
+  neptune: 'Нептун',
+  pluto: 'Плутон',
+};
+const aspectRu: Record<string, string> = {
+  conjunction: 'соединение',
+  sextile: 'секстиль',
+  square: 'квадрат',
+  trine: 'трин',
+  opposition: 'оппозиция',
+};
+function buildRecommendations(transits: TransitData[]) {
+  const positive: string[] = [];
+  const negative: string[] = [];
+  for (const t of transits) {
+    const targetName =
+      planetRu[t.target?.toLowerCase?.() || t.target] || t.target;
+    const aspect = aspectRu[t.type] || t.type;
+    const isPositive =
+      t.type === 'trine' || t.type === 'sextile' || t.type === 'conjunction';
+    const line = isPositive
+      ? `${aspect} с ${targetName} — благоприятно действовать`
+      : `${aspect} с ${targetName} — избегайте импульсивности`;
+    if (isPositive) {
+      if (positive.length < 3) positive.push(line);
+    } else {
+      if (negative.length < 3) negative.push(line);
+    }
+    if (positive.length >= 3 && negative.length >= 3) break;
+  }
+  return { positive, negative };
+}
 
 const PlanetaryRecommendationWidget: React.FC<
   PlanetaryRecommendationWidgetProps
@@ -203,6 +244,8 @@ const PlanetaryRecommendationWidget: React.FC<
     console.error('Ошибка при расчете транзитов:', error);
     return null;
   }
+  const { positive: positiveRecs, negative: negativeRecs } =
+    buildRecommendations(activeTransits);
 
   const renderAstrologyChart = () => {
     const centerX = 171;
@@ -383,6 +426,38 @@ const PlanetaryRecommendationWidget: React.FC<
           {/* Карта */}
           <View style={styles.chartWrapper}>{renderAstrologyChart()}</View>
 
+          {/* Рекомендации: Плюсы / Что избегать */}
+          {/*{(positiveRecs.length > 0 || negativeRecs.length > 0) && (*/}
+          {/*  <View style={styles.adviceContainer}>*/}
+          {/*    <View style={styles.adviceRow}>*/}
+          {/*      <View style={styles.adviceCard}>*/}
+          {/*        <Text style={styles.adviceTitle}>Плюсы</Text>*/}
+          {/*        {positiveRecs.length === 0 ? (*/}
+          {/*          <Text style={styles.adviceItem}>—</Text>*/}
+          {/*        ) : (*/}
+          {/*          positiveRecs.map((s, i) => (*/}
+          {/*            <Text key={`pos-${i}`} style={styles.adviceItem}>*/}
+          {/*              • {s}*/}
+          {/*            </Text>*/}
+          {/*          ))*/}
+          {/*        )}*/}
+          {/*      </View>*/}
+          {/*      <View style={styles.adviceCard}>*/}
+          {/*        <Text style={styles.adviceTitle}>Что избегать</Text>*/}
+          {/*        {negativeRecs.length === 0 ? (*/}
+          {/*          <Text style={styles.adviceItem}>—</Text>*/}
+          {/*        ) : (*/}
+          {/*          negativeRecs.map((s, i) => (*/}
+          {/*            <Text key={`neg-${i}`} style={styles.adviceItem}>*/}
+          {/*              • {s}*/}
+          {/*            </Text>*/}
+          {/*          ))*/}
+          {/*        )}*/}
+          {/*      </View>*/}
+          {/*    </View>*/}
+          {/*  </View>*/}
+          {/*)}*/}
+
           {/* Статус */}
           <View style={styles.footer}>
             <View style={styles.statusRow}>
@@ -430,8 +505,7 @@ const PlanetaryRecommendationWidget: React.FC<
 
 const styles = StyleSheet.create({
   container: {
-    width: width - 40,
-    marginHorizontal: 20,
+    flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -471,6 +545,37 @@ const styles = StyleSheet.create({
   },
   footer: {
     gap: 12,
+  },
+
+  // Рекомендации
+  adviceContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 8,
+  },
+  adviceRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  adviceCard: {
+    flex: 1,
+    backgroundColor: 'rgba(10,10,10,0.35)',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  adviceTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  adviceItem: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 4,
   },
   statusRow: {
     flexDirection: 'row',

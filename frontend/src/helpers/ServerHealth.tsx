@@ -8,10 +8,10 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
-import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
-import OnboardingButton from '../../components/onboarding/OnboardingButton';
-import { testBackendDebug, DebugHttpDump } from '../../services/api';
+import { DebugHttpDump, testBackendDebug } from '../services/api';
+import { OnboardingLayout } from '../components/onboarding/OnboardingLayout';
+import OnboardingHeader from '../components/onboarding/OnboardingHeader';
+import OnboardingButton from '../components/onboarding/OnboardingButton';
 
 const OnboardingFirstScreen: React.FC = () => {
   const [dump, setDump] = useState<DebugHttpDump | null>(null);

@@ -10,8 +10,16 @@ import { LunaSvg } from '../svg/moon-phase/Luna';
 import { StarSvg } from '../svg/moon-phase/Star';
 import { HouseSvg } from '../svg/moon-phase/House';
 import { CaseSvg } from '../svg/moon-phase/Case';
+import { getSignNameRu } from '../../helpers/planetCalculations';
 
-export const LunarCalendarWidget: React.FC = () => {
+type LunarCalendarWidgetProps = {
+  // Позволяет переопределить знак Луны извне (например, из текущих планет)
+  sign?: string;
+};
+
+export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
+  sign,
+}) => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const {
@@ -55,6 +63,12 @@ export const LunarCalendarWidget: React.FC = () => {
     return null;
   }
 
+  // Нормализуем и локализуем знак Луны:
+  const rawSign = (sign ?? moonPhase.sign ?? '') as string;
+  const normalizeTitle = (s: string) =>
+    s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
+  const displaySign = rawSign ? getSignNameRu(normalizeTitle(rawSign)) : '-';
+
   return (
     <View style={styles.container}>
       {/* Большая карточка с фазой луны */}
@@ -83,7 +97,7 @@ export const LunarCalendarWidget: React.FC = () => {
       </BlurView>
 
       {/* Карточки со знаком и домом */}
-      {(moonPhase.sign || moonPhase.house) && (
+      {(sign || moonPhase.sign || moonPhase.house) && (
         <View style={styles.row}>
           <LinearGradient
             colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
@@ -94,7 +108,7 @@ export const LunarCalendarWidget: React.FC = () => {
             <View style={styles.cardContent}>
               <View style={styles.infoLeft}>
                 <Text style={styles.label}>Знак</Text>
-                <Text style={styles.value}>{moonPhase.sign || '-'}</Text>
+                <Text style={styles.value}>{displaySign}</Text>
               </View>
               <View style={styles.iconRight}>
                 <StarSvg width={48} height={48} />

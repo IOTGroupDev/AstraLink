@@ -1,195 +1,156 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  FadeIn,
-  SlideInUp,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+
+const TAB_BAR_HEIGHT = 80; // Высота таб-бара
 
 interface CosmicChatProps {
   visible: boolean;
   user: {
+    id: string;
     name: string;
     zodiacSign: string;
     compatibility: number;
   };
   onClose: () => void;
+  onSendMessage: (text: string) => Promise<void>;
 }
 
-const CosmicChat: React.FC<CosmicChatProps> = ({ visible, user, onClose }) => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: 'Привет! Звёзды свели нас вместе ✨',
-      isMe: false,
-      timestamp: '12:30',
-    },
-    {
-      id: 2,
-      text: 'Привет! Да, наша совместимость 85%! 🌟',
-      isMe: true,
-      timestamp: '12:32',
-    },
-    {
-      id: 3,
-      text: 'Мне нравится твой знак зодиака',
-      isMe: false,
-      timestamp: '12:35',
-    },
-  ]);
-  const [newMessage, setNewMessage] = useState('');
-  const [showAstroHelper, setShowAstroHelper] = useState(false);
+const CosmicChat: React.FC<CosmicChatProps> = ({
+  visible,
+  user,
+  onClose,
+  onSendMessage,
+}) => {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
-  const astroHelperMessages = [
-    'Спроси о её любимом времени года',
-    'Обсудите планы на выходные',
-    'Поделитесь астрологическими наблюдениями',
+  const astroSuggestions = [
+    `Привет! Вижу, ты ${user.zodiacSign} ✨`,
+    `Наша совместимость ${user.compatibility}% – звёзды благоволят! 🌟`,
+    `Расскажи о себе, ${user.name}`,
   ];
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: messages.length + 1,
-        text: newMessage.trim(),
-        isMe: true,
-        timestamp: new Date().toLocaleTimeString('ru-RU', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      };
-      setMessages((prev) => [...prev, message]);
-      setNewMessage('');
+  const handleSend = async () => {
+    if (!message.trim() || sending) return;
+
+    try {
+      setSending(true);
+      await onSendMessage(message.trim());
+      setMessage('');
+    } catch (error) {
+      console.error('Ошибка отправки:', error);
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleAstroHelper = () => {
-    setShowAstroHelper(!showAstroHelper);
+  const handleSuggestion = (text: string) => {
+    setMessage(text);
   };
 
   if (!visible) return null;
 
   return (
     <View style={styles.overlay}>
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
+      <TouchableOpacity
+        style={styles.backdrop}
+        onPress={onClose}
+        activeOpacity={1}
+      />
+
+      <Animated.View
+        entering={SlideInDown.duration(400).springify()}
         style={styles.container}
       >
-        {/* Header */}
-        <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.userZodiac}>
-              {user.zodiacSign} • {user.compatibility}% совместимость
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleAstroHelper}
-            style={styles.astroButton}
-          >
-            <Ionicons name="sparkles" size={24} color="#8B5CF6" />
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Messages */}
-        <ScrollView
-          style={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardView}
         >
-          {messages.map((message) => (
-            <Animated.View
-              key={message.id}
-              entering={SlideInUp.delay(100)}
-              style={[
-                styles.messageContainer,
-                message.isMe ? styles.myMessage : styles.theirMessage,
-              ]}
-            >
-              <LinearGradient
-                colors={
-                  message.isMe
-                    ? ['#8B5CF6', '#3B82F6']
-                    : ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']
-                }
-                style={styles.messageBubble}
-              >
-                <Text style={styles.messageText}>{message.text}</Text>
-                <Text style={styles.messageTime}>{message.timestamp}</Text>
-              </LinearGradient>
-            </Animated.View>
-          ))}
-        </ScrollView>
-
-        {/* Astro Helper */}
-        {showAstroHelper && (
-          <Animated.View
-            entering={SlideInUp.delay(200)}
-            style={styles.astroHelper}
+          <LinearGradient
+            colors={['#0F172A', '#1E293B', '#334155']}
+            style={styles.content}
           >
-            <Text style={styles.astroHelperTitle}>Астропомощник</Text>
-            <Text style={styles.astroHelperSubtitle}>
-              Предложения для начала разговора:
-            </Text>
-            {astroHelperMessages.map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.suggestionItem}
-                onPress={() => {
-                  setNewMessage(suggestion);
-                  setShowAstroHelper(false);
-                }}
-              >
-                <Ionicons name="star" size={16} color="#8B5CF6" />
-                <Text style={styles.suggestionText}>{suggestion}</Text>
+            {/* Header */}
+            <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color="#fff" />
               </TouchableOpacity>
-            ))}
-          </Animated.View>
-        )}
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{user.name}</Text>
+                <Text style={styles.userZodiac}>
+                  {user.zodiacSign} • {user.compatibility}% совместимость
+                </Text>
+              </View>
+              <View style={{ width: 40 }} />
+            </Animated.View>
 
-        {/* Input */}
-        <Animated.View
-          entering={SlideInUp.delay(400)}
-          style={styles.inputContainer}
-        >
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.textInput}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              placeholder="Напишите сообщение..."
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
-              multiline
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                !newMessage.trim() && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSendMessage}
-              disabled={!newMessage.trim()}
+            {/* Suggestions */}
+            <Animated.View
+              entering={FadeIn.delay(300)}
+              style={styles.suggestionsContainer}
             >
-              <Ionicons name="send" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </LinearGradient>
+              <Text style={styles.suggestionsTitle}>
+                💫 Начните знакомство:
+              </Text>
+              {astroSuggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSuggestion(suggestion)}
+                >
+                  <Ionicons name="star" size={16} color="#8B5CF6" />
+                  <Text style={styles.suggestionText}>{suggestion}</Text>
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
+
+            {/* Input */}
+            <View style={styles.inputContainer}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.textInput}
+                  value={message}
+                  onChangeText={setMessage}
+                  placeholder="Напишите первое сообщение..."
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  multiline
+                  maxLength={500}
+                  editable={!sending}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    (!message.trim() || sending) && styles.sendButtonDisabled,
+                  ]}
+                  onPress={handleSend}
+                  disabled={!message.trim() || sending}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="send" size={20} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </LinearGradient>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </View>
   );
 };
@@ -203,27 +164,50 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
   },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: TAB_BAR_HEIGHT, // Не закрывает табы
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
   container: {
+    position: 'absolute',
+    bottom: TAB_BAR_HEIGHT, // Отступ для табов
+    left: 0,
+    right: 0,
+    maxHeight: '70%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    overflow: 'hidden',
+  },
+  keyboardView: {
     flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(139, 92, 246, 0.2)',
   },
   closeButton: {
-    padding: 10,
-    marginRight: 15,
+    padding: 4,
   },
   userInfo: {
     flex: 1,
+    alignItems: 'center',
   },
   userName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
     textShadowColor: 'rgba(139, 92, 246, 0.5)',
@@ -234,89 +218,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
     opacity: 0.7,
-    marginTop: 2,
+    marginTop: 4,
   },
-  astroButton: {
-    padding: 10,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderRadius: 20,
-  },
-  messagesContainer: {
+  suggestionsContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
-  messageContainer: {
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
     marginBottom: 15,
-  },
-  myMessage: {
-    alignItems: 'flex-end',
-  },
-  theirMessage: {
-    alignItems: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: width * 0.7,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  messageText: {
-    fontSize: 16,
-    color: '#fff',
-    lineHeight: 22,
-  },
-  messageTime: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.6,
-    marginTop: 5,
-    textAlign: 'right',
-  },
-  astroHelper: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    marginHorizontal: 20,
-    marginBottom: 10,
-    padding: 15,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-  },
-  astroHelperTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#8B5CF6',
-    marginBottom: 5,
-  },
-  astroHelperSubtitle: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.8,
-    marginBottom: 10,
   },
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderRadius: 10,
-    marginBottom: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
   },
   suggestionText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#fff',
-    marginLeft: 8,
+    marginLeft: 10,
     flex: 1,
   },
   inputContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingTop: 15,
     borderTopWidth: 1,
     borderTopColor: 'rgba(139, 92, 246, 0.2)',
   },
@@ -327,9 +262,12 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     paddingHorizontal: 15,
     paddingVertical: 10,
+    minHeight: 50,
   },
   textInput: {
     flex: 1,
+    alignItems: 'center',
+    alignSelf: 'center',
     fontSize: 16,
     color: '#fff',
     maxHeight: 100,
@@ -338,7 +276,10 @@ const styles = StyleSheet.create({
   sendButton: {
     backgroundColor: '#8B5CF6',
     borderRadius: 20,
-    padding: 10,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,

@@ -76,11 +76,13 @@
 // // Автоматически запускаем инициализацию при импорте
 // initSupabaseSync();
 
-// src/services/supabase.ts
+// src/services/supabase.ts (активная реализация)
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { tokenService } from './tokenService';
+import { useAuthStore } from '../stores/auth.store';
 
 const supabaseUrl =
   Constants.expoConfig?.extra?.SUPABASE_URL ||
@@ -110,30 +112,76 @@ export const initSupabaseAuth = async () => {
     try {
       console.log('🔄 Initializing Supabase auth...');
 
+      // Гарантируем готовность локального стораджа токенов
+      await tokenService.init();
+
+      // Берём текущую сессию из Supabase
       const { data, error } = await supabase.auth.getSession();
 
       if (error) {
         console.error('❌ Session error:', error);
+        await tokenService.setToken(null);
         return;
       }
 
+      // Лог + первичная синхронизация токена
       if (data.session) {
         console.log('✅ Session restored:', data.session.user.email);
       } else {
         console.log('ℹ️ No active session');
       }
+      await tokenService.setToken(data.session?.access_token ?? null);
 
-      supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔄 Auth event:', event, session?.user?.email || 'no user');
+      // Синхронизируем Zustand-стор аутентификации до рендера App (чтобы initialRoute не прыгал на онбординг)
+      try {
+        const st = useAuthStore.getState();
+        if (data.session?.user) {
+          st.login({
+            id: data.session.user.id,
+            email: data.session.user.email || '',
+            role: 'user',
+          });
+        } else {
+          st.logout();
+        }
+      } catch (e) {
+        console.warn('Auth store sync (initial session) failed:', e);
+      }
+
+      // Подписка на изменения auth-состояния: держим tokenService и Zustand-store в актуальном состоянии
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        const email = session?.user?.email || 'no user';
+        console.log('🔄 Auth event:', event, email);
+
+        // синхронизация токена
+        await tokenService.setToken(session?.access_token ?? null);
+
+        // синхронизация стора авторизации
+        try {
+          const st = useAuthStore.getState();
+          if (session?.user) {
+            st.login({
+              id: session.user.id,
+              email: session.user.email || '',
+              role: 'user',
+            });
+          } else {
+            st.logout();
+          }
+        } catch (e) {
+          console.warn('Auth store sync (onAuthStateChange) failed:', e);
+        }
       });
 
       console.log('✅ Supabase auth initialized');
     } catch (error) {
       console.error('❌ Supabase auth initialization error:', error);
+      await tokenService.setToken(null);
     }
   })();
 
   return initPromise;
 };
 
+// Автоматически запускаем инициализацию при импорте, чтобы восстановить сессию и синхронизировать токен
 initSupabaseAuth();

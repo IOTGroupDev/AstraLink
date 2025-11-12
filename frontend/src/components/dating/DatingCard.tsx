@@ -15,14 +15,13 @@ import Animated, {
   interpolate,
   Easing,
   runOnJS,
-  useAnimatedGestureHandler,
 } from 'react-native-reanimated';
-import { PanGestureHandler } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, {
   Circle,
-  Path,
+  Text as SvgText,
   Defs,
   LinearGradient as SvgGradient,
   Stop,
@@ -49,14 +48,14 @@ interface DatingCardProps {
     isMatched?: boolean;
   };
   onSwipe: (direction: 'left' | 'right') => void;
-  onPress: () => void;
+  onChat: () => void;
   isTop: boolean;
 }
 
 const DatingCard: React.FC<DatingCardProps> = ({
   user,
   onSwipe,
-  onPress,
+  onChat,
   isTop,
 }) => {
   const translateX = useSharedValue(0);
@@ -74,34 +73,33 @@ const DatingCard: React.FC<DatingCardProps> = ({
     );
   }, []);
 
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: (_, context: any) => {
-      context.startX = translateX.value;
-      context.startY = translateY.value;
-    },
-    onActive: (event, context) => {
-      translateX.value = context.startX + event.translationX;
-      translateY.value = context.startY + event.translationY;
+  const gestureHandler = Gesture.Pan()
+    .onStart(() => {
+      'worklet';
+    })
+    .onUpdate((event) => {
+      'worklet';
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
       rotation.value = interpolate(
         event.translationX,
         [-width, width],
         [-15, 15]
       );
 
-      // Показываем индикатор свайпа
       if (Math.abs(event.translationX) > 50) {
         swipeOpacity.value = withTiming(1, { duration: 200 });
       } else {
         swipeOpacity.value = withTiming(0, { duration: 200 });
       }
-    },
-    onEnd: (event) => {
+    })
+    .onEnd((event) => {
+      'worklet';
       const shouldSwipe = Math.abs(event.translationX) > width * 0.3;
 
       if (shouldSwipe) {
         const direction = event.translationX > 0 ? 'right' : 'left';
 
-        // Анимация свайпа
         translateX.value = withTiming(
           direction === 'right' ? width : -width,
           { duration: 300, easing: Easing.out(Easing.quad) },
@@ -112,23 +110,13 @@ const DatingCard: React.FC<DatingCardProps> = ({
         translateY.value = withTiming(0, { duration: 300 });
         rotation.value = withTiming(0, { duration: 300 });
       } else {
-        // Возвращаем в исходное положение
         translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
         translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
         rotation.value = withSpring(0, { damping: 15, stiffness: 150 });
       }
 
       swipeOpacity.value = withTiming(0, { duration: 200 });
-    },
-  });
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.95, { damping: 8, stiffness: 100 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 8, stiffness: 100 });
-  };
+    });
 
   const animatedCardStyle = useAnimatedStyle(() => ({
     transform: [
@@ -184,161 +172,166 @@ const DatingCard: React.FC<DatingCardProps> = ({
 
   return (
     <Animated.View style={[styles.container, animatedCardStyle]}>
-      <PanGestureHandler onGestureEvent={gestureHandler}>
+      <GestureDetector gesture={gestureHandler}>
         <Animated.View style={styles.card}>
-          <TouchableOpacity
-            onPress={onPress}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            style={styles.cardTouchable}
-            activeOpacity={0.9}
+          <LinearGradient
+            colors={['rgba(139, 92, 246, 0.1)', 'rgba(59, 130, 246, 0.05)']}
+            style={styles.cardGradient}
           >
-            <LinearGradient
-              colors={['rgba(139, 92, 246, 0.1)', 'rgba(59, 130, 246, 0.05)']}
-              style={styles.cardGradient}
-            >
-              {/* Glow effect */}
-              <Animated.View
-                style={[
-                  styles.glow,
-                  {
-                    backgroundColor: getCompatibilityColor(user.compatibility),
-                    opacity: interpolate(glow.value, [0, 1], [0.1, 0.3]),
-                  },
-                  animatedGlowStyle,
-                ]}
+            {/* Glow effect */}
+            <Animated.View
+              style={[
+                styles.glow,
+                {
+                  backgroundColor: getCompatibilityColor(user.compatibility),
+                  opacity: interpolate(glow.value, [0, 1], [0.1, 0.3]),
+                },
+                animatedGlowStyle,
+              ]}
+            />
+
+            {/* Swipe indicator */}
+            <Animated.View style={[styles.swipeIndicator, animatedSwipeStyle]}>
+              <Ionicons
+                name={translateX.value > 0 ? 'heart' : 'close'}
+                size={40}
+                color={translateX.value > 0 ? '#10B981' : '#EF4444'}
               />
+            </Animated.View>
 
-              {/* Swipe indicator */}
-              <Animated.View
-                style={[styles.swipeIndicator, animatedSwipeStyle]}
-              >
-                <Ionicons
-                  name={translateX.value > 0 ? 'heart' : 'close'}
-                  size={40}
-                  color={translateX.value > 0 ? '#10B981' : '#EF4444'}
-                />
-              </Animated.View>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.name}>{user.name}</Text>
+              <Text style={styles.age}>{user.age}</Text>
+            </View>
 
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={styles.name}>{user.name}</Text>
-                <Text style={styles.age}>{user.age}</Text>
-              </View>
-
-              {/* Zodiac Sign */}
-              <View style={styles.zodiacContainer}>
-                <Svg width={80} height={80} style={styles.zodiacSvg}>
-                  <Defs>
-                    <SvgGradient
-                      id="zodiacGradient"
-                      x1="0%"
-                      y1="0%"
-                      x2="100%"
-                      y2="100%"
-                    >
-                      <Stop
-                        offset="0%"
-                        stopColor={getCompatibilityColor(user.compatibility)}
-                        stopOpacity="1"
-                      />
-                      <Stop
-                        offset="100%"
-                        stopColor={getCompatibilityColor(user.compatibility)}
-                        stopOpacity="0.3"
-                      />
-                    </SvgGradient>
-                  </Defs>
-                  <Circle
-                    cx="40"
-                    cy="40"
-                    r="35"
-                    fill="url(#zodiacGradient)"
-                    stroke="rgba(255, 255, 255, 0.3)"
-                    strokeWidth="2"
-                  />
-                  <Text
-                    x="40"
-                    y="48"
-                    fontSize="24"
-                    fill="#fff"
-                    textAnchor="middle"
-                    fontWeight="bold"
+            {/* Zodiac Sign */}
+            <View style={styles.zodiacContainer}>
+              <Svg width={80} height={80} style={styles.zodiacSvg}>
+                <Defs>
+                  <SvgGradient
+                    id="zodiacGradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
                   >
-                    {getZodiacSymbol(user.zodiacSign)}
-                  </Text>
-                </Svg>
-                <Text style={styles.zodiacSign}>{user.zodiacSign}</Text>
-              </View>
+                    <Stop
+                      offset="0%"
+                      stopColor={getCompatibilityColor(user.compatibility)}
+                      stopOpacity="1"
+                    />
+                    <Stop
+                      offset="100%"
+                      stopColor={getCompatibilityColor(user.compatibility)}
+                      stopOpacity="0.3"
+                    />
+                  </SvgGradient>
+                </Defs>
+                <Circle
+                  cx="40"
+                  cy="40"
+                  r="35"
+                  fill="url(#zodiacGradient)"
+                  stroke="rgba(255, 255, 255, 0.3)"
+                  strokeWidth="2"
+                />
+                <SvgText
+                  x="40"
+                  y="48"
+                  fontSize="24"
+                  fill="#fff"
+                  textAnchor="middle"
+                  fontWeight="bold"
+                >
+                  {getZodiacSymbol(user.zodiacSign)}
+                </SvgText>
+              </Svg>
+              <Text style={styles.zodiacSign}>{user.zodiacSign}</Text>
+            </View>
 
-              {/* Compatibility */}
-              <View style={styles.compatibilityContainer}>
-                <Text style={styles.compatibilityLabel}>Совместимость</Text>
-                <View style={styles.compatibilityBar}>
-                  <View
-                    style={[
-                      styles.compatibilityFill,
-                      {
-                        width: `${user.compatibility}%`,
-                        backgroundColor: getCompatibilityColor(
-                          user.compatibility
-                        ),
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.compatibilityScore}>
-                  {user.compatibility}%
-                </Text>
+            {/* Compatibility */}
+            <View style={styles.compatibilityContainer}>
+              <Text style={styles.compatibilityLabel}>Совместимость</Text>
+              <View style={styles.compatibilityBar}>
+                <View
+                  style={[
+                    styles.compatibilityFill,
+                    {
+                      width: `${user.compatibility}%`,
+                      backgroundColor: getCompatibilityColor(
+                        user.compatibility
+                      ),
+                    },
+                  ]}
+                />
               </View>
+              <Text style={styles.compatibilityScore}>
+                {user.compatibility}%
+              </Text>
+            </View>
 
-              {/* Elements Chart */}
-              <View style={styles.elementsContainer}>
-                <Text style={styles.elementsTitle}>Стихии</Text>
-                <View style={styles.elementsChart}>
-                  {Object.entries(user.elements).map(([element, value]) => (
-                    <View key={element} style={styles.elementItem}>
-                      <View style={styles.elementBar}>
-                        <View
-                          style={[
-                            styles.elementFill,
-                            {
-                              width: `${value}%`,
-                              backgroundColor: getElementColor(element),
-                            },
-                          ]}
-                        />
-                      </View>
-                      <Text style={styles.elementLabel}>{element}</Text>
+            {/* Elements Chart */}
+            <View style={styles.elementsContainer}>
+              <Text style={styles.elementsTitle}>Стихии</Text>
+              <View style={styles.elementsChart}>
+                {Object.entries(user.elements).map(([element, value]) => (
+                  <View key={element} style={styles.elementItem}>
+                    <View style={styles.elementBar}>
+                      <View
+                        style={[
+                          styles.elementFill,
+                          {
+                            width: `${value}%`,
+                            backgroundColor: getElementColor(element),
+                          },
+                        ]}
+                      />
                     </View>
-                  ))}
-                </View>
+                    <Text style={styles.elementLabel}>{element}</Text>
+                  </View>
+                ))}
               </View>
+            </View>
 
-              {/* Key Aspects */}
-              <View style={styles.aspectsContainer}>
-                <Text style={styles.aspectsTitle}>Ключевые аспекты</Text>
-                <View style={styles.aspectsList}>
-                  {user.keyAspects.map((aspect, index) => (
-                    <View key={index} style={styles.aspectItem}>
-                      <Ionicons name="star" size={16} color="#8B5CF6" />
-                      <Text style={styles.aspectText}>{aspect}</Text>
-                    </View>
-                  ))}
-                </View>
+            {/* Key Aspects */}
+            <View style={styles.aspectsContainer}>
+              <Text style={styles.aspectsTitle}>Ключевые аспекты</Text>
+              <View style={styles.aspectsList}>
+                {user.keyAspects.map((aspect, index) => (
+                  <View key={index} style={styles.aspectItem}>
+                    <Ionicons name="star" size={16} color="#8B5CF6" />
+                    <Text style={styles.aspectText}>{aspect}</Text>
+                  </View>
+                ))}
               </View>
+            </View>
 
-              {/* Match indicator */}
-              {user.isMatched && (
-                <View style={styles.matchIndicator}>
-                  <Ionicons name="heart" size={24} color="#10B981" />
-                  <Text style={styles.matchText}>Матч!</Text>
-                </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+            {/* Chat Button */}
+            <TouchableOpacity
+              style={styles.chatButton}
+              onPress={onChat}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#A855F7']}
+                style={styles.chatGradient}
+              >
+                <Ionicons name="chatbubbles" size={20} color="#fff" />
+                <Text style={styles.chatText}>Написать</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Match indicator */}
+            {user.isMatched && (
+              <View style={styles.matchIndicator}>
+                <Ionicons name="heart" size={24} color="#10B981" />
+                <Text style={styles.matchText}>Матч!</Text>
+              </View>
+            )}
+          </LinearGradient>
         </Animated.View>
-      </PanGestureHandler>
+      </GestureDetector>
     </Animated.View>
   );
 };
@@ -354,9 +347,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 25,
     overflow: 'hidden',
-  },
-  cardTouchable: {
-    flex: 1,
   },
   cardGradient: {
     flex: 1,
@@ -482,7 +472,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   aspectsContainer: {
-    marginBottom: 20,
+    marginBottom: 60,
   },
   aspectsTitle: {
     fontSize: 16,
@@ -508,6 +498,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     marginLeft: 4,
+  },
+  chatButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  chatGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  chatText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   matchIndicator: {
     position: 'absolute',

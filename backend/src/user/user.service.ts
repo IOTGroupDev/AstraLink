@@ -77,8 +77,44 @@ export class UserService {
       };
     }
 
-    // 4) Если ничего не нашли
-    throw new NotFoundException(`User with id ${userId} not found`);
+    // 4) Если ничего не нашли — мягкая автопровизия профиля, чтобы не получать 404 на клиенте
+    try {
+      // Пытаемся создать минимальный профиль через уже существующий механизм upsert
+      // Он сам заполнит created_at/updated_at, подтянет email из Auth (если доступен)
+      await this.updateProfile(userId, {} as any);
+
+      // Читаем заново через админ-клиент
+      const { data: created } =
+        await this.supabaseService.getUserProfileAdmin(userId);
+
+      if (created) {
+        return {
+          id: created.id,
+          email: created.email,
+          name: created.name,
+          birthDate: created.birth_date,
+          birthTime: created.birth_time,
+          birthPlace: created.birth_place,
+          createdAt: created.created_at,
+          updatedAt: created.updated_at,
+        };
+      }
+    } catch (_e) {
+      // игнорируем и вернём минимальный объект ниже
+    }
+
+    // Фолбэк: возвращаем минимальный объект вместо 404, чтобы фронтенд не зацикливался на онбординге
+    // (клиент затем обновит поля через PUT /user/profile)
+    return {
+      id: userId,
+      email: null,
+      name: '',
+      birthDate: null,
+      birthTime: null,
+      birthPlace: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   async updateProfile(userId: string, updateData: UpdateProfileRequest) {

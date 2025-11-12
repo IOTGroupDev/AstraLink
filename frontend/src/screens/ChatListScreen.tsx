@@ -424,7 +424,8 @@ export default function ChatListScreen() {
   }, [fetchConversations, user]);
 
   /**
-   * Realtime: подписка на новые сообщения
+   * Realtime: подписка на новые/обновлённые сообщения пользователя
+   * Обновляет список диалогов при любых изменениях в таблице messages.
    */
   useEffect(() => {
     if (!user?.id) return;
@@ -433,17 +434,20 @@ export default function ChatListScreen() {
       .channel(`messages-conversations-${user.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
         (payload) => {
           try {
-            const m: any = (payload as any).new;
-            // Если сообщение относится к текущему пользователю
-            if (m.sender_id === user.id || m.recipient_id === user.id) {
-              // Обновляем список диалогов
+            const row: any = (payload as any).new || (payload as any).old;
+            if (!row) return;
+            if (row.sender_id === user.id || row.recipient_id === user.id) {
               fetchConversations().catch(() => void 0);
             }
-          } catch (error) {
-            console.error('Ошибка обработки realtime:', error);
+          } catch {
+            // ignore
           }
         }
       )
@@ -452,8 +456,8 @@ export default function ChatListScreen() {
     return () => {
       try {
         supabase.removeChannel(channel);
-      } catch (error) {
-        console.error('Ошибка отписки от канала:', error);
+      } catch {
+        // ignore
       }
     };
   }, [user?.id, fetchConversations]);
@@ -554,30 +558,29 @@ export default function ChatListScreen() {
   /**
    * Пустой список
    */
-  const listEmpty = useMemo(
-    () =>
-      !loading && (
-        <View style={styles.empty}>
-          <Ionicons
-            name="chatbubbles-outline"
-            size={64}
-            color="rgba(255,255,255,0.3)"
-          />
-          <Text style={styles.emptyTitle}>Пока нет диалогов</Text>
-          <Text style={styles.emptyHint}>
-            Начните общение — отправьте сообщение из карточки кандидата
-          </Text>
-        </View>
-      ),
-    [loading]
-  );
+  const listEmpty = useMemo<React.ReactElement | null>(() => {
+    if (loading) return null;
+    return (
+      <View style={styles.empty}>
+        <Ionicons
+          name="chatbubbles-outline"
+          size={64}
+          color="rgba(255,255,255,0.3)"
+        />
+        <Text style={styles.emptyTitle}>Пока нет диалогов</Text>
+        <Text style={styles.emptyHint}>
+          Начните общение — отправьте сообщение из карточки кандидата
+        </Text>
+      </View>
+    );
+  }, [loading]);
 
   /**
    * Разделитель между элементами
    */
-  const itemSeparator = useCallback(
-    () => <View style={styles.separator} />,
-    []
+  type SeparatorProps = { highlighted: boolean; leadingItem: ConversationItem };
+  const ItemSeparator: React.FC<SeparatorProps> = () => (
+    <View style={styles.separator} />
   );
 
   // Если не авторизован
@@ -648,9 +651,9 @@ export default function ChatListScreen() {
           {/* Список диалогов */}
           <FlatList
             data={items}
-            keyExtractor={(it) => it.otherUserId}
+            keyExtractor={(it, _i) => it.otherUserId}
             renderItem={renderItem}
-            ItemSeparatorComponent={itemSeparator}
+            ItemSeparatorComponent={ItemSeparator}
             ListEmptyComponent={listEmpty}
             refreshControl={
               <RefreshControl

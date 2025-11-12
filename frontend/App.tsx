@@ -16,12 +16,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
 import { initSupabaseAuth } from './src/services/supabase';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { userExtendedProfileAPI } from './src/services/api';
+import { useAuthStore } from './src/stores/auth.store';
 
 const queryClient = new QueryClient();
 
 export default function App() {
   const [booted, setBooted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setOnboardingCompleted = useAuthStore((s) => s.setOnboardingCompleted);
 
   useEffect(() => {
     (async () => {
@@ -31,6 +34,23 @@ export default function App() {
         // Инициализируем Supabase (который инициализирует tokenService внутри)
         await initSupabaseAuth();
 
+        // После восстановления сессии пробуем подтянуть флаг онбординга из БД
+        // чтобы навигация не отправляла на онбординг при повторной авторизации
+        try {
+          const ext = await userExtendedProfileAPI.getUserProfile();
+          if (ext?.is_onboarded === true) {
+            await setOnboardingCompleted(true);
+            console.log(
+              '✅ Onboarding flag synced from DB (is_onboarded=true)'
+            );
+          }
+        } catch (syncErr) {
+          console.log(
+            'ℹ️ Onboarding flag sync skipped:',
+            syncErr?.message || syncErr
+          );
+        }
+
         console.log('✅ App initialization complete');
       } catch (err) {
         console.error('❌ App initialization error:', err);
@@ -39,7 +59,7 @@ export default function App() {
         setBooted(true);
       }
     })();
-  }, []);
+  }, [setOnboardingCompleted]);
 
   if (!booted) {
     return (

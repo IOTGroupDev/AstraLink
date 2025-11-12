@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { View } from 'react-native';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
@@ -8,16 +9,12 @@ import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 import HoroscopeScreen from '../screens/HoroscopeScreen';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
-import SimulationSvg from '../components/svg/tabs/SimulationSvg';
-import DatingSvg from '../components/svg/tabs/DatingSvg';
-import AdviserSvg from '../components/svg/tabs/AdviserSvg';
-import ProfileSvg from '../components/svg/tabs/ProfileSvg';
 import ChatListScreen from '../screens/ChatListScreen';
 import MyChartScreen from '../screens/swap/MyChartScreen';
 import SplashScreen from '../screens/swap/SplashScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import SimulatorScreen from '../screens/swap/Old_simulator';
+import ClearScreen from '../screens/Clear/ClearScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -26,39 +23,30 @@ export default function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
+          // Только outline-иконки + opacity (активная 1.0, неактивная 0.5)
+          const style = { opacity: focused ? 1 : 0.5 };
+          let name: keyof typeof Ionicons.glyphMap = 'ellipse-outline';
 
           if (route.name === 'Horoscope') {
-            return <HoroscopeSvg size={size} color={color} />;
-            // iconName = focused ? 'planet' : 'planet-outline';
+            name = 'planet-outline';
           } else if (route.name === 'CosmicSimulator') {
-            return <SimulationSvg size={size} color={color} />;
-            // iconName = focused ? 'time' : 'time-outline';
+            name = 'time-outline';
           } else if (route.name === 'Dating') {
-            return <DatingSvg size={size} color={color} />;
-            // iconName = focused ? 'heart-circle' : 'heart-circle-outline';
+            name = 'heart-outline';
           } else if (route.name === 'Advisor') {
-            return <AdviserSvg size={size} color={color} />;
-            // iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+            name = 'chatbubbles-outline';
           } else if (route.name === 'Messages') {
-            return (
-              <Ionicons
-                name={focused ? 'chatbubbles' : 'chatbubbles-outline'}
-                size={size}
-                color={color}
-              />
-            );
+            name = 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
-            return <ProfileSvg size={size} color={color} />;
-            // iconName = focused ? 'person-circle' : 'person-circle-outline';
-          } else {
-            // iconName = 'help-outline';
+            name = 'person-circle-outline';
           }
 
-          // return <Ionicons name={iconName} size={size} color={color} />;
+          return (
+            <Ionicons name={name} size={size} color={color} style={style} />
+          );
         },
-        tabBarActiveTintColor: '#fff',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
+        tabBarActiveTintColor: '#ffffff',
+        tabBarInactiveTintColor: '#ffffff',
         tabBarStyle: {
           position: 'absolute',
           borderTopWidth: 1,
@@ -67,6 +55,7 @@ export default function TabNavigator() {
           paddingTop: 5,
           height: 108,
           backgroundColor: 'transparent', // важно для прозрачности
+          bottom: -10, // опустили таббар на 10
         },
         tabBarBackground: () => (
           <BlurView
@@ -139,6 +128,11 @@ export default function TabNavigator() {
         name="Profile"
         component={ProfileScreen}
         options={{ title: 'Профиль', headerShown: false }}
+      />
+      <Tab.Screen
+        name="Clear"
+        component={ClearScreen}
+        options={{ title: 'Очистка', headerShown: false }}
       />
     </Tab.Navigator>
   );

@@ -372,6 +372,7 @@ import {
   chartAPI,
   subscriptionAPI,
   authAPI,
+  userExtendedProfileAPI,
 } from '../../services/api';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useAuthStore } from '../../stores/auth.store';
@@ -474,13 +475,39 @@ const UserDataLoaderScreen: React.FC = () => {
       const userId = session.user.id;
       const userEmail = session.user.email || '';
 
+      // Попробуем синхронизировать флаг онбординга из БД (user_profiles.is_onboarded)
+      try {
+        const ext = await userExtendedProfileAPI.getUserProfile();
+        if (ext?.is_onboarded === true) {
+          setOnboardingCompletedFlag(true);
+          await setAuthOnboardingCompleted(true);
+          // ✅ Ранний выход: если в БД is_onboarded=true — сразу в MainTabs, без возврата на онбординг
+          // @ts-ignore
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+          return;
+        }
+      } catch {
+        // мягкая деградация — продолжаем без падения
+      }
+
       setStatus('Проверка профиля...');
 
       let profile: any = null;
       try {
         profile = await userAPI.getProfile();
-      } catch (e) {
+      } catch (e: any) {
         console.warn('Profile check warning:', e);
+        const status =
+          (e && e.response && e.response.status) || e?.response?.status;
+        // Если профиля нет (404) — создаём минимальную запись, чтобы не срабатывать онбординг по отсутствию профиля
+        if (status === 404) {
+          try {
+            await userAPI.updateProfile({} as any);
+            profile = await userAPI.getProfile();
+          } catch (provisionErr) {
+            console.warn('Profile auto-provision failed:', provisionErr);
+          }
+        }
       }
 
       const hasOnboardingData =
@@ -549,6 +576,15 @@ const UserDataLoaderScreen: React.FC = () => {
         setOnboardingCompletedFlag(true);
         await setAuthOnboardingCompleted(true);
 
+        // Сохраняем флаг онбординга в БД, чтобы не показывать онбординг после повторной авторизации
+        try {
+          await userExtendedProfileAPI.updateUserProfile({
+            is_onboarded: true,
+          });
+        } catch {
+          // не блокируем поток
+        }
+
         setStatus('Переход на главный экран...');
         goMainTabs();
         return;
@@ -606,6 +642,15 @@ const UserDataLoaderScreen: React.FC = () => {
         setStatus('Завершение онбординга...');
         setOnboardingCompletedFlag(true);
         await setAuthOnboardingCompleted(true);
+
+        // Отмечаем онбординг завершённым в БД
+        try {
+          await userExtendedProfileAPI.updateUserProfile({
+            is_onboarded: true,
+          });
+        } catch {
+          // не критично
+        }
 
         try {
           resetOnboarding();
