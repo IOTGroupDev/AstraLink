@@ -14,9 +14,9 @@ import {
   getPlanetNameRu,
   getAspectInterpretation,
   getAscendantMeta,
-} from '@/modules/shared/astro-text';
-import { getEssentialDignity } from '@/modules/shared/types';
-import type { DignityLevel } from '@/modules/shared/types';
+} from '../modules/shared/astro-text';
+import { getEssentialDignity } from '../modules/shared/types';
+import type { DignityLevel } from '../modules/shared/types';
 
 export interface PlanetInterpretation {
   planet: string;

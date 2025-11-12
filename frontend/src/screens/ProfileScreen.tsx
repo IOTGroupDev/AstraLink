@@ -326,50 +326,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Subscription Cards */}
+          {/* Subscription */}
           <View style={styles.section}>
-            {/* Premium Card */}
-            <View style={styles.subscriptionCard}>
-              <View style={styles.subscriptionHeader}>
-                <View style={styles.subscriptionBadge}>
-                  <Ionicons name="star-half" size={18} color="#701F86" />
-                  <Text style={styles.subscriptionBadgeText}>Premium</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.upgradeButton}
-                  onPress={handleUpgradeSubscription}
-                >
-                  <Ionicons name="arrow-up" size={18} color="#fff" />
-                  <Text style={styles.upgradeButtonText}>Улучшить</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.subscriptionDate}>
-                До 9 ноября 2025 • 29 дней осталось
-              </Text>
-
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '27%' }]} />
-              </View>
-            </View>
-
-            {/* Cosmic MAX Card */}
-            <View style={[styles.subscriptionCard, { marginTop: 16 }]}>
-              <View style={styles.subscriptionHeader}>
-                <View style={styles.maxBadge}>
-                  <Ionicons name="star" size={16} color="#701F86" />
-                  <Text style={styles.maxBadgeText}>Cosmic MAX</Text>
-                </View>
-              </View>
-
-              <Text style={styles.subscriptionDate}>
-                До 9 ноября 2025 • 29 дней осталось
-              </Text>
-
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '27%' }]} />
-              </View>
-            </View>
+            <Text style={styles.sectionTitle}>Подписка</Text>
+            <SubscriptionCard
+              subscription={subscription as any}
+              onUpgrade={handleUpgradeSubscription}
+              showUpgradeButton={subscription?.tier !== 'max'}
+            />
           </View>
 
           {/* Natal Chart Section */}

@@ -248,19 +248,26 @@ export class SubscriptionService {
     tier: SubscriptionTier,
     transactionId?: string,
   ) {
-    const expiresAt = new Date();
+    const now = new Date();
+    const expiresAt = new Date(now);
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-    // ✅ КРИТИЧНО: Используем fromAdmin!
-    const { error } = await this.supabaseService
+    // ✅ Обновляем или создаем подписку атомарно (upsert по user_id)
+    const { data: subData, error } = await this.supabaseService
       .fromAdmin('subscriptions')
-      .update({
-        tier,
-        expires_at: expiresAt.toISOString(),
-        is_cancelled: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
+      .upsert(
+        {
+          user_id: userId,
+          tier,
+          expires_at: expiresAt.toISOString(),
+          is_cancelled: false,
+          updated_at: now.toISOString(),
+          created_at: now.toISOString(),
+        },
+        { onConflict: 'user_id' },
+      )
+      .select()
+      .single();
 
     if (error) {
       this.logger.error(`Error upgrading subscription: ${error.message}`);
@@ -277,7 +284,7 @@ export class SubscriptionService {
         provider: 'mock',
         transaction_id: transactionId,
         tier,
-        created_at: new Date().toISOString(),
+        created_at: now.toISOString(),
       });
     }
 

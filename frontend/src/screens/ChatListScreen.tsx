@@ -325,12 +325,14 @@ type ConversationItem = {
 
 export default function ChatListScreen() {
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const authAlertShown = React.useRef(false);
 
   /**
    * Загрузка списка диалогов
@@ -352,6 +354,26 @@ export default function ChatListScreen() {
       setLoading(false);
     }
   }, [user]);
+
+  // Debounced refetch to avoid API spam from burst realtime events
+  const debouncedFetchRef = React.useRef<any>(null);
+  const scheduleConversationsRefetch = React.useCallback(() => {
+    if (debouncedFetchRef.current) {
+      clearTimeout(debouncedFetchRef.current);
+    }
+    debouncedFetchRef.current = setTimeout(() => {
+      fetchConversations().catch(() => void 0);
+    }, 400);
+  }, [fetchConversations]);
+
+  // Clear debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedFetchRef.current) {
+        clearTimeout(debouncedFetchRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Обновление списка (pull to refresh)
@@ -396,32 +418,29 @@ export default function ChatListScreen() {
    * Проверка авторизации
    */
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
-      Alert.alert(
-        'Требуется авторизация',
-        'Для просмотра сообщений необходимо войти в систему',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Profile'),
-          },
-        ]
-      );
+      if (!authAlertShown.current) {
+        authAlertShown.current = true;
+        Alert.alert(
+          'Требуется авторизация',
+          'Для просмотра сообщений необходимо войти в систему',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Profile'),
+            },
+          ]
+        );
+      }
+    } else {
+      authAlertShown.current = false;
     }
-  }, [user, navigation]);
+  }, [user, authLoading, navigation]);
 
   /**
-   * Polling: обновление списка каждые 10 секунд
+   * Polling removed: relying on Realtime + onFocus refresh
    */
-  useEffect(() => {
-    if (!user) return;
-
-    const intervalId = setInterval(() => {
-      fetchConversations().catch(() => void 0);
-    }, 10000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchConversations, user]);
 
   /**
    * Realtime: подписка на новые/обновлённые сообщения пользователя
@@ -444,7 +463,7 @@ export default function ChatListScreen() {
             const row: any = (payload as any).new || (payload as any).old;
             if (!row) return;
             if (row.sender_id === user.id || row.recipient_id === user.id) {
-              fetchConversations().catch(() => void 0);
+              scheduleConversationsRefetch();
             }
           } catch {
             // ignore
@@ -582,6 +601,22 @@ export default function ChatListScreen() {
   const ItemSeparator: React.FC<SeparatorProps> = () => (
     <View style={styles.separator} />
   );
+
+  // Пока идёт проверка авторизации — показываем спиннер
+  if (authLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#0F172A', '#1E293B', '#334155']}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text style={styles.loadingText}>Проверка авторизации...</Text>
+        </View>
+      </View>
+    );
+  }
 
   // Если не авторизован
   if (!user) {

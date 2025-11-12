@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import PlanetIcon from '../svg/planets/PlanetIcon';
 
 interface MainTransitWidgetProps {
   transitData: {
@@ -50,9 +51,10 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
               {/* Иконка планеты */}
               <View style={styles.iconContainer}>
                 <View style={styles.iconFrame}>
-                  <View style={styles.circle}>
-                    <Text style={styles.questionMark}>?</Text>
-                  </View>
+                  <PlanetIcon
+                    name={transitData.targetPlanet || transitData.name}
+                    size={62}
+                  />
                 </View>
               </View>
 

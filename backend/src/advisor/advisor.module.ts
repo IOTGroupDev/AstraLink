@@ -9,6 +9,7 @@ import { AnalyticsModule } from '@/analytics/analytics.module';
 import { AuthModule } from '@/auth/auth.module';
 import { SubscriptionGuard } from '@/common/guards/subscription.guard';
 import { SupabaseModule } from '@/supabase/supabase.module';
+import { InterpretationService } from '@/services/interpretation.service';
 
 @Module({
   imports: [
@@ -21,6 +22,6 @@ import { SupabaseModule } from '@/supabase/supabase.module';
     forwardRef(() => AuthModule),
   ],
   controllers: [AdvisorController],
-  providers: [AdvisorService, SubscriptionGuard],
+  providers: [AdvisorService, SubscriptionGuard, InterpretationService],
 })
 export class AdvisorModule {}

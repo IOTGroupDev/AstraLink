@@ -138,6 +138,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     birthTime: '',
     birthPlace: '',
   });
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
 
   const animationValue = useSharedValue(1);
 
@@ -180,6 +181,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         const userProfile = await userExtendedProfileAPI.getUserProfile();
         setBio(userProfile.bio || '');
         setSelectedInterests(userProfile.preferences?.interests || []);
+        setGender((userProfile.gender as any) || '');
       } catch (err) {
         console.log('No extended profile yet');
       }
@@ -311,13 +313,15 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       // Update basic profile
       await userAPI.updateProfile(formData);
 
-      // Update extended profile (bio, interests)
-      await userExtendedProfileAPI.updateUserProfile({
+      // Update extended profile (bio, gender, interests)
+      const extPayload: any = {
         bio,
         preferences: {
           interests: selectedInterests,
         },
-      });
+      };
+      if (gender) extPayload.gender = gender;
+      await userExtendedProfileAPI.updateUserProfile(extPayload);
 
       Alert.alert('Успех', 'Профиль обновлен', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -474,6 +478,43 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Gender */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Пол</Text>
+          <View style={styles.interestsGrid}>
+            {[
+              { key: 'female', label: 'Женский', icon: 'female' as const },
+              { key: 'male', label: 'Мужской', icon: 'male' as const },
+              { key: 'other', label: 'Другое', icon: 'male-female' as const },
+            ].map((g) => {
+              const isSelected = gender === (g.key as any);
+              return (
+                <TouchableOpacity
+                  key={g.key}
+                  style={[
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected,
+                  ]}
+                  onPress={() => setGender(g.key as any)}
+                >
+                  <Ionicons
+                    name={g.icon as any}
+                    size={18}
+                    color={isSelected ? '#fff' : '#8B5CF6'}
+                  />
+                  <Text
+                    style={[
+                      styles.interestText,
+                      isSelected && styles.interestTextSelected,
+                    ]}
+                  >
+                    {g.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
         {/* Bio */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>О себе</Text>

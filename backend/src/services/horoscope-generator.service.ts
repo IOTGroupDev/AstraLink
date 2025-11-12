@@ -16,12 +16,12 @@ import {
   PLANET_WEIGHTS,
   getEssentialDignity,
   DignityLevel,
-} from '@/modules/shared/types';
+} from '../modules/shared/types';
 import {
   getTransitOrb,
   getHouseForLongitude,
   hashSignature,
-} from '@/modules/shared/utils';
+} from '../modules/shared/utils';
 import {
   getGeneralTemplates,
   getLovePhrases,
@@ -29,7 +29,7 @@ import {
   getAdvicePool,
   getSignColors,
   getPlanetHouseFocus,
-} from '@/modules/shared/astro-text';
+} from '../modules/shared/astro-text';
 
 export interface HoroscopePrediction {
   period: 'day' | 'tomorrow' | 'week' | 'month';
@@ -1150,13 +1150,16 @@ export class HoroscopeGeneratorService {
   private getLifeCycles(chartData: any, targetDate: Date): string[] {
     const cycles: string[] = [];
     try {
-      const bdISO: string | undefined =
-        chartData?.birthDate ||
-        chartData?.data?.birthDate ||
+      const bdISO =
+        chartData?.birthDate ??
+        chartData?.data?.birthDate ??
         chartData?.meta?.birthDate;
-      if (!bdISO) return cycles;
+
+      if (typeof bdISO !== 'string' || bdISO.trim() === '') return cycles;
 
       const birth = new Date(bdISO);
+      if (isNaN(birth.getTime())) return cycles;
+
       const age =
         (targetDate.getTime() - birth.getTime()) /
         (365.2425 * 24 * 3600 * 1000);

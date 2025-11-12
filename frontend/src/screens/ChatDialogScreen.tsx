@@ -349,13 +349,19 @@ import {
   View,
   Image,
   Alert,
+  Keyboard,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RouteParams = {
   otherUserId: string;
@@ -375,7 +381,13 @@ type Message = {
 export default function ChatDialogScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const insets = useSafeAreaInsets();
+  const keyboardVerticalOffset = React.useMemo(() => {
+    if (Platform.OS !== 'ios') return 0;
+    // Большее смещение для iOS: top inset + кастомный header + запас
+    return (insets?.top || 0) + 120;
+  }, [insets?.top]);
 
   // Параметры из навигации
   const otherUserId: string = route?.params?.otherUserId;
@@ -390,22 +402,29 @@ export default function ChatDialogScreen() {
   const [sending, setSending] = useState(false);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<Message>>(null);
+  const authAlertShown = React.useRef(false);
 
   // Проверка авторизации
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
-      Alert.alert(
-        'Требуется авторизация',
-        'Для использования чата необходимо войти в систему',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      if (!authAlertShown.current) {
+        authAlertShown.current = true;
+        Alert.alert(
+          'Требуется авторизация',
+          'Для использования чата необходимо войти в систему',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      }
+    } else {
+      authAlertShown.current = false;
     }
-  }, [user, navigation]);
+  }, [user, authLoading, navigation]);
 
   /**
    * Загрузка сообщений с сервера
@@ -436,18 +455,18 @@ export default function ChatDialogScreen() {
     }
   }, [fetchMessages, user, otherUserId]);
 
+  // Refetch on screen focus (similar to ChatList)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user && otherUserId) {
+        fetchMessages();
+      }
+    }, [user, otherUserId, fetchMessages])
+  );
+
   /**
-   * Polling: обновление сообщений каждые 5 секунд
+   * Polling removed: relying on Realtime + focus refresh
    */
-  useEffect(() => {
-    if (!user || !otherUserId) return;
-
-    const intervalId = setInterval(() => {
-      fetchMessages().catch(() => void 0);
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchMessages, user, otherUserId]);
 
   /**
    * Realtime подписка на новые сообщения через Supabase
@@ -459,41 +478,100 @@ export default function ChatDialogScreen() {
       .channel(`messages-dialog-${user.id}-${otherUserId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
           try {
-            const m: any = (payload as any).new;
+            const evt =
+              (payload as any).eventType ||
+              (payload as any).event ||
+              (payload as any).type;
+            const recNew: any = (payload as any).new;
+            const recOld: any = (payload as any).old;
 
-            // Проверяем, что сообщение относится к нашему диалогу
-            if (
-              (m.sender_id === user.id && m.recipient_id === otherUserId) ||
-              (m.sender_id === otherUserId && m.recipient_id === user.id)
-            ) {
+            const relevant = (r: any) =>
+              r &&
+              ((r.sender_id === user.id && r.recipient_id === otherUserId) ||
+                (r.sender_id === otherUserId && r.recipient_id === user.id));
+
+            // INSERT -> append
+            if (evt === 'INSERT' && recNew && relevant(recNew)) {
               setMessages((prev) => {
-                // Избегаем дубликатов
-                if (prev.some((x) => x.id === m.id)) return prev;
-
+                if (prev.some((x) => x.id === recNew.id)) return prev;
                 const newMessage: Message = {
-                  id: m.id,
-                  senderId: m.sender_id,
-                  recipientId: m.recipient_id,
-                  text: m.content ?? null,
-                  mediaPath: m.media_path ?? null,
-                  createdAt: m.created_at,
+                  id: recNew.id,
+                  senderId: recNew.sender_id,
+                  recipientId: recNew.recipient_id,
+                  text: recNew.content ?? null,
+                  mediaPath: recNew.media_path ?? null,
+                  createdAt: recNew.created_at,
                 };
-
                 const next = [...prev, newMessage];
-                // Сортируем по времени создания
                 next.sort(
                   (a, b) =>
                     new Date(a.createdAt).getTime() -
                     new Date(b.createdAt).getTime()
                 );
-
                 return next;
               });
 
-              // Автоматически прокручиваем к последнему сообщению
+              setTimeout(() => {
+                listRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+              return;
+            }
+
+            // UPDATE -> patch existing
+            if (evt === 'UPDATE' && recNew && relevant(recNew)) {
+              setMessages((prev) => {
+                const idx = prev.findIndex((x) => x.id === recNew.id);
+                if (idx === -1) return prev;
+                const copy = [...prev];
+                copy[idx] = {
+                  ...copy[idx],
+                  text:
+                    recNew.content !== undefined
+                      ? recNew.content
+                      : copy[idx].text,
+                  mediaPath:
+                    recNew.media_path !== undefined
+                      ? recNew.media_path
+                      : copy[idx].mediaPath,
+                  createdAt:
+                    recNew.created_at !== undefined
+                      ? recNew.created_at
+                      : copy[idx].createdAt,
+                };
+                return copy;
+              });
+              return;
+            }
+
+            // DELETE -> remove
+            if (evt === 'DELETE' && recOld && relevant(recOld)) {
+              setMessages((prev) => prev.filter((x) => x.id !== recOld.id));
+              return;
+            }
+
+            // Fallback: if event type not provided, treat as upsert
+            if (!evt && recNew && relevant(recNew)) {
+              setMessages((prev) => {
+                if (prev.some((x) => x.id === recNew.id)) return prev;
+                const newMessage: Message = {
+                  id: recNew.id,
+                  senderId: recNew.sender_id,
+                  recipientId: recNew.recipient_id,
+                  text: recNew.content ?? null,
+                  mediaPath: recNew.media_path ?? null,
+                  createdAt: recNew.created_at,
+                };
+                const next = [...prev, newMessage];
+                next.sort(
+                  (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime()
+                );
+                return next;
+              });
               setTimeout(() => {
                 listRef.current?.scrollToEnd({ animated: true });
               }, 100);
@@ -513,6 +591,22 @@ export default function ChatDialogScreen() {
       }
     };
   }, [user, otherUserId]);
+
+  // Скролл к последнему сообщению при показе клавиатуры (iOS/Expo Go)
+  useEffect(() => {
+    const s1 = Keyboard.addListener('keyboardWillShow', () => {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    const s2 = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => {
+      try {
+        s1.remove();
+        s2.remove();
+      } catch {}
+    };
+  }, []);
 
   /**
    * Отправка сообщения
@@ -637,6 +731,21 @@ export default function ChatDialogScreen() {
   /**
    * Если пользователь не авторизован
    */
+  if (authLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#0F172A', '#1E293B', '#334155']}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text style={styles.loadingText}>Проверка авторизации...</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (!user) {
     return (
       <View style={styles.container}>
@@ -664,8 +773,9 @@ export default function ChatDialogScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={keyboardVerticalOffset}
+        enabled
       >
         {/* Хедер */}
         <View style={styles.header}>
@@ -711,9 +821,12 @@ export default function ChatDialogScreen() {
         ) : (
           <FlatList
             ref={listRef}
+            style={{ flex: 1 }}
             data={messages}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() =>
               listRef.current?.scrollToEnd({ animated: false })
@@ -723,7 +836,12 @@ export default function ChatDialogScreen() {
         )}
 
         {/* Поле ввода */}
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            { paddingBottom: Platform.OS === 'ios' ? insets.bottom + 12 : 16 },
+          ]}
+        >
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
@@ -734,6 +852,14 @@ export default function ChatDialogScreen() {
               multiline
               maxLength={1000}
               editable={!sending}
+              blurOnSubmit={false}
+              returnKeyType="send"
+              onFocus={() =>
+                setTimeout(
+                  () => listRef.current?.scrollToEnd({ animated: true }),
+                  50
+                )
+              }
             />
             <Pressable
               style={[
@@ -867,7 +993,7 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     padding: 16,
-    paddingBottom: 120,
+    paddingBottom: 16,
   },
   msgRow: {
     marginBottom: 12,
@@ -915,12 +1041,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   inputContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 16,
     backgroundColor: 'rgba(15, 23, 42, 0.95)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(139, 92, 246, 0.2)',

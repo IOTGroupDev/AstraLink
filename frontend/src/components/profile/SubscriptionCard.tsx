@@ -478,16 +478,18 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     });
   };
 
-  const isExpired = subscription?.expiresAt
-    ? new Date(subscription.expiresAt) < new Date()
-    : false;
+  // Support both paid expiration and active trial end date
+  const endDateStr = subscription?.expiresAt || subscription?.trialEndsAt;
+  const endDate = endDateStr ? new Date(endDateStr) : null;
+  const isOnTrial = !!subscription?.isTrial && !!subscription?.trialEndsAt;
 
-  const daysLeft = subscription?.expiresAt
+  const isExpired = endDate ? endDate < new Date() : false;
+
+  const daysLeft = endDate
     ? Math.max(
         0,
         Math.ceil(
-          (new Date(subscription.expiresAt).getTime() - new Date().getTime()) /
-            (1000 * 60 * 60 * 24)
+          (endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
         )
       )
     : 0;
@@ -565,10 +567,10 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 ) : (
                   <>
                     <Text style={styles.statusText}>
-                      Активна до{' '}
-                      {formatExpiryDate(subscription?.expiresAt || '')}
+                      {isOnTrial ? 'Trial активен до ' : 'Активна до '}
+                      {endDateStr ? formatExpiryDate(endDateStr) : '—'}
                     </Text>
-                    {daysLeft <= 7 && (
+                    {daysLeft <= 7 && endDateStr && (
                       <View style={styles.warningContainer}>
                         <Ionicons name="time" size={16} color="#F59E0B" />
                         <Text style={styles.warningText}>

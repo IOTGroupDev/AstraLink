@@ -22,6 +22,9 @@ import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecomme
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/index';
+import NatalChartWheel from '../intgr/NatalChartWheel';
+import NatalChartScreenImplementation from '../intgr/NatalChartScreenImplementation';
+import ChartScreenExample from '../intgr/ChartScreenExample';
 
 const HoroscopeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -293,6 +296,7 @@ const HoroscopeScreen: React.FC = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    await loadAllPredictions();
     setRefreshing(false);
   };
 
@@ -390,9 +394,8 @@ const HoroscopeScreen: React.FC = () => {
     return null;
   };
 
-  // Получение сообщения об энергии
-  const getEnergyMessage = () => {
-    const energy = getCurrentEnergy();
+  // Получение сообщения об энергии (по значению)
+  const getEnergyMessage = (energy: number) => {
     if (energy >= 80) return 'Сегодня отличный день для активности!';
     if (energy >= 60) return 'Хорошая энергия для достижения целей';
     if (energy >= 40) return 'Умеренная энергия, сохраняйте баланс';
@@ -416,8 +419,9 @@ const HoroscopeScreen: React.FC = () => {
   }, [currentPlanets, chart]);
 
   // Формирование данных для виджетов
-  const energyValue = getCurrentEnergy();
-  const energyMessage = getEnergyMessage();
+  const energyValue =
+    (predictions?.day?.energy as number | undefined) ?? getCurrentEnergy();
+  const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
 
   // Нормализация данных для PlanetaryRecommendationWidget

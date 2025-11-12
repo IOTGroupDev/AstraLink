@@ -21,7 +21,7 @@ import { RequiresSubscription } from '@/common/decorators/requires-subscription.
 import { SubscriptionTier } from '@/types';
 import type { AuthenticatedRequest } from '@/types/auth';
 
-@ApiTags('Advisor')
+@ApiTags('advisor')
 @ApiBearerAuth()
 @UseGuards(SupabaseAuthGuard, SubscriptionGuard)
 @Controller('advisor')

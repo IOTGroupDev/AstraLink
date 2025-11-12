@@ -1,16 +1,516 @@
-import React, { useMemo, useState } from 'react';
+// import React, { useMemo, useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   TouchableOpacity,
+//   ScrollView,
+//   ActivityIndicator,
+//   TextInput,
+// } from 'react-native';
+// import { useNavigation } from '@react-navigation/native';
+// import { Ionicons } from '@expo/vector-icons';
+// import { useSubscription } from '../hooks/useSubscription';
+// import { advisorAPI } from '../services/api';
+//
+// type Topic =
+//   | 'contract'
+//   | 'meeting'
+//   | 'date'
+//   | 'travel'
+//   | 'purchase'
+//   | 'health'
+//   | 'negotiation'
+//   | 'custom';
+//
+// const topics: { key: Topic; label: string }[] = [
+//   { key: 'contract', label: 'Контракт' },
+//   { key: 'meeting', label: 'Встреча' },
+//   { key: 'negotiation', label: 'Переговоры' },
+//   { key: 'date', label: 'Свидание' },
+//   { key: 'travel', label: 'Путешествие' },
+//   { key: 'purchase', label: 'Покупка' },
+//   { key: 'health', label: 'Здоровье' },
+//   { key: 'custom', label: 'Другое' },
+// ];
+// // Verdict color mapping and helpers
+// const VERDICT_COLORS = {
+//   good: '#10B981', // green
+//   neutral: '#F59E0B', // yellow
+//   challenging: '#EF4444', // red
+// } as const;
+//
+// function getVerdictColor(
+//   verdict: 'good' | 'neutral' | 'challenging',
+//   provided?: string
+// ): string {
+//   // Canonical palette, ignore unexpected provided colors to keep UI consistent
+//   return VERDICT_COLORS[verdict] ?? (provided || '#A78BFA');
+// }
+//
+// function hexToRgba(hex: string, alpha = 1): string {
+//   try {
+//     const sanitized = hex.replace('#', '');
+//     const full =
+//       sanitized.length === 3
+//         ? sanitized
+//             .split('')
+//             .map((c) => c + c)
+//             .join('')
+//         : sanitized;
+//     const int = parseInt(full, 16);
+//     const r = (int >> 16) & 255;
+//     const g = (int >> 8) & 255;
+//     const b = int & 255;
+//     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+//   } catch {
+//     // Fallback to brand purple tint if hex parsing fails
+//     return `rgba(167, 139, 250, ${alpha})`;
+//   }
+// }
+//
+// export default function AdvisorChatScreen() {
+//   const navigation = useNavigation<any>();
+//   const { isPremium } = useSubscription();
+//   const premium = useMemo(() => isPremium(), [isPremium]);
+//
+//   // Inputs
+//   const [selectedTopic, setSelectedTopic] = useState<Topic>('contract');
+//   const [date, setDate] = useState<string>(
+//     new Date().toISOString().slice(0, 10)
+//   ); // YYYY-MM-DD
+//   const [customNote, setCustomNote] = useState<string>('');
+//   const [loading, setLoading] = useState(false);
+//
+//   // Result
+//   const [result, setResult] = useState<null | {
+//     verdict: 'good' | 'neutral' | 'challenging';
+//     color: string;
+//     score: number;
+//     factors: {
+//       label: string;
+//       weight: number;
+//       value: number;
+//       contribution: number;
+//     }[];
+//     aspects: {
+//       planetA: string;
+//       planetB: string;
+//       type: string;
+//       orb: number;
+//       impact: number;
+//     }[];
+//     bestWindows: { startISO: string; endISO: string; score: number }[];
+//     explanation: string;
+//   }>(null);
+//
+//   const timezone = useMemo(() => {
+//     try {
+//       // IANA TZ where available
+//       // @ts-ignore
+//       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+//     } catch {
+//       return 'UTC';
+//     }
+//   }, []);
+//
+//   const submit = async () => {
+//     setResult(null);
+//     setLoading(true);
+//     try {
+//       const payload = {
+//         topic: selectedTopic,
+//         date,
+//         timezone,
+//         customNote: customNote || undefined,
+//       };
+//       const data = await advisorAPI.evaluate(payload);
+//       setResult(data);
+//     } catch (e: any) {
+//       setResult({
+//         verdict: 'challenging',
+//         color: '#EF4444',
+//         score: 0,
+//         factors: [],
+//         aspects: [],
+//         bestWindows: [],
+//         explanation:
+//           e?.response?.data?.message || 'Ошибка запроса. Попробуйте позже.',
+//       });
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+//
+//   if (!premium) {
+//     return (
+//       <View
+//         style={{
+//           flex: 1,
+//           backgroundColor: '#0A0A0F',
+//           alignItems: 'center',
+//           justifyContent: 'center',
+//           padding: 24,
+//         }}
+//       >
+//         <Ionicons name="lock-closed" size={72} color="#8B5CF6" />
+//         <Text
+//           style={{
+//             color: '#FFFFFF',
+//             fontSize: 20,
+//             fontWeight: '600',
+//             marginTop: 12,
+//             textAlign: 'center',
+//           }}
+//         >
+//           Доступно только для Premium
+//         </Text>
+//         <Text
+//           style={{
+//             color: 'rgba(255,255,255,0.7)',
+//             fontSize: 14,
+//             marginTop: 8,
+//             textAlign: 'center',
+//           }}
+//         >
+//           Персональный советник: «Хороший ли день для …» с реальными транзитами
+//           и натальной картой.
+//         </Text>
+//         <TouchableOpacity
+//           onPress={() => {
+//             try {
+//               navigation.navigate('Subscription');
+//             } catch {
+//               // если нет маршрута, ничего не делаем
+//             }
+//           }}
+//           style={{
+//             marginTop: 16,
+//             backgroundColor: '#8B5CF6',
+//             paddingHorizontal: 20,
+//             paddingVertical: 12,
+//             borderRadius: 12,
+//           }}
+//         >
+//           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+//             Перейти на Premium
+//           </Text>
+//         </TouchableOpacity>
+//       </View>
+//     );
+//   }
+//
+//   return (
+//     <View style={{ flex: 1, backgroundColor: '#0A0A0F' }}>
+//       {/* Controls */}
+//       <ScrollView
+//         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+//         keyboardShouldPersistTaps="handled"
+//       >
+//         <Text
+//           style={{
+//             color: '#FFFFFF',
+//             fontSize: 18,
+//             fontWeight: '700',
+//             marginBottom: 12,
+//           }}
+//         >
+//           Советник: хороший ли день…
+//         </Text>
+//
+//         {/* Topic chips */}
+//         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+//           {topics.map((t) => {
+//             const active = t.key === selectedTopic;
+//             return (
+//               <TouchableOpacity
+//                 key={t.key}
+//                 onPress={() => setSelectedTopic(t.key)}
+//                 style={{
+//                   backgroundColor: active
+//                     ? '#8B5CF6'
+//                     : 'rgba(255,255,255,0.08)',
+//                   borderColor: active ? '#A78BFA' : 'rgba(255,255,255,0.15)',
+//                   borderWidth: 1,
+//                   paddingHorizontal: 12,
+//                   paddingVertical: 8,
+//                   borderRadius: 999,
+//                 }}
+//               >
+//                 <Text
+//                   style={{
+//                     color: '#FFFFFF',
+//                     fontWeight: active ? '700' : '500',
+//                   }}
+//                 >
+//                   {t.label}
+//                 </Text>
+//               </TouchableOpacity>
+//             );
+//           })}
+//         </View>
+//
+//         {/* Date input (YYYY-MM-DD) */}
+//         <View style={{ marginTop: 16 }}>
+//           <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>
+//             Дата (YYYY-MM-DD)
+//           </Text>
+//           <TextInput
+//             value={date}
+//             onChangeText={setDate}
+//             placeholder="YYYY-MM-DD"
+//             placeholderTextColor="rgba(255,255,255,0.4)"
+//             style={{
+//               backgroundColor: 'rgba(255,255,255,0.06)',
+//               color: '#FFFFFF',
+//               paddingHorizontal: 12,
+//               paddingVertical: 12,
+//               borderRadius: 12,
+//               borderColor: 'rgba(255,255,255,0.15)',
+//               borderWidth: 1,
+//               fontVariant: ['tabular-nums'],
+//             }}
+//           />
+//         </View>
+//
+//         {/* Custom note */}
+//         <View style={{ marginTop: 12 }}>
+//           <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>
+//             Контекст (опционально)
+//           </Text>
+//           <TextInput
+//             value={customNote}
+//             onChangeText={setCustomNote}
+//             placeholder="Например: «подписание договора на аренду офиса»"
+//             placeholderTextColor="rgba(255,255,255,0.4)"
+//             style={{
+//               backgroundColor: 'rgba(255,255,255,0.06)',
+//               color: '#FFFFFF',
+//               paddingHorizontal: 12,
+//               paddingVertical: 12,
+//               borderRadius: 12,
+//               borderColor: 'rgba(255,255,255,0.15)',
+//               borderWidth: 1,
+//             }}
+//             multiline
+//           />
+//         </View>
+//
+//         {/* Submit */}
+//         <TouchableOpacity
+//           onPress={submit}
+//           disabled={loading}
+//           style={{
+//             marginTop: 16,
+//             backgroundColor: loading ? 'rgba(139,92,246,0.6)' : '#8B5CF6',
+//             paddingHorizontal: 16,
+//             paddingVertical: 12,
+//             borderRadius: 12,
+//             alignSelf: 'flex-start',
+//             flexDirection: 'row',
+//             alignItems: 'center',
+//             gap: 8,
+//           }}
+//         >
+//           {loading ? (
+//             <ActivityIndicator color="#fff" />
+//           ) : (
+//             <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
+//           )}
+//           <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>
+//             {loading ? 'Запрос...' : 'Спросить'}
+//           </Text>
+//         </TouchableOpacity>
+//
+//         {/* Result */}
+//         {result && (
+//           <View style={{ marginTop: 20, gap: 14 }}>
+//             <View
+//               style={{
+//                 backgroundColor: 'rgba(255,255,255,0.06)',
+//                 borderColor: 'rgba(255,255,255,0.12)',
+//                 borderWidth: 1,
+//                 borderRadius: 12,
+//                 padding: 14,
+//                 gap: 6,
+//               }}
+//             >
+//               <Text style={{ color: '#9CA3AF' }}>Вердикт</Text>
+//               {(() => {
+//                 const verdictColor = getVerdictColor(
+//                   result.verdict,
+//                   result.color
+//                 );
+//                 const bg = hexToRgba(verdictColor, 0.12);
+//                 const border = hexToRgba(verdictColor, 0.4);
+//                 return (
+//                   <View
+//                     style={{
+//                       flexDirection: 'row',
+//                       alignItems: 'center',
+//                       gap: 8,
+//                       backgroundColor: bg,
+//                       borderColor: border,
+//                       borderWidth: 1,
+//                       borderRadius: 999,
+//                       paddingVertical: 6,
+//                       paddingHorizontal: 10,
+//                       alignSelf: 'flex-start',
+//                     }}
+//                   >
+//                     <Ionicons
+//                       name={
+//                         result.verdict === 'good'
+//                           ? 'checkmark-circle'
+//                           : result.verdict === 'neutral'
+//                             ? 'remove-circle'
+//                             : 'close-circle'
+//                       }
+//                       size={20}
+//                       color={verdictColor}
+//                     />
+//                     <Text
+//                       style={{
+//                         color: verdictColor,
+//                         fontWeight: '700',
+//                       }}
+//                     >
+//                       {result.verdict.toUpperCase()} — {result.score} / 100
+//                     </Text>
+//                   </View>
+//                 );
+//               })()}
+//               {!!result.explanation && (
+//                 <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 6 }}>
+//                   {result.explanation}
+//                 </Text>
+//               )}
+//             </View>
+//
+//             {/* Best windows */}
+//             {result.bestWindows?.length > 0 && (
+//               <View
+//                 style={{
+//                   backgroundColor: 'rgba(255,255,255,0.06)',
+//                   borderColor: 'rgba(255,255,255,0.12)',
+//                   borderWidth: 1,
+//                   borderRadius: 12,
+//                   padding: 14,
+//                   gap: 6,
+//                 }}
+//               >
+//                 <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
+//                   Лучшие окна
+//                 </Text>
+//                 {result.bestWindows.map((w, idx) => (
+//                   <View
+//                     key={idx}
+//                     style={{
+//                       flexDirection: 'row',
+//                       justifyContent: 'space-between',
+//                       marginVertical: 2,
+//                     }}
+//                   >
+//                     <Text style={{ color: '#FFFFFF' }}>
+//                       {new Date(w.startISO).toLocaleTimeString([], {
+//                         hour: '2-digit',
+//                         minute: '2-digit',
+//                       })}{' '}
+//                       -{' '}
+//                       {new Date(w.endISO).toLocaleTimeString([], {
+//                         hour: '2-digit',
+//                         minute: '2-digit',
+//                       })}
+//                     </Text>
+//                     <Text
+//                       style={{
+//                         color: getVerdictColor(result.verdict, result.color),
+//                         fontWeight: '600',
+//                       }}
+//                     >
+//                       {w.score}
+//                     </Text>
+//                   </View>
+//                 ))}
+//               </View>
+//             )}
+//
+//             {/* Aspects */}
+//             {result.aspects?.length > 0 && (
+//               <View
+//                 style={{
+//                   backgroundColor: 'rgba(255,255,255,0.06)',
+//                   borderColor: 'rgba(255,255,255,0.12)',
+//                   borderWidth: 1,
+//                   borderRadius: 12,
+//                   padding: 14,
+//                   gap: 6,
+//                 }}
+//               >
+//                 <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
+//                   Аспекты (натал ↔ текущие)
+//                 </Text>
+//                 {result.aspects.map((a, idx) => (
+//                   <Text key={idx} style={{ color: '#FFFFFF' }}>
+//                     {a.planetA} {a.type} {a.planetB} · орб {a.orb.toFixed(2)}° ·
+//                     влияние {a.impact.toFixed(2)}
+//                   </Text>
+//                 ))}
+//               </View>
+//             )}
+//
+//             {/* Factors */}
+//             {result.factors?.length > 0 && (
+//               <View
+//                 style={{
+//                   backgroundColor: 'rgba(255,255,255,0.06)',
+//                   borderColor: 'rgba(255,255,255,0.12)',
+//                   borderWidth: 1,
+//                   borderRadius: 12,
+//                   padding: 14,
+//                   gap: 6,
+//                 }}
+//               >
+//                 <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
+//                   Факторы
+//                 </Text>
+//                 {result.factors.map((f, idx) => (
+//                   <Text key={idx} style={{ color: '#FFFFFF' }}>
+//                     {f.label}: вклад {Math.round(f.contribution)} (вес{' '}
+//                     {f.weight}, сила {(f.value * 100).toFixed(0)}%)
+//                   </Text>
+//                 ))}
+//               </View>
+//             )}
+//           </View>
+//         )}
+//       </ScrollView>
+//     </View>
+//   );
+// }
+
+// src/screens/AdvisorScreen.tsx
+import React, { useState, useMemo } from 'react';
 import {
+  StyleSheet,
   View,
   Text,
-  TouchableOpacity,
+  StatusBar,
   ScrollView,
-  ActivityIndicator,
+  TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useSubscription } from '../hooks/useSubscription';
 import { advisorAPI } from '../services/api';
+import AdvisorAspectsWidget from '../components/advisor/AdvisorAspectsWidget';
+import AdvisorRecommendationsWidget from '../components/advisor/AdvisorRecommendationsWidget';
+import AdvisorResultWidget from 'src/components/advisor/AdvisorResultWidget';
+import BestWindowsWidget from 'src/components/advisor/BestWindowsWidget';
 
 type Topic =
   | 'contract'
@@ -22,96 +522,97 @@ type Topic =
   | 'negotiation'
   | 'custom';
 
-const topics: { key: Topic; label: string }[] = [
-  { key: 'contract', label: 'Контракт' },
-  { key: 'meeting', label: 'Встреча' },
-  { key: 'negotiation', label: 'Переговоры' },
-  { key: 'date', label: 'Свидание' },
-  { key: 'travel', label: 'Путешествие' },
-  { key: 'purchase', label: 'Покупка' },
-  { key: 'health', label: 'Здоровье' },
-  { key: 'custom', label: 'Другое' },
+interface TopicOption {
+  key: Topic;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  gradient: string[];
+  description: string;
+}
+
+const topics: TopicOption[] = [
+  {
+    key: 'contract',
+    label: 'Контракт',
+    icon: 'document-text',
+    gradient: ['#8B5CF6', '#6366F1'],
+    description: 'Подписание договоров и соглашений',
+  },
+  {
+    key: 'meeting',
+    label: 'Встреча',
+    icon: 'people',
+    gradient: ['#EC4899', '#F43F5E'],
+    description: 'Деловые и личные встречи',
+  },
+  {
+    key: 'negotiation',
+    label: 'Переговоры',
+    icon: 'chatbubbles',
+    gradient: ['#F59E0B', '#EAB308'],
+    description: 'Важные переговоры и сделки',
+  },
+  {
+    key: 'date',
+    label: 'Свидание',
+    icon: 'heart',
+    gradient: ['#EC4899', '#EF4444'],
+    description: 'Романтические встречи',
+  },
+  {
+    key: 'travel',
+    label: 'Путешествие',
+    icon: 'airplane',
+    gradient: ['#3B82F6', '#06B6D4'],
+    description: 'Поездки и путешествия',
+  },
+  {
+    key: 'purchase',
+    label: 'Покупка',
+    icon: 'cart',
+    gradient: ['#10B981', '#14B8A6'],
+    description: 'Крупные покупки и инвестиции',
+  },
+  {
+    key: 'health',
+    label: 'Здоровье',
+    icon: 'fitness',
+    gradient: ['#EF4444', '#F97316'],
+    description: 'Медицинские процедуры',
+  },
+  {
+    key: 'custom',
+    label: 'Другое',
+    icon: 'ellipsis-horizontal',
+    gradient: ['#6366F1', '#8B5CF6'],
+    description: 'Общая оценка дня',
+  },
 ];
-// Verdict color mapping and helpers
-const VERDICT_COLORS = {
-  good: '#10B981', // green
-  neutral: '#F59E0B', // yellow
-  challenging: '#EF4444', // red
-} as const;
 
-function getVerdictColor(
-  verdict: 'good' | 'neutral' | 'challenging',
-  provided?: string
-): string {
-  // Canonical palette, ignore unexpected provided colors to keep UI consistent
-  return VERDICT_COLORS[verdict] ?? (provided || '#A78BFA');
-}
-
-function hexToRgba(hex: string, alpha = 1): string {
-  try {
-    const sanitized = hex.replace('#', '');
-    const full =
-      sanitized.length === 3
-        ? sanitized
-            .split('')
-            .map((c) => c + c)
-            .join('')
-        : sanitized;
-    const int = parseInt(full, 16);
-    const r = (int >> 16) & 255;
-    const g = (int >> 8) & 255;
-    const b = int & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } catch {
-    // Fallback to brand purple tint if hex parsing fails
-    return `rgba(167, 139, 250, ${alpha})`;
-  }
-}
-
-export default function AdvisorChatScreen() {
-  const navigation = useNavigation<any>();
+const AdvisorScreen: React.FC = () => {
+  const navigation = useNavigation();
   const { isPremium } = useSubscription();
   const premium = useMemo(() => isPremium(), [isPremium]);
 
-  // Inputs
+  // State
   const [selectedTopic, setSelectedTopic] = useState<Topic>('contract');
   const [date, setDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
-  ); // YYYY-MM-DD
+  );
   const [customNote, setCustomNote] = useState<string>('');
   const [loading, setLoading] = useState(false);
-
-  // Result
-  const [result, setResult] = useState<null | {
-    verdict: 'good' | 'neutral' | 'challenging';
-    color: string;
-    score: number;
-    factors: {
-      label: string;
-      weight: number;
-      value: number;
-      contribution: number;
-    }[];
-    aspects: {
-      planetA: string;
-      planetB: string;
-      type: string;
-      orb: number;
-      impact: number;
-    }[];
-    bestWindows: { startISO: string; endISO: string; score: number }[];
-    explanation: string;
-  }>(null);
+  const [result, setResult] = useState<any>(null);
 
   const timezone = useMemo(() => {
     try {
-      // IANA TZ where available
       // @ts-ignore
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
     } catch {
       return 'UTC';
     }
   }, []);
+
+  const selectedTopicOption = topics.find((t) => t.key === selectedTopic)!;
 
   const submit = async () => {
     setResult(null);
@@ -133,6 +634,7 @@ export default function AdvisorChatScreen() {
         factors: [],
         aspects: [],
         bestWindows: [],
+        recommendations: [],
         explanation:
           e?.response?.data?.message || 'Ошибка запроса. Попробуйте позже.',
       });
@@ -141,349 +643,566 @@ export default function AdvisorChatScreen() {
     }
   };
 
+  // Premium gate
   if (!premium) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#0A0A0F',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-        }}
-      >
-        <Ionicons name="lock-closed" size={72} color="#8B5CF6" />
-        <Text
-          style={{
-            color: '#FFFFFF',
-            fontSize: 20,
-            fontWeight: '600',
-            marginTop: 12,
-            textAlign: 'center',
-          }}
+      <View style={styles.premiumGate}>
+        <LinearGradient
+          colors={['rgba(139, 92, 246, 0.2)', 'rgba(99, 102, 241, 0.1)']}
+          style={styles.premiumGradient}
         >
-          Доступно только для Premium
-        </Text>
-        <Text
-          style={{
-            color: 'rgba(255,255,255,0.7)',
-            fontSize: 14,
-            marginTop: 8,
-            textAlign: 'center',
-          }}
-        >
-          Персональный советник: «Хороший ли день для …» с реальными транзитами
-          и натальной картой.
-        </Text>
-        <TouchableOpacity
-          onPress={() => {
-            try {
-              navigation.navigate('Subscription');
-            } catch {
-              // если нет маршрута, ничего не делаем
-            }
-          }}
-          style={{
-            marginTop: 16,
-            backgroundColor: '#8B5CF6',
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
-            Перейти на Premium
+          <Ionicons name="lock-closed" size={72} color="#8B5CF6" />
+          <Text style={styles.premiumTitle}>Астро-Советник Premium</Text>
+          <Text style={styles.premiumSubtitle}>
+            Персональные рекомендации на основе транзитов к вашей натальной
+            карте
           </Text>
-        </TouchableOpacity>
+          <View style={styles.premiumFeatures}>
+            <View style={styles.featureRow}>
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              <Text style={styles.featureText}>
+                Почасовой анализ благоприятности дня
+              </Text>
+            </View>
+            <View style={styles.featureRow}>
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              <Text style={styles.featureText}>
+                Детальные интерпретации аспектов
+              </Text>
+            </View>
+            <View style={styles.featureRow}>
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              <Text style={styles.featureText}>
+                Рекомендации для 8 сфер жизни
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              try {
+                navigation.navigate('Subscription' as never);
+              } catch {}
+            }}
+            style={styles.premiumButton}
+          >
+            <LinearGradient
+              colors={['#8B5CF6', '#6366F1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.premiumButtonGradient}
+            >
+              <Text style={styles.premiumButtonText}>Получить Premium</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0A0A0F' }}>
-      {/* Controls */}
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text
-          style={{
-            color: '#FFFFFF',
-            fontSize: 18,
-            fontWeight: '700',
-            marginBottom: 12,
-          }}
+    <>
+      <StatusBar barStyle="light-content" />
+      <TabScreenLayout>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          Советник: хороший ли день…
-        </Text>
-
-        {/* Topic chips */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {topics.map((t) => {
-            const active = t.key === selectedTopic;
-            return (
-              <TouchableOpacity
-                key={t.key}
-                onPress={() => setSelectedTopic(t.key)}
-                style={{
-                  backgroundColor: active
-                    ? '#8B5CF6'
-                    : 'rgba(255,255,255,0.08)',
-                  borderColor: active ? '#A78BFA' : 'rgba(255,255,255,0.15)',
-                  borderWidth: 1,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                }}
+          {/* Header */}
+          <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
+            <View style={styles.headerIconContainer}>
+              <LinearGradient
+                colors={['#8B5CF6', '#6366F1']}
+                style={styles.headerIcon}
               >
-                <Text
-                  style={{
-                    color: '#FFFFFF',
-                    fontWeight: active ? '700' : '500',
-                  }}
-                >
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Date input (YYYY-MM-DD) */}
-        <View style={{ marginTop: 16 }}>
-          <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>
-            Дата (YYYY-MM-DD)
-          </Text>
-          <TextInput
-            value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="rgba(255,255,255,0.4)"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: '#FFFFFF',
-              paddingHorizontal: 12,
-              paddingVertical: 12,
-              borderRadius: 12,
-              borderColor: 'rgba(255,255,255,0.15)',
-              borderWidth: 1,
-              fontVariant: ['tabular-nums'],
-            }}
-          />
-        </View>
-
-        {/* Custom note */}
-        <View style={{ marginTop: 12 }}>
-          <Text style={{ color: '#9CA3AF', marginBottom: 6 }}>
-            Контекст (опционально)
-          </Text>
-          <TextInput
-            value={customNote}
-            onChangeText={setCustomNote}
-            placeholder="Например: «подписание договора на аренду офиса»"
-            placeholderTextColor="rgba(255,255,255,0.4)"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: '#FFFFFF',
-              paddingHorizontal: 12,
-              paddingVertical: 12,
-              borderRadius: 12,
-              borderColor: 'rgba(255,255,255,0.15)',
-              borderWidth: 1,
-            }}
-            multiline
-          />
-        </View>
-
-        {/* Submit */}
-        <TouchableOpacity
-          onPress={submit}
-          disabled={loading}
-          style={{
-            marginTop: 16,
-            backgroundColor: loading ? 'rgba(139,92,246,0.6)' : '#8B5CF6',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 12,
-            alignSelf: 'flex-start',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
-          )}
-          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>
-            {loading ? 'Запрос...' : 'Спросить'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Result */}
-        {result && (
-          <View style={{ marginTop: 20, gap: 14 }}>
-            <View
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.06)',
-                borderColor: 'rgba(255,255,255,0.12)',
-                borderWidth: 1,
-                borderRadius: 12,
-                padding: 14,
-                gap: 6,
-              }}
-            >
-              <Text style={{ color: '#9CA3AF' }}>Вердикт</Text>
-              {(() => {
-                const verdictColor = getVerdictColor(
-                  result.verdict,
-                  result.color
-                );
-                const bg = hexToRgba(verdictColor, 0.12);
-                const border = hexToRgba(verdictColor, 0.4);
-                return (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      backgroundColor: bg,
-                      borderColor: border,
-                      borderWidth: 1,
-                      borderRadius: 999,
-                      paddingVertical: 6,
-                      paddingHorizontal: 10,
-                      alignSelf: 'flex-start',
-                    }}
-                  >
-                    <Ionicons
-                      name={
-                        result.verdict === 'good'
-                          ? 'checkmark-circle'
-                          : result.verdict === 'neutral'
-                            ? 'remove-circle'
-                            : 'close-circle'
-                      }
-                      size={20}
-                      color={verdictColor}
-                    />
-                    <Text
-                      style={{
-                        color: verdictColor,
-                        fontWeight: '700',
-                      }}
-                    >
-                      {result.verdict.toUpperCase()} — {result.score} / 100
-                    </Text>
-                  </View>
-                );
-              })()}
-              {!!result.explanation && (
-                <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 6 }}>
-                  {result.explanation}
-                </Text>
-              )}
+                <Ionicons name="bulb" size={32} color="#FFFFFF" />
+              </LinearGradient>
             </View>
+            <Text style={styles.headerTitle}>Астро-Советник</Text>
+            <Text style={styles.headerSubtitle}>Хороший ли день для...</Text>
+            <Text style={styles.headerDate}>
+              Анализ на{' '}
+              {new Date(date).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </Text>
+          </BlurView>
 
-            {/* Best windows */}
-            {result.bestWindows?.length > 0 && (
-              <View
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(255,255,255,0.12)',
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  padding: 14,
-                  gap: 6,
-                }}
-              >
-                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
-                  Лучшие окна
-                </Text>
-                {result.bestWindows.map((w, idx) => (
-                  <View
-                    key={idx}
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginVertical: 2,
-                    }}
-                  >
-                    <Text style={{ color: '#FFFFFF' }}>
-                      {new Date(w.startISO).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}{' '}
-                      -{' '}
-                      {new Date(w.endISO).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                    <Text
-                      style={{
-                        color: getVerdictColor(result.verdict, result.color),
-                        fontWeight: '600',
-                      }}
+          {/* Content */}
+          <View style={styles.contentContainer}>
+            {/* Topic Selection */}
+            <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="grid" size={20} color="#8B5CF6" />
+                <Text style={styles.sectionTitle}>Выберите тему</Text>
+              </View>
+
+              <View style={styles.topicGrid}>
+                {topics.map((topic) => {
+                  const isActive = topic.key === selectedTopic;
+                  return (
+                    <TouchableOpacity
+                      key={topic.key}
+                      onPress={() => setSelectedTopic(topic.key)}
+                      style={[
+                        styles.topicCard,
+                        isActive && styles.topicCardActive,
+                      ]}
                     >
-                      {w.score}
-                    </Text>
-                  </View>
-                ))}
+                      {isActive ? (
+                        <LinearGradient
+                          colors={topic.gradient}
+                          style={styles.topicCardGradient}
+                        >
+                          <Ionicons
+                            name={topic.icon}
+                            size={24}
+                            color="#FFFFFF"
+                          />
+                          <Text style={styles.topicLabel}>{topic.label}</Text>
+                        </LinearGradient>
+                      ) : (
+                        <View style={styles.topicCardInactive}>
+                          <Ionicons
+                            name={topic.icon}
+                            size={24}
+                            color="rgba(255,255,255,0.6)"
+                          />
+                          <Text style={styles.topicLabelInactive}>
+                            {topic.label}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            )}
 
-            {/* Aspects */}
-            {result.aspects?.length > 0 && (
-              <View
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(255,255,255,0.12)',
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  padding: 14,
-                  gap: 6,
-                }}
-              >
-                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
-                  Аспекты (натал ↔ текущие)
+              {/* Topic Description */}
+              <View style={styles.topicDescription}>
+                <Ionicons
+                  name="information-circle"
+                  size={16}
+                  color="rgba(139, 92, 246, 0.8)"
+                />
+                <Text style={styles.topicDescriptionText}>
+                  {selectedTopicOption.description}
                 </Text>
-                {result.aspects.map((a, idx) => (
-                  <Text key={idx} style={{ color: '#FFFFFF' }}>
-                    {a.planetA} {a.type} {a.planetB} · орб {a.orb.toFixed(2)}° ·
-                    влияние {a.impact.toFixed(2)}
-                  </Text>
-                ))}
               </View>
-            )}
+            </BlurView>
 
-            {/* Factors */}
-            {result.factors?.length > 0 && (
-              <View
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(255,255,255,0.12)',
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  padding: 14,
-                  gap: 6,
-                }}
-              >
-                <Text style={{ color: '#9CA3AF', marginBottom: 4 }}>
-                  Факторы
+            {/* Date Input */}
+            <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="calendar" size={20} color="#8B5CF6" />
+                <Text style={styles.sectionTitle}>Дата анализа</Text>
+              </View>
+
+              <View style={styles.dateInputContainer}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={20}
+                  color="rgba(255,255,255,0.5)"
+                />
+                <TextInput
+                  value={date}
+                  onChangeText={setDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  style={styles.dateInput}
+                />
+              </View>
+
+              {/* Quick Date Buttons */}
+              <View style={styles.quickDateButtons}>
+                <TouchableOpacity
+                  onPress={() => setDate(new Date().toISOString().slice(0, 10))}
+                  style={styles.quickDateButton}
+                >
+                  <Text style={styles.quickDateButtonText}>Сегодня</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    setDate(tomorrow.toISOString().slice(0, 10));
+                  }}
+                  style={styles.quickDateButton}
+                >
+                  <Text style={styles.quickDateButtonText}>Завтра</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    const nextWeek = new Date();
+                    nextWeek.setDate(nextWeek.getDate() + 7);
+                    setDate(nextWeek.toISOString().slice(0, 10));
+                  }}
+                  style={styles.quickDateButton}
+                >
+                  <Text style={styles.quickDateButtonText}>Через неделю</Text>
+                </TouchableOpacity>
+              </View>
+            </BlurView>
+
+            {/* Custom Note (Optional) */}
+            <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="text" size={20} color="#8B5CF6" />
+                <Text style={styles.sectionTitle}>
+                  Контекст{' '}
+                  <Text style={styles.optionalLabel}>(опционально)</Text>
                 </Text>
-                {result.factors.map((f, idx) => (
-                  <Text key={idx} style={{ color: '#FFFFFF' }}>
-                    {f.label}: вклад {Math.round(f.contribution)} (вес{' '}
-                    {f.weight}, сила {(f.value * 100).toFixed(0)}%)
-                  </Text>
-                ))}
+              </View>
+
+              <TextInput
+                value={customNote}
+                onChangeText={setCustomNote}
+                placeholder="Например: важная встреча с инвестором..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                style={styles.customNoteInput}
+                multiline
+                numberOfLines={3}
+              />
+            </BlurView>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              onPress={submit}
+              disabled={loading}
+              style={styles.submitButtonContainer}
+            >
+              <LinearGradient
+                colors={
+                  loading
+                    ? ['rgba(139,92,246,0.5)', 'rgba(99,102,241,0.5)']
+                    : ['#8B5CF6', '#6366F1']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.submitButton}
+              >
+                {loading ? (
+                  <>
+                    <ActivityIndicator color="#fff" />
+                    <Text style={styles.submitButtonText}>Анализируем...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                    <Text style={styles.submitButtonText}>Получить совет</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Results */}
+            {result && (
+              <View style={styles.resultsContainer}>
+                {/* Main Result Widget */}
+                <AdvisorResultWidget
+                  verdict={result.verdict}
+                  score={result.score}
+                  color={result.color}
+                  explanation={result.explanation}
+                  topic={selectedTopicOption.label}
+                  topicIcon={selectedTopicOption.icon}
+                />
+
+                {/* Recommendations Widget */}
+                {result.recommendations?.length > 0 && (
+                  <AdvisorRecommendationsWidget
+                    recommendations={result.recommendations}
+                    verdict={result.verdict}
+                  />
+                )}
+
+                {/* Best Time Windows Widget */}
+                {result.bestWindows?.length > 0 && (
+                  <BestWindowsWidget
+                    windows={result.bestWindows}
+                    verdict={result.verdict}
+                  />
+                )}
+
+                {/* Aspects Widget */}
+                {result.aspects?.length > 0 && (
+                  <AdvisorAspectsWidget
+                    aspects={result.aspects}
+                    factors={result.factors}
+                  />
+                )}
               </View>
             )}
           </View>
-        )}
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </TabScreenLayout>
+    </>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  // Premium Gate
+  premiumGate: {
+    flex: 1,
+    backgroundColor: '#0A0A0F',
+  },
+  premiumGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  premiumTitle: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '700',
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  premiumSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  premiumFeatures: {
+    marginTop: 32,
+    gap: 16,
+    width: '100%',
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  featureText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 16,
+  },
+  premiumButton: {
+    marginTop: 32,
+    width: '100%',
+  },
+  premiumButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  premiumButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  // Main Layout
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  headerContainer: {
+    marginHorizontal: 8,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerIconContainer: {
+    marginBottom: 16,
+  },
+  headerIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 18,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  headerDate: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+
+  // Content
+  contentContainer: {
+    marginTop: 20,
+    gap: 16,
+    paddingHorizontal: 8,
+  },
+  sectionCard: {
+    borderRadius: 16,
+    padding: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  optionalLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '400',
+  },
+
+  // Topic Selection
+  topicGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  topicCard: {
+    width: '47%',
+    aspectRatio: 1.5,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  topicCardActive: {
+    borderWidth: 2,
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+  },
+  topicCardGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  topicCardInactive: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  topicLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  topicLabelInactive: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  topicDescription: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 8,
+  },
+  topicDescriptionText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    flex: 1,
+  },
+
+  // Date Input
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  dateInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontVariant: ['tabular-nums'],
+  },
+  quickDateButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  quickDateButton: {
+    flex: 1,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  quickDateButtonText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Custom Note
+  customNoteInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    color: '#FFFFFF',
+    fontSize: 15,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+
+  // Submit Button
+  submitButtonContainer: {
+    marginTop: 8,
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  // Results
+  resultsContainer: {
+    gap: 16,
+    marginTop: 8,
+  },
+});
+
+export default AdvisorScreen;

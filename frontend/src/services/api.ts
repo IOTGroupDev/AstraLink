@@ -945,7 +945,7 @@ export const chartAPI = {
 };
 
 // --------------------------------------------------
-// Advisor API — Premium only
+// advisor API — Premium only
 // --------------------------------------------------
 export const advisorAPI = {
   evaluate: async (data: {
@@ -1190,6 +1190,7 @@ export const userExtendedProfileAPI = {
 
   updateUserProfile: async (data: {
     bio?: string;
+    gender?: string;
     preferences?: {
       interests?: string[];
       [key: string]: any;

@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -28,6 +29,7 @@ import { useAuth } from '../hooks/useAuth';
 import { datingAPI, chatAPI } from '../services/api';
 import { supabase } from '../services/supabase';
 import CosmicChat from '../components/dating/CosmicChat';
+import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,6 +53,14 @@ type ApiCandidate = {
   badge: 'high' | 'medium' | 'low';
   photoUrl?: string | null;
   avatarUrl?: string | null;
+
+  // Optional enriched fields from backend
+  name?: string | null;
+  age?: number | null;
+  zodiacSign?: string | null;
+  bio?: string | null;
+  interests?: string[] | null;
+  city?: string | null;
 };
 
 // Расширенный тип для UI
@@ -83,7 +93,7 @@ export default function DatingScreen() {
   const translateY = useSharedValue(0);
   const rotate = useSharedValue(0);
 
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigation = useNavigation<any>();
 
   // ===============================
@@ -101,6 +111,14 @@ export default function DatingScreen() {
 
   const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low') =>
     b === 'high' ? 85 : b === 'medium' ? 65 : 45;
+
+  // Фаллбек из процента совместимости в бейдж
+  const getBadgeFromScore = (score?: number): 'high' | 'medium' | 'low' => {
+    if (typeof score !== 'number' || !Number.isFinite(score)) return 'low';
+    if (score >= 80) return 'high';
+    if (score >= 60) return 'medium';
+    return 'low';
+  };
 
   const nextCard = useCallback(() => {
     setCurrentIndex((idx) => (idx + 1 < candidates.length ? idx + 1 : idx));
@@ -249,123 +267,72 @@ export default function DatingScreen() {
   // Загрузка кандидатов
   // ===============================
   useEffect(() => {
+    if (authLoading || !user) return;
+
     (async () => {
       try {
+        // 1) Основной источник: быстрые кандидаты через Supabase RPC (бейджи + обогащение)
         const data: ApiCandidate[] =
           (await datingAPI.getCandidates?.(20)) || [];
 
-        // Если API пуст — используем моки
-        // if (!data || data.length === 0) {
-        //   const mockData: Candidate[] = [
-        //     {
-        //       userId: 'mock-1',
-        //       badge: 'high',
-        //       photoUrl: 'https://randomuser.me/api/portraits/women/65.jpg',
-        //       name: 'Елизавета',
-        //       age: 26,
-        //       zodiacSign: 'Весы',
-        //       bio: 'UX-дизайнер. Люблю галереи и кофе без сахара.',
-        //       interests: ['Искусство', 'Йога', 'Пешие прогулки'],
-        //       distance: 3,
-        //       city: 'Минск',
-        //     },
-        //     {
-        //       userId: 'mock-2',
-        //       badge: 'medium',
-        //       photoUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-        //       name: 'София',
-        //       age: 24,
-        //       zodiacSign: 'Лев',
-        //       bio: 'Маркетолог. Закаты, хайкинг и фильмы Нолана.',
-        //       interests: ['Маркетинг', 'Кино', 'Путешествия'],
-        //       distance: 7,
-        //       city: 'Тбилиси',
-        //     },
-        //     {
-        //       userId: 'mock-3',
-        //       badge: 'low',
-        //       photoUrl: 'https://randomuser.me/api/portraits/women/12.jpg',
-        //       name: 'Анастасия',
-        //       age: 27,
-        //       zodiacSign: 'Рыбы',
-        //       bio: 'Музыкант. Лофай и джаз по вечерам.',
-        //       interests: ['Музыка', 'Книги', 'Кофе'],
-        //       distance: 12,
-        //       city: 'Ереван',
-        //     },
-        //     {
-        //       userId: 'mock-4',
-        //       badge: 'high',
-        //       photoUrl: 'https://randomuser.me/api/portraits/women/81.jpg',
-        //       name: 'Полина',
-        //       age: 25,
-        //       zodiacSign: 'Телец',
-        //       bio: 'Фронтенд. React, походы и астрология.',
-        //       interests: ['Кодинг', 'Походы', 'Астрология'],
-        //       distance: 4,
-        //       city: 'Минск',
-        //     },
-        //     {
-        //       userId: 'mock-5',
-        //       badge: 'medium',
-        //       photoUrl: 'https://randomuser.me/api/portraits/women/30.jpg',
-        //       name: 'Дарья',
-        //       age: 29,
-        //       zodiacSign: 'Козерог',
-        //       bio: 'Фотограф. Охочусь за мягким светом.',
-        //       interests: ['Фото', 'Кофейни', 'Путешествия'],
-        //       distance: 9,
-        //       city: 'Вильнюс',
-        //     },
-        //   ];
-        //   setCandidates(mockData);
-        //   setCurrentIndex(0);
-        //   return;
-        // }
+        const enrichedData: Candidate[] = (data || []).map((candidate) => {
+          const photo = candidate.photoUrl || candidate.avatarUrl || undefined;
 
-        // API вернул кандидатов — обогащаем данными
-        const enrichedData: Candidate[] = data.map(
-          (candidate: ApiCandidate) => {
-            const photo =
-              candidate.photoUrl ||
-              candidate.avatarUrl ||
-              `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 90)}.jpg`;
+          return {
+            userId: candidate.userId,
+            badge: candidate.badge,
+            photoUrl: photo,
+            name: candidate.name ?? 'Пользователь',
+            age: (candidate.age ?? undefined) as any,
+            zodiacSign: (candidate.zodiacSign ?? undefined) as any,
+            bio: candidate.bio ?? '',
+            interests: Array.isArray(candidate.interests)
+              ? (candidate.interests as string[])
+              : [],
+            distance: undefined as any,
+            city: candidate.city ?? undefined,
+          };
+        });
 
+        // 2) Фоллбек: если RPC/кэш вернул пусто — подгружаем legacy matches и мапим в карточки
+        if (!enrichedData.length) {
+          const matches = (await datingAPI.getMatches?.()) || [];
+          const fromMatches: Candidate[] = matches.map((m: any) => {
+            const partnerId = m?.partnerId ?? m?.id ?? m?.details?.partnerId;
+            const partnerName =
+              m?.partnerName ?? m?.details?.partnerName ?? 'Кандидат';
+            const score = Number(m?.compatibility ?? 0);
+            const badge = getBadgeFromScore(score);
             return {
-              ...candidate,
-              photoUrl: photo,
-              name: 'Пользователь',
-              age: 25,
-              zodiacSign: 'Лев',
-              bio: 'Интересная личность',
-              interests: ['Астрология', 'Путешествия'],
-              distance: Math.floor(Math.random() * 20) + 1,
+              userId: String(partnerId || ''),
+              badge,
+              photoUrl: undefined,
+              name: String(partnerName),
+              age: undefined as any,
+              zodiacSign: m?.details?.sign ?? undefined,
+              bio: '',
+              interests: [],
+              distance: undefined as any,
+              city: m?.details?.city ?? undefined,
             };
-          }
-        );
+          });
+
+          setCandidates(fromMatches);
+          setCurrentIndex(0);
+          return;
+        }
 
         setCandidates(enrichedData);
         setCurrentIndex(0);
       } catch (e) {
         console.log('❌ Ошибка загрузки кандидатов:', e);
-        // Фолбэк
-        setCandidates([
-          {
-            userId: 'mock-fallback',
-            badge: 'medium',
-            photoUrl: 'https://randomuser.me/api/portraits/women/40.jpg',
-            name: 'Ева',
-            age: 25,
-            zodiacSign: 'Дева',
-            bio: 'Фолбэк-кандидат.',
-            interests: ['Чтение', 'Прогулки'],
-            distance: 4,
-          },
-        ]);
+        // Без моков: пустой список и уведомление
+        Alert.alert('Нет данных', 'Кандидаты временно недоступны');
+        setCandidates([]);
         setCurrentIndex(0);
       }
     })();
-  }, []);
+  }, [authLoading, user]);
 
   // ===============================
   // Realtime match notifications
@@ -408,206 +375,268 @@ export default function DatingScreen() {
   // ===============================
   // UI
   // ===============================
-  return (
-    <GestureHandlerRootView style={styles.container}>
-      <View style={styles.container}>
-        {/* Фон */}
-        <LinearGradient
-          colors={['rgba(167,114,181,0.3)', 'rgba(26,7,31,0.3)']}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
 
-        {/* Декоративные точки */}
-        <View style={[StyleSheet.absoluteFillObject, styles.dotsContainer]}>
-          {DECORATIVE_DOTS.map((dot, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                { left: (dot.x / 430) * width, top: (dot.y / 932) * height },
-              ]}
-            />
-          ))}
-        </View>
-
-        <LinearGradient
-          colors={['rgba(167,114,181,0.3)', 'rgba(26,7,31,0.3)']}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.bottomBlur}
-        />
-
-        {/* Контент */}
-        <View style={styles.content}>
-          {/* Заголовок */}
-          <BlurView intensity={10} tint="dark" style={styles.header}>
-            <View style={styles.iconContainer}>
-              <LinearGradient
-                colors={['#6F1F87', '#2F0A37']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconCircle}
-              >
-                <Ionicons name="heart" size={28} color="#fff" />
-              </LinearGradient>
-            </View>
-
-            <Text style={styles.title}>Dating</Text>
-            <Text style={styles.subtitle}>Найди свою звезду</Text>
-          </BlurView>
-
-          {/* Карточка */}
-          <View style={{ alignItems: 'center', marginTop: 20 }}>
-            <PanGestureHandler
-              onGestureEvent={onGestureEvent}
-              onHandlerStateChange={onHandlerStateChange}
-            >
-              <Animated.View style={[styles.card, animatedCardStyle]}>
-                <LinearGradient
-                  colors={['rgba(111,31,135,0.4)', 'rgba(47,10,55,0.4)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.cardInner}
-                >
-                  {/* Фото */}
-                  {current?.photoUrl ? (
-                    <Image
-                      source={{ uri: current.photoUrl }}
-                      style={styles.photo}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.photo} />
-                  )}
-
-                  {/* Градиент снизу */}
-                  <LinearGradient
-                    colors={[
-                      'transparent',
-                      'rgba(0,0,0,0.3)',
-                      'rgba(0,0,0,0.8)',
-                    ]}
-                    style={styles.gradientOverlay}
-                  />
-
-                  {/* Информация */}
-                  <ScrollView
-                    style={styles.infoContainer}
-                    showsVerticalScrollIndicator={false}
-                    bounces={false}
-                  >
-                    <BlurView
-                      intensity={20}
-                      tint="dark"
-                      style={styles.detailsBlock}
-                    >
-                      {/* Имя и возраст */}
-                      <View style={styles.basicInfo}>
-                        <Text style={styles.userName}>
-                          {current?.name || 'Пользователь'},{' '}
-                          {current?.age || '—'}
-                        </Text>
-                        <Text style={styles.zodiacSign}>
-                          {current?.zodiacSign || '—'}
-                        </Text>
-                      </View>
-
-                      {/* Расстояние */}
-                      {current?.distance != null && (
-                        <View style={styles.locationRow}>
-                          <Ionicons
-                            name="location"
-                            size={14}
-                            color="rgba(255,255,255,0.7)"
-                          />
-                          <Text style={styles.locationText}>
-                            {current.distance} км от вас
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Био */}
-                      <Text style={styles.bioText}>
-                        {current?.bio || 'Нет описания'}
-                      </Text>
-
-                      {/* Совместимость */}
-                      <View style={styles.compatibilitySection}>
-                        <Text style={styles.compatibilityLabel}>
-                          Совместимость
-                        </Text>
-                        <View style={styles.badgeRow}>
-                          <View
-                            style={[
-                              styles.badgePill,
-                              {
-                                backgroundColor: getBadgeBg(
-                                  current?.badge || 'low'
-                                ),
-                              },
-                            ]}
-                          >
-                            <Text style={styles.badgeText}>
-                              {getBadgeLabel(current?.badge || 'low')}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* Интересы */}
-                      {!!current?.interests?.length && (
-                        <View style={styles.interestsContainer}>
-                          {current.interests.map((int, idx) => (
-                            <View key={idx} style={styles.interestTag}>
-                              <Text style={styles.interestText}>{int}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </BlurView>
-                  </ScrollView>
-                </LinearGradient>
-              </Animated.View>
-            </PanGestureHandler>
-
-            {/* Кнопки сверху справа */}
-            <View style={styles.sideButtons}>
-              <TouchableOpacity
-                style={styles.sideButton}
-                onPress={handleLike}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="heart" size={18} color="#6F1F87" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sideButton}
-                onPress={handleMessage}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="chatbubble-ellipses"
-                  size={18}
-                  color="#6F1F87"
-                />
-              </TouchableOpacity>
-            </View>
+  if (authLoading) {
+    return (
+      <TabScreenLayout
+        scrollable={false}
+        contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 0 }}
+      >
+        <View style={styles.container}>
+          <LinearGradient
+            colors={['rgba(167,114,181,0.3)', 'rgba(26,7,31,0.3)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.loader}>
+            <ActivityIndicator size="large" color="#8B5CF6" />
+            <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 12 }}>
+              Проверка авторизации...
+            </Text>
           </View>
         </View>
+      </TabScreenLayout>
+    );
+  }
 
-        {/* Модалка чата */}
-        {chatVisible && selectedUser && (
-          <CosmicChat
-            visible={chatVisible}
-            user={selectedUser}
-            onClose={handleCloseChat}
-            onSendMessage={handleSendMessage}
+  if (!user) {
+    return (
+      <TabScreenLayout
+        scrollable={false}
+        contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 0 }}
+      >
+        <View style={styles.container}>
+          <LinearGradient
+            colors={['rgba(167,114,181,0.3)', 'rgba(26,7,31,0.3)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
           />
-        )}
-      </View>
-    </GestureHandlerRootView>
+          <View style={styles.center}>
+            <Ionicons name="lock-closed" size={64} color="#EF4444" />
+            <Text style={styles.title}>Требуется авторизация</Text>
+            <Text style={styles.subtitle}>
+              Войдите, чтобы видеть кандидатов
+            </Text>
+            <TouchableOpacity
+              style={styles.authButton}
+              onPress={() => navigation.navigate('Profile')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.authButtonText}>Войти</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TabScreenLayout>
+    );
+  }
+
+  return (
+    <TabScreenLayout
+      scrollable={false}
+      contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 0 }}
+    >
+      <GestureHandlerRootView style={styles.container}>
+        <View style={styles.container}>
+          {/* Фон */}
+          <LinearGradient
+            colors={['rgba(167,114,181,0.3)', 'rgba(26,7,31,0.3)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          {/* Декоративные точки */}
+          <View style={[StyleSheet.absoluteFillObject, styles.dotsContainer]}>
+            {DECORATIVE_DOTS.map((dot, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  { left: (dot.x / 430) * width, top: (dot.y / 932) * height },
+                ]}
+              />
+            ))}
+          </View>
+
+          <LinearGradient
+            colors={['rgba(167,114,181,0.3)', 'rgba(26,7,31,0.3)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.bottomBlur}
+          />
+
+          {/* Контент */}
+          <View style={styles.content}>
+            {/* Заголовок */}
+            <BlurView intensity={10} tint="dark" style={styles.header}>
+              <View style={styles.iconContainer}>
+                <LinearGradient
+                  colors={['#6F1F87', '#2F0A37']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconCircle}
+                >
+                  <Ionicons name="heart" size={28} color="#fff" />
+                </LinearGradient>
+              </View>
+
+              <Text style={styles.title}>Dating</Text>
+              <Text style={styles.subtitle}>Найди свою звезду</Text>
+            </BlurView>
+
+            {/* Карточка */}
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+              <PanGestureHandler
+                onGestureEvent={onGestureEvent}
+                onHandlerStateChange={onHandlerStateChange}
+              >
+                <Animated.View style={[styles.card, animatedCardStyle]}>
+                  <LinearGradient
+                    colors={['rgba(111,31,135,0.4)', 'rgba(47,10,55,0.4)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardInner}
+                  >
+                    {/* Фото */}
+                    {current?.photoUrl ? (
+                      <Image
+                        source={{ uri: current.photoUrl }}
+                        style={styles.photo}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.photo} />
+                    )}
+
+                    {/* Градиент снизу */}
+                    <LinearGradient
+                      colors={[
+                        'transparent',
+                        'rgba(0,0,0,0.3)',
+                        'rgba(0,0,0,0.8)',
+                      ]}
+                      style={styles.gradientOverlay}
+                    />
+
+                    {/* Информация */}
+                    <ScrollView
+                      style={styles.infoContainer}
+                      showsVerticalScrollIndicator={false}
+                      bounces={false}
+                    >
+                      <BlurView
+                        intensity={20}
+                        tint="dark"
+                        style={styles.detailsBlock}
+                      >
+                        {/* Имя и возраст */}
+                        <View style={styles.basicInfo}>
+                          <Text style={styles.userName}>
+                            {current?.name || 'Пользователь'},{' '}
+                            {current?.age || '—'}
+                          </Text>
+                          <Text style={styles.zodiacSign}>
+                            {current?.zodiacSign || '—'}
+                          </Text>
+                        </View>
+
+                        {/* Расстояние */}
+                        {current?.distance != null && (
+                          <View style={styles.locationRow}>
+                            <Ionicons
+                              name="location"
+                              size={14}
+                              color="rgba(255,255,255,0.7)"
+                            />
+                            <Text style={styles.locationText}>
+                              {current.distance} км от вас
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* Био */}
+                        <Text style={styles.bioText}>
+                          {current?.bio || 'Нет описания'}
+                        </Text>
+
+                        {/* Совместимость */}
+                        <View style={styles.compatibilitySection}>
+                          <Text style={styles.compatibilityLabel}>
+                            Совместимость
+                          </Text>
+                          <View style={styles.badgeRow}>
+                            <View
+                              style={[
+                                styles.badgePill,
+                                {
+                                  backgroundColor: getBadgeBg(
+                                    current?.badge || 'low'
+                                  ),
+                                },
+                              ]}
+                            >
+                              <Text style={styles.badgeText}>
+                                {getBadgeLabel(current?.badge || 'low')}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Интересы */}
+                        {!!current?.interests?.length && (
+                          <View style={styles.interestsContainer}>
+                            {current.interests.map((int, idx) => (
+                              <View key={idx} style={styles.interestTag}>
+                                <Text style={styles.interestText}>{int}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </BlurView>
+                    </ScrollView>
+                  </LinearGradient>
+                </Animated.View>
+              </PanGestureHandler>
+
+              {/* Кнопки сверху справа */}
+              <View style={styles.sideButtons}>
+                <TouchableOpacity
+                  style={styles.sideButton}
+                  onPress={handleLike}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="heart" size={18} color="#6F1F87" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.sideButton}
+                  onPress={handleMessage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="chatbubble-ellipses"
+                    size={18}
+                    color="#6F1F87"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Модалка чата */}
+          {chatVisible && selectedUser && (
+            <CosmicChat
+              visible={chatVisible}
+              user={selectedUser}
+              onClose={handleCloseChat}
+              onSendMessage={handleSendMessage}
+            />
+          )}
+        </View>
+      </GestureHandlerRootView>
+    </TabScreenLayout>
   );
 }
 

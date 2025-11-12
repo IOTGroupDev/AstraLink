@@ -396,7 +396,7 @@ const AuthEmailScreen: React.FC = () => {
         >
           <Animated.View entering={FadeIn.duration(600)}>
             <AuthHeader
-              title="Регистрация"
+              title="Авторизация"
               onBack={() => navigation.goBack()}
               disabled={isLoading}
             />

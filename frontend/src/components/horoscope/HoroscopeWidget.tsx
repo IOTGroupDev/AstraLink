@@ -139,6 +139,120 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
   const currentHoroscope = allHoroscopes?.[activeTab];
 
+  // Normalize "lucky colors" input into array of color-like values
+  const normalizeLuckyColorsSource = (src: any): any[] => {
+    if (!src) return [];
+    if (Array.isArray(src)) return src;
+    if (typeof src === 'string') {
+      return src
+        .split(/[,;|]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (typeof src === 'object') {
+      if (Array.isArray((src as any).colors)) return (src as any).colors;
+      if (Array.isArray((src as any).list)) return (src as any).list;
+      if (Array.isArray((src as any).items)) return (src as any).items;
+    }
+    return [];
+  };
+
+  const RUSSIAN_TO_HEX: Record<string, string> = {
+    красный: '#EF4444',
+    оранжевый: '#F59E0B',
+    желтый: '#FBBF24',
+    жёлтый: '#FBBF24',
+    зеленый: '#10B981',
+    зелёный: '#10B981',
+    бирюзовый: '#10B5B5',
+    голубой: '#3B82F6',
+    синий: '#2563EB',
+    индиго: '#6366F1',
+    фиолетовый: '#8B5CF6',
+    пурпурный: '#8D26A9',
+    розовый: '#EC4899',
+    коричневый: '#8B6C42',
+    черный: '#000000',
+    чёрный: '#000000',
+    белый: '#FFFFFF',
+    серый: '#9CA3AF',
+    золото: '#FFD700',
+    золотой: '#FFD700',
+    серебро: '#C0C0C0',
+    серебряный: '#C0C0C0',
+  };
+
+  const EN_TO_HEX: Record<string, string> = {
+    red: '#EF4444',
+    orange: '#F59E0B',
+    yellow: '#FBBF24',
+    green: '#10B981',
+    teal: '#14B8A6',
+    turquoise: '#10B5B5',
+    blue: '#3B82F6',
+    indigo: '#6366F1',
+    violet: '#8B5CF6',
+    purple: '#8D26A9',
+    pink: '#EC4899',
+    brown: '#8B6C42',
+    black: '#000000',
+    white: '#FFFFFF',
+    gray: '#9CA3AF',
+    grey: '#9CA3AF',
+    gold: '#FFD700',
+    silver: '#C0C0C0',
+  };
+
+  const normalizeLuckyColor = (input: any): string | null => {
+    if (!input) return null;
+    if (typeof input === 'string') {
+      const s = input.trim();
+      if (s.startsWith('#')) {
+        const hex = s.toLowerCase();
+        if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(hex)) return hex;
+        return null;
+      }
+      const lower = s.toLowerCase();
+      if (
+        lower.startsWith('rgb(') ||
+        lower.startsWith('rgba(') ||
+        lower.startsWith('hsl(') ||
+        lower.startsWith('hsla(')
+      ) {
+        return lower;
+      }
+      if (EN_TO_HEX[lower]) return EN_TO_HEX[lower];
+      if (RUSSIAN_TO_HEX[lower]) return RUSSIAN_TO_HEX[lower];
+
+      const first = lower.split(/[ /,_-]+/).find(Boolean);
+      if (first) {
+        if (EN_TO_HEX[first]) return EN_TO_HEX[first];
+        if (RUSSIAN_TO_HEX[first]) return RUSSIAN_TO_HEX[first];
+      }
+      return null;
+    }
+    if (typeof input === 'object') {
+      const candidates = [
+        (input as any).hex,
+        (input as any).color,
+        (input as any).name,
+        (input as any).value,
+      ];
+      for (const c of candidates) {
+        if (typeof c === 'string') {
+          const r = normalizeLuckyColor(c);
+          if (r) return r;
+        }
+      }
+    }
+    return null;
+  };
+
+  const rawLuckyColors = currentHoroscope?.luckyColors;
+  const luckyColorsArray: string[] = normalizeLuckyColorsSource(rawLuckyColors)
+    .map((c) => normalizeLuckyColor(c) || '#8D26A9')
+    .slice(0, 6);
+
   const getCategoryContent = (dataKey: string) => {
     if (!currentHoroscope) return '';
     return currentHoroscope[dataKey] || '';
@@ -271,28 +385,22 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
               </View>
             )}
 
-          {currentHoroscope?.luckyColors &&
-            currentHoroscope.luckyColors.length > 0 && (
-              <View style={styles.categoryCard}>
-                <View style={styles.categoryHeader}>
-                  <Text style={styles.categoryTitle}>Счастливые цвета</Text>
-                </View>
-
-                <View style={styles.luckyColorsContainer}>
-                  {currentHoroscope.luckyColors.map(
-                    (color: string, idx: number) => (
-                      <View
-                        key={idx}
-                        style={[
-                          styles.luckyColorCircle,
-                          { backgroundColor: color.toLowerCase() },
-                        ]}
-                      />
-                    )
-                  )}
-                </View>
+          {luckyColorsArray.length > 0 && (
+            <View style={styles.categoryCard}>
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryTitle}>Счастливые цвета</Text>
               </View>
-            )}
+
+              <View style={styles.luckyColorsContainer}>
+                {luckyColorsArray.map((bg: string, idx: number) => (
+                  <View
+                    key={idx}
+                    style={[styles.luckyColorCircle, { backgroundColor: bg }]}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
 
           <TouchableOpacity style={styles.aiButton}>
             <LinearGradient

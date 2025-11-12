@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
@@ -33,12 +33,56 @@ export default function TabNavigator() {
             name = 'time-outline';
           } else if (route.name === 'Dating') {
             name = 'heart-outline';
-          } else if (route.name === 'Advisor') {
+          } else if (route.name === 'advisor') {
             name = 'chatbubbles-outline';
           } else if (route.name === 'Messages') {
             name = 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
             name = 'person-circle-outline';
+          }
+
+          // Добавляем красный бейдж "AI" для вкладки Советник
+          if (route.name === 'advisor') {
+            const badgeSize = 16;
+            return (
+              <View
+                style={{
+                  width: size,
+                  height: size,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name={name} size={size} color={color} style={style} />
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -10,
+                    minWidth: badgeSize,
+                    height: badgeSize,
+                    paddingHorizontal: 4,
+                    borderRadius: badgeSize / 2,
+                    backgroundColor: '#EF4444',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.9)',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#FFFFFF',
+                      fontSize: 9,
+                      fontWeight: '700',
+                      lineHeight: 10,
+                    }}
+                  >
+                    AI
+                  </Text>
+                </View>
+              </View>
+            );
           }
 
           return (

@@ -189,8 +189,50 @@ export class DatingService {
     }
     const rows: CandidateRow[] = Array.isArray(data) ? data : [];
 
-    // Подпишем URL для primary_photo_path, если есть права service role
-    const mapped = await Promise.all(
+    // Список id кандидатов
+    const candidateIds = rows.map((r) => r.user_id);
+    if (candidateIds.length === 0) return [];
+
+    // 1) Тянем базовый профиль
+    const admin = this.supabaseService.getAdminClient();
+    const [
+      { data: users, error: usersErr },
+      { data: profiles },
+      { data: charts },
+    ] = await Promise.all([
+      admin
+        .from('users')
+        .select('id,name,birth_date,birth_place')
+        .in('id', candidateIds),
+      admin
+        .from('user_profiles')
+        .select('user_id,bio,preferences,city,gender')
+        .in('user_id', candidateIds),
+      admin
+        .from('charts')
+        .select('user_id,data,created_at')
+        .in('user_id', candidateIds)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    const usersMap = new Map<string, any>(
+      Array.isArray(users) ? users.map((u: any) => [u.id, u]) : [],
+    );
+    const profilesMap = new Map<string, any>(
+      Array.isArray(profiles) ? profiles.map((p: any) => [p.user_id, p]) : [],
+    );
+
+    // Берем последний chart per user_id
+    const chartsMap = new Map<string, any>();
+    if (Array.isArray(charts)) {
+      for (const ch of charts as any[]) {
+        const uid = ch.user_id as string;
+        if (!chartsMap.has(uid)) chartsMap.set(uid, ch);
+      }
+    }
+
+    // 2) Собираем ответ и подписываем primary фото
+    const enriched = await Promise.all(
       rows.map(async (r) => {
         let photoUrl: string | null = null;
         if (r.primary_photo_path) {
@@ -200,14 +242,36 @@ export class DatingService {
             900,
           );
         }
+
+        const u = usersMap.get(r.user_id) || {};
+        const p = profilesMap.get(r.user_id) || {};
+        const ch = chartsMap.get(r.user_id) || {};
+        const sunSign =
+          ch?.data?.planets?.sun?.sign ??
+          ch?.data?.data?.planets?.sun?.sign ??
+          null;
+
+        const age = this.getAgeFromBirthDate(u?.birth_date);
+
         return {
           userId: r.user_id,
           badge: r.badge,
           photoUrl,
+          // Дополнительно, если есть
+          name: u?.name ?? null,
+          age: age ?? null,
+          zodiacSign: sunSign ?? null,
+          bio: p?.bio ?? null,
+          interests:
+            (p?.preferences && Array.isArray(p.preferences.interests)
+              ? (p.preferences.interests as string[])
+              : undefined) ?? undefined,
+          city: p?.city ?? u?.birth_place ?? null,
         };
       }),
     );
-    return mapped;
+
+    return enriched;
   }
 
   /**

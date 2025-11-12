@@ -225,6 +225,9 @@ export class UserController {
       preferences: updateData?.preferences ?? {},
       updated_at: new Date().toISOString(),
     };
+    if (typeof updateData?.gender === 'string') {
+      payload.gender = updateData.gender;
+    }
     if (typeof updateData?.is_onboarded === 'boolean') {
       payload.is_onboarded = updateData.is_onboarded;
     }

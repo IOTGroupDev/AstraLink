@@ -112,11 +112,10 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
 
               {/* Процент в центре */}
               <SvgText
-                x={center}
+                x={center - 10}
                 y={center + 4}
                 fontSize="13"
                 fontWeight="700"
-                fontFamily="Montserrat-Bold"
                 fill="white"
                 textAnchor="middle"
               >
@@ -148,7 +147,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 20,
@@ -185,6 +183,7 @@ const styles = StyleSheet.create({
   },
   energyLevel: {
     fontSize: 16,
+    alignItems: 'center',
     fontWeight: '600',
     color: '#FFFFFF',
     lineHeight: 20,

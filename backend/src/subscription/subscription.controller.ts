@@ -16,6 +16,8 @@ import {
   ApiProperty,
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
+import { IsEnum, IsOptional, IsIn, IsString } from 'class-validator';
+import * as jwt from 'jsonwebtoken';
 import { SubscriptionService } from './subscription.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SubscriptionStatusResponse, SubscriptionTier } from '../types';
@@ -38,13 +40,16 @@ interface AuthenticatedRequest extends ExpressRequest {
  */
 export class UpgradeSubscriptionDto {
   @ApiProperty({ example: 'premium', description: 'Новый уровень подписки' })
-  tier?: SubscriptionTier;
+  @IsString()
+  tier?: string;
 
   @ApiProperty({
     example: 'mock',
     required: false,
     description: 'Метод оплаты (для теста можно "mock")',
   })
+  @IsOptional()
+  @IsIn(['apple', 'google', 'mock'])
   paymentMethod?: 'apple' | 'google' | 'mock';
 
   @ApiProperty({
@@ -52,6 +57,8 @@ export class UpgradeSubscriptionDto {
     required: false,
     description: 'ID транзакции от платёжного провайдера',
   })
+  @IsOptional()
+  @IsString()
   transactionId?: string;
 }
 
@@ -92,7 +99,39 @@ export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   private getUserId(req: AuthenticatedRequest): string {
-    return req.user?.userId || req.user?.id || '';
+    // 1) Попробуем взять из guard-а
+    const direct = req.user?.userId || req.user?.id;
+    if (direct) return direct;
+
+    // 2) Fallback: декодируем Bearer JWT без верификации, чтобы достать sub
+    const rawHeader =
+      req.headers?.authorization ??
+      (req.headers?.['Authorization'] as string | undefined);
+    const authHeader = rawHeader?.trim();
+
+    if (authHeader) {
+      const normalized = authHeader.replace(/^Bearer%20/i, 'Bearer ').trim();
+      const parts = normalized.split(/\s+/);
+      if (parts.length >= 2 && /^Bearer$/i.test(parts[0])) {
+        let token = parts.slice(1).join(' ').trim();
+        try {
+          token = decodeURIComponent(token);
+        } catch {
+          // ignore decode fail
+        }
+        try {
+          const decoded: any = jwt.decode(token);
+          const userId =
+            decoded?.sub || decoded?.user_id || decoded?.userId || decoded?.id;
+          if (userId) return userId;
+        } catch {
+          // ignore decode fail
+        }
+      }
+    }
+
+    // 3) Если определить не удалось — это ошибка запроса
+    throw new BadRequestException('Не удалось определить пользователя');
   }
 
   /**
@@ -132,15 +171,26 @@ export class SubscriptionController {
     @Request() req: AuthenticatedRequest,
     @Body() upgradeData: UpgradeSubscriptionDto,
   ): Promise<UpgradeSubscriptionResponseDto> {
-    if (!upgradeData.tier) {
-      throw new BadRequestException('Уровень подписки обязателен');
+    // Нормализуем вход (enum в рантайме — обычная строка)
+    const rawTier = (upgradeData as any)?.tier;
+    const tierStr =
+      typeof rawTier === 'string' ? rawTier.toLowerCase().trim() : rawTier;
+
+    if (!tierStr || !['free', 'premium', 'max'].includes(tierStr)) {
+      throw new BadRequestException('Неверный уровень подписки');
     }
+
+    const pmRaw = (upgradeData as any)?.paymentMethod;
+    const paymentMethod =
+      pmRaw === 'apple' || pmRaw === 'google' || pmRaw === 'mock'
+        ? pmRaw
+        : 'mock';
 
     return this.subscriptionService.upgrade(
       this.getUserId(req),
-      upgradeData.tier,
-      upgradeData.paymentMethod || 'mock',
-      upgradeData.transactionId,
+      tierStr as SubscriptionTier,
+      paymentMethod,
+      (upgradeData as any)?.transactionId,
     );
   }
 
