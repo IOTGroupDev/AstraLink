@@ -139,30 +139,112 @@ export class AIService {
   }
 
   /**
-   * Генерация через OpenAI GPT
+   * Генерация через OpenAI GPT с retry логикой и cost tracking
    */
-  private async generateWithOpenAI(prompt: string): Promise<string> {
+  private async generateWithOpenAI(
+    prompt: string,
+    retries = 3,
+  ): Promise<string> {
     if (!this.openai) {
       throw new Error('OpenAI не инициализирован');
     }
 
-    const completion = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [
-        {
-          role: 'system',
-          content: this.getSystemPrompt(),
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
+    let lastError: Error | null = null;
 
-    return completion.choices[0]?.message?.content || '';
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const startTime = Date.now();
+
+        const completion = await this.openai.chat.completions.create({
+          model: 'gpt-4o-mini', // ✅ Updated to gpt-4o-mini (98% cost reduction)
+          messages: [
+            {
+              role: 'system',
+              content: this.getSystemPrompt(),
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+          response_format: { type: 'json_object' }, // ✅ JSON mode for reliable parsing
+        });
+
+        const duration = Date.now() - startTime;
+        const content = completion.choices[0]?.message?.content || '';
+
+        // ✅ Track usage and costs
+        this.logOpenAIUsage(completion, duration, attempt + 1);
+
+        return content;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+
+        this.logger.warn(
+          `OpenAI attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
+        );
+
+        // Don't retry on final attempt
+        if (attempt === retries - 1) {
+          break;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        this.logger.log(`Retrying in ${backoffMs}ms...`);
+        await this.sleep(backoffMs);
+      }
+    }
+
+    this.logger.error(
+      `❌ OpenAI failed after ${retries} attempts: ${lastError?.message}`,
+    );
+    throw lastError || new Error('OpenAI generation failed');
+  }
+
+  /**
+   * Sleep utility for retry backoff
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Log OpenAI usage statistics and costs
+   */
+  private logOpenAIUsage(
+    completion: any,
+    duration: number,
+    attempt: number,
+  ): void {
+    const usage = completion.usage;
+    if (!usage) return;
+
+    // gpt-4o-mini pricing (December 2024)
+    const inputCostPer1M = 0.15; // $0.15 per 1M input tokens
+    const outputCostPer1M = 0.6; // $0.60 per 1M output tokens
+
+    const inputCost = (usage.prompt_tokens / 1_000_000) * inputCostPer1M;
+    const outputCost = (usage.completion_tokens / 1_000_000) * outputCostPer1M;
+    const totalCost = inputCost + outputCost;
+
+    this.logger.log({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      attempt,
+      duration: `${duration}ms`,
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      estimatedCost: `$${totalCost.toFixed(6)}`,
+      costBreakdown: {
+        input: `$${inputCost.toFixed(6)}`,
+        output: `$${outputCost.toFixed(6)}`,
+      },
+    });
   }
 
   /**
@@ -252,8 +334,9 @@ ${transitDescription}
 
 ПЕРИОД: ${context.period}
 
-Пожалуйста, создайте детальный гороскоп в следующем формате JSON:
+КРИТИЧЕСКИ ВАЖНО: Ответьте ТОЛЬКО валидным JSON объектом без дополнительного текста.
 
+Формат JSON:
 {
   "general": "Общий прогноз (3-4 предложения с глубоким анализом)",
   "love": "Любовь и отношения (3-4 предложения с конкретными рекомендациями)",
@@ -265,7 +348,7 @@ ${transitDescription}
   "opportunities": ["конкретная возможность 1", "конкретная возможность 2", "конкретная возможность 3"]
 }
 
-Важно:
+Требования к контенту:
 - Это PREMIUM анализ - будьте максимально детальны и персонализированы
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны и практичны
@@ -309,21 +392,46 @@ ${this.formatAspects(context.aspects)}
   }
 
   /**
-   * Парсинг ответа от AI
+   * Парсинг ответа от AI (improved with JSON mode support)
    */
   private parseAIResponse(response: string): any {
     try {
-      // Пытаемся извлечь JSON из ответа
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return parsed;
+      // With JSON mode, response should be valid JSON
+      const parsed = JSON.parse(response);
+
+      // Validate required fields
+      const requiredFields = [
+        'general',
+        'love',
+        'career',
+        'health',
+        'finance',
+        'advice',
+        'challenges',
+        'opportunities',
+      ];
+
+      for (const field of requiredFields) {
+        if (!parsed[field]) {
+          this.logger.warn(`Missing field in AI response: ${field}`);
+        }
       }
 
-      // Если JSON не найден, парсим текст
-      return this.parseTextResponse(response);
+      return parsed;
     } catch (error) {
-      this.logger.error('Ошибка парсинга AI-ответа:', error);
+      this.logger.error('JSON parsing failed, attempting text parsing:', error);
+
+      // Fallback to regex extraction if JSON parsing fails
+      try {
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
+      } catch (regexError) {
+        this.logger.error('Regex extraction also failed:', regexError);
+      }
+
+      // Final fallback to text parsing
       return this.parseTextResponse(response);
     }
   }
@@ -455,6 +563,93 @@ ${this.formatAspects(context.aspects)}
       sextile: 'в секстиле к',
     };
     return names[aspect] || aspect;
+  }
+
+  /**
+   * 🌊 STREAMING: Generate horoscope with real-time chunks (PREMIUM only)
+   */
+  async *generateHoroscopeStream(
+    context: AIGenerationContext,
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.isAvailable()) {
+      throw new Error(
+        'AI сервис недоступен - необходим API ключ Claude или OpenAI',
+      );
+    }
+
+    this.logger.log(
+      `🌊 Генерация STREAMING гороскопа через ${this.provider.toUpperCase()}`,
+    );
+
+    const prompt = this.buildHoroscopePrompt(context);
+
+    if (this.provider === 'openai') {
+      yield* this.streamWithOpenAI(prompt);
+    } else {
+      // Claude doesn't support streaming in this implementation yet
+      // Fall back to non-streaming
+      const result = await this.generateWithClaude(prompt);
+      yield result;
+    }
+  }
+
+  /**
+   * Stream generation with OpenAI
+   */
+  private async *streamWithOpenAI(
+    prompt: string,
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.openai) {
+      throw new Error('OpenAI не инициализирован');
+    }
+
+    try {
+      const startTime = Date.now();
+
+      const stream = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: this.getSystemPrompt(),
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' },
+        stream: true, // ✅ Enable streaming
+      });
+
+      let fullContent = '';
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          fullContent += content;
+          yield content;
+        }
+      }
+
+      const duration = Date.now() - startTime;
+
+      // Log streaming completion (approximate token count)
+      this.logger.log({
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        mode: 'streaming',
+        duration: `${duration}ms`,
+        approximateChars: fullContent.length,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`❌ OpenAI streaming failed: ${errorMessage}`);
+      throw error;
+    }
   }
 
   /**
