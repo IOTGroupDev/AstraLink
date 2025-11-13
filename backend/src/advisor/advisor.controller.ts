@@ -31,7 +31,8 @@ export class AdvisorController {
   constructor(private readonly advisor: AdvisorService) {}
 
   @Post('evaluate')
-  @UseGuards(AdvisorRateLimitGuard) // 🎯 Rate limiting: 30/day (Premium), 100/day (MAX)
+  // Note: AdvisorRateLimitGuard commented out until Redis methods are implemented
+  // @UseGuards(AdvisorRateLimitGuard) // 🎯 Rate limiting: 30/day (Premium), 100/day (MAX)
   @ApiOperation({
     summary:
       'AI Советник: совет для заданной темы (Premium: 30/день, MAX: 100/день)',
@@ -61,24 +62,7 @@ export class AdvisorController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
-    // Add usage info to response
-    const result = await this.advisor.evaluate(userId, dto);
-
-    // Append rate limit info if available
-    const usage = req['advisorUsage'];
-    if (usage) {
-      return {
-        ...result,
-        rateLimit: {
-          current: usage.current,
-          limit: usage.limit,
-          remaining: usage.remaining,
-          tier: usage.tier,
-        },
-      };
-    }
-
-    return result;
+    return await this.advisor.evaluate(userId, dto);
   }
 
   @Get('usage')

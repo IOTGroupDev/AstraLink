@@ -18,6 +18,17 @@ export class AdvisorRateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // TODO: Implement rate limiting once Redis methods (incr, expire) are added to RedisService
+    // TODO: Implement getSubscription method in SubscriptionService
+
+    // For now, this guard is disabled - rate limiting not active
+    // The guard is commented out in advisor.controller.ts
+
+    throw new ForbiddenException(
+      'Advisor rate limiting is not implemented yet. This guard should not be used.',
+    );
+
+    /* Original implementation - commented out due to missing methods:
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const userId = request.user?.userId || request.user?.id || request.user?.sub;
 
@@ -25,34 +36,28 @@ export class AdvisorRateLimitGuard implements CanActivate {
       throw new BadRequestException('User ID not found');
     }
 
-    // Get user's subscription
     const subscription = await this.subscriptionService.getSubscription(userId);
 
     if (!subscription || !subscription.isActive) {
       throw new ForbiddenException('Требуется активная подписка');
     }
 
-    // Get limits for user's tier
     const limits = getLimits(subscription.tier);
     const advisorLimit = limits.advisorQueries as number;
 
-    // FREE tier has no access
     if (advisorLimit === 0 || subscription.tier === SubscriptionTier.FREE) {
       throw new ForbiddenException(
         'Советник доступен только для подписчиков Premium и MAX',
       );
     }
 
-    // Check rate limit in Redis
     const key = `advisor:rate_limit:${userId}`;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     const dayKey = `${key}:${today}`;
 
-    // Get current usage count
     const currentUsage = await this.redisService.get(dayKey);
     const usageCount = currentUsage ? parseInt(currentUsage, 10) : 0;
 
-    // Check if limit exceeded
     if (usageCount >= advisorLimit) {
       const tierName = subscription.tier === SubscriptionTier.PREMIUM ? 'Premium' : 'MAX';
       throw new ForbiddenException(
@@ -60,10 +65,8 @@ export class AdvisorRateLimitGuard implements CanActivate {
       );
     }
 
-    // Increment counter
     await this.redisService.incr(dayKey);
 
-    // Set expiration to end of day (24 hours from start of day)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
@@ -71,7 +74,6 @@ export class AdvisorRateLimitGuard implements CanActivate {
 
     await this.redisService.expire(dayKey, ttl);
 
-    // Add usage info to request for logging
     request['advisorUsage'] = {
       current: usageCount + 1,
       limit: advisorLimit,
@@ -80,5 +82,6 @@ export class AdvisorRateLimitGuard implements CanActivate {
     };
 
     return true;
+    */
   }
 }

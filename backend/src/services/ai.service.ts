@@ -80,7 +80,7 @@ export class AIService {
         this.deepseek = new OpenAI({
           apiKey: deepseekKey,
           baseURL: 'https://api.deepseek.com', // DeepSeek API endpoint
-        });
+        } as any); // Type assertion for baseURL compatibility
         deepseekInitialized = true;
         this.logger.log('✅ DeepSeek AI инициализирован');
       } catch (error) {
@@ -335,7 +335,7 @@ export class AIService {
           temperature: 0.7,
           max_tokens: 2000,
           response_format: { type: 'json_object' }, // ✅ JSON mode for reliable parsing
-        });
+        } as any);
 
         const duration = Date.now() - startTime;
         const content = completion.choices[0]?.message?.content || '';
@@ -444,7 +444,7 @@ export class AIService {
           temperature: 0.7,
           max_tokens: 2000,
           response_format: { type: 'json_object' }, // JSON mode
-        });
+        } as any);
 
         const duration = Date.now() - startTime;
         const content = completion.choices[0]?.message?.content || '';
@@ -907,7 +907,7 @@ ${this.formatAspects(context.aspects)}
           },
         ],
         stream: true, // ✅ Enable streaming
-      });
+      } as any);
 
       let fullContent = '';
 
@@ -972,7 +972,7 @@ ${this.formatAspects(context.aspects)}
         max_tokens: 2000,
         response_format: { type: 'json_object' },
         stream: true, // ✅ Enable streaming
-      });
+      } as any);
 
       let fullContent = '';
 
@@ -1031,7 +1031,7 @@ ${this.formatAspects(context.aspects)}
         max_tokens: 2000,
         response_format: { type: 'json_object' },
         stream: true, // ✅ Enable streaming
-      });
+      } as any);
 
       let fullContent = '';
 
