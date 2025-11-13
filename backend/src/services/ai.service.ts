@@ -34,11 +34,13 @@ export class AIService {
 
   /**
    * Инициализация AI провайдеров (оба могут быть доступны одновременно)
+   * Поддержка глобального выбора провайдера через AI_PROVIDER_PREFERENCE
    */
   private initializeAIProviders() {
-    // Приоритет: Claude > OpenAI
     const claudeKey = this.configService.get<string>('ANTHROPIC_API_KEY');
     const openaiKey = this.configService.get<string>('OPENAI_API_KEY');
+    // 🎯 Глобальная настройка провайдера: 'claude' | 'openai' | 'auto' (default)
+    const providerPreference = this.configService.get<string>('AI_PROVIDER_PREFERENCE') || 'auto';
 
     let claudeInitialized = false;
     let openaiInitialized = false;
@@ -69,18 +71,36 @@ export class AIService {
       }
     }
 
-    // Set primary provider (Claude has priority)
-    if (claudeInitialized) {
+    // Set primary provider based on AI_PROVIDER_PREFERENCE
+    if (providerPreference === 'claude' && claudeInitialized) {
       this.provider = 'claude';
-      this.logger.log('🎯 Primary provider: Claude');
-    } else if (openaiInitialized) {
+      this.logger.log('🎯 Primary provider: Claude (configured preference)');
+    } else if (providerPreference === 'openai' && openaiInitialized) {
       this.provider = 'openai';
-      this.logger.log('🎯 Primary provider: OpenAI');
+      this.logger.log('🎯 Primary provider: OpenAI (configured preference)');
+    } else if (providerPreference === 'auto') {
+      // Auto mode: Claude priority
+      if (claudeInitialized) {
+        this.provider = 'claude';
+        this.logger.log('🎯 Primary provider: Claude (auto mode)');
+      } else if (openaiInitialized) {
+        this.provider = 'openai';
+        this.logger.log('🎯 Primary provider: OpenAI (auto mode)');
+      }
     } else {
-      this.provider = 'none';
-      this.logger.warn(
-        '⚠️ AI провайдеры не настроены - используются только правила интерпретации',
-      );
+      // Fallback if preferred provider not available
+      if (claudeInitialized) {
+        this.provider = 'claude';
+        this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем Claude`);
+      } else if (openaiInitialized) {
+        this.provider = 'openai';
+        this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем OpenAI`);
+      } else {
+        this.provider = 'none';
+        this.logger.warn(
+          '⚠️ AI провайдеры не настроены - используются только правила интерпретации',
+        );
+      }
     }
 
     // Log fallback availability
@@ -855,5 +875,140 @@ ${this.formatAspects(context.aspects)}
    */
   getProvider(): AIProvider {
     return this.provider;
+  }
+
+  /**
+   * Получить список всех доступных провайдеров
+   */
+  getAvailableProviders(): AIProvider[] {
+    const available: AIProvider[] = [];
+    if (this.anthropic) available.push('claude');
+    if (this.openai) available.push('openai');
+    return available;
+  }
+
+  /**
+   * Проверить доступность конкретного провайдера
+   */
+  isProviderAvailable(provider: AIProvider): boolean {
+    if (provider === 'claude') return this.anthropic !== null;
+    if (provider === 'openai') return this.openai !== null;
+    return false;
+  }
+
+  /**
+   * Генерация гороскопа с выбором провайдера
+   */
+  async generateHoroscopeWithProvider(
+    context: AIGenerationContext,
+    preferredProvider?: AIProvider,
+  ): Promise<{
+    general: string;
+    love: string;
+    career: string;
+    health: string;
+    finance: string;
+    advice: string;
+    challenges: string[];
+    opportunities: string[];
+  }> {
+    // Validate preferred provider
+    if (preferredProvider && !this.isProviderAvailable(preferredProvider)) {
+      throw new Error(
+        `Провайдер ${preferredProvider} недоступен. Доступные: ${this.getAvailableProviders().join(', ')}`,
+      );
+    }
+
+    const targetProvider = preferredProvider || this.provider;
+
+    this.logger.log(
+      `🤖 Генерация гороскопа через ${targetProvider.toUpperCase()} (выбран: ${preferredProvider ? 'пользователем' : 'по умолчанию'})`,
+    );
+
+    const prompt = this.buildHoroscopePrompt(context);
+    let response: string;
+
+    try {
+      // Use specified provider
+      if (targetProvider === 'claude') {
+        response = await this.generateWithClaude(prompt);
+      } else if (targetProvider === 'openai') {
+        response = await this.generateWithOpenAI(prompt);
+      } else {
+        throw new Error('No AI provider available');
+      }
+
+      return this.parseAIResponse(response);
+    } catch (error) {
+      this.logger.error(
+        `❌ Ошибка генерации через ${targetProvider}:`,
+        error,
+      );
+
+      // Only fallback if user didn't explicitly choose a provider
+      if (!preferredProvider) {
+        // Try fallback to alternative provider
+        if (targetProvider === 'claude' && this.openai) {
+          this.logger.log('🔄 Automatic fallback to OpenAI...');
+          try {
+            response = await this.generateWithOpenAI(prompt);
+            return this.parseAIResponse(response);
+          } catch (fallbackError) {
+            this.logger.error(
+              '❌ Fallback to OpenAI also failed:',
+              fallbackError,
+            );
+          }
+        } else if (targetProvider === 'openai' && this.anthropic) {
+          this.logger.log('🔄 Automatic fallback to Claude...');
+          try {
+            response = await this.generateWithClaude(prompt);
+            return this.parseAIResponse(response);
+          } catch (fallbackError) {
+            this.logger.error(
+              '❌ Fallback to Claude also failed:',
+              fallbackError,
+            );
+          }
+        }
+      } else {
+        this.logger.log(
+          '⚠️ Fallback disabled - user explicitly chose provider',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Streaming с выбором провайдера
+   */
+  async *generateHoroscopeStreamWithProvider(
+    context: AIGenerationContext,
+    preferredProvider?: AIProvider,
+  ): AsyncGenerator<string, void, unknown> {
+    // Validate preferred provider
+    if (preferredProvider && !this.isProviderAvailable(preferredProvider)) {
+      throw new Error(
+        `Провайдер ${preferredProvider} недоступен для streaming`,
+      );
+    }
+
+    const targetProvider = preferredProvider || this.provider;
+
+    this.logger.log(
+      `🌊 STREAMING через ${targetProvider.toUpperCase()} (выбран: ${preferredProvider ? 'пользователем' : 'по умолчанию'})`,
+    );
+
+    const prompt = this.buildHoroscopePrompt(context);
+
+    if (targetProvider === 'claude') {
+      yield* this.streamWithClaude(prompt);
+    } else if (targetProvider === 'openai') {
+      yield* this.streamWithOpenAI(prompt);
+    } else {
+      throw new Error('No AI provider available for streaming');
+    }
   }
 }
