@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import {
   userAPI,
@@ -132,6 +133,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -287,6 +289,58 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       Alert.alert('Успех', 'Главное фото установлено');
     } catch (error) {
       Alert.alert('Ошибка', 'Не удалось установить главное фото');
+    }
+  };
+
+  const handleGetCurrentLocation = async () => {
+    try {
+      setGettingLocation(true);
+
+      // 1. Запросить разрешения
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Доступ запрещен',
+          'Разрешите доступ к геолокации в настройках'
+        );
+        return;
+      }
+
+      // 2. Получить текущие координаты
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      // 3. Обратное геокодирование (координаты -> адрес)
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (address) {
+        // Формируем читаемый адрес
+        const parts = [];
+        if (address.city) parts.push(address.city);
+        if (address.region && address.region !== address.city) {
+          parts.push(address.region);
+        }
+        if (address.country) parts.push(address.country);
+
+        const locationString = parts.join(', ');
+        setCity(locationString);
+
+        Alert.alert('Успех', `Местоположение определено: ${locationString}`);
+      } else {
+        Alert.alert('Ошибка', 'Не удалось определить адрес');
+      }
+    } catch (error) {
+      console.error('Geolocation error:', error);
+      Alert.alert(
+        'Ошибка',
+        'Не удалось определить местоположение. Проверьте настройки GPS.'
+      );
+    } finally {
+      setGettingLocation(false);
     }
   };
 
@@ -481,7 +535,20 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Место жительства</Text>
+            <View style={styles.locationHeader}>
+              <Text style={styles.inputLabel}>Место жительства</Text>
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={handleGetCurrentLocation}
+                disabled={gettingLocation}
+              >
+                {gettingLocation ? (
+                  <ActivityIndicator size="small" color="#8B5CF6" />
+                ) : (
+                  <Ionicons name="locate" size={20} color="#8B5CF6" />
+                )}
+              </TouchableOpacity>
+            </View>
             <AstralInput
               value={city}
               onChangeText={setCity}
@@ -753,6 +820,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#E0E0E0',
     marginBottom: 8,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textAreaContainer: {
     position: 'relative',
