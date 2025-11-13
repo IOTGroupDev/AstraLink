@@ -205,7 +205,7 @@ export class UserService {
       // Не валим поток, подписку можно создать позже
     }
 
-    // 6) Если есть все данные рождения и нет карты — создаём натальную карту
+    // 6) Если есть все данные рождения — создаём/пересоздаём натальную карту
     try {
       const birthDateISO = (profile?.birth_date ?? patch.birth_date) as
         | string
@@ -230,7 +230,25 @@ export class UserService {
           charts = null;
         }
 
-        if (!charts || charts.length === 0) {
+        // 🎯 Проверка: изменились ли данные рождения?
+        const birthDataChanged =
+          patch.birth_date !== undefined ||
+          patch.birth_time !== undefined ||
+          patch.birth_place !== undefined;
+
+        const needsRecreate =
+          charts && charts.length > 0 && birthDataChanged;
+
+        if (!charts || charts.length === 0 || needsRecreate) {
+          // Удаляем старую карту если пересоздаём
+          if (needsRecreate && charts && charts.length > 0) {
+            console.log(
+              `🔄 Данные рождения изменились, пересоздаём натальную карту для пользователя ${userId}`,
+            );
+            const adminClient = this.supabaseService.getAdminClient();
+            await adminClient.from('charts').delete().eq('user_id', userId);
+          }
+
           await this.chartService.createNatalChartWithInterpretation(
             userId,
             new Date(birthDateISO).toISOString().split('T')[0],
