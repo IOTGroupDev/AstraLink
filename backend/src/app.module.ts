@@ -20,6 +20,7 @@ import { SharedModule } from './modules/shared/shared.module';
 import { RedisModule } from './redis/redis.module';
 import { AdvisorModule } from './advisor/advisor.module';
 import { ChatModule } from './chat/chat.module';
+import { AIModule } from './ai/ai.module';
 import { HealthModule } from '@/health/health.module';
 import { DebugController } from '@/debug/debug.controller';
 
@@ -62,6 +63,7 @@ import { DebugController } from '@/debug/debug.controller';
     RedisModule,
     ChatModule,
     AdvisorModule,
+    AIModule,
     HealthModule,
   ],
   controllers: [AppController, DebugController],
