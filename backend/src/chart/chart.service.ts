@@ -27,6 +27,21 @@ export class ChartService {
   ) {}
 
   // ============================================================
+  // UTILITY METHODS (Backward Compatibility)
+  // ============================================================
+
+  /**
+   * Get location coordinates (delegated to NatalChartService)
+   */
+  getLocationCoordinates(birthPlace: string): {
+    latitude: number;
+    longitude: number;
+    timezone: number;
+  } {
+    return this.natalChartService.getLocationCoordinates(birthPlace);
+  }
+
+  // ============================================================
   // NATAL CHART OPERATIONS (Delegate to NatalChartService)
   // ============================================================
 
