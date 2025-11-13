@@ -5,10 +5,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Subscription } from '../types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { RootStackParamList } from '../types/navigation';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -164,48 +168,17 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
         {/* Features */}
         <View style={styles.featuresSection}>
-          {levelConfig.features.map(
-            (
-              feature:
-                | string
-                | number
-                | bigint
-                | boolean
-                | React.ReactElement<
-                    unknown,
-                    string | React.JSXElementConstructor<any>
-                  >
-                | Iterable<React.ReactNode>
-                | React.ReactPortal
-                | Promise<
-                    | string
-                    | number
-                    | bigint
-                    | boolean
-                    | React.ReactPortal
-                    | React.ReactElement<
-                        unknown,
-                        string | React.JSXElementConstructor<any>
-                      >
-                    | Iterable<React.ReactNode>
-                    | null
-                    | undefined
-                  >
-                | null
-                | undefined,
-              index: React.Key | null | undefined
-            ) => (
-              <View key={index} style={styles.featureRow}>
-                <View
-                  style={[
-                    styles.featureDot,
-                    { backgroundColor: levelConfig.color },
-                  ]}
-                />
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            )
-          )}
+          {levelConfig.features.map((feature, index) => (
+            <View key={index} style={styles.featureRow}>
+              <View
+                style={[
+                  styles.featureDot,
+                  { backgroundColor: levelConfig.color },
+                ]}
+              />
+              <Text style={styles.featureText}>{String(feature)}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Progress Bar */}
@@ -231,6 +204,39 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     </View>
   );
 };
+
+type SubscriptionScreenProps = StackScreenProps<
+  RootStackParamList,
+  'Subscription'
+>;
+
+function SubscriptionScreen(_: SubscriptionScreenProps) {
+  // TODO: здесь можно подключить стор/запрос для получения текущей подписки пользователя
+  // Пока безопасно показываем "free" состояние.
+  const navigation = useNavigation();
+
+  const handleUpgrade = () => {
+    // заглушка: можно навигировать на экран апгрейда, когда появится
+    // navigation.navigate('UpgradeSubscription' as never);
+  };
+
+  const mockSubscription: Subscription | null = {
+    tier: 'free',
+    isTrial: false,
+    trialEndsAt: undefined as any,
+    expiresAt: undefined as any,
+  } as any;
+
+  return (
+    <ScrollView contentContainerStyle={{ paddingVertical: 12 }}>
+      <SubscriptionCard
+        subscription={mockSubscription}
+        onUpgrade={handleUpgrade}
+        showUpgradeButton
+      />
+    </ScrollView>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -352,4 +358,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SubscriptionCard;
+export default SubscriptionScreen;

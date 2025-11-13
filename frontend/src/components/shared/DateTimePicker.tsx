@@ -13,7 +13,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   interpolate,
-  Easing,
+  interpolateColor,
 } from 'react-native-reanimated';
 
 interface DateTimePickerProps {
@@ -44,12 +44,19 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   const [date, setDate] = useState(() => {
     if (value) {
       if (mode === 'date') {
+        const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+          const year = parseInt(m[1], 10);
+          const month = parseInt(m[2], 10) - 1;
+          const day = parseInt(m[3], 10);
+          return new Date(year, month, day);
+        }
         return new Date(value);
       } else {
         const [hours, minutes] = value.split(':');
-        const date = new Date();
-        date.setHours(parseInt(hours) || 0, parseInt(minutes) || 0);
-        return date;
+        const d = new Date();
+        d.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
+        return d;
       }
     }
     return new Date();
@@ -59,26 +66,30 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     // Update date when value changes
     if (value) {
       if (mode === 'date') {
-        setDate(new Date(value));
+        // Безопасный парсинг YYYY-MM-DD (без сдвига таймзоны)
+        const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+          const year = parseInt(m[1], 10);
+          const month = parseInt(m[2], 10) - 1;
+          const day = parseInt(m[3], 10);
+          setDate(new Date(year, month, day));
+        } else {
+          // fallback
+          setDate(new Date(value));
+        }
       } else {
         const [hours, minutes] = value.split(':');
         const newDate = new Date();
-        newDate.setHours(parseInt(hours) || 0, parseInt(minutes) || 0);
+        newDate.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
         setDate(newDate);
       }
     }
 
-    // Update label animation
+    // Update label animation (без Easing для совместимости)
     if (value) {
-      labelAnimation.value = withTiming(1, {
-        duration: 200,
-        easing: Easing.out(Easing.quad),
-      });
+      labelAnimation.value = withTiming(1, { duration: 200 });
     } else {
-      labelAnimation.value = withTiming(0, {
-        duration: 200,
-        easing: Easing.out(Easing.quad),
-      });
+      labelAnimation.value = withTiming(0, { duration: 200 });
     }
   }, [value]);
 
@@ -107,26 +118,23 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   });
 
   const animatedLabelStyle = useAnimatedStyle(() => {
-    const scale = animationValue.value;
+    const scaleOuter = animationValue.value;
     const opacity = animationValue.value;
+    const translateY = interpolate(labelAnimation.value, [0, 1], [0, -25]);
+    const scaleInner = interpolate(labelAnimation.value, [0, 1], [1, 0.8]);
+    const animatedColor = interpolateColor(
+      labelAnimation.value,
+      [0, 1],
+      ['rgba(255, 255, 255, 0.7)', 'rgba(139, 92, 246, 0.9)']
+    );
 
     return {
-      transform: [
-        { scale },
-        { translateY: interpolate(labelAnimation.value, [0, 1], [0, -25]) },
-        { scale: interpolate(labelAnimation.value, [0, 1], [1, 0.8]) },
-      ],
+      transform: [{ scale: scaleOuter }, { translateY }, { scale: scaleInner }],
       opacity,
       position: 'absolute',
       left: 20,
       top: 25,
-      color: error
-        ? '#FF6B6B'
-        : interpolate(
-            labelAnimation.value,
-            [0, 1],
-            ['rgba(255, 255, 255, 0.7)', 'rgba(139, 92, 246, 0.9)']
-          ),
+      color: error ? '#FF6B6B' : (animatedColor as any),
       fontSize: interpolate(labelAnimation.value, [0, 1], [16, 12]),
       fontWeight: '500',
       zIndex: 1,
@@ -140,8 +148,11 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
       setDate(selectedDate);
 
       if (mode === 'date') {
-        const formattedDate = selectedDate.toISOString().split('T')[0];
-        onChangeText(formattedDate);
+        // Форматируем как YYYY-MM-DD по локальному времени (без UTC-сдвига)
+        const y = selectedDate.getFullYear();
+        const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+        const d = selectedDate.getDate().toString().padStart(2, '0');
+        onChangeText(`${y}-${m}-${d}`);
       } else {
         const hours = selectedDate.getHours().toString().padStart(2, '0');
         const minutes = selectedDate.getMinutes().toString().padStart(2, '0');

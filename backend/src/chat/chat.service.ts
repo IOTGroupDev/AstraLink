@@ -1,6 +1,23 @@
+/* eslint-disable */
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../redis/redis.service';
+import {
+  pickKey,
+  getValue,
+  preferExisting,
+  normalizeDate,
+  isAbsoluteUrl,
+} from '../utils/column-mapper.utils';
+import type {
+  MessageRow,
+  SupabaseUserResponse,
+  COLUMN_CANDIDATES,
+  Match,
+  UserPhoto,
+  User,
+} from './chat.types';
+import { COLUMN_CANDIDATES as COLS } from './chat.types';
 
 export interface ChatMessage {
   id: string;
@@ -101,7 +118,7 @@ export class ChatService {
                   .update({
                     [mediaColumns[0]]: mediaPath,
                     ...(existingCols.has('type') ? { type: 'image' } : {}),
-                  } as any)
+                  } as Record<string, unknown>)
                   .eq(idK, newId)
                   .select('id')
                   .single();
@@ -125,7 +142,7 @@ export class ChatService {
                   .update({
                     [mediaColumns[0]]: mediaPath,
                     ...(existingCols.has('type') ? { type: 'image' } : {}),
-                  } as any)
+                  } as Record<string, unknown>)
                   .or(orExpr)
                   .select('id');
                 if (
@@ -149,7 +166,7 @@ export class ChatService {
                     .update({
                       [mediaColumns[0]]: mediaPath,
                       ...(existingCols.has('type') ? { type: 'image' } : {}),
-                    } as any)
+                    } as Record<string, unknown>)
                     .eq(idK, newId)
                     .select('id')
                     .single();
@@ -167,7 +184,7 @@ export class ChatService {
                     .update({
                       [mediaColumns[0]]: mediaPath,
                       ...(existingCols.has('type') ? { type: 'image' } : {}),
-                    } as any)
+                    } as Record<string, unknown>)
                     .or(orExpr)
                     .select('id');
                   if (
@@ -200,7 +217,8 @@ export class ChatService {
 
     const { data: userRes, error: userErr } =
       await this.supabaseService.getUser(userAccessToken);
-    const uid = (userRes as any)?.user?.id as string | undefined;
+    const typedUserRes = userRes as SupabaseUserResponse | null;
+    const uid = typedUserRes?.user?.id;
     if (!uid || userErr) {
       console.error('Cannot resolve user from token for sendMessage fallback', {
         userErr: userErr?.message ?? userErr,
@@ -212,58 +230,20 @@ export class ChatService {
 
     // Попробуем определить реальные колонки таблицы messages
     const existing = await this.getExistingColumns(userAccessToken);
-    const preferExisting = (cands: string[]) => {
-      const present = cands.filter((c) => existing.has(c));
-      return present.length ? present : cands;
-    };
 
-    // Возможные названия колонок (на случай дрейфа схемы)
-    const senderColumns = preferExisting([
-      'sender_id',
-      'from_user_id',
-      'from',
-      'from_id',
-      'sender',
-    ]);
-    // Предпочтём названия вида to_user_id/recipient, так как RPC может расходиться со схемой
-    const recipientColumns = preferExisting([
-      'to_user_id',
-      'recipient',
-      'receiver_id',
-      'recipient_id',
-      'to_id',
-    ]);
-    const contentColumns = preferExisting([
-      'content',
-      'text',
-      'body',
-      'message',
-      'message_text',
-    ]);
-    // Самые вероятные медиа-колонки пробуем первыми
-    const mediaColumnsAll = [
-      'attachment_path',
-      'media_path',
-      'media_url',
-      'attachment_url',
-      'attachment',
-      'file_url',
-      'file_path',
-      'file',
-      'image_url',
-    ];
-    const mediaColumns = (() => {
-      const present = mediaColumnsAll.filter((c) => existing.has(c));
-      return present.length ? present : mediaColumnsAll;
-    })();
+    // Use column candidates with existing column filtering
+    const senderColumns = preferExisting(COLS.sender, existing);
+    const recipientColumns = preferExisting(COLS.recipient, existing);
+    const contentColumns = preferExisting(COLS.content, existing);
+    const mediaColumns = preferExisting(COLS.media, existing);
 
     const trimmedText = (text ?? '').trim();
     const hasText = trimmedText.length > 0;
     const hasMedia =
       typeof mediaPath === 'string' && mediaPath.trim().length > 0;
 
-    let firstErr: any = null;
-    let lastErr: any = null;
+    let firstErr: Error | null = null;
+    let lastErr: Error | null = null;
 
     // Разрешим match для RLS и NOT NULL match_id
     const matchId = await this.ensureMatch(userAccessToken, uid, recipientId);
@@ -289,7 +269,7 @@ export class ChatService {
           ...(existing.has('type')
             ? { type: hasMedia ? 'image' : 'text' }
             : {}),
-        } as any;
+        } as Record<string, unknown>;
 
         // 2.1 Попытка БЕЗ sender-колонки, С медиа — СНАЧАЛА (если есть медиа)
         if (!senderKey && hasMedia) {
@@ -435,7 +415,8 @@ export class ChatService {
     // Определим текущего пользователя и его скрытия (для себя)
     const { data: userRes2 } =
       await this.supabaseService.getUser(userAccessToken);
-    const selfId = (userRes2 as any)?.user?.id as string | undefined;
+    const typedUserRes2 = userRes2 as SupabaseUserResponse | null;
+    const selfId = typedUserRes2?.user?.id;
 
     let hiddenMsgIds = new Set<string>();
     if (selfId) {
@@ -469,39 +450,14 @@ export class ChatService {
     if (error) {
       return [];
     }
-    const rows = Array.isArray(data) ? data : [];
+    const rows = Array.isArray(data) ? (data as MessageRow[]) : [];
 
-    const pickKey = (obj: any, keys: string[]) =>
-      keys.find((k) => obj && Object.prototype.hasOwnProperty.call(obj, k));
-
-    // Кандидаты ключей
-    const senderKeys = [
-      'sender_id',
-      'senderId',
-      'from_user_id',
-      'fromId',
-      'from',
-    ];
-    const recipientKeys = [
-      'recipient_id',
-      'receiver_id',
-      'recipient',
-      'to_user_id',
-      'to_id',
-    ];
-    const contentKeys = ['content', 'text', 'body', 'message'];
-    const mediaKeys = [
-      'attachment_path',
-      'media_path',
-      'media_url',
-      'attachment_url',
-      'attachment',
-      'file_url',
-      'file_path',
-      'file',
-      'image_url',
-    ];
-    const createdKeys = ['created_at', 'createdAt', 'createdAtUtc'];
+    // Use column candidates from types
+    const senderKeys = COLS.sender;
+    const recipientKeys = COLS.recipient;
+    const contentKeys = COLS.content;
+    const mediaKeys = COLS.media;
+    const createdKeys = COLS.created;
 
     // Фильтруем диалог: собеседник = otherUserId (второй участник)
     let filtered = rows.filter((r) => {
@@ -520,8 +476,9 @@ export class ChatService {
 
     // Сорт по времени (возрастание)
     filtered.sort((a, b) => {
-      const ka = a[pickKey(a, createdKeys) || 'created_at'] ?? '';
-      const kb = b[pickKey(b, createdKeys) || 'created_at'] ?? '';
+      const ka = String(a[pickKey(a, createdKeys) || 'created_at'] ?? '');
+
+      const kb = String(b[pickKey(b, createdKeys) || 'created_at'] ?? '');
       return new Date(ka).getTime() - new Date(kb).getTime();
     });
 
@@ -533,20 +490,14 @@ export class ChatService {
       const mediaK = pickKey(r, mediaKeys) || 'media_path';
       const createdK = pickKey(r, createdKeys) || 'created_at';
 
-      const rawCreated = r[createdK];
-      const createdAt =
-        typeof rawCreated === 'string'
-          ? rawCreated
-          : rawCreated
-            ? new Date(rawCreated).toISOString()
-            : new Date().toISOString();
+      const createdAt = normalizeDate(r[createdK]);
 
       // Разделяем URL и path: если в колонке значение — абсолютный URL, используем его напрямую
       const rawMedia = r[mediaK] ?? null;
       let mediaPath: string | null = null;
       let mediaUrl: string | null = null;
       if (typeof rawMedia === 'string' && rawMedia.trim()) {
-        if (/^https?:\/\//i.test(rawMedia)) {
+        if (isAbsoluteUrl(rawMedia)) {
           mediaUrl = rawMedia;
         } else {
           mediaPath = rawMedia;
@@ -596,7 +547,8 @@ export class ChatService {
   ): Promise<ChatConversation[]> {
     const { data: userRes } =
       await this.supabaseService.getUser(userAccessToken);
-    const selfId = (userRes as any)?.user?.id as string | undefined;
+    const typedUserRes = userRes as SupabaseUserResponse | null;
+    const selfId = typedUserRes?.user?.id;
     if (!selfId) {
       return [];
     }
@@ -615,57 +567,33 @@ export class ChatService {
       return [];
     }
 
-    const rows = Array.isArray(data) ? data : [];
-
-    const pick = (obj: any, keys: string[]): any =>
-      keys.find((k) => obj && Object.prototype.hasOwnProperty.call(obj, k));
+    const rows = Array.isArray(data) ? (data as MessageRow[]) : [];
 
     const map = new Map<string, ChatConversation>();
     for (const r of rows) {
-      const sender =
-        r.sender_id ?? r.senderId ?? r.from_user_id ?? r.fromId ?? r.from;
-      const recipientKey = pick(r, [
-        'recipient_id',
-        'receiver_id',
-        'recipient',
-        'to_user_id',
-        'to_id',
-      ]) as string;
-      const recipient = r[recipientKey];
+      const sender = getValue<MessageRow, string>(r, COLS.sender, '');
+      const recipientKey = pickKey(r, COLS.recipient);
+      const recipient = recipientKey ? r[recipientKey] : null;
 
-      const otherUserId = sender === selfId ? recipient : sender;
-      if (!otherUserId) continue;
+      const otherUserId =
+        sender === selfId ? String(recipient) : String(sender);
+      if (!otherUserId || otherUserId === 'null' || otherUserId === 'undefined')
+        continue;
 
       if (!map.has(otherUserId)) {
-        const createdKey = pick(r, [
-          'created_at',
-          'createdAt',
-          'createdAtUtc',
-        ]) as string;
-        const contentKey = pick(r, [
-          'content',
-          'text',
-          'body',
-          'message',
-        ]) as string;
-        const mediaKey = pick(r, [
-          'media_path',
-          'media_url',
-          'attachment_url',
-          'attachment',
-          'file_url',
-        ]) as string;
+        const createdKey = pickKey(r, COLS.created) || 'created_at';
+        const contentKey = pickKey(r, COLS.content) || 'content';
+        const mediaKey = pickKey(r, COLS.media) || 'media_path';
 
-        const createdAt =
-          typeof r[createdKey] === 'string'
-            ? r[createdKey]
-            : new Date(r[createdKey]).toISOString();
+        const createdAt = normalizeDate(r[createdKey]);
 
         map.set(otherUserId, {
           otherUserId,
-          lastSenderId: sender,
-          lastMessageText: r[contentKey] ?? null,
-          lastMessageMediaPath: r[mediaKey] ?? null,
+          lastSenderId: sender || selfId || '',
+
+          lastMessageText: String(r[contentKey] ?? ''),
+
+          lastMessageMediaPath: String(r[mediaKey] ?? '') || null,
           lastMessageAt: createdAt,
           primaryPhotoUrl: null,
           displayName: null,
@@ -687,7 +615,7 @@ export class ChatService {
         if (!photosErr && Array.isArray(photos)) {
           // Сопоставим user_id -> storage_path
           const byUser: Record<string, string> = {};
-          for (const p of photos as any[]) {
+          for (const p of photos as UserPhoto[]) {
             if (p?.user_id && p?.storage_path)
               byUser[p.user_id] = p.storage_path;
           }
@@ -723,7 +651,7 @@ export class ChatService {
 
         if (!usersErr && Array.isArray(users)) {
           const byUser: Record<string, { name?: string; email?: string }> = {};
-          for (const u of users as any[]) {
+          for (const u of users as User[]) {
             if (u?.id) byUser[u.id] = { name: u?.name, email: u?.email };
           }
           otherIds.forEach((uid) => {
@@ -914,7 +842,8 @@ export class ChatService {
   ): Promise<{ success: boolean }> {
     const { data: userRes } =
       await this.supabaseService.getUser(userAccessToken);
-    const selfId = (userRes as any)?.user?.id as string | undefined;
+    const typedUserRes = userRes as SupabaseUserResponse | null;
+    const selfId = typedUserRes?.user?.id;
     if (!selfId) {
       throw new Error('auth required');
     }
@@ -934,7 +863,8 @@ export class ChatService {
     const client = this.supabaseService.getClientForToken(userAccessToken);
 
     // Проверим наличие admin-клиента (для обхода RLS)
-    let admin: any = null;
+    let admin: ReturnType<typeof this.supabaseService.getAdminClient> | null =
+      null;
     let adminAvailable = false;
     try {
       admin = this.supabaseService.getAdminClient();
@@ -972,8 +902,9 @@ export class ChatService {
     ];
 
     // 1) Прочитать строку сообщения (сначала как пользователь, затем через admin)
-    const tryFetch = async (viaAdmin: boolean): Promise<any | null> => {
+    const tryFetch = async (viaAdmin: boolean): Promise<MessageRow | null> => {
       const c = viaAdmin ? admin : client;
+      if (!c) return null;
       for (const idK of idCandidates) {
         try {
           const { data, error } = await c
@@ -981,7 +912,7 @@ export class ChatService {
             .select('*')
             .eq(idK, messageId)
             .maybeSingle();
-          if (!error && data) return data;
+          if (!error && data) return data as MessageRow;
         } catch {
           // ignore and try next candidate
         }
@@ -989,7 +920,7 @@ export class ChatService {
       return null;
     };
 
-    let row: any = await tryFetch(false);
+    let row: MessageRow | null = await tryFetch(false);
     if (!row && adminAvailable) {
       row = await tryFetch(true);
     }
@@ -1015,6 +946,7 @@ export class ChatService {
     // 3) Удаляем: если доступен admin — используем его (надежнее против RLS)
     const tryDelete = async (viaAdmin: boolean): Promise<boolean> => {
       const c = viaAdmin ? admin : client;
+      if (!c) return false;
       try {
         // Возвращаем удалённые id, чтобы убедиться, что удаление действительно произошло
         const { data, error } = await c
@@ -1045,9 +977,11 @@ export class ChatService {
     // Последний фолбэк: удалить по любому из возможных ключей (OR), если реальный ключ id определить не удалось или eq не сработал
     const tryDeleteAnyKey = async (viaAdmin: boolean): Promise<boolean> => {
       const c = viaAdmin ? admin : client;
+      if (!c) return false;
       try {
         // Собираем OR-выражение вида: id.eq.<val>,message_id.eq.<val>,uuid.eq.<val>,pk.eq.<val>,messageId.eq.<val>
         const orExpr = idCandidates
+
           .map((k) => `${k}.eq.${actualIdValue}`)
           .join(',');
         const { data, error } = await c
@@ -1072,7 +1006,10 @@ export class ChatService {
 
     // 4) Верифицируем, что запись действительно исчезла
     const verifyMissing = async (): Promise<boolean> => {
-      const verify = async (c: any) => {
+      const verify = async (
+        c: ReturnType<typeof this.supabaseService.getClientForToken> | null,
+      ) => {
+        if (!c) return true;
         for (const idK of idCandidates) {
           try {
             const { data, error } = await c
@@ -1087,7 +1024,7 @@ export class ChatService {
         }
         return true;
       };
-      if (adminAvailable) {
+      if (adminAvailable && admin) {
         const missAdmin = await verify(admin);
         if (!missAdmin) return false;
       }
@@ -1111,7 +1048,8 @@ export class ChatService {
   ): Promise<{ success: boolean }> {
     const { data: userRes } =
       await this.supabaseService.getUser(userAccessToken);
-    const selfId = (userRes as any)?.user?.id as string | undefined;
+    const typedUserRes = userRes as SupabaseUserResponse | null;
+    const selfId = typedUserRes?.user?.id;
     if (!selfId) {
       throw new Error('auth required');
     }

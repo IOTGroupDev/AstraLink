@@ -30,6 +30,19 @@ import {
   getSignColors,
   getPlanetHouseFocus,
 } from '../modules/shared/astro-text';
+import type {
+  ChartData,
+  TransitAspect,
+  HoroscopeContext,
+  DominantTransit,
+  EnergyMetrics,
+  ChartLookupResult,
+  TransitData,
+  AspectCalculationResult,
+  RuleBasedPredictions,
+  TransitPlanet,
+} from './horoscope.types';
+import type { Planet, House } from '../dating/dating.types';
 
 export interface HoroscopePrediction {
   period: 'day' | 'tomorrow' | 'week' | 'month';
@@ -62,6 +75,86 @@ export class HoroscopeGeneratorService {
   ) {}
 
   /**
+   * Find user chart via multiple fallback methods
+   */
+  private async findUserChart(userId: string): Promise<ChartLookupResult> {
+    this.logger.log(`Looking for natal chart for user ${userId}`);
+
+    // Try admin client
+    try {
+      this.logger.log('Trying admin client lookup...');
+      const { data: charts, error: adminError } =
+        await this.supabaseService.getUserChartsAdmin(userId);
+
+      if (!adminError && charts && charts.length > 0) {
+        this.logger.log(
+          `Found chart via admin client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
+        );
+        return {
+          chartData: charts[0].data as ChartData,
+          foundVia: 'admin',
+        };
+      }
+      if (adminError) {
+        this.logger.warn('Admin chart lookup error:', adminError.message);
+      }
+    } catch (adminError) {
+      const errorMessage =
+        adminError instanceof Error ? adminError.message : 'Unknown error';
+      this.logger.warn('Admin chart lookup failed:', errorMessage);
+    }
+
+    // Try regular client
+    try {
+      this.logger.log('Trying regular client lookup...');
+      const { data: charts, error: regularError } =
+        await this.supabaseService.getUserCharts(userId);
+
+      if (!regularError && charts && charts.length > 0) {
+        this.logger.log(
+          `Found chart via regular client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
+        );
+        return {
+          chartData: charts[0].data as ChartData,
+          foundVia: 'regular',
+        };
+      }
+      if (regularError) {
+        this.logger.warn('Regular chart lookup error:', regularError.message);
+      }
+    } catch (regularError) {
+      const errorMessage =
+        regularError instanceof Error ? regularError.message : 'Unknown error';
+      this.logger.error('Regular chart lookup failed:', errorMessage);
+    }
+
+    // Try Prisma fallback
+    try {
+      this.logger.log('Trying Prisma fallback for chart lookup');
+      const chart = await this.prisma.chart.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (chart) {
+        this.logger.log(
+          `Found chart via Prisma fallback, created: ${chart.createdAt?.toString() || 'unknown'}`,
+        );
+        return {
+          chartData: chart.data as unknown as ChartData,
+          foundVia: 'prisma',
+        };
+      }
+    } catch (prismaError) {
+      const errorMessage =
+        prismaError instanceof Error ? prismaError.message : 'Unknown error';
+      this.logger.error('Prisma lookup failed:', errorMessage);
+    }
+
+    return { chartData: null, foundVia: 'none' };
+  }
+
+  /**
    * Генерация гороскопа с четким разделением:
    * FREE = Интерпретатор (правила)
    * PREMIUM = AI (Claude или OpenAI)
@@ -76,76 +169,7 @@ export class HoroscopeGeneratorService {
     );
 
     // Ищем натальную карту через Supabase
-    let chartData: any = null;
-    let foundVia = '';
-
-    this.logger.log(`Looking for natal chart for user ${userId}`);
-
-    try {
-      this.logger.log('Trying admin client lookup...');
-      const { data: charts, error: adminError } =
-        await this.supabaseService.getUserChartsAdmin(userId);
-
-      if (adminError) {
-        this.logger.warn('Admin chart lookup error:', adminError.message);
-      } else if (charts && charts.length > 0) {
-        chartData = charts[0].data;
-        foundVia = 'admin';
-        this.logger.log(
-          `Found chart via admin client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
-        );
-      }
-    } catch (adminError) {
-      const errorMessage =
-        adminError instanceof Error ? adminError.message : 'Unknown error';
-      this.logger.warn('Admin chart lookup failed:', errorMessage);
-    }
-
-    if (!chartData) {
-      try {
-        this.logger.log('Trying regular client lookup...');
-        const { data: charts, error: regularError } =
-          await this.supabaseService.getUserCharts(userId);
-
-        if (regularError) {
-          this.logger.warn('Regular chart lookup error:', regularError.message);
-        } else if (charts && charts.length > 0) {
-          chartData = charts[0].data;
-          foundVia = 'regular';
-          this.logger.log(
-            `Found chart via regular client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
-          );
-        }
-      } catch (regularError) {
-        const errorMessage =
-          regularError instanceof Error
-            ? regularError.message
-            : 'Unknown error';
-        this.logger.error('Regular chart lookup failed:', errorMessage);
-      }
-    }
-
-    if (!chartData) {
-      this.logger.log('Trying Prisma fallback for chart lookup');
-      try {
-        const chart = await this.prisma.chart.findFirst({
-          where: { userId },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        if (chart) {
-          chartData = chart.data as any;
-          foundVia = 'prisma';
-          this.logger.log(
-            `Found chart via Prisma fallback, created: ${chart.createdAt?.toString() || 'unknown'}`,
-          );
-        }
-      } catch (prismaError) {
-        const errorMessage =
-          prismaError instanceof Error ? prismaError.message : 'Unknown error';
-        this.logger.error('Prisma lookup failed:', errorMessage);
-      }
-    }
+    const { chartData, foundVia } = await this.findUserChart(userId);
 
     if (!chartData) {
       this.logger.warn(
@@ -236,8 +260,8 @@ export class HoroscopeGeneratorService {
         return cached;
       }
 
-      let transits: any;
-      let transitAspects: any[] = [];
+      let transits: TransitData;
+      let transitAspects: TransitAspect[] = [];
 
       try {
         transits = await this.getCurrentTransits(targetDate);
@@ -305,9 +329,9 @@ export class HoroscopeGeneratorService {
    * PREMIUM: Генерация через AI (Claude или OpenAI)
    */
   private async generatePremiumHoroscope(
-    chartData: any,
-    transits: any,
-    transitAspects: any[],
+    chartData: ChartData,
+    transits: TransitData,
+    transitAspects: TransitAspect[],
     period: string,
     targetDate: Date,
     _cacheKey: string,
@@ -346,7 +370,7 @@ export class HoroscopeGeneratorService {
       const luckyColors = this.generateLuckyColors(sunSign, transitAspects[0]);
 
       const result: HoroscopePrediction = {
-        period: period as any,
+        period: period as 'day' | 'tomorrow' | 'week' | 'month',
         date: targetDate.toISOString(),
         general: aiPredictions.general,
         love: aiPredictions.love,
@@ -383,7 +407,7 @@ export class HoroscopeGeneratorService {
         chartData,
       );
       const result: HoroscopePrediction = {
-        period: period as any,
+        period: period as 'day' | 'tomorrow' | 'week' | 'month',
         date: targetDate.toISOString(),
         general: predictions.general,
         love: predictions.love,
@@ -410,9 +434,9 @@ export class HoroscopeGeneratorService {
    * FREE: Генерация через интерпретатор (правила)
    */
   private generateFreeHoroscope(
-    chartData: any,
-    transits: any,
-    transitAspects: any[],
+    chartData: ChartData,
+    transits: TransitData,
+    transitAspects: TransitAspect[],
     period: string,
     targetDate: Date,
     _cacheKey: string,
@@ -438,7 +462,7 @@ export class HoroscopeGeneratorService {
     );
 
     const result: HoroscopePrediction = {
-      period: period as any,
+      period: period as 'day' | 'tomorrow' | 'week' | 'month',
       date: targetDate.toISOString(),
       general: predictions.general,
       love: predictions.love,
@@ -463,12 +487,12 @@ export class HoroscopeGeneratorService {
   private generateRuleBasedPredictions(
     sunSign: string,
     moonSign: string,
-    dominantTransit: any,
-    transitAspects: any[],
+    dominantTransit: TransitAspect | null,
+    transitAspects: TransitAspect[],
     period: string,
     targetDate: Date,
-    chartData: any,
-  ): any {
+    chartData: ChartData,
+  ): RuleBasedPredictions {
     const timeFrame = this.getTimeFrame(period);
 
     // Доминирующие транзиты по доменам
@@ -525,15 +549,17 @@ export class HoroscopeGeneratorService {
    */
   private generateGeneralPrediction(
     sunSign: string,
-    dominantTransit: any,
-    transitAspects: any[],
+    dominantTransit: TransitAspect | null,
+    transitAspects: TransitAspect[],
     timeFrame: string,
     _targetDate: Date,
   ): string {
     const tone = this.determinePredictionTone(transitAspects);
-    const templates = getGeneralTemplates(timeFrame as any, 'ru');
-    const pool =
-      (templates as any)[tone] || (templates as any)['neutral'] || [];
+    const templates = getGeneralTemplates(
+      timeFrame as import('../modules/shared/types').PeriodFrame,
+      'ru',
+    ) as Record<string, string[]>;
+    const pool = templates[tone] || templates['neutral'] || [];
     if (!pool.length) {
       return `${timeFrame} стабильный период. Действуйте последовательно.`;
     }
@@ -561,16 +587,19 @@ export class HoroscopeGeneratorService {
   private generateLovePrediction(
     sunSign: string,
     moonSign: string,
-    transitAspects: any[],
+    transitAspects: TransitAspect[],
     timeFrame: string,
-    dominantTransit?: any,
+    dominantTransit?: TransitAspect | null,
   ): string {
     const venusAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'venus' || a.natalPlanet === 'venus',
     );
 
     try {
-      const phrases = getLovePhrases(timeFrame as any, 'ru');
+      const phrases = getLovePhrases(
+        timeFrame as import('../modules/shared/types').PeriodFrame,
+        'ru',
+      ) as Record<string, string>;
 
       if (venusAspects.length > 0) {
         const aspect = venusAspects[0];
@@ -582,7 +611,7 @@ export class HoroscopeGeneratorService {
         if (dominantTransit?.house) {
           try {
             const focus = getPlanetHouseFocus(
-              dominantTransit?.transitPlanet || 'venus',
+              (dominantTransit?.transitPlanet || 'venus') as PlanetKey,
               dominantTransit.house,
               'ru',
             );
@@ -599,7 +628,7 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            dominantTransit?.transitPlanet || 'venus',
+            (dominantTransit?.transitPlanet || 'venus') as PlanetKey,
             dominantTransit.house,
             'ru',
           );
@@ -627,9 +656,9 @@ export class HoroscopeGeneratorService {
    */
   private generateCareerPrediction(
     sunSign: string,
-    transitAspects: any[],
+    transitAspects: TransitAspect[],
     timeFrame: string,
-    dominantTransit?: any,
+    dominantTransit?: TransitAspect | null,
   ): string {
     const jupiterAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'jupiter',
@@ -642,7 +671,10 @@ export class HoroscopeGeneratorService {
     );
 
     try {
-      const actions = getCareerActions(timeFrame as any, 'ru');
+      const actions = getCareerActions(
+        timeFrame as import('../modules/shared/types').PeriodFrame,
+        'ru',
+      ) as Record<string, string>;
 
       if (jupiterAspects.length > 0) {
         return `${timeFrame} Юпитер ${actions.jupiter} карьерных инициатив. Время для смелых решений.`;
@@ -659,7 +691,7 @@ export class HoroscopeGeneratorService {
         if (dominantTransit?.house) {
           try {
             const focus = getPlanetHouseFocus(
-              dominantTransit?.transitPlanet || 'saturn',
+              (dominantTransit?.transitPlanet || 'saturn') as PlanetKey,
               dominantTransit.house,
               'ru',
             );
@@ -675,7 +707,7 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            dominantTransit?.transitPlanet || 'saturn',
+            (dominantTransit?.transitPlanet || 'saturn') as PlanetKey,
             dominantTransit.house,
             'ru',
           );
@@ -707,9 +739,9 @@ export class HoroscopeGeneratorService {
    */
   private generateHealthPrediction(
     sunSign: string,
-    transitAspects: any[],
+    transitAspects: TransitAspect[],
     timeFrame: string,
-    dominantTransit?: any,
+    dominantTransit?: TransitAspect | null,
   ): string {
     const marsAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'mars',
@@ -720,7 +752,7 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            dominantTransit?.transitPlanet || 'mars',
+            (dominantTransit?.transitPlanet || 'mars') as PlanetKey,
             dominantTransit.house,
             'ru',
           );
@@ -736,7 +768,7 @@ export class HoroscopeGeneratorService {
     if (dominantTransit?.house) {
       try {
         const focus = getPlanetHouseFocus(
-          dominantTransit?.transitPlanet || 'mars',
+          (dominantTransit?.transitPlanet || 'mars') as PlanetKey,
           dominantTransit.house,
           'ru',
         );
@@ -753,9 +785,9 @@ export class HoroscopeGeneratorService {
    */
   private generateFinancePrediction(
     sunSign: string,
-    transitAspects: any[],
+    transitAspects: TransitAspect[],
     timeFrame: string,
-    dominantTransit?: any,
+    dominantTransit?: TransitAspect | null,
   ): string {
     const jupiterAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'jupiter',
@@ -769,7 +801,7 @@ export class HoroscopeGeneratorService {
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
-            dominantTransit?.transitPlanet || 'jupiter',
+            (dominantTransit?.transitPlanet || 'jupiter') as PlanetKey,
             dominantTransit.house,
             'ru',
           );
@@ -785,7 +817,7 @@ export class HoroscopeGeneratorService {
     if (dominantTransit?.house) {
       try {
         const focus = getPlanetHouseFocus(
-          dominantTransit?.transitPlanet || 'jupiter',
+          (dominantTransit?.transitPlanet || 'jupiter') as PlanetKey,
           dominantTransit.house,
           'ru',
         );
@@ -802,27 +834,31 @@ export class HoroscopeGeneratorService {
    */
   private generateAdvice(
     sunSign: string,
-    dominantTransit: any,
+    dominantTransit: TransitAspect | null,
     timeFrame: string,
     targetDate: Date,
-    chartData: any,
+    chartData: ChartData,
   ): string {
-    const advices = getAdvicePool(timeFrame as any, 'ru') || [];
-    const basePick = advices.length
-      ? advices[
-          Math.abs(
-            hashSignature([
-              timeFrame,
-              sunSign,
-              dominantTransit?.transitPlanet || '-',
-              dominantTransit?.aspect || '-',
-              dominantTransit?.natalPlanet || '-',
-              dominantTransit?.house || 0,
-              dominantTransit?.isRetrograde ? 1 : 0,
-            ]),
-          ) % advices.length
-        ]
-      : 'Сохраняйте баланс и действуйте последовательно.';
+    const advices = getAdvicePool(
+      timeFrame as import('../modules/shared/types').PeriodFrame,
+      'ru',
+    ) as string[] | undefined;
+    const basePick =
+      advices && advices.length
+        ? advices[
+            Math.abs(
+              hashSignature([
+                timeFrame,
+                sunSign,
+                dominantTransit?.transitPlanet || '-',
+                dominantTransit?.aspect || '-',
+                dominantTransit?.natalPlanet || '-',
+                dominantTransit?.house || 0,
+                dominantTransit?.isRetrograde ? 1 : 0,
+              ]),
+            ) % advices.length
+          ]
+        : 'Сохраняйте баланс и действуйте последовательно.';
 
     // Жизненные циклы (Сатурн, Юпитер, Узлы, Хирон)
     const cycles = this.getLifeCycles(chartData, targetDate);
@@ -841,7 +877,7 @@ export class HoroscopeGeneratorService {
    * Определение тональности прогноза
    */
   private determinePredictionTone(
-    transitAspects: any[],
+    transitAspects: TransitAspect[],
   ): 'positive' | 'neutral' | 'challenging' {
     let score = 0;
 
@@ -862,13 +898,13 @@ export class HoroscopeGeneratorService {
    * Получение временного фрейма
    */
   private getTimeFrame(period: string): string {
-    const frames = {
+    const frames: Record<string, string> = {
       day: 'Сегодня',
       tomorrow: 'Завтра',
       week: 'На этой неделе',
       month: 'В этом месяце',
     };
-    return (frames as any)[period] || 'Сегодня';
+    return frames[period] || 'Сегодня';
   }
 
   /**
@@ -891,47 +927,51 @@ export class HoroscopeGeneratorService {
   /**
    * Получение текущих транзитов
    */
-  private async getCurrentTransits(date: Date): Promise<any> {
+  private async getCurrentTransits(date: Date): Promise<TransitData> {
     const julianDay = this.ephemerisService.dateToJulianDay(date);
     const planets = await this.ephemerisService.calculatePlanets(julianDay);
-    return { planets, date };
+    return { planets: planets as Record<string, TransitPlanet>, date };
   }
 
   /**
    * Анализ транзитных аспектов
    */
   private analyzeTransitAspects(
-    natalPlanets: any,
-    transitPlanets: any,
-    natalHouses?: any,
-  ): any[] {
-    const aspects: any[] = [];
+    natalPlanets: Record<string, Planet> | undefined,
+    transitPlanets: Record<string, TransitPlanet>,
+    natalHouses?: Record<number, House>,
+  ): TransitAspect[] {
+    const aspects: TransitAspect[] = [];
+
+    if (!natalPlanets) return aspects;
 
     for (const [natalKey, natalPlanet] of Object.entries(natalPlanets)) {
       for (const [transitKey, transitPlanet] of Object.entries(
         transitPlanets,
       )) {
         const aspect = this.calculateAspect(
-          (natalPlanet as any).longitude,
-          (transitPlanet as any).longitude,
+          natalPlanet.longitude,
+          transitPlanet.longitude,
           transitKey as PlanetKey,
         );
 
         if (aspect) {
           const house = natalHouses
-            ? getHouseForLongitude(
-                (transitPlanet as any).longitude,
-                natalHouses,
-              )
+            ? getHouseForLongitude(transitPlanet.longitude, natalHouses)
             : undefined;
-          const isRetrograde = (transitPlanet as any).isRetrograde === true;
-          const transitSign = (transitPlanet as any).sign;
-          const transitSpeed = (transitPlanet as any).speed;
+          const isRetrograde = transitPlanet.isRetrograde === true;
+          const transitSign = transitPlanet.sign;
+          const transitSpeed = transitPlanet.speed;
           let dignity: DignityLevel = 'neutral';
-          try {
-            dignity = getEssentialDignity(transitKey as PlanetKey, transitSign);
-          } catch {
-            dignity = 'neutral';
+          if (transitSign) {
+            try {
+              dignity = getEssentialDignity(
+                transitKey as PlanetKey,
+                transitSign as import('../modules/shared/types').Sign,
+              );
+            } catch {
+              dignity = 'neutral';
+            }
           }
 
           aspects.push({
@@ -960,7 +1000,7 @@ export class HoroscopeGeneratorService {
     longitudeNatal: number,
     longitudeTransit: number,
     transitPlanet?: PlanetKey,
-  ): any | null {
+  ): AspectCalculationResult | null {
     const diff = Math.abs(longitudeNatal - longitudeTransit);
     const normalizedDiff = Math.min(diff, 360 - diff);
 
@@ -986,8 +1026,8 @@ export class HoroscopeGeneratorService {
       const orbDelta = Math.abs(normalizedDiff - aspect.angle);
       const baseOrb =
         transitPlanet != null
-          ? getTransitOrb(transitPlanet, aspect.type as any)
-          : (defaultOrbs as any)[aspect.type];
+          ? getTransitOrb(transitPlanet, aspect.type)
+          : defaultOrbs[aspect.type];
 
       if (orbDelta <= baseOrb) {
         return {
@@ -1005,7 +1045,10 @@ export class HoroscopeGeneratorService {
    * Доминирующий транзит с учётом веса планеты, силы аспекта и бонуса за релевантный дом домена.
    * domain: 'love' | 'career' | 'health' | 'finance' | 'general'
    */
-  private getDominantTransit(transitAspects: any[], domain?: string): any {
+  private getDominantTransit(
+    transitAspects: TransitAspect[],
+    domain?: string,
+  ): TransitAspect | null {
     if (!transitAspects || transitAspects.length === 0) return null;
 
     const domainHouses: Record<string, number[]> = {
@@ -1016,7 +1059,7 @@ export class HoroscopeGeneratorService {
       general: [],
     };
 
-    let best: any = null;
+    let best: TransitAspect | null = null;
     let bestScore = -Infinity;
 
     for (const a of transitAspects) {
@@ -1062,7 +1105,7 @@ export class HoroscopeGeneratorService {
   /**
    * Расчет энергии
    */
-  private calculateEnergy(transitAspects: any[]): number {
+  private calculateEnergy(transitAspects: TransitAspect[]): number {
     let energy = 50;
 
     transitAspects.forEach((aspect) => {
@@ -1086,7 +1129,10 @@ export class HoroscopeGeneratorService {
   /**
    * Определение настроения
    */
-  private determineMood(energy: number, _transitAspects: any[]): string {
+  private determineMood(
+    energy: number,
+    _transitAspects: TransitAspect[],
+  ): string {
     if (energy > 80) return 'Радостное и вдохновленное';
     if (energy > 60) return 'Позитивное и активное';
     if (energy > 40) return 'Сбалансированное';
@@ -1097,12 +1143,12 @@ export class HoroscopeGeneratorService {
    * Оценка длительности транзита (примерно) в днях на основе орбиса и скорости транзитной планеты.
    * Используем планетарный орбис из getTransitOrb и фактическую скорость (deg/day) из эфемерид.
    */
-  private estimateTransitDurationDays(a: any): number {
+  private estimateTransitDurationDays(a: TransitAspect): number {
     try {
       const baseOrb =
         getTransitOrb(
-          ((a?.transitPlanet as string) || 'sun') as PlanetKey,
-          a?.aspect,
+          (a?.transitPlanet || 'sun') as PlanetKey,
+          a?.aspect as import('../modules/shared/types').AspectType,
         ) || 6;
       const remaining = Math.max(0, baseOrb - (a?.orb ?? 0));
       const speedAbs = Math.abs(a?.transitSpeed ?? 0); // deg/day (может быть 0 при стационарности)
@@ -1124,7 +1170,7 @@ export class HoroscopeGeneratorService {
    */
   private appendTransitWindow(
     text: string,
-    dominantTransit: any,
+    dominantTransit: TransitAspect | null,
     timeFrame: string,
   ): string {
     try {
@@ -1147,13 +1193,19 @@ export class HoroscopeGeneratorService {
    * - Возврат Лунных Узлов ~18.6 лет; инверсия ~9.3 лет
    * - Возвращение Хирона ~50.9 лет
    */
-  private getLifeCycles(chartData: any, targetDate: Date): string[] {
+  private getLifeCycles(chartData: ChartData, targetDate: Date): string[] {
     const cycles: string[] = [];
     try {
+      // Try to get birthDate from chartData extended properties
+      const chartDataAny = chartData as Record<string, unknown>;
       const bdISO =
-        chartData?.birthDate ??
-        chartData?.data?.birthDate ??
-        chartData?.meta?.birthDate;
+        (chartDataAny?.birthDate as string | undefined) ??
+        ((chartDataAny?.data as Record<string, unknown>)?.birthDate as
+          | string
+          | undefined) ??
+        ((chartDataAny?.meta as Record<string, unknown>)?.birthDate as
+          | string
+          | undefined);
 
       if (typeof bdISO !== 'string' || bdISO.trim() === '') return cycles;
 
@@ -1195,7 +1247,7 @@ export class HoroscopeGeneratorService {
   /**
    * Генерация счастливых чисел
    */
-  private generateLuckyNumbers(chartData: any, date: Date): number[] {
+  private generateLuckyNumbers(chartData: ChartData, date: Date): number[] {
     const seed = date.getDate() + date.getMonth() * 31;
     const numbers: number[] = [];
 
@@ -1211,9 +1263,12 @@ export class HoroscopeGeneratorService {
    */
   private generateLuckyColors(
     sunSign: string,
-    _dominantTransit: any,
+    _dominantTransit: TransitAspect | null,
   ): string[] {
-    const colors = getSignColors(sunSign as any, 'ru');
+    const colors = getSignColors(
+      sunSign as import('../modules/shared/types').Sign,
+      'ru',
+    ) as string[] | undefined;
     return colors && colors.length ? colors : ['Белый', 'Синий'];
   }
 }

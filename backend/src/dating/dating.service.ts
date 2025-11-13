@@ -3,13 +3,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EphemerisService } from '../services/ephemeris.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import type { DatingMatchResponse } from '../types';
-
-type CandidateBadge = 'high' | 'medium' | 'low';
-interface CandidateRow {
-  user_id: string;
-  badge: CandidateBadge;
-  primary_photo_path: string | null;
-}
+import { parseInterests } from '../utils/preferences.utils';
+import type {
+  CandidateBadge,
+  CandidateRow,
+  EnrichedCandidate,
+  ChartData,
+  ChartAspect,
+  Element,
+  ZodiacSign,
+  UserData,
+  UserProfile,
+  UserChart,
+  UserPhoto,
+  SynastryData,
+} from './dating.types';
 
 @Injectable()
 export class DatingService {
@@ -29,7 +37,7 @@ export class DatingService {
     return Math.abs(ageDate.getUTCFullYear() - 1970);
   }
 
-  private getSunSign(chart: any): string | null {
+  private getSunSign(chart: ChartData | null | undefined): ZodiacSign | null {
     try {
       return (
         chart?.data?.planets?.sun?.sign || chart?.planets?.sun?.sign || null
@@ -39,15 +47,13 @@ export class DatingService {
     }
   }
 
-  private elementFromSign(
-    sign?: string | null,
-  ): 'fire' | 'earth' | 'air' | 'water' | null {
+  private elementFromSign(sign?: ZodiacSign | string | null): Element | null {
     if (!sign) return null;
     const s = String(sign);
-    const fire = new Set(['Aries', 'Leo', 'Sagittarius']);
-    const earth = new Set(['Taurus', 'Virgo', 'Capricorn']);
-    const air = new Set(['Gemini', 'Libra', 'Aquarius']);
-    const water = new Set(['Cancer', 'Scorpio', 'Pisces']);
+    const fire = new Set<string>(['Aries', 'Leo', 'Sagittarius']);
+    const earth = new Set<string>(['Taurus', 'Virgo', 'Capricorn']);
+    const air = new Set<string>(['Gemini', 'Libra', 'Aquarius']);
+    const water = new Set<string>(['Cancer', 'Scorpio', 'Pisces']);
     if (fire.has(s)) return 'fire';
     if (earth.has(s)) return 'earth';
     if (air.has(s)) return 'air';
@@ -55,10 +61,7 @@ export class DatingService {
     return null;
   }
 
-  private elementSynergyBonus(
-    a: 'fire' | 'earth' | 'air' | 'water' | null,
-    b: 'fire' | 'earth' | 'air' | 'water' | null,
-  ): number {
+  private elementSynergyBonus(a: Element | null, b: Element | null): number {
     if (!a || !b) return 0;
     if (a === b) return 4; // одинаковая стихия
     // гармоничные пары
@@ -82,7 +85,10 @@ export class DatingService {
     return ['square', 'opposition'].includes(type);
   }
 
-  private getHouseForLongitude(longitude: number, houses: any): number {
+  private getHouseForLongitude(
+    longitude: number,
+    houses: Record<number, { cusp: number }> | null | undefined,
+  ): number {
     if (!houses) return 1;
     for (let i = 1; i <= 12; i++) {
       const nextHouse = i === 12 ? 1 : i + 1;
@@ -99,9 +105,9 @@ export class DatingService {
 
   private calcFinalCompatibility(
     base: number,
-    synastry: any,
-    chartA: any,
-    chartB: any,
+    synastry: SynastryData | null | undefined,
+    chartA: ChartData | null | undefined,
+    chartB: ChartData | null | undefined,
   ): number {
     let score = Number.isFinite(base) ? base : 0;
 
@@ -112,13 +118,9 @@ export class DatingService {
     const elB = this.elementFromSign(sunB);
     score += this.elementSynergyBonus(elA, elB);
 
-    const aspects: Array<{
-      planetA: string;
-      planetB: string;
-      aspect: string;
-      orb?: number;
-      strength?: number;
-    }> = Array.isArray(synastry?.aspects) ? synastry.aspects : [];
+    const aspects: ChartAspect[] = Array.isArray(synastry?.aspects)
+      ? synastry.aspects
+      : [];
 
     // 2) Венера—Марс
     const vm = aspects.find(
@@ -189,17 +191,7 @@ export class DatingService {
     const admin = this.supabaseService.getAdminClient();
 
     // Итоговый список кандидатов (уже обогащённых)
-    let result: Array<{
-      userId: string;
-      badge: CandidateBadge;
-      photoUrl: string | null;
-      name: string | null;
-      age: number | null;
-      zodiacSign: string | null;
-      bio: string | null;
-      interests?: string[];
-      city: string | null;
-    }> = [];
+    let result: EnrichedCandidate[] = [];
 
     // Основной путь: обогащаем данные RPC, если что-то вернулось
     if (!error && rows.length > 0) {
@@ -224,91 +216,66 @@ export class DatingService {
             .order('created_at', { ascending: false }),
         ]);
 
-      const usersMap = new Map<string, any>(
-        Array.isArray(users) ? users.map((u: any) => [u.id, u]) : [],
+      const usersMap = new Map<string, UserData>(
+        Array.isArray(users) ? users.map((u: UserData) => [u.id, u]) : [],
       );
-      const profilesMap = new Map<string, any>(
-        Array.isArray(profiles) ? profiles.map((p: any) => [p.user_id, p]) : [],
+      const profilesMap = new Map<string, UserProfile>(
+        Array.isArray(profiles)
+          ? profiles.map((p: UserProfile) => [p.user_id, p])
+          : [],
       );
 
-      const chartsMap = new Map<string, any>();
+      const chartsMap = new Map<string, UserChart>();
       if (Array.isArray(charts)) {
-        for (const ch of charts as any[]) {
-          const uid = ch.user_id as string;
+        for (const ch of charts as UserChart[]) {
+          const uid = ch.user_id;
           if (!chartsMap.has(uid)) chartsMap.set(uid, ch);
         }
       }
 
-      result = await Promise.all(
-        rows.map(async (r) => {
-          let photoUrl: string | null = null;
-          if (r.primary_photo_path) {
-            photoUrl = await this.supabaseService.createSignedUrl(
-              'user-photos',
-              r.primary_photo_path,
-              900,
-            );
-          }
+      // Batch create signed URLs for all photos (performance optimization)
+      const photoUrlPromises = rows
+        .filter((r) => r.primary_photo_path)
+        .map((r) =>
+          this.supabaseService
+            .createSignedUrl('user-photos', r.primary_photo_path!, 900)
+            .then((url) => ({ userId: r.user_id, url })),
+        );
 
-          const u = usersMap.get(r.user_id) || {};
-          const p = profilesMap.get(r.user_id) || {};
-          const ch = chartsMap.get(r.user_id) || {};
-          const sunSign =
-            p?.zodiac_sign ??
-            ch?.data?.planets?.sun?.sign ??
-            ch?.data?.data?.planets?.sun?.sign ??
-            null;
+      const photoUrls = await Promise.all(photoUrlPromises);
+      const photoUrlMap = new Map(photoUrls.map((p) => [p.userId, p.url]));
 
-          const age = this.getAgeFromBirthDate(u?.birth_date);
+      // Build candidate list without additional async calls
+      result = rows.map((r) => {
+        const u = usersMap.get(r.user_id);
+        const p = profilesMap.get(r.user_id);
+        const ch = chartsMap.get(r.user_id);
+        const sunSign =
+          p?.zodiac_sign ??
+          ch?.data?.planets?.sun?.sign ??
+          ch?.data?.data?.planets?.sun?.sign ??
+          null;
 
-          const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
-          const displayName = p?.display_name ?? u?.name ?? emailPrefix ?? null;
+        const age = this.getAgeFromBirthDate(u?.birth_date);
 
-          // interests tolerant parse
-          let interests: string[] | undefined = undefined;
-          try {
-            const prefsRaw = p?.preferences;
-            let prefsObj: any = prefsRaw;
-            if (typeof prefsRaw === 'string') {
-              try {
-                prefsObj = JSON.parse(prefsRaw);
-              } catch {
-                const splitted = prefsRaw
-                  .split(',')
-                  .map((s: string) => s.trim())
-                  .filter(Boolean);
-                if (splitted.length) interests = splitted;
-              }
-            }
-            if (!interests && prefsObj && typeof prefsObj === 'object') {
-              const intr = prefsObj?.interests;
-              if (Array.isArray(intr)) {
-                interests = intr.filter((x: any) => typeof x === 'string');
-              } else if (typeof intr === 'string') {
-                const splitted = intr
-                  .split(',')
-                  .map((s: string) => s.trim())
-                  .filter(Boolean);
-                if (splitted.length) interests = splitted;
-              }
-            }
-          } catch {
-            // ignore
-          }
+        const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
+        const displayName = p?.display_name ?? u?.name ?? emailPrefix ?? null;
 
-          return {
-            userId: r.user_id,
-            badge: r.badge,
-            photoUrl,
-            name: displayName,
-            age: age ?? null,
-            zodiacSign: sunSign,
-            bio: p?.bio ?? null,
-            interests,
-            city: p?.city ?? u?.birth_place ?? null,
-          };
-        }),
-      );
+        // Parse interests using utility function
+        const interests = parseInterests(p?.preferences);
+
+        return {
+          userId: r.user_id,
+          badge: r.badge,
+          photoUrl: photoUrlMap.get(r.user_id) ?? null,
+          name: displayName,
+          age: age ?? null,
+          zodiacSign: sunSign,
+          bio: p?.bio ?? null,
+          interests,
+          city: p?.city ?? u?.birth_place ?? null,
+        };
+      });
     }
 
     // Фолбэк: если RPC ничего не вернул ИЛИ вернуло меньше лимита — добираем свежими пользователями
@@ -317,7 +284,7 @@ export class DatingService {
       if (needMore > 0) {
         const { data: selfRes } =
           await this.supabaseService.getUser(userAccessToken);
-        const selfId = (selfRes as any)?.user?.id as string | undefined;
+        const selfId = selfRes?.user?.id;
 
         const existingIds = new Set<string>(result.map((r) => r.userId));
 
@@ -328,10 +295,11 @@ export class DatingService {
           .limit(Math.max(needMore * 3, 10));
 
         const extraIds = (Array.isArray(moreUsers) ? moreUsers : [])
-          .map((u: any) => u?.id)
+          .map((u: UserData) => u?.id)
           .filter(
-            (id) => id && id !== selfId && !existingIds.has(id),
-          ) as string[];
+            (id): id is string =>
+              typeof id === 'string' && id !== selfId && !existingIds.has(id),
+          );
 
         if (extraIds.length) {
           const [
@@ -357,37 +325,55 @@ export class DatingService {
               .in('user_id', extraIds),
           ]);
 
-          const usersById = new Map<string, any>(
-            (moreUsers || []).map((u: any) => [u.id, u]),
+          const usersById = new Map<string, UserData>(
+            (moreUsers || []).map((u: UserData) => [u.id, u]),
           );
-          const profilesById = new Map<string, any>(
+          const profilesById = new Map<string, UserProfile>(
             Array.isArray(moreProfiles)
-              ? (moreProfiles as any[]).map((p) => [p.user_id, p])
+              ? (moreProfiles as UserProfile[]).map((p) => [p.user_id, p])
               : [],
           );
-          const chartsById = new Map<string, any>();
+          const chartsById = new Map<string, UserChart>();
           if (Array.isArray(moreCharts)) {
-            for (const ch of moreCharts as any[]) {
-              const uid = ch.user_id as string;
+            for (const ch of moreCharts as UserChart[]) {
+              const uid = ch.user_id;
               if (!chartsById.has(uid)) chartsById.set(uid, ch);
             }
           }
           const photosById = new Map<string, string | null>();
           if (Array.isArray(morePhotos)) {
-            for (const ph of morePhotos as any[]) {
+            for (const ph of morePhotos as UserPhoto[]) {
               if (ph?.user_id)
                 photosById.set(ph.user_id, ph.storage_path ?? null);
             }
           }
 
-          const extraEnriched: typeof result = [];
+          // Batch create signed URLs for fallback candidates (performance optimization)
+          const fallbackPhotoPromises = extraIds
+            .slice(0, needMore) // Only process what we need
+            .filter((uid) => photosById.get(uid))
+            .map((uid) => {
+              const storagePath = photosById.get(uid);
+              return storagePath
+                ? this.supabaseService
+                    .createSignedUrl('user-photos', storagePath, 900)
+                    .then((url) => ({ userId: uid, url: url ?? null }))
+                : Promise.resolve({ userId: uid, url: null });
+            });
+
+          const fallbackPhotoUrls = await Promise.all(fallbackPhotoPromises);
+          const fallbackPhotoUrlMap = new Map(
+            fallbackPhotoUrls.map((p) => [p.userId, p.url]),
+          );
+
+          const extraEnriched: EnrichedCandidate[] = [];
           for (const uid of extraIds) {
             if (extraEnriched.length >= needMore) break;
             if (result.find((r) => r.userId === uid)) continue;
 
-            const u = usersById.get(uid) || {};
-            const p = profilesById.get(uid) || {};
-            const ch = chartsById.get(uid) || {};
+            const u = usersById.get(uid);
+            const p = profilesById.get(uid);
+            const ch = chartsById.get(uid);
 
             const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
             const displayName =
@@ -400,53 +386,13 @@ export class DatingService {
               ch?.data?.data?.planets?.sun?.sign ??
               null;
 
-            let photoUrl: string | null = null;
-            const storagePath = photosById.get(uid) || null;
-            if (storagePath) {
-              photoUrl =
-                (await this.supabaseService.createSignedUrl(
-                  'user-photos',
-                  storagePath,
-                  900,
-                )) ?? null;
-            }
-
-            // interests tolerant parse
-            let interests: string[] | undefined = undefined;
-            try {
-              const prefsRaw = p?.preferences;
-              let prefsObj: any = prefsRaw;
-              if (typeof prefsRaw === 'string') {
-                try {
-                  prefsObj = JSON.parse(prefsRaw);
-                } catch {
-                  const splitted = prefsRaw
-                    .split(',')
-                    .map((s: string) => s.trim())
-                    .filter(Boolean);
-                  if (splitted.length) interests = splitted;
-                }
-              }
-              if (!interests && prefsObj && typeof prefsObj === 'object') {
-                const intr = prefsObj?.interests;
-                if (Array.isArray(intr)) {
-                  interests = intr.filter((x: any) => typeof x === 'string');
-                } else if (typeof intr === 'string') {
-                  const splitted = intr
-                    .split(',')
-                    .map((s: string) => s.trim())
-                    .filter(Boolean);
-                  if (splitted.length) interests = splitted;
-                }
-              }
-            } catch {
-              // ignore
-            }
+            // Parse interests using utility function
+            const interests = parseInterests(p?.preferences);
 
             extraEnriched.push({
               userId: uid,
               badge: 'low',
-              photoUrl,
+              photoUrl: fallbackPhotoUrlMap.get(uid) ?? null,
               name: displayName,
               age: age ?? null,
               zodiacSign: sunSign ?? null,
@@ -611,8 +557,8 @@ export class DatingService {
         const finalCompatibility = this.calcFinalCompatibility(
           baseCompatibility,
           syn,
-          selfChart,
-          c,
+          selfChart.data as unknown as ChartData,
+          c.data as unknown as ChartData,
         );
 
         const partnerName =
@@ -866,11 +812,11 @@ export class DatingService {
       photos = null;
     }
     // Фолбэк: если primary отсутствует, но есть любое фото — возьмём первое
-    if (!primaryPhotoUrl && Array.isArray(photos) && photos.length > 0) {
+    if (!primaryPhotoUrl && Array.isArray(photos) && photos?.length > 0) {
       primaryPhotoUrl = photos[0];
     }
     // Фолбэк: если primary отсутствует, но есть любое фото — возьмём первое
-    if (!primaryPhotoUrl && Array.isArray(photos) && photos.length > 0) {
+    if (!primaryPhotoUrl && Array.isArray(photos) && photos?.length > 0) {
       primaryPhotoUrl = photos[0];
     }
 

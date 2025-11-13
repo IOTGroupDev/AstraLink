@@ -5,7 +5,11 @@ import type {
   CreateConnectionRequest,
   SynastryResponse,
   CompositeResponse,
+  BirthData,
+  LocationCoordinates,
 } from '../types';
+import { getLocationFromBirthData } from '../utils/location.utils';
+import type { ChartData } from '../dating/dating.types';
 
 @Injectable()
 export class ConnectionsService {
@@ -38,40 +42,16 @@ export class ConnectionsService {
     userId: string,
     connectionId: string,
   ): Promise<SynastryResponse> {
-    const connection = await this.prisma.connection.findFirst({
-      where: {
-        id: connectionId,
-        userId: userId,
-      },
-    });
+    // Get connection and validate
+    const connection = await this.getConnectionOrThrow(userId, connectionId);
 
-    if (!connection) {
-      throw new NotFoundException('Связь не найдена');
-    }
+    // Get user chart
+    const userChart = await this.getUserChartOrThrow(userId);
 
-    // Получаем натальную карту пользователя
-    const userChart = await this.prisma.chart.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Calculate target chart
+    const targetChart = await this.calculateTargetChart(connection.targetData);
 
-    if (!userChart) {
-      throw new NotFoundException('Натальная карта пользователя не найдена');
-    }
-
-    // Рассчитываем натальную карту для цели
-    const targetData = connection.targetData as any;
-    const location = this.getLocationCoordinates(
-      targetData.birthPlace || 'Москва',
-    );
-
-    const targetChart = await this.ephemerisService.calculateNatalChart(
-      targetData.birthDate,
-      targetData.birthTime,
-      location,
-    );
-
-    // Рассчитываем синастрию
+    // Calculate synastry
     const synastryData = await this.ephemerisService.getSynastry(
       userChart.data,
       targetChart,
@@ -87,40 +67,16 @@ export class ConnectionsService {
     userId: string,
     connectionId: string,
   ): Promise<CompositeResponse> {
-    const connection = await this.prisma.connection.findFirst({
-      where: {
-        id: connectionId,
-        userId: userId,
-      },
-    });
+    // Get connection and validate
+    const connection = await this.getConnectionOrThrow(userId, connectionId);
 
-    if (!connection) {
-      throw new NotFoundException('Связь не найдена');
-    }
+    // Get user chart
+    const userChart = await this.getUserChartOrThrow(userId);
 
-    // Получаем натальную карту пользователя
-    const userChart = await this.prisma.chart.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Calculate target chart
+    const targetChart = await this.calculateTargetChart(connection.targetData);
 
-    if (!userChart) {
-      throw new NotFoundException('Натальная карта пользователя не найдена');
-    }
-
-    // Рассчитываем натальную карту для цели
-    const targetData = connection.targetData as any;
-    const location = this.getLocationCoordinates(
-      targetData.birthPlace || 'Москва',
-    );
-
-    const targetChart = await this.ephemerisService.calculateNatalChart(
-      targetData.birthDate,
-      targetData.birthTime,
-      location,
-    );
-
-    // Рассчитываем композитную карту
+    // Calculate composite chart
     const compositeData = await this.ephemerisService.getComposite(
       userChart.data,
       targetChart,
@@ -132,23 +88,69 @@ export class ConnectionsService {
   }
 
   /**
-   * Получает координаты места рождения
+   * Get connection by ID and validate ownership
+   * @throws NotFoundException if connection not found
    */
-  private getLocationCoordinates(birthPlace: string): {
-    latitude: number;
-    longitude: number;
-    timezone: number;
-  } {
-    const locations: {
-      [key: string]: { latitude: number; longitude: number; timezone: number };
-    } = {
-      Москва: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
-      'Санкт-Петербург': { latitude: 59.9311, longitude: 30.3609, timezone: 3 },
-      Екатеринбург: { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
-      Новосибирск: { latitude: 55.0084, longitude: 82.9357, timezone: 7 },
-      default: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
-    };
+  private async getConnectionOrThrow(
+    userId: string,
+    connectionId: string,
+  ): Promise<{ id: string; targetName: string; targetData: BirthData }> {
+    const connection = await this.prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        userId: userId,
+      },
+    });
 
-    return locations[birthPlace] || locations['default'];
+    if (!connection) {
+      throw new NotFoundException('Связь не найдена');
+    }
+
+    return {
+      id: connection.id,
+      targetName: connection.targetName,
+      targetData: connection.targetData as BirthData,
+    };
+  }
+
+  /**
+   * Get user's natal chart
+   * @throws NotFoundException if chart not found
+   */
+  private async getUserChartOrThrow(
+    userId: string,
+  ): Promise<{ data: ChartData }> {
+    const userChart = await this.prisma.chart.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!userChart) {
+      throw new NotFoundException('Натальная карта пользователя не найдена');
+    }
+
+    return {
+      data: userChart.data as ChartData,
+    };
+  }
+
+  /**
+   * Calculate natal chart for target person
+   */
+  private async calculateTargetChart(
+    targetData: BirthData,
+  ): Promise<ChartData> {
+    const location: LocationCoordinates = getLocationFromBirthData(
+      targetData.birthPlace,
+      targetData.latitude,
+      targetData.longitude,
+      targetData.timezone,
+    );
+
+    return this.ephemerisService.calculateNatalChart(
+      targetData.birthDate,
+      targetData.birthTime,
+      location,
+    );
   }
 }

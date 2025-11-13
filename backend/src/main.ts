@@ -2,7 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as compression from 'compression';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { validateEnv } from './config/env.validation';
 import * as os from 'os';
 
 // Функция для получения локального IP
@@ -23,7 +25,40 @@ function getLocalIP(): string {
 }
 
 async function bootstrap() {
+  // Validate environment variables on startup
+  try {
+    validateEnv();
+    console.log('✅ Environment variables validated successfully');
+  } catch (error) {
+    console.error((error as Error).message);
+    process.exit(1);
+  }
+
   const app = await NestFactory.create(AppModule, { cors: false });
+
+  // Security headers with Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+        },
+      },
+      hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true,
+      },
+      frameguard: {
+        action: 'deny',
+      },
+      noSniff: true,
+      xssFilter: true,
+    }),
+  );
 
   app.use(compression());
   app.setGlobalPrefix('api');

@@ -1368,7 +1368,6 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { chartAPI } from '../services/api';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import LoadingLogo from '../components/swap/LoadingLogo';

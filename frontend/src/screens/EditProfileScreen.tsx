@@ -128,6 +128,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [showAllInterests, setShowAllInterests] = useState(false);
   const [bio, setBio] = useState('');
+  const [city, setCity] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -180,6 +181,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       try {
         const userProfile = await userExtendedProfileAPI.getUserProfile();
         setBio(userProfile.bio || '');
+        setCity(userProfile.city || '');
         setSelectedInterests(userProfile.preferences?.interests || []);
         setGender((userProfile.gender as any) || '');
       } catch (err) {
@@ -313,13 +315,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       // Update basic profile
       await userAPI.updateProfile(formData);
 
-      // Update extended profile (bio, gender, interests)
+      // Update extended profile (bio, city, gender, interests)
       const extPayload: any = {
         bio,
         preferences: {
           interests: selectedInterests,
         },
       };
+      if (city?.trim()) extPayload.city = city.trim();
       if (gender) extPayload.gender = gender;
       await userExtendedProfileAPI.updateUserProfile(extPayload);
 
@@ -473,6 +476,17 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               }
               placeholder="Город, страна"
               icon="location-outline"
+              animationValue={animationValue}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Место жительства</Text>
+            <AstralInput
+              value={city}
+              onChangeText={setCity}
+              placeholder="Город, страна"
+              icon="home-outline"
               animationValue={animationValue}
             />
           </View>

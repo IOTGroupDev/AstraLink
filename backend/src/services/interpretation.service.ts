@@ -16,63 +16,18 @@ import {
   getAscendantMeta,
 } from '../modules/shared/astro-text';
 import { getEssentialDignity } from '../modules/shared/types';
-import type { DignityLevel } from '../modules/shared/types';
-
-export interface PlanetInterpretation {
-  planet: string;
-  sign: string;
-  house: number;
-  degree: number;
-  interpretation: string;
-  keywords: string[];
-  strengths: string[];
-  challenges: string[];
-}
-
-export interface NatalChartInterpretation {
-  overview: string;
-  sunSign: PlanetInterpretation;
-  moonSign: PlanetInterpretation;
-  ascendant: PlanetInterpretation;
-  planets: PlanetInterpretation[];
-  aspects: {
-    aspect: string;
-    interpretation: string;
-    significance: string;
-    orb: number;
-    strength: number;
-    planetA: string;
-    planetB: string;
-    type: string;
-  }[];
-  houses: {
-    house: number;
-    sign: string;
-    interpretation: string;
-    lifeArea: string;
-    keywords: string[];
-    strengths: string[];
-    challenges: string[];
-    planets: string[];
-    theme: string;
-    rulingPlanet: string;
-  }[];
-  summary: {
-    personalityTraits: string[];
-    lifeThemes: string[];
-    karmaLessons: string[];
-    talents: string[];
-    recommendations: string[];
-    dominantElements: string[];
-    dominantQualities: string[];
-    lifePurpose: string;
-    relationships: string;
-    careerPath: string;
-    spiritualPath: string;
-    healthFocus: string;
-    financialApproach: string;
-  };
-}
+import type { DignityLevel, PlanetKey, Sign } from '../modules/shared/types';
+import type {
+  ChartData,
+  Planet,
+  House,
+  ChartAspect,
+  PlanetInterpretation,
+  AspectInterpretation,
+  HouseInterpretation,
+  NatalChartInterpretation,
+  ChartSummary,
+} from './interpretation.types';
 
 @Injectable()
 export class InterpretationService {
@@ -85,7 +40,7 @@ export class InterpretationService {
    */
   async generateNatalChartInterpretation(
     userId: string,
-    chartData: any,
+    chartData: ChartData,
     locale: 'ru' | 'en' = 'ru',
   ): Promise<NatalChartInterpretation> {
     this.logger.log(`Генерация интерпретации натальной карты для ${userId}`);
@@ -99,18 +54,18 @@ export class InterpretationService {
 
     // Солнце
     const sun = planets.sun;
-    if (sun) {
+    if (sun && sun.sign) {
       planetsInterpretation.push({
         planet: locale === 'en' ? 'Sun' : 'Солнце',
         sign: sun.sign,
         house: this.getPlanetHouse(sun.longitude, houses),
-        degree: sun.degree,
+        degree: Math.round(sun.longitude % 30),
         interpretation: this.interpretPlanetInSign(
           'sun',
           sun.sign,
           this.getPlanetHouse(sun.longitude, houses),
           getEssentialDignity('sun', sun.sign),
-          !!sun.isRetrograde,
+          !!sun.retrograde,
           locale,
         ),
         keywords: this.getPlanetKeywords('sun', sun.sign, locale),
@@ -121,15 +76,15 @@ export class InterpretationService {
 
     // Луна
     const moon = planets.moon;
-    if (moon) {
+    if (moon && moon.sign) {
       const moonHouse = this.getPlanetHouse(moon.longitude, houses);
       const moonDignity = getEssentialDignity('moon', moon.sign);
-      const moonRetro = !!moon.isRetrograde;
+      const moonRetro = !!moon.retrograde;
       planetsInterpretation.push({
         planet: locale === 'en' ? 'Moon' : 'Луна',
         sign: moon.sign,
         house: moonHouse,
-        degree: moon.degree,
+        degree: Math.round(moon.longitude % 30),
         interpretation: this.interpretPlanetInSign(
           'moon',
           moon.sign,
@@ -147,15 +102,20 @@ export class InterpretationService {
     // Остальные планеты
     for (const [planetKey, planetData] of Object.entries(planets)) {
       if (planetKey !== 'sun' && planetKey !== 'moon') {
-        const planet: any = planetData;
+        const planet = planetData;
+        if (!planet.sign) continue; // Skip if no sign data
+
         const houseNum = this.getPlanetHouse(planet.longitude, houses);
-        const dignity = getEssentialDignity(planetKey as any, planet.sign);
-        const retro = !!planet.isRetrograde;
+        const dignity = getEssentialDignity(
+          planetKey as PlanetKey,
+          planet.sign as Sign,
+        );
+        const retro = !!planet.retrograde;
         planetsInterpretation.push({
           planet: this.getPlanetName(planetKey),
           sign: planet.sign,
           house: houseNum,
-          degree: planet.degree,
+          degree: Math.round(planet.longitude % 30),
           interpretation: this.interpretPlanetInSign(
             planetKey,
             planet.sign,
@@ -172,90 +132,104 @@ export class InterpretationService {
     }
 
     // Интерпретация аспектов
-    const aspectsInterpretation = aspects.map((aspect: any) => {
-      const name = `${this.getPlanetName(aspect.planetA)} ${this.getAspectName(aspect.aspect, locale)} ${this.getPlanetName(aspect.planetB)}`;
+    const aspectsInterpretation: AspectInterpretation[] = aspects.map(
+      (aspect) => {
+        const name = `${this.getPlanetName(aspect.planetA)} ${this.getAspectName(aspect.aspect, locale)} ${this.getPlanetName(aspect.planetB)}`;
 
-      let focusA = '';
-      let focusB = '';
-      try {
-        const a = planets?.[aspect.planetA];
-        const b = planets?.[aspect.planetB];
-        const aHouse = a ? this.getPlanetHouse(a.longitude, houses) : undefined;
-        const bHouse = b ? this.getPlanetHouse(b.longitude, houses) : undefined;
-        const areaA = aHouse ? this.getHouseLifeArea(aHouse, locale) : '';
-        const areaB = bHouse ? this.getHouseLifeArea(bHouse, locale) : '';
-        if (areaA) focusA = `${this.getPlanetName(aspect.planetA)} → ${areaA}`;
-        if (areaB) focusB = `${this.getPlanetName(aspect.planetB)} → ${areaB}`;
-      } catch (_e) {
-        // ignore focus derivation errors
-      }
+        let focusA = '';
+        let focusB = '';
+        try {
+          const a = planets?.[aspect.planetA];
+          const b = planets?.[aspect.planetB];
+          const aHouse = a
+            ? this.getPlanetHouse(a.longitude, houses)
+            : undefined;
+          const bHouse = b
+            ? this.getPlanetHouse(b.longitude, houses)
+            : undefined;
+          const areaA = aHouse ? this.getHouseLifeArea(aHouse, locale) : '';
+          const areaB = bHouse ? this.getHouseLifeArea(bHouse, locale) : '';
+          if (areaA)
+            focusA = `${this.getPlanetName(aspect.planetA)} → ${areaA}`;
+          if (areaB)
+            focusB = `${this.getPlanetName(aspect.planetB)} → ${areaB}`;
+        } catch (_e) {
+          // ignore focus derivation errors
+        }
 
-      const base = this.interpretAspect(
-        aspect.planetA,
-        aspect.planetB,
-        aspect.aspect,
-        locale,
-      );
-      const focus = [focusA, focusB].filter(Boolean).join('; ');
-      const strengthText =
-        aspect.strength > 0.8
-          ? 'Очень сильный аспект'
-          : aspect.strength > 0.6
-            ? 'Сильный аспект'
-            : aspect.strength > 0.4
-              ? 'Умеренный аспект'
-              : 'Слабый аспект';
-
-      return {
-        aspect: name,
-        interpretation: [base, focus ? `Фокус: ${focus}.` : '']
-          .filter(Boolean)
-          .join(' '),
-        significance: `${strengthText}`,
-        orb: aspect.orb || 0,
-        strength: Math.round((aspect.strength || 0) * 100),
-        planetA: this.getPlanetName(aspect.planetA),
-        planetB: this.getPlanetName(aspect.planetB),
-        type: this.getAspectName(aspect.aspect, locale),
-      };
-    });
-
-    // Интерпретация домов
-    const housesInterpretation = Object.entries(houses).map(
-      ([houseNum, houseData]: [string, any]) => {
-        const houseNumber = parseInt(houseNum);
-        const planetsInHouse = this.getPlanetsInHouse(
-          houseNumber,
-          planets,
-          houses,
+        const base = this.interpretAspect(
+          aspect.planetA,
+          aspect.planetB,
+          aspect.aspect,
+          locale,
         );
+        const focus = [focusA, focusB].filter(Boolean).join('; ');
+        const strength = aspect.strength || 0;
+        const strengthText =
+          strength > 0.8
+            ? 'Очень сильный аспект'
+            : strength > 0.6
+              ? 'Сильный аспект'
+              : strength > 0.4
+                ? 'Умеренный аспект'
+                : 'Слабый аспект';
 
         return {
-          house: houseNumber,
-          sign: houseData.sign,
-          interpretation: this.interpretHouse(
-            houseNumber,
-            houseData.sign,
-            locale,
-          ),
-          lifeArea: this.getHouseLifeArea(houseNumber, locale),
-          keywords: this.getHouseKeywords(houseNumber, houseData.sign, locale),
-          strengths: this.getHouseStrengths(
-            houseNumber,
-            houseData.sign,
-            locale,
-          ),
-          challenges: this.getHouseChallenges(
-            houseNumber,
-            houseData.sign,
-            locale,
-          ),
-          planets: planetsInHouse,
-          theme: getHouseTheme(houseNumber, houseData.sign, locale),
-          rulingPlanet: this.getHouseRulingPlanet(houseNumber, locale),
+          aspect: name,
+          interpretation: [base, focus ? `Фокус: ${focus}.` : '']
+            .filter(Boolean)
+            .join(' '),
+          significance: `${strengthText}`,
+          orb: aspect.orb || 0,
+          strength: Math.round((aspect.strength || 0) * 100),
+          planetA: this.getPlanetName(aspect.planetA),
+          planetB: this.getPlanetName(aspect.planetB),
+          type: this.getAspectName(aspect.aspect, locale),
         };
       },
     );
+
+    // Интерпретация домов
+    const housesInterpretation: HouseInterpretation[] = Object.entries(
+      houses,
+    ).map(([houseNum, houseData]) => {
+      const house = houseData;
+      const houseNumber = parseInt(houseNum);
+      const planetsInHouse = this.getPlanetsInHouse(
+        houseNumber,
+        planets,
+        houses,
+      );
+
+      return {
+        house: houseNumber,
+        sign: house.sign || '',
+        interpretation: this.interpretHouse(
+          houseNumber,
+          house.sign || 'Aries',
+          locale,
+        ),
+        lifeArea: this.getHouseLifeArea(houseNumber, locale),
+        keywords: this.getHouseKeywords(
+          houseNumber,
+          house.sign || 'Aries',
+          locale,
+        ),
+        strengths: this.getHouseStrengths(
+          houseNumber,
+          house.sign || 'Aries',
+          locale,
+        ),
+        challenges: this.getHouseChallenges(
+          houseNumber,
+          house.sign || 'Aries',
+          locale,
+        ),
+        planets: planetsInHouse,
+        theme: getHouseTheme(houseNumber, house.sign || 'Aries', locale),
+        rulingPlanet: this.getHouseRulingPlanet(houseNumber, locale),
+      };
+    });
 
     // Асцендент (1-й дом)
     const ascSign = houses[1]?.sign || (locale === 'en' ? 'Aries' : 'Овен');
@@ -356,7 +330,7 @@ export class InterpretationService {
     locale: 'ru' | 'en',
   ): string {
     const base =
-      getPlanetInSignText(planet as any, sign as any, locale) ||
+      getPlanetInSignText(planet as PlanetKey, sign as Sign, locale) ||
       (locale === 'en'
         ? `${this.getPlanetName(planet)} in ${sign} influences your life uniquely.`
         : `${this.getPlanetName(planet)} в ${sign} влияет на вашу жизнь уникальным образом.`);
@@ -405,9 +379,9 @@ export class InterpretationService {
     locale: 'ru' | 'en',
   ): string {
     return getAspectInterpretation(
-      aspect as any,
-      planet1 as any,
-      planet2 as any,
+      aspect as import('../modules/shared/types').AspectType,
+      planet1 as PlanetKey,
+      planet2 as PlanetKey,
       locale,
     );
   }
@@ -415,7 +389,7 @@ export class InterpretationService {
   /**
    * Генерация обзора натальной карты
    */
-  private generateOverview(chartData: any, locale: 'ru' | 'en'): string {
+  private generateOverview(chartData: ChartData, locale: 'ru' | 'en'): string {
     const sun = chartData.planets?.sun;
     const moon = chartData.planets?.moon;
     const asc = chartData.houses?.[1];
@@ -440,25 +414,11 @@ Together, these form a coherent portrait of your personality and life path.`;
    */
   private generateExpandedSummary(
     planets: PlanetInterpretation[],
-    aspects: any[],
-    houses: any[],
-    chartData: any,
+    aspects: AspectInterpretation[],
+    houses: HouseInterpretation[],
+    chartData: ChartData,
     locale: 'ru' | 'en',
-  ): {
-    personalityTraits: string[];
-    lifeThemes: string[];
-    karmaLessons: string[];
-    talents: string[];
-    recommendations: string[];
-    dominantElements: string[];
-    dominantQualities: string[];
-    lifePurpose: string;
-    relationships: string;
-    careerPath: string;
-    spiritualPath: string;
-    healthFocus: string;
-    financialApproach: string;
-  } {
+  ): ChartSummary {
     // Анализируем планеты для определения черт личности
     const personalityTraits: string[] = [];
     const talents: string[] = [];
@@ -517,7 +477,10 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   // Вспомогательные методы
 
-  private getPlanetHouse(longitude: number, houses: any): number {
+  private getPlanetHouse(
+    longitude: number,
+    houses: Record<number, House>,
+  ): number {
     for (let i = 1; i <= 12; i++) {
       const currentCusp = houses[i]?.cusp || 0;
       const nextCusp = houses[i === 12 ? 1 : i + 1]?.cusp || 0;
@@ -532,11 +495,16 @@ Together, these form a coherent portrait of your personality and life path.`;
   }
 
   private getPlanetName(key: string): string {
-    return getPlanetNameRu(key as any) || key;
+    return getPlanetNameRu(key as PlanetKey) || key;
   }
 
   private getAspectName(aspect: string, locale: 'ru' | 'en'): string {
-    return getATAspectName(aspect as any, locale) || aspect;
+    return (
+      getATAspectName(
+        aspect as import('../modules/shared/types').AspectType,
+        locale,
+      ) || aspect
+    );
   }
 
   private getPlanetKeywords(
@@ -544,7 +512,7 @@ Together, these form a coherent portrait of your personality and life path.`;
     sign: string,
     locale: 'ru' | 'en',
   ): string[] {
-    return getATKeywords(planet as any, sign as any, locale);
+    return getATKeywords(planet as PlanetKey, sign as Sign, locale);
   }
 
   private getPlanetStrengths(
@@ -552,7 +520,7 @@ Together, these form a coherent portrait of your personality and life path.`;
     sign: string,
     locale: 'ru' | 'en',
   ): string[] {
-    return getATStrengths(planet as any, sign as any, locale);
+    return getATStrengths(planet as PlanetKey, sign as Sign, locale);
   }
 
   private getPlanetChallenges(
@@ -560,27 +528,27 @@ Together, these form a coherent portrait of your personality and life path.`;
     sign: string,
     locale: 'ru' | 'en',
   ): string[] {
-    return getATChallenges(planet as any, sign as any, locale);
+    return getATChallenges(planet as PlanetKey, sign as Sign, locale);
   }
 
   private getAscendantKeywords(sign: string, locale: 'ru' | 'en'): string[] {
-    const meta = getAscendantMeta(sign as any, locale);
+    const meta = getAscendantMeta(sign as Sign, locale);
     return meta.keywords;
   }
 
   private getAscendantStrengths(sign: string, locale: 'ru' | 'en'): string[] {
-    const meta = getAscendantMeta(sign as any, locale);
+    const meta = getAscendantMeta(sign as Sign, locale);
     return meta.strengths;
   }
 
   private getAscendantChallenges(sign: string, locale: 'ru' | 'en'): string[] {
-    const meta = getAscendantMeta(sign as any, locale);
+    const meta = getAscendantMeta(sign as Sign, locale);
     return meta.challenges;
   }
 
   private interpretAscendant(sign: string, locale: 'ru' | 'en'): string {
     return (
-      getAscendantText(sign as any, locale) ||
+      getAscendantText(sign as Sign, locale) ||
       (locale === 'en'
         ? `Ascendant in ${sign} shapes your outer image.`
         : `Асцендент в ${sign} формирует ваш внешний образ.`)
@@ -593,7 +561,7 @@ Together, these form a coherent portrait of your personality and life path.`;
     locale: 'ru' | 'en',
   ): string {
     return (
-      getHouseSignInterpretation(houseNum, sign as any, locale) ||
+      getHouseSignInterpretation(houseNum, sign as Sign, locale) ||
       (locale === 'en'
         ? `${houseNum} house in ${sign} influences an important life area.`
         : `${houseNum}-й дом в ${sign} влияет на важную жизненную сферу.`)
@@ -616,11 +584,11 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private getPlanetsInHouse(
     houseNum: number,
-    planets: any,
-    houses: any,
+    planets: Record<string, Planet>,
+    houses: Record<number, House>,
   ): string[] {
     const result: string[] = [];
-    Object.entries(planets).forEach(([key, planet]: [string, any]) => {
+    Object.entries(planets).forEach(([key, planet]) => {
       const planetHouse = this.getPlanetHouse(planet.longitude, houses);
       if (planetHouse === houseNum) {
         result.push(this.getPlanetName(key));
@@ -799,8 +767,8 @@ Together, these form a coherent portrait of your personality and life path.`;
   }
 
   private analyzeLifeThemes(
-    aspects: any[],
-    houses: any[],
+    aspects: AspectInterpretation[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string[] {
     const themes: string[] = [];
@@ -834,7 +802,7 @@ Together, these form a coherent portrait of your personality and life path.`;
   }
 
   private analyzeKarmaLessons(
-    aspects: any[],
+    aspects: AspectInterpretation[],
     planets: PlanetInterpretation[],
     locale: 'ru' | 'en',
   ): string[] {
@@ -871,8 +839,8 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private generateDetailedRecommendations(
     planets: PlanetInterpretation[],
-    aspects: any[],
-    houses: any[],
+    aspects: AspectInterpretation[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string[] {
     const recommendations: string[] = [];
@@ -924,7 +892,7 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private analyzeLifePurpose(
     planets: PlanetInterpretation[],
-    houses: any[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string {
     // Analyze sun, moon, and 10th house for life purpose
@@ -956,8 +924,8 @@ Together, these form a coherent portrait of your personality and life path.`;
   }
 
   private analyzeRelationships(
-    aspects: any[],
-    houses: any[],
+    aspects: AspectInterpretation[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string {
     const seventhHouse = houses.find((h: any) => h.house === 7);
@@ -992,7 +960,7 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private analyzeCareerPath(
     planets: PlanetInterpretation[],
-    houses: any[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string {
     const tenthHouse = houses.find((h: any) => h.house === 10);
@@ -1055,7 +1023,7 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private analyzeSpiritualPath(
     planets: PlanetInterpretation[],
-    houses: any[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string {
     const twelfthHouse = houses.find((h: any) => h.house === 12);
@@ -1104,7 +1072,7 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private analyzeHealthFocus(
     planets: PlanetInterpretation[],
-    houses: any[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string {
     const sixthHouse = houses.find((h: any) => h.house === 6);
@@ -1153,7 +1121,7 @@ Together, these form a coherent portrait of your personality and life path.`;
 
   private analyzeFinancialApproach(
     planets: PlanetInterpretation[],
-    houses: any[],
+    houses: HouseInterpretation[],
     locale: 'ru' | 'en',
   ): string {
     const secondHouse = houses.find((h: any) => h.house === 2);

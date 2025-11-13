@@ -1271,6 +1271,7 @@ export const userExtendedProfileAPI = {
   updateUserProfile: async (data: {
     bio?: string;
     gender?: string;
+    city?: string;
     preferences?: {
       interests?: string[];
       [key: string]: any;

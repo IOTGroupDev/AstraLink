@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  Image,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,7 +30,7 @@ import NatalChartWidget from '../components/profile/NatalChartWidget';
 import { useAuth } from '../hooks/useAuth';
 import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
-import { userAPI, chartAPI } from '../services/api';
+import { userAPI, chartAPI, userPhotosAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
@@ -88,6 +89,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [chart, setChart] = useState<Chart | null>(null);
+  const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -180,6 +182,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         const data = cRes.reason?.response?.data;
         console.log('ℹ️ getNatalChart failed (опционально):', st, data);
         setChart(null);
+      }
+
+      // USER PHOTOS (опционально, для аватара)
+      try {
+        const photos = await userPhotosAPI.listPhotos();
+        const primary = photos.find((p) => p.isPrimary) || photos[0];
+        setPrimaryPhotoUrl(primary?.url || null);
+      } catch (photoErr) {
+        console.log('ℹ️ listPhotos failed (опционально):', photoErr);
+        setPrimaryPhotoUrl(null);
       }
     } catch (error: any) {
       // сюда попадём только если упал getProfile (критично)
@@ -302,9 +314,25 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <View style={styles.avatarContainer}>
               <Animated.View style={[styles.avatarGlow, animatedGlowStyle]}>
                 <View style={styles.avatarWrapper}>
-                  <ZodiacAvatar zodiacSign={zodiacSign} size={120} />
+                  {primaryPhotoUrl ? (
+                    <Image
+                      source={{ uri: primaryPhotoUrl }}
+                      style={styles.avatarImage}
+                      onError={() => setPrimaryPhotoUrl(null)}
+                    />
+                  ) : (
+                    <ZodiacAvatar zodiacSign={zodiacSign} size={120} />
+                  )}
                 </View>
               </Animated.View>
+
+              <TouchableOpacity
+                style={styles.changePhotoButton}
+                onPress={() => navigation.navigate('EditProfileScreen')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera" size={16} color="#fff" />
+              </TouchableOpacity>
 
               {/* Premium Badge */}
               {subscription?.tier !== 'free' && (
@@ -508,6 +536,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
   premiumBadge: {
     position: 'absolute',
     bottom: -8,
@@ -518,6 +551,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#701F86',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  changePhotoButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(112, 31, 134, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   userName: {
     fontSize: 24,

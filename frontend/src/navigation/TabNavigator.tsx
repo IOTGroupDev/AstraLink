@@ -33,7 +33,7 @@ export default function TabNavigator() {
             name = 'time-outline';
           } else if (route.name === 'Dating') {
             name = 'heart-outline';
-          } else if (route.name === 'advisor') {
+          } else if (route.name === 'Advisor') {
             name = 'chatbubbles-outline';
           } else if (route.name === 'Messages') {
             name = 'chatbubbles-outline';
@@ -41,8 +41,8 @@ export default function TabNavigator() {
             name = 'person-circle-outline';
           }
 
-          // Добавляем красный бейдж "AI" для вкладки Советник
-          if (route.name === 'advisor') {
+          // Добавляем красный бейдж "AI" для вкладки Советник (всегда отображается)
+          if (route.name === 'Advisor') {
             const badgeSize = 16;
             return (
               <View
@@ -159,25 +159,25 @@ export default function TabNavigator() {
         options={{ title: 'Dating', headerShown: false }}
       />
       <Tab.Screen
-        name="Advisor"
-        component={AdvisorChatScreen}
-        options={{ title: 'Советник', headerShown: false }}
-      />
-      <Tab.Screen
         name="Messages"
         component={ChatListScreen}
         options={{ title: 'Сообщения', headerShown: false }}
+      />
+      <Tab.Screen
+        name="Advisor"
+        component={AdvisorChatScreen}
+        options={{ title: 'Советник', headerShown: false }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{ title: 'Профиль', headerShown: false }}
       />
-      <Tab.Screen
-        name="Clear"
-        component={ClearScreen}
-        options={{ title: 'Очистка', headerShown: false }}
-      />
+      {/*<Tab.Screen*/}
+      {/*  name="Clear"*/}
+      {/*  component={ClearScreen}*/}
+      {/*  options={{ title: 'Очистка', headerShown: false }}*/}
+      {/*/>*/}
     </Tab.Navigator>
   );
 }
