@@ -23,7 +23,7 @@ import type { AuthenticatedRequest } from '../types/auth';
 
 interface GenerateHoroscopeDto {
   period: 'day' | 'tomorrow' | 'week' | 'month';
-  provider?: 'claude' | 'openai'; // ✅ Выбор AI провайдера
+  provider?: 'claude' | 'openai' | 'deepseek'; // ✅ Выбор AI провайдера
   useStreaming?: boolean;
 }
 
@@ -73,6 +73,12 @@ export class AIController {
           model: 'claude-sonnet-4-5',
           cost: '$3/1M input, $15/1M output',
           quality: 'premium',
+        },
+        deepseek: {
+          available: this.aiService.isProviderAvailable('deepseek'),
+          model: 'deepseek-chat',
+          cost: '$0.14/1M input, $0.28/1M output',
+          quality: 'excellent',
         },
         openai: {
           available: this.aiService.isProviderAvailable('openai'),

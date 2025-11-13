@@ -19,13 +19,14 @@ interface AIGenerationContext {
   };
 }
 
-type AIProvider = 'claude' | 'openai' | 'none';
+type AIProvider = 'claude' | 'openai' | 'deepseek' | 'none';
 
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
   private anthropic: Anthropic | null = null;
   private openai: OpenAI | null = null;
+  private deepseek: OpenAI | null = null; // DeepSeek uses OpenAI-compatible API
   private provider: AIProvider = 'none';
 
   constructor(private configService: ConfigService) {
@@ -33,17 +34,19 @@ export class AIService {
   }
 
   /**
-   * Инициализация AI провайдеров (оба могут быть доступны одновременно)
+   * Инициализация AI провайдеров (все могут быть доступны одновременно)
    * Поддержка глобального выбора провайдера через AI_PROVIDER_PREFERENCE
    */
   private initializeAIProviders() {
     const claudeKey = this.configService.get<string>('ANTHROPIC_API_KEY');
     const openaiKey = this.configService.get<string>('OPENAI_API_KEY');
-    // 🎯 Глобальная настройка провайдера: 'claude' | 'openai' | 'auto' (default)
+    const deepseekKey = this.configService.get<string>('DEEPSEEK_API_KEY');
+    // 🎯 Глобальная настройка провайдера: 'claude' | 'openai' | 'deepseek' | 'auto' (default)
     const providerPreference = this.configService.get<string>('AI_PROVIDER_PREFERENCE') || 'auto';
 
     let claudeInitialized = false;
     let openaiInitialized = false;
+    let deepseekInitialized = false;
 
     // Initialize Claude if key available
     if (claudeKey) {
@@ -71,6 +74,22 @@ export class AIService {
       }
     }
 
+    // Initialize DeepSeek if key available
+    if (deepseekKey) {
+      try {
+        this.deepseek = new OpenAI({
+          apiKey: deepseekKey,
+          baseURL: 'https://api.deepseek.com', // DeepSeek API endpoint
+        });
+        deepseekInitialized = true;
+        this.logger.log('✅ DeepSeek AI инициализирован');
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error('❌ Ошибка инициализации DeepSeek:', errorMessage);
+      }
+    }
+
     // Set primary provider based on AI_PROVIDER_PREFERENCE
     if (providerPreference === 'claude' && claudeInitialized) {
       this.provider = 'claude';
@@ -78,11 +97,17 @@ export class AIService {
     } else if (providerPreference === 'openai' && openaiInitialized) {
       this.provider = 'openai';
       this.logger.log('🎯 Primary provider: OpenAI (configured preference)');
+    } else if (providerPreference === 'deepseek' && deepseekInitialized) {
+      this.provider = 'deepseek';
+      this.logger.log('🎯 Primary provider: DeepSeek (configured preference)');
     } else if (providerPreference === 'auto') {
-      // Auto mode: Claude priority
+      // Auto mode: Claude > DeepSeek > OpenAI priority
       if (claudeInitialized) {
         this.provider = 'claude';
         this.logger.log('🎯 Primary provider: Claude (auto mode)');
+      } else if (deepseekInitialized) {
+        this.provider = 'deepseek';
+        this.logger.log('🎯 Primary provider: DeepSeek (auto mode)');
       } else if (openaiInitialized) {
         this.provider = 'openai';
         this.logger.log('🎯 Primary provider: OpenAI (auto mode)');
@@ -92,6 +117,9 @@ export class AIService {
       if (claudeInitialized) {
         this.provider = 'claude';
         this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем Claude`);
+      } else if (deepseekInitialized) {
+        this.provider = 'deepseek';
+        this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем DeepSeek`);
       } else if (openaiInitialized) {
         this.provider = 'openai';
         this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем OpenAI`);
@@ -104,9 +132,10 @@ export class AIService {
     }
 
     // Log fallback availability
-    if (claudeInitialized && openaiInitialized) {
+    const availableCount = [claudeInitialized, openaiInitialized, deepseekInitialized].filter(Boolean).length;
+    if (availableCount > 1) {
       this.logger.log(
-        '✅ Оба провайдера доступны - автоматический fallback активен',
+        `✅ ${availableCount} провайдера доступны - автоматический fallback активен`,
       );
     }
   }
@@ -126,7 +155,7 @@ export class AIService {
   }> {
     if (!this.isAvailable()) {
       throw new Error(
-        'AI сервис недоступен - необходим API ключ Claude или OpenAI',
+        'AI сервис недоступен - необходим API ключ Claude, OpenAI или DeepSeek',
       );
     }
 
@@ -141,6 +170,8 @@ export class AIService {
       // Try primary provider
       if (this.provider === 'claude') {
         response = await this.generateWithClaude(prompt);
+      } else if (this.provider === 'deepseek') {
+        response = await this.generateWithDeepSeek(prompt);
       } else {
         response = await this.generateWithOpenAI(prompt);
       }
@@ -152,22 +183,24 @@ export class AIService {
         error,
       );
 
-      // 🔄 Automatic fallback to alternative provider
-      if (this.provider === 'claude' && this.openai) {
-        this.logger.log('🔄 Attempting fallback to OpenAI...');
+      // 🔄 Automatic fallback to alternative providers
+      const availableProviders = this.getAvailableProviders().filter(p => p !== this.provider);
+
+      for (const fallbackProvider of availableProviders) {
+        this.logger.log(`🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`);
         try {
-          response = await this.generateWithOpenAI(prompt);
+          if (fallbackProvider === 'claude') {
+            response = await this.generateWithClaude(prompt);
+          } else if (fallbackProvider === 'deepseek') {
+            response = await this.generateWithDeepSeek(prompt);
+          } else if (fallbackProvider === 'openai') {
+            response = await this.generateWithOpenAI(prompt);
+          } else {
+            continue;
+          }
           return this.parseAIResponse(response);
         } catch (fallbackError) {
-          this.logger.error('❌ Fallback to OpenAI also failed:', fallbackError);
-        }
-      } else if (this.provider === 'openai' && this.anthropic) {
-        this.logger.log('🔄 Attempting fallback to Claude...');
-        try {
-          response = await this.generateWithClaude(prompt);
-          return this.parseAIResponse(response);
-        } catch (fallbackError) {
-          this.logger.error('❌ Fallback to Claude also failed:', fallbackError);
+          this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
         }
       }
 
@@ -380,6 +413,107 @@ export class AIService {
   }
 
   /**
+   * Генерация через DeepSeek с retry логикой и cost tracking
+   */
+  private async generateWithDeepSeek(
+    prompt: string,
+    retries = 3,
+  ): Promise<string> {
+    if (!this.deepseek) {
+      throw new Error('DeepSeek не инициализирован');
+    }
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const startTime = Date.now();
+
+        const completion = await this.deepseek.chat.completions.create({
+          model: 'deepseek-chat', // DeepSeek Chat model
+          messages: [
+            {
+              role: 'system',
+              content: this.getSystemPrompt(),
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+          response_format: { type: 'json_object' }, // JSON mode
+        });
+
+        const duration = Date.now() - startTime;
+        const content = completion.choices[0]?.message?.content || '';
+
+        // Track usage and costs
+        this.logDeepSeekUsage(completion, duration, attempt + 1);
+
+        return content;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+
+        this.logger.warn(
+          `DeepSeek attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
+        );
+
+        if (attempt === retries - 1) {
+          break;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        this.logger.log(`Retrying in ${backoffMs}ms...`);
+        await this.sleep(backoffMs);
+      }
+    }
+
+    this.logger.error(
+      `❌ DeepSeek failed after ${retries} attempts: ${lastError?.message}`,
+    );
+    throw lastError || new Error('DeepSeek generation failed');
+  }
+
+  /**
+   * Log DeepSeek usage statistics and costs
+   */
+  private logDeepSeekUsage(
+    completion: any,
+    duration: number,
+    attempt: number,
+  ): void {
+    const usage = completion.usage;
+    if (!usage) return;
+
+    // DeepSeek pricing (January 2025) - Very competitive!
+    const inputCostPer1M = 0.14; // $0.14 per 1M input tokens (cache miss)
+    const outputCostPer1M = 0.28; // $0.28 per 1M output tokens
+
+    const inputCost = (usage.prompt_tokens / 1_000_000) * inputCostPer1M;
+    const outputCost = (usage.completion_tokens / 1_000_000) * outputCostPer1M;
+    const totalCost = inputCost + outputCost;
+
+    this.logger.log({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+      attempt,
+      duration: `${duration}ms`,
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      estimatedCost: `$${totalCost.toFixed(6)}`,
+      costBreakdown: {
+        input: `$${inputCost.toFixed(6)}`,
+        output: `$${outputCost.toFixed(6)}`,
+      },
+    });
+  }
+
+  /**
    * Генерация детальной интерпретации натальной карты через AI с автоматическим fallback (ТОЛЬКО ДЛЯ PREMIUM)
    */
   async generateChartInterpretation(context: {
@@ -402,6 +536,8 @@ export class AIService {
       // Try primary provider
       if (this.provider === 'claude') {
         return await this.generateWithClaude(prompt);
+      } else if (this.provider === 'deepseek') {
+        return await this.generateWithDeepSeek(prompt);
       } else {
         return await this.generateWithOpenAI(prompt);
       }
@@ -411,20 +547,21 @@ export class AIService {
         error,
       );
 
-      // 🔄 Automatic fallback to alternative provider
-      if (this.provider === 'claude' && this.openai) {
-        this.logger.log('🔄 Attempting fallback to OpenAI...');
+      // 🔄 Automatic fallback to alternative providers
+      const availableProviders = this.getAvailableProviders().filter(p => p !== this.provider);
+
+      for (const fallbackProvider of availableProviders) {
+        this.logger.log(`🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`);
         try {
-          return await this.generateWithOpenAI(prompt);
+          if (fallbackProvider === 'claude') {
+            return await this.generateWithClaude(prompt);
+          } else if (fallbackProvider === 'deepseek') {
+            return await this.generateWithDeepSeek(prompt);
+          } else if (fallbackProvider === 'openai') {
+            return await this.generateWithOpenAI(prompt);
+          }
         } catch (fallbackError) {
-          this.logger.error('❌ Fallback to OpenAI also failed:', fallbackError);
-        }
-      } else if (this.provider === 'openai' && this.anthropic) {
-        this.logger.log('🔄 Attempting fallback to Claude...');
-        try {
-          return await this.generateWithClaude(prompt);
-        } catch (fallbackError) {
-          this.logger.error('❌ Fallback to Claude also failed:', fallbackError);
+          this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
         }
       }
 
@@ -724,7 +861,7 @@ ${this.formatAspects(context.aspects)}
   ): AsyncGenerator<string, void, unknown> {
     if (!this.isAvailable()) {
       throw new Error(
-        'AI сервис недоступен - необходим API ключ Claude или OpenAI',
+        'AI сервис недоступен - необходим API ключ Claude, OpenAI или DeepSeek',
       );
     }
 
@@ -736,6 +873,8 @@ ${this.formatAspects(context.aspects)}
 
     if (this.provider === 'claude') {
       yield* this.streamWithClaude(prompt);
+    } else if (this.provider === 'deepseek') {
+      yield* this.streamWithDeepSeek(prompt);
     } else if (this.provider === 'openai') {
       yield* this.streamWithOpenAI(prompt);
     } else {
@@ -864,6 +1003,65 @@ ${this.formatAspects(context.aspects)}
   }
 
   /**
+   * Stream generation with DeepSeek
+   */
+  private async *streamWithDeepSeek(
+    prompt: string,
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.deepseek) {
+      throw new Error('DeepSeek не инициализирован');
+    }
+
+    try {
+      const startTime = Date.now();
+
+      const stream = await this.deepseek.chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: this.getSystemPrompt(),
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' },
+        stream: true, // ✅ Enable streaming
+      });
+
+      let fullContent = '';
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          fullContent += content;
+          yield content;
+        }
+      }
+
+      const duration = Date.now() - startTime;
+
+      // Log streaming completion (approximate token count)
+      this.logger.log({
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        mode: 'streaming',
+        duration: `${duration}ms`,
+        approximateChars: fullContent.length,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`❌ DeepSeek streaming failed: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  /**
    * Проверка доступности AI
    */
   isAvailable(): boolean {
@@ -883,6 +1081,7 @@ ${this.formatAspects(context.aspects)}
   getAvailableProviders(): AIProvider[] {
     const available: AIProvider[] = [];
     if (this.anthropic) available.push('claude');
+    if (this.deepseek) available.push('deepseek');
     if (this.openai) available.push('openai');
     return available;
   }
@@ -892,6 +1091,7 @@ ${this.formatAspects(context.aspects)}
    */
   isProviderAvailable(provider: AIProvider): boolean {
     if (provider === 'claude') return this.anthropic !== null;
+    if (provider === 'deepseek') return this.deepseek !== null;
     if (provider === 'openai') return this.openai !== null;
     return false;
   }
@@ -932,6 +1132,8 @@ ${this.formatAspects(context.aspects)}
       // Use specified provider
       if (targetProvider === 'claude') {
         response = await this.generateWithClaude(prompt);
+      } else if (targetProvider === 'deepseek') {
+        response = await this.generateWithDeepSeek(prompt);
       } else if (targetProvider === 'openai') {
         response = await this.generateWithOpenAI(prompt);
       } else {
@@ -947,28 +1149,23 @@ ${this.formatAspects(context.aspects)}
 
       // Only fallback if user didn't explicitly choose a provider
       if (!preferredProvider) {
-        // Try fallback to alternative provider
-        if (targetProvider === 'claude' && this.openai) {
-          this.logger.log('🔄 Automatic fallback to OpenAI...');
+        const availableProviders = this.getAvailableProviders().filter(p => p !== targetProvider);
+
+        for (const fallbackProvider of availableProviders) {
+          this.logger.log(`🔄 Automatic fallback to ${fallbackProvider.toUpperCase()}...`);
           try {
-            response = await this.generateWithOpenAI(prompt);
+            if (fallbackProvider === 'claude') {
+              response = await this.generateWithClaude(prompt);
+            } else if (fallbackProvider === 'deepseek') {
+              response = await this.generateWithDeepSeek(prompt);
+            } else if (fallbackProvider === 'openai') {
+              response = await this.generateWithOpenAI(prompt);
+            } else {
+              continue;
+            }
             return this.parseAIResponse(response);
           } catch (fallbackError) {
-            this.logger.error(
-              '❌ Fallback to OpenAI also failed:',
-              fallbackError,
-            );
-          }
-        } else if (targetProvider === 'openai' && this.anthropic) {
-          this.logger.log('🔄 Automatic fallback to Claude...');
-          try {
-            response = await this.generateWithClaude(prompt);
-            return this.parseAIResponse(response);
-          } catch (fallbackError) {
-            this.logger.error(
-              '❌ Fallback to Claude also failed:',
-              fallbackError,
-            );
+            this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
           }
         }
       } else {
@@ -1005,6 +1202,8 @@ ${this.formatAspects(context.aspects)}
 
     if (targetProvider === 'claude') {
       yield* this.streamWithClaude(prompt);
+    } else if (targetProvider === 'deepseek') {
+      yield* this.streamWithDeepSeek(prompt);
     } else if (targetProvider === 'openai') {
       yield* this.streamWithOpenAI(prompt);
     } else {
