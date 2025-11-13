@@ -130,8 +130,8 @@ export class UserPhotosController {
 
   /**
    * POST /api/user/photos/:photoId/set-primary
-   * Устанавливает фото primary через SECURITY DEFINER RPC set_primary_photo
-   * Требуется Bearer токен пользователя в заголовке Authorization
+   * Устанавливает фото как главное (primary)
+   * Использует прямое обновление через admin client (не требует RPC миграции)
    */
   @Post(':photoId/set-primary')
   @HttpCode(HttpStatus.OK)
@@ -139,8 +139,8 @@ export class UserPhotosController {
     @Request() req: AuthenticatedRequest,
     @Param('photoId') photoId: string,
   ) {
-    const token = this.getAccessToken(req);
-    await this.photosService.setPrimaryWithToken(token, photoId);
+    const userId = this.getUserId(req);
+    await this.photosService.setPrimaryDirect(userId, photoId);
     return { success: true };
   }
 }

@@ -142,6 +142,7 @@ export class UserPhotosService {
 
   /**
    * Назначить primary через RPC set_primary_photo (требует контекст JWT пользователя)
+   * NOTE: Требует применения SQL миграции (см. supabase_set_primary_photo.sql)
    */
   async setPrimaryWithToken(
     userAccessToken: string,
@@ -153,6 +154,49 @@ export class UserPhotosService {
       userAccessToken,
     );
     if (error) {
+      throw new BadRequestException('Failed to set primary photo');
+    }
+  }
+
+  /**
+   * Назначить primary через прямое обновление (не требует RPC миграции)
+   * Использует admin client для обхода RLS
+   */
+  async setPrimaryDirect(userId: string, photoId: string): Promise<void> {
+    const admin = this.supabaseService.getAdminClient();
+
+    // Проверяем, что фото существует и принадлежит пользователю
+    const { data: photo, error: checkErr } = await admin
+      .from('user_photos')
+      .select('id, user_id')
+      .eq('id', photoId)
+      .eq('user_id', userId)
+      .single();
+
+    if (checkErr || !photo) {
+      throw new NotFoundException('Photo not found or does not belong to user');
+    }
+
+    // Сбрасываем is_primary для всех фото пользователя
+    const { error: resetErr } = await admin
+      .from('user_photos')
+      .update({ is_primary: false })
+      .eq('user_id', userId);
+
+    if (resetErr) {
+      console.error('❌ Failed to reset primary photos:', resetErr);
+      throw new BadRequestException('Failed to reset primary photos');
+    }
+
+    // Устанавливаем is_primary для выбранного фото
+    const { error: updateErr } = await admin
+      .from('user_photos')
+      .update({ is_primary: true })
+      .eq('id', photoId)
+      .eq('user_id', userId);
+
+    if (updateErr) {
+      console.error('❌ Failed to set primary photo:', updateErr);
       throw new BadRequestException('Failed to set primary photo');
     }
   }
