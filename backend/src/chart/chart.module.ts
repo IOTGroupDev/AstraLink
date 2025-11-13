@@ -5,11 +5,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { ServicesModule } from '../services/services.module';
 import { AuthModule } from '../auth/auth.module';
+import { RepositoriesModule } from '../repositories';
 
 @Module({
   imports: [
     PrismaModule,
     SupabaseModule,
+    RepositoriesModule,
     ServicesModule,
     forwardRef(() => AuthModule),
   ],

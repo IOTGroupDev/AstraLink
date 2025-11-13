@@ -6,39 +6,21 @@ import {
 import { SupabaseService } from '../supabase/supabase.service';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
+import { UserRepository } from '../repositories';
 
 @Injectable()
 export class UserService {
   constructor(
     private supabaseService: SupabaseService,
     private chartService: ChartService,
+    private userRepository: UserRepository,
   ) {}
 
   async getProfile(userId: string) {
-    // 1) Пытаемся получить профиль через admin-клиент (обходит RLS, если задан SERVICE ROLE)
-    try {
-      const { data: adminUser } =
-        await this.supabaseService.getUserProfileAdmin(userId);
-      if (adminUser) {
-        return {
-          id: adminUser.id,
-          email: adminUser.email,
-          name: adminUser.name,
-          birthDate: adminUser.birth_date,
-          birthTime: adminUser.birth_time,
-          birthPlace: adminUser.birth_place,
-          createdAt: adminUser.created_at,
-          updatedAt: adminUser.updated_at,
-        };
-      }
-    } catch (_e) {
-      // admin может быть недоступен, если SUPABASE_SERVICE_ROLE_KEY не задан
-    }
+    // Используем централизованную fallback логику из репозитория
+    const user = await this.userRepository.findById(userId);
 
-    // 2) Пытаемся получить через обычный клиент (RLS требует авторизации пользователя)
-    const { data: user, error } =
-      await this.supabaseService.getUserProfile(userId);
-    if (user && !error) {
+    if (user) {
       return {
         id: user.id,
         email: user.email,
@@ -51,41 +33,10 @@ export class UserService {
       };
     }
 
-    // 3) Фолбэк для тестовых пользователей, чтобы не получать 404 в dev без SERVICE ROLE
-    if (userId === '5d995414-c513-47e6-b5dd-004d3f61c60b') {
-      return {
-        id: userId,
-        email: 'test@test.com',
-        name: '',
-        birthDate: '1990-05-15',
-        birthTime: '14:30',
-        birthPlace: 'Москва',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-    if (userId === 'c875b4bc-302f-4e37-b123-359bee558163') {
-      return {
-        id: userId,
-        email: 'newuser@astralink.com',
-        name: '',
-        birthDate: '1995-06-15T00:00:00.000Z',
-        birthTime: '14:30',
-        birthPlace: 'Санкт-Петербург',
-        createdAt: '2025-09-29T06:47:25.244639+00:00',
-        updatedAt: '2025-09-29T06:47:25.914569+00:00',
-      };
-    }
-
-    // 4) Если ничего не нашли — мягкая автопровизия профиля, чтобы не получать 404 на клиенте
+    // Если не найден - мягкая автопровизия профиля
     try {
-      // Пытаемся создать минимальный профиль через уже существующий механизм upsert
-      // Он сам заполнит created_at/updated_at, подтянет email из Auth (если доступен)
       await this.updateProfile(userId, {} as any);
-
-      // Читаем заново через админ-клиент
-      const { data: created } =
-        await this.supabaseService.getUserProfileAdmin(userId);
+      const created = await this.userRepository.findById(userId);
 
       if (created) {
         return {
@@ -100,11 +51,10 @@ export class UserService {
         };
       }
     } catch (_e) {
-      // игнорируем и вернём минимальный объект ниже
+      // Игнорируем ошибку и возвращаем минимальный объект
     }
 
-    // Фолбэк: возвращаем минимальный объект вместо 404, чтобы фронтенд не зацикливался на онбординге
-    // (клиент затем обновит поля через PUT /user/profile)
+    // Фолбэк: возвращаем минимальный объект вместо 404
     return {
       id: userId,
       email: null,

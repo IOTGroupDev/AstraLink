@@ -18,6 +18,7 @@ import {
 } from '../modules/shared/astro-text';
 import { calculateAspectType } from '../shared/astro-calculations';
 import { RedisService } from '../redis/redis.service';
+import { ChartRepository } from '../repositories/chart.repository';
 
 @Injectable()
 export class ChartService {
@@ -28,6 +29,7 @@ export class ChartService {
     private interpretationService: InterpretationService,
     private horoscopeService: HoroscopeGeneratorService,
     private redis: RedisService,
+    private chartRepository: ChartRepository,
   ) {}
 
   /**
@@ -39,11 +41,8 @@ export class ChartService {
     birthTime: string,
     birthPlace: string,
   ) {
-    // Проверяем существующую карту
-    const existing = await this.prisma.chart.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Проверяем существующую карту через репозиторий
+    const existing = await this.chartRepository.findByUserId(userId);
 
     // Если карта уже существует с интерпретацией, возвращаем её
     if (existing && (existing.data as any)?.interpretation) {
@@ -91,11 +90,9 @@ export class ChartService {
       interpretationVersion: 'v3',
     };
 
-    const created = await this.prisma.chart.create({
-      data: {
-        userId,
-        data: chartWithInterpretation,
-      },
+    const created = await this.chartRepository.create({
+      user_id: userId,
+      data: chartWithInterpretation,
     });
 
     // Invalidate cached horoscopes and user-specific transits after new chart is created
@@ -114,10 +111,7 @@ export class ChartService {
    * Получить натальную карту с интерпретацией
    */
   async getNatalChartWithInterpretation(userId: string) {
-    const chart = await this.prisma.chart.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const chart = await this.chartRepository.findByUserId(userId);
 
     if (!chart) {
       throw new NotFoundException('Натальная карта не найдена');
@@ -140,10 +134,7 @@ export class ChartService {
         interpretationVersion: 'v3',
       };
 
-      await this.prisma.chart.update({
-        where: { id: chart.id },
-        data: { data: updatedData },
-      });
+      await this.chartRepository.update(chart.id, { data: updatedData });
 
       // Invalidate cached horoscopes and user-specific transits after interpretation regeneration
       try {
@@ -227,89 +218,40 @@ export class ChartService {
   }
 
   /**
-   * Получить натальную карту (проверяем Prisma → затем Supabase Admin → затем Supabase RLS)
+   * Получить натальную карту (используем централизованную fallback логику из репозитория)
    */
   async getNatalChart(userId: string) {
-    // 1) Пробуем взять из Prisma (основной источник истины для карт)
-    const prismaChart = await this.prisma.chart.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (prismaChart) {
-      return {
-        id: prismaChart.id,
-        userId: prismaChart.userId,
-        data: prismaChart.data as any,
-        createdAt: prismaChart.createdAt,
-        updatedAt: prismaChart.updatedAt,
-      };
+    const chart = await this.chartRepository.findByUserId(userId);
+
+    if (!chart) {
+      throw new NotFoundException(
+        'Натальная карта не найдена. Необходимо создать карту, указав дату, время и место рождения.',
+      );
     }
 
-    // 2) Фолбэк: Supabase Admin (если карта была создана там)
-    try {
-      const res = await this.supabaseService.getUserChartsAdmin(userId);
-      if (res.data && res.data.length > 0) {
-        const chart = res.data[0];
-        return {
-          id: chart.id,
-          userId: chart.user_id,
-          data: chart.data,
-          createdAt: chart.created_at,
-          updatedAt: chart.updated_at,
-        };
-      }
-    } catch (_e) {
-      // ignore admin errors, fallback to RLS client
-    }
-
-    // 3) Фолбэк: Supabase RLS-клиент (на случай отсутствия SERVICE ROLE)
-    const { data } = await this.supabaseService.getUserCharts(userId);
-    if (data && data.length > 0) {
-      const chart = data[0];
-      return {
-        id: chart.id,
-        userId: chart.user_id,
-        data: chart.data,
-        createdAt: chart.created_at,
-        updatedAt: chart.updated_at,
-      };
-    }
-
-    // 4) Если карты нет — возвращаем 404
-    throw new NotFoundException(
-      'Натальная карта не найдена. Необходимо создать карту, указав дату, время и место рождения.',
-    );
+    return {
+      id: chart.id,
+      userId: chart.user_id,
+      data: chart.data as any,
+      createdAt: chart.created_at,
+      updatedAt: chart.updated_at,
+    };
   }
 
   /**
    * Создать натальную карту (базовый метод для обратной совместимости)
    */
   async createNatalChart(userId: string, _data: any) {
-    // Проверяем существующую карту
-    try {
-      const { data } = await this.supabaseService.getUserChartsAdmin(userId);
-      if (data && data.length > 0) {
-        const chart = data[0];
-        return {
-          id: chart.id,
-          userId: chart.user_id,
-          data: chart.data,
-          createdAt: chart.created_at,
-          updatedAt: chart.updated_at,
-        };
-      }
-    } catch (_e) {
-      const { data: charts } = await this.supabaseService.getUserCharts(userId);
-      if (charts && charts.length > 0) {
-        const chart = charts[0];
-        return {
-          id: chart.id,
-          userId: chart.user_id,
-          data: chart.data,
-          createdAt: chart.created_at,
-          updatedAt: chart.updated_at,
-        };
-      }
+    // Проверяем существующую карту через репозиторий
+    const existingChart = await this.chartRepository.findByUserId(userId);
+    if (existingChart) {
+      return {
+        id: existingChart.id,
+        userId: existingChart.user_id,
+        data: existingChart.data,
+        createdAt: existingChart.created_at,
+        updatedAt: existingChart.updated_at,
+      };
     }
 
     // Получаем данные пользователя
@@ -336,35 +278,28 @@ export class ChartService {
       location,
     );
 
-    // Сохраняем карту
-    const { data: newChart } = await this.supabaseService.createUserChart(
-      userId,
-      natalChartData,
-    );
+    // Сохраняем карту через репозиторий
+    const newChart = await this.chartRepository.create({
+      user_id: userId,
+      data: natalChartData,
+    });
 
-    if (newChart) {
-      // Invalidate cached horoscopes and user-specific transits after (re)creating chart via Supabase
-      try {
-        await this.redis.deleteByPattern(`horoscope:${userId}:*`);
-        await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
-      } catch (_e) {
-        // Ignore Redis errors during chart creation via Supabase
-        void 0;
-      }
-
-      return {
-        id: newChart.id,
-        userId: newChart.user_id,
-        data: newChart.data,
-        createdAt: newChart.created_at,
-        updatedAt: newChart.updated_at,
-      };
+    // Invalidate cached horoscopes and user-specific transits
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+    } catch (_e) {
+      // Ignore Redis errors
+      void 0;
     }
 
-    // Если не удалось сохранить
-    throw new InternalServerErrorException(
-      'Не удалось сохранить натальную карту',
-    );
+    return {
+      id: newChart.id,
+      userId: newChart.user_id,
+      data: newChart.data,
+      createdAt: newChart.created_at,
+      updatedAt: newChart.updated_at,
+    };
   }
 
   /**
