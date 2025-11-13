@@ -1518,6 +1518,172 @@ export default function CosmicSimulatorScreen() {
     },
   ];
 
+  //   const renderAstrologyChart = () => {
+  //     const centerX = width * 0.45;
+  //     const centerY = 200;
+  //     const natalRadius = 80;
+  //     const transitRadius = 120;
+  //
+  //     return (
+  //       <View style={styles.chartContainer}>
+  //         <Svg width={width * 0.9} height={400}>
+  //           {/* Внутренний круг - натальная карта */}
+  //           <Circle
+  //             cx={centerX}
+  //             cy={centerY}
+  //             r={natalRadius}
+  //             stroke="#8B5CF6"
+  //             strokeWidth="2"
+  //             fill="rgba(139, 92, 246, 0.1)"
+  //           />
+  //
+  //           {/* Внешний круг - транзиты */}
+  //           <Circle
+  //             cx={centerX}
+  //             cy={centerY}
+  //             r={transitRadius}
+  //             stroke="#A855F7"
+  //             strokeWidth="2"
+  //             fill="none"
+  //             strokeDasharray="5,5"
+  //           />
+  //
+  //           {/* Натальные планеты */}
+  //           {natalChart?.data?.planets &&
+  //             Object.entries(natalChart.data.planets).map(
+  //               ([planetKey, planet]: [string, any], index) => {
+  //                 const angle = (planet.longitude * Math.PI) / 180;
+  //                 const x = centerX + natalRadius * Math.cos(angle - Math.PI / 2);
+  //                 const y = centerY + natalRadius * Math.sin(angle - Math.PI / 2);
+  //
+  //                 return (
+  //                   <G key={planetKey}>
+  //                     <Circle cx={x} cy={y} r="6" fill="#8B5CF6" />
+  //                     <SvgText
+  //                       x={x}
+  //                       y={y - 15}
+  //                       textAnchor="middle"
+  //                       fontSize="10"
+  //                       fill="#fff"
+  //                     >
+  //                       {planetKey.charAt(0).toUpperCase()}
+  //                     </SvgText>
+  //                   </G>
+  //                 );
+  //               }
+  //             )}
+  //
+  //           {/* Транзитные планеты */}
+  //           {transitPlanets.map((planet, index) => {
+  //             const angle = (planet.longitude * Math.PI) / 180;
+  //             const x = centerX + transitRadius * Math.cos(angle - Math.PI / 2);
+  //             const y = centerY + transitRadius * Math.sin(angle - Math.PI / 2);
+  //
+  //             // Цвет планеты в зависимости от типа
+  //             const planetColor =
+  //               planet.name === 'Saturn'
+  //                 ? '#C0C0C0'
+  //                 : planet.name === 'Jupiter'
+  //                   ? '#FFD700'
+  //                   : planet.name === 'Uranus'
+  //                     ? '#4FD1C7'
+  //                     : planet.name === 'Neptune'
+  //                       ? '#3B82F6'
+  //                       : planet.name === 'Pluto'
+  //                         ? '#8B5CF6'
+  //                         : '#FFD700';
+  //
+  //             return (
+  //               <G key={planet.name}>
+  //                 <Circle
+  //                   cx={x}
+  //                   cy={y}
+  //                   r="8"
+  //                   fill={planetColor}
+  //                   stroke="#fff"
+  //                   strokeWidth="1"
+  //                 />
+  //                 <SvgText
+  //                   x={x}
+  //                   y={y - 20}
+  //                   textAnchor="middle"
+  //                   fontSize="10"
+  //                   fill={planetColor}
+  //                   fontWeight="bold"
+  //                 >
+  //                   {planet.name.charAt(0)}
+  //                 </SvgText>
+  //               </G>
+  //             );
+  //           })}
+  //
+  //           {/* Линии аспектов */}
+  //           {activeTransits.slice(0, 5).map((transit, index) => {
+  //             // Находим позиции планет для точного отображения линий
+  //             const transitPlanet = transitPlanets.find(
+  //               (p) => p.name === transit.planet
+  //             );
+  //             const natalPlanet =
+  //               natalChart?.data?.planets?.[transit.target.toLowerCase()];
+  //
+  //             if (!transitPlanet || !natalPlanet) return null;
+  //
+  //             const transitAngle = (transitPlanet.longitude * Math.PI) / 180;
+  //             const natalAngle = (natalPlanet.longitude * Math.PI) / 180;
+  //
+  //             const transitX =
+  //               centerX + transitRadius * Math.cos(transitAngle - Math.PI / 2);
+  //             const transitY =
+  //               centerY + transitRadius * Math.sin(transitAngle - Math.PI / 2);
+  //             const natalX =
+  //               centerX + natalRadius * Math.cos(natalAngle - Math.PI / 2);
+  //             const natalY =
+  //               centerY + natalRadius * Math.sin(natalAngle - Math.PI / 2);
+  //
+  //             const aspectColor =
+  //               transit.type === 'harmonious'
+  //                 ? '#22C55E'
+  //                 : transit.type === 'challenging'
+  //                   ? '#EF4444'
+  //                   : '#6B7280';
+  //
+  //             return (
+  //               <Line
+  //                 key={`${transit.planet}-${transit.target}-${index}`}
+  //                 x1={transitX}
+  //                 y1={transitY}
+  //                 x2={natalX}
+  //                 y2={natalY}
+  //                 stroke={aspectColor}
+  //                 strokeWidth={Math.max(1, 3 - transit.orb)}
+  //                 opacity={Math.max(0.3, 1 - transit.orb / 5)}
+  //                 strokeDasharray={transit.aspect === 'conjunction' ? '0' : '3,3'}
+  //               />
+  //             );
+  //           })}
+  //         </Svg>
+  //       </View>
+  //     );
+  //   };
+
+  // Временная заглушка для визуализации астрологической карты
+  // чтобы устранить ошибку "renderAstrologyChart is not defined"
+  const renderAstrologyChart = () => {
+    return (
+      <LinearGradient
+        colors={['rgba(139, 92, 246, 0.1)', 'rgba(167, 139, 250, 0.05)']}
+        style={styles.timelineCard}
+      >
+        <Text style={styles.sectionTitle}>Астрологическая карта</Text>
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <Ionicons name="planet-outline" size={36} color="#A78BFA" />
+          <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+            Визуализация в разработке
+          </Text>
+        </View>
+      </LinearGradient>
+    );
+  };
   return (
     <>
       <StatusBar barStyle="light-content" />
@@ -1529,6 +1695,11 @@ export default function CosmicSimulatorScreen() {
           </View>
           <Text style={styles.title}>Космический симулятор</Text>
           <Text style={styles.subtitle}>Анализ транзитов и времени</Text>
+        </Animated.View>
+
+        {/* Астрологическая карта */}
+        <Animated.View entering={FadeIn.delay(400)} style={styles.chartSection}>
+          {renderAstrologyChart()}
         </Animated.View>
 
         {/* Временная линия */}

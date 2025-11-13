@@ -1,342 +1,10 @@
-// import React, { useCallback, useEffect, useRef, useState } from 'react';
-// import {
-//   ActivityIndicator,
-//   FlatList,
-//   KeyboardAvoidingView,
-//   Platform,
-//   Pressable,
-//   StyleSheet,
-//   Text,
-//   TextInput,
-//   View,
-//   Image,
-// } from 'react-native';
-// import { useNavigation, useRoute } from '@react-navigation/native';
-// import { chatAPI } from '../services/api';
-// import { useAuth } from '../hooks/useAuth';
-// import { supabase } from '../services/supabase';
-//
-// type RouteParams = {
-//   otherUserId: string;
-//   displayName?: string | null;
-//   primaryPhotoUrl?: string | null;
-// };
-//
-// type Message = {
-//   id: string;
-//   senderId: string;
-//   recipientId: string;
-//   text: string | null;
-//   mediaPath: string | null;
-//   createdAt: string;
-// };
-//
-// export default function ChatDialogScreen() {
-//   const route = useRoute<any>();
-//   const navigation = useNavigation<any>();
-//   const otherUserId: string = route?.params?.otherUserId;
-//   const displayName: string | undefined =
-//     route?.params?.displayName ?? undefined;
-//   const primaryPhotoUrl: string | undefined =
-//     route?.params?.primaryPhotoUrl ?? undefined;
-//   const { user } = useAuth();
-//
-//   const [messages, setMessages] = useState<Message[]>([]);
-//   const [loading, setLoading] = useState(true);
-//   const [sending, setSending] = useState(false);
-//   const [text, setText] = useState('');
-//   const listRef = useRef<FlatList<Message>>(null);
-//
-//   const fetchMessages = useCallback(async () => {
-//     try {
-//       const items = await chatAPI.listMessages(otherUserId, 100);
-//       const sorted = [...items].sort(
-//         (a, b) =>
-//           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-//       );
-//       setMessages(sorted as Message[]);
-//     } finally {
-//       setLoading(false);
-//     }
-//   }, [otherUserId]);
-//
-//   useEffect(() => {
-//     fetchMessages();
-//   }, [fetchMessages]);
-//
-//   // Лёгкий пуллинг обновлений (каждые 5 сек)
-//   useEffect(() => {
-//     const id = setInterval(() => {
-//       fetchMessages().catch(() => void 0);
-//     }, 5000);
-//     return () => clearInterval(id);
-//   }, [fetchMessages]);
-//
-//   // Realtime подписка на новые сообщения в диалоге
-//   useEffect(() => {
-//     if (!user) return;
-//     const channel = supabase
-//       .channel(`messages-dialog-${user.id}-${otherUserId}`)
-//       .on(
-//         'postgres_changes',
-//         { event: 'INSERT', schema: 'public', table: 'messages' },
-//         (payload) => {
-//           try {
-//             const m: any = (payload as any).new;
-//             if (
-//               (m.sender_id === user.id && m.recipient_id === otherUserId) ||
-//               (m.sender_id === otherUserId && m.recipient_id === user.id)
-//             ) {
-//               setMessages((prev) => {
-//                 if (prev.some((x) => x.id === m.id)) return prev;
-//                 const next = [
-//                   ...prev,
-//                   {
-//                     id: m.id,
-//                     senderId: m.sender_id,
-//                     recipientId: m.recipient_id,
-//                     text: m.content ?? null,
-//                     mediaPath: m.media_path ?? null,
-//                     createdAt: m.created_at,
-//                   } as Message,
-//                 ];
-//                 next.sort(
-//                   (a, b) =>
-//                     new Date(a.createdAt).getTime() -
-//                     new Date(b.createdAt).getTime()
-//                 );
-//                 return next;
-//               });
-//             }
-//           } catch {}
-//         }
-//       )
-//       .subscribe();
-//
-//     return () => {
-//       try {
-//         supabase.removeChannel(channel);
-//       } catch {}
-//     };
-//   }, [user, otherUserId]);
-//
-//   const onSend = useCallback(async () => {
-//     const payload = text.trim();
-//     if (!payload || sending) return;
-//     try {
-//       setSending(true);
-//       const res = await chatAPI.sendMessage(otherUserId, payload, null);
-//       // Оптимистично добавим сообщение к списку
-//       const now = new Date().toISOString();
-//       setMessages((prev) => [
-//         ...prev,
-//         {
-//           id: res.id,
-//           senderId: user?.id ?? 'me',
-//           recipientId: otherUserId,
-//           text: payload,
-//           mediaPath: null,
-//           createdAt: now,
-//         } as any,
-//       ]);
-//       setText('');
-//       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-//       // Подтянуть серверное состояние сразу после отправки
-//       fetchMessages().catch(() => void 0);
-//     } catch {
-//       // опустим обработку — UI не ломаем
-//     } finally {
-//       setSending(false);
-//     }
-//   }, [text, sending, otherUserId, fetchMessages]);
-//
-//   const renderItem = useCallback(
-//     ({ item }: { item: Message }) => {
-//       // Если знаем свой id — сравниваем с ним, иначе эвристика
-//       const isMine = user
-//         ? item.senderId === user.id
-//         : item.senderId !== otherUserId;
-//       return (
-//         <View
-//           style={[
-//             styles.msgRow,
-//             isMine ? styles.msgRowMine : styles.msgRowOther,
-//           ]}
-//         >
-//           <View
-//             style={[
-//               styles.bubble,
-//               isMine ? styles.bubbleMine : styles.bubbleOther,
-//             ]}
-//           >
-//             {item.text ? (
-//               <Text style={styles.msgText}>{item.text}</Text>
-//             ) : (
-//               <Text style={styles.msgText}>📎 Медиа</Text>
-//             )}
-//             <Text style={styles.time}>
-//               {new Date(item.createdAt).toLocaleTimeString()}
-//             </Text>
-//           </View>
-//         </View>
-//       );
-//     },
-//     [otherUserId, user?.id]
-//   );
-//
-//   if (!otherUserId) {
-//     return (
-//       <View style={styles.center}>
-//         <Text style={styles.error}>Не указан собеседник</Text>
-//       </View>
-//     );
-//   }
-//
-//   return (
-//     <View style={styles.container}>
-//       <KeyboardAvoidingView
-//         style={{ flex: 1 }}
-//         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-//         keyboardVerticalOffset={86}
-//       >
-//         <View style={styles.header}>
-//           <Pressable style={styles.backHit} onPress={() => navigation.goBack()}>
-//             <Text style={styles.back}>‹</Text>
-//           </Pressable>
-//           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-//             {primaryPhotoUrl ? (
-//               <Image
-//                 source={{ uri: primaryPhotoUrl }}
-//                 style={{
-//                   width: 28,
-//                   height: 28,
-//                   borderRadius: 14,
-//                   marginRight: 6,
-//                 }}
-//               />
-//             ) : null}
-//             <Text style={styles.title}>
-//               {displayName ?? otherUserId ?? 'Диалог'}
-//             </Text>
-//           </View>
-//           <View style={{ width: 28 }} />
-//         </View>
-//
-//         {loading ? (
-//           <View style={styles.loader}>
-//             <ActivityIndicator color="#ffffff" size="large" />
-//           </View>
-//         ) : (
-//           <FlatList
-//             ref={listRef}
-//             data={messages}
-//             keyExtractor={(m) => m.id}
-//             renderItem={renderItem}
-//             contentContainerStyle={{ padding: 16, paddingBottom: 96 }}
-//             onContentSizeChange={() =>
-//               listRef.current?.scrollToEnd({ animated: false })
-//             }
-//           />
-//         )}
-//
-//         <View style={styles.inputRow}>
-//           <TextInput
-//             style={styles.input}
-//             value={text}
-//             onChangeText={setText}
-//             placeholder="Сообщение"
-//             placeholderTextColor="rgba(255,255,255,0.6)"
-//             multiline
-//           />
-//           <Pressable
-//             style={[
-//               styles.sendBtn,
-//               !text.trim() || sending ? styles.sendDisabled : null,
-//             ]}
-//             disabled={!text.trim() || sending}
-//             onPress={onSend}
-//           >
-//             <Text style={styles.sendText}>{sending ? '...' : '➤'}</Text>
-//           </Pressable>
-//         </View>
-//       </KeyboardAvoidingView>
-//     </View>
-//   );
-// }
-//
-// const styles = StyleSheet.create({
-//   container: { flex: 1, backgroundColor: 'transparent' },
-//   header: {
-//     height: 56,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//     paddingHorizontal: 16,
-//     paddingTop: 16,
-//   },
-//   backHit: { padding: 4 },
-//   back: { color: '#fff', fontSize: 28, lineHeight: 28 },
-//   title: { color: '#fff', fontSize: 18, fontWeight: '600' },
-//   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-//   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-//   error: { color: '#ff8080' },
-//
-//   inputRow: {
-//     position: 'absolute',
-//     left: 16,
-//     right: 16,
-//     bottom: 24,
-//     minHeight: 48,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: 'rgba(255,255,255,0.06)',
-//     borderRadius: 16,
-//     paddingHorizontal: 12,
-//     paddingVertical: 8,
-//   },
-//   input: {
-//     flex: 1,
-//     color: '#fff',
-//     fontSize: 16,
-//     padding: 0,
-//     marginRight: 8,
-//     maxHeight: 120,
-//   },
-//   sendBtn: {
-//     width: 44,
-//     height: 44,
-//     borderRadius: 12,
-//     backgroundColor: '#6F1F86',
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-//   sendText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-//   sendDisabled: { opacity: 0.6 },
-//
-//   msgRow: { marginBottom: 10, flexDirection: 'row' },
-//   msgRowMine: { justifyContent: 'flex-end' },
-//   msgRowOther: { justifyContent: 'flex-start' },
-//   bubble: {
-//     maxWidth: '80%',
-//     paddingHorizontal: 12,
-//     paddingVertical: 8,
-//     borderRadius: 14,
-//   },
-//   bubbleMine: { backgroundColor: '#6F1F86', borderTopRightRadius: 4 },
-//   bubbleOther: {
-//     backgroundColor: 'rgba(255,255,255,0.12)',
-//     borderTopLeftRadius: 4,
-//   },
-//   msgText: { color: '#fff', fontSize: 16 },
-//   time: {
-//     marginTop: 6,
-//     color: 'rgba(255,255,255,0.6)',
-//     fontSize: 10,
-//     alignSelf: 'flex-end',
-//   },
-// });
-
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -350,6 +18,7 @@ import {
   Image,
   Alert,
   Keyboard,
+  BackHandler,
 } from 'react-native';
 import {
   useNavigation,
@@ -358,10 +27,12 @@ import {
 } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { chatAPI } from '../services/api';
+import { chatAPI, userPhotosAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 type RouteParams = {
   otherUserId: string;
@@ -376,6 +47,7 @@ type Message = {
   text: string | null;
   mediaPath: string | null;
   createdAt: string;
+  mediaUrl?: string | null;
 };
 
 export default function ChatDialogScreen() {
@@ -383,28 +55,53 @@ export default function ChatDialogScreen() {
   const navigation = useNavigation<any>();
   const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
-  const keyboardVerticalOffset = React.useMemo(() => {
+  const keyboardVerticalOffset = useMemo(() => {
     if (Platform.OS !== 'ios') return 0;
-    // Большее смещение для iOS: top inset + кастомный header + запас
     return (insets?.top || 0) + 120;
   }, [insets?.top]);
 
-  // Параметры из навигации
   const otherUserId: string = route?.params?.otherUserId;
   const displayName: string | undefined =
     route?.params?.displayName ?? undefined;
   const primaryPhotoUrl: string | undefined =
     route?.params?.primaryPhotoUrl ?? undefined;
 
-  // Состояния
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<Message>>(null);
-  const authAlertShown = React.useRef(false);
+  const authAlertShown = useRef(false);
 
-  // Проверка авторизации
+  // Кэш подписанных URL по mediaPath, чтобы не мигало
+  const mediaUrlCacheRef = useRef<Record<string, string>>({});
+
+  // Helpers to handle schema drift in realtime payloads
+  const pickKey = useCallback((obj: any, keys: string[]) => {
+    return keys.find(
+      (k) => obj && Object.prototype.hasOwnProperty.call(obj, k)
+    );
+  }, []);
+  const mediaKeys = useRef<string[]>([
+    'attachment_path',
+    'media_path',
+    'media_url',
+    'attachment_url',
+    'attachment',
+  ]).current;
+  const contentKeys = useRef<string[]>([
+    'content',
+    'text',
+    'body',
+    'message',
+  ]).current;
+  const createdKeys = useRef<string[]>([
+    'created_at',
+    'createdAt',
+    'createdAtUtc',
+  ]).current;
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -413,12 +110,7 @@ export default function ChatDialogScreen() {
         Alert.alert(
           'Требуется авторизация',
           'Для использования чата необходимо войти в систему',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       }
     } else {
@@ -426,173 +118,76 @@ export default function ChatDialogScreen() {
     }
   }, [user, authLoading, navigation]);
 
-  /**
-   * Загрузка сообщений с сервера
-   */
   const fetchMessages = useCallback(async () => {
     if (!otherUserId || !user) return;
-
     try {
       const items = await chatAPI.listMessages(otherUserId, 100);
       const sorted = [...items].sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
-      setMessages(sorted as Message[]);
-    } catch (error) {
-      console.error('Ошибка загрузки сообщений:', error);
+
+      // Маппим и подтягиваем mediaUrl из кэша, если сервер не прислал
+      const mapped: Message[] = sorted.map((it: any) => {
+        const mp = it.mediaPath ?? it.media_path ?? null;
+        const mu =
+          it.mediaUrl ??
+          it.media_url ??
+          (mp ? mediaUrlCacheRef.current[mp] : null);
+        return {
+          id: it.id,
+          senderId: it.senderId,
+          recipientId: it.recipientId,
+          text: it.text ?? null,
+          mediaPath: mp,
+          createdAt: it.createdAt,
+          mediaUrl: mu ?? null,
+        };
+      });
+
+      // Обновляем кэш известными URL
+      for (const m of mapped) {
+        if (m.mediaPath && m.mediaUrl) {
+          mediaUrlCacheRef.current[m.mediaPath] = m.mediaUrl;
+        }
+      }
+
+      setMessages(mapped);
+    } catch (e) {
+      console.error('Ошибка загрузки сообщений:', e);
     } finally {
       setLoading(false);
     }
   }, [otherUserId, user]);
 
-  /**
-   * Начальная загрузка сообщений
-   */
   useEffect(() => {
-    if (user && otherUserId) {
-      fetchMessages();
-    }
-  }, [fetchMessages, user, otherUserId]);
+    if (user && otherUserId) fetchMessages();
+  }, [user, otherUserId, fetchMessages]);
 
-  // Refetch on screen focus (similar to ChatList)
   useFocusEffect(
-    React.useCallback(() => {
-      if (user && otherUserId) {
-        fetchMessages();
-      }
+    useCallback(() => {
+      if (user && otherUserId) fetchMessages();
     }, [user, otherUserId, fetchMessages])
   );
 
-  /**
-   * Polling removed: relying on Realtime + focus refresh
-   */
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigation.navigate('MainTabs', { screen: 'Messages' });
+        return true;
+      };
+      const sub = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+      return () => {
+        try {
+          sub.remove();
+        } catch {}
+      };
+    }, [navigation])
+  );
 
-  /**
-   * Realtime подписка на новые сообщения через Supabase
-   */
-  useEffect(() => {
-    if (!user || !otherUserId) return;
-
-    const channel = supabase
-      .channel(`messages-dialog-${user.id}-${otherUserId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages' },
-        (payload) => {
-          try {
-            const evt =
-              (payload as any).eventType ||
-              (payload as any).event ||
-              (payload as any).type;
-            const recNew: any = (payload as any).new;
-            const recOld: any = (payload as any).old;
-
-            const relevant = (r: any) =>
-              r &&
-              ((r.sender_id === user.id && r.recipient_id === otherUserId) ||
-                (r.sender_id === otherUserId && r.recipient_id === user.id));
-
-            // INSERT -> append
-            if (evt === 'INSERT' && recNew && relevant(recNew)) {
-              setMessages((prev) => {
-                if (prev.some((x) => x.id === recNew.id)) return prev;
-                const newMessage: Message = {
-                  id: recNew.id,
-                  senderId: recNew.sender_id,
-                  recipientId: recNew.recipient_id,
-                  text: recNew.content ?? null,
-                  mediaPath: recNew.media_path ?? null,
-                  createdAt: recNew.created_at,
-                };
-                const next = [...prev, newMessage];
-                next.sort(
-                  (a, b) =>
-                    new Date(a.createdAt).getTime() -
-                    new Date(b.createdAt).getTime()
-                );
-                return next;
-              });
-
-              setTimeout(() => {
-                listRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-              return;
-            }
-
-            // UPDATE -> patch existing
-            if (evt === 'UPDATE' && recNew && relevant(recNew)) {
-              setMessages((prev) => {
-                const idx = prev.findIndex((x) => x.id === recNew.id);
-                if (idx === -1) return prev;
-                const copy = [...prev];
-                copy[idx] = {
-                  ...copy[idx],
-                  text:
-                    recNew.content !== undefined
-                      ? recNew.content
-                      : copy[idx].text,
-                  mediaPath:
-                    recNew.media_path !== undefined
-                      ? recNew.media_path
-                      : copy[idx].mediaPath,
-                  createdAt:
-                    recNew.created_at !== undefined
-                      ? recNew.created_at
-                      : copy[idx].createdAt,
-                };
-                return copy;
-              });
-              return;
-            }
-
-            // DELETE -> remove
-            if (evt === 'DELETE' && recOld && relevant(recOld)) {
-              setMessages((prev) => prev.filter((x) => x.id !== recOld.id));
-              return;
-            }
-
-            // Fallback: if event type not provided, treat as upsert
-            if (!evt && recNew && relevant(recNew)) {
-              setMessages((prev) => {
-                if (prev.some((x) => x.id === recNew.id)) return prev;
-                const newMessage: Message = {
-                  id: recNew.id,
-                  senderId: recNew.sender_id,
-                  recipientId: recNew.recipient_id,
-                  text: recNew.content ?? null,
-                  mediaPath: recNew.media_path ?? null,
-                  createdAt: recNew.created_at,
-                };
-                const next = [...prev, newMessage];
-                next.sort(
-                  (a, b) =>
-                    new Date(a.createdAt).getTime() -
-                    new Date(b.createdAt).getTime()
-                );
-                return next;
-              });
-              setTimeout(() => {
-                listRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }
-          } catch (error) {
-            console.error('Ошибка обработки realtime сообщения:', error);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch (error) {
-        console.error('Ошибка отписки от канала:', error);
-      }
-    };
-  }, [user, otherUserId]);
-
-  // Скролл к последнему сообщению при показе клавиатуры (iOS/Expo Go)
   useEffect(() => {
     const s1 = Keyboard.addListener('keyboardWillShow', () => {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
@@ -608,22 +203,258 @@ export default function ChatDialogScreen() {
     };
   }, []);
 
-  /**
-   * Отправка сообщения
-   */
+  useEffect(() => {
+    if (!user || !otherUserId) return;
+    const channel = supabase
+      .channel(`messages-dialog-${user.id}-${otherUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        (payload) => {
+          try {
+            const evt =
+              (payload as any).eventType ||
+              (payload as any).event ||
+              (payload as any).type;
+            const recNew: any = (payload as any).new;
+            const recOld: any = (payload as any).old;
+            const relevant = (r: any) =>
+              r &&
+              ((r.sender_id === user.id && r.recipient_id === otherUserId) ||
+                (r.sender_id === otherUserId && r.recipient_id === user.id));
+            if (evt === 'INSERT' && recNew && relevant(recNew)) {
+              setMessages((prev) => {
+                if (prev.some((x) => x.id === recNew.id)) return prev;
+
+                const mk = pickKey(recNew, mediaKeys) || 'media_path';
+                const rawMedia = mk ? recNew[mk] : null;
+                let mp: string | null = null;
+                let mu: string | null = null;
+                if (typeof rawMedia === 'string' && rawMedia.trim()) {
+                  if (/^https?:\/\//i.test(rawMedia)) {
+                    mu = rawMedia;
+                  } else {
+                    mp = rawMedia;
+                  }
+                }
+                // Попробуем взять URL: из события или из кэша
+                if (!mu && mp) {
+                  mu = mediaUrlCacheRef.current[mp] ?? null;
+                }
+
+                // Пытаемся найти локальное оптимистичное сообщение и заменить его на серверное
+                const localIdx = prev.findIndex(
+                  (m) =>
+                    m.id.startsWith('local-') &&
+                    (!!mp ? m.mediaPath === mp : false) &&
+                    m.senderId === user.id &&
+                    !m.text
+                );
+
+                const next = [...prev];
+                const newMessage: Message = {
+                  id: recNew.id,
+                  senderId: recNew.sender_id,
+                  recipientId: recNew.recipient_id,
+                  text:
+                    (pickKey(recNew, contentKeys)
+                      ? recNew[pickKey(recNew, contentKeys)!]
+                      : recNew.content) ?? null,
+                  mediaPath: mp,
+                  createdAt:
+                    (pickKey(recNew, createdKeys)
+                      ? recNew[pickKey(recNew, createdKeys)!]
+                      : recNew.created_at) ?? new Date().toISOString(),
+                  mediaUrl: mu ?? null,
+                };
+
+                if (localIdx !== -1) {
+                  // Сохраняем mediaUrl, если был выставлен локально
+                  if (!newMessage.mediaUrl && next[localIdx].mediaUrl) {
+                    newMessage.mediaUrl = next[localIdx].mediaUrl;
+                  }
+                  // Обновляем кэш
+                  if (newMessage.mediaPath && newMessage.mediaUrl) {
+                    mediaUrlCacheRef.current[newMessage.mediaPath] =
+                      newMessage.mediaUrl;
+                  }
+                  next[localIdx] = newMessage;
+                } else {
+                  // Просто добавляем сообщение
+                  if (newMessage.mediaPath && newMessage.mediaUrl) {
+                    mediaUrlCacheRef.current[newMessage.mediaPath] =
+                      newMessage.mediaUrl;
+                  }
+                  next.push(newMessage);
+                }
+
+                next.sort(
+                  (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime()
+                );
+                return next;
+              });
+              setTimeout(
+                () => listRef.current?.scrollToEnd({ animated: true }),
+                100
+              );
+              return;
+            }
+            if (evt === 'UPDATE' && recNew && relevant(recNew)) {
+              setMessages((prev) => {
+                const idx = prev.findIndex((x) => x.id === recNew.id);
+                if (idx === -1) return prev;
+                const copy = [...prev];
+                const mkU = pickKey(recNew, mediaKeys) || 'media_path';
+                const rawMediaU = mkU ? recNew[mkU] : null;
+                let mpU: string | null = copy[idx].mediaPath ?? null;
+                let muU: string | null = copy[idx].mediaUrl ?? null;
+                if (typeof rawMediaU === 'string' && rawMediaU.trim()) {
+                  if (/^https?:\/\//i.test(rawMediaU)) {
+                    muU = rawMediaU;
+                  } else {
+                    mpU = rawMediaU;
+                  }
+                }
+                if (!muU && mpU) {
+                  muU = mediaUrlCacheRef.current[mpU] ?? null;
+                }
+                const createdKeyU = pickKey(recNew, createdKeys);
+                const contentKeyU = pickKey(recNew, contentKeys);
+                copy[idx] = {
+                  ...copy[idx],
+                  text:
+                    contentKeyU !== undefined && contentKeyU
+                      ? recNew[contentKeyU]
+                      : recNew.content !== undefined
+                        ? recNew.content
+                        : copy[idx].text,
+                  mediaPath: mpU,
+                  mediaUrl: muU ?? null,
+                  createdAt: createdKeyU
+                    ? recNew[createdKeyU]
+                    : recNew.created_at !== undefined
+                      ? recNew.created_at
+                      : copy[idx].createdAt,
+                };
+                if (copy[idx].mediaPath && copy[idx].mediaUrl) {
+                  mediaUrlCacheRef.current[copy[idx].mediaPath!] =
+                    copy[idx].mediaUrl!;
+                }
+                return copy;
+              });
+              return;
+            }
+            if (evt === 'DELETE' && recOld && relevant(recOld)) {
+              setMessages((prev) => prev.filter((x) => x.id !== recOld.id));
+              return;
+            }
+            if (!evt && recNew && relevant(recNew)) {
+              setMessages((prev) => {
+                if (prev.some((x) => x.id === recNew.id)) return prev;
+                const mk0 = pickKey(recNew, mediaKeys) || 'media_path';
+                const rawMedia0 = mk0 ? recNew[mk0] : null;
+                let mp0: string | null = null;
+                let mu0: string | null = null;
+                if (typeof rawMedia0 === 'string' && rawMedia0.trim()) {
+                  if (/^https?:\/\//i.test(rawMedia0)) {
+                    mu0 = rawMedia0;
+                  } else {
+                    mp0 = rawMedia0;
+                  }
+                }
+                if (!mu0 && mp0) {
+                  mu0 = mediaUrlCacheRef.current[mp0] ?? null;
+                }
+                const createdKey0 = pickKey(recNew, createdKeys);
+                const contentKey0 = pickKey(recNew, contentKeys);
+                const next = [
+                  ...prev,
+                  {
+                    id: recNew.id,
+                    senderId: recNew.sender_id,
+                    recipientId: recNew.recipient_id,
+                    text: contentKey0
+                      ? recNew[contentKey0]
+                      : (recNew.content ?? null),
+                    mediaPath: mp0,
+                    createdAt: createdKey0
+                      ? recNew[createdKey0]
+                      : recNew.created_at,
+                    mediaUrl: mu0 ?? null,
+                  } as Message,
+                ];
+                next.sort(
+                  (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime()
+                );
+                return next;
+              });
+              setTimeout(
+                () => listRef.current?.scrollToEnd({ animated: true }),
+                100
+              );
+            }
+          } catch (e) {
+            console.error('Ошибка обработки realtime сообщения:', e);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        console.error('Ошибка отписки от канала:', e);
+      }
+    };
+  }, [user, otherUserId]);
+
+  // Локальная подпись URL для медиа, если сервер не вернул mediaUrl
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Найдём сообщения с путём в Storage, но без готового URL
+        const needs = messages.filter((m) => !!m.mediaPath && !m.mediaUrl);
+        if (needs.length === 0) return;
+
+        const updates: Record<string, string> = {};
+        for (const m of needs) {
+          const { data, error } = await supabase.storage
+            .from('user-photos')
+            .createSignedUrl(m.mediaPath as string, 900);
+          if (!error && data?.signedUrl) {
+            updates[m.id] = data.signedUrl;
+            mediaUrlCacheRef.current[m.mediaPath!] = data.signedUrl;
+          }
+        }
+
+        if (!cancelled && Object.keys(updates).length) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              updates[m.id] ? { ...m, mediaUrl: updates[m.id] } : m
+            )
+          );
+        }
+      } catch {
+        // молча игнорируем — в UI останется плейсхолдер
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages]);
+
   const onSend = useCallback(async () => {
     const payload = text.trim();
-
-    // Валидация
     if (!payload || sending || !user || !otherUserId) return;
-
     try {
       setSending(true);
-
-      // Отправляем сообщение на сервер
       const response = await chatAPI.sendMessage(otherUserId, payload, null);
-
-      // Оптимистичное обновление UI
       const now = new Date().toISOString();
       const optimisticMessage: Message = {
         id: response.id,
@@ -633,22 +464,12 @@ export default function ChatDialogScreen() {
         mediaPath: null,
         createdAt: now,
       };
-
       setMessages((prev) => {
-        // Избегаем дубликатов
         if (prev.some((x) => x.id === response.id)) return prev;
         return [...prev, optimisticMessage];
       });
-
-      // Очищаем поле ввода
       setText('');
-
-      // Прокручиваем к последнему сообщению
-      setTimeout(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-      }, 50);
-
-      // Синхронизируем с сервером (на случай, если realtime не сработал)
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
       setTimeout(() => {
         fetchMessages().catch(() => void 0);
       }, 500);
@@ -663,15 +484,168 @@ export default function ChatDialogScreen() {
     }
   }, [text, sending, otherUserId, user, fetchMessages]);
 
-  /**
-   * Рендер одного сообщения
-   */
+  const onAttach = useCallback(async () => {
+    if (uploading || sending) return;
+    if (!user || !otherUserId) return;
+    try {
+      setUploading(true);
+      const pick = await DocumentPicker.getDocumentAsync({
+        type: ['image/*'],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+      if ((pick as any)?.canceled) {
+        setUploading(false);
+        return;
+      }
+      const asset = (pick as any)?.assets?.[0];
+      if (!asset?.uri) {
+        setUploading(false);
+        return;
+      }
+      const uri: string = asset.uri;
+      const name: string = asset.name || uri;
+      const lower = name.toLowerCase();
+      const mime: 'image/jpeg' | 'image/png' | 'image/webp' = lower.endsWith(
+        '.png'
+      )
+        ? 'image/png'
+        : lower.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+      const ext: 'jpg' | 'jpeg' | 'png' | 'webp' =
+        mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpeg';
+
+      const { path, signedUrl } = await userPhotosAPI.getUploadUrl({ ext });
+
+      // Загружаем файл на подписанный URL
+      await FileSystem.uploadAsync(signedUrl, uri, {
+        httpMethod: 'PUT',
+        headers: { 'Content-Type': mime, 'x-upsert': 'true' },
+      });
+
+      // Сразу создадим подписанный URL для чтения и положим его в кэш и оптимистичное сообщение
+      let localSignedUrl: string | null = null;
+      try {
+        const { data, error } = await supabase.storage
+          .from('user-photos')
+          .createSignedUrl(path, 900);
+        if (!error && data?.signedUrl) {
+          localSignedUrl = data.signedUrl;
+          mediaUrlCacheRef.current[path] = data.signedUrl;
+        }
+      } catch {}
+
+      const nowIso = new Date().toISOString();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          senderId: user.id,
+          recipientId: otherUserId,
+          text: null,
+          mediaPath: path,
+          createdAt: nowIso,
+          mediaUrl: localSignedUrl,
+        },
+      ]);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+
+      await chatAPI.sendMessage(otherUserId, undefined, path);
+      setTimeout(() => {
+        fetchMessages().catch(() => void 0);
+      }, 400);
+    } catch (err) {
+      console.error('Ошибка загрузки вложения:', err);
+      Alert.alert('Ошибка', 'Не удалось отправить файл. Попробуйте ещё раз.');
+    } finally {
+      setUploading(false);
+    }
+  }, [uploading, sending, user, otherUserId, fetchMessages]);
+
+  // Удаление сообщений
+  const removeMessageLocal = useCallback((id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  }, []);
+
+  const handleDeleteForMe = useCallback(
+    async (m: Message) => {
+      try {
+        if (m.id.startsWith('local-')) {
+          removeMessageLocal(m.id);
+          return;
+        }
+        await chatAPI.deleteMessage(m.id, 'for_me');
+        removeMessageLocal(m.id);
+      } catch (e) {
+        console.error('Удаление у себя не удалось:', e);
+        Alert.alert('Ошибка', 'Не удалось удалить сообщение у вас.');
+      }
+    },
+    [removeMessageLocal]
+  );
+
+  const handleDeleteForAll = useCallback(
+    async (m: Message) => {
+      try {
+        if (m.id.startsWith('local-')) {
+          // локальное ещё не синкнутое сообщение — просто убрать
+          removeMessageLocal(m.id);
+          return;
+        }
+        await chatAPI.deleteMessage(m.id, 'for_all');
+        removeMessageLocal(m.id);
+      } catch (e) {
+        console.error('Удаление у всех не удалось:', e);
+        Alert.alert('Ошибка', 'Не удалось удалить сообщение для всех.');
+      }
+    },
+    [removeMessageLocal]
+  );
+
+  const onLongPressMessage = useCallback(
+    (m: Message) => {
+      const isMine = !!user && m.senderId === user.id;
+      const buttons: Array<{
+        text: string;
+        onPress?: () => void;
+        style?: 'default' | 'cancel' | 'destructive';
+      }> = [];
+
+      buttons.push({
+        text: 'Удалить у меня',
+        onPress: () => handleDeleteForMe(m),
+        style: 'default',
+      });
+
+      if (isMine && !m.id.startsWith('local-')) {
+        buttons.push({
+          text: 'Удалить у всех',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('Удалить для всех?', 'Это действие нельзя отменить.', [
+              { text: 'Отмена', style: 'cancel' },
+              {
+                text: 'Удалить',
+                style: 'destructive',
+                onPress: () => handleDeleteForAll(m),
+              },
+            ]);
+          },
+        });
+      }
+
+      buttons.push({ text: 'Отмена', style: 'cancel' });
+
+      Alert.alert('Удаление сообщения', 'Выберите действие', buttons);
+    },
+    [user, handleDeleteForMe, handleDeleteForAll]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
       if (!user) return null;
-
       const isMine = item.senderId === user.id;
-
       return (
         <View
           style={[
@@ -679,7 +653,8 @@ export default function ChatDialogScreen() {
             isMine ? styles.msgRowMine : styles.msgRowOther,
           ]}
         >
-          <View
+          <Pressable
+            onLongPress={() => onLongPressMessage(item)}
             style={[
               styles.bubble,
               isMine ? styles.bubbleMine : styles.bubbleOther,
@@ -687,11 +662,18 @@ export default function ChatDialogScreen() {
           >
             {item.text ? (
               <Text style={styles.msgText}>{item.text}</Text>
-            ) : item.mediaPath ? (
-              <View style={styles.mediaContainer}>
-                <Ionicons name="image" size={20} color="#fff" />
-                <Text style={styles.msgText}>📷 Медиа</Text>
-              </View>
+            ) : item.mediaUrl || item.mediaPath ? (
+              item.mediaUrl ? (
+                <Image
+                  source={{ uri: item.mediaUrl }}
+                  style={styles.mediaImage}
+                />
+              ) : (
+                <View style={styles.mediaContainer}>
+                  <Ionicons name="image" size={20} color="#fff" />
+                  <Text style={styles.msgText}>📷 Медиа</Text>
+                </View>
+              )
             ) : (
               <Text style={styles.msgText}>—</Text>
             )}
@@ -701,16 +683,13 @@ export default function ChatDialogScreen() {
                 minute: '2-digit',
               })}
             </Text>
-          </View>
+          </Pressable>
         </View>
       );
     },
-    [user]
+    [user, onLongPressMessage]
   );
 
-  /**
-   * Если пользователь не указан
-   */
   if (!otherUserId) {
     return (
       <View style={styles.container}>
@@ -719,7 +698,9 @@ export default function ChatDialogScreen() {
           <Text style={styles.error}>Не указан собеседник</Text>
           <Pressable
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() =>
+              navigation.navigate('MainTabs', { screen: 'Messages' })
+            }
           >
             <Text style={styles.backButtonText}>Назад</Text>
           </Pressable>
@@ -728,9 +709,6 @@ export default function ChatDialogScreen() {
     );
   }
 
-  /**
-   * Если пользователь не авторизован
-   */
   if (authLoading) {
     return (
       <View style={styles.container}>
@@ -754,7 +732,9 @@ export default function ChatDialogScreen() {
           <Text style={styles.error}>Требуется авторизация</Text>
           <Pressable
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() =>
+              navigation.navigate('MainTabs', { screen: 'Messages' })
+            }
           >
             <Text style={styles.backButtonText}>Назад</Text>
           </Pressable>
@@ -765,24 +745,25 @@ export default function ChatDialogScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Фоновый градиент */}
       <LinearGradient
         colors={['#0F172A', '#1E293B', '#334155']}
         style={StyleSheet.absoluteFillObject}
       />
-
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={keyboardVerticalOffset}
         enabled
       >
-        {/* Хедер */}
         <View style={styles.header}>
-          <Pressable style={styles.backHit} onPress={() => navigation.goBack()}>
+          <Pressable
+            style={styles.backHit}
+            onPress={() =>
+              navigation.navigate('MainTabs', { screen: 'Messages' })
+            }
+          >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </Pressable>
-
           <View style={styles.headerCenter}>
             {primaryPhotoUrl ? (
               <Image source={{ uri: primaryPhotoUrl }} style={styles.avatar} />
@@ -798,11 +779,9 @@ export default function ChatDialogScreen() {
               <Text style={styles.subtitle}>В сети</Text>
             </View>
           </View>
-
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Список сообщений */}
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator color="#8B5CF6" size="large" />
@@ -835,14 +814,22 @@ export default function ChatDialogScreen() {
           />
         )}
 
-        {/* Поле ввода */}
-        <View
-          style={[
-            styles.inputContainer,
-            { paddingBottom: Platform.OS === 'ios' ? insets.bottom + 12 : 16 },
-          ]}
-        >
+        <View style={styles.inputContainer}>
           <View style={styles.inputRow}>
+            <Pressable
+              style={[
+                styles.attachBtn,
+                (uploading || sending) && styles.sendDisabled,
+              ]}
+              disabled={uploading || sending}
+              onPress={onAttach}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="attach-outline" size={20} color="#fff" />
+              )}
+            </Pressable>
             <TextInput
               style={styles.input}
               value={text}
@@ -1034,6 +1021,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  mediaImage: {
+    width: 180,
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
   time: {
     marginTop: 6,
     color: 'rgba(255, 255, 255, 0.6)',
@@ -1065,6 +1058,15 @@ const styles = StyleSheet.create({
     marginRight: 12,
     paddingTop: 8,
     paddingBottom: 8,
+  },
+  attachBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   sendBtn: {
     width: 40,

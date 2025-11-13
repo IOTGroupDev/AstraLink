@@ -605,7 +605,6 @@ const AdvisorScreen: React.FC = () => {
 
   const timezone = useMemo(() => {
     try {
-      // @ts-ignore
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
     } catch {
       return 'UTC';
@@ -681,7 +680,9 @@ const AdvisorScreen: React.FC = () => {
             onPress={() => {
               try {
                 navigation.navigate('Subscription' as never);
-              } catch {}
+              } catch (e: any) {
+                console.error('navigation failed:', e?.message || e);
+              }
             }}
             style={styles.premiumButton}
           >

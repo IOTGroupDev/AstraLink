@@ -8,6 +8,9 @@ import {
   Body,
   UnauthorizedException,
   Query,
+  Logger,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +29,8 @@ import type { AuthenticatedRequest } from '../types/auth';
 @UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class DatingController {
+  private readonly logger = new Logger(DatingController.name);
+
   constructor(private readonly datingService: DatingService) {}
 
   @Get('matches')
@@ -38,17 +43,28 @@ export class DatingController {
     @Query('city') city?: string,
     @Query('limit') limit?: string,
   ): Promise<DatingMatchResponse[]> {
-    const userId = req.user?.userId || req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    try {
+      const userId = req.user?.userId || req.user?.id || req.user?.sub;
+      if (!userId) {
+        throw new UnauthorizedException('Пользователь не аутентифицирован');
+      }
+      const filters = {
+        ageMin: ageMin ? parseInt(ageMin, 10) : undefined,
+        ageMax: ageMax ? parseInt(ageMax, 10) : undefined,
+        city: city?.trim() || undefined,
+        limit: limit
+          ? Math.max(1, Math.min(50, parseInt(limit, 10)))
+          : undefined,
+      };
+      return await this.datingService.getMatches(userId, filters);
+    } catch (e: any) {
+      this.logger.error('getMatches failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to fetch matches',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-    const filters = {
-      ageMin: ageMin ? parseInt(ageMin, 10) : undefined,
-      ageMax: ageMax ? parseInt(ageMax, 10) : undefined,
-      city: city?.trim() || undefined,
-      limit: limit ? Math.max(1, Math.min(50, parseInt(limit, 10))) : undefined,
-    };
-    return this.datingService.getMatches(userId, filters);
   }
 
   @Post('match/:id/like')
@@ -56,15 +72,24 @@ export class DatingController {
   @ApiParam({ name: 'id', description: 'ID кандидата' })
   @ApiResponse({ status: 200, description: 'Лайк поставлен' })
   @ApiResponse({ status: 404, description: 'Кандидат не найден' })
-  likeMatch(
+  async likeMatch(
     @Request() req: AuthenticatedRequest,
     @Param('id') matchId: string,
   ) {
-    const userId = req.user?.userId || req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    try {
+      const userId = req.user?.userId || req.user?.id || req.user?.sub;
+      if (!userId) {
+        throw new UnauthorizedException('Пользователь не аутентифицирован');
+      }
+      return await this.datingService.likeMatch(userId, matchId);
+    } catch (e: any) {
+      this.logger.error('likeMatch failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to like match',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-    return this.datingService.likeMatch(userId, matchId);
   }
 
   @Post('match/:id/reject')
@@ -72,15 +97,24 @@ export class DatingController {
   @ApiParam({ name: 'id', description: 'ID кандидата' })
   @ApiResponse({ status: 200, description: 'Кандидат отклонен' })
   @ApiResponse({ status: 404, description: 'Кандидат не найден' })
-  rejectMatch(
+  async rejectMatch(
     @Request() req: AuthenticatedRequest,
     @Param('id') matchId: string,
   ) {
-    const userId = req.user?.userId || req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    try {
+      const userId = req.user?.userId || req.user?.id || req.user?.sub;
+      if (!userId) {
+        throw new UnauthorizedException('Пользователь не аутентифицирован');
+      }
+      return await this.datingService.rejectMatch(userId, matchId);
+    } catch (e: any) {
+      this.logger.error('rejectMatch failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to reject match',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-    return this.datingService.rejectMatch(userId, matchId);
   }
 
   // New: get candidates via Supabase RPC cache (badge only)
@@ -93,11 +127,23 @@ export class DatingController {
     @Request() req: AuthenticatedRequest,
     @Query('limit') limit?: string,
   ) {
-    const token = this.getAccessToken(req);
-    const safeLimit = limit
-      ? Math.max(1, Math.min(50, parseInt(limit, 10)))
-      : 20;
-    return this.datingService.getCandidatesViaSupabase(token, safeLimit);
+    try {
+      const token = this.getAccessToken(req);
+      const safeLimit = limit
+        ? Math.max(1, Math.min(50, parseInt(limit, 10)))
+        : 20;
+      return await this.datingService.getCandidatesViaSupabase(
+        token,
+        safeLimit,
+      );
+    } catch (e: any) {
+      this.logger.error('getCandidates failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to fetch candidates',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   // New: like/super_like/pass via Supabase RPC
@@ -112,24 +158,64 @@ export class DatingController {
     @Body()
     body: { targetUserId: string; action?: 'like' | 'super_like' | 'pass' },
   ) {
-    const token = this.getAccessToken(req);
-    if (!body?.targetUserId) {
-      throw new UnauthorizedException('targetUserId is required');
+    try {
+      const token = this.getAccessToken(req);
+      if (!body?.targetUserId) {
+        throw new UnauthorizedException('targetUserId is required');
+      }
+      const action = body.action ?? 'like';
+      return await this.datingService.likeUserViaSupabase(
+        token,
+        body.targetUserId,
+        action,
+      );
+    } catch (e: any) {
+      this.logger.error('likeUser failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to process like action',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-    const action = body.action ?? 'like';
-    return this.datingService.likeUserViaSupabase(
-      token,
-      body.targetUserId,
-      action,
-    );
   }
 
   @Post('rank/run')
   @ApiOperation({ summary: 'Запустить ночной ранк кандидатов вручную (admin)' })
   @ApiResponse({ status: 200, description: 'Задача запущена' })
   async runRankCandidates() {
-    const res = await this.datingService.runRankCandidatesNightly();
-    return res;
+    try {
+      const res = await this.datingService.runRankCandidatesNightly();
+      return res;
+    } catch (e: any) {
+      this.logger.error('runRankCandidates failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to trigger ranking task',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('profile/:userId')
+  @ApiOperation({
+    summary: 'Публичные данные профиля для карточки Dating',
+  })
+  @ApiParam({ name: 'userId', description: 'ID пользователя' })
+  @ApiResponse({ status: 200, description: 'Публичный профиль' })
+  async getPublicProfileForCard(@Param('userId') userId: string) {
+    try {
+      if (!userId) {
+        throw new UnauthorizedException('userId is required');
+      }
+      return await this.datingService.getPublicProfileForCard(userId);
+    } catch (e: any) {
+      this.logger.error('getPublicProfileForCard failed', e?.stack || e);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(
+        'Failed to fetch public profile',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   // Helper to extract bearer token (needed for Supabase RLS auth.uid())

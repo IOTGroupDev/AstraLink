@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { RedisService } from '../redis/redis.service';
 
 export interface ChatMessage {
   id: string;
@@ -8,6 +9,7 @@ export interface ChatMessage {
   text: string | null;
   mediaPath: string | null;
   createdAt: string;
+  mediaUrl?: string | null;
 }
 
 export interface ChatConversation {
@@ -22,11 +24,18 @@ export interface ChatConversation {
 
 @Injectable()
 export class ChatService {
-  private readonly preferRpc = process.env.CHAT_PREFER_RPC !== 'false';
+  // RPC отключён по умолчанию, включайте через CHAT_PREFER_RPC=true
+  private readonly preferRpc = process.env.CHAT_PREFER_RPC === 'true';
+  // RPC для удаления сообщений (если в БД есть SECURITY DEFINER delete_message)
+  private readonly preferDeleteRpc =
+    process.env.CHAT_DELETE_PREFER_RPC === 'true';
   private rpcWarned = false;
   private messagesColumnsCache: Set<string> | null = null;
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly redis: RedisService,
+  ) {}
 
   /**
    * Отправить сообщение через RPC send_message (SECURITY DEFINER).
@@ -53,7 +62,131 @@ export class ChatService {
       );
 
       if (data && !error) {
-        return { id: data };
+        const newId = String(data);
+
+        // Safety patch: если RPC проигнорировал media_path, проставим его вручную
+        try {
+          const existingCols = await this.getExistingColumns(userAccessToken);
+          const client =
+            this.supabaseService.getClientForToken(userAccessToken);
+
+          const idCandidates = ['id', 'message_id', 'uuid', 'pk', 'messageId'];
+          const mediaColumnsAll = [
+            'attachment_path',
+            'media_path',
+            'media_url',
+            'attachment_url',
+            'attachment',
+            'file_url',
+            'file_path',
+            'file',
+            'image_url',
+          ];
+          const mediaColumns = (() => {
+            const present = mediaColumnsAll.filter((c) => existingCols.has(c));
+            return present.length ? present : mediaColumnsAll;
+          })();
+
+          const hasMedia =
+            typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+
+          if (hasMedia) {
+            let patched = false;
+
+            // Пытаемся обновить по каждому возможному id-ключу
+            for (const idK of idCandidates) {
+              try {
+                const { error: upErr } = await client
+                  .from('messages')
+                  .update({
+                    [mediaColumns[0]]: mediaPath,
+                    ...(existingCols.has('type') ? { type: 'image' } : {}),
+                  } as any)
+                  .eq(idK, newId)
+                  .select('id')
+                  .single();
+                if (!upErr) {
+                  patched = true;
+                  break;
+                }
+              } catch {
+                // continue
+              }
+            }
+
+            // Фолбэк: OR по всем возможным id-ключам
+            if (!patched) {
+              try {
+                const orExpr = idCandidates
+                  .map((k) => `${k}.eq.${newId}`)
+                  .join(',');
+                const { data: upd, error: upErr } = await client
+                  .from('messages')
+                  .update({
+                    [mediaColumns[0]]: mediaPath,
+                    ...(existingCols.has('type') ? { type: 'image' } : {}),
+                  } as any)
+                  .or(orExpr)
+                  .select('id');
+                if (
+                  !upErr &&
+                  ((Array.isArray(upd) && upd.length > 0) || !!upd)
+                ) {
+                  patched = true;
+                }
+              } catch {
+                // ignore
+              }
+            }
+
+            // Последний фолбэк: попытка через admin-клиент (если доступен)
+            if (!patched) {
+              try {
+                const admin = this.supabaseService.getAdminClient();
+                for (const idK of idCandidates) {
+                  const { error: upErr } = await admin
+                    .from('messages')
+                    .update({
+                      [mediaColumns[0]]: mediaPath,
+                      ...(existingCols.has('type') ? { type: 'image' } : {}),
+                    } as any)
+                    .eq(idK, newId)
+                    .select('id')
+                    .single();
+                  if (!upErr) {
+                    patched = true;
+                    break;
+                  }
+                }
+                if (!patched) {
+                  const orExpr = idCandidates
+                    .map((k) => `${k}.eq.${newId}`)
+                    .join(',');
+                  const { data: upd, error: upErr } = await admin
+                    .from('messages')
+                    .update({
+                      [mediaColumns[0]]: mediaPath,
+                      ...(existingCols.has('type') ? { type: 'image' } : {}),
+                    } as any)
+                    .or(orExpr)
+                    .select('id');
+                  if (
+                    !upErr &&
+                    ((Array.isArray(upd) && upd.length > 0) || !!upd)
+                  ) {
+                    patched = true;
+                  }
+                }
+              } catch {
+                // ignore
+              }
+            }
+          }
+        } catch {
+          // не критично для возврата id — фронтенд подхватит media через кэш/подпись URL
+        }
+
+        return { id: newId };
       }
       if (!this.rpcWarned) {
         console.warn('send_message RPC failed, using fallback insert', {
@@ -114,11 +247,20 @@ export class ChatService {
       'media_url',
       'attachment_url',
       'attachment',
+      'file_url',
+      'file_path',
+      'file',
+      'image_url',
     ];
     const mediaColumns = (() => {
       const present = mediaColumnsAll.filter((c) => existing.has(c));
       return present.length ? present : mediaColumnsAll;
     })();
+
+    const trimmedText = (text ?? '').trim();
+    const hasText = trimmedText.length > 0;
+    const hasMedia =
+      typeof mediaPath === 'string' && mediaPath.trim().length > 0;
 
     let firstErr: any = null;
     let lastErr: any = null;
@@ -142,36 +284,15 @@ export class ChatService {
       for (const cc of contentColumns) {
         const baseCore = {
           [rc]: recipientId,
-          [cc]: (text ?? '').trim() || null,
+          [cc]: hasText ? trimmedText : null,
           ...(existing.has('match_id') && matchId ? { match_id: matchId } : {}),
-          ...(existing.has('type') ? { type: 'text' } : {}),
+          ...(existing.has('type')
+            ? { type: hasMedia ? 'image' : 'text' }
+            : {}),
         } as any;
 
-        // 2.1 Попытка БЕЗ sender-колонки, без медиа (имеет смысл только если нет явной колонки отправителя)
-        if (!senderKey) {
-          const { data: ins0, error: err0 } = await client
-            .from('messages')
-            .insert(baseCore)
-            .select('*')
-            .single();
-
-          if (!err0 && ins0) {
-            const newId0 =
-              ins0.id ??
-              ins0.message_id ??
-              ins0.uuid ??
-              ins0.messageId ??
-              ins0.pk;
-            if (newId0) {
-              return { id: String(newId0) };
-            }
-          }
-          firstErr = firstErr ?? err0;
-          lastErr = err0 ?? lastErr;
-        }
-
-        // 2.2 Попытка БЕЗ sender-колонки, С медиа (имеет смысл только если нет явной колонки отправителя)
-        if (!senderKey) {
+        // 2.1 Попытка БЕЗ sender-колонки, С медиа — СНАЧАЛА (если есть медиа)
+        if (!senderKey && hasMedia) {
           for (const mc of mediaColumns) {
             const insertCoreWithMedia = {
               ...baseCore,
@@ -198,6 +319,29 @@ export class ChatService {
           }
         }
 
+        // 2.2 Попытка БЕЗ sender-колонки, без медиа (только если нет медиа и есть текст)
+        if (!senderKey && !hasMedia && hasText) {
+          const { data: ins0, error: err0 } = await client
+            .from('messages')
+            .insert(baseCore)
+            .select('*')
+            .single();
+
+          if (!err0 && ins0) {
+            const newId0 =
+              ins0.id ??
+              ins0.message_id ??
+              ins0.uuid ??
+              ins0.messageId ??
+              ins0.pk;
+            if (newId0) {
+              return { id: String(newId0) };
+            }
+          }
+          firstErr = firstErr ?? err0;
+          lastErr = err0 ?? lastErr;
+        }
+
         // 2.3 Попытки С sender-колонками
         {
           const senderList = senderKey ? [senderKey] : senderColumns;
@@ -207,8 +351,37 @@ export class ChatService {
               ...baseCore,
             };
 
-            // 2.3.1 С sender, без медиа
-            {
+            // 2.3.1 С sender, с медиа — СНАЧАЛА (если есть медиа)
+            if (hasMedia) {
+              for (const mc of mediaColumns) {
+                const insertWithMedia = {
+                  ...baseWithSender,
+                  [mc]: mediaPath ?? null,
+                };
+                const { data: ins2, error: err2 } = await client
+                  .from('messages')
+                  .insert(insertWithMedia)
+                  .select('*')
+                  .single();
+
+                if (!err2 && ins2) {
+                  const newId2 =
+                    ins2.id ??
+                    ins2.message_id ??
+                    ins2.uuid ??
+                    ins2.messageId ??
+                    ins2.pk;
+                  if (newId2) {
+                    return { id: String(newId2) };
+                  }
+                }
+                firstErr = firstErr ?? err2;
+                lastErr = err2 ?? lastErr;
+              }
+            }
+
+            // 2.3.2 С sender, без медиа (только если нет медиа и есть текст)
+            if (!hasMedia && hasText) {
               const { data: ins1, error: err1 } = await client
                 .from('messages')
                 .insert(baseWithSender)
@@ -228,33 +401,6 @@ export class ChatService {
               }
               firstErr = firstErr ?? err1;
               lastErr = err1 ?? lastErr;
-            }
-
-            // 2.3.2 С sender, с медиа
-            for (const mc of mediaColumns) {
-              const insertWithMedia = {
-                ...baseWithSender,
-                [mc]: mediaPath ?? null,
-              };
-              const { data: ins2, error: err2 } = await client
-                .from('messages')
-                .insert(insertWithMedia)
-                .select('*')
-                .single();
-
-              if (!err2 && ins2) {
-                const newId2 =
-                  ins2.id ??
-                  ins2.message_id ??
-                  ins2.uuid ??
-                  ins2.messageId ??
-                  ins2.pk;
-                if (newId2) {
-                  return { id: String(newId2) };
-                }
-              }
-              firstErr = firstErr ?? err2;
-              lastErr = err2 ?? lastErr;
             }
           }
         }
@@ -285,6 +431,33 @@ export class ChatService {
   ): Promise<ChatMessage[]> {
     const safeLimit = Math.max(1, Math.min(100, limit));
     const client = this.supabaseService.getClientForToken(userAccessToken);
+
+    // Определим текущего пользователя и его скрытия (для себя)
+    const { data: userRes2 } =
+      await this.supabaseService.getUser(userAccessToken);
+    const selfId = (userRes2 as any)?.user?.id as string | undefined;
+
+    let hiddenMsgIds = new Set<string>();
+    if (selfId) {
+      try {
+        const convKey = `chat:hidden:conversations:${selfId}`;
+        const msgKey = `chat:hidden:messages:${selfId}`;
+        const [convList, msgList] = await Promise.all([
+          this.redis.get<string[]>(convKey),
+          this.redis.get<string[]>(msgKey),
+        ]);
+        const hiddenConv =
+          Array.isArray(convList) && convList.includes(otherUserId);
+        if (hiddenConv) {
+          return [];
+        }
+        hiddenMsgIds = new Set<string>(
+          Array.isArray(msgList) ? msgList.map(String) : [],
+        );
+      } catch {
+        // в случае проблем с Redis скрытия игнорируем
+      }
+    }
 
     // Из-за дрейфа схемы не используем серверные фильтры по неизвестным колонкам.
     // Берём порцию сообщений, RLS отдаст только доступные строки для auth.uid().
@@ -323,15 +496,27 @@ export class ChatService {
       'media_url',
       'attachment_url',
       'attachment',
+      'file_url',
+      'file_path',
+      'file',
+      'image_url',
     ];
     const createdKeys = ['created_at', 'createdAt', 'createdAtUtc'];
 
     // Фильтруем диалог: собеседник = otherUserId (второй участник)
-    const filtered = rows.filter((r) => {
+    let filtered = rows.filter((r) => {
       const sender = r[pickKey(r, senderKeys) || 'sender_id'];
       const recipient = r[pickKey(r, recipientKeys) || 'recipient_id'];
       return sender === otherUserId || recipient === otherUserId;
     });
+
+    // Исключаем скрытые пользователем сообщения
+    if (hiddenMsgIds && hiddenMsgIds.size) {
+      filtered = filtered.filter((r) => {
+        const anyId = r.id ?? r.message_id ?? r.uuid ?? r.pk ?? r.messageId;
+        return !hiddenMsgIds.has(String(anyId));
+      });
+    }
 
     // Сорт по времени (возрастание)
     filtered.sort((a, b) => {
@@ -341,7 +526,7 @@ export class ChatService {
     });
 
     // Ограничиваем и маппим в DTO
-    return filtered.slice(-safeLimit).map((r) => {
+    const result: ChatMessage[] = filtered.slice(-safeLimit).map((r) => {
       const senderK = pickKey(r, senderKeys) || 'sender_id';
       const recipientK = pickKey(r, recipientKeys) || 'recipient_id';
       const contentK = pickKey(r, contentKeys) || 'content';
@@ -356,15 +541,48 @@ export class ChatService {
             ? new Date(rawCreated).toISOString()
             : new Date().toISOString();
 
+      // Разделяем URL и path: если в колонке значение — абсолютный URL, используем его напрямую
+      const rawMedia = r[mediaK] ?? null;
+      let mediaPath: string | null = null;
+      let mediaUrl: string | null = null;
+      if (typeof rawMedia === 'string' && rawMedia.trim()) {
+        if (/^https?:\/\//i.test(rawMedia)) {
+          mediaUrl = rawMedia;
+        } else {
+          mediaPath = rawMedia;
+        }
+      }
+
       return {
         id: r.id,
         senderId: r[senderK],
         recipientId: r[recipientK],
         text: r[contentK] ?? null,
-        mediaPath: r[mediaK] ?? null,
+        mediaPath,
         createdAt,
+        mediaUrl,
       } as ChatMessage;
     });
+
+    // Попробуем создать подписанные URL для медиа-путей (bucket user-photos), если URL ещё не задан
+    try {
+      await Promise.all(
+        result.map(async (m) => {
+          if (!m.mediaUrl && m.mediaPath) {
+            const url = await this.supabaseService.createSignedUrl(
+              'user-photos',
+              m.mediaPath,
+              900,
+            );
+            m.mediaUrl = url ?? null;
+          }
+        }),
+      );
+    } catch {
+      // без URL — покажем плейсхолдер на фронтенде
+    }
+
+    return result;
   }
 
   /**
@@ -524,7 +742,20 @@ export class ChatService {
       // имя опционально
     }
 
-    return Array.from(map.values()).slice(0, safeLimit);
+    // Применим фильтр скрытых переписок (для текущего пользователя)
+    let items = Array.from(map.values());
+    try {
+      const hidden =
+        (await this.redis.get<string[]>(
+          `chat:hidden:conversations:${selfId}`,
+        )) ?? [];
+      if (Array.isArray(hidden) && hidden.length) {
+        items = items.filter((c) => hidden.indexOf(c.otherUserId) === -1);
+      }
+    } catch {
+      // если Redis недоступен — просто не фильтруем
+    }
+    return items.slice(0, safeLimit);
   }
 
   /**
@@ -535,9 +766,18 @@ export class ChatService {
     userAccessToken: string,
     column: string,
   ): Promise<boolean> {
+    // Сначала пробуем клиентом пользователя (RLS)
     try {
       const client = this.supabaseService.getClientForToken(userAccessToken);
       const { error } = await client.from('messages').select(column).limit(0);
+      if (!error) return true;
+    } catch {
+      // игнорируем, попробуем через admin
+    }
+    // Фолбэк — проверяем существование колонки через admin (обходит RLS)
+    try {
+      const admin = this.supabaseService.getAdminClient();
+      const { error } = await admin.from('messages').select(column).limit(0);
       return !error;
     } catch {
       return false;
@@ -660,5 +900,227 @@ export class ChatService {
     // 3) финальный повторный поиск (возможна гонка вставки другой стороной)
     id = await tryFind();
     return id; // может остаться null — тогда вставка сообщения упадёт, и мы отдадим подробности в логах выше
+  }
+
+  /**
+   * Удаление сообщения.
+   * mode: 'for_me' — скрыть у текущего пользователя (Redis);
+   *       'for_all' — физически удалить, если текущий пользователь — отправитель.
+   */
+  async deleteMessageWithToken(
+    userAccessToken: string,
+    messageId: string,
+    mode: 'for_me' | 'for_all' = 'for_me',
+  ): Promise<{ success: boolean }> {
+    const { data: userRes } =
+      await this.supabaseService.getUser(userAccessToken);
+    const selfId = (userRes as any)?.user?.id as string | undefined;
+    if (!selfId) {
+      throw new Error('auth required');
+    }
+
+    // "Удалить у меня" — скрываем в Redis
+    if (mode === 'for_me') {
+      const key = `chat:hidden:messages:${selfId}`;
+      const list = (await this.redis.get<string[]>(key)) ?? [];
+      if (!list.includes(String(messageId))) {
+        list.push(String(messageId));
+        await this.redis.set(key, list);
+      }
+      return { success: true };
+    }
+
+    // "Удалить для всех" — жёсткое удаление из БД
+    const client = this.supabaseService.getClientForToken(userAccessToken);
+
+    // Проверим наличие admin-клиента (для обхода RLS)
+    let admin: any = null;
+    let adminAvailable = false;
+    try {
+      admin = this.supabaseService.getAdminClient();
+      adminAvailable = true;
+    } catch {
+      admin = null;
+      adminAvailable = false;
+    }
+
+    // Попробуем RPC delete_message (если включено и функция существует)
+    if (this.preferDeleteRpc) {
+      try {
+        const { error } = await this.supabaseService.rpcWithToken<any>(
+          'delete_message',
+          { p_message_id: messageId },
+          userAccessToken,
+        );
+        if (!error) {
+          return { success: true };
+        }
+      } catch {
+        // игнорируем и продолжаем fallback'ами
+      }
+    }
+
+    // Универсальные кандидаты ключей
+    const idCandidates = ['id', 'message_id', 'uuid', 'pk', 'messageId'];
+    const senderCandidates = [
+      'sender_id',
+      'senderId',
+      'from_user_id',
+      'fromId',
+      'from',
+      'author_id',
+    ];
+
+    // 1) Прочитать строку сообщения (сначала как пользователь, затем через admin)
+    const tryFetch = async (viaAdmin: boolean): Promise<any | null> => {
+      const c = viaAdmin ? admin : client;
+      for (const idK of idCandidates) {
+        try {
+          const { data, error } = await c
+            .from('messages')
+            .select('*')
+            .eq(idK, messageId)
+            .maybeSingle();
+          if (!error && data) return data;
+        } catch {
+          // ignore and try next candidate
+        }
+      }
+      return null;
+    };
+
+    let row: any = await tryFetch(false);
+    if (!row && adminAvailable) {
+      row = await tryFetch(true);
+    }
+    if (!row) {
+      throw new Error('message not found');
+    }
+
+    // 2) Убедимся, что сообщение принадлежит текущему пользователю (он — отправитель)
+    const senderKey =
+      senderCandidates.find((k) =>
+        Object.prototype.hasOwnProperty.call(row, k),
+      ) || null;
+    if (!senderKey || row[senderKey] !== selfId) {
+      throw new Error('for_all is allowed only for the sender');
+    }
+
+    // Определим реальный ключ id в возвращённой строке
+    const actualIdKey =
+      idCandidates.find((k) => Object.prototype.hasOwnProperty.call(row, k)) ||
+      'id';
+    const actualIdValue = row[actualIdKey] ?? messageId;
+
+    // 3) Удаляем: если доступен admin — используем его (надежнее против RLS)
+    const tryDelete = async (viaAdmin: boolean): Promise<boolean> => {
+      const c = viaAdmin ? admin : client;
+      try {
+        // Возвращаем удалённые id, чтобы убедиться, что удаление действительно произошло
+        const { data, error } = await c
+          .from('messages')
+          .delete()
+          .eq(actualIdKey, actualIdValue)
+          .select('id');
+        if (error) return false;
+        if (Array.isArray(data)) return data.length > 0;
+        return !!data; // на случай единичного объекта
+      } catch {
+        return false;
+      }
+    };
+
+    let deleted = false;
+    if (adminAvailable) {
+      deleted = await tryDelete(true);
+    }
+    if (!deleted) {
+      deleted = await tryDelete(false);
+    }
+    if (!deleted && adminAvailable) {
+      // Еще одна попытка клиентом-пользователем на случай сетевой гонки
+      deleted = await tryDelete(false);
+    }
+
+    // Последний фолбэк: удалить по любому из возможных ключей (OR), если реальный ключ id определить не удалось или eq не сработал
+    const tryDeleteAnyKey = async (viaAdmin: boolean): Promise<boolean> => {
+      const c = viaAdmin ? admin : client;
+      try {
+        // Собираем OR-выражение вида: id.eq.<val>,message_id.eq.<val>,uuid.eq.<val>,pk.eq.<val>,messageId.eq.<val>
+        const orExpr = idCandidates
+          .map((k) => `${k}.eq.${actualIdValue}`)
+          .join(',');
+        const { data, error } = await c
+          .from('messages')
+          .delete()
+          .or(orExpr)
+          .select('id');
+        if (error) return false;
+        if (Array.isArray(data)) return data.length > 0;
+        return !!data;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!deleted && adminAvailable) {
+      deleted = await tryDeleteAnyKey(true);
+    }
+    if (!deleted) {
+      deleted = await tryDeleteAnyKey(false);
+    }
+
+    // 4) Верифицируем, что запись действительно исчезла
+    const verifyMissing = async (): Promise<boolean> => {
+      const verify = async (c: any) => {
+        for (const idK of idCandidates) {
+          try {
+            const { data, error } = await c
+              .from('messages')
+              .select('*')
+              .eq(idK, actualIdValue)
+              .maybeSingle();
+            if (!error && data) return false; // нашлась — значит не удалилось
+          } catch {
+            // ignore
+          }
+        }
+        return true;
+      };
+      if (adminAvailable) {
+        const missAdmin = await verify(admin);
+        if (!missAdmin) return false;
+      }
+      const missUser = await verify(client);
+      return missUser;
+    };
+
+    if (!deleted || !(await verifyMissing())) {
+      throw new Error('delete for_all failed (not removed in DB)');
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Скрыть переписку (диалог) у текущего пользователя.
+   */
+  async deleteConversationForMe(
+    userAccessToken: string,
+    otherUserId: string,
+  ): Promise<{ success: boolean }> {
+    const { data: userRes } =
+      await this.supabaseService.getUser(userAccessToken);
+    const selfId = (userRes as any)?.user?.id as string | undefined;
+    if (!selfId) {
+      throw new Error('auth required');
+    }
+    const key = `chat:hidden:conversations:${selfId}`;
+    const list = (await this.redis.get<string[]>(key)) ?? [];
+    if (!list.includes(String(otherUserId))) {
+      list.push(String(otherUserId));
+      await this.redis.set(key, list);
+    }
+    return { success: true };
   }
 }

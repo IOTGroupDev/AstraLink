@@ -749,11 +749,72 @@ export const datingAPI = {
       userId: string;
       badge: 'high' | 'medium' | 'low';
       photoUrl: string | null;
+      avatarUrl?: string | null;
+      name?: string | null;
+      age?: number | null;
+      zodiacSign?: string | null;
+      bio?: string | null;
+      interests?: string[] | null;
+      city?: string | null;
     }>
   > => {
     const safeLimit = Math.max(1, Math.min(50, limit));
     const response = await api.get(`/dating/candidates?limit=${safeLimit}`);
-    return response.data;
+    const raw = response?.data;
+    // Унификация формы ответа: поддерживаем и массив, и {items}
+    const list: any[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.items)
+        ? raw.items
+        : [];
+    // Нормализуем разные возможные ключи полей, чтобы UI получал ожидаемые данные
+    return list.map((it: any) => {
+      const photo =
+        it?.photoUrl ?? it?.primaryPhotoUrl ?? it?.avatarUrl ?? null;
+      return {
+        userId: it?.userId ?? it?.user_id ?? it?.id ?? '',
+        badge: (it?.badge ?? 'low') as 'high' | 'medium' | 'low',
+        photoUrl: photo,
+        avatarUrl: it?.avatarUrl ?? null,
+        name: it?.name ?? null,
+        age: typeof it?.age === 'number' ? it.age : (it?.age ?? null),
+        zodiacSign: it?.zodiacSign ?? it?.sign ?? null,
+        bio: it?.bio ?? null,
+        interests: Array.isArray(it?.interests) ? it.interests : null,
+        city: it?.city ?? null,
+      };
+    });
+  },
+
+  // Public profile for Dating card (backend aggregates users + user_profiles + charts + photos)
+  getProfile: async (
+    userId: string
+  ): Promise<{
+    userId: string;
+    name: string | null;
+    age: number | null;
+    zodiacSign: string | null;
+    bio: string | null;
+    interests: string[] | null;
+    city: string | null;
+    primaryPhotoUrl: string | null;
+    photos?: string[] | null;
+  }> => {
+    const response = await api.get(
+      `/dating/profile/${encodeURIComponent(userId)}`
+    );
+    const d = response?.data || {};
+    return {
+      userId: d?.userId ?? userId,
+      name: d?.name ?? null,
+      age: typeof d?.age === 'number' ? d.age : (d?.age ?? null),
+      zodiacSign: d?.zodiacSign ?? d?.sign ?? null,
+      bio: d?.bio ?? null,
+      interests: Array.isArray(d?.interests) ? d.interests : null,
+      city: d?.city ?? null,
+      primaryPhotoUrl: d?.primaryPhotoUrl ?? null,
+      photos: Array.isArray(d?.photos) ? d.photos : null,
+    };
   },
 
   like: async (
@@ -1078,6 +1139,25 @@ export const chatAPI = {
       text,
       mediaPath: mediaPath ?? null,
     });
+    return response.data;
+  },
+
+  deleteMessage: async (
+    id: string,
+    mode: 'for_me' | 'for_all' = 'for_me'
+  ): Promise<{ success: boolean }> => {
+    const response = await api.delete(
+      `/chat/messages/${encodeURIComponent(id)}?mode=${mode}`
+    );
+    return response.data;
+  },
+
+  deleteConversation: async (
+    otherUserId: string
+  ): Promise<{ success: boolean }> => {
+    const response = await api.delete(
+      `/chat/conversations/${encodeURIComponent(otherUserId)}`
+    );
     return response.data;
   },
 };

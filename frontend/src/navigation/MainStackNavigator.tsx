@@ -11,10 +11,8 @@ import OnboardingFirstScreen from '../screens/Onboarding/OnboardingFirstScreen';
 import OnboardingSecondScreen from '../screens/Onboarding/OnboardingSecondScreen';
 import OnboardingThirdScreen from '../screens/Onboarding/OnboardingThirdScreen';
 import OnboardingFourthScreen from '../screens/Onboarding/OnboardingFourthScreen';
-import WelcomeScreen from '../screens/WelcomeScreen';
 import SignUpScreen from '../screens/Auth/SignUpScreen';
 import AuthEmailScreen from '../screens/Auth/AuthEmailScreen';
-import MagicLinkWaitingScreen from '../screens/Auth/MagicLinkWaitingScreen';
 import AuthCallbackScreen from '../screens/Auth/AuthCallbackScreen';
 import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 
@@ -22,9 +20,7 @@ import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
 import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
-import NatalChartWidget from '../components/profile/NatalChartWidget';
 import NatalChartScreen from '../screens/NatalChartScreen';
-import ServerHealth from '../helpers/ServerHealth';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -140,8 +136,7 @@ export default function MainStackNavigator() {
             name="Subscription"
             component={SubscriptionScreen}
             options={{
-              presentation: 'modal',
-              cardStyle: { backgroundColor: 'transparent' },
+              presentation: 'card',
             }}
           />
           {/*<Stack.Screen*/}
@@ -168,7 +163,7 @@ export default function MainStackNavigator() {
           <Stack.Screen
             name="NatalChart"
             component={NatalChartScreen}
-            options={{ presentation: 'modal' }}
+            options={{ presentation: 'card' }}
           />
         </>
       )}

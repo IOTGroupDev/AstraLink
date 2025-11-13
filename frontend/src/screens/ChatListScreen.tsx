@@ -395,15 +395,6 @@ export default function ChatListScreen() {
   }, [user]);
 
   /**
-   * Начальная загрузка при монтировании
-   */
-  useEffect(() => {
-    if (user) {
-      fetchConversations();
-    }
-  }, [fetchConversations, user]);
-
-  /**
    * Перезагрузка при возврате на экран
    */
   useFocusEffect(
@@ -515,6 +506,45 @@ export default function ChatListScreen() {
   }, []);
 
   /**
+   * Локально убрать переписку из списка
+   */
+  const deleteConversationLocal = useCallback((otherUserId: string) => {
+    setItems((prev) => prev.filter((c) => c.otherUserId !== otherUserId));
+  }, []);
+
+  /**
+   * Долгое нажатие по переписке — удалить у себя
+   */
+  const handleDeleteConversation = useCallback(
+    (conv: ConversationItem) => {
+      Alert.alert(
+        'Удалить переписку?',
+        'Переписка будет скрыта у вас. Сообщения не удаляются у собеседника.',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          {
+            text: 'Удалить',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await chatAPI.deleteConversation(conv.otherUserId);
+                deleteConversationLocal(conv.otherUserId);
+              } catch (e) {
+                console.error('Удаление переписки не удалось:', e);
+                Alert.alert(
+                  'Ошибка',
+                  'Не удалось удалить переписку. Попробуйте ещё раз.'
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deleteConversationLocal]
+  );
+
+  /**
    * Рендер одного диалога
    */
   const renderItem = useCallback(
@@ -532,6 +562,7 @@ export default function ChatListScreen() {
               primaryPhotoUrl: item.primaryPhotoUrl ?? undefined,
             });
           }}
+          onLongPress={() => handleDeleteConversation(item)}
           style={({ pressed }) => [
             styles.row,
             pressed ? styles.rowPressed : null,
@@ -571,7 +602,7 @@ export default function ChatListScreen() {
         </Pressable>
       );
     },
-    [formatDate, navigation]
+    [formatDate, navigation, handleDeleteConversation]
   );
 
   /**

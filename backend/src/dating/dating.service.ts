@@ -184,94 +184,288 @@ export class DatingService {
       CandidateRow[]
     >('get_candidates_for_me', { p_limit: safeLimit }, userAccessToken);
 
-    if (error) {
-      return [];
-    }
     const rows: CandidateRow[] = Array.isArray(data) ? data : [];
 
-    // Список id кандидатов
-    const candidateIds = rows.map((r) => r.user_id);
-    if (candidateIds.length === 0) return [];
-
-    // 1) Тянем базовый профиль
     const admin = this.supabaseService.getAdminClient();
-    const [
-      { data: users, error: usersErr },
-      { data: profiles },
-      { data: charts },
-    ] = await Promise.all([
-      admin
-        .from('users')
-        .select('id,name,birth_date,birth_place')
-        .in('id', candidateIds),
-      admin
-        .from('user_profiles')
-        .select('user_id,bio,preferences,city,gender')
-        .in('user_id', candidateIds),
-      admin
-        .from('charts')
-        .select('user_id,data,created_at')
-        .in('user_id', candidateIds)
-        .order('created_at', { ascending: false }),
-    ]);
 
-    const usersMap = new Map<string, any>(
-      Array.isArray(users) ? users.map((u: any) => [u.id, u]) : [],
-    );
-    const profilesMap = new Map<string, any>(
-      Array.isArray(profiles) ? profiles.map((p: any) => [p.user_id, p]) : [],
-    );
+    // Итоговый список кандидатов (уже обогащённых)
+    let result: Array<{
+      userId: string;
+      badge: CandidateBadge;
+      photoUrl: string | null;
+      name: string | null;
+      age: number | null;
+      zodiacSign: string | null;
+      bio: string | null;
+      interests?: string[];
+      city: string | null;
+    }> = [];
 
-    // Берем последний chart per user_id
-    const chartsMap = new Map<string, any>();
-    if (Array.isArray(charts)) {
-      for (const ch of charts as any[]) {
-        const uid = ch.user_id as string;
-        if (!chartsMap.has(uid)) chartsMap.set(uid, ch);
+    // Основной путь: обогащаем данные RPC, если что-то вернулось
+    if (!error && rows.length > 0) {
+      const candidateIds = rows.map((r) => r.user_id);
+
+      const [{ data: users }, { data: profiles }, { data: charts }] =
+        await Promise.all([
+          admin
+            .from('users')
+            .select('id,name,email,birth_date,birth_place')
+            .in('id', candidateIds),
+          admin
+            .from('user_profiles')
+            .select(
+              'user_id,bio,preferences,city,gender,display_name,zodiac_sign',
+            )
+            .in('user_id', candidateIds),
+          admin
+            .from('charts')
+            .select('user_id,data,created_at')
+            .in('user_id', candidateIds)
+            .order('created_at', { ascending: false }),
+        ]);
+
+      const usersMap = new Map<string, any>(
+        Array.isArray(users) ? users.map((u: any) => [u.id, u]) : [],
+      );
+      const profilesMap = new Map<string, any>(
+        Array.isArray(profiles) ? profiles.map((p: any) => [p.user_id, p]) : [],
+      );
+
+      const chartsMap = new Map<string, any>();
+      if (Array.isArray(charts)) {
+        for (const ch of charts as any[]) {
+          const uid = ch.user_id as string;
+          if (!chartsMap.has(uid)) chartsMap.set(uid, ch);
+        }
       }
+
+      result = await Promise.all(
+        rows.map(async (r) => {
+          let photoUrl: string | null = null;
+          if (r.primary_photo_path) {
+            photoUrl = await this.supabaseService.createSignedUrl(
+              'user-photos',
+              r.primary_photo_path,
+              900,
+            );
+          }
+
+          const u = usersMap.get(r.user_id) || {};
+          const p = profilesMap.get(r.user_id) || {};
+          const ch = chartsMap.get(r.user_id) || {};
+          const sunSign =
+            p?.zodiac_sign ??
+            ch?.data?.planets?.sun?.sign ??
+            ch?.data?.data?.planets?.sun?.sign ??
+            null;
+
+          const age = this.getAgeFromBirthDate(u?.birth_date);
+
+          const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
+          const displayName = p?.display_name ?? u?.name ?? emailPrefix ?? null;
+
+          // interests tolerant parse
+          let interests: string[] | undefined = undefined;
+          try {
+            const prefsRaw = p?.preferences;
+            let prefsObj: any = prefsRaw;
+            if (typeof prefsRaw === 'string') {
+              try {
+                prefsObj = JSON.parse(prefsRaw);
+              } catch {
+                const splitted = prefsRaw
+                  .split(',')
+                  .map((s: string) => s.trim())
+                  .filter(Boolean);
+                if (splitted.length) interests = splitted;
+              }
+            }
+            if (!interests && prefsObj && typeof prefsObj === 'object') {
+              const intr = prefsObj?.interests;
+              if (Array.isArray(intr)) {
+                interests = intr.filter((x: any) => typeof x === 'string');
+              } else if (typeof intr === 'string') {
+                const splitted = intr
+                  .split(',')
+                  .map((s: string) => s.trim())
+                  .filter(Boolean);
+                if (splitted.length) interests = splitted;
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          return {
+            userId: r.user_id,
+            badge: r.badge,
+            photoUrl,
+            name: displayName,
+            age: age ?? null,
+            zodiacSign: sunSign,
+            bio: p?.bio ?? null,
+            interests,
+            city: p?.city ?? u?.birth_place ?? null,
+          };
+        }),
+      );
     }
 
-    // 2) Собираем ответ и подписываем primary фото
-    const enriched = await Promise.all(
-      rows.map(async (r) => {
-        let photoUrl: string | null = null;
-        if (r.primary_photo_path) {
-          photoUrl = await this.supabaseService.createSignedUrl(
-            'user-photos',
-            r.primary_photo_path,
-            900,
+    // Фолбэк: если RPC ничего не вернул ИЛИ вернуло меньше лимита — добираем свежими пользователями
+    try {
+      const needMore = safeLimit - result.length;
+      if (needMore > 0) {
+        const { data: selfRes } =
+          await this.supabaseService.getUser(userAccessToken);
+        const selfId = (selfRes as any)?.user?.id as string | undefined;
+
+        const existingIds = new Set<string>(result.map((r) => r.userId));
+
+        const { data: moreUsers } = await admin
+          .from('users')
+          .select('id,name,email,birth_date,birth_place,created_at')
+          .order('created_at', { ascending: false })
+          .limit(Math.max(needMore * 3, 10));
+
+        const extraIds = (Array.isArray(moreUsers) ? moreUsers : [])
+          .map((u: any) => u?.id)
+          .filter(
+            (id) => id && id !== selfId && !existingIds.has(id),
+          ) as string[];
+
+        if (extraIds.length) {
+          const [
+            { data: moreProfiles },
+            { data: moreCharts },
+            { data: morePhotos },
+          ] = await Promise.all([
+            admin
+              .from('user_profiles')
+              .select(
+                'user_id,bio,preferences,city,gender,display_name,zodiac_sign',
+              )
+              .in('user_id', extraIds),
+            admin
+              .from('charts')
+              .select('user_id,data,created_at')
+              .in('user_id', extraIds)
+              .order('created_at', { ascending: false }),
+            admin
+              .from('user_photos')
+              .select('user_id,storage_path')
+              .eq('is_primary', true)
+              .in('user_id', extraIds),
+          ]);
+
+          const usersById = new Map<string, any>(
+            (moreUsers || []).map((u: any) => [u.id, u]),
           );
+          const profilesById = new Map<string, any>(
+            Array.isArray(moreProfiles)
+              ? (moreProfiles as any[]).map((p) => [p.user_id, p])
+              : [],
+          );
+          const chartsById = new Map<string, any>();
+          if (Array.isArray(moreCharts)) {
+            for (const ch of moreCharts as any[]) {
+              const uid = ch.user_id as string;
+              if (!chartsById.has(uid)) chartsById.set(uid, ch);
+            }
+          }
+          const photosById = new Map<string, string | null>();
+          if (Array.isArray(morePhotos)) {
+            for (const ph of morePhotos as any[]) {
+              if (ph?.user_id)
+                photosById.set(ph.user_id, ph.storage_path ?? null);
+            }
+          }
+
+          const extraEnriched: typeof result = [];
+          for (const uid of extraIds) {
+            if (extraEnriched.length >= needMore) break;
+            if (result.find((r) => r.userId === uid)) continue;
+
+            const u = usersById.get(uid) || {};
+            const p = profilesById.get(uid) || {};
+            const ch = chartsById.get(uid) || {};
+
+            const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
+            const displayName =
+              p?.display_name ?? u?.name ?? emailPrefix ?? null;
+
+            const age = this.getAgeFromBirthDate(u?.birth_date);
+            const sunSign =
+              p?.zodiac_sign ??
+              ch?.data?.planets?.sun?.sign ??
+              ch?.data?.data?.planets?.sun?.sign ??
+              null;
+
+            let photoUrl: string | null = null;
+            const storagePath = photosById.get(uid) || null;
+            if (storagePath) {
+              photoUrl =
+                (await this.supabaseService.createSignedUrl(
+                  'user-photos',
+                  storagePath,
+                  900,
+                )) ?? null;
+            }
+
+            // interests tolerant parse
+            let interests: string[] | undefined = undefined;
+            try {
+              const prefsRaw = p?.preferences;
+              let prefsObj: any = prefsRaw;
+              if (typeof prefsRaw === 'string') {
+                try {
+                  prefsObj = JSON.parse(prefsRaw);
+                } catch {
+                  const splitted = prefsRaw
+                    .split(',')
+                    .map((s: string) => s.trim())
+                    .filter(Boolean);
+                  if (splitted.length) interests = splitted;
+                }
+              }
+              if (!interests && prefsObj && typeof prefsObj === 'object') {
+                const intr = prefsObj?.interests;
+                if (Array.isArray(intr)) {
+                  interests = intr.filter((x: any) => typeof x === 'string');
+                } else if (typeof intr === 'string') {
+                  const splitted = intr
+                    .split(',')
+                    .map((s: string) => s.trim())
+                    .filter(Boolean);
+                  if (splitted.length) interests = splitted;
+                }
+              }
+            } catch {
+              // ignore
+            }
+
+            extraEnriched.push({
+              userId: uid,
+              badge: 'low',
+              photoUrl,
+              name: displayName,
+              age: age ?? null,
+              zodiacSign: sunSign ?? null,
+              bio: p?.bio ?? null,
+              interests,
+              city: p?.city ?? u?.birth_place ?? null,
+            });
+          }
+
+          if (extraEnriched.length) {
+            result = [...result, ...extraEnriched].slice(0, safeLimit);
+          }
         }
+      }
+    } catch {
+      // ignore
+    }
 
-        const u = usersMap.get(r.user_id) || {};
-        const p = profilesMap.get(r.user_id) || {};
-        const ch = chartsMap.get(r.user_id) || {};
-        const sunSign =
-          ch?.data?.planets?.sun?.sign ??
-          ch?.data?.data?.planets?.sun?.sign ??
-          null;
-
-        const age = this.getAgeFromBirthDate(u?.birth_date);
-
-        return {
-          userId: r.user_id,
-          badge: r.badge,
-          photoUrl,
-          // Дополнительно, если есть
-          name: u?.name ?? null,
-          age: age ?? null,
-          zodiacSign: sunSign ?? null,
-          bio: p?.bio ?? null,
-          interests:
-            (p?.preferences && Array.isArray(p.preferences.interests)
-              ? (p.preferences.interests as string[])
-              : undefined) ?? undefined,
-          city: p?.city ?? u?.birth_place ?? null,
-        };
-      }),
-    );
-
-    return enriched;
+    return result;
   }
 
   /**
@@ -499,6 +693,197 @@ export class DatingService {
       success: true,
       message: 'Кандидат отклонен',
       matchId,
+    };
+  }
+
+  /**
+   * Публичные данные профиля пользователя для карточки Dating.
+   * Возвращает: имя, возраст, знак, био, интересы, город и основное фото (подписанный URL).
+   */
+  async getPublicProfileForCard(targetUserId: string): Promise<{
+    userId: string;
+    name: string | null;
+    age: number | null;
+    zodiacSign: string | null;
+    bio: string | null;
+    interests: string[] | null;
+    city: string | null;
+    primaryPhotoUrl: string | null;
+    photos?: string[] | null;
+  }> {
+    // Попробуем admin-клиент (обходит RLS), если нет — обычный клиент
+    let adminAvailable = true;
+    let admin: any = null;
+    try {
+      admin = this.supabaseService.getAdminClient();
+    } catch {
+      adminAvailable = false;
+    }
+    const client = adminAvailable ? admin : this.supabaseService.getClient();
+
+    // 1) users / user_profiles / charts (последняя)
+    const [
+      { data: userRow },
+      { data: profileRow },
+      { data: chartRows },
+      { data: primaryPhotoRow },
+      { data: allPhotos },
+    ] = await Promise.all([
+      client
+        .from('users')
+        .select('id,name,email,birth_date,birth_place')
+        .eq('id', targetUserId)
+        .maybeSingle(),
+      client
+        .from('user_profiles')
+        .select('user_id,bio,preferences,city,zodiac_sign,display_name')
+        .eq('user_id', targetUserId)
+        .maybeSingle(),
+      client
+        .from('charts')
+        .select('user_id,data,created_at')
+        .eq('user_id', targetUserId)
+        .order('created_at', { ascending: false })
+        .limit(1),
+      client
+        .from('user_photos')
+        .select('storage_path,path')
+        .eq('user_id', targetUserId)
+        .eq('is_primary', true)
+        .maybeSingle(),
+      client
+        .from('user_photos')
+        .select('storage_path,path')
+        .eq('user_id', targetUserId),
+    ]);
+
+    const user = userRow || {};
+    const profile = profileRow || {};
+    const chart =
+      Array.isArray(chartRows) && chartRows.length ? chartRows[0] : null;
+
+    // Возраст
+    const getAge = (birthDate?: string | Date | null): number | null => {
+      if (!birthDate) return null;
+      const d = new Date(birthDate);
+      if (Number.isNaN(d.getTime())) return null;
+      const diff = Date.now() - d.getTime();
+      const ageDate = new Date(diff);
+      return Math.abs(ageDate.getUTCFullYear() - 1970);
+    };
+    const age = getAge(user?.birth_date ?? null);
+
+    // Имя: приоритет display_name из профиля, затем users.name, затем email prefix
+    const emailPrefix = user?.email ? String(user.email).split('@')[0] : null;
+    const displayName =
+      profile?.display_name ?? user?.name ?? emailPrefix ?? null;
+
+    // Знак: приоритет профиля, затем карты
+    const sunSign =
+      profile?.zodiac_sign ??
+      chart?.data?.planets?.sun?.sign ??
+      chart?.data?.data?.planets?.sun?.sign ??
+      null;
+
+    // Интересы — поддержка разных форматов (JSON, строка, массив)
+    let interests: string[] | null = null;
+    try {
+      const prefsRaw = profile?.preferences;
+      let prefsObj: any = prefsRaw;
+      if (typeof prefsRaw === 'string') {
+        try {
+          prefsObj = JSON.parse(prefsRaw);
+        } catch {
+          // строка без JSON — пробуем разделить по запятым
+          const splitted = prefsRaw
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+          if (splitted.length) interests = splitted;
+        }
+      }
+      if (!interests && prefsObj && typeof prefsObj === 'object') {
+        const intr = prefsObj?.interests;
+        if (Array.isArray(intr)) {
+          interests = intr.filter((x: any) => typeof x === 'string');
+        } else if (typeof intr === 'string') {
+          const splitted = intr
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+          if (splitted.length) interests = splitted;
+        }
+      }
+    } catch {
+      interests = interests ?? null;
+    }
+
+    // Фото
+    let primaryPhotoUrl: string | null = null;
+    try {
+      const storagePath =
+        primaryPhotoRow?.storage_path ?? primaryPhotoRow?.path ?? null;
+
+      if (typeof storagePath === 'string' && storagePath.trim()) {
+        if (/^https?:\/\//i.test(storagePath)) {
+          // уже абсолютный URL
+          primaryPhotoUrl = storagePath;
+        } else {
+          primaryPhotoUrl =
+            (await this.supabaseService.createSignedUrl(
+              'user-photos',
+              storagePath,
+              900,
+            )) ?? null;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    let photos: string[] | null = null;
+    try {
+      if (Array.isArray(allPhotos) && allPhotos.length) {
+        const urls = await Promise.all(
+          allPhotos.slice(0, 8).map(async (p) => {
+            const path = p?.storage_path ?? p?.path;
+            if (!path || typeof path !== 'string') return null;
+            if (/^https?:\/\//i.test(path)) {
+              return path;
+            }
+            return (
+              (await this.supabaseService.createSignedUrl(
+                'user-photos',
+                path,
+                900,
+              )) ?? null
+            );
+          }),
+        );
+        photos = urls.filter((u) => !!u) as string[];
+      }
+    } catch {
+      photos = null;
+    }
+    // Фолбэк: если primary отсутствует, но есть любое фото — возьмём первое
+    if (!primaryPhotoUrl && Array.isArray(photos) && photos.length > 0) {
+      primaryPhotoUrl = photos[0];
+    }
+    // Фолбэк: если primary отсутствует, но есть любое фото — возьмём первое
+    if (!primaryPhotoUrl && Array.isArray(photos) && photos.length > 0) {
+      primaryPhotoUrl = photos[0];
+    }
+
+    return {
+      userId: targetUserId,
+      name: displayName,
+      age,
+      zodiacSign: sunSign ?? null,
+      bio: profile?.bio ?? null,
+      interests,
+      city: profile?.city ?? user?.birth_place ?? null,
+      primaryPhotoUrl,
+      photos,
     };
   }
 }

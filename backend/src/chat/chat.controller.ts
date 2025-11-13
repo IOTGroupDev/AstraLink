@@ -8,6 +8,8 @@ import {
   Request,
   UnauthorizedException,
   UseGuards,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -90,6 +92,50 @@ export class ChatController {
       safeLimit,
     );
     return { items };
+  }
+
+  @Delete('messages/:id')
+  @ApiOperation({
+    summary: 'Удалить сообщение',
+    description:
+      'mode=for_me — скрыть сообщение у текущего пользователя (не удаляя из БД); mode=for_all — удалить для всех (только отправитель)',
+  })
+  @ApiResponse({ status: 200, description: 'Удаление выполнено' })
+  async deleteMessage(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Query('mode') mode?: 'for_me' | 'for_all',
+  ) {
+    const token = this.getAccessToken(req);
+    if (!id) throw new BadRequestException('message id is required');
+
+    const safeMode: 'for_me' | 'for_all' =
+      mode === 'for_all' ? 'for_all' : 'for_me';
+
+    const result = await this.chatService.deleteMessageWithToken(
+      token,
+      id,
+      safeMode,
+    );
+    return result;
+  }
+
+  @Delete('conversations/:otherUserId')
+  @ApiOperation({
+    summary: 'Удалить переписку у себя',
+    description:
+      'Скрывает диалог (переписку) у текущего пользователя. Сообщения в БД не удаляются.',
+  })
+  @ApiResponse({ status: 200, description: 'Переписка скрыта' })
+  async deleteConversation(
+    @Request() req: any,
+    @Param('otherUserId') otherUserId: string,
+  ) {
+    const token = this.getAccessToken(req);
+    if (!otherUserId) {
+      throw new BadRequestException('otherUserId is required');
+    }
+    return await this.chatService.deleteConversationForMe(token, otherUserId);
   }
 
   // Helper to extract bearer token (needed for Supabase RLS auth.uid())
