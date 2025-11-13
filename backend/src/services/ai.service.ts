@@ -322,6 +322,13 @@ export class AIService {
     return p ? p.isAvailable() : false;
   }
 
+  /**
+   * Get current provider (alias for getCurrentProvider)
+   */
+  getProvider(): AIProvider {
+    return this.getCurrentProvider();
+  }
+
   // ============================================================
   // PROMPT BUILDING & PARSING (Business Logic)
   // ============================================================

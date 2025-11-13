@@ -132,7 +132,7 @@ export class OpenAIProvider extends BaseAIProvider {
         temperature: 0.7,
         max_tokens: 2000,
         stream: true,
-      });
+      } as any);
 
       let fullContent = '';
 

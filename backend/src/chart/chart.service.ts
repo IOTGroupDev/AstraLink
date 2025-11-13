@@ -6,6 +6,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
+import { EphemerisService } from '../services/ephemeris.service';
 import { NatalChartService } from './services/natal-chart.service';
 import { TransitService } from './services/transit.service';
 import { PredictionService } from './services/prediction.service';
@@ -18,6 +19,7 @@ export class ChartService {
   constructor(
     private prisma: PrismaService,
     private horoscopeService: HoroscopeGeneratorService,
+    private ephemerisService: EphemerisService,
     private natalChartService: NatalChartService,
     private transitService: TransitService,
     private predictionService: PredictionService,

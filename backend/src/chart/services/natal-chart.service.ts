@@ -273,18 +273,18 @@ export class NatalChartService {
     const { type, planet, sign, houseNum, aspect } = query;
 
     if (type === 'planet' && planet && sign) {
-      const extended = getExtendedPlanetInSign(planet, sign);
+      const extended = getExtendedPlanetInSign(planet as any, sign as any);
       return extended || [];
     }
 
     if (type === 'ascendant' && sign) {
-      const extended = getExtendedAscendant(sign);
+      const extended = getExtendedAscendant(sign as any);
       return extended || [];
     }
 
     if (type === 'house' && houseNum && sign) {
       const num = typeof houseNum === 'string' ? parseInt(houseNum, 10) : houseNum;
-      const extended = getExtendedHouseSign(num, sign);
+      const extended = getExtendedHouseSign(num, sign as any);
       return extended || [];
     }
 
@@ -301,7 +301,7 @@ export class NatalChartService {
   /**
    * Get location coordinates from city name
    */
-  private getLocationCoordinates(birthPlace: string): {
+  getLocationCoordinates(birthPlace: string): {
     latitude: number;
     longitude: number;
     timezone: number;
