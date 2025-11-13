@@ -33,19 +33,22 @@ export class AIService {
   }
 
   /**
-   * Инициализация AI провайдеров
+   * Инициализация AI провайдеров (оба могут быть доступны одновременно)
    */
   private initializeAIProviders() {
     // Приоритет: Claude > OpenAI
     const claudeKey = this.configService.get<string>('ANTHROPIC_API_KEY');
     const openaiKey = this.configService.get<string>('OPENAI_API_KEY');
 
+    let claudeInitialized = false;
+    let openaiInitialized = false;
+
+    // Initialize Claude if key available
     if (claudeKey) {
       try {
         this.anthropic = new Anthropic({ apiKey: claudeKey });
-        this.provider = 'claude';
+        claudeInitialized = true;
         this.logger.log('✅ Claude AI (Anthropic) инициализирован');
-        return;
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
@@ -53,12 +56,12 @@ export class AIService {
       }
     }
 
+    // Initialize OpenAI if key available
     if (openaiKey) {
       try {
         this.openai = new OpenAI({ apiKey: openaiKey });
-        this.provider = 'openai';
+        openaiInitialized = true;
         this.logger.log('✅ OpenAI GPT инициализирован');
-        return;
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
@@ -66,13 +69,30 @@ export class AIService {
       }
     }
 
-    this.logger.warn(
-      '⚠️ AI провайдеры не настроены - используются только правила интерпретации',
-    );
+    // Set primary provider (Claude has priority)
+    if (claudeInitialized) {
+      this.provider = 'claude';
+      this.logger.log('🎯 Primary provider: Claude');
+    } else if (openaiInitialized) {
+      this.provider = 'openai';
+      this.logger.log('🎯 Primary provider: OpenAI');
+    } else {
+      this.provider = 'none';
+      this.logger.warn(
+        '⚠️ AI провайдеры не настроены - используются только правила интерпретации',
+      );
+    }
+
+    // Log fallback availability
+    if (claudeInitialized && openaiInitialized) {
+      this.logger.log(
+        '✅ Оба провайдера доступны - автоматический fallback активен',
+      );
+    }
   }
 
   /**
-   * Генерация персонализированного гороскопа через AI (ТОЛЬКО ДЛЯ PREMIUM)
+   * Генерация персонализированного гороскопа через AI с автоматическим fallback (ТОЛЬКО ДЛЯ PREMIUM)
    */
   async generateHoroscope(context: AIGenerationContext): Promise<{
     general: string;
@@ -94,10 +114,11 @@ export class AIService {
       `🤖 Генерация PREMIUM гороскопа через ${this.provider.toUpperCase()}`,
     );
 
-    try {
-      const prompt = this.buildHoroscopePrompt(context);
-      let response: string;
+    const prompt = this.buildHoroscopePrompt(context);
+    let response: string;
 
+    try {
+      // Try primary provider
       if (this.provider === 'claude') {
         response = await this.generateWithClaude(prompt);
       } else {
@@ -107,35 +128,126 @@ export class AIService {
       return this.parseAIResponse(response);
     } catch (error) {
       this.logger.error(
-        `❌ Ошибка генерации AI-гороскопа (${this.provider}):`,
+        `❌ Ошибка генерации через ${this.provider}:`,
         error,
       );
+
+      // 🔄 Automatic fallback to alternative provider
+      if (this.provider === 'claude' && this.openai) {
+        this.logger.log('🔄 Attempting fallback to OpenAI...');
+        try {
+          response = await this.generateWithOpenAI(prompt);
+          return this.parseAIResponse(response);
+        } catch (fallbackError) {
+          this.logger.error('❌ Fallback to OpenAI also failed:', fallbackError);
+        }
+      } else if (this.provider === 'openai' && this.anthropic) {
+        this.logger.log('🔄 Attempting fallback to Claude...');
+        try {
+          response = await this.generateWithClaude(prompt);
+          return this.parseAIResponse(response);
+        } catch (fallbackError) {
+          this.logger.error('❌ Fallback to Claude also failed:', fallbackError);
+        }
+      }
+
       throw error;
     }
   }
 
   /**
-   * Генерация через Claude (Anthropic)
+   * Генерация через Claude (Anthropic) с retry логикой и cost tracking
    */
-  private async generateWithClaude(prompt: string): Promise<string> {
+  private async generateWithClaude(
+    prompt: string,
+    retries = 3,
+  ): Promise<string> {
     if (!this.anthropic) {
       throw new Error('Claude не инициализирован');
     }
 
-    const message = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
-      temperature: 0.7,
-      system: this.getSystemPrompt(),
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
+    let lastError: Error | null = null;
 
-    return message.content[0].type === 'text' ? message.content[0].text : '';
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const startTime = Date.now();
+
+        const message = await this.anthropic.messages.create({
+          model: 'claude-sonnet-4-5-20250929', // ✅ Latest Claude Sonnet 4.5
+          max_tokens: 2000,
+          temperature: 0.7,
+          system: this.getSystemPrompt(),
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+        });
+
+        const duration = Date.now() - startTime;
+        const content =
+          message.content[0].type === 'text' ? message.content[0].text : '';
+
+        // ✅ Track usage and costs
+        this.logClaudeUsage(message, duration, attempt + 1);
+
+        return content;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+
+        this.logger.warn(
+          `Claude attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
+        );
+
+        // Don't retry on final attempt
+        if (attempt === retries - 1) {
+          break;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        this.logger.log(`Retrying in ${backoffMs}ms...`);
+        await this.sleep(backoffMs);
+      }
+    }
+
+    this.logger.error(
+      `❌ Claude failed after ${retries} attempts: ${lastError?.message}`,
+    );
+    throw lastError || new Error('Claude generation failed');
+  }
+
+  /**
+   * Log Claude usage statistics and costs
+   */
+  private logClaudeUsage(message: any, duration: number, attempt: number): void {
+    const usage = message.usage;
+    if (!usage) return;
+
+    // Claude Sonnet 4.5 pricing (December 2024)
+    const inputCostPer1M = 3.0; // $3.00 per 1M input tokens
+    const outputCostPer1M = 15.0; // $15.00 per 1M output tokens
+
+    const inputCost = (usage.input_tokens / 1_000_000) * inputCostPer1M;
+    const outputCost = (usage.output_tokens / 1_000_000) * outputCostPer1M;
+    const totalCost = inputCost + outputCost;
+
+    this.logger.log({
+      provider: 'claude',
+      model: 'claude-sonnet-4-5',
+      attempt,
+      duration: `${duration}ms`,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      totalTokens: usage.input_tokens + usage.output_tokens,
+      estimatedCost: `$${totalCost.toFixed(6)}`,
+      costBreakdown: {
+        input: `$${inputCost.toFixed(6)}`,
+        output: `$${outputCost.toFixed(6)}`,
+      },
+    });
   }
 
   /**
@@ -248,7 +360,7 @@ export class AIService {
   }
 
   /**
-   * Генерация детальной интерпретации натальной карты через AI (ТОЛЬКО ДЛЯ PREMIUM)
+   * Генерация детальной интерпретации натальной карты через AI с автоматическим fallback (ТОЛЬКО ДЛЯ PREMIUM)
    */
   async generateChartInterpretation(context: {
     planets: any;
@@ -264,9 +376,10 @@ export class AIService {
       `🤖 Генерация PREMIUM интерпретации через ${this.provider.toUpperCase()}`,
     );
 
-    try {
-      const prompt = this.buildInterpretationPrompt(context);
+    const prompt = this.buildInterpretationPrompt(context);
 
+    try {
+      // Try primary provider
       if (this.provider === 'claude') {
         return await this.generateWithClaude(prompt);
       } else {
@@ -274,9 +387,27 @@ export class AIService {
       }
     } catch (error) {
       this.logger.error(
-        `❌ Ошибка генерации AI-интерпретации (${this.provider}):`,
+        `❌ Ошибка генерации интерпретации через ${this.provider}:`,
         error,
       );
+
+      // 🔄 Automatic fallback to alternative provider
+      if (this.provider === 'claude' && this.openai) {
+        this.logger.log('🔄 Attempting fallback to OpenAI...');
+        try {
+          return await this.generateWithOpenAI(prompt);
+        } catch (fallbackError) {
+          this.logger.error('❌ Fallback to OpenAI also failed:', fallbackError);
+        }
+      } else if (this.provider === 'openai' && this.anthropic) {
+        this.logger.log('🔄 Attempting fallback to Claude...');
+        try {
+          return await this.generateWithClaude(prompt);
+        } catch (fallbackError) {
+          this.logger.error('❌ Fallback to Claude also failed:', fallbackError);
+        }
+      }
+
       throw error;
     }
   }
@@ -583,13 +714,73 @@ ${this.formatAspects(context.aspects)}
 
     const prompt = this.buildHoroscopePrompt(context);
 
-    if (this.provider === 'openai') {
+    if (this.provider === 'claude') {
+      yield* this.streamWithClaude(prompt);
+    } else if (this.provider === 'openai') {
       yield* this.streamWithOpenAI(prompt);
     } else {
-      // Claude doesn't support streaming in this implementation yet
-      // Fall back to non-streaming
-      const result = await this.generateWithClaude(prompt);
-      yield result;
+      throw new Error('No AI provider available for streaming');
+    }
+  }
+
+  /**
+   * Stream generation with Claude
+   */
+  private async *streamWithClaude(
+    prompt: string,
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.anthropic) {
+      throw new Error('Claude не инициализирован');
+    }
+
+    try {
+      const startTime = Date.now();
+
+      const stream = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 2000,
+        temperature: 0.7,
+        system: this.getSystemPrompt(),
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        stream: true, // ✅ Enable streaming
+      });
+
+      let fullContent = '';
+
+      // @ts-ignore - Claude SDK streaming types
+      for await (const event of stream) {
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta?.type === 'text_delta'
+        ) {
+          const content = event.delta.text || '';
+          if (content) {
+            fullContent += content;
+            yield content;
+          }
+        }
+      }
+
+      const duration = Date.now() - startTime;
+
+      // Log streaming completion (approximate token count)
+      this.logger.log({
+        provider: 'claude',
+        model: 'claude-sonnet-4-5',
+        mode: 'streaming',
+        duration: `${duration}ms`,
+        approximateChars: fullContent.length,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`❌ Claude streaming failed: ${errorMessage}`);
+      throw error;
     }
   }
 

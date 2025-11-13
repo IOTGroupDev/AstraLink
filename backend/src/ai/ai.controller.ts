@@ -40,13 +40,25 @@ export class AIController {
   @ApiOperation({ summary: 'Проверить статус AI сервисов' })
   @ApiResponse({ status: 200, description: 'Статус AI провайдеров' })
   async getAIStatus() {
+    const provider = this.aiService.getProvider();
+    const isAvailable = this.aiService.isAvailable();
+
     return {
-      available: this.aiService.isAvailable(),
-      provider: this.aiService.getProvider(),
+      available: isAvailable,
+      provider,
       features: {
-        horoscope: this.aiService.isAvailable(),
-        chartInterpretation: this.aiService.isAvailable(),
-        streaming: this.aiService.getProvider() === 'openai',
+        horoscope: isAvailable,
+        chartInterpretation: isAvailable,
+        streaming: isAvailable, // ✅ Both Claude and OpenAI support streaming now
+        retryLogic: isAvailable,
+        costTracking: isAvailable,
+        automaticFallback: isAvailable,
+      },
+      improvements: {
+        claudeStreaming: true,
+        claudeRetryLogic: true,
+        claudeCostTracking: true,
+        automaticFallback: true,
       },
     };
   }
@@ -76,13 +88,13 @@ export class AIController {
 
   @Post('horoscope/stream')
   @ApiOperation({
-    summary: '🌊 STREAMING генерация гороскопа в реальном времени (ТОЛЬКО для PREMIUM + OpenAI)',
+    summary: '🌊 STREAMING генерация гороскопа в реальном времени (PREMIUM - Claude & OpenAI)',
   })
   @ApiResponse({
     status: 200,
     description: 'Server-Sent Events stream с частями гороскопа',
   })
-  @ApiResponse({ status: 403, description: 'Требуется PREMIUM + OpenAI' })
+  @ApiResponse({ status: 403, description: 'Требуется PREMIUM подписка и AI провайдер' })
   async streamHoroscope(
     @Request() req: AuthenticatedRequest,
     @Body() dto: GenerateHoroscopeDto,
@@ -93,10 +105,10 @@ export class AIController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
-    // Check if streaming is available (OpenAI only)
-    if (this.aiService.getProvider() !== 'openai') {
+    // Check if streaming is available
+    if (!this.aiService.isAvailable()) {
       return res.status(HttpStatus.BAD_REQUEST).json({
-        error: 'Streaming доступен только с OpenAI провайдером',
+        error: 'AI сервис недоступен - необходим API ключ Claude или OpenAI',
         currentProvider: this.aiService.getProvider(),
       });
     }
