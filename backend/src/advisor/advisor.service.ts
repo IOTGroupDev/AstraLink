@@ -3,6 +3,7 @@ import { RedisService } from '@/redis/redis.service';
 import { EphemerisService } from '@/services/ephemeris.service';
 import { ChartService } from '@/chart/chart.service';
 import { InterpretationService } from '@/services/interpretation.service';
+import { calculateAspectWithSpecs } from '@/shared/astro-calculations';
 import { EvaluateAdviceDto } from './dto/evaluate-advice.dto';
 import {
   AdviceResponseDto,
@@ -543,28 +544,8 @@ export class AdvisorService {
     longitude2: number,
     specs: Record<AdvisorAspect['type'], { base: number; orb: number }>,
   ): { type: AdvisorAspect['type']; orb: number } | null {
-    const diff = Math.abs(longitude1 - longitude2);
-    const normalizedDiff = Math.min(diff, 360 - diff);
-
-    const candidates: Array<{
-      type: AdvisorAspect['type'];
-      angle: number;
-      orb: number;
-    }> = [
-      { type: 'conjunction', angle: 0, orb: specs.conjunction.orb },
-      { type: 'sextile', angle: 60, orb: specs.sextile.orb },
-      { type: 'square', angle: 90, orb: specs.square.orb },
-      { type: 'trine', angle: 120, orb: specs.trine.orb },
-      { type: 'opposition', angle: 180, orb: specs.opposition.orb },
-    ];
-
-    for (const c of candidates) {
-      const orb = Math.abs(normalizedDiff - c.angle);
-      if (orb <= c.orb) {
-        return { type: c.type, orb };
-      }
-    }
-    return null;
+    // Используем shared утилиту вместо дублирования логики
+    return calculateAspectWithSpecs(longitude1, longitude2, specs);
   }
 
   private aspectImpactSigned(

@@ -16,6 +16,7 @@ import {
   getExtendedAscendant,
   getExtendedHouseSign,
 } from '../modules/shared/astro-text';
+import { calculateAspectType } from '../shared/astro-calculations';
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
@@ -665,16 +666,8 @@ export class ChartService {
   }
 
   private calculateAspect(longitude1: number, longitude2: number): string {
-    const diff = Math.abs(longitude1 - longitude2);
-    const normalizedDiff = Math.min(diff, 360 - diff);
-
-    if (normalizedDiff <= 8) return 'conjunction';
-    if (normalizedDiff >= 82 && normalizedDiff <= 98) return 'square';
-    if (normalizedDiff >= 118 && normalizedDiff <= 122) return 'trine';
-    if (normalizedDiff >= 172 && normalizedDiff <= 188) return 'opposition';
-    if (normalizedDiff >= 54 && normalizedDiff <= 66) return 'sextile';
-
-    return 'other';
+    // Используем shared утилиту вместо дублирования логики
+    return calculateAspectType(longitude1, longitude2);
   }
 
   /**

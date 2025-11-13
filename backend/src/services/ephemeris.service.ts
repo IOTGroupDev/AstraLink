@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
+import { calculateAspect } from '../shared/astro-calculations';
 
 let swisseph: any;
 
@@ -481,29 +482,8 @@ export class EphemerisService implements OnModuleInit {
   }
 
   private calculateAspect(longitude1: number, longitude2: number): any | null {
-    const diff = Math.abs(longitude1 - longitude2);
-    const normalizedDiff = Math.min(diff, 360 - diff);
-
-    const aspects = [
-      { type: 'conjunction', angle: 0, orb: 8 },
-      { type: 'sextile', angle: 60, orb: 6 },
-      { type: 'square', angle: 90, orb: 8 },
-      { type: 'trine', angle: 120, orb: 8 },
-      { type: 'opposition', angle: 180, orb: 8 },
-    ];
-
-    for (const aspect of aspects) {
-      const orb = Math.abs(normalizedDiff - aspect.angle);
-      if (orb <= aspect.orb) {
-        return {
-          type: aspect.type,
-          orb: orb,
-          strength: 1 - orb / aspect.orb,
-        };
-      }
-    }
-
-    return null;
+    // Используем shared утилиту вместо дублирования логики
+    return calculateAspect(longitude1, longitude2);
   }
 
   private longitudeToSign(longitude: number): string {

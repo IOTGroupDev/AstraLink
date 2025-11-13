@@ -23,6 +23,10 @@ import {
   hashSignature,
 } from '../modules/shared/utils';
 import {
+  calculateAspect,
+  AspectType,
+} from '../shared/astro-calculations';
+import {
   getGeneralTemplates,
   getLovePhrases,
   getCareerActions,
@@ -1001,44 +1005,21 @@ export class HoroscopeGeneratorService {
     longitudeTransit: number,
     transitPlanet?: PlanetKey,
   ): AspectCalculationResult | null {
-    const diff = Math.abs(longitudeNatal - longitudeTransit);
-    const normalizedDiff = Math.min(diff, 360 - diff);
+    // Используем shared утилиту с динамическими орбисами
+    let customOrbs: Partial<Record<AspectType, number>> | undefined;
 
-    // Базовые углы аспектов
-    const aspects = [
-      { type: 'conjunction', angle: 0 },
-      { type: 'sextile', angle: 60 },
-      { type: 'square', angle: 90 },
-      { type: 'trine', angle: 120 },
-      { type: 'opposition', angle: 180 },
-    ] as const;
-
-    // Орбис: если указан транзитный объект — узкий по планете, иначе дефолт
-    const defaultOrbs: Record<string, number> = {
-      conjunction: 8,
-      sextile: 6,
-      square: 8,
-      trine: 8,
-      opposition: 8,
-    };
-
-    for (const aspect of aspects) {
-      const orbDelta = Math.abs(normalizedDiff - aspect.angle);
-      const baseOrb =
-        transitPlanet != null
-          ? getTransitOrb(transitPlanet, aspect.type)
-          : defaultOrbs[aspect.type];
-
-      if (orbDelta <= baseOrb) {
-        return {
-          type: aspect.type,
-          orb: orbDelta,
-          strength: 1 - orbDelta / baseOrb,
-        };
-      }
+    if (transitPlanet != null) {
+      // Для транзитной планеты используем специальные узкие орбисы
+      customOrbs = {
+        conjunction: getTransitOrb(transitPlanet, 'conjunction'),
+        sextile: getTransitOrb(transitPlanet, 'sextile'),
+        square: getTransitOrb(transitPlanet, 'square'),
+        trine: getTransitOrb(transitPlanet, 'trine'),
+        opposition: getTransitOrb(transitPlanet, 'opposition'),
+      };
     }
 
-    return null;
+    return calculateAspect(longitudeNatal, longitudeTransit, customOrbs);
   }
 
   /**
