@@ -12,6 +12,7 @@ import { ConnectionsModule } from './connections/connections.module';
 import { DatingModule } from './dating/dating.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { AIModule } from './ai/ai.module';
+import { RedisModule } from './redis/redis.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     }),
     PrismaModule,
     ServicesModule,
+    RedisModule,
     AuthModule,
     UserModule,
     ChartModule,
