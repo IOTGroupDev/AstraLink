@@ -6,6 +6,12 @@ import { SupabaseModule } from '../supabase/supabase.module';
 import { ServicesModule } from '../services/services.module';
 import { AuthModule } from '../auth/auth.module';
 import { RepositoriesModule } from '../repositories';
+import {
+  NatalChartService,
+  TransitService,
+  PredictionService,
+  BiorhythmService,
+} from './services';
 
 @Module({
   imports: [
@@ -16,7 +22,19 @@ import { RepositoriesModule } from '../repositories';
     forwardRef(() => AuthModule),
   ],
   controllers: [ChartController],
-  providers: [ChartService],
-  exports: [ChartService],
+  providers: [
+    ChartService,
+    NatalChartService,
+    TransitService,
+    PredictionService,
+    BiorhythmService,
+  ],
+  exports: [
+    ChartService,
+    NatalChartService,
+    TransitService,
+    PredictionService,
+    BiorhythmService,
+  ],
 })
 export class ChartModule {}
