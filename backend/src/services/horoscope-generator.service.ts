@@ -25,6 +25,9 @@ import {
 import {
   calculateAspect,
   AspectType,
+  calculateLunarPhase,
+  getLunarPhaseInterpretation,
+  LunarPhaseInfo,
 } from '../shared/astro-calculations';
 import {
   getGeneralTemplates,
@@ -64,6 +67,13 @@ export interface HoroscopePrediction {
   challenges: string[];
   opportunities: string[];
   generatedBy: 'ai' | 'interpreter';
+  lunarPhase?: {
+    phase: string;
+    emoji: string;
+    description: string;
+    illumination: number;
+    interpretation: string;
+  };
 }
 
 @Injectable()
@@ -373,6 +383,9 @@ export class HoroscopeGeneratorService {
       const luckyNumbers = this.generateLuckyNumbers(chartData, targetDate);
       const luckyColors = this.generateLuckyColors(sunSign, transitAspects[0]);
 
+      // Calculate lunar phase for the target date
+      const lunarPhase = this.calculateLunarPhaseForDate(transits);
+
       const result: HoroscopePrediction = {
         period: period as 'day' | 'tomorrow' | 'week' | 'month',
         date: targetDate.toISOString(),
@@ -389,6 +402,7 @@ export class HoroscopeGeneratorService {
         challenges: aiPredictions.challenges || [],
         opportunities: aiPredictions.opportunities || [],
         generatedBy: 'ai',
+        lunarPhase,
       };
       return result;
     } catch (error) {
@@ -410,6 +424,9 @@ export class HoroscopeGeneratorService {
         targetDate,
         chartData,
       );
+      // Calculate lunar phase for the target date
+      const lunarPhase = this.calculateLunarPhaseForDate(transits);
+
       const result: HoroscopePrediction = {
         period: period as 'day' | 'tomorrow' | 'week' | 'month',
         date: targetDate.toISOString(),
@@ -429,6 +446,7 @@ export class HoroscopeGeneratorService {
         challenges: [],
         opportunities: [],
         generatedBy: 'interpreter',
+        lunarPhase,
       };
       return result;
     }
@@ -465,6 +483,9 @@ export class HoroscopeGeneratorService {
       chartData,
     );
 
+    // Calculate lunar phase for the target date
+    const lunarPhase = this.calculateLunarPhaseForDate(transits);
+
     const result: HoroscopePrediction = {
       period: period as 'day' | 'tomorrow' | 'week' | 'month',
       date: targetDate.toISOString(),
@@ -481,6 +502,7 @@ export class HoroscopeGeneratorService {
       challenges: [],
       opportunities: [],
       generatedBy: 'interpreter',
+      lunarPhase,
     };
     return result;
   }
@@ -1223,6 +1245,41 @@ export class HoroscopeGeneratorService {
       // ignore
     }
     return Array.from(new Set(cycles)).slice(0, 3);
+  }
+
+  /**
+   * Calculate lunar phase for the target date
+   */
+  private calculateLunarPhaseForDate(transits: TransitData): {
+    phase: string;
+    emoji: string;
+    description: string;
+    illumination: number;
+    interpretation: string;
+  } | undefined {
+    try {
+      const sunLongitude = transits.planets?.sun?.longitude;
+      const moonLongitude = transits.planets?.moon?.longitude;
+
+      if (sunLongitude == null || moonLongitude == null) {
+        this.logger.warn('Sun or Moon longitude not available for lunar phase calculation');
+        return undefined;
+      }
+
+      const phaseInfo = calculateLunarPhase(sunLongitude, moonLongitude);
+      const interpretation = getLunarPhaseInterpretation(phaseInfo.phase, 'ru');
+
+      return {
+        phase: phaseInfo.phase,
+        emoji: phaseInfo.emoji,
+        description: phaseInfo.description,
+        illumination: Math.round(phaseInfo.illumination * 100) / 100, // Round to 2 decimals
+        interpretation,
+      };
+    } catch (error) {
+      this.logger.error('Error calculating lunar phase:', error);
+      return undefined;
+    }
   }
 
   /**

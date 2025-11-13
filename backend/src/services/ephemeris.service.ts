@@ -1,6 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
-import { calculateAspect } from '../shared/astro-calculations';
+import {
+  calculateAspect,
+  calculatePartOfFortune,
+  isDayBirth,
+  getPartOfFortuneInterpretation,
+} from '../shared/astro-calculations';
 
 let swisseph: any;
 
@@ -189,6 +194,44 @@ export class EphemerisService implements OnModuleInit {
     const houses = await this.calculateHouses(julianDay, location);
     const aspects = this.calculateAspects(planets);
 
+    // Calculate Part of Fortune
+    let partOfFortune = null;
+    try {
+      const ascendantLongitude = houses?.[1]?.longitude;
+      const sunLongitude = planets?.sun?.longitude;
+      const moonLongitude = planets?.moon?.longitude;
+
+      if (
+        ascendantLongitude != null &&
+        sunLongitude != null &&
+        moonLongitude != null
+      ) {
+        // Determine if day or night birth
+        const isDay = isDayBirth(sunLongitude, ascendantLongitude);
+
+        // Calculate Part of Fortune
+        const pof = calculatePartOfFortune(
+          ascendantLongitude,
+          sunLongitude,
+          moonLongitude,
+          isDay,
+        );
+
+        // Get interpretation
+        const interpretation = getPartOfFortuneInterpretation(pof.sign, 'ru');
+
+        partOfFortune = {
+          longitude: pof.longitude,
+          sign: pof.sign,
+          description: pof.description,
+          interpretation,
+          isDayBirth: isDay,
+        };
+      }
+    } catch (error) {
+      this.logger.warn('Failed to calculate Part of Fortune:', error);
+    }
+
     return {
       type: 'natal',
       birthDate: new Date(`${date}T${time}`).toISOString(),
@@ -196,6 +239,7 @@ export class EphemerisService implements OnModuleInit {
       planets,
       houses,
       aspects,
+      partOfFortune,
       calculatedAt: new Date().toISOString(),
     };
   }
