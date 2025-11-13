@@ -1,203 +1,123 @@
+/**
+ * AI Service (Refactored with Strategy Pattern)
+ * Facade for AI providers using dependency injection
+ *
+ * ARCHITECTURE:
+ * - Strategy Pattern: ClaudeProvider, OpenAIProvider, DeepSeekProvider
+ * - Dependency Injection: Providers injected via constructor
+ * - Separation of Concerns: Business logic vs API calls
+ * - Fallback Support: Automatic provider switching on failures
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
-
-interface AIGenerationContext {
-  sunSign: string;
-  moonSign: string;
-  ascendant: string;
-  planets: any;
-  houses: any;
-  aspects: any[];
-  transits: any[];
-  period: string;
-  userProfile?: {
-    name?: string;
-    birthDate?: string;
-    birthPlace?: string;
-  };
-}
-
-type AIProvider = 'claude' | 'openai' | 'deepseek' | 'none';
+import { ClaudeProvider } from './ai/providers/claude.provider';
+import { OpenAIProvider } from './ai/providers/openai.provider';
+import { DeepSeekProvider } from './ai/providers/deepseek.provider';
+import { IAIProvider } from './ai/interfaces/ai-provider.interface';
+import { AIProvider, AIGenerationContext, HoroscopeResponse } from './ai/interfaces/ai-types';
 
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
-  private anthropic: Anthropic | null = null;
-  private openai: OpenAI | null = null;
-  private deepseek: OpenAI | null = null; // DeepSeek uses OpenAI-compatible API
-  private provider: AIProvider = 'none';
+  private providers: Map<AIProvider, IAIProvider>;
+  private primaryProvider: AIProvider = 'none';
 
-  constructor(private configService: ConfigService) {
-    this.initializeAIProviders();
+  constructor(
+    private configService: ConfigService,
+    private claudeProvider: ClaudeProvider,
+    private openaiProvider: OpenAIProvider,
+    private deepseekProvider: DeepSeekProvider,
+  ) {
+    this.providers = new Map();
+    this.initializeProviders();
   }
 
   /**
-   * Инициализация AI провайдеров (все могут быть доступны одновременно)
-   * Поддержка глобального выбора провайдера через AI_PROVIDER_PREFERENCE
+   * Initialize provider map and determine primary provider
    */
-  private initializeAIProviders() {
-    const claudeKey = this.configService.get<string>('ANTHROPIC_API_KEY');
-    const openaiKey = this.configService.get<string>('OPENAI_API_KEY');
-    const deepseekKey = this.configService.get<string>('DEEPSEEK_API_KEY');
-    // 🎯 Глобальная настройка провайдера: 'claude' | 'openai' | 'deepseek' | 'auto' (default)
+  private initializeProviders(): void {
+    // Register all providers
+    this.providers.set('claude', this.claudeProvider);
+    this.providers.set('openai', this.openaiProvider);
+    this.providers.set('deepseek', this.deepseekProvider);
+
+    // Get provider preference from config
     const providerPreference = this.configService.get<string>('AI_PROVIDER_PREFERENCE') || 'auto';
 
-    let claudeInitialized = false;
-    let openaiInitialized = false;
-    let deepseekInitialized = false;
-
-    // Initialize Claude if key available
-    if (claudeKey) {
-      try {
-        this.anthropic = new Anthropic({ apiKey: claudeKey });
-        claudeInitialized = true;
-        this.logger.log('✅ Claude AI (Anthropic) инициализирован');
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error('❌ Ошибка инициализации Claude:', errorMessage);
-      }
-    }
-
-    // Initialize OpenAI if key available
-    if (openaiKey) {
-      try {
-        this.openai = new OpenAI({ apiKey: openaiKey });
-        openaiInitialized = true;
-        this.logger.log('✅ OpenAI GPT инициализирован');
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error('❌ Ошибка инициализации OpenAI:', errorMessage);
-      }
-    }
-
-    // Initialize DeepSeek if key available
-    if (deepseekKey) {
-      try {
-        this.deepseek = new OpenAI({
-          apiKey: deepseekKey,
-          baseURL: 'https://api.deepseek.com', // DeepSeek API endpoint
-        } as any); // Type assertion for baseURL compatibility
-        deepseekInitialized = true;
-        this.logger.log('✅ DeepSeek AI инициализирован');
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error('❌ Ошибка инициализации DeepSeek:', errorMessage);
-      }
-    }
-
-    // Set primary provider based on AI_PROVIDER_PREFERENCE
-    if (providerPreference === 'claude' && claudeInitialized) {
-      this.provider = 'claude';
+    // Set primary provider based on preference and availability
+    if (providerPreference === 'claude' && this.claudeProvider.isAvailable()) {
+      this.primaryProvider = 'claude';
       this.logger.log('🎯 Primary provider: Claude (configured preference)');
-    } else if (providerPreference === 'openai' && openaiInitialized) {
-      this.provider = 'openai';
+    } else if (providerPreference === 'openai' && this.openaiProvider.isAvailable()) {
+      this.primaryProvider = 'openai';
       this.logger.log('🎯 Primary provider: OpenAI (configured preference)');
-    } else if (providerPreference === 'deepseek' && deepseekInitialized) {
-      this.provider = 'deepseek';
+    } else if (providerPreference === 'deepseek' && this.deepseekProvider.isAvailable()) {
+      this.primaryProvider = 'deepseek';
       this.logger.log('🎯 Primary provider: DeepSeek (configured preference)');
-    } else if (providerPreference === 'auto') {
-      // Auto mode: Claude > DeepSeek > OpenAI priority
-      if (claudeInitialized) {
-        this.provider = 'claude';
-        this.logger.log('🎯 Primary provider: Claude (auto mode)');
-      } else if (deepseekInitialized) {
-        this.provider = 'deepseek';
-        this.logger.log('🎯 Primary provider: DeepSeek (auto mode)');
-      } else if (openaiInitialized) {
-        this.provider = 'openai';
-        this.logger.log('🎯 Primary provider: OpenAI (auto mode)');
-      }
     } else {
-      // Fallback if preferred provider not available
-      if (claudeInitialized) {
-        this.provider = 'claude';
-        this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем Claude`);
-      } else if (deepseekInitialized) {
-        this.provider = 'deepseek';
-        this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем DeepSeek`);
-      } else if (openaiInitialized) {
-        this.provider = 'openai';
-        this.logger.warn(`⚠️ Предпочтительный провайдер '${providerPreference}' недоступен, используем OpenAI`);
+      // Auto-select first available provider (prefer Claude > OpenAI > DeepSeek)
+      if (this.claudeProvider.isAvailable()) {
+        this.primaryProvider = 'claude';
+        this.logger.log('🎯 Primary provider: Claude (auto-selected)');
+      } else if (this.openaiProvider.isAvailable()) {
+        this.primaryProvider = 'openai';
+        this.logger.log('🎯 Primary provider: OpenAI (auto-selected)');
+      } else if (this.deepseekProvider.isAvailable()) {
+        this.primaryProvider = 'deepseek';
+        this.logger.log('🎯 Primary provider: DeepSeek (auto-selected)');
       } else {
-        this.provider = 'none';
-        this.logger.warn(
-          '⚠️ AI провайдеры не настроены - используются только правила интерпретации',
-        );
+        this.logger.warn('⚠️  No AI providers available');
       }
     }
 
-    // Log fallback availability
-    const availableCount = [claudeInitialized, openaiInitialized, deepseekInitialized].filter(Boolean).length;
+    // Log available providers
+    const availableCount = this.getAvailableProviders().length;
     if (availableCount > 1) {
       this.logger.log(
-        `✅ ${availableCount} провайдера доступны - автоматический fallback активен`,
+        `✅ Multiple AI providers available (${availableCount}): ${this.getAvailableProviders().join(', ')}`,
       );
+      this.logger.log('🔄 Automatic fallback enabled');
     }
   }
 
   /**
-   * Генерация персонализированного гороскопа через AI с автоматическим fallback (ТОЛЬКО ДЛЯ PREMIUM)
+   * Generate personalized horoscope with automatic fallback (PREMIUM ONLY)
    */
-  async generateHoroscope(context: AIGenerationContext): Promise<{
-    general: string;
-    love: string;
-    career: string;
-    health: string;
-    finance: string;
-    advice: string;
-    challenges: string[];
-    opportunities: string[];
-  }> {
+  async generateHoroscope(context: AIGenerationContext): Promise<HoroscopeResponse> {
     if (!this.isAvailable()) {
-      throw new Error(
-        'AI сервис недоступен - необходим API ключ Claude, OpenAI или DeepSeek',
-      );
+      throw new Error('AI service unavailable - requires API key for Claude, OpenAI or DeepSeek');
     }
 
-    this.logger.log(
-      `🤖 Генерация PREMIUM гороскопа через ${this.provider.toUpperCase()}`,
-    );
+    this.logger.log(`🤖 Generating PREMIUM horoscope via ${this.primaryProvider.toUpperCase()}`);
 
     const prompt = this.buildHoroscopePrompt(context);
     let response: string;
 
     try {
       // Try primary provider
-      if (this.provider === 'claude') {
-        response = await this.generateWithClaude(prompt);
-      } else if (this.provider === 'deepseek') {
-        response = await this.generateWithDeepSeek(prompt);
-      } else {
-        response = await this.generateWithOpenAI(prompt);
+      const provider = this.providers.get(this.primaryProvider);
+      if (!provider) {
+        throw new Error(`Provider ${this.primaryProvider} not found`);
       }
 
+      response = await provider.generate(prompt);
       return this.parseAIResponse(response);
     } catch (error) {
-      this.logger.error(
-        `❌ Ошибка генерации через ${this.provider}:`,
-        error,
-      );
+      this.logger.error(`❌ Generation error via ${this.primaryProvider}:`, error);
 
       // 🔄 Automatic fallback to alternative providers
-      const availableProviders = this.getAvailableProviders().filter(p => p !== this.provider);
+      const availableProviders = this.getAvailableProviders().filter(
+        (p) => p !== this.primaryProvider,
+      );
 
       for (const fallbackProvider of availableProviders) {
         this.logger.log(`🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`);
         try {
-          if (fallbackProvider === 'claude') {
-            response = await this.generateWithClaude(prompt);
-          } else if (fallbackProvider === 'deepseek') {
-            response = await this.generateWithDeepSeek(prompt);
-          } else if (fallbackProvider === 'openai') {
-            response = await this.generateWithOpenAI(prompt);
-          } else {
-            continue;
-          }
+          const provider = this.providers.get(fallbackProvider);
+          if (!provider) continue;
+
+          response = await provider.generate(prompt);
           return this.parseAIResponse(response);
         } catch (fallbackError) {
           this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
@@ -209,312 +129,7 @@ export class AIService {
   }
 
   /**
-   * Генерация через Claude (Anthropic) с retry логикой и cost tracking
-   */
-  private async generateWithClaude(
-    prompt: string,
-    retries = 3,
-  ): Promise<string> {
-    if (!this.anthropic) {
-      throw new Error('Claude не инициализирован');
-    }
-
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        const startTime = Date.now();
-
-        const message = await this.anthropic.messages.create({
-          model: 'claude-sonnet-4-5-20250929', // ✅ Latest Claude Sonnet 4.5
-          max_tokens: 2000,
-          temperature: 0.7,
-          system: this.getSystemPrompt(),
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        });
-
-        const duration = Date.now() - startTime;
-        const content =
-          message.content[0].type === 'text' ? message.content[0].text : '';
-
-        // ✅ Track usage and costs
-        this.logClaudeUsage(message, duration, attempt + 1);
-
-        return content;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        const errorMessage = lastError.message;
-
-        this.logger.warn(
-          `Claude attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
-        );
-
-        // Don't retry on final attempt
-        if (attempt === retries - 1) {
-          break;
-        }
-
-        // Exponential backoff: 1s, 2s, 4s
-        const backoffMs = Math.pow(2, attempt) * 1000;
-        this.logger.log(`Retrying in ${backoffMs}ms...`);
-        await this.sleep(backoffMs);
-      }
-    }
-
-    this.logger.error(
-      `❌ Claude failed after ${retries} attempts: ${lastError?.message}`,
-    );
-    throw lastError || new Error('Claude generation failed');
-  }
-
-  /**
-   * Log Claude usage statistics and costs
-   */
-  private logClaudeUsage(message: any, duration: number, attempt: number): void {
-    const usage = message.usage;
-    if (!usage) return;
-
-    // Claude Sonnet 4.5 pricing (December 2024)
-    const inputCostPer1M = 3.0; // $3.00 per 1M input tokens
-    const outputCostPer1M = 15.0; // $15.00 per 1M output tokens
-
-    const inputCost = (usage.input_tokens / 1_000_000) * inputCostPer1M;
-    const outputCost = (usage.output_tokens / 1_000_000) * outputCostPer1M;
-    const totalCost = inputCost + outputCost;
-
-    this.logger.log({
-      provider: 'claude',
-      model: 'claude-sonnet-4-5',
-      attempt,
-      duration: `${duration}ms`,
-      inputTokens: usage.input_tokens,
-      outputTokens: usage.output_tokens,
-      totalTokens: usage.input_tokens + usage.output_tokens,
-      estimatedCost: `$${totalCost.toFixed(6)}`,
-      costBreakdown: {
-        input: `$${inputCost.toFixed(6)}`,
-        output: `$${outputCost.toFixed(6)}`,
-      },
-    });
-  }
-
-  /**
-   * Генерация через OpenAI GPT с retry логикой и cost tracking
-   */
-  private async generateWithOpenAI(
-    prompt: string,
-    retries = 3,
-  ): Promise<string> {
-    if (!this.openai) {
-      throw new Error('OpenAI не инициализирован');
-    }
-
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        const startTime = Date.now();
-
-        const completion = await this.openai.chat.completions.create({
-          model: 'gpt-4o-mini', // ✅ Updated to gpt-4o-mini (98% cost reduction)
-          messages: [
-            {
-              role: 'system',
-              content: this.getSystemPrompt(),
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 2000,
-          response_format: { type: 'json_object' }, // ✅ JSON mode for reliable parsing
-        } as any);
-
-        const duration = Date.now() - startTime;
-        const content = completion.choices[0]?.message?.content || '';
-
-        // ✅ Track usage and costs
-        this.logOpenAIUsage(completion, duration, attempt + 1);
-
-        return content;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        const errorMessage = lastError.message;
-
-        this.logger.warn(
-          `OpenAI attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
-        );
-
-        // Don't retry on final attempt
-        if (attempt === retries - 1) {
-          break;
-        }
-
-        // Exponential backoff: 1s, 2s, 4s
-        const backoffMs = Math.pow(2, attempt) * 1000;
-        this.logger.log(`Retrying in ${backoffMs}ms...`);
-        await this.sleep(backoffMs);
-      }
-    }
-
-    this.logger.error(
-      `❌ OpenAI failed after ${retries} attempts: ${lastError?.message}`,
-    );
-    throw lastError || new Error('OpenAI generation failed');
-  }
-
-  /**
-   * Sleep utility for retry backoff
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Log OpenAI usage statistics and costs
-   */
-  private logOpenAIUsage(
-    completion: any,
-    duration: number,
-    attempt: number,
-  ): void {
-    const usage = completion.usage;
-    if (!usage) return;
-
-    // gpt-4o-mini pricing (December 2024)
-    const inputCostPer1M = 0.15; // $0.15 per 1M input tokens
-    const outputCostPer1M = 0.6; // $0.60 per 1M output tokens
-
-    const inputCost = (usage.prompt_tokens / 1_000_000) * inputCostPer1M;
-    const outputCost = (usage.completion_tokens / 1_000_000) * outputCostPer1M;
-    const totalCost = inputCost + outputCost;
-
-    this.logger.log({
-      provider: 'openai',
-      model: 'gpt-4o-mini',
-      attempt,
-      duration: `${duration}ms`,
-      promptTokens: usage.prompt_tokens,
-      completionTokens: usage.completion_tokens,
-      totalTokens: usage.total_tokens,
-      estimatedCost: `$${totalCost.toFixed(6)}`,
-      costBreakdown: {
-        input: `$${inputCost.toFixed(6)}`,
-        output: `$${outputCost.toFixed(6)}`,
-      },
-    });
-  }
-
-  /**
-   * Генерация через DeepSeek с retry логикой и cost tracking
-   */
-  private async generateWithDeepSeek(
-    prompt: string,
-    retries = 3,
-  ): Promise<string> {
-    if (!this.deepseek) {
-      throw new Error('DeepSeek не инициализирован');
-    }
-
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        const startTime = Date.now();
-
-        const completion = await this.deepseek.chat.completions.create({
-          model: 'deepseek-chat', // DeepSeek Chat model
-          messages: [
-            {
-              role: 'system',
-              content: this.getSystemPrompt(),
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 2000,
-          response_format: { type: 'json_object' }, // JSON mode
-        } as any);
-
-        const duration = Date.now() - startTime;
-        const content = completion.choices[0]?.message?.content || '';
-
-        // Track usage and costs
-        this.logDeepSeekUsage(completion, duration, attempt + 1);
-
-        return content;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        const errorMessage = lastError.message;
-
-        this.logger.warn(
-          `DeepSeek attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
-        );
-
-        if (attempt === retries - 1) {
-          break;
-        }
-
-        // Exponential backoff: 1s, 2s, 4s
-        const backoffMs = Math.pow(2, attempt) * 1000;
-        this.logger.log(`Retrying in ${backoffMs}ms...`);
-        await this.sleep(backoffMs);
-      }
-    }
-
-    this.logger.error(
-      `❌ DeepSeek failed after ${retries} attempts: ${lastError?.message}`,
-    );
-    throw lastError || new Error('DeepSeek generation failed');
-  }
-
-  /**
-   * Log DeepSeek usage statistics and costs
-   */
-  private logDeepSeekUsage(
-    completion: any,
-    duration: number,
-    attempt: number,
-  ): void {
-    const usage = completion.usage;
-    if (!usage) return;
-
-    // DeepSeek pricing (January 2025) - Very competitive!
-    const inputCostPer1M = 0.14; // $0.14 per 1M input tokens (cache miss)
-    const outputCostPer1M = 0.28; // $0.28 per 1M output tokens
-
-    const inputCost = (usage.prompt_tokens / 1_000_000) * inputCostPer1M;
-    const outputCost = (usage.completion_tokens / 1_000_000) * outputCostPer1M;
-    const totalCost = inputCost + outputCost;
-
-    this.logger.log({
-      provider: 'deepseek',
-      model: 'deepseek-chat',
-      attempt,
-      duration: `${duration}ms`,
-      promptTokens: usage.prompt_tokens,
-      completionTokens: usage.completion_tokens,
-      totalTokens: usage.total_tokens,
-      estimatedCost: `$${totalCost.toFixed(6)}`,
-      costBreakdown: {
-        input: `$${inputCost.toFixed(6)}`,
-        output: `$${outputCost.toFixed(6)}`,
-      },
-    });
-  }
-
-  /**
-   * Генерация детальной интерпретации натальной карты через AI с автоматическим fallback (ТОЛЬКО ДЛЯ PREMIUM)
+   * Generate detailed natal chart interpretation with automatic fallback (PREMIUM ONLY)
    */
   async generateChartInterpretation(context: {
     planets: any;
@@ -523,43 +138,38 @@ export class AIService {
     userProfile?: any;
   }): Promise<string> {
     if (!this.isAvailable()) {
-      throw new Error('AI сервис недоступен');
+      throw new Error('AI service unavailable');
     }
 
     this.logger.log(
-      `🤖 Генерация PREMIUM интерпретации через ${this.provider.toUpperCase()}`,
+      `🤖 Generating PREMIUM interpretation via ${this.primaryProvider.toUpperCase()}`,
     );
 
     const prompt = this.buildInterpretationPrompt(context);
 
     try {
       // Try primary provider
-      if (this.provider === 'claude') {
-        return await this.generateWithClaude(prompt);
-      } else if (this.provider === 'deepseek') {
-        return await this.generateWithDeepSeek(prompt);
-      } else {
-        return await this.generateWithOpenAI(prompt);
+      const provider = this.providers.get(this.primaryProvider);
+      if (!provider) {
+        throw new Error(`Provider ${this.primaryProvider} not found`);
       }
-    } catch (error) {
-      this.logger.error(
-        `❌ Ошибка генерации интерпретации через ${this.provider}:`,
-        error,
-      );
 
-      // 🔄 Automatic fallback to alternative providers
-      const availableProviders = this.getAvailableProviders().filter(p => p !== this.provider);
+      return await provider.generate(prompt);
+    } catch (error) {
+      this.logger.error(`❌ Interpretation error via ${this.primaryProvider}:`, error);
+
+      // 🔄 Automatic fallback
+      const availableProviders = this.getAvailableProviders().filter(
+        (p) => p !== this.primaryProvider,
+      );
 
       for (const fallbackProvider of availableProviders) {
         this.logger.log(`🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`);
         try {
-          if (fallbackProvider === 'claude') {
-            return await this.generateWithClaude(prompt);
-          } else if (fallbackProvider === 'deepseek') {
-            return await this.generateWithDeepSeek(prompt);
-          } else if (fallbackProvider === 'openai') {
-            return await this.generateWithOpenAI(prompt);
-          }
+          const provider = this.providers.get(fallbackProvider);
+          if (!provider) continue;
+
+          return await provider.generate(prompt);
         } catch (fallbackError) {
           this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
         }
@@ -570,33 +180,154 @@ export class AIService {
   }
 
   /**
-   * Системный промпт для AI - определяет роль и стиль
+   * Stream horoscope generation
    */
-  private getSystemPrompt(): string {
-    return `Вы - профессиональный астролог с 25-летним опытом практики. 
-Ваш стиль сочетает традиционную астрологию с современным психологическим подходом.
+  async *generateHoroscopeStream(
+    context: AIGenerationContext,
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.isAvailable()) {
+      throw new Error('AI service unavailable');
+    }
 
-ВАЖНО: Вы работаете ТОЛЬКО с PREMIUM пользователями, которые платят за детальный AI-анализ.
+    this.logger.log(`🌊 Streaming horoscope via ${this.primaryProvider.toUpperCase()}`);
 
-Ключевые принципы:
-- Вы всегда позитивны и ободряющи, но честны
-- Вы видите в вызовах возможности для роста
-- Вы даете конкретные, практичные советы
-- Вы используете понятный, доступный язык без излишнего жаргона
-- Вы персонализируете каждое предсказание, учитывая уникальность карты
-- Вы соблюдаете этические принципы и не пугаете клиентов
+    const prompt = this.buildHoroscopePrompt(context);
 
-Формат ответа:
-- Используйте короткие, легко читаемые абзацы
-- Начинайте с позитивного контекста
-- Заканчивайте практическим советом
-- Избегайте излишней драматизации
+    try {
+      const provider = this.providers.get(this.primaryProvider);
+      if (!provider) {
+        throw new Error(`Provider ${this.primaryProvider} not found`);
+      }
 
-Язык: Русский, неформальный но профессиональный стиль.`;
+      yield* provider.stream(prompt);
+    } catch (error) {
+      this.logger.error(`❌ Streaming error via ${this.primaryProvider}:`, error);
+
+      // Try one fallback for streaming (no multiple retries for streaming)
+      const fallbackProviders = this.getAvailableProviders().filter(
+        (p) => p !== this.primaryProvider,
+      );
+
+      if (fallbackProviders.length > 0) {
+        const fallbackProvider = fallbackProviders[0];
+        this.logger.log(`🔄 Streaming fallback to ${fallbackProvider.toUpperCase()}`);
+
+        const provider = this.providers.get(fallbackProvider);
+        if (provider) {
+          yield* provider.stream(prompt);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   /**
-   * Построение промпта для генерации гороскопа
+   * Generate horoscope with specific provider (no fallback)
+   */
+  async generateHoroscopeWithProvider(
+    context: AIGenerationContext,
+    preferredProvider?: AIProvider,
+  ): Promise<HoroscopeResponse> {
+    // Validate preferred provider
+    if (preferredProvider && !this.isProviderAvailable(preferredProvider)) {
+      throw new Error(
+        `Provider ${preferredProvider} unavailable. Available: ${this.getAvailableProviders().join(', ')}`,
+      );
+    }
+
+    const targetProvider = preferredProvider || this.primaryProvider;
+
+    this.logger.log(
+      `🤖 Generating horoscope via ${targetProvider.toUpperCase()} (${preferredProvider ? 'user-selected' : 'default'})`,
+    );
+
+    const prompt = this.buildHoroscopePrompt(context);
+
+    const provider = this.providers.get(targetProvider);
+    if (!provider) {
+      throw new Error('No AI provider available');
+    }
+
+    const response = await provider.generate(prompt);
+    return this.parseAIResponse(response);
+  }
+
+  /**
+   * Stream horoscope generation with specific provider (no fallback)
+   */
+  async *generateHoroscopeStreamWithProvider(
+    context: AIGenerationContext,
+    preferredProvider?: AIProvider,
+  ): AsyncGenerator<string, void, unknown> {
+    if (preferredProvider && !this.isProviderAvailable(preferredProvider)) {
+      throw new Error(
+        `Provider ${preferredProvider} unavailable. Available: ${this.getAvailableProviders().join(', ')}`,
+      );
+    }
+
+    const targetProvider = preferredProvider || this.primaryProvider;
+
+    this.logger.log(
+      `🌊 Streaming via ${targetProvider.toUpperCase()} (${preferredProvider ? 'user-selected' : 'default'})`,
+    );
+
+    const prompt = this.buildHoroscopePrompt(context);
+
+    const provider = this.providers.get(targetProvider);
+    if (!provider) {
+      throw new Error('No AI provider available');
+    }
+
+    yield* provider.stream(prompt);
+  }
+
+  // ============================================================
+  // UTILITY METHODS
+  // ============================================================
+
+  /**
+   * Check if AI service is available
+   */
+  isAvailable(): boolean {
+    return this.primaryProvider !== 'none';
+  }
+
+  /**
+   * Get current primary provider
+   */
+  getCurrentProvider(): AIProvider {
+    return this.primaryProvider;
+  }
+
+  /**
+   * Get list of all available providers
+   */
+  getAvailableProviders(): AIProvider[] {
+    const available: AIProvider[] = [];
+    if (this.claudeProvider.isAvailable()) available.push('claude');
+    if (this.openaiProvider.isAvailable()) available.push('openai');
+    if (this.deepseekProvider.isAvailable()) available.push('deepseek');
+    return available;
+  }
+
+  /**
+   * Check if specific provider is available
+   */
+  isProviderAvailable(provider: AIProvider): boolean {
+    if (provider === 'none') return false;
+    const p = this.providers.get(provider);
+    return p ? p.isAvailable() : false;
+  }
+
+  // ============================================================
+  // PROMPT BUILDING & PARSING (Business Logic)
+  // ============================================================
+
+  /**
+   * Build horoscope generation prompt
    */
   private buildHoroscopePrompt(context: AIGenerationContext): string {
     const periodText =
@@ -647,45 +378,46 @@ ${transitDescription}
   }
 
   /**
-   * Построение промпта для интерпретации натальной карты
+   * Build chart interpretation prompt
    */
-  private buildInterpretationPrompt(context: any): string {
-    return `Создайте детальную PREMIUM астрологическую интерпретацию натальной карты:
+  private buildInterpretationPrompt(context: {
+    planets: any;
+    houses: any;
+    aspects: any[];
+    userProfile?: any;
+  }): string {
+    const planetsDesc = this.formatPlanets(context.planets);
+    const housesDesc = this.formatHouses(context.houses);
+    const aspectsDesc = this.formatAspects(context.aspects);
 
-ПЛАНЕТЫ В ЗНАКАХ:
-${this.formatPlanets(context.planets)}
+    return `Создайте глубокую психологическую интерпретацию натальной карты.
+
+ПЛАНЕТЫ:
+${planetsDesc}
 
 ДОМА:
-${this.formatHouses(context.houses)}
+${housesDesc}
 
 АСПЕКТЫ:
-${this.formatAspects(context.aspects)}
+${aspectsDesc}
 
-Создайте глубокую, инсайтную интерпретацию, которая раскроет:
-1. Основные черты личности
-2. Ключевые таланты и способности
-3. Жизненные вызовы и уроки
-4. Кармические темы
-5. Потенциал развития
-6. Рекомендации по использованию энергий
+Создайте детальную интерпретацию (3-5 абзацев), охватывающую:
+1. Ключевые черты личности
+2. Таланты и сильные стороны
+3. Вызовы и области роста
+4. Жизненные темы и паттерны
+5. Рекомендации для развития
 
-Текст должен быть:
-- Вдохновляющим и мотивирующим
-- Глубоким но понятным
-- Практичным и применимым
-- 800-1000 слов
-- Это PREMIUM интерпретация - максимально детально
-
-Начните с общего обзора энергии карты, затем углубитесь в детали.`;
+Стиль: Психологический, поддерживающий, практичный. Фокус на возможностях, а не ограничениях.`;
   }
 
   /**
-   * Парсинг ответа от AI (improved with JSON mode support)
+   * Parse AI response to HoroscopeResponse object
    */
-  private parseAIResponse(response: string): any {
+  private parseAIResponse(response: string): HoroscopeResponse {
     try {
-      // With JSON mode, response should be valid JSON
-      const parsed = JSON.parse(response);
+      const cleaned = response.trim();
+      const parsed = JSON.parse(cleaned);
 
       // Validate required fields
       const requiredFields = [
@@ -725,10 +457,10 @@ ${this.formatAspects(context.aspects)}
   }
 
   /**
-   * Парсинг текстового ответа (fallback)
+   * Parse text response as fallback
    */
-  private parseTextResponse(response: string): any {
-    const sections = {
+  private parseTextResponse(response: string): HoroscopeResponse {
+    const sections: HoroscopeResponse = {
       general: '',
       love: '',
       career: '',
@@ -739,7 +471,7 @@ ${this.formatAspects(context.aspects)}
       opportunities: [],
     };
 
-    // Простой парсинг по ключевым словам
+    // Simple keyword-based parsing
     const generalMatch = response.match(/общ[ий|ее].*?(?=любовь|карьер|$)/is);
     if (generalMatch) sections.general = generalMatch[0].trim();
 
@@ -762,7 +494,7 @@ ${this.formatAspects(context.aspects)}
   }
 
   /**
-   * Форматирование транзитов для промпта
+   * Format transits for prompt
    */
   private formatTransits(transits: any[]): string {
     if (!transits || transits.length === 0) {
@@ -778,7 +510,7 @@ ${this.formatAspects(context.aspects)}
   }
 
   /**
-   * Форматирование аспектов для промпта
+   * Format aspects for prompt
    */
   private formatAspects(aspects: any[]): string {
     if (!aspects || aspects.length === 0) {
@@ -794,37 +526,54 @@ ${this.formatAspects(context.aspects)}
   }
 
   /**
-   * Форматирование планет для промпта
+   * Format planets for prompt
    */
   private formatPlanets(planets: any): string {
-    if (!planets) return 'Планеты не указаны';
+    if (!planets) return 'Данные о планетах отсутствуют';
 
-    return Object.entries(planets)
-      .map(([key, planet]: [string, any]) => {
-        return `- ${this.getPlanetName(key)}: ${planet.sign} (дом ${planet.house || '?'})`;
+    const planetList = [
+      'sun',
+      'moon',
+      'mercury',
+      'venus',
+      'mars',
+      'jupiter',
+      'saturn',
+      'uranus',
+      'neptune',
+      'pluto',
+    ];
+
+    return planetList
+      .map((key) => {
+        const planet = planets[key];
+        if (!planet) return null;
+        return `${this.getPlanetName(key)}: ${planet.sign || 'неизвестно'}`;
       })
-      .join('\n');
+      .filter(Boolean)
+      .join(', ');
   }
 
   /**
-   * Форматирование домов для промпта
+   * Format houses for prompt
    */
   private formatHouses(houses: any): string {
-    if (!houses) return 'Дома не указаны';
+    if (!houses) return 'Данные о домах отсутствуют';
 
+    // Format first 12 houses
     return Object.entries(houses)
       .slice(0, 12)
-      .map(([num, house]: [string, any]) => {
-        return `- Дом ${num}: ${house.sign}`;
+      .map(([key, house]: [string, any]) => {
+        return `Дом ${key}: ${house.sign || 'неизвестно'}`;
       })
-      .join('\n');
+      .join(', ');
   }
 
   /**
-   * Получить название планеты на русском
+   * Get planet display name
    */
-  private getPlanetName(key: string): string {
-    const names: { [key: string]: string } = {
+  private getPlanetName(planet: string): string {
+    const names: Record<string, string> = {
       sun: 'Солнце',
       moon: 'Луна',
       mercury: 'Меркурий',
@@ -835,379 +584,24 @@ ${this.formatAspects(context.aspects)}
       uranus: 'Уран',
       neptune: 'Нептун',
       pluto: 'Плутон',
+      northNode: 'Северный Узел',
+      southNode: 'Южный Узел',
+      chiron: 'Хирон',
     };
-    return names[key] || key;
+    return names[planet] || planet;
   }
 
   /**
-   * Получить название аспекта на русском
+   * Get aspect display name
    */
   private getAspectName(aspect: string): string {
-    const names: { [key: string]: string } = {
-      conjunction: 'в соединении с',
-      opposition: 'в оппозиции к',
-      trine: 'в тригоне к',
-      square: 'в квадрате к',
-      sextile: 'в секстиле к',
+    const names: Record<string, string> = {
+      conjunction: 'соединение с',
+      opposition: 'оппозиция к',
+      trine: 'трин к',
+      square: 'квадрат к',
+      sextile: 'секстиль к',
     };
     return names[aspect] || aspect;
-  }
-
-  /**
-   * 🌊 STREAMING: Generate horoscope with real-time chunks (PREMIUM only)
-   */
-  async *generateHoroscopeStream(
-    context: AIGenerationContext,
-  ): AsyncGenerator<string, void, unknown> {
-    if (!this.isAvailable()) {
-      throw new Error(
-        'AI сервис недоступен - необходим API ключ Claude, OpenAI или DeepSeek',
-      );
-    }
-
-    this.logger.log(
-      `🌊 Генерация STREAMING гороскопа через ${this.provider.toUpperCase()}`,
-    );
-
-    const prompt = this.buildHoroscopePrompt(context);
-
-    if (this.provider === 'claude') {
-      yield* this.streamWithClaude(prompt);
-    } else if (this.provider === 'deepseek') {
-      yield* this.streamWithDeepSeek(prompt);
-    } else if (this.provider === 'openai') {
-      yield* this.streamWithOpenAI(prompt);
-    } else {
-      throw new Error('No AI provider available for streaming');
-    }
-  }
-
-  /**
-   * Stream generation with Claude
-   */
-  private async *streamWithClaude(
-    prompt: string,
-  ): AsyncGenerator<string, void, unknown> {
-    if (!this.anthropic) {
-      throw new Error('Claude не инициализирован');
-    }
-
-    try {
-      const startTime = Date.now();
-
-      const stream = await this.anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 2000,
-        temperature: 0.7,
-        system: this.getSystemPrompt(),
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        stream: true, // ✅ Enable streaming
-      } as any);
-
-      let fullContent = '';
-
-      // @ts-ignore - Claude SDK streaming types
-      for await (const event of stream) {
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta'
-        ) {
-          const content = event.delta.text || '';
-          if (content) {
-            fullContent += content;
-            yield content;
-          }
-        }
-      }
-
-      const duration = Date.now() - startTime;
-
-      // Log streaming completion (approximate token count)
-      this.logger.log({
-        provider: 'claude',
-        model: 'claude-sonnet-4-5',
-        mode: 'streaming',
-        duration: `${duration}ms`,
-        approximateChars: fullContent.length,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`❌ Claude streaming failed: ${errorMessage}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Stream generation with OpenAI
-   */
-  private async *streamWithOpenAI(
-    prompt: string,
-  ): AsyncGenerator<string, void, unknown> {
-    if (!this.openai) {
-      throw new Error('OpenAI не инициализирован');
-    }
-
-    try {
-      const startTime = Date.now();
-
-      const stream = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: this.getSystemPrompt(),
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-        response_format: { type: 'json_object' },
-        stream: true, // ✅ Enable streaming
-      } as any);
-
-      let fullContent = '';
-
-      for await (const chunk of stream as any) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) {
-          fullContent += content;
-          yield content;
-        }
-      }
-
-      const duration = Date.now() - startTime;
-
-      // Log streaming completion (approximate token count)
-      this.logger.log({
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        mode: 'streaming',
-        duration: `${duration}ms`,
-        approximateChars: fullContent.length,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`❌ OpenAI streaming failed: ${errorMessage}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Stream generation with DeepSeek
-   */
-  private async *streamWithDeepSeek(
-    prompt: string,
-  ): AsyncGenerator<string, void, unknown> {
-    if (!this.deepseek) {
-      throw new Error('DeepSeek не инициализирован');
-    }
-
-    try {
-      const startTime = Date.now();
-
-      const stream = await this.deepseek.chat.completions.create({
-        model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'system',
-            content: this.getSystemPrompt(),
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-        response_format: { type: 'json_object' },
-        stream: true, // ✅ Enable streaming
-      } as any);
-
-      let fullContent = '';
-
-      for await (const chunk of stream as any) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) {
-          fullContent += content;
-          yield content;
-        }
-      }
-
-      const duration = Date.now() - startTime;
-
-      // Log streaming completion (approximate token count)
-      this.logger.log({
-        provider: 'deepseek',
-        model: 'deepseek-chat',
-        mode: 'streaming',
-        duration: `${duration}ms`,
-        approximateChars: fullContent.length,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`❌ DeepSeek streaming failed: ${errorMessage}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Проверка доступности AI
-   */
-  isAvailable(): boolean {
-    return this.provider !== 'none';
-  }
-
-  /**
-   * Получить текущего провайдера
-   */
-  getProvider(): AIProvider {
-    return this.provider;
-  }
-
-  /**
-   * Получить список всех доступных провайдеров
-   */
-  getAvailableProviders(): AIProvider[] {
-    const available: AIProvider[] = [];
-    if (this.anthropic) available.push('claude');
-    if (this.deepseek) available.push('deepseek');
-    if (this.openai) available.push('openai');
-    return available;
-  }
-
-  /**
-   * Проверить доступность конкретного провайдера
-   */
-  isProviderAvailable(provider: AIProvider): boolean {
-    if (provider === 'claude') return this.anthropic !== null;
-    if (provider === 'deepseek') return this.deepseek !== null;
-    if (provider === 'openai') return this.openai !== null;
-    return false;
-  }
-
-  /**
-   * Генерация гороскопа с выбором провайдера
-   */
-  async generateHoroscopeWithProvider(
-    context: AIGenerationContext,
-    preferredProvider?: AIProvider,
-  ): Promise<{
-    general: string;
-    love: string;
-    career: string;
-    health: string;
-    finance: string;
-    advice: string;
-    challenges: string[];
-    opportunities: string[];
-  }> {
-    // Validate preferred provider
-    if (preferredProvider && !this.isProviderAvailable(preferredProvider)) {
-      throw new Error(
-        `Провайдер ${preferredProvider} недоступен. Доступные: ${this.getAvailableProviders().join(', ')}`,
-      );
-    }
-
-    const targetProvider = preferredProvider || this.provider;
-
-    this.logger.log(
-      `🤖 Генерация гороскопа через ${targetProvider.toUpperCase()} (выбран: ${preferredProvider ? 'пользователем' : 'по умолчанию'})`,
-    );
-
-    const prompt = this.buildHoroscopePrompt(context);
-    let response: string;
-
-    try {
-      // Use specified provider
-      if (targetProvider === 'claude') {
-        response = await this.generateWithClaude(prompt);
-      } else if (targetProvider === 'deepseek') {
-        response = await this.generateWithDeepSeek(prompt);
-      } else if (targetProvider === 'openai') {
-        response = await this.generateWithOpenAI(prompt);
-      } else {
-        throw new Error('No AI provider available');
-      }
-
-      return this.parseAIResponse(response);
-    } catch (error) {
-      this.logger.error(
-        `❌ Ошибка генерации через ${targetProvider}:`,
-        error,
-      );
-
-      // Only fallback if user didn't explicitly choose a provider
-      if (!preferredProvider) {
-        const availableProviders = this.getAvailableProviders().filter(p => p !== targetProvider);
-
-        for (const fallbackProvider of availableProviders) {
-          this.logger.log(`🔄 Automatic fallback to ${fallbackProvider.toUpperCase()}...`);
-          try {
-            if (fallbackProvider === 'claude') {
-              response = await this.generateWithClaude(prompt);
-            } else if (fallbackProvider === 'deepseek') {
-              response = await this.generateWithDeepSeek(prompt);
-            } else if (fallbackProvider === 'openai') {
-              response = await this.generateWithOpenAI(prompt);
-            } else {
-              continue;
-            }
-            return this.parseAIResponse(response);
-          } catch (fallbackError) {
-            this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
-          }
-        }
-      } else {
-        this.logger.log(
-          '⚠️ Fallback disabled - user explicitly chose provider',
-        );
-      }
-
-      throw error;
-    }
-  }
-
-  /**
-   * Streaming с выбором провайдера
-   */
-  async *generateHoroscopeStreamWithProvider(
-    context: AIGenerationContext,
-    preferredProvider?: AIProvider,
-  ): AsyncGenerator<string, void, unknown> {
-    // Validate preferred provider
-    if (preferredProvider && !this.isProviderAvailable(preferredProvider)) {
-      throw new Error(
-        `Провайдер ${preferredProvider} недоступен для streaming`,
-      );
-    }
-
-    const targetProvider = preferredProvider || this.provider;
-
-    this.logger.log(
-      `🌊 STREAMING через ${targetProvider.toUpperCase()} (выбран: ${preferredProvider ? 'пользователем' : 'по умолчанию'})`,
-    );
-
-    const prompt = this.buildHoroscopePrompt(context);
-
-    if (targetProvider === 'claude') {
-      yield* this.streamWithClaude(prompt);
-    } else if (targetProvider === 'deepseek') {
-      yield* this.streamWithDeepSeek(prompt);
-    } else if (targetProvider === 'openai') {
-      yield* this.streamWithOpenAI(prompt);
-    } else {
-      throw new Error('No AI provider available for streaming');
-    }
   }
 }

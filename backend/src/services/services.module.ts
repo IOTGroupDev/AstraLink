@@ -8,6 +8,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { LunarService } from './lunar.service';
 import { RepositoriesModule } from '../repositories';
+import { AIProvidersModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { RepositoriesModule } from '../repositories';
     SupabaseModule, // Добавляем для доступа к SupabaseService
     ConfigModule, // Нужен для ConfigService в AIService
     RepositoriesModule, // Для ChartRepository
+    AIProvidersModule, // AI Providers (Strategy Pattern)
   ],
   providers: [
     AIService, // Добавляем AI Service
