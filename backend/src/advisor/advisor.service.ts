@@ -791,4 +791,26 @@ export class AdvisorService {
 
     return relevance[topic]?.[house] || '';
   }
+
+  /**
+   * Получить статистику использования советника для пользователя
+   */
+  async getUsageStats(userId: string) {
+    const key = `advisor:rate_limit:${userId}`;
+    const today = new Date().toISOString().split('T')[0];
+    const dayKey = `${key}:${today}`;
+
+    const currentUsage = await this.redis.get(dayKey);
+    const usageCount = currentUsage ? parseInt(currentUsage, 10) : 0;
+
+    // Get subscription info from subscription service would be better
+    // For now returning basic stats
+    return {
+      date: today,
+      used: usageCount,
+      // Limit should be fetched from subscription service
+      // This is a placeholder
+      message: `Использовано ${usageCount} запросов сегодня`,
+    };
+  }
 }

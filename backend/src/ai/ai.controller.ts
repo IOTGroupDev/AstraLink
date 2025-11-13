@@ -19,6 +19,9 @@ import { Response } from 'express';
 import { AIService } from '../services/ai.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { SubscriptionGuard } from '@/common/guards/subscription.guard';
+import { RequiresSubscription } from '@/common/decorators/requires-subscription.decorator';
+import { SubscriptionTier } from '@/types/subscription';
 import type { AuthenticatedRequest } from '../types/auth';
 
 interface GenerateHoroscopeDto {
@@ -29,7 +32,7 @@ interface GenerateHoroscopeDto {
 
 @ApiTags('AI')
 @Controller('ai')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, SubscriptionGuard)
 @ApiBearerAuth()
 export class AIController {
   constructor(
@@ -91,9 +94,16 @@ export class AIController {
   }
 
   @Post('horoscope/generate')
-  @ApiOperation({ summary: 'Генерация PREMIUM гороскопа через AI (ТОЛЬКО для PREMIUM)' })
+  @RequiresSubscription(SubscriptionTier.PREMIUM, SubscriptionTier.MAX) // 🎯 Только Premium и MAX
+  @ApiOperation({
+    summary:
+      'AI генерация гороскопа (PREMIUM/MAX, обновление 1 раз в сутки)',
+  })
   @ApiResponse({ status: 200, description: 'AI-гороскоп успешно сгенерирован' })
-  @ApiResponse({ status: 403, description: 'Требуется PREMIUM подписка' })
+  @ApiResponse({
+    status: 403,
+    description: 'Требуется PREMIUM или MAX подписка',
+  })
   async generateHoroscope(
     @Request() req: AuthenticatedRequest,
     @Body() dto: GenerateHoroscopeDto,
@@ -114,13 +124,17 @@ export class AIController {
   }
 
   @Post('horoscope/direct')
+  @RequiresSubscription(SubscriptionTier.PREMIUM, SubscriptionTier.MAX) // 🎯 Только Premium и MAX
   @ApiOperation({
     summary:
-      '🎯 Прямая генерация через AI с выбором провайдера (PREMIUM)',
+      '🎯 Прямая генерация через AI с выбором провайдера (PREMIUM/MAX)',
   })
   @ApiResponse({ status: 200, description: 'AI-гороскоп успешно сгенерирован' })
   @ApiResponse({ status: 400, description: 'Недоступный провайдер' })
-  @ApiResponse({ status: 403, description: 'Требуется PREMIUM подписка' })
+  @ApiResponse({
+    status: 403,
+    description: 'Требуется PREMIUM или MAX подписка',
+  })
   async generateHoroscopeDirect(
     @Request() req: AuthenticatedRequest,
     @Body() dto: GenerateHoroscopeDto,
@@ -171,15 +185,19 @@ export class AIController {
   }
 
   @Post('horoscope/stream')
+  @RequiresSubscription(SubscriptionTier.PREMIUM, SubscriptionTier.MAX) // 🎯 Только Premium и MAX
   @ApiOperation({
     summary:
-      '🌊 STREAMING с выбором провайдера (PREMIUM - Claude & OpenAI)',
+      '🌊 STREAMING с выбором провайдера (PREMIUM/MAX - Claude, DeepSeek & OpenAI)',
   })
   @ApiResponse({
     status: 200,
     description: 'Server-Sent Events stream с частями гороскопа',
   })
-  @ApiResponse({ status: 403, description: 'Требуется PREMIUM подписка и AI провайдер' })
+  @ApiResponse({
+    status: 403,
+    description: 'Требуется PREMIUM или MAX подписка',
+  })
   async streamHoroscope(
     @Request() req: AuthenticatedRequest,
     @Body() dto: GenerateHoroscopeDto,

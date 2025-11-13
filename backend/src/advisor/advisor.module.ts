@@ -8,6 +8,7 @@ import { SubscriptionModule } from '@/subscription/subscription.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
 import { AuthModule } from '@/auth/auth.module';
 import { SubscriptionGuard } from '@/common/guards/subscription.guard';
+import { AdvisorRateLimitGuard } from './guards/advisor-rate-limit.guard';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { InterpretationService } from '@/services/interpretation.service';
 
@@ -22,6 +23,11 @@ import { InterpretationService } from '@/services/interpretation.service';
     forwardRef(() => AuthModule),
   ],
   controllers: [AdvisorController],
-  providers: [AdvisorService, SubscriptionGuard, InterpretationService],
+  providers: [
+    AdvisorService,
+    SubscriptionGuard,
+    AdvisorRateLimitGuard, // 🎯 Rate limiting для советника
+    InterpretationService,
+  ],
 })
 export class AdvisorModule {}
