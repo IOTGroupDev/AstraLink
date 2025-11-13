@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EphemerisService } from './ephemeris.service';
 import { InterpretationService } from './interpretation.service';
 import { HoroscopeGeneratorService } from './horoscope-generator.service';
+import { AIService } from './ai.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { LunarService } from './lunar.service';
@@ -15,16 +16,17 @@ import { AIProvidersModule } from './ai/ai.module';
     SupabaseModule, // Добавляем для доступа к SupabaseService
     ConfigModule, // Нужен для ConfigService
     RepositoriesModule, // Для ChartRepository
-    AIProvidersModule, // AI Providers + AIService (Strategy Pattern)
+    AIProvidersModule, // AI Providers (Strategy Pattern)
   ],
   providers: [
+    AIService, // AIService with injected providers
     EphemerisService,
     InterpretationService,
     HoroscopeGeneratorService,
     LunarService,
   ],
   exports: [
-    AIProvidersModule, // Re-export AIService and providers
+    AIService,
     EphemerisService,
     InterpretationService,
     HoroscopeGeneratorService,
