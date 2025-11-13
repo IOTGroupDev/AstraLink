@@ -7,12 +7,14 @@ import { AIService } from './ai.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { LunarService } from './lunar.service';
+import { RepositoriesModule } from '../repositories';
 
 @Module({
   imports: [
     PrismaModule,
     SupabaseModule, // Добавляем для доступа к SupabaseService
     ConfigModule, // Нужен для ConfigService в AIService
+    RepositoriesModule, // Для ChartRepository
   ],
   providers: [
     AIService, // Добавляем AI Service

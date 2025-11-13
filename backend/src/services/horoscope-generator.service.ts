@@ -6,9 +6,8 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { SupabaseService } from '../supabase/supabase.service';
 import { EphemerisService } from './ephemeris.service';
+import { ChartRepository } from '../repositories';
 import { AIService } from './ai.service';
 import { RedisService } from '../redis/redis.service';
 import {
@@ -81,91 +80,39 @@ export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
 
   constructor(
-    private prisma: PrismaService,
-    private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
     private aiService: AIService,
     private redis: RedisService,
+    private chartRepository: ChartRepository,
   ) {}
 
   /**
-   * Find user chart via multiple fallback methods
+   * Find user chart using centralized ChartRepository
    */
   private async findUserChart(userId: string): Promise<ChartLookupResult> {
-    this.logger.log(`Looking for natal chart for user ${userId}`);
+    this.logger.log(`Looking for natal chart for user ${userId} via ChartRepository`);
 
-    // Try admin client
     try {
-      this.logger.log('Trying admin client lookup...');
-      const { data: charts, error: adminError } =
-        await this.supabaseService.getUserChartsAdmin(userId);
-
-      if (!adminError && charts && charts.length > 0) {
-        this.logger.log(
-          `Found chart via admin client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
-        );
-        return {
-          chartData: charts[0].data as ChartData,
-          foundVia: 'admin',
-        };
-      }
-      if (adminError) {
-        this.logger.warn('Admin chart lookup error:', adminError.message);
-      }
-    } catch (adminError) {
-      const errorMessage =
-        adminError instanceof Error ? adminError.message : 'Unknown error';
-      this.logger.warn('Admin chart lookup failed:', errorMessage);
-    }
-
-    // Try regular client
-    try {
-      this.logger.log('Trying regular client lookup...');
-      const { data: charts, error: regularError } =
-        await this.supabaseService.getUserCharts(userId);
-
-      if (!regularError && charts && charts.length > 0) {
-        this.logger.log(
-          `Found chart via regular client, created: ${charts[0].created_at?.toString() || 'unknown'}`,
-        );
-        return {
-          chartData: charts[0].data as ChartData,
-          foundVia: 'regular',
-        };
-      }
-      if (regularError) {
-        this.logger.warn('Regular chart lookup error:', regularError.message);
-      }
-    } catch (regularError) {
-      const errorMessage =
-        regularError instanceof Error ? regularError.message : 'Unknown error';
-      this.logger.error('Regular chart lookup failed:', errorMessage);
-    }
-
-    // Try Prisma fallback
-    try {
-      this.logger.log('Trying Prisma fallback for chart lookup');
-      const chart = await this.prisma.chart.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-      });
+      const chart = await this.chartRepository.findByUserId(userId);
 
       if (chart) {
         this.logger.log(
-          `Found chart via Prisma fallback, created: ${chart.createdAt?.toString() || 'unknown'}`,
+          `Found chart via ChartRepository, created: ${chart.created_at?.toString() || 'unknown'}`,
         );
         return {
-          chartData: chart.data as unknown as ChartData,
-          foundVia: 'prisma',
+          chartData: chart.data as ChartData,
+          foundVia: 'repository',
         };
       }
-    } catch (prismaError) {
-      const errorMessage =
-        prismaError instanceof Error ? prismaError.message : 'Unknown error';
-      this.logger.error('Prisma lookup failed:', errorMessage);
-    }
 
-    return { chartData: null, foundVia: 'none' };
+      this.logger.warn(`No chart found for user ${userId}`);
+      return { chartData: null, foundVia: 'none' };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('ChartRepository lookup failed:', errorMessage);
+      return { chartData: null, foundVia: 'none' };
+    }
   }
 
   /**
