@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -17,6 +18,16 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    EventEmitterModule.forRoot({
+      // Use wildcards to support event namespacing
+      wildcard: true,
+      // Set this to `true` to use wildcards
+      delimiter: '.',
+      // Maximum listeners per event
+      maxListeners: 10,
+      // Log warnings when max listeners is exceeded
+      verboseMemoryLeak: true,
     }),
     PrismaModule,
     ServicesModule,
