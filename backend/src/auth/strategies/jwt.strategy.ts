@@ -9,54 +9,64 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: true, // Временно игнорируем истечение для отладки
-      secretOrKey: 'dummy-secret-for-development', // Не используется
-      passReqToCallback: true, // Передаем request в callback
-      jsonWebTokenOptions: {
-        ignoreExpiration: true,
-      },
+      // SECURITY: Token expiration is now enforced
+      ignoreExpiration: false,
+      secretOrKey: configService.get<string>('JWT_SECRET'),
+      passReqToCallback: true,
     });
   }
 
   validate(request: any, _payload: any) {
-    // Для development просто декодируем Supabase токен без проверки подписи
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
     if (!token) {
-      console.log('No token provided in request');
-      return null; // Passport интерпретирует null как неудачную аутентификацию
+      console.log('[JwtStrategy] No token provided in request');
+      return null;
     }
 
-    try {
-      // Декодируем токен без проверки подписи
-      const decoded = jwt.decode(token, { complete: false }) as any;
-      console.log('Decoded token payload:', decoded);
-      if (decoded) {
-        const userId =
-          decoded.sub || decoded.id || decoded.userId || decoded.user_id;
-        if (userId) {
+    // Development-only fallback for Supabase tokens
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️  DEVELOPMENT MODE: Using insecure JWT decode in JwtStrategy');
+      try {
+        const decoded = jwt.decode(token, { complete: false }) as any;
+        if (decoded) {
+          const userId =
+            decoded.sub || decoded.id || decoded.userId || decoded.user_id;
+          if (userId) {
+            return {
+              userId: userId,
+              email: decoded.email,
+              role: decoded.role,
+            };
+          }
+        }
+      } catch (error) {
+        console.error('[JwtStrategy] Error decoding token:', error);
+        // Fallback for simple userId tokens in development
+        if (token && token.length > 10) {
+          console.log('[JwtStrategy] Treating token as userId for development:', token);
           return {
-            userId: userId,
-            email: decoded.email,
-            role: decoded.role,
+            userId: token,
+            email: 'dev@example.com',
+            role: 'authenticated',
           };
         }
       }
-    } catch (error) {
-      console.error('Error decoding token:', error);
-      // Если декодирование не удалось, возможно токен - это просто userId для development
-      if (token && token.length > 10) {
-        // Простая проверка, что это UUID-like
-        console.log('Treating token as userId for development:', token);
-        return {
-          userId: token,
-          email: 'dev@example.com',
-          role: 'authenticated',
-        };
+    } else {
+      // Production: Use the validated payload from passport-jwt
+      if (_payload) {
+        const userId =
+          _payload.sub || _payload.id || _payload.userId || _payload.user_id;
+        if (userId) {
+          return {
+            userId: userId,
+            email: _payload.email,
+            role: _payload.role,
+          };
+        }
       }
     }
 
-    // Если токен не содержит нужных данных
-    console.log('Invalid token payload - no userId found');
-    return null; // Passport интерпретирует null как неудачную аутентификацию
+    console.log('[JwtStrategy] Invalid token payload - no userId found');
+    return null;
   }
 }

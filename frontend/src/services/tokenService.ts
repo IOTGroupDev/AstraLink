@@ -1,13 +1,13 @@
 // src/services/tokenService.ts
 // Унифицированный сервис токенов и настроек.
-// - Держит access_token (в памяти + AsyncStorage) и рассылает изменения подписчикам
+// - Держит access_token (в памяти + SecureStore/AsyncStorage) и рассылает изменения подписчикам
 // - Хранит флаги настроек (onboardingCompleted, rememberMe, biometrics)
 // - Предоставляет методы биометрии через expo-local-authentication
 //
-// Примечание: для упрощения и совместимости с Expo Go используется AsyncStorage.
-// При необходимости можно заменить хранение токена на SecureStore.
+// SECURITY: Токены хранятся в SecureStore на iOS/Android, AsyncStorage на web (fallback)
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Platform } from 'react-native';
 
@@ -41,7 +41,7 @@ class TokenService {
 
     this.readyPromise = (async () => {
       try {
-        const stored = await AsyncStorage.getItem(TokenService.SECURE_KEY);
+        const stored = await this.getSecureItem(TokenService.SECURE_KEY);
         this.currentToken = stored || null;
       } catch {
         this.currentToken = null;
@@ -65,15 +65,15 @@ class TokenService {
     return this.currentToken;
   }
 
-  /** Установить (или очистить) токен и сохранить его в AsyncStorage + уведомить подписчиков */
+  /** Установить (или очистить) токен и сохранить его в SecureStore/AsyncStorage + уведомить подписчиков */
   async setToken(token: string | null): Promise<void> {
     this.currentToken = token;
 
     try {
       if (token) {
-        await AsyncStorage.setItem(TokenService.SECURE_KEY, token);
+        await this.setSecureItem(TokenService.SECURE_KEY, token);
       } else {
-        await AsyncStorage.removeItem(TokenService.SECURE_KEY);
+        await this.deleteSecureItem(TokenService.SECURE_KEY);
       }
     } finally {
       this.notify(this.currentToken);
@@ -133,7 +133,7 @@ class TokenService {
 
       return { available: true, type: biometricType };
     } catch (error) {
-      console.error('Biometric check error:', error);
+      // Biometric check error silently handled
       return { available: false, type: null };
     }
   }
@@ -152,9 +152,33 @@ class TokenService {
 
       return result.success;
     } catch (error) {
-      console.error('Biometric authentication error:', error);
+      // Biometric authentication error silently handled
       return false;
     }
+  }
+
+  // ============ SECURE STORAGE HELPERS ============
+  // Use SecureStore on iOS/Android, AsyncStorage on web
+
+  private async getSecureItem(key: string): Promise<string | null> {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.getItem(key);
+    }
+    return SecureStore.getItemAsync(key);
+  }
+
+  private async setSecureItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.setItem(key, value);
+    }
+    return SecureStore.setItemAsync(key, value);
+  }
+
+  private async deleteSecureItem(key: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.removeItem(key);
+    }
+    return SecureStore.deleteItemAsync(key);
   }
 
   // ============ НАСТРОЙКИ ============

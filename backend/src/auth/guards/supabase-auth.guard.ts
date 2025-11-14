@@ -68,7 +68,7 @@ export class SupabaseAuthGuard implements CanActivate {
 
       if (error || !user) {
         console.warn(
-          '[SupabaseAuthGuard] Supabase getUser failed or returned no user; attempting JWT decode fallback',
+          '[SupabaseAuthGuard] Supabase getUser failed or returned no user',
           {
             hasError: !!error,
             errorMessage: (error as any)?.message,
@@ -76,35 +76,49 @@ export class SupabaseAuthGuard implements CanActivate {
           },
         );
 
-        // Development fallback: decode JWT without verifying signature to extract user id
-        try {
-          const decoded = jwt.decode(token) as any;
-          const userId =
-            decoded?.sub || decoded?.user_id || decoded?.userId || decoded?.id;
+        // Development-only fallback: decode JWT without verifying signature
+        // SECURITY: This fallback is ONLY enabled in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(
+            '⚠️  DEVELOPMENT MODE: Using insecure JWT decode fallback',
+          );
+          try {
+            const decoded = jwt.decode(token) as any;
+            const userId =
+              decoded?.sub ||
+              decoded?.user_id ||
+              decoded?.userId ||
+              decoded?.id;
 
-          if (userId) {
-            request.user = {
-              userId,
-              id: userId,
-              email: decoded?.email,
-              role: decoded?.role,
-              rawUser: decoded,
-            };
-            console.log(
-              '[SupabaseAuthGuard] Fallback decode success, user attached:',
-              {
+            if (userId) {
+              request.user = {
                 userId,
-                hasEmail: !!decoded?.email,
-              },
+                id: userId,
+                email: decoded?.email,
+                role: decoded?.role,
+                rawUser: decoded,
+              };
+              console.log(
+                '[SupabaseAuthGuard] DEV fallback decode success, user attached:',
+                {
+                  userId,
+                  hasEmail: !!decoded?.email,
+                },
+              );
+              return true;
+            }
+          } catch (decodeErr) {
+            const errorMessage =
+              decodeErr instanceof Error ? decodeErr.message : 'Unknown error';
+            console.error(
+              '[SupabaseAuthGuard] JWT decode fallback failed:',
+              errorMessage,
             );
-            return true;
           }
-        } catch (decodeErr) {
-          const errorMessage =
-            decodeErr instanceof Error ? decodeErr.message : 'Unknown error';
+        } else {
+          // In production: reject invalid tokens immediately
           console.error(
-            '[SupabaseAuthGuard] JWT decode fallback failed:',
-            errorMessage,
+            '[SupabaseAuthGuard] Token validation failed in production',
           );
         }
 

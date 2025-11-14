@@ -51,11 +51,16 @@ export class UserRepository implements IUserRepository {
         return prismaResult;
       }
 
-      // Strategy 4: Hardcoded test users (development fallback)
-      const testUser = this.getTestUser(userId);
-      if (testUser) {
-        this.logger.debug(`User ${userId} found via test user fallback`);
-        return testUser;
+      // Strategy 4: Hardcoded test users (development-only fallback)
+      // SECURITY: Test users are ONLY available in development mode
+      if (process.env.NODE_ENV === 'development') {
+        const testUser = this.getTestUser(userId);
+        if (testUser) {
+          this.logger.warn(
+            `⚠️  DEVELOPMENT MODE: User ${userId} found via test user fallback`,
+          );
+          return testUser;
+        }
       }
 
       return null;
@@ -118,7 +123,8 @@ export class UserRepository implements IUserRepository {
   }
 
   /**
-   * Hardcoded test users for development
+   * Hardcoded test users for development ONLY
+   * SECURITY: These users should never be available in production
    */
   private getTestUser(userId: string): UserProfile | null {
     const testUsers: Record<string, UserProfile> = {

@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ServicesModule } from './services/services.module';
 import { AuthModule } from './auth/auth.module';
+import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { UserModule } from './user/user.module';
 import { ChartModule } from './chart/chart.module';
 import { ConnectionsModule } from './connections/connections.module';
@@ -81,10 +82,11 @@ import { DebugController } from '@/debug/debug.controller';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: JwtAuthGuard,
-    // }, // Временно отключаем глобальный guard для тестирования
+    // Global authentication guard
+    {
+      provide: APP_GUARD,
+      useClass: SupabaseAuthGuard,
+    }
   ],
 })
 export class AppModule {}

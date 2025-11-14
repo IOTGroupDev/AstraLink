@@ -231,7 +231,9 @@ export class AuthController {
    *
    * Обновляет профиль данными о рождении и создает натальную карту
    */
+  @Public()
   @Post('complete-signup')
+  @HttpCode(HttpStatus.OK)
   async completeSignup(@Body() dto: CompleteSignupDto) {
     try {
       console.log('📝 Complete signup request for user:', dto.userId);

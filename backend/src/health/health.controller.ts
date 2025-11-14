@@ -1,7 +1,9 @@
 // src/health/health.controller.ts
 import { Controller, Get, Req } from '@nestjs/common';
 import { Request } from 'express';
+import { Public } from '../auth/decorators/public.decorator';
 
+@Public()
 @Controller('health')
 export class HealthController {
   @Get()

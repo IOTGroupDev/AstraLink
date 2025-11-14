@@ -1,7 +1,10 @@
 // src/debug/debug.controller.ts
 import { Controller, Get, Req } from '@nestjs/common';
 import { Request } from 'express';
+import { Public } from '../auth/decorators/public.decorator';
 
+// Debug endpoints are public for development/testing purposes
+@Public()
 @Controller('debug')
 export class DebugController {
   @Get('headers')
