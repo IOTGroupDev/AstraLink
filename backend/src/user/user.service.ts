@@ -289,11 +289,10 @@ export class UserService {
   }
 
   /**
-   * Блокировка пользователя (вставка в public.user_blocks под RLS)
-   * Схема таблицы (текущая): user_id text, blocked_user_id text, created_at
+   * Блокировка пользователя (вставка в public.user_blocks)
    */
   async blockUserWithToken(userAccessToken: string, blockedUserId: string) {
-    // Получаем текущего пользователя из токена
+    // ✅ Auth через Supabase: получаем текущего пользователя из токена
     const { data: u, error: uErr } =
       await this.supabaseService.getUser(userAccessToken);
     if (uErr || !u?.user) {
@@ -306,17 +305,14 @@ export class UserService {
       throw new InternalServerErrorException('Invalid auth user id');
     }
 
-    // Контекстный клиент с Authorization: Bearer <token>
-    const client = this.supabaseService.getClientForToken(userAccessToken);
-    const { error: insErr } = await client
-      .from('user_blocks')
-      .insert({ user_id: uid, blocked_user_id: blockedUserId });
+    // ✅ PRISMA: Database операция через Prisma
+    await this.prisma.userBlock.create({
+      data: {
+        userId: uid,
+        blockedUserId,
+      },
+    });
 
-    if (insErr) {
-      throw new InternalServerErrorException(
-        `Failed to block user: ${insErr.message || 'unknown error'}`,
-      );
-    }
     return { success: true };
   }
 
@@ -328,6 +324,7 @@ export class UserService {
     limit: number = 50,
     offset: number = 0,
   ): Promise<{ blockedUserId: string; createdAt: string }[]> {
+    // ✅ Auth через Supabase: получаем текущего пользователя из токена
     const { data: u, error: uErr } =
       await this.supabaseService.getUser(userAccessToken);
     if (uErr || !u?.user) {
@@ -336,34 +333,34 @@ export class UserService {
       );
     }
     const uid = u.user.id;
-    const client = this.supabaseService.getClientForToken(userAccessToken);
-    const { data, error } = await client
-      .from('user_blocks')
-      .select('blocked_user_id, created_at')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
 
-    if (error) {
-      throw new InternalServerErrorException(
-        `Failed to fetch blocks: ${error.message || 'unknown error'}`,
-      );
-    }
-    return (data ?? []).map((row: any) => ({
-      blockedUserId: row.blocked_user_id as string,
-      createdAt: row.created_at as string,
+    // ✅ PRISMA: Получаем список блокировок через Prisma
+    const blocks = await this.prisma.userBlock.findMany({
+      where: { userId: uid },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+      select: {
+        blockedUserId: true,
+        createdAt: true,
+      },
+    });
+
+    return blocks.map((block: any) => ({
+      blockedUserId: block.blockedUserId,
+      createdAt: block.createdAt.toISOString(),
     }));
   }
 
   /**
-   * Жалоба на пользователя (вставка в public.user_reports под RLS)
-   * Схема таблицы (текущая): id uuid, reporter_id text, reported_user_id text, reason text, created_at
+   * Жалоба на пользователя (вставка в public.user_reports)
    */
   async reportUserWithToken(
     userAccessToken: string,
     reportedUserId: string,
     reason: string,
   ) {
+    // ✅ Auth через Supabase: получаем текущего пользователя из токена
     const { data: u, error: uErr } =
       await this.supabaseService.getUser(userAccessToken);
     if (uErr || !u?.user) {
@@ -372,16 +369,16 @@ export class UserService {
       );
     }
     const uid = u.user.id;
-    const client = this.supabaseService.getClientForToken(userAccessToken);
-    const { error: insErr } = await client
-      .from('user_reports')
-      .insert({ reporter_id: uid, reported_user_id: reportedUserId, reason });
 
-    if (insErr) {
-      throw new InternalServerErrorException(
-        `Failed to report user: ${insErr.message || 'unknown error'}`,
-      );
-    }
+    // ✅ PRISMA: Database операция через Prisma
+    await this.prisma.userReport.create({
+      data: {
+        reporterId: uid,
+        reportedUserId,
+        reason,
+      },
+    });
+
     return { success: true };
   }
 

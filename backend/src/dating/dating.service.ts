@@ -197,39 +197,57 @@ export class DatingService {
     if (!error && rows.length > 0) {
       const candidateIds = rows.map((r) => r.user_id);
 
-      const [{ data: users }, { data: profiles }, { data: charts }] =
-        await Promise.all([
-          admin
-            .from('users')
-            .select('id,name,email,birth_date,birth_place')
-            .in('id', candidateIds),
-          admin
-            .from('user_profiles')
-            .select(
-              'user_id,bio,preferences,city,gender,display_name,zodiac_sign',
-            )
-            .in('user_id', candidateIds),
-          admin
-            .from('charts')
-            .select('user_id,data,created_at')
-            .in('user_id', candidateIds)
-            .order('created_at', { ascending: false }),
-        ]);
+      // ✅ PRISMA: Получаем данные пользователей с профилями и картами через include
+      const users = await this.prisma.public_users.findMany({
+        where: { id: { in: candidateIds } },
+        include: {
+          profile: true, // UserProfile relation
+          charts: {
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
 
-      const usersMap = new Map<string, UserData>(
-        Array.isArray(users) ? users.map((u: UserData) => [u.id, u]) : [],
+      // Преобразуем в Map для быстрого доступа
+      const usersMap = new Map<string, any>(
+        users.map((u: any) => [
+          u.id,
+          {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            birth_date: u.birth_date,
+            birth_place: u.birth_place,
+          },
+        ]),
       );
-      const profilesMap = new Map<string, UserProfile>(
-        Array.isArray(profiles)
-          ? profiles.map((p: UserProfile) => [p.user_id, p])
-          : [],
+
+      const profilesMap = new Map<string, any>(
+        users
+          .filter((u: any) => u.profile)
+          .map((u: any) => [
+            u.id,
+            {
+              user_id: u.id,
+              bio: u.profile!.bio,
+              preferences: u.profile!.interests, // interests is the new field
+              city: u.profile!.city,
+              gender: undefined, // not in current schema
+              display_name: undefined, // not in current schema
+              zodiac_sign: u.profile!.zodiacSign,
+            },
+          ]),
       );
 
       const chartsMap = new Map<string, UserChart>();
-      if (Array.isArray(charts)) {
-        for (const ch of charts as UserChart[]) {
-          const uid = ch.user_id;
-          if (!chartsMap.has(uid)) chartsMap.set(uid, ch);
+      for (const u of users) {
+        if (u.charts && u.charts.length > 0) {
+          const ch = u.charts[0]; // First chart (already sorted by createdAt desc)
+          chartsMap.set(u.id, {
+            user_id: u.id,
+            data: ch.data,
+            created_at: ch.createdAt,
+          } as UserChart);
         }
       }
 
@@ -288,71 +306,82 @@ export class DatingService {
 
         const existingIds = new Set<string>(result.map((r) => r.userId));
 
-        const { data: moreUsers } = await admin
-          .from('users')
-          .select('id,name,email,birth_date,birth_place,created_at')
-          .order('created_at', { ascending: false })
-          .limit(Math.max(needMore * 3, 10));
+        // ✅ PRISMA: Получаем дополнительных пользователей
+        const moreUsers = await this.prisma.public_users.findMany({
+          orderBy: { created_at: 'desc' },
+          take: Math.max(needMore * 3, 10),
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            birth_date: true,
+            birth_place: true,
+            created_at: true,
+          },
+        });
 
-        const extraIds = (Array.isArray(moreUsers) ? moreUsers : [])
-          .map((u: UserData) => u?.id)
-          .filter(
-            (id): id is string =>
-              typeof id === 'string' && id !== selfId && !existingIds.has(id),
-          );
+        const extraIds = moreUsers
+          .map((u: any) => u.id)
+          .filter((id: string) => id !== selfId && !existingIds.has(id));
 
         if (extraIds.length) {
-          const [
-            { data: moreProfiles },
-            { data: moreCharts },
-            { data: morePhotos },
-          ] = await Promise.all([
-            admin
-              .from('user_profiles')
-              .select(
-                'user_id,bio,preferences,city,gender,display_name,zodiac_sign',
-              )
-              .in('user_id', extraIds),
-            admin
-              .from('charts')
-              .select('user_id,data,created_at')
-              .in('user_id', extraIds)
-              .order('created_at', { ascending: false }),
-            admin
-              .from('user_photos')
-              .select('user_id,storage_path')
-              .eq('is_primary', true)
-              .in('user_id', extraIds),
-          ]);
+          // ✅ PRISMA: Получаем профили, карты и фото через include
+          const extraUsersData = await this.prisma.public_users.findMany({
+            where: { id: { in: extraIds } },
+            include: {
+              profile: true,
+              charts: {
+                orderBy: { createdAt: 'desc' },
+              },
+              photos: {
+                where: { isPrimary: true },
+              },
+            },
+          });
 
           const usersById = new Map<string, UserData>(
-            (moreUsers || []).map((u: UserData) => [u.id, u]),
+            moreUsers.map((u: any) => [u.id, u as UserData]),
           );
-          const profilesById = new Map<string, UserProfile>(
-            Array.isArray(moreProfiles)
-              ? (moreProfiles as UserProfile[]).map((p) => [p.user_id, p])
-              : [],
-          );
+
+          const profilesById = new Map<string, UserProfile>();
           const chartsById = new Map<string, UserChart>();
-          if (Array.isArray(moreCharts)) {
-            for (const ch of moreCharts as UserChart[]) {
-              const uid = ch.user_id;
-              if (!chartsById.has(uid)) chartsById.set(uid, ch);
-            }
-          }
           const photosById = new Map<string, string | null>();
-          if (Array.isArray(morePhotos)) {
-            for (const ph of morePhotos as UserPhoto[]) {
-              if (ph?.user_id)
-                photosById.set(ph.user_id, ph.storage_path ?? null);
+
+          for (const u of extraUsersData) {
+            // Profile
+            if (u.profile) {
+              profilesById.set(u.id, {
+                user_id: u.id,
+                bio: u.profile.bio,
+                preferences: u.profile.interests, // interests is the new field name
+                city: u.profile.city,
+                gender: undefined,
+                display_name: undefined,
+                zodiac_sign: u.profile.zodiacSign,
+              } as any as UserProfile);
+            }
+
+            // Chart (first one)
+            if (u.charts && u.charts.length > 0) {
+              const ch = u.charts[0];
+              chartsById.set(u.id, {
+                user_id: u.id,
+                data: ch.data,
+                created_at: ch.createdAt,
+              } as UserChart);
+            }
+
+            // Photo (primary)
+            if (u.photos && u.photos.length > 0) {
+              photosById.set(u.id, u.photos[0].storagePath);
             }
           }
 
           // Batch create signed URLs for fallback candidates (performance optimization)
           const fallbackPhotoPromises = extraIds
             .slice(0, needMore) // Only process what we need
-            .filter((uid) => photosById.get(uid))
-            .map((uid) => {
+            .filter((uid: string) => photosById.get(uid))
+            .map((uid: string) => {
               const storagePath = photosById.get(uid);
               return storagePath
                 ? this.supabaseService
@@ -676,56 +705,64 @@ export class DatingService {
     primaryPhotoUrl: string | null;
     photos?: string[] | null;
   }> {
-    // Попробуем admin-клиент (обходит RLS), если нет — обычный клиент
-    let adminAvailable = true;
-    let admin: any = null;
-    try {
-      admin = this.supabaseService.getAdminClient();
-    } catch {
-      adminAvailable = false;
+    // ✅ PRISMA: Получаем данные пользователя с профилем, картами и фото
+    const userData = await this.prisma.public_users.findUnique({
+      where: { id: targetUserId },
+      include: {
+        profile: true,
+        charts: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        photos: true, // Все фото
+      },
+    });
+
+    if (!userData) {
+      // Пользователь не найден - возвращаем пустой профиль
+      return {
+        userId: targetUserId,
+        name: null,
+        age: null,
+        zodiacSign: null,
+        bio: null,
+        interests: null,
+        city: null,
+        primaryPhotoUrl: null,
+        photos: null,
+      };
     }
-    const client = adminAvailable ? admin : this.supabaseService.getClient();
 
-    // 1) users / user_profiles / charts (последняя)
-    const [
-      { data: userRow },
-      { data: profileRow },
-      { data: chartRows },
-      { data: primaryPhotoRow },
-      { data: allPhotos },
-    ] = await Promise.all([
-      client
-        .from('users')
-        .select('id,name,email,birth_date,birth_place')
-        .eq('id', targetUserId)
-        .maybeSingle(),
-      client
-        .from('user_profiles')
-        .select('user_id,bio,preferences,city,zodiac_sign,display_name')
-        .eq('user_id', targetUserId)
-        .maybeSingle(),
-      client
-        .from('charts')
-        .select('user_id,data,created_at')
-        .eq('user_id', targetUserId)
-        .order('created_at', { ascending: false })
-        .limit(1),
-      client
-        .from('user_photos')
-        .select('storage_path,path')
-        .eq('user_id', targetUserId)
-        .eq('is_primary', true)
-        .maybeSingle(),
-      client
-        .from('user_photos')
-        .select('storage_path,path')
-        .eq('user_id', targetUserId),
-    ]);
+    const user = {
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      birth_date: userData.birth_date,
+      birth_place: userData.birth_place,
+    };
 
-    const user = userRow || {};
-    const profile = profileRow || {};
+    const profile = userData.profile
+      ? {
+          user_id: userData.id,
+          bio: userData.profile.bio,
+          preferences: userData.profile.interests,
+          city: userData.profile.city,
+          zodiac_sign: userData.profile.zodiacSign,
+          display_name: null, // не в схеме
+        }
+      : null;
+
     const chart =
-      Array.isArray(chartRows) && chartRows.length ? chartRows[0] : null;
+      userData.charts && userData.charts.length > 0
+        ? {
+            user_id: userData.id,
+            data: userData.charts[0].data,
+            created_at: userData.charts[0].createdAt,
+          }
+        : null;
+
+    const primaryPhotoRow = userData.photos.find((p: any) => p.isPrimary);
+    const allPhotos = userData.photos;
 
     // Возраст
     const getAge = (birthDate?: string | Date | null): number | null => {
@@ -783,11 +820,10 @@ export class DatingService {
       interests = interests ?? null;
     }
 
-    // Фото
+    // Фото (Storage operations remain on Supabase)
     let primaryPhotoUrl: string | null = null;
     try {
-      const storagePath =
-        primaryPhotoRow?.storage_path ?? primaryPhotoRow?.path ?? null;
+      const storagePath = primaryPhotoRow?.storagePath ?? null;
 
       if (typeof storagePath === 'string' && storagePath.trim()) {
         if (/^https?:\/\//i.test(storagePath)) {
@@ -808,10 +844,10 @@ export class DatingService {
 
     let photos: string[] | null = null;
     try {
-      if (Array.isArray(allPhotos) && allPhotos.length) {
+      if (allPhotos && allPhotos.length) {
         const urls = await Promise.all(
-          allPhotos.slice(0, 8).map(async (p) => {
-            const path = p?.storage_path ?? p?.path;
+          allPhotos.slice(0, 8).map(async (p: any) => {
+            const path = p?.storagePath;
             if (!path || typeof path !== 'string') return null;
             if (/^https?:\/\//i.test(path)) {
               return path;
@@ -829,10 +865,6 @@ export class DatingService {
       }
     } catch {
       photos = null;
-    }
-    // Фолбэк: если primary отсутствует, но есть любое фото — возьмём первое
-    if (!primaryPhotoUrl && Array.isArray(photos) && photos?.length > 0) {
-      primaryPhotoUrl = photos[0];
     }
     // Фолбэк: если primary отсутствует, но есть любое фото — возьмём первое
     if (!primaryPhotoUrl && Array.isArray(photos) && photos?.length > 0) {

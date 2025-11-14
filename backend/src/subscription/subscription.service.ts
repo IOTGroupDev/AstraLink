@@ -411,4 +411,24 @@ export class SubscriptionService {
       consultationsLimit: 2,
     };
   }
+
+  /**
+   * Получить историю платежей пользователя
+   */
+  async getPaymentHistory(userId: string) {
+    const payments = await this.prisma.payment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return payments.map((payment: any) => ({
+      id: payment.id,
+      amount: payment.amount.toString(),
+      currency: payment.currency,
+      status: payment.status,
+      provider: null, // not in current schema
+      createdAt: payment.createdAt.toISOString(),
+    }));
+  }
 }
