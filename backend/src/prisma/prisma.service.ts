@@ -65,37 +65,8 @@ export class PrismaService
     await this.$connect();
     this.logger.log('✅ Database connection established');
 
-    // ✅ Query performance monitoring middleware
-    // Logs slow queries (>1000ms) to identify performance bottlenecks
-    // Note: Using type assertion for $use() method (available in runtime)
-    (this as any).$use(async (params: any, next: any) => {
-      const before = Date.now();
-      const result = await next(params);
-      const duration = Date.now() - before;
-
-      // Log slow queries in all environments
-      if (duration > 1000) {
-        this.logger.warn(
-          `🐌 Slow query detected: ${params.model}.${params.action} took ${duration}ms`,
-          {
-            model: params.model,
-            action: params.action,
-            duration,
-          },
-        );
-      }
-
-      // Debug-level logging for all queries in development
-      if (process.env.NODE_ENV === 'development' && duration > 100) {
-        this.logger.debug(
-          `Query: ${params.model}.${params.action} - ${duration}ms`,
-        );
-      }
-
-      return result;
-    });
-
-    this.logger.log('✅ Query performance monitoring enabled');
+    // Note: Query performance monitoring via middleware ($use) is not available in this Prisma version.
+    // Query logging is still active through event listeners configured in constructor.
   }
 
   async onModuleDestroy() {
