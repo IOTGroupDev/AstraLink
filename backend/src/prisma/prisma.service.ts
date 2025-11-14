@@ -67,8 +67,8 @@ export class PrismaService
 
     // ✅ Query performance monitoring middleware
     // Logs slow queries (>1000ms) to identify performance bottlenecks
-    // Note: Using 'any' for middleware params due to Prisma version compatibility
-    this.$use(async (params: any, next: any) => {
+    // Note: Using type assertion for $use() method (available in runtime)
+    (this as any).$use(async (params: any, next: any) => {
       const before = Date.now();
       const result = await next(params);
       const duration = Date.now() - before;
