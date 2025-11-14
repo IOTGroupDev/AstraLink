@@ -17,7 +17,9 @@ export const CreateConnectionRequestSchema = z.object({
   targetData: z.record(z.string(), z.any()),
 });
 
-export type CreateConnectionRequest = z.infer<typeof CreateConnectionRequestSchema>;
+export type CreateConnectionRequest = z.infer<
+  typeof CreateConnectionRequestSchema
+>;
 
 export const SynastryResponseSchema = z.object({
   compatibility: z.number().min(0).max(100),

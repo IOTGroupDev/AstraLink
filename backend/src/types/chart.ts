@@ -14,7 +14,9 @@ export const CreateNatalChartRequestSchema = z.object({
   data: z.record(z.string(), z.any()),
 });
 
-export type CreateNatalChartRequest = z.infer<typeof CreateNatalChartRequestSchema>;
+export type CreateNatalChartRequest = z.infer<
+  typeof CreateNatalChartRequestSchema
+>;
 
 export const TransitRequestSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

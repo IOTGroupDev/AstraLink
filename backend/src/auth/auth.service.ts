@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,7 +21,7 @@ export class AuthService {
       where: { email },
     });
 
-    if (user && await bcrypt.compare(password, user.password)) {
+    if (user && (await bcrypt.compare(password, user.password))) {
       const { password, ...result } = user;
       return result;
     }
@@ -80,7 +85,9 @@ export class AuthService {
     if (signupDto.birthTime) {
       const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
       if (!timeRegex.test(signupDto.birthTime)) {
-        throw new BadRequestException('Время рождения должно быть в формате HH:MM');
+        throw new BadRequestException(
+          'Время рождения должно быть в формате HH:MM',
+        );
       }
     }
 

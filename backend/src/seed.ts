@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database...');
-  
+
   // Создаем тестового пользователя
   const hashedPassword = await bcrypt.hash('password123', 10);
-  
+
   const testUser = await prisma.user.upsert({
     where: { email: 'test@astralink.com' },
     update: {},
@@ -49,7 +49,7 @@ async function main() {
         birthDate: '1992-12-22',
         birthTime: '09:15',
         birthPlace: 'Санкт-Петербург, Россия',
-        zodiacSign: 'Capricorn'
+        zodiacSign: 'Capricorn',
       },
     },
   });

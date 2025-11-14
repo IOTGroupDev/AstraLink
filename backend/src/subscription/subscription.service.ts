@@ -13,7 +13,10 @@ export class SubscriptionService {
 
     const level = subscription?.tier || 'free';
     const expiresAt = subscription?.expiresAt || new Date();
-    const isActive = subscription && subscription.expiresAt ? new Date(subscription.expiresAt) > new Date() : false;
+    const isActive =
+      subscription && subscription.expiresAt
+        ? new Date(subscription.expiresAt) > new Date()
+        : false;
 
     const features = this.getFeaturesForLevel(level);
 
@@ -62,11 +65,24 @@ export class SubscriptionService {
       case 'free':
         return ['Базовая натальная карта', 'Ограниченные транзиты'];
       case 'AstraPlus':
-        return ['Полная натальная карта', 'Расширенные транзиты', 'Синастрия', 'Композитные карты'];
+        return [
+          'Полная натальная карта',
+          'Расширенные транзиты',
+          'Синастрия',
+          'Композитные карты',
+        ];
       case 'DatingPremium':
-        return ['Все функции AstraPlus', 'Расширенный поиск совместимости', 'Приоритет в знакомствах'];
+        return [
+          'Все функции AstraPlus',
+          'Расширенный поиск совместимости',
+          'Приоритет в знакомствах',
+        ];
       case 'MAX':
-        return ['Все функции', 'Персональный астролог', 'Неограниченные консультации'];
+        return [
+          'Все функции',
+          'Персональный астролог',
+          'Неограниченные консультации',
+        ];
       default:
         return [];
     }

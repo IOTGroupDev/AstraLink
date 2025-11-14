@@ -5,21 +5,23 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Глобальный префикс для API
   app.setGlobalPrefix('api');
-  
+
   // Валидация
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // CORS
   app.enableCors({
     origin: [
-      'http://localhost:3000', 
+      'http://localhost:3000',
       'http://localhost:8081',
       'http://192.168.1.69:3000',
       'http://192.168.1.69:8081',

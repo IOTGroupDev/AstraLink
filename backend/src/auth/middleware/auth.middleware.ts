@@ -1,4 +1,8 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response, NextFunction } from 'express';
@@ -20,8 +24,8 @@ export class AuthMiddleware implements NestMiddleware {
     ];
 
     // Проверяем, является ли маршрут публичным
-    const isPublicRoute = publicRoutes.some(route => 
-      req.path === route || req.path.startsWith(route + '/')
+    const isPublicRoute = publicRoutes.some(
+      (route) => req.path === route || req.path.startsWith(route + '/'),
     );
 
     if (isPublicRoute) {
@@ -41,7 +45,7 @@ export class AuthMiddleware implements NestMiddleware {
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
-      
+
       // Добавляем данные пользователя в запрос
       (req as any).user = {
         userId: payload.sub,
@@ -74,8 +78,8 @@ export class AuthMiddleware implements NestMiddleware {
         requiresAuth: true,
         availableActions: {
           signup: '/api/auth/signup',
-          login: '/api/auth/login'
-        }
+          login: '/api/auth/login',
+        },
       });
     }
   }

@@ -1,7 +1,15 @@
 import { Controller, Get, Post, Request, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
-import type { UpgradeSubscriptionRequest, SubscriptionStatusResponse } from '../types';
+import type {
+  UpgradeSubscriptionRequest,
+  SubscriptionStatusResponse,
+} from '../types';
 
 @ApiTags('Subscription')
 @Controller('subscription')
@@ -20,7 +28,10 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Обновить подписку пользователя' })
   @ApiResponse({ status: 200, description: 'Подписка обновлена' })
   @ApiResponse({ status: 400, description: 'Неверный уровень подписки' })
-  async upgrade(@Request() req, @Body() upgradeData: UpgradeSubscriptionRequest) {
+  async upgrade(
+    @Request() req,
+    @Body() upgradeData: UpgradeSubscriptionRequest,
+  ) {
     return this.subscriptionService.upgrade(req.user.userId, upgradeData.level);
   }
 }

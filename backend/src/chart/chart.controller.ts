@@ -1,5 +1,11 @@
 import { Controller, Get, Post, Query, Request, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '../types';
 import { Public } from '../auth/decorators/public.decorator';
@@ -21,7 +27,10 @@ export class ChartController {
   @Post('natal')
   @ApiOperation({ summary: 'Сохранить натальную карту' })
   @ApiResponse({ status: 201, description: 'Карта сохранена' })
-  async createNatalChart(@Request() req, @Body() chartData: CreateNatalChartRequest) {
+  async createNatalChart(
+    @Request() req,
+    @Body() chartData: CreateNatalChartRequest,
+  ) {
     return this.chartService.createNatalChart(req.user.userId, chartData.data);
   }
 
@@ -34,9 +43,16 @@ export class ChartController {
 
   @Get('predictions')
   @ApiOperation({ summary: 'Получить астрологические предсказания' })
-  @ApiQuery({ name: 'period', description: 'Период: day, week, month', required: false })
+  @ApiQuery({
+    name: 'period',
+    description: 'Период: day, week, month',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Предсказания' })
-  async getPredictions(@Request() req, @Query('period') period: string = 'day') {
+  async getPredictions(
+    @Request() req,
+    @Query('period') period: string = 'day',
+  ) {
     return this.chartService.getPredictions(req.user.userId, period);
   }
 
