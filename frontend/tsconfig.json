@@ -7,9 +7,5 @@
       "@assets/*": ["assets/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "svg.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", "svg.d.ts"]
 }

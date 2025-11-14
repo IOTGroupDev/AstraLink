@@ -15,7 +15,9 @@ DeepSeek AI has been integrated as the third AI provider alongside Claude and Op
 ## ✨ Key Features
 
 ### 1. Full Feature Parity
+
 DeepSeek implementation includes all features available in Claude and OpenAI:
+
 - ✅ **Streaming support** (Server-Sent Events)
 - ✅ **Retry logic** (3x with exponential backoff: 1s, 2s, 4s)
 - ✅ **Cost tracking** (full token & price logging)
@@ -24,13 +26,14 @@ DeepSeek implementation includes all features available in Claude and OpenAI:
 
 ### 2. Outstanding Cost-to-Quality Ratio
 
-| Provider | Model | Input Cost | Output Cost | Quality | Use Case |
-|----------|-------|------------|-------------|---------|----------|
-| Claude | Sonnet 4.5 | **$3.00/1M** | **$15.00/1M** | ⭐⭐⭐⭐⭐ | Premium |
-| **DeepSeek** | deepseek-chat | **$0.14/1M** | **$0.28/1M** | **⭐⭐⭐⭐⭐** | **Best Value** |
-| OpenAI | gpt-4o-mini | $0.15/1M | $0.60/1M | ⭐⭐⭐⭐ | Budget |
+| Provider     | Model         | Input Cost   | Output Cost   | Quality        | Use Case       |
+| ------------ | ------------- | ------------ | ------------- | -------------- | -------------- |
+| Claude       | Sonnet 4.5    | **$3.00/1M** | **$15.00/1M** | ⭐⭐⭐⭐⭐     | Premium        |
+| **DeepSeek** | deepseek-chat | **$0.14/1M** | **$0.28/1M**  | **⭐⭐⭐⭐⭐** | **Best Value** |
+| OpenAI       | gpt-4o-mini   | $0.15/1M     | $0.60/1M      | ⭐⭐⭐⭐       | Budget         |
 
 **DeepSeek advantages:**
+
 - **99% cheaper than Claude** ($0.14 vs $3.00 per 1M input tokens)
 - **7% cheaper than OpenAI** ($0.14 vs $0.15 per 1M input tokens)
 - **53% cheaper output than OpenAI** ($0.28 vs $0.60 per 1M output tokens)
@@ -84,6 +87,7 @@ curl http://localhost:3000/api/ai/status \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "available": true,
@@ -116,6 +120,7 @@ AI_PROVIDER_PREFERENCE="deepseek"
 ```
 
 **Benefits:**
+
 - $150 per 100k horoscopes (vs $1,500 for Claude)
 - Excellent quality output
 - Same feature set as premium providers
@@ -136,6 +141,7 @@ AI_PROVIDER_PREFERENCE="auto"  # Claude > DeepSeek > OpenAI
 ```
 
 **Fallback Chain:**
+
 ```
 Primary (Claude) → DeepSeek → OpenAI → Error
 ```
@@ -154,8 +160,8 @@ const premiumHoroscope = await fetch('/api/ai/horoscope/direct', {
   method: 'POST',
   body: JSON.stringify({
     period: 'day',
-    provider: 'claude'  // Force Claude for premium
-  })
+    provider: 'claude', // Force Claude for premium
+  }),
 });
 
 // Standard users → DeepSeek
@@ -163,8 +169,8 @@ const standardHoroscope = await fetch('/api/ai/horoscope/direct', {
   method: 'POST',
   body: JSON.stringify({
     period: 'day',
-    provider: 'deepseek'  // Use DeepSeek for standard
-  })
+    provider: 'deepseek', // Use DeepSeek for standard
+  }),
 });
 ```
 
@@ -178,13 +184,13 @@ DeepSeek supports real-time streaming just like Claude and OpenAI:
 const response = await fetch('/api/ai/horoscope/stream', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
   },
   body: JSON.stringify({
     period: 'day',
-    provider: 'deepseek'
-  })
+    provider: 'deepseek',
+  }),
 });
 
 const reader = response.body.getReader();
@@ -214,11 +220,11 @@ while (true) {
 
 ### Response Times
 
-| Provider | First Chunk (Streaming) | Full Generation | Tokens/sec |
-|----------|------------------------|-----------------|------------|
-| Claude Sonnet 4.5 | 200-500ms | 2-4s | ~500 |
-| **DeepSeek Chat** | **150-400ms** | **2-3s** | **~600** |
-| OpenAI gpt-4o-mini | 200-500ms | 2-3s | ~550 |
+| Provider           | First Chunk (Streaming) | Full Generation | Tokens/sec |
+| ------------------ | ----------------------- | --------------- | ---------- |
+| Claude Sonnet 4.5  | 200-500ms               | 2-4s            | ~500       |
+| **DeepSeek Chat**  | **150-400ms**           | **2-3s**        | **~600**   |
+| OpenAI gpt-4o-mini | 200-500ms               | 2-3s            | ~550       |
 
 **DeepSeek is fastest for first-chunk latency** ⚡
 
@@ -226,11 +232,11 @@ while (true) {
 
 Based on internal testing with 1000 horoscope generations:
 
-| Provider | Accuracy | Creativity | Coherence | Personalization | Overall |
-|----------|----------|------------|-----------|-----------------|---------|
-| Claude | 95% | 98% | 97% | 95% | ⭐⭐⭐⭐⭐ |
-| **DeepSeek** | **94%** | **96%** | **95%** | **93%** | **⭐⭐⭐⭐⭐** |
-| OpenAI | 92% | 94% | 93% | 91% | ⭐⭐⭐⭐ |
+| Provider     | Accuracy | Creativity | Coherence | Personalization | Overall        |
+| ------------ | -------- | ---------- | --------- | --------------- | -------------- |
+| Claude       | 95%      | 98%        | 97%       | 95%             | ⭐⭐⭐⭐⭐     |
+| **DeepSeek** | **94%**  | **96%**    | **95%**   | **93%**         | **⭐⭐⭐⭐⭐** |
+| OpenAI       | 92%      | 94%        | 93%       | 91%             | ⭐⭐⭐⭐       |
 
 **DeepSeek delivers premium-level quality at 99% lower cost** 🎯
 
@@ -251,6 +257,7 @@ Request → Primary Provider → Fails?
 ```
 
 **Example Log Output:**
+
 ```
 ✅ DeepSeek AI инициализирован
 🎯 Primary provider: DeepSeek (configured preference)
@@ -330,6 +337,7 @@ curl -N -X POST http://localhost:3000/api/ai/horoscope/stream \
 **Problem:** Log shows "❌ Ошибка инициализации DeepSeek"
 
 **Solutions:**
+
 1. Verify `DEEPSEEK_API_KEY` is set in `.env`
 2. Check API key is valid (not expired)
 3. Ensure sufficient credits in DeepSeek account
@@ -338,6 +346,7 @@ curl -N -X POST http://localhost:3000/api/ai/horoscope/stream \
 ### Rate Limits
 
 **DeepSeek Rate Limits (Free Tier):**
+
 - 60 requests per minute
 - 200,000 tokens per day
 
@@ -346,6 +355,7 @@ curl -N -X POST http://localhost:3000/api/ai/horoscope/stream \
 ### Quality Issues
 
 **If output quality seems lower than expected:**
+
 1. Check temperature setting (default: 0.7)
 2. Verify prompt engineering best practices
 3. Compare with Claude/OpenAI using same prompt
@@ -419,6 +429,7 @@ AI_PROVIDER_PREFERENCE="deepseek"
 ```
 
 **Rationale:**
+
 - 99% cost savings vs Claude
 - Premium-level quality
 - Fastest response times
@@ -431,7 +442,7 @@ AI_PROVIDER_PREFERENCE="deepseek"
 if (user.subscription === 'premium') {
   provider = 'claude';
 } else {
-  provider = 'deepseek';  // Standard users
+  provider = 'deepseek'; // Standard users
 }
 ```
 

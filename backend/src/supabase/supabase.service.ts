@@ -6,9 +6,7 @@ import { RedisService } from '../redis/redis.service';
 export class SupabaseService implements OnModuleInit {
   public readonly client: SupabaseClient; // Добавь public
 
-  constructor(
-    @Inject(RedisService) private readonly redis: RedisService,
-  ) {
+  constructor(@Inject(RedisService) private readonly redis: RedisService) {
     this.client = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,

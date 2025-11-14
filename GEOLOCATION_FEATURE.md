@@ -41,6 +41,7 @@
 ```
 
 Установлено через:
+
 ```bash
 npm install expo-location@~17.0.1
 ```
@@ -93,7 +94,10 @@ const handleGetCurrentLocation = async () => {
     // 1. Request permissions
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Доступ запрещен', 'Разрешите доступ к геолокации в настройках');
+      Alert.alert(
+        'Доступ запрещен',
+        'Разрешите доступ к геолокации в настройках'
+      );
       return;
     }
 
@@ -126,7 +130,10 @@ const handleGetCurrentLocation = async () => {
     }
   } catch (error) {
     console.error('Geolocation error:', error);
-    Alert.alert('Ошибка', 'Не удалось определить местоположение. Проверьте настройки GPS.');
+    Alert.alert(
+      'Ошибка',
+      'Не удалось определить местоположение. Проверьте настройки GPS.'
+    );
   } finally {
     setGettingLocation(false);
   }
@@ -189,11 +196,11 @@ locationButton: {
 Expo Location поддерживает несколько уровней точности:
 
 ```typescript
-Location.Accuracy.Lowest;       // ~3000m (экономия батареи)
-Location.Accuracy.Low;          // ~1000m
-Location.Accuracy.Balanced;     // ~100m (используется в коде) ⭐
-Location.Accuracy.High;         // ~10m
-Location.Accuracy.Highest;      // ~1m (максимальная точность)
+Location.Accuracy.Lowest; // ~3000m (экономия батареи)
+Location.Accuracy.Low; // ~1000m
+Location.Accuracy.Balanced; // ~100m (используется в коде) ⭐
+Location.Accuracy.High; // ~10m
+Location.Accuracy.Highest; // ~1m (максимальная точность)
 Location.Accuracy.BestForNavigation; // Для навигации
 ```
 
@@ -218,6 +225,7 @@ Location.Accuracy.BestForNavigation; // Для навигации
 ```
 
 **Форматирование адреса:**
+
 - Если `city` и `region` одинаковые → показываем только `city`
 - Итоговый формат: `"Город, Регион, Страна"`
 - Пример: `"Москва, Россия"` или `"Санкт-Петербург, Ленинградская область, Россия"`
@@ -231,11 +239,13 @@ Location.Accuracy.BestForNavigation; // Для навигации
 **Scenario:** Пользователь отклонил запрос на доступ к геолокации
 
 **Handling:**
+
 ```typescript
 Alert.alert('Доступ запрещен', 'Разрешите доступ к геолокации в настройках');
 ```
 
 **User Action:**
+
 - iOS: Settings → [App Name] → Location → While Using the App
 - Android: Settings → Apps → [App Name] → Permissions → Location
 
@@ -244,11 +254,16 @@ Alert.alert('Доступ запрещен', 'Разрешите доступ к
 **Scenario:** GPS выключен в настройках устройства
 
 **Handling:**
+
 ```typescript
-Alert.alert('Ошибка', 'Не удалось определить местоположение. Проверьте настройки GPS.');
+Alert.alert(
+  'Ошибка',
+  'Не удалось определить местоположение. Проверьте настройки GPS.'
+);
 ```
 
 **User Action:**
+
 - iOS: Settings → Privacy & Security → Location Services → On
 - Android: Settings → Location → On
 
@@ -257,6 +272,7 @@ Alert.alert('Ошибка', 'Не удалось определить место
 **Scenario:** Не удалось преобразовать координаты в адрес (редкий случай)
 
 **Handling:**
+
 ```typescript
 Alert.alert('Ошибка', 'Не удалось определить адрес');
 ```
@@ -266,9 +282,13 @@ Alert.alert('Ошибка', 'Не удалось определить адрес
 **Scenario:** Нет интернета для обратного геокодирования
 
 **Handling:**
+
 ```typescript
 console.error('Geolocation error:', error);
-Alert.alert('Ошибка', 'Не удалось определить местоположение. Проверьте настройки GPS.');
+Alert.alert(
+  'Ошибка',
+  'Не удалось определить местоположение. Проверьте настройки GPS.'
+);
 ```
 
 ---
@@ -334,6 +354,7 @@ Alert.alert('Ошибка', 'Не удалось определить место
 Возможные улучшения в будущем:
 
 1. **Кеширование последнего местоположения:**
+
    ```typescript
    const lastLocation = await Location.getLastKnownPositionAsync();
    ```
@@ -359,18 +380,21 @@ Alert.alert('Ошибка', 'Не удалось определить место
 ### Problem: "Permission denied" on iOS
 
 **Solution:**
+
 1. Check Info.plist has `NSLocationWhenInUseUsageDescription`
 2. Rebuild app: `cd ios && pod install && cd .. && npm run ios`
 
 ### Problem: "Permission denied" on Android
 
 **Solution:**
+
 1. Check AndroidManifest.xml has location permissions
 2. Rebuild app: `npm run android`
 
 ### Problem: "No address found"
 
 **Solution:**
+
 1. Check internet connection (required for reverse geocoding)
 2. Try different location (some areas have limited map data)
 3. Use manual input as fallback
@@ -378,6 +402,7 @@ Alert.alert('Ошибка', 'Не удалось определить место
 ### Problem: Slow location detection
 
 **Solution:**
+
 1. Ensure GPS is enabled
 2. Try outdoors (better GPS signal)
 3. Wait 10-15 seconds for GPS to initialize
@@ -400,5 +425,6 @@ adcee0e - feat: add geolocation for current location in Edit Profile
 ```
 
 **Files:**
+
 - `frontend/package.json` (added expo-location@~17.0.1)
 - `frontend/src/screens/EditProfileScreen.tsx` (+60 lines)

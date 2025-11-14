@@ -1,5 +1,12 @@
 import { api } from './client';
-import type { Chart, TransitsResponse, LunarCalendarDay, LunarDay, MoonPhase } from '../../types';
+import type {
+  Chart,
+  TransitsResponse,
+  LunarCalendarDay,
+  LunarDay,
+  MoonPhase,
+} from '../../types';
+import { CodePurpose, PersonalCodeResult } from '../../types/personal-code';
 
 export const chartAPI = {
   getNatalChart: async (): Promise<Chart | null> => {
@@ -173,7 +180,9 @@ export const chartAPI = {
    * FREE: Basic rule-based interpretation
    * PREMIUM/MAX: AI-enhanced personalized interpretation
    */
-  getTransitInterpretation: async (date?: string): Promise<{
+  getTransitInterpretation: async (
+    date?: string
+  ): Promise<{
     date: string;
     transitPlanets: Record<string, any>;
     natalPlanets: Record<string, any>;
@@ -196,5 +205,45 @@ export const chartAPI = {
       : '/chart/transits/interpretation';
     const response = await api.get(url);
     return response.data;
+  },
+
+  /**
+   * Generate personal numerical code
+   */
+  generatePersonalCode: async (
+    purpose: CodePurpose,
+    digitCount: number = 4
+  ): Promise<PersonalCodeResult> => {
+    try {
+      const response = await api.post('/personal-code/generate', {
+        purpose,
+        digitCount,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error generating personal code:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get available code purposes
+   */
+  getCodePurposes: async (): Promise<{
+    purposes: Array<{
+      key: string;
+      name: string;
+      description: string;
+      icon: string;
+      color: string;
+    }>;
+  }> => {
+    try {
+      const response = await api.get('/personal-code/purposes');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching purposes:', error);
+      throw error;
+    }
   },
 };

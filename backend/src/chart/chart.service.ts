@@ -12,6 +12,11 @@ import { TransitService } from './services/transit.service';
 import { PredictionService } from './services/prediction.service';
 import { BiorhythmService } from './services/biorhythm.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import {
+  CodePurpose,
+  PersonalCodeService,
+} from '@/chart/services/personal-code.service';
+import { SubscriptionTier } from '@/types';
 
 @Injectable()
 export class ChartService {
@@ -26,6 +31,7 @@ export class ChartService {
     private predictionService: PredictionService,
     private biorhythmService: BiorhythmService,
     private supabaseService: SupabaseService,
+    private personalCodeService: PersonalCodeService,
   ) {}
 
   // ============================================================
@@ -327,5 +333,18 @@ export class ChartService {
         message: 'Ошибка при обновлении гороскопа. Попробуйте позже.',
       };
     }
+  }
+  async generatePersonalCode(
+    userId: string,
+    purpose: CodePurpose,
+    digitCount: number,
+    tier: SubscriptionTier,
+  ) {
+    return this.personalCodeService.generatePersonalCode(
+      userId,
+      purpose,
+      digitCount,
+      tier,
+    );
   }
 }

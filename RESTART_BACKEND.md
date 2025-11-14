@@ -5,6 +5,7 @@
 Backend code was updated but the running server still uses the old code.
 
 **Error:**
+
 ```
 ❌ API ошибка: /user/photos/.../set-primary 400 Request failed with status code 400
 ```
@@ -24,6 +25,7 @@ If backend is running in a terminal or IDE:
    - Or kill the process in your IDE
 
 2. **Start the server:**
+
    ```bash
    cd backend
    npm run start:dev
@@ -89,12 +91,14 @@ sudo systemctl status astralink-backend
 After restarting backend, check:
 
 1. **Check backend logs:**
+
    ```
    [Nest] INFO [NestFactory] Starting Nest application...
    [Nest] INFO [InstanceLoader] UserPhotosModule dependencies initialized
    ```
 
 2. **Test API endpoint:**
+
    ```bash
    curl -X POST \
      http://localhost:3000/api/user/photos/<photoId>/set-primary \
@@ -113,12 +117,14 @@ After restarting backend, check:
 **File:** `backend/src/user/user-photos.service.ts`
 
 **Change:**
+
 - Added `setPrimaryDirect()` method that uses admin client
 - No longer depends on missing RPC function `set_primary_photo`
 
 **File:** `backend/src/user/user-photos.controller.ts`
 
 **Change:**
+
 ```typescript
 // Before (broken):
 await this.photosService.setPrimaryWithToken(token, photoId);
@@ -132,6 +138,7 @@ await this.photosService.setPrimaryDirect(userId, photoId);
 ## Frontend
 
 Frontend changes were already applied (app rebuild/refresh):
+
 - No changes needed on mobile app
 - Just restart backend and test
 
@@ -143,6 +150,7 @@ Frontend changes were already applied (app rebuild/refresh):
 ✅ **After:** 200 OK with `{ "success": true }`
 
 When user taps on a photo to set it as primary:
+
 1. Request sent to `/user/photos/:photoId/set-primary`
 2. Backend validates photo ownership
 3. Sets all user photos to `is_primary = false`
@@ -157,6 +165,7 @@ When user taps on a photo to set it as primary:
 ### Still getting 400 after restart?
 
 1. **Check backend logs for errors:**
+
    ```bash
    tail -f backend/logs/error.log
    # or
@@ -164,6 +173,7 @@ When user taps on a photo to set it as primary:
    ```
 
 2. **Verify photoId exists:**
+
    ```sql
    SELECT * FROM user_photos WHERE id = '<photoId>';
    ```
@@ -183,6 +193,7 @@ When user taps on a photo to set it as primary:
 ## Contact
 
 If issue persists after restart, check:
+
 - Backend logs for detailed error
 - Supabase database connection
 - Environment variables (`.env` file)

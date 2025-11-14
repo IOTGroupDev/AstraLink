@@ -25,6 +25,8 @@ import { Chart, TransitsResponse } from '../types/index';
 import NatalChartWheel from '../intgr/NatalChartWheel';
 import NatalChartScreenImplementation from '../intgr/NatalChartScreenImplementation';
 import ChartScreenExample from '../intgr/ChartScreenExample';
+import PersonalCodeScreen from './PersonalCodeScreen';
+import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
 
 const HoroscopeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -534,6 +536,9 @@ const HoroscopeScreen: React.FC = () => {
                 <Text style={styles.placeholderText}>Загрузка данных...</Text>
               </View>
             )}
+            <View>
+              <PersonalCodeScreen />
+            </View>
           </View>
         </ScrollView>
       </TabScreenLayout>

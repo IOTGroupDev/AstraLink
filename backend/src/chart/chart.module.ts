@@ -13,6 +13,8 @@ import {
   BiorhythmService,
 } from './services';
 import { ChartEventListener } from './listeners/chart-event.listener';
+import { PersonalCodeService } from '@/chart/services/personal-code.service';
+import { PersonalCodeController } from '@/chart/services/personal-code.controller';
 
 @Module({
   imports: [
@@ -22,7 +24,7 @@ import { ChartEventListener } from './listeners/chart-event.listener';
     ServicesModule,
     forwardRef(() => AuthModule),
   ],
-  controllers: [ChartController],
+  controllers: [ChartController, PersonalCodeController],
   providers: [
     ChartService,
     NatalChartService,
@@ -30,6 +32,7 @@ import { ChartEventListener } from './listeners/chart-event.listener';
     PredictionService,
     BiorhythmService,
     ChartEventListener,
+    PersonalCodeService,
   ],
   exports: [
     ChartService,

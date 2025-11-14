@@ -17,11 +17,11 @@ AstraLink использует **OpenAI GPT-4o-mini** для генерации 
 
 ## 💰 Cost Comparison
 
-| Model | Input Cost | Output Cost | Total Cost (1000 horoscopes) | Savings |
-|-------|------------|-------------|------------------------------|---------|
-| gpt-4-turbo-preview | $10.00/1M | $30.00/1M | ~$100-150 | baseline |
-| gpt-4o | $2.50/1M | $10.00/1M | ~$25-35 | 70% |
-| **gpt-4o-mini** ✅ | **$0.15/1M** | **$0.60/1M** | **~$2-3** | **98%** |
+| Model               | Input Cost   | Output Cost  | Total Cost (1000 horoscopes) | Savings  |
+| ------------------- | ------------ | ------------ | ---------------------------- | -------- |
+| gpt-4-turbo-preview | $10.00/1M    | $30.00/1M    | ~$100-150                    | baseline |
+| gpt-4o              | $2.50/1M     | $10.00/1M    | ~$25-35                      | 70%      |
+| **gpt-4o-mini** ✅  | **$0.15/1M** | **$0.60/1M** | **~$2-3**                    | **98%**  |
 
 ---
 
@@ -61,6 +61,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "available": true,
@@ -88,6 +89,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "period": "day",
@@ -145,14 +147,17 @@ data: {"done": true}
 
 ```typescript
 const streamHoroscope = async () => {
-  const response = await fetch('http://localhost:3000/api/ai/horoscope/stream', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+  const response = await fetch(
+    'http://localhost:3000/api/ai/horoscope/stream',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ period: 'day' }),
     },
-    body: JSON.stringify({ period: 'day' })
-  });
+  );
 
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
@@ -172,7 +177,7 @@ const streamHoroscope = async () => {
 
         if (data.chunk) {
           fullText += data.chunk;
-          setHoroscope(fullText);  // Update UI in real-time
+          setHoroscope(fullText); // Update UI in real-time
         }
 
         if (data.done) {
@@ -196,6 +201,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "userId": "123",
@@ -233,6 +239,7 @@ Authorization: Bearer <token>
 ### 2. Cost Tracking
 
 Every API call logs:
+
 ```json
 {
   "provider": "openai",
@@ -259,8 +266,10 @@ Guarantees valid JSON responses - no more regex parsing!
 const jsonMatch = response.match(/\{[\s\S]*\}/);
 
 // New way: guaranteed JSON
-response_format: { type: 'json_object' }
-const parsed = JSON.parse(response);  // Always works
+response_format: {
+  type: 'json_object';
+}
+const parsed = JSON.parse(response); // Always works
 ```
 
 ### 4. Streaming for Better UX
@@ -268,6 +277,7 @@ const parsed = JSON.parse(response);  // Always works
 Users see horoscope generation in real-time instead of waiting 5-10 seconds for complete response.
 
 **Benefits:**
+
 - ⚡ Perceived performance improvement
 - 👀 Engaging user experience
 - 🎯 Early cancellation possible
@@ -314,6 +324,7 @@ curl -N -X POST http://localhost:3000/api/ai/horoscope/stream \
 ### Logs
 
 AI service logs include:
+
 - ✅ Provider initialization
 - 🔄 Request attempts and retries
 - 💰 Token usage and costs
@@ -341,6 +352,7 @@ await redis.incrbyfloat('openai:total_cost', totalCost);
 ### Subscription Validation
 
 All AI endpoints are protected:
+
 - ✅ JWT authentication required
 - ✅ PREMIUM subscription check
 - ✅ Rate limiting (10/sec, 100/min, 1000/hour)
@@ -359,11 +371,11 @@ export OPENAI_API_KEY="sk-..."
 
 ### Typical Response Times
 
-| Endpoint | Time (non-cached) | Time (cached) |
-|----------|-------------------|---------------|
-| Standard generation | 2-4 seconds | 50ms |
-| Streaming (first chunk) | 200-500ms | N/A |
-| Streaming (complete) | 2-4 seconds | N/A |
+| Endpoint                | Time (non-cached) | Time (cached) |
+| ----------------------- | ----------------- | ------------- |
+| Standard generation     | 2-4 seconds       | 50ms          |
+| Streaming (first chunk) | 200-500ms         | N/A           |
+| Streaming (complete)    | 2-4 seconds       | N/A           |
 
 ### Optimization Tips
 
@@ -381,6 +393,7 @@ export OPENAI_API_KEY="sk-..."
 **Cause:** Missing `OPENAI_API_KEY` in environment
 
 **Fix:**
+
 ```bash
 echo 'OPENAI_API_KEY=sk-...' >> .env
 ```
@@ -396,6 +409,7 @@ echo 'OPENAI_API_KEY=sk-...' >> .env
 **Cause:** Claude is configured as primary provider
 
 **Fix:** Ensure OpenAI is initialized first, or disable Claude:
+
 ```bash
 # Comment out in .env
 # ANTHROPIC_API_KEY=...
