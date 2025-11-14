@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from '../supabase';
+import { apiLogger } from '../logger';
 
 // Ensure base URL ends with /api
 function ensureApiBase(url: string): string {
@@ -50,7 +51,7 @@ const getApiBaseUrl = () => {
 };
 
 export const API_BASE_URL = getApiBaseUrl();
-console.log('🌐 API Base URL:', API_BASE_URL);
+apiLogger.log('🌐 API Base URL:', API_BASE_URL);
 
 // Create axios instance
 export const api = axios.create({
@@ -62,7 +63,7 @@ export const api = axios.create({
 
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
-  console.log('🔍 Получение токена для запроса:', config.url);
+  apiLogger.log('🔍 Получение токена для запроса:', config.url);
 
   try {
     const { data } = await supabase.auth.getSession();
@@ -70,12 +71,12 @@ api.interceptors.request.use(async (config) => {
 
     if (token) {
       (config.headers as any).Authorization = `Bearer ${token}`;
-      console.log('🔐 Добавлен токен к запросу:', config.url);
+      apiLogger.log('🔐 Добавлен токен к запросу:', config.url);
     } else {
-      console.warn('⚠️ Нет токена для запроса:', config.url);
+      apiLogger.warn('⚠️ Нет токена для запроса:', config.url);
     }
   } catch (error) {
-    console.error('❌ Ошибка получения токена:', error);
+    apiLogger.error('❌ Ошибка получения токена:', error);
   }
 
   return config;
@@ -86,7 +87,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      console.error('❌ 401 Unauthorized - токен истек или недействителен');
+      apiLogger.error('❌ 401 Unauthorized - токен истек или недействителен');
     }
     return Promise.reject(error);
   }
