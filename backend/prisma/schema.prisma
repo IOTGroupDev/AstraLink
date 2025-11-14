@@ -103,6 +103,7 @@ model UserProfile {
   zodiacSign String?      @map("zodiac_sign")
   interests  String[]     @default([])
   lookingFor String?      @map("looking_for")
+  city       String?
   createdAt  DateTime     @default(now()) @map("created_at")
   updatedAt  DateTime     @updatedAt @map("updated_at")
   users      public_users @relation(fields: [userId], references: [id], onDelete: Cascade)
