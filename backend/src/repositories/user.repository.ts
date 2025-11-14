@@ -44,14 +44,7 @@ export class UserRepository implements IUserRepository {
         return regularResult;
       }
 
-      // Strategy 3: Prisma (direct DB access)
-      const prismaResult = await this.findByIdPrisma(userId);
-      if (prismaResult) {
-        this.logger.debug(`User ${userId} found via Prisma`);
-        return prismaResult;
-      }
-
-      // Strategy 4: Hardcoded test users (development-only fallback)
+      // Strategy 3: Hardcoded test users (development-only fallback)
       // SECURITY: Test users are ONLY available in development mode
       if (process.env.NODE_ENV === 'development') {
         const testUser = this.getTestUser(userId);
@@ -102,22 +95,6 @@ export class UserRepository implements IUserRepository {
       return this.normalizeUserData(data);
     } catch (error) {
       this.logger.warn(`Regular client failed for user ${userId}`, error);
-      return null;
-    }
-  }
-
-  /**
-   * Find user by ID using Prisma
-   */
-  private async findByIdPrisma(userId: string): Promise<UserProfile | null> {
-    try {
-      // Note: Prisma access requires proper schema setup
-      // This is a fallback if Supabase clients fail
-      // In current implementation, Prisma doesn't have direct user access
-      // You would need to add this to your Prisma schema if needed
-      return null;
-    } catch (error) {
-      this.logger.warn(`Prisma failed for user ${userId}`, error);
       return null;
     }
   }

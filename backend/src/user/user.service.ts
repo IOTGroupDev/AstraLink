@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
+import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
@@ -20,6 +22,7 @@ export class UserService {
     private chartService: ChartService,
     private userRepository: UserRepository,
     private eventEmitter: EventEmitter2,
+    private prisma: PrismaService,
   ) {}
 
   async getProfile(userId: string) {
@@ -382,117 +385,83 @@ export class UserService {
   /**
    * 🗑️ Полное удаление аккаунта пользователя
    *
-   * Каскадно удаляет все данные пользователя:
+   * Каскадно удаляет все данные пользователя В ТРАНЗАКЦИИ:
    * 1. Charts (натальные карты)
    * 2. Connections (связи)
    * 3. DatingMatches (данные знакомств)
-   * 4. Subscriptions (подписки - удаляется автоматически через CASCADE)
+   * 4. Subscriptions (подписки)
    * 5. User profile (профиль пользователя)
-   * 6. Auth user (пользователь из Supabase Auth)
+   * 6. Auth user (пользователь из Supabase Auth) - вне транзакции
+   *
+   * ✅ ИСПРАВЛЕНО: Использует Prisma $transaction для гарантии атомарности
    */
   async deleteAccount(userId: string): Promise<void> {
     try {
       this.logger.log(`🗑️ Начинаем удаление аккаунта пользователя: ${userId}`);
 
       // Проверяем существование пользователя
-      const { data: user, error: userError } =
-        await this.supabaseService.getUserProfile(userId);
+      const user = await this.userRepository.findById(userId);
 
-      if (userError || !user) {
+      if (!user) {
         throw new NotFoundException(`Пользователь с ID ${userId} не найден`);
       }
 
       this.logger.log(`✅ Пользователь найден: ${user.email}`);
 
-      // Используем admin client для обхода RLS
-      const adminClient = this.supabaseService.getAdminClient();
+      // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
+      // Если хотя бы одна операция упадёт - всё откатится автоматически
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        // 1. Удаляем Charts (натальные карты)
+        this.logger.log('🗑️ Удаление натальных карт...');
+        const chartsDeleted = await tx.chart.deleteMany({
+          where: { userId },
+        });
+        this.logger.log(`✅ Удалено натальных карт: ${chartsDeleted.count}`);
 
-      // 1. Удаляем Charts (натальные карты)
-      this.logger.log('🗑️ Удаление натальных карт...');
-      const { error: chartsError } = await adminClient
-        .from('charts')
-        .delete()
-        .eq('user_id', userId);
+        // 2. Удаляем Connections (связи)
+        this.logger.log('🗑️ Удаление связей...');
+        const connectionsDeleted = await tx.connection.deleteMany({
+          where: { userId },
+        });
+        this.logger.log(`✅ Удалено связей: ${connectionsDeleted.count}`);
 
-      if (chartsError) {
-        this.logger.error('❌ Ошибка удаления charts:', chartsError);
-        throw new InternalServerErrorException(
-          'Ошибка при удалении натальных карт',
-        );
-      }
-      this.logger.log('✅ Натальные карты удалены');
+        // 3. Удаляем DatingMatches (данные знакомств)
+        this.logger.log('🗑️ Удаление данных знакомств...');
+        const matchesDeleted = await tx.datingMatch.deleteMany({
+          where: { userId },
+        });
+        this.logger.log(`✅ Удалено совпадений: ${matchesDeleted.count}`);
 
-      // 2. Удаляем Connections (связи)
-      this.logger.log('🗑️ Удаление связей...');
-      const { error: connectionsError } = await adminClient
-        .from('connections')
-        .delete()
-        .eq('user_id', userId);
+        // 4. Удаляем Subscriptions (подписки)
+        this.logger.log('🗑️ Удаление подписок...');
+        const subscriptionsDeleted = await tx.subscription.deleteMany({
+          where: { userId },
+        });
+        this.logger.log(`✅ Удалено подписок: ${subscriptionsDeleted.count}`);
 
-      if (connectionsError) {
-        this.logger.error('❌ Ошибка удаления connections:', connectionsError);
-        throw new InternalServerErrorException('Ошибка при удалении связей');
-      }
-      this.logger.log('✅ Связи удалены');
+        // 5. Удаляем профиль пользователя из таблицы users
+        this.logger.log('🗑️ Удаление профиля пользователя...');
+        await tx.public_users.delete({
+          where: { id: userId },
+        });
+        this.logger.log('✅ Профиль пользователя удален');
+      });
 
-      // 3. Удаляем DatingMatches (данные знакомств)
-      this.logger.log('🗑️ Удаление данных знакомств...');
-      const { error: matchesError } = await adminClient
-        .from('dating_matches')
-        .delete()
-        .eq('user_id', userId);
+      this.logger.log(
+        '✅ Все данные пользователя удалены из БД (в транзакции)',
+      );
 
-      if (matchesError) {
-        this.logger.error('❌ Ошибка удаления dating_matches:', matchesError);
-        throw new InternalServerErrorException(
-          'Ошибка при удалении данных знакомств',
-        );
-      }
-      this.logger.log('✅ Данные знакомств удалены');
-
-      // 4. Удаляем Subscriptions (подписки)
-      // Note: В схеме есть onDelete: Cascade, но удалим явно для надежности
-      this.logger.log('🗑️ Удаление подписок...');
-      const { error: subscriptionsError } = await adminClient
-        .from('subscriptions')
-        .delete()
-        .eq('user_id', userId);
-
-      if (subscriptionsError) {
-        this.logger.error(
-          '❌ Ошибка удаления subscriptions:',
-          subscriptionsError,
-        );
-        // Не выбрасываем ошибку, т.к. CASCADE должен был их удалить
-      } else {
-        this.logger.log('✅ Подписки удалены');
-      }
-
-      // 5. Удаляем профиль пользователя из таблицы users
-      this.logger.log('🗑️ Удаление профиля пользователя...');
-      const { error: profileError } = await adminClient
-        .from('users')
-        .delete()
-        .eq('id', userId);
-
-      if (profileError) {
-        this.logger.error('❌ Ошибка удаления user profile:', profileError);
-        throw new InternalServerErrorException(
-          'Ошибка при удалении профиля пользователя',
-        );
-      }
-      this.logger.log('✅ Профиль пользователя удален');
-
-      // 6. Удаляем пользователя из Supabase Auth
+      // 6. Удаляем пользователя из Supabase Auth (вне транзакции - внешний API)
       this.logger.log('🗑️ Удаление пользователя из Supabase Auth...');
       const { error: authError } =
         await this.supabaseService.deleteUser(userId);
 
       if (authError) {
         this.logger.error('❌ Ошибка удаления auth user:', authError);
-        // Логируем, но не выбрасываем ошибку, т.к. основные данные уже удалены
+        // Логируем warning, но не выбрасываем ошибку
+        // т.к. основные данные уже атомарно удалены
         this.logger.warn(
-          '⚠️ Не удалось удалить пользователя из Auth, но данные в БД удалены',
+          '⚠️ Не удалось удалить пользователя из Auth, но все данные в БД удалены',
         );
       } else {
         this.logger.log('✅ Пользователь удален из Supabase Auth');
@@ -502,6 +471,7 @@ export class UserService {
     } catch (error) {
       this.logger.error('❌ Критическая ошибка при удалении аккаунта:', error);
 
+      // Если ошибка в транзакции - все изменения автоматически откатятся
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -511,7 +481,7 @@ export class UserService {
       }
 
       throw new InternalServerErrorException(
-        'Произошла ошибка при удалении аккаунта',
+        'Произошла ошибка при удалении аккаунта. Изменения откатаны.',
       );
     }
   }
