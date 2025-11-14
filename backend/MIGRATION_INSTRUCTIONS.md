@@ -1,7 +1,9 @@
 # Migration: Add ai_generated_at Column
 
 ## Problem
+
 The `ai_generated_at` column doesn't exist in the database, causing Prisma errors:
+
 ```
 The column `charts.ai_generated_at` does not exist in the current database.
 ```
@@ -71,6 +73,7 @@ The error should disappear and AI chart regeneration will work correctly.
 ## Related Features
 
 This migration supports:
+
 - POST `/chart/regenerate-ai` endpoint
 - 24-hour rate limiting (max 1 AI regeneration per day)
 - Frontend regeneration button in ProfileScreen

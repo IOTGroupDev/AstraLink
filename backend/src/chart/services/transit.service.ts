@@ -107,7 +107,8 @@ export class TransitService {
       natalPlanets,
       aspects: significantTransits,
       aiInterpretation:
-        aiInterpretation || this.getRuleBasedInterpretation(significantTransits),
+        aiInterpretation ||
+        this.getRuleBasedInterpretation(significantTransits),
       subscriptionTier,
       hasAIAccess: canUseAI,
       message: canUseAI

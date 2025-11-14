@@ -9,12 +9,15 @@
 ## 1️⃣ JWT Token Expiration (2 часа) ⚠️ КРИТИЧНО
 
 ### Проблема
+
 JWT токены принимаются даже после истечения срока действия.
 
 ### Файл
+
 `backend/src/auth/strategies/jwt.strategy.ts`
 
 ### Текущий код (строки 20-34)
+
 ```typescript
 constructor(configService: ConfigService) {
   super({
@@ -26,6 +29,7 @@ constructor(configService: ConfigService) {
 ```
 
 ### Исправленный код
+
 ```typescript
 constructor(private configService: ConfigService) {
   super({
@@ -37,6 +41,7 @@ constructor(private configService: ConfigService) {
 ```
 
 ### Проверка
+
 ```bash
 # В .env файле должно быть:
 JWT_SECRET="minimum-32-characters-long-secret-key-here"
@@ -47,12 +52,15 @@ JWT_SECRET="minimum-32-characters-long-secret-key-here"
 ## 2️⃣ Включить глобальный Auth Guard (4 часа) ⚠️ КРИТИЧНО
 
 ### Проблема
+
 Глобальный auth guard отключен, эндпоинты не защищены.
 
 ### Файл
+
 `backend/src/app.module.ts`
 
 ### Текущий код (строки 84-87)
+
 ```typescript
 // {
 //   provide: APP_GUARD,
@@ -61,6 +69,7 @@ JWT_SECRET="minimum-32-characters-long-secret-key-here"
 ```
 
 ### Исправленный код
+
 ```typescript
 {
   provide: APP_GUARD,
@@ -69,6 +78,7 @@ JWT_SECRET="minimum-32-characters-long-secret-key-here"
 ```
 
 ### Добавить в публичные эндпоинты
+
 ```typescript
 // В auth.controller.ts, health.controller.ts
 @Public()
@@ -81,6 +91,7 @@ getHealth() { ... }
 ```
 
 ### Список публичных эндпоинтов
+
 - `/api/auth/signup`
 - `/api/auth/send-magic-link`
 - `/api/auth/verify`
@@ -92,12 +103,15 @@ getHealth() { ... }
 ## 3️⃣ Отключить Dev Fallback в Production (1 час) ⚠️ КРИТИЧНО
 
 ### Проблема
+
 JWT декодируется без проверки подписи в production.
 
 ### Файл
+
 `backend/src/auth/guards/supabase-auth.guard.ts`
 
 ### Текущий код (строки 80-109)
+
 ```typescript
 // Development fallback: decode JWT without verifying signature
 try {
@@ -107,6 +121,7 @@ try {
 ```
 
 ### Исправленный код
+
 ```typescript
 // Development fallback ONLY in development
 if (process.env.NODE_ENV === 'development') {
@@ -129,9 +144,11 @@ if (process.env.NODE_ENV === 'development') {
 ## 4️⃣ Убрать Test Users из Production (30 минут) ⚠️ КРИТИЧНО
 
 ### Файл
+
 `backend/src/repositories/user.repository.ts`
 
 ### Текущий код (строки 92-100)
+
 ```typescript
 if (!user && userId.startsWith('test-')) {
   return this.getTestUser(userId);
@@ -139,9 +156,14 @@ if (!user && userId.startsWith('test-')) {
 ```
 
 ### Исправленный код
+
 ```typescript
 // Test users ONLY in development
-if (!user && userId.startsWith('test-') && process.env.NODE_ENV === 'development') {
+if (
+  !user &&
+  userId.startsWith('test-') &&
+  process.env.NODE_ENV === 'development'
+) {
   console.log('⚠️  DEV MODE: Using test user');
   return this.getTestUser(userId);
 }
@@ -152,17 +174,21 @@ if (!user && userId.startsWith('test-') && process.env.NODE_ENV === 'development
 ## 5️⃣ SecureStore для токенов (3 часа) ⚠️ КРИТИЧНО
 
 ### Проблема
+
 Токены хранятся в AsyncStorage без шифрования.
 
 ### Файл
+
 `frontend/src/services/tokenService.ts`
 
 ### Текущий код
+
 ```typescript
 import AsyncStorage from '@react-native-async-storage/async-storage';
 ```
 
 ### Исправленный код
+
 ```typescript
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -198,9 +224,11 @@ class TokenService {
 ## 6️⃣ Ограничить CORS в Production (1 час) ⚠️ ВЫСОКИЙ
 
 ### Файл
+
 `backend/src/main.ts`
 
 ### Текущий код
+
 ```typescript
 origin: [
   /^(http|https):\/\/localhost(:\d+)?$/,
@@ -211,6 +239,7 @@ origin: [
 ```
 
 ### Исправленный код
+
 ```typescript
 origin: process.env.NODE_ENV === 'production'
   ? [
@@ -232,6 +261,7 @@ origin: process.env.NODE_ENV === 'production'
 ### Backend
 
 #### Создать Logger service
+
 ```bash
 # Backend уже использует NestJS Logger
 # Заменить все console.log на:
@@ -254,6 +284,7 @@ export class SomeService {
 ```
 
 #### Поиск всех console.log
+
 ```bash
 cd backend
 grep -r "console\." src/ --exclude-dir=node_modules
@@ -262,6 +293,7 @@ grep -r "console\." src/ --exclude-dir=node_modules
 ### Frontend
 
 #### Создать logger utility
+
 ```typescript
 // frontend/src/utils/logger.ts
 const isDevelopment = __DEV__;
@@ -287,6 +319,7 @@ export const logger = {
 ```
 
 #### Заменить все console.log
+
 ```bash
 cd frontend
 # Найти все
@@ -303,6 +336,7 @@ grep -r "console\." src/ --exclude-dir=node_modules
 ## 8️⃣ Удалить deprecated код (2 часа) 🟡 ВЫСОКИЙ
 
 ### Удалить директории
+
 ```bash
 # Frontend deprecated code
 rm -rf frontend/src/screens/swap/
@@ -315,6 +349,7 @@ grep -r "api.legacy" frontend/src/
 ```
 
 ### Проверить работоспособность
+
 ```bash
 cd frontend
 npm run start
@@ -326,6 +361,7 @@ npm run start
 ## 9️⃣ Обновить зависимости (2 часа) 🟡 ВЫСОКИЙ
 
 ### Backend
+
 ```bash
 cd backend
 
@@ -346,6 +382,7 @@ npm audit
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 
@@ -364,6 +401,7 @@ npm run start
 ## 🔟 Исправить TypeScript bypasses (1 неделя) 🟡 СРЕДНИЙ
 
 ### Найти все @ts-ignore
+
 ```bash
 grep -r "@ts-ignore" frontend/src/ | wc -l
 grep -r "@ts-ignore" backend/src/ | wc -l
@@ -372,6 +410,7 @@ grep -r "@ts-ignore" backend/src/ | wc -l
 ### Стратегия исправления
 
 #### 1. Определить правильные типы
+
 ```typescript
 // Было:
 // @ts-ignore
@@ -386,6 +425,7 @@ const result: SomeResult = someFunction();
 ```
 
 #### 2. Использовать type assertions осторожно
+
 ```typescript
 // Было:
 const value = data as any;
@@ -395,12 +435,11 @@ const value = data as SomeSpecificType;
 ```
 
 #### 3. Добавить type guards
+
 ```typescript
 function isValidResponse(response: unknown): response is ApiResponse {
   return (
-    typeof response === 'object' &&
-    response !== null &&
-    'data' in response
+    typeof response === 'object' && response !== null && 'data' in response
   );
 }
 
@@ -416,6 +455,7 @@ if (isValidResponse(response)) {
 После выполнения всех исправлений:
 
 ### Backend проверки
+
 ```bash
 cd backend
 
@@ -438,6 +478,7 @@ curl -X POST http://localhost:3000/api/auth/signup \
 ```
 
 ### Frontend проверки
+
 ```bash
 cd frontend
 
@@ -455,6 +496,7 @@ npx expo build
 ```
 
 ### Security проверки
+
 ```bash
 # 1. JWT expiration
 # Создать токен, подождать expiration time, попробовать использовать

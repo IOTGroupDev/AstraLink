@@ -332,7 +332,7 @@ export class NatalChartService {
       throw new NotFoundException('Natal chart not found');
     }
 
-    const chartData = chart.data as any;
+    const chartData = chart.data;
 
     // Generate new interpretation
     const interpretation =

@@ -16,6 +16,7 @@ Get CI/CD up and running in **15 minutes**!
 3. Click **Save**
 
 ### Via CLI:
+
 ```bash
 gh api -X PUT repos/:owner/:repo/actions/permissions \
   -f enabled=true \
@@ -53,6 +54,7 @@ gh secret list
 ```
 
 Expected output:
+
 ```
 DATABASE_URL                Updated 2025-11-14
 JWT_SECRET                  Updated 2025-11-14
@@ -135,6 +137,7 @@ gh pr view --web
 ### Expected Result
 
 You should see:
+
 ```
 ✅ backend-lint (1-2 min)
 ✅ backend-test (2-3 min)
@@ -174,6 +177,7 @@ Total time: ~5-8 minutes
    - Enable **CodeQL analysis**
 
 4. **Add Slack Notifications** (optional)
+
    ```bash
    gh secret set SLACK_WEBHOOK --body "https://hooks.slack.com/services/..."
    ```
@@ -189,11 +193,13 @@ Total time: ~5-8 minutes
 ### CI Failing?
 
 **Check logs:**
+
 ```bash
 gh run view --log-failed
 ```
 
 **Re-run failed jobs:**
+
 ```bash
 gh run rerun --failed
 ```
@@ -201,24 +207,31 @@ gh run rerun --failed
 ### Common Issues:
 
 #### 1. Missing Secrets
+
 ```
 Error: DATABASE_URL is not set
 ```
+
 **Fix:**
+
 ```bash
 gh secret set DATABASE_URL --body "postgresql://..."
 ```
 
 #### 2. Permission Denied
+
 ```
 Error: Resource not accessible by integration
 ```
+
 **Fix:** Enable read/write permissions in Settings → Actions
 
 #### 3. Tests Failing
+
 ```
 Error: Cannot connect to database
 ```
+
 **Fix:** Tests use local PostgreSQL service. Check test configuration.
 
 ---
@@ -226,6 +239,7 @@ Error: Cannot connect to database
 ## 📚 Full Documentation
 
 For detailed information, see:
+
 - [CI/CD Setup Guide](../CI_CD_SETUP.md)
 - [Audit Report](../AUDIT_REPORT.md)
 - [Critical Fixes Checklist](../CRITICAL_FIXES_CHECKLIST.md)
@@ -248,6 +262,7 @@ For detailed information, see:
 ### Keep CI Green
 
 1. **Run tests locally first:**
+
    ```bash
    npm test
    npm run lint
@@ -255,6 +270,7 @@ For detailed information, see:
    ```
 
 2. **Use pre-commit hooks:**
+
    ```bash
    npm run prepare  # Install husky hooks
    ```
@@ -266,6 +282,7 @@ For detailed information, see:
 ### Save GitHub Actions Minutes
 
 1. **Skip CI when not needed:**
+
    ```bash
    git commit -m "docs: update README [skip ci]"
    ```

@@ -816,11 +816,16 @@ export function detectTSquares(
                 Math.abs(diff1 - 90) +
                 Math.abs(diff2 - 90)) /
               3;
-            const strength = 1 - avgOrb / Math.max(maxOrbOpposition, maxOrbSquare);
+            const strength =
+              1 - avgOrb / Math.max(maxOrbOpposition, maxOrbSquare);
 
             patterns.push({
               type: 't_square',
-              planets: [oppPlanet1.planet, oppPlanet2.planet, apexPlanet.planet],
+              planets: [
+                oppPlanet1.planet,
+                oppPlanet2.planet,
+                apexPlanet.planet,
+              ],
               description: `T-Square: ${oppPlanet1.planet} ⊕ ${oppPlanet2.planet}, apex ${apexPlanet.planet}`,
               strength,
             });
@@ -915,11 +920,16 @@ export function detectYods(
                 Math.abs(diff1 - 150) +
                 Math.abs(diff2 - 150)) /
               3;
-            const strength = 1 - avgOrb / Math.max(maxOrbSextile, maxOrbQuincunx);
+            const strength =
+              1 - avgOrb / Math.max(maxOrbSextile, maxOrbQuincunx);
 
             patterns.push({
               type: 'yod',
-              planets: [basePlanet1.planet, basePlanet2.planet, apexPlanet.planet],
+              planets: [
+                basePlanet1.planet,
+                basePlanet2.planet,
+                apexPlanet.planet,
+              ],
               description: `Yod: ${basePlanet1.planet} ⚹ ${basePlanet2.planet}, apex ${apexPlanet.planet}`,
               strength,
             });

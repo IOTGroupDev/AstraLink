@@ -25,6 +25,7 @@
 ### Общая оценка: ⚠️ ТРЕБУЕТСЯ ДОРАБОТКА
 
 **Сильные стороны:**
+
 - ✅ Хорошая модульная архитектура (NestJS + React Native)
 - ✅ Современный технологический стек
 - ✅ Валидация окружения (Zod)
@@ -35,6 +36,7 @@
 - ✅ Helmet для безопасности заголовков
 
 **Критические проблемы:**
+
 - 🔴 **10 критических проблем безопасности**
 - 🔴 Отключена проверка истечения JWT токенов
 - 🔴 Глобальный auth guard отключен
@@ -51,15 +53,19 @@
 ### Приоритет 1: НЕМЕДЛЕННОЕ ИСПРАВЛЕНИЕ
 
 #### 1. JWT Token Expiration Отключен ⚠️ КРИТИЧНО
+
 **Файл:** `backend/src/auth/strategies/jwt.strategy.ts:27-29`
+
 ```typescript
 super({
   ignoreExpiration: true, // ❌ ОПАСНО!
   secretOrKey: 'dummy-secret-for-development',
 });
 ```
+
 **Риск:** Скомпрометированные токены остаются действительными навсегда
 **Решение:**
+
 - Удалить `ignoreExpiration: true`
 - Использовать реальный JWT_SECRET из ConfigService
 - Реализовать refresh token механизм
@@ -67,23 +73,30 @@ super({
 ---
 
 #### 2. Hardcoded Secrets в Коде ⚠️ КРИТИЧНО
+
 **Файл:** `backend/src/auth/strategies/jwt.strategy.ts:29`
+
 ```typescript
-secretOrKey: 'dummy-secret-for-development'
+secretOrKey: 'dummy-secret-for-development';
 ```
+
 **Риск:** Секреты в системе контроля версий
 **Решение:** Использовать `this.configService.get('JWT_SECRET')`
 
 ---
 
 #### 3. Development Fallback в Production ⚠️ КРИТИЧНО
+
 **Файл:** `backend/src/auth/guards/supabase-auth.guard.ts:80-109`
+
 ```typescript
 // Development fallback: decode JWT without verifying signature
 const decoded = jwt.decode(token) as any;
 ```
+
 **Риск:** В production можно подделать токены
 **Решение:**
+
 ```typescript
 if (process.env.NODE_ENV !== 'production') {
   // fallback only in dev
@@ -93,22 +106,27 @@ if (process.env.NODE_ENV !== 'production') {
 ---
 
 #### 4. Глобальный Auth Guard Отключен ⚠️ КРИТИЧНО
+
 **Файл:** `backend/src/app.module.ts:84-87`
+
 ```typescript
 // {
 //   provide: APP_GUARD,
 //   useClass: JwtAuthGuard,
 // }, // Временно отключаем глобальный guard для тестирования
 ```
+
 **Риск:** Эндпоинты не защищены по умолчанию
 **Решение:** Включить guard, использовать `@Public()` для исключений
 
 ---
 
 #### 5. Hardcoded Test Users в Production
+
 **Файл:** `backend/src/repositories/user.repository.ts:123-146`
 **Риск:** Тестовые пользователи доступны в production
 **Решение:**
+
 ```typescript
 if (process.env.NODE_ENV === 'development') {
   return this.getTestUser(userId);
@@ -118,7 +136,9 @@ if (process.env.NODE_ENV === 'development') {
 ---
 
 #### 6. CORS Слишком Разрешительный
+
 **Файл:** `backend/src/main.ts`
+
 ```typescript
 origin: [
   /^(http|https):\/\/localhost(:\d+)?$/,
@@ -127,12 +147,14 @@ origin: [
   /\.expo\.dev$/,
 ],
 ```
+
 **Риск:** Широкое совпадение доменов
 **Решение:** Ограничить конкретными доменами в production
 
 ---
 
 #### 7. AsyncStorage вместо SecureStore для Токенов
+
 **Файл:** `frontend/src/services/tokenService.ts`
 **Риск:** Токены не зашифрованы
 **Решение:** Использовать `expo-secure-store` в production builds
@@ -140,15 +162,18 @@ origin: [
 ---
 
 #### 8. Логирование Чувствительных Данных
+
 **142+ console.log** в коде, включая:
+
 - Emails
 - Tokens
 - User IDs
-**Решение:** Удалить все console.log, использовать Logger service
+  **Решение:** Удалить все console.log, использовать Logger service
 
 ---
 
 #### 9. Отсутствие Input Sanitization
+
 **Риск:** XSS уязвимости
 **Поля:** birth_place, name, user inputs
 **Решение:** Добавить middleware для санитизации
@@ -156,11 +181,14 @@ origin: [
 ---
 
 #### 10. Чрезмерное Использование Admin Client
+
 **Файлы:** Множество сервисов
+
 ```typescript
 .from('users')
 .auth.admin.listUsers()
 ```
+
 **Риск:** Если admin ключ скомпрометирован = полный доступ к БД
 **Решение:** Минимизировать использование, правильно настроить RLS
 
@@ -169,6 +197,7 @@ origin: [
 ## 🏗️ Архитектура проекта
 
 ### Общая структура
+
 ```
 AstraLink/
 ├── backend/          - NestJS API сервер
@@ -180,6 +209,7 @@ AstraLink/
 ### Технологический стек
 
 **Backend:**
+
 - Framework: NestJS 10.x
 - Database: PostgreSQL 15 + Prisma ORM
 - Auth: Supabase Auth (Passwordless)
@@ -188,6 +218,7 @@ AstraLink/
 - Calculations: Swiss Ephemeris (swisseph)
 
 **Frontend:**
+
 - Framework: React Native 0.81.5
 - UI Framework: Expo SDK 54
 - Navigation: React Navigation 7
@@ -196,6 +227,7 @@ AstraLink/
 - Auth: Supabase JS 2.58.0
 
 **Infrastructure:**
+
 - Docker + Docker Compose
 - Node.js 18+
 - npm 10+
@@ -224,18 +256,21 @@ backend/src/
 ### Проблемы качества кода
 
 #### 🔴 Критические
+
 1. **Закомментированный код везде** - сотни строк
 2. **Console.log вместо Logger** - 50+ случаев
 3. **Отсутствие error recovery** - try-catch глотают ошибки
 4. **SQL Injection риск** - raw queries в некоторых местах
 
 #### 🟡 Средние
+
 5. **Subscription Service** - over-reliance on `fromAdmin()`
 6. **User Service** - создает "ghost users" вместо 404
 7. **Error messages** - раскрывают внутренние детали
 8. **No rate limiting** на AI Advisor эндпоинты
 
 #### ✅ Положительные аспекты
+
 - Репозиторный паттерн реализован правильно
 - Event-driven обновления (UserProfileUpdatedEvent)
 - AI provider abstraction с fallback
@@ -245,6 +280,7 @@ backend/src/
 ### API Endpoints
 
 **Основные группы:**
+
 - `/api/auth` - Аутентификация (magic links, OAuth)
 - `/api/user` - Управление профилем
 - `/api/chart` - Натальные карты и транзиты
@@ -254,6 +290,7 @@ backend/src/
 - `/api/chat` - Чат функционал
 
 **Проблемы:**
+
 - Не все эндпоинты защищены (guard отключен)
 - Inconsistent error responses
 - Missing input validation на некоторых эндпоинтах
@@ -261,16 +298,19 @@ backend/src/
 ### База данных (Prisma)
 
 **Схемы:**
+
 - `public` - основные таблицы (users, charts, connections, subscriptions)
 - `auth` - Supabase auth таблицы
 
 **Проблемы:**
+
 - RLS policies обходятся через admin client
 - Cascade delete может случайно удалить много данных
 - Missing indexes на некоторых часто используемых полях
 - Нет миграций для production (закоммичены в .gitignore)
 
 **Положительное:**
+
 - Хорошо структурированная схема
 - Proper relations
 - Unique constraints
@@ -298,6 +338,7 @@ App.tsx
 ### Проблемы качества кода
 
 #### 🔴 Критические
+
 1. **142+ console.log** в production коде
 2. **112+ @ts-ignore / any** - обход TypeScript
 3. **Deprecated code не удален** - /swap/ директория (140KB)
@@ -307,6 +348,7 @@ App.tsx
 5. **api.legacy.ts** - 40KB старого кода не используется
 
 #### 🟡 Средние
+
 6. **Inconsistent error handling**
 7. **Hardcoded values** - magic numbers, default values
 8. **Navigation type safety** - excessive `as never`
@@ -314,6 +356,7 @@ App.tsx
 10. **Commented code** - сотни строк
 
 #### ✅ Положительные аспекты
+
 - Хорошая модульная организация
 - Современные React patterns (hooks)
 - Переиспользуемые компоненты
@@ -324,18 +367,21 @@ App.tsx
 ### State Management (Zustand)
 
 **Stores:**
+
 - `auth.store.ts` - User, authentication, biometrics
 - `subscription.store.ts` - Subscription tiers, limits
 - `chart.store.ts` - Natal chart data
 - `onboarding.store.ts` - Onboarding form
 
 **Проблемы:**
+
 - Mixed concerns (auth store handles settings + auth + biometrics)
 - Тесная связь с AsyncStorage
 
 ### API Integration
 
 **Модули (хорошо организованы):**
+
 ```
 services/api/
 ├── auth.api.ts         ✅ 9KB
@@ -347,6 +393,7 @@ services/api/
 ```
 
 **Проблемы:**
+
 - Screens напрямую импортируют API (tight coupling)
 - Должны использовать React Query hooks
 - Inconsistent error handling
@@ -354,6 +401,7 @@ services/api/
 ### Компоненты
 
 **Структура (отлично организована):**
+
 ```
 components/
 ├── advisor/          - Advisor widgets
@@ -366,6 +414,7 @@ components/
 ```
 
 **Проблемы:**
+
 - Swap/ директория должна быть удалена
 - Некоторые компоненты слишком большие
 
@@ -376,6 +425,7 @@ components/
 ### Backend Dependencies
 
 **Уязвимости (npm audit):**
+
 - Moderate: 6-10 уязвимостей
 - Low: 2-3 уязвимости
 - Основные проблемы:
@@ -384,6 +434,7 @@ components/
   - `@nestjs/cli` - устаревшая версия
 
 **Рекомендации:**
+
 ```bash
 npm audit fix
 npm update @nestjs/cli
@@ -392,6 +443,7 @@ npm update @nestjs/cli
 ### Frontend Dependencies
 
 **Уязвимости (npm audit):**
+
 - Moderate: 6 уязвимостей
 - Основные проблемы:
   - `js-yaml` < 4.1.1 (prototype pollution)
@@ -399,6 +451,7 @@ npm update @nestjs/cli
   - `babel-jest` (в dev зависимостях)
 
 **Рекомендации:**
+
 ```bash
 npm audit fix
 ```
@@ -406,6 +459,7 @@ npm audit fix
 ### Критические зависимости
 
 **Backend:**
+
 - `@supabase/supabase-js` 2.81.1 ✅
 - `@anthropic-ai/sdk` 0.20.9 ✅
 - `openai` 4.104.0 ✅
@@ -413,6 +467,7 @@ npm audit fix
 - `swisseph` 0.5.17 ✅
 
 **Frontend:**
+
 - `expo` 54.0.23 ⚠️ (можно обновить)
 - `react` 19.1.0 ✅
 - `react-native` 0.81.5 ⚠️ (уязвимости)
@@ -425,6 +480,7 @@ npm audit fix
 ### Текущее состояние: ❌ НЕПРИЕМЛЕМО
 
 **Найдено тестов:**
+
 ```
 backend/src/app.controller.spec.ts           - Базовый тест
 backend/src/services/ai.service.spec.ts     - AI service (218 строк) ✅
@@ -432,6 +488,7 @@ frontend/src/services/__tests__/zodiac.service.test.ts - Zodiac service
 ```
 
 **Статистика:**
+
 - Всего тестов: 3 файла
 - Покрытие: ~0.1% кода
 - E2E тесты: 0
@@ -440,6 +497,7 @@ frontend/src/services/__tests__/zodiac.service.test.ts - Zodiac service
 ### Критические отсутствующие тесты
 
 **Backend:**
+
 - ❌ Auth flow (signup, login, OAuth)
 - ❌ Subscription logic
 - ❌ Dating matching algorithm
@@ -450,6 +508,7 @@ frontend/src/services/__tests__/zodiac.service.test.ts - Zodiac service
 - ❌ API endpoints
 
 **Frontend:**
+
 - ❌ Navigation flows
 - ❌ State management (Zustand)
 - ❌ API integration
@@ -460,18 +519,16 @@ frontend/src/services/__tests__/zodiac.service.test.ts - Zodiac service
 ### Рекомендации
 
 **Приоритет 1:**
+
 1. Unit tests для auth flow
 2. Integration tests для API endpoints
 3. Tests для subscription logic
 4. Tests для dating algorithm
 
-**Приоритет 2:**
-5. Component tests (React Testing Library)
-6. E2E tests (Detox / Appium)
-7. Performance tests
-8. Load tests для API
+**Приоритет 2:** 5. Component tests (React Testing Library) 6. E2E tests (Detox / Appium) 7. Performance tests 8. Load tests для API
 
 **Целевое покрытие:**
+
 - Unit tests: 80%+
 - Integration tests: 60%+
 - E2E tests: Critical paths (20+ сценариев)
@@ -483,6 +540,7 @@ frontend/src/services/__tests__/zodiac.service.test.ts - Zodiac service
 ### Docker Setup
 
 **Dockerfile (Backend):**
+
 ```dockerfile
 FROM node:20-slim
 WORKDIR /app
@@ -493,12 +551,14 @@ CMD ["npm", "run", "start:prod"]
 ```
 
 **Проблемы:**
+
 - ❌ Нет multi-stage build (большой образ)
 - ❌ Нет .dockerignore файла
 - ❌ Нет health check
 - ❌ Runs as root (security risk)
 
 **Улучшения:**
+
 ```dockerfile
 FROM node:20-alpine AS builder
 # build stage
@@ -510,11 +570,13 @@ HEALTHCHECK CMD curl -f http://localhost:3000/health || exit 1
 ### docker-compose.yml
 
 **Сервисы:**
+
 - postgres:15 ✅
 - redis:7-alpine ✅
 - backend ⚠️ (проблемы с Dockerfile)
 
 **Проблемы:**
+
 - ❌ Нет frontend service
 - ❌ Volumes для backend монтируют весь проект (медленно)
 - ❌ Нет production конфигурации
@@ -523,6 +585,7 @@ HEALTHCHECK CMD curl -f http://localhost:3000/health || exit 1
 ### CI/CD
 
 **Текущее состояние:**
+
 - ❌ Нет .github/workflows/
 - ❌ Нет автоматических тестов
 - ❌ Нет линтинга в CI
@@ -530,6 +593,7 @@ HEALTHCHECK CMD curl -f http://localhost:3000/health || exit 1
 
 **Рекомендации:**
 Создать `.github/workflows/ci.yml`:
+
 ```yaml
 name: CI
 on: [push, pull_request]
@@ -548,12 +612,14 @@ jobs:
 ### Мониторинг и логирование
 
 **Текущее состояние:**
+
 - ❌ Нет централизованного логирования
 - ❌ Нет мониторинга (Prometheus, Grafana)
 - ❌ Нет error tracking (Sentry)
 - ❌ Нет APM (Application Performance Monitoring)
 
 **Рекомендации:**
+
 1. Winston / Pino для структурированных логов
 2. Sentry для error tracking
 3. Prometheus + Grafana для метрик
@@ -566,6 +632,7 @@ jobs:
 ### 🔴 Критический приоритет (1-2 недели)
 
 #### Безопасность
+
 1. ✅ **Включить JWT expiration validation**
    - Файл: `backend/src/auth/strategies/jwt.strategy.ts`
    - Удалить `ignoreExpiration: true`
@@ -593,6 +660,7 @@ jobs:
    - Время: 3 часа
 
 #### Качество кода
+
 7. ✅ **Удалить все console.log**
    - Использовать Logger service
    - Время: 4 часа
@@ -612,6 +680,7 @@ jobs:
 ### 🟡 Высокий приоритет (2-4 недели)
 
 #### Тестирование
+
 10. ✅ **Написать unit tests для auth flow**
     - Signup, login, OAuth, token validation
     - Цель: 80% coverage
@@ -628,6 +697,7 @@ jobs:
     - Время: 3 дня
 
 #### Рефакторинг
+
 13. ✅ **Разбить большие screen файлы**
     - `NatalChartScreen.tsx` (2,985 строк)
     - `CosmicSimulatorScreen.tsx` (1,934 строк)
@@ -645,6 +715,7 @@ jobs:
     - Время: 3 дня
 
 #### Инфраструктура
+
 16. ✅ **Улучшить Dockerfile**
     - Multi-stage build
     - Non-root user
@@ -660,6 +731,7 @@ jobs:
 ### 🟢 Средний приоритет (1-2 месяца)
 
 #### Качество
+
 18. ⚠️ **Добавить input sanitization**
     - Middleware для валидации
     - XSS protection
@@ -674,6 +746,7 @@ jobs:
     - Время: 2 дня
 
 #### Мониторинг
+
 21. ⚠️ **Setup centralized logging**
     - Winston/Pino
     - Структурированные логи
@@ -688,6 +761,7 @@ jobs:
     - Время: 1 неделя
 
 #### Документация
+
 24. ⚠️ **API документация**
     - Улучшить Swagger docs
     - Добавить примеры
@@ -714,43 +788,47 @@ jobs:
 
 ### Текущие показатели
 
-| Метрика | Текущее | Целевое | Статус |
-|---------|---------|---------|--------|
-| Test Coverage (Backend) | ~0.5% | 80% | ❌ |
-| Test Coverage (Frontend) | ~0.1% | 70% | ❌ |
-| Security Vulnerabilities | 10 critical | 0 | ❌ |
-| TypeScript Bypasses | 112+ | <10 | ❌ |
-| Console.logs | 142+ | 0 | ❌ |
-| Code Duplication | High | Low | ❌ |
-| Average File Size | 400 LOC | <300 LOC | ⚠️ |
-| Largest File | 2,985 LOC | <500 LOC | ❌ |
-| Commented Code | Hundreds | 0 | ❌ |
-| ESLint Errors | Unknown | 0 | ⚠️ |
-| Docker Image Size | Unknown | <500MB | ⚠️ |
+| Метрика                  | Текущее     | Целевое  | Статус |
+| ------------------------ | ----------- | -------- | ------ |
+| Test Coverage (Backend)  | ~0.5%       | 80%      | ❌     |
+| Test Coverage (Frontend) | ~0.1%       | 70%      | ❌     |
+| Security Vulnerabilities | 10 critical | 0        | ❌     |
+| TypeScript Bypasses      | 112+        | <10      | ❌     |
+| Console.logs             | 142+        | 0        | ❌     |
+| Code Duplication         | High        | Low      | ❌     |
+| Average File Size        | 400 LOC     | <300 LOC | ⚠️     |
+| Largest File             | 2,985 LOC   | <500 LOC | ❌     |
+| Commented Code           | Hundreds    | 0        | ❌     |
+| ESLint Errors            | Unknown     | 0        | ⚠️     |
+| Docker Image Size        | Unknown     | <500MB   | ⚠️     |
 
 ---
 
 ## 🎯 План действий (Timeline)
 
 ### Week 1-2: Критическая безопасность
+
 - [ ] Исправить 10 критических проблем безопасности
 - [ ] Обновить зависимости
 - [ ] Удалить deprecated код
 - [ ] Удалить console.log
 
 ### Week 3-4: Тестирование
+
 - [ ] Setup тестовой инфраструктуры
 - [ ] Написать auth unit tests
 - [ ] Написать API integration tests
 - [ ] Setup CI/CD
 
 ### Week 5-6: Рефакторинг
+
 - [ ] Разбить большие файлы
 - [ ] Исправить TypeScript bypasses
 - [ ] Централизовать error handling
 - [ ] Улучшить Docker setup
 
 ### Week 7-8: Инфраструктура
+
 - [ ] Setup мониторинга
 - [ ] Setup логирования
 - [ ] Улучшить документацию
@@ -763,6 +841,7 @@ jobs:
 Проект **AstraLink** имеет **хорошую архитектурную основу**, но требует **существенных улучшений** перед production deployment.
 
 **Основные выводы:**
+
 1. ✅ Архитектура продумана хорошо
 2. ❌ Безопасность требует немедленного внимания
 3. ❌ Тестирование практически отсутствует
@@ -772,6 +851,7 @@ jobs:
 **Оценка готовности к production: 40%**
 
 **Необходимо для production:**
+
 - Исправить все критические проблемы безопасности
 - Добавить тесты (минимум 60% coverage)
 - Setup CI/CD

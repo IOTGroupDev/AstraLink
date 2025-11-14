@@ -22,7 +22,13 @@ export interface PlanetInterpretation {
   keywords: string[];
   strengths: string[];
   challenges: string[];
-  dignity?: 'ruler' | 'exalted' | 'triplicity' | 'neutral' | 'detriment' | 'fall'; // Essential dignity
+  dignity?:
+    | 'ruler'
+    | 'exalted'
+    | 'triplicity'
+    | 'neutral'
+    | 'detriment'
+    | 'fall'; // Essential dignity
   isRetrograde?: boolean;
   element?: 'fire' | 'earth' | 'air' | 'water'; // Sign element
   quality?: 'cardinal' | 'fixed' | 'mutable'; // Sign quality

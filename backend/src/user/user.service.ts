@@ -8,10 +8,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
-import {
-  UserProfileUpdatedEvent,
-  BirthDataChangedEvent,
-} from './events';
+import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
 
 @Injectable()
 export class UserService {

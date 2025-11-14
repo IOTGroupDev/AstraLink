@@ -18,6 +18,7 @@ Comprehensive CI/CD setup for AstraLink project using GitHub Actions.
 ## 🎯 Overview
 
 Our CI/CD pipeline automates:
+
 - ✅ Code quality checks (linting, formatting)
 - ✅ TypeScript type checking
 - ✅ Automated testing with coverage
@@ -61,23 +62,27 @@ GitHub Push/PR
 ### 1. **CI Pipeline** (`.github/workflows/ci.yml`)
 
 **Triggers:**
+
 - Pull requests to `main` or `dev`
 - Pushes to `main` or `dev`
 
 **Jobs:**
 
 #### Backend
+
 - **backend-lint**: ESLint + TypeScript check
 - **backend-test**: Unit tests with PostgreSQL + Redis
 - **backend-build**: Production build
 
 #### Frontend
+
 - **frontend-lint**: TypeScript check
 - **frontend-test**: Unit tests
 
 **Duration:** ~5-8 minutes
 
 **Example Output:**
+
 ```
 ✅ backend-lint      (1m 23s)
 ✅ backend-test      (2m 45s)
@@ -93,21 +98,25 @@ GitHub Push/PR
 ### 2. **Docker Build** (`.github/workflows/docker.yml`)
 
 **Triggers:**
+
 - Push to `main` or `dev`
 - Pull requests to `main`
 - Tags: `v*.*.*`
 
 **Jobs:**
+
 - **build-backend**: Multi-arch Docker build (amd64, arm64)
 - **test-docker-compose**: Integration test with docker-compose
 
 **Features:**
+
 - 🔄 Layer caching (GitHub Actions cache)
 - 🔍 Trivy vulnerability scanning
 - 📦 Multi-platform builds
 - 🏷️ Automatic tagging (branch, SHA, version)
 
 **Tags Generated:**
+
 ```
 ghcr.io/your-org/astralink/backend:main
 ghcr.io/your-org/astralink/backend:dev
@@ -121,6 +130,7 @@ ghcr.io/your-org/astralink/backend:latest
 ### 3. **Security Scanning** (`.github/workflows/security.yml`)
 
 **Triggers:**
+
 - Pull requests
 - Pushes to `main` or `dev`
 - Weekly schedule (Mondays at 9:00 UTC)
@@ -128,26 +138,32 @@ ghcr.io/your-org/astralink/backend:latest
 **Jobs:**
 
 #### Dependency Review
+
 - Reviews dependency changes in PRs
 - Fails on moderate+ severity vulnerabilities
 
 #### NPM Audit
+
 - Scans backend and frontend for vulnerabilities
 - Generates audit reports
 
 #### CodeQL Analysis
+
 - Static code analysis for JavaScript/TypeScript
 - Detects security and quality issues
 
 #### Secret Scanning
+
 - TruffleHog for leaked secrets
 - Scans commit history
 
 #### Prisma Security
+
 - Validates Prisma schema
 - Checks schema formatting
 
 **Example Findings:**
+
 ```
 🔍 CodeQL: 0 critical, 2 high, 5 medium
 🔍 npm audit: 0 critical, 3 moderate
@@ -160,32 +176,39 @@ ghcr.io/your-org/astralink/backend:latest
 ### 4. **Code Quality** (`.github/workflows/code-quality.yml`)
 
 **Triggers:**
+
 - Pull requests
 - Pushes to `main` or `dev`
 
 **Checks:**
 
 #### Prettier
+
 - Ensures consistent code formatting
 - Fails if unformatted code detected
 
 #### ESLint
+
 - Linting with inline annotations
 - JSON report for artifacts
 
 #### TypeScript
+
 - Type checking for backend + frontend
 - No `any` types allowed (strict mode)
 
 #### Complexity Analysis
+
 - Measures cyclomatic complexity
 - Identifies complex functions
 
 #### Duplicate Code Detection
+
 - Finds code duplications
 - Reports duplicates > 5 lines
 
 #### Bundle Size (PR only)
+
 - Tracks bundle size changes
 - Comments on PR with size diff
 
@@ -194,15 +217,18 @@ ghcr.io/your-org/astralink/backend:latest
 ### 5. **Deployment** (`.github/workflows/deploy.yml`)
 
 **Triggers:**
+
 - Push to `main` (staging)
 - Tags `v*.*.*` (production)
 - Manual workflow dispatch
 
 **Environments:**
+
 - 🟡 **Staging**: Auto-deploy on `main` push
 - 🔴 **Production**: Deploy on version tags
 
 **Deployment Flow:**
+
 ```
 1. Determine environment (staging/production)
 2. Log in to container registry
@@ -215,6 +241,7 @@ ghcr.io/your-org/astralink/backend:latest
 ```
 
 **Example:**
+
 ```bash
 # Staging deployment
 git push origin main
@@ -229,12 +256,14 @@ git push --tags
 ### 6. **Dependabot** (`.github/dependabot.yml`)
 
 **Automatic Updates:**
+
 - 📦 Backend npm packages (weekly)
 - 📦 Frontend npm packages (weekly)
 - 🐳 Docker base images (weekly)
 - 🔧 GitHub Actions (weekly)
 
 **Grouping:**
+
 - NestJS packages grouped
 - Prisma packages grouped
 - Expo packages grouped
@@ -242,6 +271,7 @@ git push --tags
 - Dev dependencies grouped (minor/patch only)
 
 **PR Limits:**
+
 - Backend: 10 PRs max
 - Frontend: 10 PRs max
 - Root: 5 PRs max
@@ -263,30 +293,31 @@ Go to **Settings** → **Secrets and variables** → **Actions**
 
 #### Required Secrets
 
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `DATABASE_URL` | Production database URL | `postgresql://user:pass@host:5432/db` |
-| `SUPABASE_URL` | Supabase project URL | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin key | `eyJhbG...` |
-| `JWT_SECRET` | JWT signing secret (32+ chars) | `your-secure-secret-key...` |
-| `ANTHROPIC_API_KEY` | Claude AI API key | `sk-ant-api03-...` |
-| `OPENAI_API_KEY` | OpenAI API key | `sk-proj-...` |
+| Secret Name                 | Description                    | Example                               |
+| --------------------------- | ------------------------------ | ------------------------------------- |
+| `DATABASE_URL`              | Production database URL        | `postgresql://user:pass@host:5432/db` |
+| `SUPABASE_URL`              | Supabase project URL           | `https://xxx.supabase.co`             |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin key             | `eyJhbG...`                           |
+| `JWT_SECRET`                | JWT signing secret (32+ chars) | `your-secure-secret-key...`           |
+| `ANTHROPIC_API_KEY`         | Claude AI API key              | `sk-ant-api03-...`                    |
+| `OPENAI_API_KEY`            | OpenAI API key                 | `sk-proj-...`                         |
 
 #### Optional Secrets
 
-| Secret Name | Description | Required For |
-|-------------|-------------|--------------|
-| `SLACK_WEBHOOK` | Slack webhook URL | Deployment notifications |
-| `CODECOV_TOKEN` | Codecov upload token | Coverage reports |
-| `DEPLOY_SSH_KEY` | SSH key for deployment | Server deployments |
-| `AWS_ACCESS_KEY_ID` | AWS credentials | AWS deployments |
-| `GCP_SERVICE_ACCOUNT` | GCP credentials | GCP deployments |
+| Secret Name           | Description            | Required For             |
+| --------------------- | ---------------------- | ------------------------ |
+| `SLACK_WEBHOOK`       | Slack webhook URL      | Deployment notifications |
+| `CODECOV_TOKEN`       | Codecov upload token   | Coverage reports         |
+| `DEPLOY_SSH_KEY`      | SSH key for deployment | Server deployments       |
+| `AWS_ACCESS_KEY_ID`   | AWS credentials        | AWS deployments          |
+| `GCP_SERVICE_ACCOUNT` | GCP credentials        | GCP deployments          |
 
 ### 3. Configure Environments
 
 Go to **Settings** → **Environments**
 
 #### Staging Environment
+
 - **Name**: `staging`
 - **Deployment branches**: `main` only
 - **Reviewers**: None (auto-deploy)
@@ -295,6 +326,7 @@ Go to **Settings** → **Environments**
   - `API_URL`: `https://staging-api.example.com`
 
 #### Production Environment
+
 - **Name**: `production`
 - **Deployment branches**: Tags only
 - **Reviewers**: Required (2 approvers recommended)
@@ -308,6 +340,7 @@ Go to **Settings** → **Environments**
 Go to **Settings** → **Branches** → **Add rule**
 
 #### For `main` branch:
+
 - ✅ Require a pull request before merging
 - ✅ Require approvals (minimum 1)
 - ✅ Require status checks to pass before merging
@@ -321,6 +354,7 @@ Go to **Settings** → **Branches** → **Add rule**
 - ✅ Do not allow bypassing the above settings
 
 #### For `dev` branch:
+
 - ✅ Require status checks to pass before merging
   - `backend-lint`
   - `backend-test`
@@ -346,11 +380,13 @@ Go to **Settings** → **Branches** → **Add rule**
 ### Setting Secrets
 
 #### Via GitHub UI:
+
 ```
 Settings → Secrets and variables → Actions → New repository secret
 ```
 
 #### Via GitHub CLI:
+
 ```bash
 gh secret set DATABASE_URL --body "postgresql://..."
 gh secret set JWT_SECRET --body "your-secret-key-here"
@@ -360,11 +396,13 @@ gh secret set ANTHROPIC_API_KEY --body "sk-ant-api03-..."
 ### Environment-Specific Secrets
 
 #### Staging:
+
 ```bash
 gh secret set DATABASE_URL --env staging --body "postgresql://staging..."
 ```
 
 #### Production:
+
 ```bash
 gh secret set DATABASE_URL --env production --body "postgresql://prod..."
 ```
@@ -386,6 +424,7 @@ gh secret list --env production
 ### Running CI Locally
 
 #### Backend Tests
+
 ```bash
 cd backend
 
@@ -409,6 +448,7 @@ npx tsc --noEmit
 ```
 
 #### Frontend Tests
+
 ```bash
 cd frontend
 
@@ -437,12 +477,14 @@ docker-compose logs -f backend
 ### Triggering Manual Deployment
 
 #### Via GitHub UI:
+
 1. Go to **Actions** → **Deploy**
 2. Click **Run workflow**
 3. Select branch and environment
 4. Click **Run workflow**
 
 #### Via GitHub CLI:
+
 ```bash
 # Deploy to staging
 gh workflow run deploy.yml -f environment=staging
@@ -475,6 +517,7 @@ git push origin v1.0.0
 **Cause**: Environment differences
 
 **Solution**:
+
 ```bash
 # Use same Node version as CI
 nvm use 20
@@ -492,6 +535,7 @@ npm test
 **Cause**: Missing dependencies or permissions
 
 **Check logs**:
+
 ```bash
 # View workflow logs
 gh run view --log-failed
@@ -501,6 +545,7 @@ docker-compose logs backend
 ```
 
 **Solution**:
+
 - Ensure `.dockerignore` is present
 - Check Dockerfile syntax
 - Verify base image availability
@@ -510,6 +555,7 @@ docker-compose logs backend
 **Cause**: Missing DATABASE_URL secret
 
 **Solution**:
+
 ```bash
 # Set the secret
 gh secret set DATABASE_URL --body "postgresql://..."
@@ -523,6 +569,7 @@ gh secret list | grep DATABASE_URL
 **Cause**: Health check timing out
 
 **Solution**:
+
 - Increase health check timeout
 - Check server logs
 - Verify deployment endpoint
@@ -532,15 +579,18 @@ gh secret list | grep DATABASE_URL
 **Cause**: Large codebase
 
 **Solution**:
+
 - Increase timeout in workflow:
+
 ```yaml
 - name: Perform CodeQL Analysis
-  timeout-minutes: 30  # Increase from default 15
+  timeout-minutes: 30 # Increase from default 15
 ```
 
 ### Debugging Workflows
 
 #### View workflow runs:
+
 ```bash
 gh run list
 
@@ -552,6 +602,7 @@ gh run view <run-id> --log
 ```
 
 #### Re-run failed jobs:
+
 ```bash
 gh run rerun <run-id>
 
@@ -560,6 +611,7 @@ gh run rerun <run-id> --failed
 ```
 
 #### Cancel running workflow:
+
 ```bash
 gh run cancel <run-id>
 ```
@@ -567,11 +619,13 @@ gh run cancel <run-id>
 ### Getting Help
 
 #### View workflow status:
+
 ```bash
 gh run watch
 ```
 
 #### Check workflow file syntax:
+
 ```bash
 # Install actionlint
 brew install actionlint
@@ -587,6 +641,7 @@ actionlint .github/workflows/*.yml
 ### CI Performance
 
 **Target Metrics:**
+
 - ⏱️ CI duration: < 10 minutes
 - ✅ Success rate: > 95%
 - 🔄 Flakiness: < 2%
@@ -594,16 +649,19 @@ actionlint .github/workflows/*.yml
 ### Coverage Goals
 
 **Current:**
+
 - Backend: ~0.5%
 - Frontend: ~0.1%
 
 **Target:**
+
 - Backend: 80%+
 - Frontend: 70%+
 
 ### Security
 
 **Goals:**
+
 - 🔒 Zero critical vulnerabilities
 - 🔒 Zero high vulnerabilities
 - 🔍 Weekly security scans
@@ -702,16 +760,19 @@ git commit -m "chore: upgrade dependencies"
 ## 📚 Additional Resources
 
 ### Documentation
+
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 - [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
 - [Prisma Migrations](https://www.prisma.io/docs/concepts/components/prisma-migrate)
 
 ### Tools
+
 - [act](https://github.com/nektos/act) - Run GitHub Actions locally
 - [actionlint](https://github.com/rhysd/actionlint) - Lint workflow files
 - [gh CLI](https://cli.github.com/) - GitHub command-line tool
 
 ### Monitoring
+
 - [GitHub Actions Dashboard](https://github.com/your-org/astralink/actions)
 - [Codecov Dashboard](https://codecov.io/gh/your-org/astralink)
 - [Docker Hub](https://hub.docker.com/r/your-org/astralink)
@@ -732,6 +793,7 @@ You now have a complete CI/CD pipeline with:
 ✅ **PR Templates** - Comprehensive checklists
 
 **Next Steps:**
+
 1. Configure secrets in GitHub
 2. Enable branch protection
 3. Review and customize deployment workflow

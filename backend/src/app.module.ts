@@ -86,7 +86,7 @@ import { DebugController } from '@/debug/debug.controller';
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard,
-    }
+    },
   ],
 })
 export class AppModule {}

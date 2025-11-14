@@ -427,7 +427,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     style={styles.buttonGradient}
                   >
                     <Ionicons
-                      name={regeneratingChart ? 'hourglass-outline' : 'sparkles'}
+                      name={
+                        regeneratingChart ? 'hourglass-outline' : 'sparkles'
+                      }
                       size={24}
                       color="#fff"
                     />

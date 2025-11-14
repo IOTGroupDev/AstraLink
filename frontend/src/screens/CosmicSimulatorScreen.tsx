@@ -219,7 +219,8 @@ export default function CosmicSimulatorScreen() {
     try {
       // Загружаем AI интерпретацию транзитов (с проверкой подписки на backend)
       const dateStr = date.toISOString().split('T')[0];
-      const interpretationData = await chartAPI.getTransitInterpretation(dateStr);
+      const interpretationData =
+        await chartAPI.getTransitInterpretation(dateStr);
 
       // Сохраняем AI интерпретацию
       setAiInterpretation(interpretationData.aiInterpretation);
@@ -241,22 +242,29 @@ export default function CosmicSimulatorScreen() {
       setTransitPlanets(planets);
 
       // Используем аспекты с backend
-      const transits: TransitData[] = interpretationData.aspects.map((aspect) => ({
-        planet: aspect.transitPlanet.charAt(0).toUpperCase() + aspect.transitPlanet.slice(1),
-        aspect: aspect.aspect,
-        target: planetRu[aspect.natalPlanet] || aspect.natalPlanet,
-        orb: Math.round(aspect.orb * 10) / 10,
-        date: date.toDateString(),
-        description: getTransitDescription(
-          aspect.transitPlanet.charAt(0).toUpperCase() + aspect.transitPlanet.slice(1),
-          aspect.aspect,
-          aspect.natalPlanet
-        ),
-        type: getAspectType(aspect.aspect),
-        strength: aspect.strength,
-      }));
+      const transits: TransitData[] = interpretationData.aspects.map(
+        (aspect) => ({
+          planet:
+            aspect.transitPlanet.charAt(0).toUpperCase() +
+            aspect.transitPlanet.slice(1),
+          aspect: aspect.aspect,
+          target: planetRu[aspect.natalPlanet] || aspect.natalPlanet,
+          orb: Math.round(aspect.orb * 10) / 10,
+          date: date.toDateString(),
+          description: getTransitDescription(
+            aspect.transitPlanet.charAt(0).toUpperCase() +
+              aspect.transitPlanet.slice(1),
+            aspect.aspect,
+            aspect.natalPlanet
+          ),
+          type: getAspectType(aspect.aspect),
+          strength: aspect.strength,
+        })
+      );
 
-      setActiveTransits(transits.sort((a, b) => (b.strength || 0) - (a.strength || 0)));
+      setActiveTransits(
+        transits.sort((a, b) => (b.strength || 0) - (a.strength || 0))
+      );
     } catch (error) {
       console.error('Ошибка загрузки транзитов:', error);
       // Fallback на расчётные данные
@@ -735,19 +743,33 @@ export default function CosmicSimulatorScreen() {
             <>
               {/* AI Интерпретация */}
               {aiInterpretation && (
-                <BlurView intensity={10} tint="dark" style={styles.aiInterpretationCard}>
+                <BlurView
+                  intensity={10}
+                  tint="dark"
+                  style={styles.aiInterpretationCard}
+                >
                   <View style={styles.aiHeader}>
                     <View style={styles.aiIconContainer}>
                       <LinearGradient
-                        colors={hasAIAccess ? ['#8B5CF6', '#6366F1'] : ['#6B7280', '#4B5563']}
+                        colors={
+                          hasAIAccess
+                            ? ['#8B5CF6', '#6366F1']
+                            : ['#6B7280', '#4B5563']
+                        }
                         style={styles.aiIcon}
                       >
-                        <Ionicons name={hasAIAccess ? 'sparkles' : 'information-circle'} size={20} color="#FFFFFF" />
+                        <Ionicons
+                          name={hasAIAccess ? 'sparkles' : 'information-circle'}
+                          size={20}
+                          color="#FFFFFF"
+                        />
                       </LinearGradient>
                     </View>
                     <View style={styles.aiTitleContainer}>
                       <Text style={styles.aiTitle}>
-                        {hasAIAccess ? 'AI Интерпретация транзитов' : 'Базовая интерпретация'}
+                        {hasAIAccess
+                          ? 'AI Интерпретация транзитов'
+                          : 'Базовая интерпретация'}
                       </Text>
                       {!hasAIAccess && (
                         <Text style={styles.aiSubtitle}>
@@ -756,7 +778,9 @@ export default function CosmicSimulatorScreen() {
                       )}
                     </View>
                   </View>
-                  <Text style={styles.aiInterpretationText}>{aiInterpretation}</Text>
+                  <Text style={styles.aiInterpretationText}>
+                    {aiInterpretation}
+                  </Text>
                   {!hasAIAccess && (
                     <TouchableOpacity style={styles.upgradeButton}>
                       <LinearGradient
@@ -764,7 +788,11 @@ export default function CosmicSimulatorScreen() {
                         style={styles.upgradeGradient}
                       >
                         <Text style={styles.upgradeText}>Получить Premium</Text>
-                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                        <Ionicons
+                          name="arrow-forward"
+                          size={16}
+                          color="#FFFFFF"
+                        />
                       </LinearGradient>
                     </TouchableOpacity>
                   )}
@@ -792,93 +820,95 @@ export default function CosmicSimulatorScreen() {
                     <Ionicons
                       name="filter"
                       size={16}
-                      color={showOnlyMajor ? '#FFFFFF' : 'rgba(255,255,255,0.5)'}
+                      color={
+                        showOnlyMajor ? '#FFFFFF' : 'rgba(255,255,255,0.5)'
+                      }
                     />
                   </TouchableOpacity>
                 </View>
 
-              {transitsLoading ? (
-                <View style={styles.loadingTransits}>
-                  <Text style={styles.loadingTransitsText}>
-                    Расчёт транзитов...
-                  </Text>
-                </View>
-              ) : filteredTransits.length === 0 ? (
-                <View style={styles.emptyTransits}>
-                  <Ionicons
-                    name="planet-outline"
-                    size={48}
-                    color="rgba(255,255,255,0.3)"
-                  />
-                  <Text style={styles.emptyTransitsText}>
-                    Нет активных транзитов
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.transitsList}>
-                  {filteredTransits.map((transit, index) => {
-                    const relevantLesson = findRelevantLesson(transit);
+                {transitsLoading ? (
+                  <View style={styles.loadingTransits}>
+                    <Text style={styles.loadingTransitsText}>
+                      Расчёт транзитов...
+                    </Text>
+                  </View>
+                ) : filteredTransits.length === 0 ? (
+                  <View style={styles.emptyTransits}>
+                    <Ionicons
+                      name="planet-outline"
+                      size={48}
+                      color="rgba(255,255,255,0.3)"
+                    />
+                    <Text style={styles.emptyTransitsText}>
+                      Нет активных транзитов
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.transitsList}>
+                    {filteredTransits.map((transit, index) => {
+                      const relevantLesson = findRelevantLesson(transit);
 
-                    return (
-                      <TouchableOpacity
-                        key={index}
-                        onPress={() => openTransitDetails(transit)}
-                        style={[
-                          styles.transitItem,
-                          {
-                            borderLeftColor:
-                              transit.type === 'harmonious'
-                                ? '#10B981'
-                                : transit.type === 'challenging'
-                                  ? '#EF4444'
-                                  : '#6B7280',
-                          },
-                        ]}
-                      >
-                        <View style={styles.transitHeader}>
-                          <Text style={styles.transitTitle}>
-                            {transit.planet} {aspectRu[transit.aspect]}{' '}
-                            {transit.target}
-                          </Text>
-                          <View style={styles.transitOrbBadge}>
-                            <Text style={styles.transitOrb}>
-                              {transit.orb}°
-                            </Text>
-                          </View>
-                        </View>
-                        <Text
-                          style={styles.transitDescription}
-                          numberOfLines={2}
+                      return (
+                        <TouchableOpacity
+                          key={index}
+                          onPress={() => openTransitDetails(transit)}
+                          style={[
+                            styles.transitItem,
+                            {
+                              borderLeftColor:
+                                transit.type === 'harmonious'
+                                  ? '#10B981'
+                                  : transit.type === 'challenging'
+                                    ? '#EF4444'
+                                    : '#6B7280',
+                            },
+                          ]}
                         >
-                          {transit.description}
-                        </Text>
-
-                        {/* 💡 КНОПКА "УЗНАТЬ БОЛЬШЕ" */}
-                        {relevantLesson && (
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              setActiveTab('lessons');
-                            }}
-                            style={styles.learnMoreButton}
-                          >
-                            <Ionicons
-                              name="bulb-outline"
-                              size={14}
-                              color="#FBBF24"
-                            />
-                            <Text style={styles.learnMoreText}>
-                              Узнать больше об аспекте "
-                              {aspectRu[transit.aspect]}"
+                          <View style={styles.transitHeader}>
+                            <Text style={styles.transitTitle}>
+                              {transit.planet} {aspectRu[transit.aspect]}{' '}
+                              {transit.target}
                             </Text>
-                          </TouchableOpacity>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </BlurView>
+                            <View style={styles.transitOrbBadge}>
+                              <Text style={styles.transitOrb}>
+                                {transit.orb}°
+                              </Text>
+                            </View>
+                          </View>
+                          <Text
+                            style={styles.transitDescription}
+                            numberOfLines={2}
+                          >
+                            {transit.description}
+                          </Text>
+
+                          {/* 💡 КНОПКА "УЗНАТЬ БОЛЬШЕ" */}
+                          {relevantLesson && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                setActiveTab('lessons');
+                              }}
+                              style={styles.learnMoreButton}
+                            >
+                              <Ionicons
+                                name="bulb-outline"
+                                size={14}
+                                color="#FBBF24"
+                              />
+                              <Text style={styles.learnMoreText}>
+                                Узнать больше об аспекте "
+                                {aspectRu[transit.aspect]}"
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </BlurView>
             </>
           )}
 

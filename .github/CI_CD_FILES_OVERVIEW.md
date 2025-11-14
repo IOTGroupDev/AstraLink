@@ -163,6 +163,7 @@ Merge to main
 ## Required GitHub Secrets
 
 ### Minimum (for CI to work):
+
 - `DATABASE_URL` - Test database connection
 - `JWT_SECRET` - JWT signing secret (32+ chars)
 - `SUPABASE_URL` - Supabase project URL
@@ -170,6 +171,7 @@ Merge to main
 - `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` - At least one AI provider
 
 ### Optional (for full features):
+
 - `SLACK_WEBHOOK` - Deployment notifications
 - `CODECOV_TOKEN` - Coverage reports
 - `DEPLOY_SSH_KEY` - Server deployments
@@ -216,12 +218,14 @@ Merge to main
 ### To customize workflows:
 
 1. **Adjust test timeouts:**
+
    ```yaml
    - name: Run tests
-     timeout-minutes: 10  # Increase if needed
+     timeout-minutes: 10 # Increase if needed
    ```
 
 2. **Change coverage thresholds:**
+
    ```yaml
    - name: Check coverage
      run: |
@@ -229,6 +233,7 @@ Merge to main
    ```
 
 3. **Add custom jobs:**
+
    ```yaml
    my-custom-job:
      runs-on: ubuntu-latest
@@ -245,16 +250,19 @@ Merge to main
 ## Maintenance
 
 ### Weekly:
+
 - Review Dependabot PRs
 - Check security scan results
 - Monitor CI performance metrics
 
 ### Monthly:
+
 - Update workflow actions to latest versions
 - Review and optimize CI duration
 - Update documentation
 
 ### Quarterly:
+
 - Audit secrets and permissions
 - Review and update security policies
 - Test disaster recovery procedures

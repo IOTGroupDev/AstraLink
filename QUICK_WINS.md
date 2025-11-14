@@ -7,7 +7,9 @@
 ## 1. Добавить .dockerignore (5 минут)
 
 ### Создать файл
+
 `backend/.dockerignore`
+
 ```
 node_modules
 npm-debug.log
@@ -25,6 +27,7 @@ coverage
 ```
 
 ### Эффект
+
 - ⬇️ Уменьшение размера Docker образа на 50-70%
 - ⚡ Ускорение сборки в 3-5 раз
 - 💾 Экономия дискового пространства
@@ -34,20 +37,23 @@ coverage
 ## 2. Добавить Health Check (10 минут)
 
 ### Backend
+
 `backend/src/health/health.controller.ts` - уже существует ✅
 
 ### Dockerfile
+
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
 ```
 
 ### docker-compose.yml
+
 ```yaml
 services:
   backend:
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s
       timeout: 3s
       retries: 3
@@ -55,6 +61,7 @@ services:
 ```
 
 ### Эффект
+
 - 🏥 Автоматический restart при сбоях
 - 📊 Мониторинг доступности
 - 🚀 Корректный graceful shutdown
@@ -64,6 +71,7 @@ services:
 ## 3. Улучшить .gitignore (5 минут)
 
 ### Добавить в .gitignore
+
 ```gitignore
 # Environment variables
 .env
@@ -107,6 +115,7 @@ prisma/migrations/
 ```
 
 ### Эффект
+
 - 🔒 Защита секретов
 - 📦 Чистый репозиторий
 - ⚡ Быстрее git операции
@@ -116,6 +125,7 @@ prisma/migrations/
 ## 4. Добавить Prettier конфиг (10 минут)
 
 ### Создать `.prettierrc`
+
 ```json
 {
   "semi": true,
@@ -129,6 +139,7 @@ prisma/migrations/
 ```
 
 ### Запустить форматирование
+
 ```bash
 # Root
 npm run format
@@ -141,9 +152,11 @@ cd frontend && npx prettier --write "src/**/*.{ts,tsx}"
 ```
 
 ### Добавить pre-commit hook
+
 `.husky/pre-commit` - уже существует ✅
 
 ### Эффект
+
 - 📝 Единообразный стиль кода
 - ⚡ Автоматическое форматирование
 - 👥 Меньше конфликтов в PR
@@ -153,6 +166,7 @@ cd frontend && npx prettier --write "src/**/*.{ts,tsx}"
 ## 5. Улучшить README.md (30 минут)
 
 ### Структура
+
 ```markdown
 # AstraLink
 
@@ -161,71 +175,88 @@ Astrology application with AI-powered insights.
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - Docker & Docker Compose
 - PostgreSQL 15+
 
 ### Installation
+
 \`\`\`bash
+
 # Clone
+
 git clone https://github.com/your-org/astralink.git
 cd astralink
 
 # Install
+
 npm run install:all
 
 # Setup environment
+
 cp .env.example .env
 cp backend/.env.example backend/.env
 
 # Start with Docker
+
 docker-compose up -d
 
 # Or start manually
+
 npm run dev
 \`\`\`
 
 ### Environment Variables
+
 See `.env.example` for required variables.
 
 ## Project Structure
+
 \`\`\`
-├── backend/          - NestJS API server
-├── frontend/         - React Native app (Expo)
+├── backend/ - NestJS API server
+├── frontend/ - React Native app (Expo)
 └── docker-compose.yml
 \`\`\`
 
 ## Development
 
 ### Backend
+
 \`\`\`bash
 cd backend
 npm run start:dev
 \`\`\`
 
 ### Frontend
+
 \`\`\`bash
 cd frontend
 npm run start
 \`\`\`
 
 ## Testing
+
 \`\`\`bash
 npm test
 \`\`\`
 
 ## Deployment
+
 See [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## Documentation
+
 - [API Docs](http://localhost:3000/api/docs)
 - [Architecture](docs/ARCHITECTURE.md)
 
 ## License
+
 UNLICENSED
 ```
 
 ### Эффект
+
 - 📖 Легче onboarding новых разработчиков
 - 🚀 Быстрее старт проекта
 - 📚 Документированные команды
@@ -235,7 +266,9 @@ UNLICENSED
 ## 6. Настроить ESLint строже (15 минут)
 
 ### Backend `eslint.config.mjs`
+
 Улучшить правила:
+
 ```javascript
 rules: {
   '@typescript-eslint/no-explicit-any': 'error', // Было: 'off'
@@ -253,12 +286,14 @@ rules: {
 ```
 
 ### Запустить линтинг
+
 ```bash
 cd backend
 npm run lint
 ```
 
 ### Эффект
+
 - 🐛 Меньше багов
 - 📝 Лучшее качество кода
 - 🔍 Раньше находим проблемы
@@ -268,6 +303,7 @@ npm run lint
 ## 7. Добавить VSCode настройки (10 минут)
 
 ### Создать `.vscode/settings.json`
+
 ```json
 {
   "editor.formatOnSave": true,
@@ -292,6 +328,7 @@ npm run lint
 ```
 
 ### Создать `.vscode/extensions.json`
+
 ```json
 {
   "recommendations": [
@@ -305,6 +342,7 @@ npm run lint
 ```
 
 ### Эффект
+
 - ⚡ Автоформатирование при сохранении
 - 🔧 Автоисправление ESLint
 - 🎯 Рекомендуемые расширения
@@ -314,6 +352,7 @@ npm run lint
 ## 8. Добавить npm scripts (10 минут)
 
 ### Root `package.json`
+
 ```json
 {
   "scripts": {
@@ -338,6 +377,7 @@ npm run lint
 ```
 
 ### Эффект
+
 - ⚡ Удобные команды
 - 🎯 Меньше переключений между директориями
 - 📝 Документированные операции
@@ -347,6 +387,7 @@ npm run lint
 ## 9. Улучшить Prisma setup (15 минут)
 
 ### Добавить npm scripts в `backend/package.json`
+
 ```json
 {
   "scripts": {
@@ -361,12 +402,14 @@ npm run lint
 ```
 
 ### Создать `prisma/.gitkeep`
+
 ```bash
 mkdir -p backend/prisma/migrations
 touch backend/prisma/migrations/.gitkeep
 ```
 
 ### Обновить `.gitignore`
+
 ```gitignore
 # Prisma
 prisma/migrations/*
@@ -374,6 +417,7 @@ prisma/migrations/*
 ```
 
 ### Эффект
+
 - 📝 Удобные команды для БД
 - 🔄 Миграции в git
 - 🌱 Легкий seed
@@ -383,6 +427,7 @@ prisma/migrations/*
 ## 10. Добавить CHANGELOG.md (20 минут)
 
 ### Создать `CHANGELOG.md`
+
 ```markdown
 # Changelog
 
@@ -394,6 +439,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - AI-powered astrology advisor
 - Dating matching algorithm
 - Natal chart calculations with Swiss Ephemeris
@@ -402,6 +448,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Google OAuth integration
 
 ### Security
+
 - JWT authentication with Supabase
 - Rate limiting
 - Helmet security headers
@@ -410,6 +457,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-11-14
 
 ### Added
+
 - Initial release
 - Backend API (NestJS)
 - Frontend mobile app (React Native + Expo)
@@ -418,6 +466,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ```
 
 ### Эффект
+
 - 📝 Документированные изменения
 - 📊 Легко отслеживать версии
 - 👥 Понятно для команды и пользователей
@@ -429,6 +478,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### `.husky/pre-commit` - уже существует ✅
 
 ### Добавить `.husky/commit-msg`
+
 ```bash
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
@@ -438,11 +488,13 @@ npx --no -- commitlint --edit "$1"
 ```
 
 ### Установить commitlint
+
 ```bash
 npm install --save-dev @commitlint/cli @commitlint/config-conventional
 ```
 
 ### Создать `commitlint.config.js`
+
 ```javascript
 module.exports = {
   extends: ['@commitlint/config-conventional'],
@@ -451,17 +503,17 @@ module.exports = {
       2,
       'always',
       [
-        'feat',     // Новая функция
-        'fix',      // Исправление бага
-        'docs',     // Документация
-        'style',    // Форматирование
+        'feat', // Новая функция
+        'fix', // Исправление бага
+        'docs', // Документация
+        'style', // Форматирование
         'refactor', // Рефакторинг
-        'test',     // Тесты
-        'chore',    // Рутинные задачи
-        'perf',     // Производительность
-        'ci',       // CI/CD
-        'build',    // Сборка
-        'revert',   // Откат
+        'test', // Тесты
+        'chore', // Рутинные задачи
+        'perf', // Производительность
+        'ci', // CI/CD
+        'build', // Сборка
+        'revert', // Откат
       ],
     ],
   },
@@ -469,6 +521,7 @@ module.exports = {
 ```
 
 ### Примеры commits
+
 ```bash
 git commit -m "feat: add JWT token expiration validation"
 git commit -m "fix: remove hardcoded secrets from auth strategy"
@@ -478,6 +531,7 @@ git commit -m "test: add unit tests for auth service"
 ```
 
 ### Эффект
+
 - 📝 Структурированная история commits
 - 🤖 Автоматическая генерация CHANGELOG
 - 👥 Единообразие в команде
@@ -487,6 +541,7 @@ git commit -m "test: add unit tests for auth service"
 ## 12. Создать .editorconfig (5 минут)
 
 ### Создать `.editorconfig`
+
 ```ini
 root = true
 
@@ -509,6 +564,7 @@ indent_style = tab
 ```
 
 ### Эффект
+
 - 📝 Единообразное форматирование
 - 👥 Работает во всех редакторах
 - ⚡ Меньше конфликтов
@@ -517,20 +573,20 @@ indent_style = tab
 
 ## 📊 Сводная таблица
 
-| Улучшение | Время | Эффект | Приоритет |
-|-----------|-------|--------|-----------|
-| .dockerignore | 5 мин | Меньше образ на 50% | ⭐⭐⭐ |
-| Health check | 10 мин | Автоматический restart | ⭐⭐⭐ |
-| .gitignore | 5 мин | Защита секретов | ⭐⭐⭐ |
-| Prettier | 10 мин | Единый стиль | ⭐⭐⭐ |
-| README | 30 мин | Легче onboarding | ⭐⭐⭐ |
-| ESLint strict | 15 мин | Меньше багов | ⭐⭐ |
-| VSCode settings | 10 мин | Автоформатирование | ⭐⭐ |
-| npm scripts | 10 мин | Удобные команды | ⭐⭐ |
-| Prisma setup | 15 мин | Легче работа с БД | ⭐⭐ |
-| CHANGELOG | 20 мин | Документация версий | ⭐ |
-| Git hooks | 15 мин | Структура commits | ⭐ |
-| .editorconfig | 5 мин | Единообразие | ⭐ |
+| Улучшение       | Время  | Эффект                 | Приоритет |
+| --------------- | ------ | ---------------------- | --------- |
+| .dockerignore   | 5 мин  | Меньше образ на 50%    | ⭐⭐⭐    |
+| Health check    | 10 мин | Автоматический restart | ⭐⭐⭐    |
+| .gitignore      | 5 мин  | Защита секретов        | ⭐⭐⭐    |
+| Prettier        | 10 мин | Единый стиль           | ⭐⭐⭐    |
+| README          | 30 мин | Легче onboarding       | ⭐⭐⭐    |
+| ESLint strict   | 15 мин | Меньше багов           | ⭐⭐      |
+| VSCode settings | 10 мин | Автоформатирование     | ⭐⭐      |
+| npm scripts     | 10 мин | Удобные команды        | ⭐⭐      |
+| Prisma setup    | 15 мин | Легче работа с БД      | ⭐⭐      |
+| CHANGELOG       | 20 мин | Документация версий    | ⭐        |
+| Git hooks       | 15 мин | Структура commits      | ⭐        |
+| .editorconfig   | 5 мин  | Единообразие           | ⭐        |
 
 **Общее время:** ~2.5 часа
 **Общий эффект:** 🚀 Значительное улучшение DX (Developer Experience)
@@ -559,6 +615,7 @@ indent_style = tab
 ## 🎯 Порядок выполнения
 
 ### Первый час
+
 1. .dockerignore (5 мин)
 2. .gitignore (5 мин)
 3. .editorconfig (5 мин)
@@ -568,6 +625,7 @@ indent_style = tab
 7. npm scripts (10 мин)
 
 ### Второй час
+
 8. ESLint strict (15 мин)
 9. Prisma setup (15 мин)
 10. Git hooks (15 мин)
@@ -581,21 +639,25 @@ indent_style = tab
 После выполнения всех Quick Wins:
 
 ✅ **Лучший Developer Experience**
+
 - Автоформатирование кода
 - Удобные npm команды
 - Настроенные IDE
 
 ✅ **Лучшее качество кода**
+
 - Строгий ESLint
 - Prettier форматирование
 - Conventional commits
 
 ✅ **Лучшая инфраструктура**
+
 - Health checks
 - Оптимизированный Docker
 - Защищенные секреты
 
 ✅ **Лучшая документация**
+
 - Обновленный README
 - CHANGELOG
 - Структурированные commits

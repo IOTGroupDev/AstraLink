@@ -7,11 +7,11 @@
 
 ## Summary
 
-| Location | Total | Critical | High | Moderate | Low | Fixed |
-|----------|-------|----------|------|----------|-----|-------|
-| Backend  | 24    | 0        | 0    | 19       | 5   | 1 ✅   |
-| Frontend | 6     | 0        | 0    | 6        | 0   | 0     |
-| **TOTAL**| **30**| **0**    | **0**| **25**   | **5**| **1** |
+| Location  | Total  | Critical | High  | Moderate | Low   | Fixed |
+| --------- | ------ | -------- | ----- | -------- | ----- | ----- |
+| Backend   | 24     | 0        | 0     | 19       | 5     | 1 ✅  |
+| Frontend  | 6      | 0        | 0     | 6        | 0     | 0     |
+| **TOTAL** | **30** | **0**    | **0** | **25**   | **5** | **1** |
 
 ---
 
@@ -20,6 +20,7 @@
 ### Backend
 
 **validator.js** (moderate)
+
 - **Issue**: URL validation bypass vulnerability in `isURL` function
 - **CVE**: GHSA-9965-vmph-33xx
 - **Fixed**: ✅ Updated to validator@13.15.20+
@@ -38,6 +39,7 @@ All remaining backend vulnerabilities are in **development/testing dependencies 
 **Issue**: Prototype pollution in merge (<<)
 **CVE**: GHSA-mh29-5h37-fv8m
 **Affected packages** (all dev dependencies):
+
 - `@istanbuljs/load-nyc-config`
 - `babel-plugin-istanbul`
 - `@jest/transform`, `@jest/core`, `@jest/reporters`, `@jest/globals`
@@ -49,11 +51,13 @@ All remaining backend vulnerabilities are in **development/testing dependencies 
 **Breaking change**: Will update `@nestjs/swagger` from current version to 5.2.1
 
 **Risk assessment**:
+
 - ⚠️ **Low risk**: Only affects development/testing tools
 - ⚠️ **Medium risk**: @nestjs/swagger used in production for API docs, but js-yaml only used for schema generation (server startup), not runtime request handling
 - 🔒 **Mitigation**: Prototype pollution requires specific attack conditions not present in test/build environments
 
 **Recommendation**:
+
 ```bash
 # Option 1: Safe update (test first)
 cd backend
@@ -70,6 +74,7 @@ npm test
 **Issue**: Arbitrary temporary file/directory write via symbolic link
 **CVE**: GHSA-52f5-9888-hmc6
 **Affected packages** (all dev dependencies):
+
 - `tmp`
 - `external-editor`
 - `inquirer`
@@ -80,10 +85,12 @@ npm test
 **Breaking change**: Will update `@nestjs/cli` from current to 11.0.10+
 
 **Risk assessment**:
+
 - ⚠️ **Low risk**: Only affects CLI tools used during development/build
 - 🔒 **Mitigation**: Not used in production runtime
 
 **Recommendation**:
+
 ```bash
 # Update @nestjs/cli manually to latest
 cd backend
@@ -102,6 +109,7 @@ All frontend vulnerabilities are in **development/testing dependencies only**.
 **Issue**: Prototype pollution in merge (<<)
 **CVE**: GHSA-mh29-5h37-fv8m
 **Affected packages** (all dev dependencies):
+
 - `@expo/xcpretty` (Expo build tool)
 - `cosmiconfig` (config loader)
 - `@istanbuljs/load-nyc-config` (coverage tool)
@@ -113,10 +121,12 @@ All frontend vulnerabilities are in **development/testing dependencies only**.
 **Breaking change**: Will update `react-native` to 0.75.5+ (major breaking changes)
 
 **Risk assessment**:
+
 - ⚠️ **Low risk**: Only affects Expo CLI, Jest, and build tools
 - 🔒 **Mitigation**: Not used in production runtime
 
 **Recommendation**:
+
 ```bash
 # WARNING: Updating React Native is a major migration
 # Requires updating all native dependencies and testing on iOS/Android
@@ -142,15 +152,18 @@ npx expo doctor  # Check for issues
 ## Why These Vulnerabilities Are Low Risk
 
 ### 1. Dev Dependencies Only
+
 - All vulnerabilities are in development/testing tools
 - Not included in production builds
 - Not accessible from runtime application
 
 ### 2. Specific Attack Conditions Required
+
 - **js-yaml**: Requires attacker to control YAML input to build tools
 - **tmp**: Requires attacker to control filesystem during build
 
 ### 3. Protected Environments
+
 - CI/CD runs in isolated containers
 - Developer machines should have proper security practices
 - Build processes don't accept untrusted input
@@ -170,6 +183,7 @@ npx expo doctor  # Check for issues
 ### High Priority (Do Soon)
 
 1. **Update @nestjs/swagger** (Backend)
+
    ```bash
    cd backend
    npm update @nestjs/swagger
@@ -177,16 +191,19 @@ npx expo doctor  # Check for issues
    npm test
    # Verify API docs: http://localhost:3000/api
    ```
+
    - **Time**: 30 minutes
    - **Risk**: Low (minor version update)
    - **Impact**: Fixes 19 vulnerabilities
 
 2. **Update @nestjs/cli** (Backend)
+
    ```bash
    cd backend
    npm install --save-dev @nestjs/cli@latest
    npm run build
    ```
+
    - **Time**: 15 minutes
    - **Risk**: Low (CLI tool)
    - **Impact**: Fixes 5 vulnerabilities
@@ -212,6 +229,7 @@ If time is limited, these vulnerabilities can be **accepted as low-risk** becaus
 5. ✅ Plan exists for eventual migration
 
 **Acceptance criteria**:
+
 - Document risk in security review
 - Add to technical debt backlog
 - Schedule React Native upgrade in next quarter
@@ -222,6 +240,7 @@ If time is limited, these vulnerabilities can be **accepted as low-risk** becaus
 ## Monitoring & Prevention
 
 ### 1. Automated Monitoring
+
 ```yaml
 # .github/workflows/security.yml already includes:
 - npm audit (weekly)
@@ -230,12 +249,14 @@ If time is limited, these vulnerabilities can be **accepted as low-risk** becaus
 ```
 
 ### 2. Update Strategy
+
 - Run `npm audit` weekly
 - Review Dependabot PRs promptly
 - Update dev dependencies monthly
 - Update production dependencies after testing
 
 ### 3. Documentation
+
 - This file: Current vulnerability status
 - AUDIT_REPORT.md: Full security audit
 - CRITICAL_FIXES_CHECKLIST.md: Implementation tasks

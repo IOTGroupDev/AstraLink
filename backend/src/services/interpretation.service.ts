@@ -1263,7 +1263,9 @@ Together, these form a coherent portrait of your personality and life path.`;
   /**
    * Get zodiac sign element (fire, earth, air, water)
    */
-  private getSignElement(sign: string): 'fire' | 'earth' | 'air' | 'water' | undefined {
+  private getSignElement(
+    sign: string,
+  ): 'fire' | 'earth' | 'air' | 'water' | undefined {
     const elements: Record<string, 'fire' | 'earth' | 'air' | 'water'> = {
       Aries: 'fire',
       Taurus: 'earth',
@@ -1284,7 +1286,9 @@ Together, these form a coherent portrait of your personality and life path.`;
   /**
    * Get zodiac sign quality (cardinal, fixed, mutable)
    */
-  private getSignQuality(sign: string): 'cardinal' | 'fixed' | 'mutable' | undefined {
+  private getSignQuality(
+    sign: string,
+  ): 'cardinal' | 'fixed' | 'mutable' | undefined {
     const qualities: Record<string, 'cardinal' | 'fixed' | 'mutable'> = {
       Aries: 'cardinal',
       Taurus: 'fixed',

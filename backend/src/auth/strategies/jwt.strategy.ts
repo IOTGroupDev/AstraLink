@@ -25,7 +25,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // Development-only fallback for Supabase tokens
     if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️  DEVELOPMENT MODE: Using insecure JWT decode in JwtStrategy');
+      console.warn(
+        '⚠️  DEVELOPMENT MODE: Using insecure JWT decode in JwtStrategy',
+      );
       try {
         const decoded = jwt.decode(token, { complete: false }) as any;
         if (decoded) {
@@ -43,7 +45,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         console.error('[JwtStrategy] Error decoding token:', error);
         // Fallback for simple userId tokens in development
         if (token && token.length > 10) {
-          console.log('[JwtStrategy] Treating token as userId for development:', token);
+          console.log(
+            '[JwtStrategy] Treating token as userId for development:',
+            token,
+          );
           return {
             userId: token,
             email: 'dev@example.com',
