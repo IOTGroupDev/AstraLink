@@ -260,6 +260,8 @@ export class UserService {
    */
   async listBlocksWithToken(
     userAccessToken: string,
+    limit: number = 50,
+    offset: number = 0,
   ): Promise<{ blockedUserId: string; createdAt: string }[]> {
     const { data: u, error: uErr } =
       await this.supabaseService.getUser(userAccessToken);
@@ -274,7 +276,8 @@ export class UserService {
       .from('user_blocks')
       .select('blocked_user_id, created_at')
       .eq('user_id', uid)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       throw new InternalServerErrorException(

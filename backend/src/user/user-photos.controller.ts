@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Request,
+  Query,
   HttpCode,
   HttpStatus,
   UnauthorizedException,
@@ -107,11 +108,21 @@ export class UserPhotosController {
   /**
    * GET /api/user/photos
    * Список фото пользователя с подписанными URL (TTL ~15 минут)
+   * Query params: limit (default: 50, max: 100), offset (default: 0)
    */
   @Get()
-  async listPhotos(@Request() req: AuthenticatedRequest) {
+  async listPhotos(
+    @Request() req: AuthenticatedRequest,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
     const userId = this.getUserId(req);
-    return this.photosService.listPhotos(userId);
+    const safeLimit = limit
+      ? Math.max(1, Math.min(100, parseInt(limit, 10)))
+      : 50;
+    const safeOffset = offset ? Math.max(0, parseInt(offset, 10)) : 0;
+
+    return this.photosService.listPhotos(userId, safeLimit, safeOffset);
   }
 
   /**

@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Delete,
+  Query,
   HttpCode,
   HttpStatus,
   UnauthorizedException,
@@ -124,9 +125,18 @@ export class UserController {
     summary: 'Список заблокированных пользователей текущего пользователя',
   })
   @ApiResponse({ status: 200, description: 'Список блокировок' })
-  async listBlocks(@Request() req: AuthenticatedRequest) {
+  async listBlocks(
+    @Request() req: AuthenticatedRequest,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
     const token = this.getAccessToken(req as any);
-    return this.userService.listBlocksWithToken(token);
+    const safeLimit = limit
+      ? Math.max(1, Math.min(100, parseInt(limit, 10)))
+      : 50;
+    const safeOffset = offset ? Math.max(0, parseInt(offset, 10)) : 0;
+
+    return this.userService.listBlocksWithToken(token, safeLimit, safeOffset);
   }
 
   // POST /api/user/report — пожаловаться на пользователя

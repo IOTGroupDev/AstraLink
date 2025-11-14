@@ -101,15 +101,20 @@ export class UserPhotosService {
 
   /**
    * Список фото пользователя (подписанные URL с TTL)
-   * Оптимизировано: batch создание signed URLs (N+1 → 1 запрос)
+   * Оптимизировано: batch создание signed URLs (N+1 → 1 запрос) + пагинация
    */
-  async listPhotos(userId: string): Promise<UserPhoto[]> {
+  async listPhotos(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<UserPhoto[]> {
     const admin = this.supabaseService.getAdminClient();
     const { data, error } = await admin
       .from('user_photos')
       .select('id, user_id, storage_path, is_primary, created_at') // ✅ storage_path
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1); // Supabase range для пагинации
 
     if (error) {
       console.error('❌ List photos error:', error);
