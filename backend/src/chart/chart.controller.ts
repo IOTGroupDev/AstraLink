@@ -84,6 +84,28 @@ export class ChartController {
     return this.chartService.createNatalChart(userId, chartData.data);
   }
 
+  @Post('regenerate-ai')
+  @ApiOperation({
+    summary:
+      'Регенерировать интерпретацию натальной карты с помощью AI (макс. 1 раз в 24 часа)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Интерпретация успешно регенерирована',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Превышен лимит генераций (доступна 1 раз в 24 часа)',
+  })
+  @ApiResponse({ status: 404, description: 'Натальная карта не найдена' })
+  async regenerateChartWithAI(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.regenerateChartWithAI(userId);
+  }
+
   @Get('horoscope')
   @ApiOperation({
     summary: 'Получить гороскоп на период (FREE: базовый, PREMIUM: AI)',

@@ -12,6 +12,7 @@ import {
   PredictionService,
   BiorhythmService,
 } from './services';
+import { ChartEventListener } from './listeners/chart-event.listener';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import {
     TransitService,
     PredictionService,
     BiorhythmService,
+    ChartEventListener,
   ],
   exports: [
     ChartService,

@@ -93,6 +93,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [regeneratingChart, setRegeneratingChart] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
@@ -255,6 +256,33 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigation.navigate('Subscription');
   };
 
+  const handleRegenerateChart = async () => {
+    try {
+      setRegeneratingChart(true);
+      const result = await chartAPI.regenerateChartWithAI();
+
+      if (result.success) {
+        Alert.alert('Успешно', result.message, [
+          {
+            text: 'OK',
+            onPress: () => fetchProfileData(), // Refresh chart data
+          },
+        ]);
+      } else {
+        Alert.alert('Ограничение', result.message);
+      }
+    } catch (error: any) {
+      console.error('Ошибка регенерации карты:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Не удалось регенерировать карту. Попробуйте позже.';
+      Alert.alert('Ошибка', errorMessage);
+    } finally {
+      setRegeneratingChart(false);
+    }
+  };
+
   const animatedContainerStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
   }));
@@ -385,6 +413,32 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       Посмотреть натальную{'\n'}карту с расшифровкой
                     </Text>
                     <Ionicons name="chevron-forward" size={32} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.regenerateButton}
+                  onPress={handleRegenerateChart}
+                  activeOpacity={0.8}
+                  disabled={regeneratingChart}
+                >
+                  <LinearGradient
+                    colors={['#8B5CF6', '#6D28D9']}
+                    style={styles.buttonGradient}
+                  >
+                    <Ionicons
+                      name={regeneratingChart ? 'hourglass-outline' : 'sparkles'}
+                      size={24}
+                      color="#fff"
+                    />
+                    <Text style={styles.regenerateButtonText}>
+                      {regeneratingChart
+                        ? 'Генерация...'
+                        : 'Регенерировать с AI'}
+                    </Text>
+                    {!regeneratingChart && (
+                      <Ionicons name="chevron-forward" size={24} color="#fff" />
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -690,6 +744,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 19.5,
+  },
+  regenerateButton: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  regenerateButtonText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   settingsCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',

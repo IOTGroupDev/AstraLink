@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -28,6 +29,12 @@ import { DebugController } from '@/debug/debug.controller';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    EventEmitterModule.forRoot({
+      wildcard: true,
+      delimiter: '.',
+      maxListeners: 10,
+      verboseMemoryLeak: true,
     }),
     // Rate limiting: 100 requests per 60 seconds per IP
     ThrottlerModule.forRoot([
