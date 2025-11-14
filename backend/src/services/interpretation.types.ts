@@ -22,6 +22,10 @@ export interface PlanetInterpretation {
   keywords: string[];
   strengths: string[];
   challenges: string[];
+  dignity?: 'ruler' | 'exalted' | 'triplicity' | 'neutral' | 'detriment' | 'fall'; // Essential dignity
+  isRetrograde?: boolean;
+  element?: 'fire' | 'earth' | 'air' | 'water'; // Sign element
+  quality?: 'cardinal' | 'fixed' | 'mutable'; // Sign quality
 }
 
 // Aspect interpretation result
@@ -67,6 +71,16 @@ export interface ChartSummary {
   financialApproach: string;
 }
 
+// Chart pattern interpretation
+export interface ChartPatternInterpretation {
+  type: 'grand_trine' | 't_square' | 'yod';
+  planets: string[];
+  element?: string;
+  description: string;
+  interpretation: string;
+  strength: number;
+}
+
 // Complete natal chart interpretation
 export interface NatalChartInterpretation {
   overview: string;
@@ -76,6 +90,7 @@ export interface NatalChartInterpretation {
   planets: PlanetInterpretation[];
   aspects: AspectInterpretation[];
   houses: HouseInterpretation[];
+  patterns?: ChartPatternInterpretation[]; // Chart patterns (Grand Trine, T-Square, Yod)
   summary: ChartSummary;
 }
 

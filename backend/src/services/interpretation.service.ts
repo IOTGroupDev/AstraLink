@@ -27,7 +27,13 @@ import type {
   HouseInterpretation,
   NatalChartInterpretation,
   ChartSummary,
+  ChartPatternInterpretation,
 } from './interpretation.types';
+import {
+  detectAllChartPatterns,
+  getPatternInterpretation,
+  type PlanetPosition,
+} from '../shared/astro-calculations';
 
 @Injectable()
 export class InterpretationService {
@@ -55,22 +61,30 @@ export class InterpretationService {
     // Солнце
     const sun = planets.sun;
     if (sun && sun.sign) {
+      const sunHouse = this.getPlanetHouse(sun.longitude, houses);
+      const sunDignity = getEssentialDignity('sun', sun.sign);
+      const sunRetro = !!sun.retrograde;
+
       planetsInterpretation.push({
         planet: locale === 'en' ? 'Sun' : 'Солнце',
         sign: sun.sign,
-        house: this.getPlanetHouse(sun.longitude, houses),
+        house: sunHouse,
         degree: Math.round(sun.longitude % 30),
         interpretation: this.interpretPlanetInSign(
           'sun',
           sun.sign,
-          this.getPlanetHouse(sun.longitude, houses),
-          getEssentialDignity('sun', sun.sign),
-          !!sun.retrograde,
+          sunHouse,
+          sunDignity,
+          sunRetro,
           locale,
         ),
         keywords: this.getPlanetKeywords('sun', sun.sign, locale),
         strengths: this.getPlanetStrengths('sun', sun.sign, locale),
         challenges: this.getPlanetChallenges('sun', sun.sign, locale),
+        dignity: sunDignity,
+        isRetrograde: sunRetro,
+        element: this.getSignElement(sun.sign),
+        quality: this.getSignQuality(sun.sign),
       });
     }
 
@@ -96,6 +110,10 @@ export class InterpretationService {
         keywords: this.getPlanetKeywords('moon', moon.sign, locale),
         strengths: this.getPlanetStrengths('moon', moon.sign, locale),
         challenges: this.getPlanetChallenges('moon', moon.sign, locale),
+        dignity: moonDignity,
+        isRetrograde: moonRetro,
+        element: this.getSignElement(moon.sign),
+        quality: this.getSignQuality(moon.sign),
       });
     }
 
@@ -127,6 +145,10 @@ export class InterpretationService {
           keywords: this.getPlanetKeywords(planetKey, planet.sign, locale),
           strengths: this.getPlanetStrengths(planetKey, planet.sign, locale),
           challenges: this.getPlanetChallenges(planetKey, planet.sign, locale),
+          dignity,
+          isRetrograde: retro,
+          element: this.getSignElement(planet.sign),
+          quality: this.getSignQuality(planet.sign),
         });
       }
     }
@@ -242,7 +264,16 @@ export class InterpretationService {
       keywords: this.getAscendantKeywords(ascSign, locale),
       strengths: this.getAscendantStrengths(ascSign, locale),
       challenges: this.getAscendantChallenges(ascSign, locale),
+      element: this.getSignElement(ascSign),
+      quality: this.getSignQuality(ascSign),
     };
+
+    // Определение паттернов (Grand Trine, T-Square, Yod)
+    const patternInterpretation = this.detectChartPatterns(
+      planets,
+      chartData,
+      locale,
+    );
 
     // Общий обзор
     const overview = this.generateOverview(chartData, locale);
@@ -264,6 +295,7 @@ export class InterpretationService {
       planets: planetsInterpretation,
       aspects: aspectsInterpretation,
       houses: housesInterpretation,
+      patterns: patternInterpretation,
       summary,
     };
 
@@ -1166,5 +1198,107 @@ Together, these form a coherent portrait of your personality and life path.`;
     }
 
     return finance;
+  }
+
+  /**
+   * Detect chart patterns (Grand Trine, T-Square, Yod)
+   */
+  private detectChartPatterns(
+    planets: Record<string, Planet>,
+    chartData: ChartData,
+    locale: 'ru' | 'en',
+  ): ChartPatternInterpretation[] {
+    // Convert planets to PlanetPosition format for pattern detection
+    const planetPositions: PlanetPosition[] = Object.entries(planets)
+      .filter(([_, planet]) => planet && typeof planet.longitude === 'number')
+      .map(([key, planet]) => ({
+        planet: key,
+        longitude: planet.longitude,
+        sign: planet.sign,
+      }));
+
+    // Detect all patterns
+    const detected = detectAllChartPatterns(planetPositions);
+
+    // Convert to interpretation format
+    const patterns: ChartPatternInterpretation[] = [];
+
+    // Add Grand Trines
+    detected.grandTrines.forEach((pattern) => {
+      patterns.push({
+        type: pattern.type,
+        planets: pattern.planets.map((p) => this.getPlanetName(p)),
+        element: pattern.element,
+        description: pattern.description,
+        interpretation: getPatternInterpretation(pattern, locale),
+        strength: pattern.strength,
+      });
+    });
+
+    // Add T-Squares
+    detected.tSquares.forEach((pattern) => {
+      patterns.push({
+        type: pattern.type,
+        planets: pattern.planets.map((p) => this.getPlanetName(p)),
+        description: pattern.description,
+        interpretation: getPatternInterpretation(pattern, locale),
+        strength: pattern.strength,
+      });
+    });
+
+    // Add Yods
+    detected.yods.forEach((pattern) => {
+      patterns.push({
+        type: pattern.type,
+        planets: pattern.planets.map((p) => this.getPlanetName(p)),
+        description: pattern.description,
+        interpretation: getPatternInterpretation(pattern, locale),
+        strength: pattern.strength,
+      });
+    });
+
+    return patterns;
+  }
+
+  /**
+   * Get zodiac sign element (fire, earth, air, water)
+   */
+  private getSignElement(sign: string): 'fire' | 'earth' | 'air' | 'water' | undefined {
+    const elements: Record<string, 'fire' | 'earth' | 'air' | 'water'> = {
+      Aries: 'fire',
+      Taurus: 'earth',
+      Gemini: 'air',
+      Cancer: 'water',
+      Leo: 'fire',
+      Virgo: 'earth',
+      Libra: 'air',
+      Scorpio: 'water',
+      Sagittarius: 'fire',
+      Capricorn: 'earth',
+      Aquarius: 'air',
+      Pisces: 'water',
+    };
+    return elements[sign];
+  }
+
+  /**
+   * Get zodiac sign quality (cardinal, fixed, mutable)
+   */
+  private getSignQuality(sign: string): 'cardinal' | 'fixed' | 'mutable' | undefined {
+    const qualities: Record<string, 'cardinal' | 'fixed' | 'mutable'> = {
+      Aries: 'cardinal',
+      Taurus: 'fixed',
+      Gemini: 'mutable',
+      Cancer: 'cardinal',
+      Leo: 'fixed',
+      Virgo: 'mutable',
+      Libra: 'cardinal',
+      Scorpio: 'fixed',
+      Sagittarius: 'mutable',
+      Capricorn: 'cardinal',
+      Aquarius: 'fixed',
+      Pisces: 'mutable',
+    };
+    return qualities[sign];
   }
 }

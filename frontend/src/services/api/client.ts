@@ -1,0 +1,93 @@
+import axios from 'axios';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { supabase } from '../supabase';
+
+// Ensure base URL ends with /api
+function ensureApiBase(url: string): string {
+  try {
+    const u = (url || '').trim();
+    if (!u) return '/api';
+    if (u.endsWith('/api')) return u;
+    return u.replace(/\/+$/, '') + '/api';
+  } catch {
+    return url;
+  }
+}
+
+const getApiBaseUrl = () => {
+  // 1) Явная переменная окружения имеет приоритет
+  const envUrl =
+    (typeof process !== 'undefined' &&
+      (process as any)?.env?.EXPO_PUBLIC_API_URL) ||
+    (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_URL;
+  if (envUrl) return ensureApiBase(envUrl);
+
+  // 2) Web (браузер/Expo Web): используем текущий origin
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.location
+  ) {
+    return `${window.location.origin}/api`;
+  }
+
+  // 3) Попробуем взять хост из Expo (для LAN/туннеля)
+  const anyConst: any = Constants;
+  const hostUri: string | undefined =
+    anyConst?.expoGoConfig?.hostUri ||
+    anyConst?.expoConfig?.hostUri ||
+    anyConst?.manifest2?.extra?.expoClient?.hostUri ||
+    anyConst?.manifest?.hostUri;
+
+  if (hostUri) {
+    const host = hostUri.split(':')[0];
+    return `http://${host}:3000/api`;
+  }
+
+  // 4) Фолбэк — localhost
+  return 'http://localhost:3000/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+console.log('🌐 API Base URL:', API_BASE_URL);
+
+// Create axios instance
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor - add auth token
+api.interceptors.request.use(async (config) => {
+  console.log('🔍 Получение токена для запроса:', config.url);
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+
+    if (token) {
+      (config.headers as any).Authorization = `Bearer ${token}`;
+      console.log('🔐 Добавлен токен к запросу:', config.url);
+    } else {
+      console.warn('⚠️ Нет токена для запроса:', config.url);
+    }
+  } catch (error) {
+    console.error('❌ Ошибка получения токена:', error);
+  }
+
+  return config;
+});
+
+// Response interceptor - handle 401
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      console.error('❌ 401 Unauthorized - токен истек или недействителен');
+    }
+    return Promise.reject(error);
+  }
+);

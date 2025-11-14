@@ -31,7 +31,8 @@ import ConnectionCard from '../../components/swap/ConnectionCard';
 import CosmicSnapshot from '../../components/dating/CosmicSnapshot';
 import AddConnectionModal from '../../components/modals/AddConnectionModal';
 import ShimmerLoader from '../../components/swap/old/ShimmerLoader';
-import { connectionsAPI, getStoredToken } from '../../services/api';
+import { connectionsAPI } from '../../services/api';
+import { supabase } from '../../services/supabase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -74,8 +75,8 @@ export default function ConnectionsScreen() {
     try {
       setLoading(true);
 
-      const token = getStoredToken();
-      if (!token) {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
         console.log('❌ Пользователь не авторизован, отображаем сообщение');
         setLoading(false);
         setRefreshing(false);
@@ -178,9 +179,18 @@ export default function ConnectionsScreen() {
     );
   }
 
-  // Проверка авторизации
-  const token = getStoredToken();
-  if (!token) {
+  // Проверка авторизации (checked in render)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsAuthenticated(!!data.session);
+    };
+    checkAuth();
+  }, []);
+
+  if (!isAuthenticated && !loading) {
     return (
       <LinearGradient
         colors={['#0F172A', '#1E293B', '#334155']}
