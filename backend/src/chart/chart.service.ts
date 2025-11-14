@@ -318,22 +318,15 @@ export class ChartService {
         };
       }
 
-      // 2. Check rate limiting (24 hours) using Supabase
-      const adminClient = this.supabaseService.getAdminClient();
-      const { data: chartData, error: fetchError } = await adminClient
-        .from('charts')
-        .select('ai_generated_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      // 2. Check rate limiting (24 hours) using Prisma
+      const chartData = await this.prisma.chart.findFirst({
+        where: { userId },
+        select: { aiGeneratedAt: true },
+        orderBy: { createdAt: 'desc' },
+      });
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        this.logger.error(`Error fetching chart: ${fetchError.message}`);
-      }
-
-      if (chartData?.ai_generated_at) {
-        const lastGenerated = new Date(chartData.ai_generated_at);
+      if (chartData?.aiGeneratedAt) {
+        const lastGenerated = chartData.aiGeneratedAt;
         const now = new Date();
         const hoursSinceLastGen =
           (now.getTime() - lastGenerated.getTime()) / (1000 * 60 * 60);
@@ -354,17 +347,11 @@ export class ChartService {
       // 3. Regenerate interpretation with AI
       await this.natalChartService.regenerateInterpretation(userId);
 
-      // 4. Update ai_generated_at timestamp using Supabase
-      const { error: updateError } = await adminClient
-        .from('charts')
-        .update({ ai_generated_at: new Date().toISOString() })
-        .eq('user_id', userId);
-
-      if (updateError) {
-        this.logger.error(
-          `Error updating ai_generated_at: ${updateError.message}`,
-        );
-      }
+      // 4. Update ai_generated_at timestamp using Prisma
+      await this.prisma.chart.updateMany({
+        where: { userId },
+        data: { aiGeneratedAt: new Date() },
+      });
 
       this.logger.log(`AI regeneration successful for user ${userId}`);
 

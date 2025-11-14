@@ -1,8 +1,8 @@
 // backend/src/subscription/subscription.service.ts
-// ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ - скопируйте целиком
+// ✅ MIGRATED TO PRISMA - Full Prisma integration
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   SubscriptionTier,
   SubscriptionStatusResponse,
@@ -17,7 +17,7 @@ export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
   constructor(
-    private supabaseService: SupabaseService,
+    private prisma: PrismaService,
     private aiService: AIService,
     private horoscopeService: HoroscopeGeneratorService,
   ) {}
@@ -29,17 +29,10 @@ export class SubscriptionService {
     try {
       this.logger.log(`Getting subscription status for user: ${userId}`);
 
-      // ✅ КРИТИЧНО: Используем fromAdmin!
-      const { data: subscription, error } = await this.supabaseService
-        .fromAdmin('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        this.logger.error(`Error getting subscription: ${error.message}`);
-        throw new BadRequestException('Ошибка получения статуса подписки');
-      }
+      // ✅ PRISMA: Получаем подписку через Prisma
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { userId },
+      });
 
       if (!subscription) {
         this.logger.log(`No subscription found, creating free subscription`);
@@ -49,12 +42,8 @@ export class SubscriptionService {
       this.logger.log(`Subscription found: ${JSON.stringify(subscription)}`);
 
       const tier = subscription.tier as SubscriptionTier;
-      const expiresAt = subscription.expires_at
-        ? new Date(subscription.expires_at)
-        : null;
-      const trialEndsAt = subscription.trial_ends_at
-        ? new Date(subscription.trial_ends_at)
-        : null;
+      const expiresAt = subscription.expiresAt;
+      const trialEndsAt = subscription.trialEndsAt;
       const now = new Date();
 
       const isTrial = trialEndsAt ? trialEndsAt > now : false;
@@ -124,32 +113,20 @@ export class SubscriptionService {
     const trialEndsAt = new Date(now);
     trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_CONFIG.duration);
 
-    // ✅ КРИТИЧНО: Используем fromAdmin!
-    const { error } = await this.supabaseService
-      .fromAdmin('subscriptions')
-      .upsert(
-        {
-          user_id: userId,
-          tier: SubscriptionTier.FREE,
-          trial_ends_at: TRIAL_CONFIG.enabled
-            ? trialEndsAt.toISOString()
-            : null,
-          created_at: now.toISOString(),
-          updated_at: now.toISOString(),
-        },
-        {
-          onConflict: 'user_id',
-        },
-      )
-      .select()
-      .single();
-
-    if (error) {
-      this.logger.error(`Error creating subscription: ${error.message}`);
-      throw new BadRequestException(
-        `Ошибка создания подписки: ${error.message}`,
-      );
-    }
+    // ✅ PRISMA: Используем upsert для создания или обновления
+    await this.prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        tier: SubscriptionTier.FREE,
+        trialEndsAt: TRIAL_CONFIG.enabled ? trialEndsAt : null,
+      },
+      update: {
+        tier: SubscriptionTier.FREE,
+        trialEndsAt: TRIAL_CONFIG.enabled ? trialEndsAt : null,
+        updatedAt: now,
+      },
+    });
 
     this.logger.log(`✅ Subscription created successfully`);
 
@@ -170,19 +147,17 @@ export class SubscriptionService {
     message: string;
     expiresAt: string;
   }> {
-    // ✅ КРИТИЧНО: Используем fromAdmin!
-    const { data: subscription, error } = await this.supabaseService
-      .fromAdmin('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    // ✅ PRISMA: Получаем подписку
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
 
-    if (error || !subscription) {
+    if (!subscription) {
       throw new BadRequestException('Подписка не найдена');
     }
 
-    if (subscription.trial_ends_at) {
-      const trialEndsAt = new Date(subscription.trial_ends_at);
+    if (subscription.trialEndsAt) {
+      const trialEndsAt = subscription.trialEndsAt;
       const now = new Date();
 
       if (trialEndsAt < now) {
@@ -195,19 +170,14 @@ export class SubscriptionService {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_CONFIG.duration);
 
-    // ✅ КРИТИЧНО: Используем fromAdmin!
-    const { error: updateError } = await this.supabaseService
-      .fromAdmin('subscriptions')
-      .update({
+    // ✅ PRISMA: Обновляем подписку
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: {
         tier: TRIAL_CONFIG.tier,
-        trial_ends_at: trialEndsAt.toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-
-    if (updateError) {
-      throw new BadRequestException('Ошибка активации trial');
-    }
+        trialEndsAt,
+      },
+    });
 
     this.logger.log(`Trial activated for user ${userId}`);
 
@@ -252,39 +222,33 @@ export class SubscriptionService {
     const expiresAt = new Date(now);
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-    // ✅ Обновляем или создаем подписку атомарно (upsert по user_id)
-    const { data: subData, error } = await this.supabaseService
-      .fromAdmin('subscriptions')
-      .upsert(
-        {
-          user_id: userId,
-          tier,
-          expires_at: expiresAt.toISOString(),
-          is_cancelled: false,
-          updated_at: now.toISOString(),
-          created_at: now.toISOString(),
-        },
-        { onConflict: 'user_id' },
-      )
-      .select()
-      .single();
-
-    if (error) {
-      this.logger.error(`Error upgrading subscription: ${error.message}`);
-      throw new BadRequestException('Ошибка обновления подписки');
-    }
+    // ✅ PRISMA: Обновляем или создаем подписку атомарно
+    await this.prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        tier,
+        expiresAt,
+        isCancelled: false,
+      },
+      update: {
+        tier,
+        expiresAt,
+        isCancelled: false,
+      },
+    });
 
     if (transactionId) {
-      // ✅ КРИТИЧНО: Используем fromAdmin!
-      await this.supabaseService.fromAdmin('payments').insert({
-        user_id: userId,
-        amount: tier === SubscriptionTier.PREMIUM ? 1499 : 1999,
-        currency: 'RUB',
-        status: 'completed',
-        provider: 'mock',
-        transaction_id: transactionId,
-        tier,
-        created_at: now.toISOString(),
+      // ✅ PRISMA: Создаем запись о платеже
+      await this.prisma.payment.create({
+        data: {
+          userId,
+          amount: tier === SubscriptionTier.PREMIUM ? 1499 : 1999,
+          currency: 'RUB',
+          status: 'completed',
+          stripeSessionId: transactionId,
+          tier,
+        },
       });
     }
 
@@ -292,15 +256,15 @@ export class SubscriptionService {
 
     // PREMIUM: пересчитать/перезаписать интерпретацию натальной карты через AI и прогреть гороскопы
     try {
-      // 1) Находим последнюю карту пользователя (через Admin)
-      const { data: charts } =
-        await this.supabaseService.getUserChartsAdmin(userId);
-      const chartRec =
-        Array.isArray(charts) && charts.length > 0 ? charts[0] : null;
+      // 1) Находим последнюю карту пользователя (через Prisma)
+      const chartRec = await this.prisma.chart.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
 
       // 2) Если есть AI — генерируем premium-интерпретацию и сохраняем в карту
       if (chartRec && this.aiService.isAvailable()) {
-        const chartData = chartRec.data || {};
+        const chartData = chartRec.data as any || {};
         try {
           const aiText = await this.aiService.generateChartInterpretation({
             planets: chartData?.planets,
@@ -316,13 +280,11 @@ export class SubscriptionService {
             generatedBy: 'ai',
           };
 
-          await this.supabaseService
-            .fromAdmin('charts')
-            .update({
-              data: updatedData,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', chartRec.id);
+          // ✅ PRISMA: Обновляем карту
+          await this.prisma.chart.update({
+            where: { id: chartRec.id },
+            data: { data: updatedData },
+          });
         } catch (e) {
           this.logger.warn(
             `AI interpretation generation failed for ${userId}: ${
@@ -368,18 +330,11 @@ export class SubscriptionService {
    * Отменить подписку
    */
   async cancel(userId: string) {
-    // ✅ КРИТИЧНО: Используем fromAdmin!
-    const { error } = await this.supabaseService
-      .fromAdmin('subscriptions')
-      .update({
-        is_cancelled: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-
-    if (error) {
-      throw new BadRequestException('Ошибка отмены подписки');
-    }
+    // ✅ PRISMA: Обновляем статус подписки
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: { isCancelled: true },
+    });
 
     this.logger.log(`Subscription cancelled for user ${userId}`);
 
@@ -393,16 +348,15 @@ export class SubscriptionService {
    * Даунгрейд до Free
    */
   private async downgradeToFree(userId: string) {
-    // ✅ КРИТИЧНО: Используем fromAdmin!
-    await this.supabaseService
-      .fromAdmin('subscriptions')
-      .update({
+    // ✅ PRISMA: Даунгрейд до FREE
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: {
         tier: SubscriptionTier.FREE,
-        expires_at: null,
-        is_cancelled: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
+        expiresAt: null,
+        isCancelled: false,
+      },
+    });
 
     this.logger.log(`User ${userId} downgraded to FREE`);
   }

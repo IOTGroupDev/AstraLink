@@ -82,6 +82,91 @@ model Subscription {
   @@schema("public")
 }
 
+model UserPhoto {
+  id          String       @id @default(uuid())
+  userId      String       @map("user_id")
+  storagePath String       @map("storage_path")
+  isPrimary   Boolean      @default(false) @map("is_primary")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  users       public_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isPrimary])
+  @@index([createdAt])
+  @@map("user_photos")
+  @@schema("public")
+}
+
+model UserProfile {
+  userId     String       @id @map("user_id")
+  bio        String?
+  zodiacSign String?      @map("zodiac_sign")
+  interests  String[]     @default([])
+  lookingFor String?      @map("looking_for")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  users      public_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+  @@schema("public")
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  amount          Decimal  @db.Decimal(10, 2)
+  currency        String   @default("USD")
+  status          String   @default("pending")
+  stripeSessionId String?  @map("stripe_session_id")
+  tier            String
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payments")
+  @@schema("public")
+}
+
+model FeatureUsage {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  featureName String   @map("feature_name")
+  usedAt      DateTime @default(now()) @map("used_at")
+
+  @@index([userId])
+  @@index([featureName])
+  @@index([usedAt])
+  @@map("feature_usage")
+  @@schema("public")
+}
+
+model UserBlock {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  blockedUserId String   @map("blocked_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, blockedUserId])
+  @@index([userId])
+  @@index([blockedUserId])
+  @@map("user_blocks")
+  @@schema("public")
+}
+
+model UserReport {
+  id             String   @id @default(uuid())
+  reporterId     String   @map("reporter_id")
+  reportedUserId String   @map("reported_user_id")
+  reason         String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([reportedUserId])
+  @@index([reporterId])
+  @@map("user_reports")
+  @@schema("public")
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model audit_log_entries {
@@ -436,6 +521,8 @@ model public_users {
   connections    Connection[]
   dating_matches DatingMatch[]
   subscriptions  Subscription?
+  photos         UserPhoto[]
+  profile        UserProfile?
 
   @@index([created_at])
   @@index([email])

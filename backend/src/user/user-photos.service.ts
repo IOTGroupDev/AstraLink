@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 
 export interface UserPhoto {
@@ -21,7 +22,10 @@ export class UserPhotosService {
   private readonly BUCKET = 'user-photos';
   private readonly logger = new Logger(UserPhotosService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * Создать одноразовый signed upload URL для загрузки фото в Storage.
@@ -47,57 +51,36 @@ export class UserPhotosService {
    * Первое фото пользователя может быть автоматически помечено как primary = true
    */
   async confirmPhoto(userId: string, path: string): Promise<UserPhoto> {
-    const admin = this.supabaseService.getAdminClient();
+    // ✅ PRISMA: Проверяем, есть ли уже фото у пользователя
+    const existingCount = await this.prisma.userPhoto.count({
+      where: { userId },
+    });
 
-    // Узнаем, есть ли уже фото у пользователя
-    const { data: existing, error: listErr } = await admin
-      .from('user_photos')
-      .select('id')
-      .eq('user_id', userId)
-      .limit(1);
+    const isFirst = existingCount === 0;
 
-    if (listErr) {
-      this.logger.error('Check existing photos error', listErr);
-      throw new BadRequestException('Failed to check existing photos');
-    }
+    // ✅ PRISMA: Создаем запись о фото
+    const photo = await this.prisma.userPhoto.create({
+      data: {
+        userId,
+        storagePath: path,
+        isPrimary: isFirst,
+      },
+    });
 
-    const isFirst = !existing || existing.length === 0;
-
-    const now = new Date().toISOString();
-    const { data, error } = await admin
-      .from('user_photos')
-      .insert({
-        user_id: userId,
-        storage_path: path, // ✅ Используем storage_path
-        is_primary: isFirst,
-        created_at: now,
-      })
-      .select('id, user_id, storage_path, is_primary, created_at') // ✅ storage_path
-      .single();
-
-    if (error || !data) {
-      this.logger.error('Insert photo error', error);
-      throw new BadRequestException(
-        `Failed to confirm user photo: ${error?.message || 'unknown'}`,
-      );
-    }
-
+    // Storage operation остается на Supabase
     const url = await this.supabaseService.createSignedUrl(
       this.BUCKET,
-      data.storage_path, // ✅ storage_path
+      photo.storagePath,
       900,
     );
 
     return {
-      id: data.id,
-      userId: data.user_id,
-      path: data.storage_path, // ✅ storage_path
-      isPrimary: !!data.is_primary,
+      id: photo.id,
+      userId: photo.userId,
+      path: photo.storagePath,
+      isPrimary: photo.isPrimary,
       url,
-      createdAt:
-        typeof data.created_at === 'string'
-          ? data.created_at
-          : new Date(data.created_at).toISOString(),
+      createdAt: photo.createdAt.toISOString(),
     };
   }
 
@@ -110,23 +93,16 @@ export class UserPhotosService {
     limit: number = 50,
     offset: number = 0,
   ): Promise<UserPhoto[]> {
-    const admin = this.supabaseService.getAdminClient();
-    const { data, error } = await admin
-      .from('user_photos')
-      .select('id, user_id, storage_path, is_primary, created_at') // ✅ storage_path
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1); // Supabase range для пагинации
-
-    if (error) {
-      this.logger.error('List photos error', error);
-      throw new BadRequestException('Failed to list user photos');
-    }
-
-    const rows = Array.isArray(data) ? data : [];
+    // ✅ PRISMA: Получаем список фото с пагинацией
+    const photos = await this.prisma.userPhoto.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+    });
 
     // Batch создание signed URLs для всех фото одним запросом (вместо N запросов)
-    const paths = rows.map((r) => r.storage_path);
+    const paths = photos.map((p: any) => p.storagePath);
     const urlsMap = await this.supabaseService.createSignedUrlsBatch(
       this.BUCKET,
       paths,
@@ -134,16 +110,13 @@ export class UserPhotosService {
     );
 
     // Собираем результат с O(1) доступом к URL
-    const result: UserPhoto[] = rows.map((r) => ({
-      id: r.id,
-      userId: r.user_id,
-      path: r.storage_path,
-      isPrimary: !!r.is_primary,
-      url: urlsMap.get(r.storage_path) ?? null,
-      createdAt:
-        typeof r.created_at === 'string'
-          ? r.created_at
-          : new Date(r.created_at).toISOString(),
+    const result: UserPhoto[] = photos.map((p: any) => ({
+      id: p.id,
+      userId: p.userId,
+      path: p.storagePath,
+      isPrimary: p.isPrimary,
+      url: urlsMap.get(p.storagePath) ?? null,
+      createdAt: p.createdAt.toISOString(),
     }));
 
     return result;
@@ -169,45 +142,31 @@ export class UserPhotosService {
 
   /**
    * Назначить primary через прямое обновление (не требует RPC миграции)
-   * Использует admin client для обхода RLS
    */
   async setPrimaryDirect(userId: string, photoId: string): Promise<void> {
-    const admin = this.supabaseService.getAdminClient();
+    // ✅ PRISMA: Проверяем, что фото существует и принадлежит пользователю
+    const photo = await this.prisma.userPhoto.findUnique({
+      where: { id: photoId },
+      select: { userId: true },
+    });
 
-    // Проверяем, что фото существует и принадлежит пользователю
-    const { data: photo, error: checkErr } = await admin
-      .from('user_photos')
-      .select('id, user_id')
-      .eq('id', photoId)
-      .eq('user_id', userId)
-      .single();
-
-    if (checkErr || !photo) {
+    if (!photo || photo.userId !== userId) {
       throw new NotFoundException('Photo not found or does not belong to user');
     }
 
-    // Сбрасываем is_primary для всех фото пользователя
-    const { error: resetErr } = await admin
-      .from('user_photos')
-      .update({ is_primary: false })
-      .eq('user_id', userId);
-
-    if (resetErr) {
-      this.logger.error('Failed to reset primary photos', resetErr);
-      throw new BadRequestException('Failed to reset primary photos');
-    }
-
-    // Устанавливаем is_primary для выбранного фото
-    const { error: updateErr } = await admin
-      .from('user_photos')
-      .update({ is_primary: true })
-      .eq('id', photoId)
-      .eq('user_id', userId);
-
-    if (updateErr) {
-      this.logger.error('Failed to set primary photo', updateErr);
-      throw new BadRequestException('Failed to set primary photo');
-    }
+    // ✅ PRISMA: Используем транзакцию для атомарной операции
+    await this.prisma.$transaction([
+      // Сбрасываем is_primary для всех фото пользователя
+      this.prisma.userPhoto.updateMany({
+        where: { userId },
+        data: { isPrimary: false },
+      }),
+      // Устанавливаем is_primary для выбранного фото
+      this.prisma.userPhoto.update({
+        where: { id: photoId },
+        data: { isPrimary: true },
+      }),
+    ]);
   }
 
   /**
@@ -217,41 +176,31 @@ export class UserPhotosService {
     userId: string,
     photoId: string,
   ): Promise<{ success: boolean }> {
-    const admin = this.supabaseService.getAdminClient();
+    // ✅ PRISMA: Найдем запись чтобы знать path
+    const photo = await this.prisma.userPhoto.findUnique({
+      where: { id: photoId },
+      select: { userId: true, storagePath: true },
+    });
 
-    // Найдем запись чтобы знать path
-    const { data: photo, error: readErr } = await admin
-      .from('user_photos')
-      .select('id, user_id, storage_path, is_primary') // ✅ storage_path
-      .eq('id', photoId)
-      .eq('user_id', userId)
-      .single();
-
-    if (readErr || !photo) {
+    if (!photo || photo.userId !== userId) {
       throw new NotFoundException('Photo not found');
     }
 
-    // Удаляем объект из Storage
+    // Storage deletion остается на Supabase
+    const admin = this.supabaseService.getAdminClient();
     const { error: storageErr } = await admin.storage
       .from(this.BUCKET)
-      .remove([photo.storage_path]); // ✅ storage_path
+      .remove([photo.storagePath]);
 
     if (storageErr) {
       this.logger.warn('Storage delete error', storageErr);
       // Логируем, но продолжаем удаление записи, чтобы не зависеть от Storage состояния
     }
 
-    // Удаляем запись
-    const { error: delErr } = await admin
-      .from('user_photos')
-      .delete()
-      .eq('id', photoId)
-      .eq('user_id', userId);
-
-    if (delErr) {
-      this.logger.error('Delete photo row error', delErr);
-      throw new BadRequestException('Failed to delete photo row');
-    }
+    // ✅ PRISMA: Удаляем запись из БД
+    await this.prisma.userPhoto.delete({
+      where: { id: photoId },
+    });
 
     return { success: true };
   }
