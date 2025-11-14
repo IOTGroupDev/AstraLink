@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 const compression = require('compression');
 const helmet = require('helmet');
@@ -25,12 +25,14 @@ function getLocalIP(): string {
 }
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
   // Validate environment variables on startup
   try {
     validateEnv();
-    console.log('✅ Environment variables validated successfully');
+    logger.log('✅ Environment variables validated successfully');
   } catch (error) {
-    console.error((error as Error).message);
+    logger.error((error as Error).message);
     process.exit(1);
   }
 
@@ -112,13 +114,13 @@ async function bootstrap() {
 
   await app.listen(port, '0.0.0.0');
 
-  console.log('\n' + '='.repeat(60));
-  console.log('🚀 AstraLink Backend успешно запущен!');
-  console.log('='.repeat(60));
-  console.log(`📱 Для Expo используйте: http://${localIP}:${port}/api`);
-  console.log(`📚 Swagger: http://localhost:${port}/api/docs`);
-  console.log(`🌐 Локальный IP: ${localIP}`);
-  console.log(`🔌 Порт: ${port}`);
-  console.log('='.repeat(60) + '\n');
+  logger.log('\n' + '='.repeat(60));
+  logger.log('🚀 AstraLink Backend successfully started!');
+  logger.log('='.repeat(60));
+  logger.log(`📱 For Expo use: http://${localIP}:${port}/api`);
+  logger.log(`📚 Swagger: http://localhost:${port}/api/docs`);
+  logger.log(`🌐 Local IP: ${localIP}`);
+  logger.log(`🔌 Port: ${port}`);
+  logger.log('='.repeat(60) + '\n');
 }
 void bootstrap();

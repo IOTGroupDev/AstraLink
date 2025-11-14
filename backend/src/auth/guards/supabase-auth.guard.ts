@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { SupabaseService } from '../../supabase/supabase.service';
@@ -11,6 +12,8 @@ import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(SupabaseAuthGuard.name);
+
   constructor(
     private supabaseService: SupabaseService,
     private reflector: Reflector,
@@ -53,11 +56,9 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     if (!token) {
-      console.log('[SupabaseAuthGuard] No or invalid Authorization header', {
-        path: request.path,
-        hasAuthHeader: !!authHeader,
-        headerPreview: authHeader ? authHeader.slice(0, 20) : null,
-      });
+      this.logger.debug(
+        `No or invalid Authorization header for path ${request.path}`,
+      );
       throw new UnauthorizedException('Токен авторизации не предоставлен');
     }
 
@@ -67,19 +68,14 @@ export class SupabaseAuthGuard implements CanActivate {
       const user = data?.user;
 
       if (error || !user) {
-        console.warn(
-          '[SupabaseAuthGuard] Supabase getUser failed or returned no user',
-          {
-            hasError: !!error,
-            errorMessage: (error as any)?.message,
-            tokenLen: token?.length || 0,
-          },
+        this.logger.warn(
+          `Supabase getUser failed: ${(error as any)?.message || 'no user'}`,
         );
 
         // Development-only fallback: decode JWT without verifying signature
         // SECURITY: This fallback is ONLY enabled in development mode
         if (process.env.NODE_ENV === 'development') {
-          console.warn(
+          this.logger.warn(
             '⚠️  DEVELOPMENT MODE: Using insecure JWT decode fallback',
           );
           try {
@@ -98,28 +94,17 @@ export class SupabaseAuthGuard implements CanActivate {
                 role: decoded?.role,
                 rawUser: decoded,
               };
-              console.log(
-                '[SupabaseAuthGuard] DEV fallback decode success, user attached:',
-                {
-                  userId,
-                  hasEmail: !!decoded?.email,
-                },
-              );
+              this.logger.debug(`DEV fallback decode success for user ${userId}`);
               return true;
             }
           } catch (decodeErr) {
             const errorMessage =
               decodeErr instanceof Error ? decodeErr.message : 'Unknown error';
-            console.error(
-              '[SupabaseAuthGuard] JWT decode fallback failed:',
-              errorMessage,
-            );
+            this.logger.error(`JWT decode fallback failed: ${errorMessage}`);
           }
         } else {
           // In production: reject invalid tokens immediately
-          console.error(
-            '[SupabaseAuthGuard] Token validation failed in production',
-          );
+          this.logger.error('Token validation failed in production');
         }
 
         throw new UnauthorizedException('Недействительный токен');
@@ -136,10 +121,7 @@ export class SupabaseAuthGuard implements CanActivate {
 
       return true;
     } catch (e: any) {
-      console.error(
-        '[SupabaseAuthGuard] Token validation failed:',
-        e?.message || e,
-      );
+      this.logger.error(`Token validation failed: ${e?.message || e}`);
       throw new UnauthorizedException('Ошибка проверки токена');
     }
   }
