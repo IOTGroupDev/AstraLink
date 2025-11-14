@@ -11,6 +11,7 @@ import { NatalChartService } from './services/natal-chart.service';
 import { TransitService } from './services/transit.service';
 import { PredictionService } from './services/prediction.service';
 import { BiorhythmService } from './services/biorhythm.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class ChartService {
@@ -24,6 +25,7 @@ export class ChartService {
     private transitService: TransitService,
     private predictionService: PredictionService,
     private biorhythmService: BiorhythmService,
+    private supabaseService: SupabaseService,
   ) {}
 
   // ============================================================
@@ -237,15 +239,22 @@ export class ChartService {
         };
       }
 
-      // 2. Check rate limiting (24 hours)
-      const chartData = await this.prisma.chart.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        select: { aiGeneratedAt: true },
-      });
+      // 2. Check rate limiting (24 hours) using Supabase
+      const adminClient = this.supabaseService.getAdminClient();
+      const { data: chartData, error: fetchError } = await adminClient
+        .from('charts')
+        .select('ai_generated_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-      if (chartData?.aiGeneratedAt) {
-        const lastGenerated = new Date(chartData.aiGeneratedAt);
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        this.logger.error(`Error fetching chart: ${fetchError.message}`);
+      }
+
+      if (chartData?.ai_generated_at) {
+        const lastGenerated = new Date(chartData.ai_generated_at);
         const now = new Date();
         const hoursSinceLastGen =
           (now.getTime() - lastGenerated.getTime()) / (1000 * 60 * 60);
@@ -266,11 +275,17 @@ export class ChartService {
       // 3. Regenerate interpretation with AI
       await this.natalChartService.regenerateInterpretation(userId);
 
-      // 4. Update ai_generated_at timestamp
-      await this.prisma.chart.updateMany({
-        where: { userId },
-        data: { aiGeneratedAt: new Date() },
-      });
+      // 4. Update ai_generated_at timestamp using Supabase
+      const { error: updateError } = await adminClient
+        .from('charts')
+        .update({ ai_generated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        this.logger.error(
+          `Error updating ai_generated_at: ${updateError.message}`,
+        );
+      }
 
       this.logger.log(`AI regeneration successful for user ${userId}`);
 
@@ -278,10 +293,9 @@ export class ChartService {
         success: true,
         message: 'Гороскоп успешно обновлен с помощью AI',
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `Failed to regenerate chart for user ${userId}:`,
-        error,
+        `Failed to regenerate chart for user ${userId}: ${error?.message || String(error)}`,
       );
 
       return {
