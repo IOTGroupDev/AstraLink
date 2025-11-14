@@ -61,22 +61,30 @@ export class InterpretationService {
     // Солнце
     const sun = planets.sun;
     if (sun && sun.sign) {
+      const sunHouse = this.getPlanetHouse(sun.longitude, houses);
+      const sunDignity = getEssentialDignity('sun', sun.sign);
+      const sunRetro = !!sun.retrograde;
+
       planetsInterpretation.push({
         planet: locale === 'en' ? 'Sun' : 'Солнце',
         sign: sun.sign,
-        house: this.getPlanetHouse(sun.longitude, houses),
+        house: sunHouse,
         degree: Math.round(sun.longitude % 30),
         interpretation: this.interpretPlanetInSign(
           'sun',
           sun.sign,
-          this.getPlanetHouse(sun.longitude, houses),
-          getEssentialDignity('sun', sun.sign),
-          !!sun.retrograde,
+          sunHouse,
+          sunDignity,
+          sunRetro,
           locale,
         ),
         keywords: this.getPlanetKeywords('sun', sun.sign, locale),
         strengths: this.getPlanetStrengths('sun', sun.sign, locale),
         challenges: this.getPlanetChallenges('sun', sun.sign, locale),
+        dignity: sunDignity,
+        isRetrograde: sunRetro,
+        element: this.getSignElement(sun.sign),
+        quality: this.getSignQuality(sun.sign),
       });
     }
 
@@ -102,6 +110,10 @@ export class InterpretationService {
         keywords: this.getPlanetKeywords('moon', moon.sign, locale),
         strengths: this.getPlanetStrengths('moon', moon.sign, locale),
         challenges: this.getPlanetChallenges('moon', moon.sign, locale),
+        dignity: moonDignity,
+        isRetrograde: moonRetro,
+        element: this.getSignElement(moon.sign),
+        quality: this.getSignQuality(moon.sign),
       });
     }
 
@@ -133,6 +145,10 @@ export class InterpretationService {
           keywords: this.getPlanetKeywords(planetKey, planet.sign, locale),
           strengths: this.getPlanetStrengths(planetKey, planet.sign, locale),
           challenges: this.getPlanetChallenges(planetKey, planet.sign, locale),
+          dignity,
+          isRetrograde: retro,
+          element: this.getSignElement(planet.sign),
+          quality: this.getSignQuality(planet.sign),
         });
       }
     }
@@ -248,6 +264,8 @@ export class InterpretationService {
       keywords: this.getAscendantKeywords(ascSign, locale),
       strengths: this.getAscendantStrengths(ascSign, locale),
       challenges: this.getAscendantChallenges(ascSign, locale),
+      element: this.getSignElement(ascSign),
+      quality: this.getSignQuality(ascSign),
     };
 
     // Определение паттернов (Grand Trine, T-Square, Yod)
@@ -1240,5 +1258,47 @@ Together, these form a coherent portrait of your personality and life path.`;
     });
 
     return patterns;
+  }
+
+  /**
+   * Get zodiac sign element (fire, earth, air, water)
+   */
+  private getSignElement(sign: string): 'fire' | 'earth' | 'air' | 'water' | undefined {
+    const elements: Record<string, 'fire' | 'earth' | 'air' | 'water'> = {
+      Aries: 'fire',
+      Taurus: 'earth',
+      Gemini: 'air',
+      Cancer: 'water',
+      Leo: 'fire',
+      Virgo: 'earth',
+      Libra: 'air',
+      Scorpio: 'water',
+      Sagittarius: 'fire',
+      Capricorn: 'earth',
+      Aquarius: 'air',
+      Pisces: 'water',
+    };
+    return elements[sign];
+  }
+
+  /**
+   * Get zodiac sign quality (cardinal, fixed, mutable)
+   */
+  private getSignQuality(sign: string): 'cardinal' | 'fixed' | 'mutable' | undefined {
+    const qualities: Record<string, 'cardinal' | 'fixed' | 'mutable'> = {
+      Aries: 'cardinal',
+      Taurus: 'fixed',
+      Gemini: 'mutable',
+      Cancer: 'cardinal',
+      Leo: 'fixed',
+      Virgo: 'mutable',
+      Libra: 'cardinal',
+      Scorpio: 'fixed',
+      Sagittarius: 'mutable',
+      Capricorn: 'cardinal',
+      Aquarius: 'fixed',
+      Pisces: 'mutable',
+    };
+    return qualities[sign];
   }
 }
