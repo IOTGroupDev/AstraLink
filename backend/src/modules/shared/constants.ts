@@ -36,38 +36,70 @@ export const SIGNS = [
 ] as const;
 
 export const ASPECTS = {
+  // Major aspects
   CONJUNCTION: 'conjunction',
   SEXTILE: 'sextile',
   SQUARE: 'square',
   TRINE: 'trine',
   OPPOSITION: 'opposition',
+  // Minor aspects
+  SEMI_SEXTILE: 'semi-sextile',
+  SEMI_SQUARE: 'semi-square',
+  SESQUIQUADRATE: 'sesquiquadrate',
+  QUINCUNX: 'quincunx',
+  QUINTILE: 'quintile',
+  BIQUINTILE: 'biquintile',
 } as const;
 
 // Углы аспектов в градусах
 export const ASPECT_ANGLES = {
+  // Major aspects
   [ASPECTS.CONJUNCTION]: 0,
   [ASPECTS.SEXTILE]: 60,
   [ASPECTS.SQUARE]: 90,
   [ASPECTS.TRINE]: 120,
   [ASPECTS.OPPOSITION]: 180,
+  // Minor aspects
+  [ASPECTS.SEMI_SEXTILE]: 30,
+  [ASPECTS.SEMI_SQUARE]: 45,
+  [ASPECTS.SESQUIQUADRATE]: 135,
+  [ASPECTS.QUINCUNX]: 150,
+  [ASPECTS.QUINTILE]: 72,
+  [ASPECTS.BIQUINTILE]: 144,
 } as const;
 
 // Орбы аспектов (допустимые отклонения)
 export const ASPECT_ORBS = {
+  // Major aspects (wider orbs)
   [ASPECTS.CONJUNCTION]: 8,
   [ASPECTS.SEXTILE]: 6,
   [ASPECTS.SQUARE]: 8,
   [ASPECTS.TRINE]: 8,
   [ASPECTS.OPPOSITION]: 8,
+  // Minor aspects (tighter orbs)
+  [ASPECTS.SEMI_SEXTILE]: 2,
+  [ASPECTS.SEMI_SQUARE]: 2,
+  [ASPECTS.SESQUIQUADRATE]: 2,
+  [ASPECTS.QUINCUNX]: 3,
+  [ASPECTS.QUINTILE]: 2,
+  [ASPECTS.BIQUINTILE]: 2,
 } as const;
 
 // Весовые коэффициенты аспектов для совместимости
 export const ASPECT_WEIGHTS = {
+  // Major aspects
   [ASPECTS.CONJUNCTION]: 0.8,
   [ASPECTS.SEXTILE]: 0.9,
   [ASPECTS.SQUARE]: 0.3,
   [ASPECTS.TRINE]: 1.0,
   [ASPECTS.OPPOSITION]: 0.5,
+  // Minor aspects (lower weight)
+  [ASPECTS.SEMI_SEXTILE]: 0.4,
+  [ASPECTS.SEMI_SQUARE]: 0.3,
+  [ASPECTS.SESQUIQUADRATE]: 0.3,
+  [ASPECTS.QUINCUNX]: 0.5,
+  [ASPECTS.QUINTILE]: 0.6,
+  [ASPECTS.BIQUINTILE]: 0.6,
 } as const;
 
 // Константы для биоритмов

@@ -4,11 +4,19 @@
  */
 
 export type AspectType =
+  // Major aspects
   | 'conjunction'
   | 'sextile'
   | 'square'
   | 'trine'
-  | 'opposition';
+  | 'opposition'
+  // Minor aspects
+  | 'semi-sextile'
+  | 'semi-square'
+  | 'sesquiquadrate'
+  | 'quincunx'
+  | 'quintile'
+  | 'biquintile';
 
 export interface AspectDefinition {
   type: AspectType;
@@ -23,25 +31,41 @@ export interface AspectResult {
 }
 
 /**
- * Default orbs for major aspects
+ * Default orbs for aspects (major have wider orbs, minor have tighter orbs)
  */
 export const DEFAULT_ASPECT_ORBS: Record<AspectType, number> = {
+  // Major aspects
   conjunction: 8,
   sextile: 6,
   square: 8,
   trine: 8,
   opposition: 8,
+  // Minor aspects
+  'semi-sextile': 2,
+  'semi-square': 2,
+  sesquiquadrate: 2,
+  quincunx: 3,
+  quintile: 2,
+  biquintile: 2,
 };
 
 /**
  * Aspect definitions with angles
  */
 export const ASPECT_DEFINITIONS: Array<Omit<AspectDefinition, 'orb'>> = [
+  // Major aspects
   { type: 'conjunction', angle: 0 },
   { type: 'sextile', angle: 60 },
   { type: 'square', angle: 90 },
   { type: 'trine', angle: 120 },
   { type: 'opposition', angle: 180 },
+  // Minor aspects
+  { type: 'semi-sextile', angle: 30 },
+  { type: 'semi-square', angle: 45 },
+  { type: 'sesquiquadrate', angle: 135 },
+  { type: 'quincunx', angle: 150 },
+  { type: 'quintile', angle: 72 },
+  { type: 'biquintile', angle: 144 },
 ];
 
 /**
