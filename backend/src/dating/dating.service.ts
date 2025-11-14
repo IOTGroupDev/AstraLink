@@ -245,8 +245,8 @@ export class DatingService {
           const ch = u.charts[0]; // First chart (already sorted by createdAt desc)
           chartsMap.set(u.id, {
             user_id: u.id,
-            data: ch.data,
-            created_at: ch.createdAt,
+            data: ch.data as any,
+            created_at: ch.createdAt.toISOString(),
           } as UserChart);
         }
       }
@@ -366,8 +366,8 @@ export class DatingService {
               const ch = u.charts[0];
               chartsById.set(u.id, {
                 user_id: u.id,
-                data: ch.data,
-                created_at: ch.createdAt,
+                data: ch.data as any,
+                created_at: ch.createdAt.toISOString(),
               } as UserChart);
             }
 
@@ -756,8 +756,8 @@ export class DatingService {
       userData.charts && userData.charts.length > 0
         ? {
             user_id: userData.id,
-            data: userData.charts[0].data,
-            created_at: userData.charts[0].createdAt,
+            data: userData.charts[0].data as any,
+            created_at: userData.charts[0].createdAt.toISOString(),
           }
         : null;
 
@@ -781,31 +781,40 @@ export class DatingService {
       profile?.display_name ?? user?.name ?? emailPrefix ?? null;
 
     // Знак: приоритет профиля, затем карты
+    const chartData = chart?.data as any;
     const sunSign =
       profile?.zodiac_sign ??
-      chart?.data?.planets?.sun?.sign ??
-      chart?.data?.data?.planets?.sun?.sign ??
+      chartData?.planets?.sun?.sign ??
+      chartData?.data?.planets?.sun?.sign ??
       null;
 
-    // Интересы — поддержка разных форматов (JSON, строка, массив)
+    // Интересы - в новой схеме это уже массив strings
     let interests: string[] | null = null;
     try {
-      const prefsRaw = profile?.preferences;
-      let prefsObj: any = prefsRaw;
-      if (typeof prefsRaw === 'string') {
+      const prefsRaw = profile?.preferences as any;
+      // Если это уже массив (из interests поля)
+      if (Array.isArray(prefsRaw)) {
+        interests = prefsRaw.filter((x: any) => typeof x === 'string');
+      } else if (typeof prefsRaw === 'string') {
+        // Если это строка - пробуем разобрать
         try {
-          prefsObj = JSON.parse(prefsRaw);
+          const parsed = JSON.parse(prefsRaw);
+          if (Array.isArray(parsed)) {
+            interests = parsed.filter((x: any) => typeof x === 'string');
+          } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.interests)) {
+            interests = parsed.interests.filter((x: any) => typeof x === 'string');
+          }
         } catch {
-          // строка без JSON — пробуем разделить по запятым
+          // Не JSON - разделяем по запятым
           const splitted = prefsRaw
             .split(',')
             .map((s: string) => s.trim())
             .filter(Boolean);
           if (splitted.length) interests = splitted;
         }
-      }
-      if (!interests && prefsObj && typeof prefsObj === 'object') {
-        const intr = prefsObj?.interests;
+      } else if (prefsRaw && typeof prefsRaw === 'object') {
+        // Если это объект с полем interests
+        const intr = (prefsRaw as any)?.interests;
         if (Array.isArray(intr)) {
           interests = intr.filter((x: any) => typeof x === 'string');
         } else if (typeof intr === 'string') {
@@ -817,7 +826,7 @@ export class DatingService {
         }
       }
     } catch {
-      interests = interests ?? null;
+      interests = null;
     }
 
     // Фото (Storage operations remain on Supabase)
