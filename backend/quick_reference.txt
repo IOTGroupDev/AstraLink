@@ -1,0 +1,174 @@
+================================================================================
+                    ASTRALINK BACKEND - QUICK REFERENCE
+                  Supabase Client vs Prisma Data Access
+================================================================================
+
+LEGEND:
+  ✅ = Uses this technology
+  ❌ = Does NOT use this technology
+  ⚠️  = Mixed/Inconsistent usage
+  * = Should be migrated
+
+================================================================================
+KEY FINDINGS AT A GLANCE
+================================================================================
+
+Total Tables Accessed:        14
+├─ In Prisma:                5  (charts, connections, dating_matches, 
+│                                subscriptions, users)
+└─ Supabase Only:            10 (user_profiles, user_photos, user_blocks, 
+                                 user_reports, messages, matches, payments,
+                                 feature_usage, user_fomo_counters, _test)
+
+================================================================================
+SERVICES & THEIR DATA ACCESS PATTERNS
+================================================================================
+
+┌─ USER SERVICE (user.service.ts) ─────────────────────────────────────────┐
+│  ✅ Prisma:  public_users, chart, connection, datingMatch, subscription  │
+│  ✅ Supabase: users (upsert), user_blocks, user_reports, charts (delete) │
+│  💡 Uses Prisma $transaction() for account deletion (GOOD!)              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHART SERVICE (chart.service.ts) ──────────────────────────────────────┐
+│  ✅ Prisma:  subscription (caching)                                      │
+│  ⚠️ Supabase: charts (AI timestamp, rate limiting)           *SHOULD FIX│
+│  💡 Mixed pattern - should consolidate to Prisma                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ DATING SERVICE (dating.service.ts) ────────────────────────────────────┐
+│  ✅ Prisma:  chart, datingMatch                                          │
+│  ⚠️ Supabase: users, user_profiles *, user_photos, charts       *NEEDS  │
+│  💡 user_profiles NOT in Prisma - CRITICAL GAP                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ SUBSCRIPTION SERVICE (subscription.service.ts) ───────────────────────┐
+│  ✅ Supabase: subscriptions, payments, charts, feature_usage ⚠️ WRONG! │
+│  ❌ Prisma:  NOT USED (should be!)                            *MUST FIX│
+│  💡 Subscription IS in Prisma schema but service ignores it!           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ CONNECTIONS SERVICE (connections.service.ts) ─────────────────────────┐
+│  ✅ Prisma:  connection, chart                                          │
+│  ❌ Supabase: Not used                                                  │
+│  💡 PERFECT - Pure Prisma pattern                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ USER PHOTOS SERVICE (user-photos.service.ts) ──────────────────────────┐
+│  ✅ Supabase: user_photos                                               │
+│  ❌ Prisma:  Not used (table NOT in schema)                *SHOULD ADD   │
+│  💡 100% Supabase dependency - needs migration                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ USER REPOSITORY (user.repository.ts) ──────────────────────────────────┐
+│  ⚠️ Fallback Pattern: Prisma → Supabase Admin → Test Users             │
+│  📍 Direct Supabase calls: users, user_profiles (ADMIN)                │
+│  💡 Mixed approach - unclear which is primary                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHART REPOSITORY (chart.repository.ts) ────────────────────────────────┐
+│  ⚠️ Fallback Pattern: Prisma → Supabase Admin → Supabase Regular       │
+│  📍 Prisma: chart CRUD operations                                      │
+│  📍 Supabase: Fallback via getUserChartsAdmin()                        │
+│  💡 Good Prisma-first approach but has fallbacks                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+└──────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+TABLES NOT IN PRISMA SCHEMA (CRITICAL GAPS)
+================================================================================
+
+Table                 Used In                  Operations    Priority
+────────────────────────────────────────────────────────────────────────
+user_profiles         dating.service.ts        SELECT        CRITICAL
+                      user.controller.ts       UPDATE
+
+user_photos           user-photos.service.ts   CRUD          HIGH
+                      dating.service.ts        SELECT
+                      chat.service.ts
+
+user_blocks           user.service.ts          INSERT/SELECT MEDIUM
+
+user_reports          user.service.ts          INSERT        MEDIUM
+
+messages              chat.service.ts          CRUD          MEDIUM
+
+matches               chat.service.ts          CRUD          MEDIUM
+
+payments              subscription.service.ts  INSERT/SELECT MEDIUM
+
+feature_usage         analytics.service.ts     SELECT/INSERT MEDIUM
+
+user_fomo_counters    (referenced)             Unknown       LOW
+
+_test_connection      (test table)             Test ops      IGNORE
+
+================================================================================
+TABLES THAT ARE IN BOTH PRISMA AND SUPABASE (INCONSISTENT)
+================================================================================
+
+Table              Prisma ✅  Supabase ✅  Primary Access      Issue
+────────────────────────────────────────────────────────────────────────
+charts             YES        YES         ⚠️ MIXED             Used via both
+                                         (Prisma in dating,    in same service
+                                          Supabase in chart)
+
+subscriptions      YES        YES         ⚠️ WRONG             Subscription
+                                         (Supabase only)       service ignores
+                                                              Prisma model
+
+users (public)     YES        YES         ⚠️ MIXED             Used via both
+                                         (Prisma in some,      in mixed pattern
+                                          Supabase in other)
+
+================================================================================
+ACTION ITEMS (BY PRIORITY)
+================================================================================
+
+CRITICAL (Fix First):
+  [1] subscription.service.ts - Replace .fromAdmin() with Prisma client
+  [2] Add user_profiles to prisma/schema.prisma
+  [3] Update chart.service.ts to use Prisma for AI generation timestamp
+
+HIGH PRIORITY (Do Next):
+  [4] Add user_photos to prisma/schema.prisma
+  [5] Migrate user-photos.service.ts to use Prisma
+  [6] Update dating.service.ts to use Prisma for user_profiles
+
+MEDIUM PRIORITY (Later):
+  [7] Add user_blocks model to Prisma
+  [8] Add user_reports model to Prisma
+  [9] Add messages & matches models to Prisma
+  [10] Add payments & feature_usage models to Prisma
+
+NICE TO HAVE:
+  [11] Refactor repositories to remove Supabase fallbacks
+  [12] Add user_fomo_counters if still needed
+
+================================================================================
+STATISTICS
+================================================================================
+
+Code Distribution:
+  Services using Supabase for data:     8
+  Services using Prisma primarily:      5
+  Mixed pattern services:               6
+  Prisma-only services:                 1  (connections)
+  
+Table Access Patterns:
+  Prisma-only tables:                   3  (connections, dating_matches, ...)
+  Supabase-only tables:                 10 (user_profiles, user_photos, ...)
+  Both Prisma & Supabase:               3  (charts, subscriptions, users)
+
+File Count:
+  Total service files analyzed:         8
+  Files needing migration:              5
+  Correctly implemented:                3
+
+Performance Impact:
+  N+1 query risk areas:                 3  (photos batch create, user_profiles)
+  Transaction support:                  1  (only user.service.ts)
+  Type safety gaps:                     10 (all Supabase-only tables)
+
+================================================================================
