@@ -22,7 +22,7 @@
 import { Logger, LogLevel } from '@nestjs/common';
 
 export class AppLogger extends Logger {
-  constructor(context?: string) {
+  constructor(context: string = 'App') {
     super(context);
   }
 
