@@ -67,7 +67,8 @@
     "typescript": "^5.6.3"
   },
   "overrides": {
-    "text-encoding-polyfill": "npm:text-encoding@0.7.0"
+    "text-encoding-polyfill": "npm:text-encoding@0.7.0",
+    "js-yaml": "^4.1.1"
   },
   "private": true
 }
