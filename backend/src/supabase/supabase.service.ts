@@ -1,11 +1,14 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   public readonly client: SupabaseClient; // Добавь public
 
-  constructor() {
+  constructor(
+    @Inject(RedisService) private readonly redis: RedisService,
+  ) {
     this.client = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
@@ -117,6 +120,7 @@ export class SupabaseService implements OnModuleInit {
 
   /**
    * Создать подписанную ссылку на объект в Storage (требует service role)
+   * С Redis кэшированием для оптимизации повторных запросов
    */
   async createSignedUrl(
     bucket: string,
@@ -124,11 +128,63 @@ export class SupabaseService implements OnModuleInit {
     expiresInSec = 900,
   ): Promise<string | null> {
     if (!this.adminSupabase) return null;
+
+    // Проверяем кэш (ключ: signed-url:bucket:path)
+    const cacheKey = `signed-url:${bucket}:${path}`;
+    try {
+      const cached = await this.redis.get<string>(cacheKey);
+      if (cached) return cached;
+    } catch {
+      // Игнорируем ошибки кэша, продолжаем с реальным запросом
+    }
+
+    // Создаем signed URL
     const { data, error } = await this.adminSupabase.storage
       .from(bucket)
       .createSignedUrl(path, expiresInSec);
+
     if (error) return null;
-    return data?.signedUrl ?? null;
+
+    const signedUrl = data?.signedUrl ?? null;
+
+    // Сохраняем в кэш (TTL = expiresInSec - 60 для запаса)
+    if (signedUrl) {
+      try {
+        const cacheTTL = Math.max(60, expiresInSec - 60);
+        await this.redis.set(cacheKey, signedUrl, cacheTTL);
+      } catch {
+        // Игнорируем ошибки кэша
+      }
+    }
+
+    return signedUrl;
+  }
+
+  /**
+   * Batch создание подписанных ссылок для множества файлов (оптимизация N+1)
+   * Возвращает Map<path, signedUrl | null> для быстрого доступа
+   */
+  async createSignedUrlsBatch(
+    bucket: string,
+    paths: string[],
+    expiresInSec = 900,
+  ): Promise<Map<string, string | null>> {
+    if (!this.adminSupabase || !paths.length) {
+      return new Map();
+    }
+
+    // Параллельное создание signed URLs для всех путей
+    const urlPromises = paths.map((path) =>
+      this.createSignedUrl(bucket, path, expiresInSec).then((url) => ({
+        path,
+        url,
+      })),
+    );
+
+    const results = await Promise.all(urlPromises);
+
+    // Преобразуем в Map для O(1) доступа
+    return new Map(results.map((r) => [r.path, r.url]));
   }
 
   /**

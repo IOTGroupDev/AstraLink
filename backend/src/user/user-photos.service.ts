@@ -101,6 +101,7 @@ export class UserPhotosService {
 
   /**
    * Список фото пользователя (подписанные URL с TTL)
+   * Оптимизировано: batch создание signed URLs (N+1 → 1 запрос)
    */
   async listPhotos(userId: string): Promise<UserPhoto[]> {
     const admin = this.supabaseService.getAdminClient();
@@ -117,25 +118,26 @@ export class UserPhotosService {
 
     const rows = Array.isArray(data) ? data : [];
 
-    const result: UserPhoto[] = [];
-    for (const r of rows) {
-      const url = await this.supabaseService.createSignedUrl(
-        this.BUCKET,
-        r.storage_path, // ✅ storage_path
-        900,
-      );
-      result.push({
-        id: r.id,
-        userId: r.user_id,
-        path: r.storage_path, // ✅ storage_path
-        isPrimary: !!r.is_primary,
-        url,
-        createdAt:
-          typeof r.created_at === 'string'
-            ? r.created_at
-            : new Date(r.created_at).toISOString(),
-      });
-    }
+    // Batch создание signed URLs для всех фото одним запросом (вместо N запросов)
+    const paths = rows.map((r) => r.storage_path);
+    const urlsMap = await this.supabaseService.createSignedUrlsBatch(
+      this.BUCKET,
+      paths,
+      900,
+    );
+
+    // Собираем результат с O(1) доступом к URL
+    const result: UserPhoto[] = rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      path: r.storage_path,
+      isPrimary: !!r.is_primary,
+      url: urlsMap.get(r.storage_path) ?? null,
+      createdAt:
+        typeof r.created_at === 'string'
+          ? r.created_at
+          : new Date(r.created_at).toISOString(),
+    }));
 
     return result;
   }

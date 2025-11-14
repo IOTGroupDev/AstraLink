@@ -516,19 +516,26 @@ export class ChatService {
     });
 
     // Попробуем создать подписанные URL для медиа-путей (bucket user-photos), если URL ещё не задан
+    // Оптимизировано: batch создание signed URLs (N+1 → 1 запрос)
     try {
-      await Promise.all(
-        result.map(async (m) => {
+      const mediaPaths = result
+        .filter((m) => !m.mediaUrl && m.mediaPath)
+        .map((m) => m.mediaPath!);
+
+      if (mediaPaths.length > 0) {
+        const urlsMap = await this.supabaseService.createSignedUrlsBatch(
+          'user-photos',
+          mediaPaths,
+          900,
+        );
+
+        // Проставляем URL из Map с O(1) доступом
+        result.forEach((m) => {
           if (!m.mediaUrl && m.mediaPath) {
-            const url = await this.supabaseService.createSignedUrl(
-              'user-photos',
-              m.mediaPath,
-              900,
-            );
-            m.mediaUrl = url ?? null;
+            m.mediaUrl = urlsMap.get(m.mediaPath) ?? null;
           }
-        }),
-      );
+        });
+      }
     } catch {
       // без URL — покажем плейсхолдер на фронтенде
     }
@@ -619,20 +626,25 @@ export class ChatService {
             if (p?.user_id && p?.storage_path)
               byUser[p.user_id] = p.storage_path;
           }
-          // Создадим подписанные URL'ы (по одному на фото)
-          await Promise.all(
-            otherIds.map(async (uid) => {
+
+          // Создадим подписанные URL'ы batch методом (N+1 → 1 запрос)
+          const photoPaths = Object.values(byUser).filter(Boolean);
+          if (photoPaths.length > 0) {
+            const urlsMap = await this.supabaseService.createSignedUrlsBatch(
+              'user-photos',
+              photoPaths,
+              900,
+            );
+
+            // Проставляем URL для каждого собеседника с O(1) доступом
+            otherIds.forEach((uid) => {
               const path = byUser[uid];
-              if (!path) return;
-              const url = await this.supabaseService.createSignedUrl(
-                'user-photos',
-                path,
-                900,
-              );
-              const conv = map.get(uid);
-              if (conv) conv.primaryPhotoUrl = url ?? null;
-            }),
-          );
+              if (path) {
+                const conv = map.get(uid);
+                if (conv) conv.primaryPhotoUrl = urlsMap.get(path) ?? null;
+              }
+            });
+          }
         }
       }
     } catch {
