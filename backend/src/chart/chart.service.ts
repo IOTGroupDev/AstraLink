@@ -17,6 +17,13 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class ChartService {
   private readonly logger = new Logger(ChartService.name);
 
+  // ✅ ОПТИМИЗАЦИЯ: In-memory cache для подписок
+  private subscriptionCache = new Map<
+    string,
+    { subscription: any; timestamp: number }
+  >();
+  private readonly SUBSCRIPTION_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+
   constructor(
     private prisma: PrismaService,
     private horoscopeService: HoroscopeGeneratorService,
@@ -27,6 +34,56 @@ export class ChartService {
     private biorhythmService: BiorhythmService,
     private supabaseService: SupabaseService,
   ) {}
+
+  // ============================================================
+  // PRIVATE CACHE HELPERS
+  // ============================================================
+
+  /**
+   * ✅ ОПТИМИЗАЦИЯ: Получить подписку с кэшированием
+   * Кэш на 5 минут для снижения нагрузки на БД
+   */
+  private async getCachedSubscription(userId: string) {
+    const now = Date.now();
+    const cached = this.subscriptionCache.get(userId);
+
+    // Проверяем актуальность кэша
+    if (cached && now - cached.timestamp < this.SUBSCRIPTION_CACHE_TTL) {
+      this.logger.debug(`Subscription cache HIT for user ${userId}`);
+      return cached.subscription;
+    }
+
+    // Запрашиваем из БД
+    this.logger.debug(`Subscription cache MISS for user ${userId}`);
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
+
+    // Обновляем кэш
+    this.subscriptionCache.set(userId, {
+      subscription,
+      timestamp: now,
+    });
+
+    // Ограничиваем размер кэша (максимум 1000 пользователей)
+    if (this.subscriptionCache.size > 1000) {
+      const firstKey = this.subscriptionCache.keys().next().value;
+      this.subscriptionCache.delete(firstKey);
+    }
+
+    return subscription;
+  }
+
+  /**
+   * Проверить, является ли подписка premium
+   */
+  private isPremiumSubscription(subscription: any): boolean {
+    return (
+      subscription?.tier !== 'free' &&
+      subscription?.expiresAt != null &&
+      new Date(subscription.expiresAt) > new Date()
+    );
+  }
 
   // ============================================================
   // UTILITY METHODS (Backward Compatibility)
@@ -114,20 +171,15 @@ export class ChartService {
 
   /**
    * Get horoscope for specific period
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
   async getHoroscope(
     userId: string,
     period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
   ) {
-    // Check user subscription
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-    });
-
-    const isPremium =
-      subscription?.tier !== 'free' &&
-      subscription?.expiresAt != null &&
-      new Date(subscription.expiresAt) > new Date();
+    // Check user subscription (cached)
+    const subscription = await this.getCachedSubscription(userId);
+    const isPremium = this.isPremiumSubscription(subscription);
 
     // Generate horoscope via HoroscopeGeneratorService
     return await this.horoscopeService.generateHoroscope(
@@ -139,16 +191,12 @@ export class ChartService {
 
   /**
    * Get all horoscope types (for widget)
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
   async getAllHoroscopes(userId: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-    });
-
-    const isPremium =
-      subscription?.tier !== 'free' &&
-      subscription?.expiresAt != null &&
-      new Date(subscription.expiresAt) > new Date();
+    // Check user subscription (cached)
+    const subscription = await this.getCachedSubscription(userId);
+    const isPremium = this.isPremiumSubscription(subscription);
 
     const [today, tomorrow, week, month] = await Promise.all([
       this.horoscopeService.generateHoroscope(userId, 'day', isPremium),
@@ -186,12 +234,11 @@ export class ChartService {
 
   /**
    * Get detailed transit interpretation with AI (subscription-aware)
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
   async getTransitInterpretation(userId: string, date: Date) {
-    // Get user's subscription
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-    });
+    // Get user's subscription (cached)
+    const subscription = await this.getCachedSubscription(userId);
 
     // Determine subscription tier (default to FREE)
     const tier = (subscription?.tier as any) || 'free';

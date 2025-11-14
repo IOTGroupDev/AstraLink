@@ -515,6 +515,32 @@ export class DatingService {
       take: 200,
     });
 
+    // ✅ ОПТИМИЗАЦИЯ: Фильтрация ПЕРЕД расчётом совместимости
+    const filteredCandidates = candidates.filter((c) => {
+      // Фильтр по городу
+      if (filters?.city) {
+        const city = filters.city.trim().toLowerCase();
+        const birthPlace = (c as any).users?.birth_place
+          ? String((c as any).users.birth_place).trim().toLowerCase()
+          : '';
+        if (!birthPlace || birthPlace !== city) return false;
+      }
+
+      // Фильтр по возрасту
+      if (filters?.ageMin != null || filters?.ageMax != null) {
+        const age = this.getAgeFromBirthDate((c as any).users?.birth_date);
+        if (age != null) {
+          if (filters?.ageMin != null && age < filters.ageMin) return false;
+          if (filters?.ageMax != null && age > filters.ageMax) return false;
+        }
+      }
+
+      return true;
+    });
+
+    // ✅ КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Batch processing вместо N+1 queries
+    // Обрабатываем по 20 кандидатов параллельно для оптимизации
+    const BATCH_SIZE = 20;
     const rows: {
       userId: string;
       candidateData: any;
@@ -523,69 +549,62 @@ export class DatingService {
       rejected: boolean;
     }[] = [];
 
-    for (const c of candidates) {
-      try {
-        // Фильтры
-        if (filters?.city) {
-          const city = filters.city.trim().toLowerCase();
-          const birthPlace = (c as any).users?.birth_place
-            ? String((c as any).users.birth_place)
-                .trim()
-                .toLowerCase()
-            : '';
-          if (!birthPlace || birthPlace !== city) continue;
+    for (let i = 0; i < filteredCandidates.length; i += BATCH_SIZE) {
+      const batch = filteredCandidates.slice(i, i + BATCH_SIZE);
+
+      // Параллельная обработка батча с Promise.all()
+      const batchResults = await Promise.allSettled(
+        batch.map(async (c) => {
+          const syn = await this.ephemerisService.getSynastry(
+            selfChart.data as any,
+            c.data as any,
+          );
+
+          const baseCompatibility = Math.max(
+            0,
+            Math.min(100, Math.round(Number(syn?.compatibility ?? 0))),
+          );
+
+          // Усиленная формула: стихии + Венера/Марс + Луна/Луна + дома 5/7/8
+          const finalCompatibility = this.calcFinalCompatibility(
+            baseCompatibility,
+            syn,
+            selfChart.data as unknown as ChartData,
+            c.data as unknown as ChartData,
+          );
+
+          const partnerName =
+            (c as any).users?.name ||
+            (c as any).users?.email?.split('@')?.[0] ||
+            'Кандидат';
+          const sunSign = (c.data as any)?.planets?.sun?.sign ?? undefined;
+
+          const candidateData = {
+            partnerId: c.userId,
+            partnerName,
+            email: (c as any).users?.email,
+            birthDate: (c as any).users?.birth_date ?? null,
+            birthTime: (c as any).users?.birth_time ?? null,
+            birthPlace: (c as any).users?.birth_place ?? null,
+            sign: sunSign,
+          };
+
+          return {
+            userId,
+            candidateData,
+            compatibility: finalCompatibility,
+            liked: false,
+            rejected: false,
+          };
+        }),
+      );
+
+      // Собираем успешные результаты
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          rows.push(result.value);
         }
-        if (filters?.ageMin != null || filters?.ageMax != null) {
-          const age = this.getAgeFromBirthDate((c as any).users?.birth_date);
-          if (age != null) {
-            if (filters?.ageMin != null && age < filters.ageMin) continue;
-            if (filters?.ageMax != null && age > filters.ageMax) continue;
-          }
-        }
-
-        const syn = await this.ephemerisService.getSynastry(
-          selfChart.data as any,
-          c.data as any,
-        );
-
-        const baseCompatibility = Math.max(
-          0,
-          Math.min(100, Math.round(Number(syn?.compatibility ?? 0))),
-        );
-
-        // Усиленная формула: стихии + Венера/Марс + Луна/Луна + дома 5/7/8
-        const finalCompatibility = this.calcFinalCompatibility(
-          baseCompatibility,
-          syn,
-          selfChart.data as unknown as ChartData,
-          c.data as unknown as ChartData,
-        );
-
-        const partnerName =
-          (c as any).users?.name ||
-          (c as any).users?.email?.split('@')?.[0] ||
-          'Кандидат';
-        const sunSign = (c.data as any)?.planets?.sun?.sign ?? undefined;
-
-        const candidateData = {
-          partnerId: c.userId,
-          partnerName,
-          email: (c as any).users?.email,
-          birthDate: (c as any).users?.birth_date ?? null,
-          birthTime: (c as any).users?.birth_time ?? null,
-          birthPlace: (c as any).users?.birth_place ?? null,
-          sign: sunSign,
-        };
-
-        rows.push({
-          userId,
-          candidateData,
-          compatibility: finalCompatibility,
-          liked: false,
-          rejected: false,
-        });
-      } catch {
-        // пропускаем проблемного кандидата
+        // Если status === 'rejected' - просто пропускаем проблемного кандидата
       }
     }
 

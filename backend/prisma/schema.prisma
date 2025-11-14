@@ -36,6 +36,7 @@ model Connection {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, createdAt]) // Composite index для sorted user lists
   @@map("connections")
   @@schema("public")
 }
@@ -56,6 +57,7 @@ model DatingMatch {
   @@index([liked])
   @@index([rejected])
   @@index([userId, compatibility])
+  @@index([userId, liked, rejected]) // Composite index для filtering по status
   @@map("dating_matches")
   @@schema("public")
 }
@@ -74,6 +76,8 @@ model Subscription {
   @@index([tier])
   @@index([expiresAt])
   @@index([isCancelled])
+  @@index([userId, expiresAt]) // Composite index для проверки активных подписок
+  @@index([tier, expiresAt])    // Composite index для статистики по тарифам
   @@map("subscriptions")
   @@schema("public")
 }

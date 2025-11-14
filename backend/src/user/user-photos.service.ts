@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { randomUUID } from 'crypto';
@@ -18,6 +19,7 @@ export interface UserPhoto {
 @Injectable()
 export class UserPhotosService {
   private readonly BUCKET = 'user-photos';
+  private readonly logger = new Logger(UserPhotosService.name);
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
@@ -55,7 +57,7 @@ export class UserPhotosService {
       .limit(1);
 
     if (listErr) {
-      console.error('❌ Check existing photos error:', listErr);
+      this.logger.error('Check existing photos error', listErr);
       throw new BadRequestException('Failed to check existing photos');
     }
 
@@ -74,7 +76,7 @@ export class UserPhotosService {
       .single();
 
     if (error || !data) {
-      console.error('❌ Insert photo error:', error);
+      this.logger.error('Insert photo error', error);
       throw new BadRequestException(
         `Failed to confirm user photo: ${error?.message || 'unknown'}`,
       );
@@ -117,7 +119,7 @@ export class UserPhotosService {
       .range(offset, offset + limit - 1); // Supabase range для пагинации
 
     if (error) {
-      console.error('❌ List photos error:', error);
+      this.logger.error('List photos error', error);
       throw new BadRequestException('Failed to list user photos');
     }
 
@@ -191,7 +193,7 @@ export class UserPhotosService {
       .eq('user_id', userId);
 
     if (resetErr) {
-      console.error('❌ Failed to reset primary photos:', resetErr);
+      this.logger.error('Failed to reset primary photos', resetErr);
       throw new BadRequestException('Failed to reset primary photos');
     }
 
@@ -203,7 +205,7 @@ export class UserPhotosService {
       .eq('user_id', userId);
 
     if (updateErr) {
-      console.error('❌ Failed to set primary photo:', updateErr);
+      this.logger.error('Failed to set primary photo', updateErr);
       throw new BadRequestException('Failed to set primary photo');
     }
   }
@@ -235,7 +237,7 @@ export class UserPhotosService {
       .remove([photo.storage_path]); // ✅ storage_path
 
     if (storageErr) {
-      console.error('⚠️ Storage delete error:', storageErr);
+      this.logger.warn('Storage delete error', storageErr);
       // Логируем, но продолжаем удаление записи, чтобы не зависеть от Storage состояния
     }
 
@@ -247,7 +249,7 @@ export class UserPhotosService {
       .eq('user_id', userId);
 
     if (delErr) {
-      console.error('❌ Delete photo row error:', delErr);
+      this.logger.error('Delete photo row error', delErr);
       throw new BadRequestException('Failed to delete photo row');
     }
 
