@@ -83,6 +83,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { tokenService } from './tokenService';
 import { useAuthStore } from '../stores/auth.store';
+import { supabaseLogger } from './logger';
 
 const supabaseUrl =
   Constants.expoConfig?.extra?.SUPABASE_URL ||
@@ -92,7 +93,7 @@ const supabaseAnonKey =
   Constants.expoConfig?.extra?.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo';
 
-console.log('🔐 Инициализация Supabase клиента');
+supabaseLogger.log('🔐 Инициализация Supabase клиента');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -110,7 +111,7 @@ export const initSupabaseAuth = async () => {
 
   initPromise = (async () => {
     try {
-      console.log('🔄 Initializing Supabase auth...');
+      supabaseLogger.log('🔄 Initializing Supabase auth...');
 
       // Гарантируем готовность локального стораджа токенов
       await tokenService.init();
@@ -119,16 +120,16 @@ export const initSupabaseAuth = async () => {
       const { data, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('❌ Session error:', error);
+        supabaseLogger.error('❌ Session error:', error);
         await tokenService.setToken(null);
         return;
       }
 
       // Лог + первичная синхронизация токена
       if (data.session) {
-        console.log('✅ Session restored:', data.session.user.email);
+        supabaseLogger.log('✅ Session restored:', data.session.user.email);
       } else {
-        console.log('ℹ️ No active session');
+        supabaseLogger.log('ℹ️ No active session');
       }
       await tokenService.setToken(data.session?.access_token ?? null);
 
@@ -145,13 +146,13 @@ export const initSupabaseAuth = async () => {
           st.logout();
         }
       } catch (e) {
-        console.warn('Auth store sync (initial session) failed:', e);
+        supabaseLogger.warn('Auth store sync (initial session) failed:', e);
       }
 
       // Подписка на изменения auth-состояния: держим tokenService и Zustand-store в актуальном состоянии
       supabase.auth.onAuthStateChange(async (event, session) => {
         const email = session?.user?.email || 'no user';
-        console.log('🔄 Auth event:', event, email);
+        supabaseLogger.log('🔄 Auth event:', event, email);
 
         // синхронизация токена
         await tokenService.setToken(session?.access_token ?? null);
@@ -169,13 +170,13 @@ export const initSupabaseAuth = async () => {
             st.logout();
           }
         } catch (e) {
-          console.warn('Auth store sync (onAuthStateChange) failed:', e);
+          supabaseLogger.warn('Auth store sync (onAuthStateChange) failed:', e);
         }
       });
 
-      console.log('✅ Supabase auth initialized');
+      supabaseLogger.log('✅ Supabase auth initialized');
     } catch (error) {
-      console.error('❌ Supabase auth initialization error:', error);
+      supabaseLogger.error('❌ Supabase auth initialization error:', error);
       await tokenService.setToken(null);
     }
   })();

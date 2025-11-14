@@ -23,7 +23,7 @@
 //
 //   const handleCallback = async () => {
 //     try {
-//       console.log('🔍 ========== AUTH CALLBACK START ==========');
+//       authLogger.log('🔍 ========== AUTH CALLBACK START ==========');
 //
 //       if (Platform.OS === 'web') {
 //         const url = new URL(window.location.href);
@@ -39,7 +39,7 @@
 //         let refreshToken = getParam('refresh_token');
 //         const code = getParam('code');
 //
-//         console.log('📍 URL Parameters:', {
+//         authLogger.log('📍 URL Parameters:', {
 //           hasAccessToken: !!accessToken,
 //           hasCode: !!code,
 //           tokenPreview: accessToken
@@ -54,13 +54,13 @@
 //             refresh_token: refreshToken || '',
 //           });
 //           if (error) {
-//             console.error('❌ setSession error:', error);
+//             authLogger.error('❌ setSession error:', error);
 //             throw error;
 //           }
 //         } else if (code) {
 //           const { error } = await supabase.auth.exchangeCodeForSession(code);
 //           if (error) {
-//             console.error('❌ exchangeCodeForSession error:', error);
+//             authLogger.error('❌ exchangeCodeForSession error:', error);
 //             throw error;
 //           }
 //           // После обмена кодом достаём актуальный токен из сессии
@@ -76,7 +76,7 @@
 //               refresh_token: '',
 //             });
 //             if (error) {
-//               console.error('❌ setSession from storedToken error:', error);
+//               authLogger.error('❌ setSession from storedToken error:', error);
 //               throw error;
 //             }
 //             accessToken = storedToken;
@@ -88,9 +88,9 @@
 //         // Сохраняем токен локально (idempotent)
 //         if (accessToken) {
 //           await tokenService.setToken(accessToken);
-//           console.log('💾 Token saved to TokenService');
+//           authLogger.log('💾 Token saved to TokenService');
 //         } else {
-//           console.warn(
+//           authLogger.warn(
 //             '⚠️ No access token available after session establishment'
 //           );
 //         }
@@ -106,9 +106,9 @@
 //             ts: Date.now(),
 //           });
 //           bc.close();
-//           console.log('📡 BroadcastChannel message sent successfully');
+//           authLogger.log('📡 BroadcastChannel message sent successfully');
 //         } catch (bcError) {
-//           console.warn('⚠️ BroadcastChannel failed:', bcError);
+//           authLogger.warn('⚠️ BroadcastChannel failed:', bcError);
 //         } finally {
 //           // Всегда пишем флаги в localStorage, чтобы другая вкладка могла опросить
 //           try {
@@ -116,11 +116,11 @@
 //               localStorage.setItem('al_token_value', accessToken);
 //             }
 //             localStorage.setItem('al_token_broadcast', String(Date.now()));
-//             console.log(
+//             authLogger.log(
 //               '💾 localStorage flags written (al_token_value, al_token_broadcast)'
 //             );
 //           } catch (storageError) {
-//             console.error('❌ localStorage write failed:', storageError);
+//             authLogger.error('❌ localStorage write failed:', storageError);
 //           }
 //         }
 //
@@ -138,7 +138,7 @@
 //           routes: [{ name: 'UserDataLoader' }],
 //         });
 //
-//         console.log(
+//         authLogger.log(
 //           '🔍 ========== AUTH CALLBACK END (WEB → LOADER) =========='
 //         );
 //         return;
@@ -154,7 +154,7 @@
 //         throw new Error('Сессия не найдена');
 //       }
 //
-//       console.log('✅ Session obtained:', session.user?.email);
+//       authLogger.log('✅ Session obtained:', session.user?.email);
 //
 //       await tokenService.setToken(session.access_token);
 //
@@ -164,13 +164,13 @@
 //         routes: [{ name: 'UserDataLoader' }],
 //       });
 //
-//       console.log(
+//       authLogger.log(
 //         '🔍 ========== AUTH CALLBACK END (MOBILE → LOADER) =========='
 //       );
 //     } catch (err: any) {
-//       console.error('❌ ========== AUTH CALLBACK ERROR ==========');
-//       console.error('Error details:', err);
-//       console.error('Stack:', err?.stack);
+//       authLogger.error('❌ ========== AUTH CALLBACK ERROR ==========');
+//       authLogger.error('Error details:', err);
+//       authLogger.error('Stack:', err?.stack);
 //
 //       setError(err?.message || 'Ошибка авторизации');
 //
@@ -332,7 +332,7 @@ const AuthCallbackScreen: React.FC = () => {
           });
           bc.close();
         } catch (bcError) {
-          console.warn('BroadcastChannel failed:', bcError);
+          authLogger.warn('BroadcastChannel failed:', bcError);
         } finally {
           try {
             if (accessToken) {
@@ -340,7 +340,7 @@ const AuthCallbackScreen: React.FC = () => {
             }
             localStorage.setItem('al_token_broadcast', String(Date.now()));
           } catch (storageError) {
-            console.error('localStorage write failed:', storageError);
+            authLogger.error('localStorage write failed:', storageError);
           }
         }
 

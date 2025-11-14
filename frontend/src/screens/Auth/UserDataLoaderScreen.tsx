@@ -139,7 +139,7 @@
 //       try {
 //         profile = await userAPI.getProfile();
 //       } catch (e) {
-//         console.warn('Profile check warning (backend):', e);
+//         authLogger.warn('Profile check warning (backend):', e);
 //       }
 //
 //       // Проверяем: есть ли данные онбординга в локальном стораже
@@ -171,7 +171,7 @@
 //               birthPlace: profile.birthPlace || 'Moscow',
 //             });
 //           } catch (completeError) {
-//             console.error('Error completing signup:', completeError);
+//             authLogger.error('Error completing signup:', completeError);
 //           }
 //
 //           // Ждём пока всё создастся
@@ -297,7 +297,7 @@
 //         routes: [{ name: 'Onboarding1' }],
 //       });
 //     } catch (e: any) {
-//       console.error('UserDataLoader error:', e);
+//       authLogger.error('UserDataLoader error:', e);
 //       setStatus('Произошла ошибка. Переход к входу...');
 //
 //       // В случае ошибки возвращаем на SignUp
@@ -496,7 +496,7 @@ const UserDataLoaderScreen: React.FC = () => {
       try {
         profile = await userAPI.getProfile();
       } catch (e: any) {
-        console.warn('Profile check warning:', e);
+        authLogger.warn('Profile check warning:', e);
         const status =
           (e && e.response && e.response.status) || e?.response?.status;
         // Если профиля нет (404) — создаём минимальную запись, чтобы не срабатывать онбординг по отсутствию профиля
@@ -505,7 +505,7 @@ const UserDataLoaderScreen: React.FC = () => {
             await userAPI.updateProfile({} as any);
             profile = await userAPI.getProfile();
           } catch (provisionErr) {
-            console.warn('Profile auto-provision failed:', provisionErr);
+            authLogger.warn('Profile auto-provision failed:', provisionErr);
           }
         }
       }
@@ -535,7 +535,7 @@ const UserDataLoaderScreen: React.FC = () => {
               birthPlace: profile.birthPlace || 'Moscow',
             });
           } catch (completeError) {
-            console.error('Error completing signup:', completeError);
+            authLogger.error('Error completing signup:', completeError);
           }
 
           const maxAttempts = 1;
@@ -668,7 +668,7 @@ const UserDataLoaderScreen: React.FC = () => {
         routes: [{ name: 'Onboarding1' }],
       });
     } catch (e: any) {
-      console.error('UserDataLoader error:', e);
+      authLogger.error('UserDataLoader error:', e);
       setStatus('Произошла ошибка. Переход к входу...');
 
       setTimeout(() => {

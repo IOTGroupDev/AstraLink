@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Platform } from 'react-native';
+import { storageLogger } from './logger';
 
 type TokenListener = (token: string | null) => void;
 
@@ -201,7 +202,7 @@ class TokenService {
         enabled.toString()
       );
     } catch (error) {
-      console.error('Error setting biometric enabled:', error);
+      storageLogger.error('Error setting biometric enabled:', error);
     }
   }
 
@@ -223,7 +224,7 @@ class TokenService {
         completed.toString()
       );
     } catch (error) {
-      console.error('Error setting onboarding completed:', error);
+      storageLogger.error('Error setting onboarding completed:', error);
     }
   }
 
@@ -250,7 +251,7 @@ class TokenService {
         await this.clearToken();
       }
     } catch (error) {
-      console.error('Error setting remember me:', error);
+      storageLogger.error('Error setting remember me:', error);
     }
   }
 
@@ -266,7 +267,7 @@ class TokenService {
         TokenService.SETTINGS_PREFIX + 'onboarding_completed',
       ]);
     } catch (error) {
-      console.error('Error clearing all data:', error);
+      storageLogger.error('Error clearing all data:', error);
     }
   }
 }

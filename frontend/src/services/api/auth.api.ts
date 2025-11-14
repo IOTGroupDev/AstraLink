@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { api } from './client';
 import { supabase } from '../supabase';
 import { tokenService } from '../tokenService';
+import { authLogger } from '../logger';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../../types';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -19,7 +20,7 @@ function getRedirectUri(): string {
         useProxy: true,
         path: 'auth/callback',
       });
-      console.log('🔗 DEV redirect via AuthSession proxy:', url);
+      authLogger.log('🔗 DEV redirect via AuthSession proxy:', url);
       return url;
     }
 
@@ -37,10 +38,10 @@ function getRedirectUri(): string {
       scheme: 'astralink',
       path: 'auth/callback',
     });
-    console.log('🔗 PROD native redirect URI via makeRedirectUri:', url);
+    authLogger.log('🔗 PROD native redirect URI via makeRedirectUri:', url);
     return url;
   } catch (error) {
-    console.error('❌ Ошибка получения redirect URI:', error);
+    authLogger.error('❌ Ошибка получения redirect URI:', error);
     return 'astralink://auth/callback';
   }
 }
@@ -48,7 +49,7 @@ function getRedirectUri(): string {
 export const authAPI = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Отправляем данные для входа через Backend API:', {
+      authLogger.log('🔐 Отправляем данные для входа через Backend API:', {
         email: data.email,
       });
 
@@ -61,11 +62,11 @@ export const authAPI = {
       if (!access_token) throw new Error('Токен не получен от Backend');
 
       await tokenService.setToken(access_token);
-      console.log('✅ Успешный вход через Backend');
+      authLogger.log('✅ Успешный вход через Backend');
 
       return { access_token, user };
     } catch (error: any) {
-      console.log('❌ API login failed:', error);
+      authLogger.log('❌ API login failed:', error);
       const errorMessage = error.response?.data?.message || error.message;
       if (typeof errorMessage === 'string') error.message = errorMessage;
       if (error.message?.includes('Invalid login credentials'))
@@ -79,7 +80,7 @@ export const authAPI = {
 
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     try {
-      console.log(
+      authLogger.log(
         '🔐 Отправляем данные для регистрации через Backend API:',
         data
       );
@@ -93,13 +94,13 @@ export const authAPI = {
         birthPlace: data.birthPlace,
       });
 
-      console.log('✅ Успешная регистрация через Backend');
+      authLogger.log('✅ Успешная регистрация через Backend');
 
       const { user, access_token } = response.data;
       await tokenService.setToken(access_token);
       return { access_token, user };
     } catch (error: any) {
-      console.log('❌ API signup failed:', error);
+      authLogger.log('❌ API signup failed:', error);
       const errorMessage = error.response?.data?.message || error.message;
       if (errorMessage?.includes('уже существует'))
         error.message = 'Пользователь с таким email уже существует';
@@ -116,16 +117,16 @@ export const authAPI = {
     email: string
   ): Promise<{ success: boolean; message: string }> => {
     try {
-      console.log('📧 Отправка OTP через Supabase на:', email);
+      authLogger.log('📧 Отправка OTP через Supabase на:', email);
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { shouldCreateUser: true },
       });
       if (error) throw error;
-      console.log('✅ OTP отправлен');
+      authLogger.log('✅ OTP отправлен');
       return { success: true, message: 'Код отправлен на email' };
     } catch (error: any) {
-      console.error('❌ Ошибка отправки OTP:', error);
+      authLogger.error('❌ Ошибка отправки OTP:', error);
       if (error.message?.includes('rate limit'))
         error.message = 'Слишком много попыток. Подождите минуту';
       else if (error.message?.includes('Invalid email'))
@@ -137,7 +138,7 @@ export const authAPI = {
 
   verifyCode: async (email: string, token: string): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Проверка OTP кода');
+      authLogger.log('🔐 Проверка OTP кода');
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token,
@@ -147,7 +148,7 @@ export const authAPI = {
       if (!data.session) throw new Error('Не удалось создать сессию');
 
       await tokenService.setToken(data.session.access_token);
-      console.log('✅ Код подтвержден');
+      authLogger.log('✅ Код подтвержден');
 
       return {
         access_token: data.session.access_token,
@@ -159,7 +160,7 @@ export const authAPI = {
         },
       };
     } catch (error: any) {
-      console.error('❌ Ошибка проверки кода:', error);
+      authLogger.error('❌ Ошибка проверки кода:', error);
       if (error.message?.includes('expired'))
         error.message = 'Код истек. Запросите новый код';
       else if (error.message?.includes('invalid'))
@@ -171,9 +172,9 @@ export const authAPI = {
 
   googleSignIn: async (): Promise<AuthResponse> => {
     try {
-      console.log('🔐 Начало Google OAuth');
+      authLogger.log('🔐 Начало Google OAuth');
       const redirectUri = getRedirectUri();
-      console.log('🔗 Google Redirect URI:', redirectUri);
+      authLogger.log('🔗 Google Redirect URI:', redirectUri);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -215,7 +216,7 @@ export const authAPI = {
 
       throw new Error('Не удалось инициировать OAuth');
     } catch (error: any) {
-      console.error('❌ Google sign in failed:', error);
+      authLogger.error('❌ Google sign in failed:', error);
       throw error;
     }
   },
@@ -228,7 +229,7 @@ export const authAPI = {
     birthPlace?: string;
   }): Promise<void> => {
     try {
-      console.log('📝 Завершение регистрации:', data);
+      authLogger.log('📝 Завершение регистрации:', data);
       await api.post('/auth/complete-signup', {
         userId: data.userId,
         name: data.name,
@@ -236,21 +237,21 @@ export const authAPI = {
         birthTime: data.birthTime || '12:00',
         birthPlace: data.birthPlace || 'Moscow',
       });
-      console.log('✅ Регистрация завершена');
+      authLogger.log('✅ Регистрация завершена');
     } catch (error: any) {
-      console.error('❌ Complete signup failed:', error);
+      authLogger.error('❌ Complete signup failed:', error);
       throw error;
     }
   },
 
   logout: async (): Promise<void> => {
     try {
-      console.log('👋 Выход из системы');
+      authLogger.log('👋 Выход из системы');
       await supabase.auth.signOut();
       tokenService.clearToken();
-      console.log('✅ Выход выполнен');
+      authLogger.log('✅ Выход выполнен');
     } catch (error: any) {
-      console.error('❌ Logout failed:', error);
+      authLogger.error('❌ Logout failed:', error);
       tokenService.clearToken();
       throw error;
     }
