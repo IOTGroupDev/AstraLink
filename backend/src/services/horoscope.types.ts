@@ -30,7 +30,12 @@ export interface TransitAspect {
     | 'trine'
     | 'square'
     | 'sextile'
-    | 'quincunx';
+    | 'quincunx'
+    | 'semi-sextile'
+    | 'semi-square'
+    | 'sesquiquadrate'
+    | 'quintile'
+    | 'biquintile';
   orb: number;
   strength: number;
   house?: number;
@@ -90,7 +95,18 @@ export interface ChartLookupResult {
 
 // Aspect calculation result
 export interface AspectCalculationResult {
-  type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
+  type:
+    | 'conjunction'
+    | 'sextile'
+    | 'square'
+    | 'trine'
+    | 'opposition'
+    | 'semi-sextile'
+    | 'semi-square'
+    | 'sesquiquadrate'
+    | 'quincunx'
+    | 'quintile'
+    | 'biquintile';
   orb: number;
   strength: number;
 }

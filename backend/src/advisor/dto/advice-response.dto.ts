@@ -11,10 +11,33 @@ export class AdvisorAspect {
   planetB!: string;
 
   @ApiProperty({
-    enum: ['conjunction', 'sextile', 'square', 'trine', 'opposition'],
+    enum: [
+      'conjunction',
+      'sextile',
+      'square',
+      'trine',
+      'opposition',
+      'semi-sextile',
+      'semi-square',
+      'sesquiquadrate',
+      'quincunx',
+      'quintile',
+      'biquintile',
+    ],
     description: 'Тип аспекта',
   })
-  type!: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
+  type!:
+    | 'conjunction'
+    | 'sextile'
+    | 'square'
+    | 'trine'
+    | 'opposition'
+    | 'semi-sextile'
+    | 'semi-square'
+    | 'sesquiquadrate'
+    | 'quincunx'
+    | 'quintile'
+    | 'biquintile';
 
   @ApiProperty({ description: 'Орб аспекта в градусах' })
   orb!: number;

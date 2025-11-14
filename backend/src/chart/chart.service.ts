@@ -213,4 +213,81 @@ export class ChartService {
     const natalChart = await this.natalChartService.getNatalChart(userId);
     return this.biorhythmService.getBiorhythms(userId, natalChart, dateStr);
   }
+
+  // ============================================================
+  // AI REGENERATION WITH RATE LIMITING
+  // ============================================================
+
+  /**
+   * Regenerate chart interpretation with AI
+   * Rate limited: 1 generation per 24 hours
+   */
+  async regenerateChartWithAI(userId: string): Promise<{
+    success: boolean;
+    message: string;
+    canRegenerateAt?: string;
+  }> {
+    try {
+      // 1. Check natal chart exists
+      const natalChart = await this.natalChartService.getNatalChart(userId);
+      if (!natalChart) {
+        return {
+          success: false,
+          message: 'Натальная карта не найдена. Создайте карту сначала.',
+        };
+      }
+
+      // 2. Check rate limiting (24 hours)
+      const chartData = await this.prisma.chart.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: { aiGeneratedAt: true },
+      });
+
+      if (chartData?.aiGeneratedAt) {
+        const lastGenerated = new Date(chartData.aiGeneratedAt);
+        const now = new Date();
+        const hoursSinceLastGen =
+          (now.getTime() - lastGenerated.getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceLastGen < 24) {
+          const canRegenerateAt = new Date(
+            lastGenerated.getTime() + 24 * 60 * 60 * 1000,
+          );
+
+          return {
+            success: false,
+            message: `Вы можете обновить гороскоп только раз в сутки. Попробуйте через ${Math.ceil(24 - hoursSinceLastGen)} часов.`,
+            canRegenerateAt: canRegenerateAt.toISOString(),
+          };
+        }
+      }
+
+      // 3. Regenerate interpretation with AI
+      await this.natalChartService.regenerateInterpretation(userId);
+
+      // 4. Update ai_generated_at timestamp
+      await this.prisma.chart.updateMany({
+        where: { userId },
+        data: { aiGeneratedAt: new Date() },
+      });
+
+      this.logger.log(`AI regeneration successful for user ${userId}`);
+
+      return {
+        success: true,
+        message: 'Гороскоп успешно обновлен с помощью AI',
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to regenerate chart for user ${userId}:`,
+        error,
+      );
+
+      return {
+        success: false,
+        message: 'Ошибка при обновлении гороскопа. Попробуйте позже.',
+      };
+    }
+  }
 }

@@ -1003,6 +1003,15 @@ export const chartAPI = {
     const response = await api.get(url);
     return response.data;
   },
+
+  regenerateChartWithAI: async (): Promise<{
+    success: boolean;
+    message: string;
+    canRegenerateAt?: string;
+  }> => {
+    const response = await api.post('/chart/regenerate-ai');
+    return response.data;
+  },
 };
 
 // --------------------------------------------------

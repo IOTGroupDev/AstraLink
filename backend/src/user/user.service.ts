@@ -3,10 +3,15 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
+import {
+  UserProfileUpdatedEvent,
+  BirthDataChangedEvent,
+} from './events';
 
 @Injectable()
 export class UserService {
@@ -14,6 +19,7 @@ export class UserService {
     private supabaseService: SupabaseService,
     private chartService: ChartService,
     private userRepository: UserRepository,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async getProfile(userId: string) {
@@ -94,11 +100,21 @@ export class UserService {
       // ничего, попробуем без email
     }
 
-    // 2) Читаем текущий профиль
+    // 2) Читаем текущий профиль (для событий)
     let profile: any | null = null;
+    const oldData = {
+      name: null as string | null,
+      birthPlace: null as string | null,
+      birthTime: null as string | null,
+    };
     try {
       const { data } = await this.supabaseService.getUserProfileAdmin(userId);
       profile = data ?? null;
+      if (profile) {
+        oldData.name = profile.name;
+        oldData.birthPlace = profile.birth_place;
+        oldData.birthTime = profile.birth_time;
+      }
     } catch {
       profile = null;
     }
@@ -153,6 +169,50 @@ export class UserService {
       }
     } catch (_e) {
       // Не валим поток, подписку можно создать позже
+    }
+
+    // 🎯 Emit events для изменений профиля
+    const newData = {
+      name: profile.name,
+      birthPlace: profile.birth_place,
+      birthTime: profile.birth_time,
+    };
+
+    // Emit general profile updated event
+    this.eventEmitter.emit(
+      'user.profile.updated',
+      new UserProfileUpdatedEvent(userId, oldData, newData),
+    );
+
+    // Проверяем изменения birth data для специального события
+    const birthDataChanges: BirthDataChangedEvent['changes'] = {};
+
+    if (
+      patch.birth_place !== undefined &&
+      oldData.birthPlace !== patch.birth_place
+    ) {
+      birthDataChanges.birthPlace = {
+        old: oldData.birthPlace,
+        new: patch.birth_place ?? null,
+      };
+    }
+
+    if (
+      patch.birth_time !== undefined &&
+      oldData.birthTime !== patch.birth_time
+    ) {
+      birthDataChanges.birthTime = {
+        old: oldData.birthTime,
+        new: patch.birth_time ?? null,
+      };
+    }
+
+    // Emit birth data changed event если были изменения
+    if (Object.keys(birthDataChanges).length > 0) {
+      this.eventEmitter.emit(
+        'user.birthData.changed',
+        new BirthDataChangedEvent(userId, birthDataChanges),
+      );
     }
 
     // 6) Если есть все данные рождения — создаём/пересоздаём натальную карту

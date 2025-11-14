@@ -284,6 +284,12 @@ export class AdvisorService {
     square: 'квадрат',
     trine: 'трин',
     opposition: 'оппозиция',
+    'semi-sextile': 'полусекстиль',
+    'semi-square': 'полуквадрат',
+    sesquiquadrate: 'полутораквадрат',
+    quincunx: 'квинконс',
+    quintile: 'квинтиль',
+    biquintile: 'биквинтиль',
   };
 
   constructor(
@@ -461,11 +467,19 @@ export class AdvisorService {
       AdvisorAspect['type'],
       { base: number; orb: number }
     > = {
+      // Major aspects (stronger influence)
       conjunction: { base: 10, orb: 8 },
       sextile: { base: 8, orb: 6 },
       square: { base: -10, orb: 8 },
       trine: { base: 12, orb: 8 },
       opposition: { base: -12, orb: 8 },
+      // Minor aspects (weaker influence, tighter orbs)
+      'semi-sextile': { base: 3, orb: 2 },
+      'semi-square': { base: -4, orb: 2 },
+      sesquiquadrate: { base: -4, orb: 2 },
+      quincunx: { base: -5, orb: 3 },
+      quintile: { base: 6, orb: 2 },
+      biquintile: { base: 6, orb: 2 },
     };
 
     for (const p of trackedPlanets) {
