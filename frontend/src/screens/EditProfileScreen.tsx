@@ -24,7 +24,7 @@ import { UserProfile } from '../types';
 import AstralInput from '../components/shared/AstralInput';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import CosmicBackground from '../components/shared/CosmicBackground';
-import LoadingLogo from '../components/swap/LoadingLogo';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 
 interface Photo {
   id: string;
@@ -395,7 +395,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return (
       <View style={styles.container}>
         <CosmicBackground />
-        <LoadingLogo />
+        <LoadingIndicator />
       </View>
     );
   }

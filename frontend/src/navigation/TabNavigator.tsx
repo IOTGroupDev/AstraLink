@@ -10,11 +10,6 @@ import HoroscopeScreen from '../screens/HoroscopeScreen';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import ChatListScreen from '../screens/ChatListScreen';
-import MyChartScreen from '../screens/swap/MyChartScreen';
-import SplashScreen from '../screens/swap/SplashScreen';
-import WelcomeScreen from '../screens/WelcomeScreen';
-import SimulatorScreen from '../screens/swap/Old_simulator';
-import ClearScreen from '../screens/Clear/ClearScreen';
 
 const Tab = createBottomTabNavigator();
 

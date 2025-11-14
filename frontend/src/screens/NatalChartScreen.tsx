@@ -1370,7 +1370,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { chartAPI } from '../services/api';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
-import LoadingLogo from '../components/swap/LoadingLogo';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -1541,7 +1541,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     return (
       <TabScreenLayout>
         <View style={styles.loadingContainer}>
-          <LoadingLogo />
+          <LoadingIndicator />
         </View>
       </TabScreenLayout>
     );

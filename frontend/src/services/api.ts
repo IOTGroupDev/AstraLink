@@ -1,10 +1,8 @@
 /**
- * Legacy API file - now re-exports from modular structure
+ * API re-export file for backward compatibility
  *
  * This file maintains backward compatibility with existing imports.
- * All API modules have been split into separate files in /api/ directory.
- *
- * Original file backed up as api.legacy.ts
+ * All API modules are in separate files in /api/ directory.
  */
 
 // Re-export everything from the modular API structure

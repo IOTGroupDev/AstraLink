@@ -22,7 +22,7 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
-import ShimmerLoader from '../components/swap/old/ShimmerLoader';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import ZodiacAvatar from '../components/profile/ZodiacAvatar';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
@@ -295,7 +295,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     return (
       <View style={styles.container}>
         <CosmicBackground />
-        <ShimmerLoader />
+        <LoadingIndicator />
       </View>
     );
   }
