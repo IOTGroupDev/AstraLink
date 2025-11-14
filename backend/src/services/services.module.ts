@@ -27,7 +27,7 @@ import { AIProvidersModule } from './ai/ai.module';
     LunarService,
   ],
   exports: [
-    AIService, // Export AIService (comes from AIProvidersModule)
+    AIProvidersModule, // Re-export entire module to make AIService available
     EphemerisService,
     InterpretationService,
     HoroscopeGeneratorService,
