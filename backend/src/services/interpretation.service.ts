@@ -27,7 +27,13 @@ import type {
   HouseInterpretation,
   NatalChartInterpretation,
   ChartSummary,
+  ChartPatternInterpretation,
 } from './interpretation.types';
+import {
+  detectAllChartPatterns,
+  getPatternInterpretation,
+  type PlanetPosition,
+} from '../shared/astro-calculations';
 
 @Injectable()
 export class InterpretationService {
@@ -244,6 +250,13 @@ export class InterpretationService {
       challenges: this.getAscendantChallenges(ascSign, locale),
     };
 
+    // Определение паттернов (Grand Trine, T-Square, Yod)
+    const patternInterpretation = this.detectChartPatterns(
+      planets,
+      chartData,
+      locale,
+    );
+
     // Общий обзор
     const overview = this.generateOverview(chartData, locale);
 
@@ -264,6 +277,7 @@ export class InterpretationService {
       planets: planetsInterpretation,
       aspects: aspectsInterpretation,
       houses: housesInterpretation,
+      patterns: patternInterpretation,
       summary,
     };
 
@@ -1166,5 +1180,65 @@ Together, these form a coherent portrait of your personality and life path.`;
     }
 
     return finance;
+  }
+
+  /**
+   * Detect chart patterns (Grand Trine, T-Square, Yod)
+   */
+  private detectChartPatterns(
+    planets: Record<string, Planet>,
+    chartData: ChartData,
+    locale: 'ru' | 'en',
+  ): ChartPatternInterpretation[] {
+    // Convert planets to PlanetPosition format for pattern detection
+    const planetPositions: PlanetPosition[] = Object.entries(planets)
+      .filter(([_, planet]) => planet && typeof planet.longitude === 'number')
+      .map(([key, planet]) => ({
+        planet: key,
+        longitude: planet.longitude,
+        sign: planet.sign,
+      }));
+
+    // Detect all patterns
+    const detected = detectAllChartPatterns(planetPositions);
+
+    // Convert to interpretation format
+    const patterns: ChartPatternInterpretation[] = [];
+
+    // Add Grand Trines
+    detected.grandTrines.forEach((pattern) => {
+      patterns.push({
+        type: pattern.type,
+        planets: pattern.planets.map((p) => this.getPlanetName(p)),
+        element: pattern.element,
+        description: pattern.description,
+        interpretation: getPatternInterpretation(pattern, locale),
+        strength: pattern.strength,
+      });
+    });
+
+    // Add T-Squares
+    detected.tSquares.forEach((pattern) => {
+      patterns.push({
+        type: pattern.type,
+        planets: pattern.planets.map((p) => this.getPlanetName(p)),
+        description: pattern.description,
+        interpretation: getPatternInterpretation(pattern, locale),
+        strength: pattern.strength,
+      });
+    });
+
+    // Add Yods
+    detected.yods.forEach((pattern) => {
+      patterns.push({
+        type: pattern.type,
+        planets: pattern.planets.map((p) => this.getPlanetName(p)),
+        description: pattern.description,
+        interpretation: getPatternInterpretation(pattern, locale),
+        strength: pattern.strength,
+      });
+    });
+
+    return patterns;
   }
 }

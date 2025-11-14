@@ -649,3 +649,359 @@ export function isDayBirth(sunLongitude: number, ascendantLongitude: number): bo
   // If Sun is 0-180° ahead of ASC, it's above horizon (day birth)
   return diff >= 0 && diff < 180;
 }
+
+/**
+ * Chart pattern types
+ */
+export type ChartPatternType = 'grand_trine' | 't_square' | 'yod';
+
+/**
+ * Chart pattern detection result
+ */
+export interface ChartPattern {
+  type: ChartPatternType;
+  planets: string[];
+  element?: string; // For Grand Trine (fire, earth, air, water)
+  description: string;
+  strength: number; // 0-1 based on orb tightness
+}
+
+/**
+ * Detect Grand Trine pattern (3 planets in 120° trine aspects forming a triangle)
+ *
+ * A Grand Trine occurs when three planets are each approximately 120° apart,
+ * forming a harmonious triangle. Usually occurs within the same element.
+ *
+ * @param planets - Array of planet positions
+ * @param maxOrb - Maximum orb for trine aspect (default 8°)
+ * @returns Array of detected Grand Trine patterns
+ */
+export function detectGrandTrines(
+  planets: PlanetPosition[],
+  maxOrb: number = 8,
+): ChartPattern[] {
+  const patterns: ChartPattern[] = [];
+
+  // Check all combinations of 3 planets
+  for (let i = 0; i < planets.length - 2; i++) {
+    for (let j = i + 1; j < planets.length - 1; j++) {
+      for (let k = j + 1; k < planets.length; k++) {
+        const p1 = planets[i];
+        const p2 = planets[j];
+        const p3 = planets[k];
+
+        // Check if all three pairs form trines (120° ± orb)
+        const diff12 = normalizeAngleDiff(p1.longitude, p2.longitude);
+        const diff13 = normalizeAngleDiff(p1.longitude, p3.longitude);
+        const diff23 = normalizeAngleDiff(p2.longitude, p3.longitude);
+
+        const isTrine12 = Math.abs(diff12 - 120) <= maxOrb;
+        const isTrine13 = Math.abs(diff13 - 120) <= maxOrb;
+        const isTrine23 = Math.abs(diff23 - 120) <= maxOrb;
+
+        if (isTrine12 && isTrine13 && isTrine23) {
+          // Calculate average orb for strength
+          const avgOrb =
+            (Math.abs(diff12 - 120) +
+              Math.abs(diff13 - 120) +
+              Math.abs(diff23 - 120)) /
+            3;
+          const strength = 1 - avgOrb / maxOrb;
+
+          // Determine element (based on first planet's sign if available)
+          let element: string | undefined;
+          if (p1.sign) {
+            const fireSign = ['Aries', 'Leo', 'Sagittarius'];
+            const earthSigns = ['Taurus', 'Virgo', 'Capricorn'];
+            const airSigns = ['Gemini', 'Libra', 'Aquarius'];
+            const waterSigns = ['Cancer', 'Scorpio', 'Pisces'];
+
+            if (fireSign.includes(p1.sign)) element = 'fire';
+            else if (earthSigns.includes(p1.sign)) element = 'earth';
+            else if (airSigns.includes(p1.sign)) element = 'air';
+            else if (waterSigns.includes(p1.sign)) element = 'water';
+          }
+
+          patterns.push({
+            type: 'grand_trine',
+            planets: [p1.planet, p2.planet, p3.planet],
+            element,
+            description: `Grand Trine: ${p1.planet}, ${p2.planet}, ${p3.planet}${element ? ` (${element})` : ''}`,
+            strength,
+          });
+        }
+      }
+    }
+  }
+
+  return patterns.sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * Detect T-Square pattern (2 planets in opposition, both square to a third planet)
+ *
+ * A T-Square is a challenging pattern with:
+ * - Two planets in opposition (180°)
+ * - A third planet square (90°) to both
+ *
+ * @param planets - Array of planet positions
+ * @param maxOrbOpposition - Maximum orb for opposition (default 8°)
+ * @param maxOrbSquare - Maximum orb for square (default 8°)
+ * @returns Array of detected T-Square patterns
+ */
+export function detectTSquares(
+  planets: PlanetPosition[],
+  maxOrbOpposition: number = 8,
+  maxOrbSquare: number = 8,
+): ChartPattern[] {
+  const patterns: ChartPattern[] = [];
+
+  // Check all combinations of 3 planets
+  for (let i = 0; i < planets.length - 2; i++) {
+    for (let j = i + 1; j < planets.length - 1; j++) {
+      for (let k = j + 1; k < planets.length; k++) {
+        const p1 = planets[i];
+        const p2 = planets[j];
+        const p3 = planets[k];
+
+        // Try all combinations to find opposition + 2 squares
+        const combinations = [
+          { opp: [p1, p2], apex: p3 },
+          { opp: [p1, p3], apex: p2 },
+          { opp: [p2, p3], apex: p1 },
+        ];
+
+        for (const combo of combinations) {
+          const [oppPlanet1, oppPlanet2] = combo.opp;
+          const apexPlanet = combo.apex;
+
+          // Check opposition
+          const oppDiff = normalizeAngleDiff(
+            oppPlanet1.longitude,
+            oppPlanet2.longitude,
+          );
+          const isOpposition = Math.abs(oppDiff - 180) <= maxOrbOpposition;
+
+          if (!isOpposition) continue;
+
+          // Check if apex squares both opposition planets
+          const diff1 = normalizeAngleDiff(
+            apexPlanet.longitude,
+            oppPlanet1.longitude,
+          );
+          const diff2 = normalizeAngleDiff(
+            apexPlanet.longitude,
+            oppPlanet2.longitude,
+          );
+
+          const isSquare1 = Math.abs(diff1 - 90) <= maxOrbSquare;
+          const isSquare2 = Math.abs(diff2 - 90) <= maxOrbSquare;
+
+          if (isSquare1 && isSquare2) {
+            // Calculate strength based on orbs
+            const avgOrb =
+              (Math.abs(oppDiff - 180) +
+                Math.abs(diff1 - 90) +
+                Math.abs(diff2 - 90)) /
+              3;
+            const strength = 1 - avgOrb / Math.max(maxOrbOpposition, maxOrbSquare);
+
+            patterns.push({
+              type: 't_square',
+              planets: [oppPlanet1.planet, oppPlanet2.planet, apexPlanet.planet],
+              description: `T-Square: ${oppPlanet1.planet} ⊕ ${oppPlanet2.planet}, apex ${apexPlanet.planet}`,
+              strength,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Remove duplicates (same planets in different order)
+  const unique = patterns.filter((pattern, index, self) => {
+    const planetsSet = new Set(pattern.planets.sort());
+    return (
+      index ===
+      self.findIndex((p) => {
+        const otherSet = new Set(p.planets.sort());
+        return (
+          planetsSet.size === otherSet.size &&
+          [...planetsSet].every((planet) => otherSet.has(planet))
+        );
+      })
+    );
+  });
+
+  return unique.sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * Detect Yod pattern (Finger of God: 2 planets in sextile, both quincunx to a third)
+ *
+ * A Yod is a rare "karmic" pattern with:
+ * - Two planets in sextile (60°)
+ * - Both in quincunx (150°) to a third planet (the apex)
+ *
+ * @param planets - Array of planet positions
+ * @param maxOrbSextile - Maximum orb for sextile (default 6°)
+ * @param maxOrbQuincunx - Maximum orb for quincunx (default 3°)
+ * @returns Array of detected Yod patterns
+ */
+export function detectYods(
+  planets: PlanetPosition[],
+  maxOrbSextile: number = 6,
+  maxOrbQuincunx: number = 3,
+): ChartPattern[] {
+  const patterns: ChartPattern[] = [];
+
+  // Check all combinations of 3 planets
+  for (let i = 0; i < planets.length - 2; i++) {
+    for (let j = i + 1; j < planets.length - 1; j++) {
+      for (let k = j + 1; k < planets.length; k++) {
+        const p1 = planets[i];
+        const p2 = planets[j];
+        const p3 = planets[k];
+
+        // Try all combinations to find sextile base + 2 quincunxes
+        const combinations = [
+          { base: [p1, p2], apex: p3 },
+          { base: [p1, p3], apex: p2 },
+          { base: [p2, p3], apex: p1 },
+        ];
+
+        for (const combo of combinations) {
+          const [basePlanet1, basePlanet2] = combo.base;
+          const apexPlanet = combo.apex;
+
+          // Check sextile between base planets
+          const sextileDiff = normalizeAngleDiff(
+            basePlanet1.longitude,
+            basePlanet2.longitude,
+          );
+          const isSextile = Math.abs(sextileDiff - 60) <= maxOrbSextile;
+
+          if (!isSextile) continue;
+
+          // Check if apex is quincunx to both base planets
+          const diff1 = normalizeAngleDiff(
+            apexPlanet.longitude,
+            basePlanet1.longitude,
+          );
+          const diff2 = normalizeAngleDiff(
+            apexPlanet.longitude,
+            basePlanet2.longitude,
+          );
+
+          const isQuincunx1 = Math.abs(diff1 - 150) <= maxOrbQuincunx;
+          const isQuincunx2 = Math.abs(diff2 - 150) <= maxOrbQuincunx;
+
+          if (isQuincunx1 && isQuincunx2) {
+            // Calculate strength based on orbs
+            const avgOrb =
+              (Math.abs(sextileDiff - 60) +
+                Math.abs(diff1 - 150) +
+                Math.abs(diff2 - 150)) /
+              3;
+            const strength = 1 - avgOrb / Math.max(maxOrbSextile, maxOrbQuincunx);
+
+            patterns.push({
+              type: 'yod',
+              planets: [basePlanet1.planet, basePlanet2.planet, apexPlanet.planet],
+              description: `Yod: ${basePlanet1.planet} ⚹ ${basePlanet2.planet}, apex ${apexPlanet.planet}`,
+              strength,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Remove duplicates
+  const unique = patterns.filter((pattern, index, self) => {
+    const planetsSet = new Set(pattern.planets.sort());
+    return (
+      index ===
+      self.findIndex((p) => {
+        const otherSet = new Set(p.planets.sort());
+        return (
+          planetsSet.size === otherSet.size &&
+          [...planetsSet].every((planet) => otherSet.has(planet))
+        );
+      })
+    );
+  });
+
+  return unique.sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * Detect all chart patterns (Grand Trine, T-Square, Yod)
+ *
+ * @param planets - Array of planet positions
+ * @returns Object with all detected patterns by type
+ */
+export function detectAllChartPatterns(planets: PlanetPosition[]): {
+  grandTrines: ChartPattern[];
+  tSquares: ChartPattern[];
+  yods: ChartPattern[];
+  all: ChartPattern[];
+} {
+  const grandTrines = detectGrandTrines(planets);
+  const tSquares = detectTSquares(planets);
+  const yods = detectYods(planets);
+
+  return {
+    grandTrines,
+    tSquares,
+    yods,
+    all: [...grandTrines, ...tSquares, ...yods].sort(
+      (a, b) => b.strength - a.strength,
+    ),
+  };
+}
+
+/**
+ * Get pattern interpretation in multiple languages
+ *
+ * @param pattern - Chart pattern
+ * @param locale - Language locale (ru, en, es)
+ * @returns Interpretation text for the pattern
+ */
+export function getPatternInterpretation(
+  pattern: ChartPattern,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string {
+  const interpretations: Record<
+    ChartPatternType,
+    Record<string, (pattern: ChartPattern) => string>
+  > = {
+    grand_trine: {
+      ru: (p) =>
+        `Большой Трин${p.element ? ` (${p.element})` : ''}: ${p.planets.join(', ')}. Гармоничная конфигурация, дающая естественные таланты и легкость в определенных сферах. Может приводить к самодовольству, требует сознательного применения.`,
+      en: (p) =>
+        `Grand Trine${p.element ? ` (${p.element})` : ''}: ${p.planets.join(', ')}. Harmonious configuration bringing natural talents and ease in certain areas. May lead to complacency, requires conscious application.`,
+      es: (p) =>
+        `Gran Trino${p.element ? ` (${p.element})` : ''}: ${p.planets.join(', ')}. Configuración armoniosa que aporta talentos naturales y facilidad en ciertas áreas. Puede conducir a la complacencia, requiere aplicación consciente.`,
+    },
+    t_square: {
+      ru: (p) =>
+        `Тау-квадрат: ${p.planets.join(', ')}. Динамическая напряженная конфигурация, требующая активных действий. Источник внутренней мотивации и достижений через преодоление трудностей.`,
+      en: (p) =>
+        `T-Square: ${p.planets.join(', ')}. Dynamic tense configuration requiring active effort. Source of inner motivation and achievement through overcoming challenges.`,
+      es: (p) =>
+        `Cuadratura en T: ${p.planets.join(', ')}. Configuración tensa dinámica que requiere esfuerzo activo. Fuente de motivación interna y logros al superar desafíos.`,
+    },
+    yod: {
+      ru: (p) =>
+        `Йод (Палец Судьбы): ${p.planets.join(', ')}. Редкая кармическая конфигурация, указывающая на особую миссию или предназначение. Требует корректировки и постоянных усилий для интеграции противоположных энергий.`,
+      en: (p) =>
+        `Yod (Finger of God): ${p.planets.join(', ')}. Rare karmic configuration pointing to special mission or destiny. Requires adjustment and constant effort to integrate opposing energies.`,
+      es: (p) =>
+        `Yod (Dedo de Dios): ${p.planets.join(', ')}. Rara configuración kármica que apunta a una misión o destino especial. Requiere ajuste y esfuerzo constante para integrar energías opuestas.`,
+    },
+  };
+
+  const interpreter = interpretations[pattern.type]?.[locale];
+  return interpreter ? interpreter(pattern) : pattern.description;
+}

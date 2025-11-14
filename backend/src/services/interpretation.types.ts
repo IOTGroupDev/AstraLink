@@ -67,6 +67,16 @@ export interface ChartSummary {
   financialApproach: string;
 }
 
+// Chart pattern interpretation
+export interface ChartPatternInterpretation {
+  type: 'grand_trine' | 't_square' | 'yod';
+  planets: string[];
+  element?: string;
+  description: string;
+  interpretation: string;
+  strength: number;
+}
+
 // Complete natal chart interpretation
 export interface NatalChartInterpretation {
   overview: string;
@@ -76,6 +86,7 @@ export interface NatalChartInterpretation {
   planets: PlanetInterpretation[];
   aspects: AspectInterpretation[];
   houses: HouseInterpretation[];
+  patterns?: ChartPatternInterpretation[]; // Chart patterns (Grand Trine, T-Square, Yod)
   summary: ChartSummary;
 }
 
