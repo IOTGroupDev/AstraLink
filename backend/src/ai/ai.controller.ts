@@ -96,8 +96,7 @@ export class AIController {
   @Post('horoscope/generate')
   @RequiresSubscription(SubscriptionTier.PREMIUM, SubscriptionTier.MAX) // 🎯 Только Premium и MAX
   @ApiOperation({
-    summary:
-      'AI генерация гороскопа (PREMIUM/MAX, обновление 1 раз в сутки)',
+    summary: 'AI генерация гороскопа (PREMIUM/MAX, обновление 1 раз в сутки)',
   })
   @ApiResponse({ status: 200, description: 'AI-гороскоп успешно сгенерирован' })
   @ApiResponse({
@@ -126,8 +125,7 @@ export class AIController {
   @Post('horoscope/direct')
   @RequiresSubscription(SubscriptionTier.PREMIUM, SubscriptionTier.MAX) // 🎯 Только Premium и MAX
   @ApiOperation({
-    summary:
-      '🎯 Прямая генерация через AI с выбором провайдера (PREMIUM/MAX)',
+    summary: '🎯 Прямая генерация через AI с выбором провайдера (PREMIUM/MAX)',
   })
   @ApiResponse({ status: 200, description: 'AI-гороскоп успешно сгенерирован' })
   @ApiResponse({ status: 400, description: 'Недоступный провайдер' })

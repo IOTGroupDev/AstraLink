@@ -12,17 +12,7 @@ import { AIService } from '../ai.service';
 
 @Module({
   imports: [ConfigModule],
-  providers: [
-    ClaudeProvider,
-    OpenAIProvider,
-    DeepSeekProvider,
-    AIService,
-  ],
-  exports: [
-    ClaudeProvider,
-    OpenAIProvider,
-    DeepSeekProvider,
-    AIService,
-  ],
+  providers: [ClaudeProvider, OpenAIProvider, DeepSeekProvider, AIService],
+  exports: [ClaudeProvider, OpenAIProvider, DeepSeekProvider, AIService],
 })
 export class AIProvidersModule {}

@@ -186,8 +186,7 @@ export class UserService {
           patch.birth_time !== undefined ||
           patch.birth_place !== undefined;
 
-        const needsRecreate =
-          charts && charts.length > 0 && birthDataChanged;
+        const needsRecreate = charts && charts.length > 0 && birthDataChanged;
 
         if (!charts || charts.length === 0 || needsRecreate) {
           // Удаляем старую карту если пересоздаём

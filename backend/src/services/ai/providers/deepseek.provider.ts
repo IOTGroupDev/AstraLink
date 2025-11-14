@@ -37,7 +37,8 @@ export class DeepSeekProvider extends BaseAIProvider {
       } as any);
       this.logger.log('✅ DeepSeek AI initialized');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('❌ Failed to initialize DeepSeek:', errorMessage);
     }
   }
@@ -91,7 +92,9 @@ export class DeepSeekProvider extends BaseAIProvider {
         lastError = error instanceof Error ? error : new Error(String(error));
         const errorMessage = lastError.message;
 
-        this.logger.warn(`DeepSeek attempt ${attempt + 1}/${retries} failed: ${errorMessage}`);
+        this.logger.warn(
+          `DeepSeek attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
+        );
 
         if (attempt === retries - 1) {
           break;
@@ -104,7 +107,9 @@ export class DeepSeekProvider extends BaseAIProvider {
       }
     }
 
-    this.logger.error(`❌ DeepSeek failed after ${retries} attempts: ${lastError?.message}`);
+    this.logger.error(
+      `❌ DeepSeek failed after ${retries} attempts: ${lastError?.message}`,
+    );
     throw lastError || new Error('DeepSeek generation failed');
   }
 
@@ -157,7 +162,8 @@ export class DeepSeekProvider extends BaseAIProvider {
         approximateChars: fullContent.length,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`❌ DeepSeek streaming failed: ${errorMessage}`);
       throw error;
     }

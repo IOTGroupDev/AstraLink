@@ -46,7 +46,7 @@ export class NatalChartService {
     const existing = await this.chartRepository.findByUserId(userId);
 
     // If chart already exists with interpretation, return it
-    if (existing && (existing.data as any)?.interpretation) {
+    if (existing && existing.data?.interpretation) {
       return existing;
     }
 
@@ -116,7 +116,7 @@ export class NatalChartService {
       throw new NotFoundException('Natal chart not found');
     }
 
-    const chartData = chart.data as any;
+    const chartData = chart.data;
 
     // If interpretation is missing or version is outdated — regenerate for v3
     if (!chartData.interpretation || chartData.interpretationVersion !== 'v3') {
@@ -188,7 +188,7 @@ export class NatalChartService {
     return {
       id: chart.id,
       userId: chart.user_id,
-      data: chart.data as any,
+      data: chart.data,
       createdAt: chart.created_at,
       updatedAt: chart.updated_at,
     };
@@ -283,7 +283,8 @@ export class NatalChartService {
     }
 
     if (type === 'house' && houseNum && sign) {
-      const num = typeof houseNum === 'string' ? parseInt(houseNum, 10) : houseNum;
+      const num =
+        typeof houseNum === 'string' ? parseInt(houseNum, 10) : houseNum;
       const extended = getExtendedHouseSign(num, sign as any);
       return extended || [];
     }

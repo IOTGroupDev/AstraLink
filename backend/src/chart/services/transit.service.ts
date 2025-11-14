@@ -15,12 +15,7 @@ export class TransitService {
   /**
    * Get transits for a date range
    */
-  async getTransits(
-    userId: string,
-    natalChart: any,
-    from: string,
-    to: string,
-  ) {
+  async getTransits(userId: string, natalChart: any, from: string, to: string) {
     const fromDate = new Date(from);
     const toDate = new Date(to);
     const transits = await this.ephemerisService.getTransits(

@@ -54,7 +54,7 @@ export class BiorhythmService {
       try {
         if (natalChart) {
           const bd =
-            (natalChart as any)?.data?.birthDate || (natalChart as any)?.data?.birth_date;
+            natalChart?.data?.birthDate || natalChart?.data?.birth_date;
           if (bd) {
             const birth = new Date(bd as string);
             const birthNoon = new Date(

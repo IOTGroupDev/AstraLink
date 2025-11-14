@@ -17,10 +17,7 @@ export class PredictionService {
   /**
    * Get astrological predictions
    */
-  async getPredictions(
-    natalChart: any,
-    period: string = 'day',
-  ) {
+  async getPredictions(natalChart: any, period: string = 'day') {
     if (!natalChart) {
       throw new NotFoundException('Natal chart not found');
     }

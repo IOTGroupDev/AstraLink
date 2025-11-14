@@ -22,7 +22,7 @@ export abstract class BaseAIProvider implements IAIProvider {
    * Sleep utility for retry backoff
    */
   protected sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

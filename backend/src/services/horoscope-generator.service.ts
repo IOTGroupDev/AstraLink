@@ -90,7 +90,9 @@ export class HoroscopeGeneratorService {
    * Find user chart using centralized ChartRepository
    */
   private async findUserChart(userId: string): Promise<ChartLookupResult> {
-    this.logger.log(`Looking for natal chart for user ${userId} via ChartRepository`);
+    this.logger.log(
+      `Looking for natal chart for user ${userId} via ChartRepository`,
+    );
 
     try {
       const chart = await this.chartRepository.findByUserId(userId);
@@ -1197,19 +1199,23 @@ export class HoroscopeGeneratorService {
   /**
    * Calculate lunar phase for the target date
    */
-  private calculateLunarPhaseForDate(transits: TransitData): {
-    phase: string;
-    emoji: string;
-    description: string;
-    illumination: number;
-    interpretation: string;
-  } | undefined {
+  private calculateLunarPhaseForDate(transits: TransitData):
+    | {
+        phase: string;
+        emoji: string;
+        description: string;
+        illumination: number;
+        interpretation: string;
+      }
+    | undefined {
     try {
       const sunLongitude = transits.planets?.sun?.longitude;
       const moonLongitude = transits.planets?.moon?.longitude;
 
       if (sunLongitude == null || moonLongitude == null) {
-        this.logger.warn('Sun or Moon longitude not available for lunar phase calculation');
+        this.logger.warn(
+          'Sun or Moon longitude not available for lunar phase calculation',
+        );
         return undefined;
       }
 

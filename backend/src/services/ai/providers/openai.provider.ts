@@ -34,7 +34,8 @@ export class OpenAIProvider extends BaseAIProvider {
       this.client = new OpenAI({ apiKey });
       this.logger.log('✅ OpenAI GPT initialized');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('❌ Failed to initialize OpenAI:', errorMessage);
     }
   }
@@ -88,7 +89,9 @@ export class OpenAIProvider extends BaseAIProvider {
         lastError = error instanceof Error ? error : new Error(String(error));
         const errorMessage = lastError.message;
 
-        this.logger.warn(`OpenAI attempt ${attempt + 1}/${retries} failed: ${errorMessage}`);
+        this.logger.warn(
+          `OpenAI attempt ${attempt + 1}/${retries} failed: ${errorMessage}`,
+        );
 
         // Don't retry on final attempt
         if (attempt === retries - 1) {
@@ -102,7 +105,9 @@ export class OpenAIProvider extends BaseAIProvider {
       }
     }
 
-    this.logger.error(`❌ OpenAI failed after ${retries} attempts: ${lastError?.message}`);
+    this.logger.error(
+      `❌ OpenAI failed after ${retries} attempts: ${lastError?.message}`,
+    );
     throw lastError || new Error('OpenAI generation failed');
   }
 
@@ -155,7 +160,8 @@ export class OpenAIProvider extends BaseAIProvider {
         approximateChars: fullContent.length,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`❌ OpenAI streaming failed: ${errorMessage}`);
       throw error;
     }

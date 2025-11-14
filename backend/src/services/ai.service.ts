@@ -15,7 +15,11 @@ import { ClaudeProvider } from './ai/providers/claude.provider';
 import { OpenAIProvider } from './ai/providers/openai.provider';
 import { DeepSeekProvider } from './ai/providers/deepseek.provider';
 import { IAIProvider } from './ai/interfaces/ai-provider.interface';
-import { AIProvider, AIGenerationContext, HoroscopeResponse } from './ai/interfaces/ai-types';
+import {
+  AIProvider,
+  AIGenerationContext,
+  HoroscopeResponse,
+} from './ai/interfaces/ai-types';
 
 @Injectable()
 export class AIService {
@@ -43,16 +47,23 @@ export class AIService {
     this.providers.set('deepseek', this.deepseekProvider);
 
     // Get provider preference from config
-    const providerPreference = this.configService.get<string>('AI_PROVIDER_PREFERENCE') || 'auto';
+    const providerPreference =
+      this.configService.get<string>('AI_PROVIDER_PREFERENCE') || 'auto';
 
     // Set primary provider based on preference and availability
     if (providerPreference === 'claude' && this.claudeProvider.isAvailable()) {
       this.primaryProvider = 'claude';
       this.logger.log('🎯 Primary provider: Claude (configured preference)');
-    } else if (providerPreference === 'openai' && this.openaiProvider.isAvailable()) {
+    } else if (
+      providerPreference === 'openai' &&
+      this.openaiProvider.isAvailable()
+    ) {
       this.primaryProvider = 'openai';
       this.logger.log('🎯 Primary provider: OpenAI (configured preference)');
-    } else if (providerPreference === 'deepseek' && this.deepseekProvider.isAvailable()) {
+    } else if (
+      providerPreference === 'deepseek' &&
+      this.deepseekProvider.isAvailable()
+    ) {
       this.primaryProvider = 'deepseek';
       this.logger.log('🎯 Primary provider: DeepSeek (configured preference)');
     } else {
@@ -84,12 +95,18 @@ export class AIService {
   /**
    * Generate personalized horoscope with automatic fallback (PREMIUM ONLY)
    */
-  async generateHoroscope(context: AIGenerationContext): Promise<HoroscopeResponse> {
+  async generateHoroscope(
+    context: AIGenerationContext,
+  ): Promise<HoroscopeResponse> {
     if (!this.isAvailable()) {
-      throw new Error('AI service unavailable - requires API key for Claude, OpenAI or DeepSeek');
+      throw new Error(
+        'AI service unavailable - requires API key for Claude, OpenAI or DeepSeek',
+      );
     }
 
-    this.logger.log(`🤖 Generating PREMIUM horoscope via ${this.primaryProvider.toUpperCase()}`);
+    this.logger.log(
+      `🤖 Generating PREMIUM horoscope via ${this.primaryProvider.toUpperCase()}`,
+    );
 
     const prompt = this.buildHoroscopePrompt(context);
     let response: string;
@@ -104,7 +121,10 @@ export class AIService {
       response = await provider.generate(prompt);
       return this.parseAIResponse(response);
     } catch (error) {
-      this.logger.error(`❌ Generation error via ${this.primaryProvider}:`, error);
+      this.logger.error(
+        `❌ Generation error via ${this.primaryProvider}:`,
+        error,
+      );
 
       // 🔄 Automatic fallback to alternative providers
       const availableProviders = this.getAvailableProviders().filter(
@@ -112,7 +132,9 @@ export class AIService {
       );
 
       for (const fallbackProvider of availableProviders) {
-        this.logger.log(`🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`);
+        this.logger.log(
+          `🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`,
+        );
         try {
           const provider = this.providers.get(fallbackProvider);
           if (!provider) continue;
@@ -120,7 +142,10 @@ export class AIService {
           response = await provider.generate(prompt);
           return this.parseAIResponse(response);
         } catch (fallbackError) {
-          this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
+          this.logger.error(
+            `❌ Fallback to ${fallbackProvider} also failed:`,
+            fallbackError,
+          );
         }
       }
 
@@ -156,7 +181,10 @@ export class AIService {
 
       return await provider.generate(prompt);
     } catch (error) {
-      this.logger.error(`❌ Interpretation error via ${this.primaryProvider}:`, error);
+      this.logger.error(
+        `❌ Interpretation error via ${this.primaryProvider}:`,
+        error,
+      );
 
       // 🔄 Automatic fallback
       const availableProviders = this.getAvailableProviders().filter(
@@ -164,14 +192,19 @@ export class AIService {
       );
 
       for (const fallbackProvider of availableProviders) {
-        this.logger.log(`🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`);
+        this.logger.log(
+          `🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`,
+        );
         try {
           const provider = this.providers.get(fallbackProvider);
           if (!provider) continue;
 
           return await provider.generate(prompt);
         } catch (fallbackError) {
-          this.logger.error(`❌ Fallback to ${fallbackProvider} also failed:`, fallbackError);
+          this.logger.error(
+            `❌ Fallback to ${fallbackProvider} also failed:`,
+            fallbackError,
+          );
         }
       }
 
@@ -189,7 +222,9 @@ export class AIService {
       throw new Error('AI service unavailable');
     }
 
-    this.logger.log(`🌊 Streaming horoscope via ${this.primaryProvider.toUpperCase()}`);
+    this.logger.log(
+      `🌊 Streaming horoscope via ${this.primaryProvider.toUpperCase()}`,
+    );
 
     const prompt = this.buildHoroscopePrompt(context);
 
@@ -201,7 +236,10 @@ export class AIService {
 
       yield* provider.stream(prompt);
     } catch (error) {
-      this.logger.error(`❌ Streaming error via ${this.primaryProvider}:`, error);
+      this.logger.error(
+        `❌ Streaming error via ${this.primaryProvider}:`,
+        error,
+      );
 
       // Try one fallback for streaming (no multiple retries for streaming)
       const fallbackProviders = this.getAvailableProviders().filter(
@@ -210,7 +248,9 @@ export class AIService {
 
       if (fallbackProviders.length > 0) {
         const fallbackProvider = fallbackProviders[0];
-        this.logger.log(`🔄 Streaming fallback to ${fallbackProvider.toUpperCase()}`);
+        this.logger.log(
+          `🔄 Streaming fallback to ${fallbackProvider.toUpperCase()}`,
+        );
 
         const provider = this.providers.get(fallbackProvider);
         if (provider) {

@@ -47,7 +47,10 @@ export const ASPECT_DEFINITIONS: Array<Omit<AspectDefinition, 'orb'>> = [
 /**
  * Normalize angle difference to 0-180 range
  */
-export function normalizeAngleDiff(longitude1: number, longitude2: number): number {
+export function normalizeAngleDiff(
+  longitude1: number,
+  longitude2: number,
+): number {
   const diff = Math.abs(longitude1 - longitude2);
   return Math.min(diff, 360 - diff);
 }
@@ -220,7 +223,10 @@ export function detectStelliums(
 
     // Find planets within orb
     for (let j = i + 1; j < sortedPlanets.length; j++) {
-      const diff = normalizeAngleDiff(startLongitude, sortedPlanets[j].longitude);
+      const diff = normalizeAngleDiff(
+        startLongitude,
+        sortedPlanets[j].longitude,
+      );
 
       if (diff <= maxOrb) {
         cluster.push(sortedPlanets[j]);
@@ -259,7 +265,7 @@ export function detectStelliums(
           }
         });
         sign = Object.keys(signCounts).reduce((a, b) =>
-          signCounts[a] > signCounts[b] ? a : b
+          signCounts[a] > signCounts[b] ? a : b,
         );
       }
 
@@ -283,7 +289,10 @@ export function detectStelliums(
 /**
  * Check if a natal chart has any stelliums
  */
-export function hasStellium(planets: PlanetPosition[], maxOrb: number = 8): boolean {
+export function hasStellium(
+  planets: PlanetPosition[],
+  maxOrb: number = 8,
+): boolean {
   return detectStelliums(planets, maxOrb).length > 0;
 }
 
@@ -433,7 +442,7 @@ export function getLunarPhaseInterpretation(
     },
     last_quarter: {
       ru: 'Последняя четверть — время освобождения от ненужного и переоценки. Отпустите то, что больше не служит вам.',
-      en: 'Last Quarter — time to release what no longer serves and reassess. Let go of what doesn\'t serve you anymore.',
+      en: "Last Quarter — time to release what no longer serves and reassess. Let go of what doesn't serve you anymore.",
       es: 'Cuarto Menguante — tiempo para liberar lo que ya no sirve y reevaluar. Deja ir lo que ya no te sirve.',
     },
     waning_crescent: {
@@ -612,7 +621,10 @@ export function getPartOfFortuneInterpretation(
  * @param ascendantLongitude - Ascendant longitude
  * @returns True if day birth, false if night birth
  */
-export function isDayBirth(sunLongitude: number, ascendantLongitude: number): boolean {
+export function isDayBirth(
+  sunLongitude: number,
+  ascendantLongitude: number,
+): boolean {
   // Calculate difference between Sun and Ascendant
   let diff = sunLongitude - ascendantLongitude;
 

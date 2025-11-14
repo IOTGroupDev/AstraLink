@@ -92,7 +92,10 @@ export class ChartRepository implements IChartRepository {
 
       return this.normalizeChartData(created);
     } catch (error) {
-      this.logger.error(`Failed to create chart for user ${data.user_id}`, error);
+      this.logger.error(
+        `Failed to create chart for user ${data.user_id}`,
+        error,
+      );
       throw new DataAccessError('Failed to create chart', error);
     }
   }
@@ -135,7 +138,10 @@ export class ChartRepository implements IChartRepository {
     try {
       // Use Admin Client for bulk delete (bypasses RLS)
       const admin = this.supabase.getAdminClient();
-      const { error } = await admin.from('charts').delete().eq('user_id', userId);
+      const { error } = await admin
+        .from('charts')
+        .delete()
+        .eq('user_id', userId);
 
       if (error) {
         throw new DataAccessError('Failed to delete charts', error);
@@ -235,7 +241,9 @@ export class ChartRepository implements IChartRepository {
   /**
    * Find chart via Regular Client
    */
-  private async findByUserIdRegular(userId: string): Promise<NatalChart | null> {
+  private async findByUserIdRegular(
+    userId: string,
+  ): Promise<NatalChart | null> {
     try {
       const { data, error } = await this.supabase.getUserCharts(userId);
 
