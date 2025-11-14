@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EphemerisService } from './ephemeris.service';
 import { InterpretationService } from './interpretation.service';
 import { HoroscopeGeneratorService } from './horoscope-generator.service';
+import { AIService } from './ai.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { RedisModule } from '../redis/redis.module';
@@ -26,7 +27,7 @@ import { AIProvidersModule } from './ai/ai.module';
     LunarService,
   ],
   exports: [
-    AIProvidersModule, // Re-export AIService from AIProvidersModule
+    AIService, // Export AIService (comes from AIProvidersModule)
     EphemerisService,
     InterpretationService,
     HoroscopeGeneratorService,
