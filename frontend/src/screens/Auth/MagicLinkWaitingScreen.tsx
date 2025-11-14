@@ -32,10 +32,10 @@
 // //     if (Platform.OS !== 'web') {
 // //       const { data: authListener } = supabase.auth.onAuthStateChange(
 // //         async (event, session) => {
-// //           console.log('🔐 Auth state changed:', event);
+// //           authLogger.log('🔐 Auth state changed:', event);
 // //
 // //           if (event === 'SIGNED_IN' && session) {
-// //             console.log('✅ Пользователь вошел через magic link');
+// //             authLogger.log('✅ Пользователь вошел через magic link');
 // //             // @ts-ignore
 // //             navigation.replace('UserDataLoader');
 // //           }
@@ -61,31 +61,31 @@
 // //           try {
 // //             const msg: any = event?.data;
 // //             if (msg?.type === 'SIGNED_IN' && msg?.accessToken) {
-// //               console.log('📡 BroadcastChannel: SIGNED_IN received');
+// //               authLogger.log('📡 BroadcastChannel: SIGNED_IN received');
 // //               const { error } = await supabase.auth.setSession({
 // //                 access_token: msg.accessToken,
 // //                 refresh_token: msg.refreshToken || '',
 // //               });
 // //               if (error) {
-// //                 console.error('❌ setSession from BroadcastChannel failed:', error);
+// //                 authLogger.error('❌ setSession from BroadcastChannel failed:', error);
 // //                 return;
 // //               }
 // //               // @ts-ignore
 // //               navigation.replace('UserDataLoader');
 // //             }
 // //           } catch (e) {
-// //             console.error('BroadcastChannel handler error:', e);
+// //             authLogger.error('BroadcastChannel handler error:', e);
 // //           }
 // //         };
 // //       } catch (e) {
-// //         console.warn('BroadcastChannel init failed, will rely on storage fallback:', e);
+// //         authLogger.warn('BroadcastChannel init failed, will rely on storage fallback:', e);
 // //       }
 // //
 // //       // Fallback: onstorage триггер с локальным токеном (если BroadcastChannel недоступен)
 // //       const onStorage = async (e: StorageEvent) => {
 // //         try {
 // //           if (e.key === 'al_token_broadcast' && e.newValue) {
-// //             console.log('🔔 Storage fallback: broadcast flag received');
+// //             authLogger.log('🔔 Storage fallback: broadcast flag received');
 // //             const token = await tokenService.getToken();
 // //             if (token) {
 // //               const { error } = await supabase.auth.setSession({
@@ -93,7 +93,7 @@
 // //                 refresh_token: '',
 // //               });
 // //               if (error) {
-// //                 console.error('❌ setSession from storage fallback failed:', error);
+// //                 authLogger.error('❌ setSession from storage fallback failed:', error);
 // //                 return;
 // //               }
 // //               // @ts-ignore
@@ -101,7 +101,7 @@
 // //             }
 // //           }
 // //         } catch (err) {
-// //           console.error('storage fallback handler error:', err);
+// //           authLogger.error('storage fallback handler error:', err);
 // //         }
 // //       };
 // //       window.addEventListener('storage', onStorage);
@@ -125,13 +125,13 @@
 // //         // Пытаемся прочитать токен, сохранённый callback-вкладкой
 // //         const token = await tokenService.getToken();
 // //         if (token) {
-// //           console.log('🔑 Token found in storage, establishing session in this tab');
+// //           authLogger.log('🔑 Token found in storage, establishing session in this tab');
 // //           const { error } = await supabase.auth.setSession({
 // //             access_token: token,
 // //             refresh_token: '',
 // //           });
 // //           if (error) {
-// //             console.error('❌ setSession failed:', error);
+// //             authLogger.error('❌ setSession failed:', error);
 // //             setMessage('Не удалось применить сессию. Обновите страницу и повторите.');
 // //           } else {
 // //             // @ts-ignore
@@ -148,7 +148,7 @@
 // //         } = await supabase.auth.getSession();
 // //
 // //         if (session) {
-// //           console.log('✅ Сессия найдена');
+// //           authLogger.log('✅ Сессия найдена');
 // //           // @ts-ignore
 // //           navigation.replace('UserDataLoader');
 // //           return;
@@ -172,7 +172,7 @@
 // //       await authAPI.sendVerificationCode(email);
 // //       setMessage('Ссылка отправлена повторно. Проверьте почту.');
 // //     } catch (err: any) {
-// //       console.error('Resend magic link error:', err);
+// //       authLogger.error('Resend magic link error:', err);
 // //       setMessage(err?.message || 'Не удалось отправить ссылку. Повторите позже.');
 // //     } finally {
 // //       setIsResending(false);
@@ -581,7 +581,7 @@ function getRedirectUri(): string {
       path: 'auth/callback',
     });
   } catch (error) {
-    console.error('❌ Ошибка получения redirect URI:', error);
+    authLogger.error('❌ Ошибка получения redirect URI:', error);
     // Fallback на стандартный URI
     return 'astralink://auth/callback';
   }
@@ -605,7 +605,7 @@ export default function MagicLinkWaitingScreen() {
         if (session?.access_token) {
           try {
             setChecking(true);
-            console.log('✅ Сессия получена через magic link (mobile)');
+            authLogger.log('✅ Сессия получена через magic link (mobile)');
 
             // Переходим на экран загрузки данных
             navigation.reset({
@@ -613,7 +613,7 @@ export default function MagicLinkWaitingScreen() {
               routes: [{ name: 'UserDataLoader' }],
             });
           } catch (err) {
-            console.error('❌ Ошибка после получения сессии:', err);
+            authLogger.error('❌ Ошибка после получения сессии:', err);
           } finally {
             setChecking(false);
           }
@@ -631,9 +631,9 @@ export default function MagicLinkWaitingScreen() {
         bc.onmessage = async (event: MessageEvent) => {
           try {
             const msg: any = event?.data;
-            console.log('📡 BroadcastChannel message received:', msg);
+            authLogger.log('📡 BroadcastChannel message received:', msg);
             if (msg?.type === 'SIGNED_IN' && msg?.accessToken) {
-              console.log(
+              authLogger.log(
                 '📡 BroadcastChannel: SIGNED_IN received, setting session'
               );
               const { error } = await supabase.auth.setSession({
@@ -641,13 +641,13 @@ export default function MagicLinkWaitingScreen() {
                 refresh_token: msg.refreshToken || '',
               });
               if (error) {
-                console.error(
+                authLogger.error(
                   '❌ setSession from BroadcastChannel failed:',
                   error
                 );
                 return;
               }
-              console.log(
+              authLogger.log(
                 '✅ Session set from BroadcastChannel, navigating to UserDataLoader'
               );
               // Переходим на экран загрузки данных
@@ -657,12 +657,12 @@ export default function MagicLinkWaitingScreen() {
               });
             }
           } catch (e) {
-            console.error('BroadcastChannel handler error:', e);
+            authLogger.error('BroadcastChannel handler error:', e);
           }
         };
-        console.log('📡 BroadcastChannel listener set up successfully');
+        authLogger.log('📡 BroadcastChannel listener set up successfully');
       } catch (e) {
-        console.warn(
+        authLogger.warn(
           'BroadcastChannel init failed, will rely on storage fallback:',
           e
         );
@@ -671,12 +671,12 @@ export default function MagicLinkWaitingScreen() {
       // Fallback: onstorage триггер с локальным токеном
       const onStorage = async (e: StorageEvent) => {
         try {
-          console.log('🔔 Storage event received:', e.key, e.newValue);
+          authLogger.log('🔔 Storage event received:', e.key, e.newValue);
           if (e.key === 'al_token_broadcast' && e.newValue) {
-            console.log('🔔 Storage fallback: broadcast flag received');
+            authLogger.log('🔔 Storage fallback: broadcast flag received');
             // Пытаемся установить сессию из сохраненного токена
             const token = await tokenService.getToken();
-            console.log(
+            authLogger.log(
               '🔑 Token from storage:',
               token ? 'found' : 'not found'
             );
@@ -686,13 +686,13 @@ export default function MagicLinkWaitingScreen() {
                 refresh_token: '',
               });
               if (error) {
-                console.error(
+                authLogger.error(
                   '❌ setSession from storage fallback failed:',
                   error
                 );
                 return;
               }
-              console.log(
+              authLogger.log(
                 '✅ Session set from storage fallback, navigating to UserDataLoader'
               );
               // Переходим на экран загрузки данных
@@ -703,11 +703,11 @@ export default function MagicLinkWaitingScreen() {
             }
           }
         } catch (err) {
-          console.error('storage fallback handler error:', err);
+          authLogger.error('storage fallback handler error:', err);
         }
       };
       window.addEventListener('storage', onStorage);
-      console.log('🔔 Storage event listener set up');
+      authLogger.log('🔔 Storage event listener set up');
 
       return () => {
         sub.subscription?.unsubscribe?.();
@@ -757,9 +757,9 @@ export default function MagicLinkWaitingScreen() {
 
       if (resendError) throw resendError;
 
-      console.log('✅ OTP повторно отправлен');
+      authLogger.log('✅ OTP повторно отправлен');
     } catch (e: any) {
-      console.error('❌ Ошибка повторной отправки:', e);
+      authLogger.error('❌ Ошибка повторной отправки:', e);
       setError(e?.message ?? 'Не удалось отправить повторно');
     } finally {
       setResending(false);
@@ -788,7 +788,7 @@ export default function MagicLinkWaitingScreen() {
         routes: [{ name: 'UserDataLoader' }],
       });
     } catch (e: any) {
-      console.error('❌ Ошибка подтверждения кода:', e);
+      authLogger.error('❌ Ошибка подтверждения кода:', e);
       const msg =
         e?.message ||
         'Не удалось подтвердить код. Убедитесь, что вы ввели его правильно';

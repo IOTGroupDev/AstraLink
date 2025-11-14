@@ -60,12 +60,12 @@
 //     setIsLoading(true);
 //
 //     try {
-//       console.log('📧 Отправка OTP кода на:', email);
+//       authLogger.log('📧 Отправка OTP кода на:', email);
 //
 //       // Отправляем magic link через Supabase
 //       const result = await authAPI.sendVerificationCode(email);
 //
-//       console.log('✅ OTP успешно отправлен:', result);
+//       authLogger.log('✅ OTP успешно отправлен:', result);
 //
 //       // Переходим на экран ввода кода
 //       // @ts-ignore
@@ -75,7 +75,7 @@
 //         shouldCreateUser: true,
 //       });
 //     } catch (error: any) {
-//       console.error('❌ Ошибка отправки magic link:', error);
+//       authLogger.error('❌ Ошибка отправки magic link:', error);
 //
 //       // Обрабатываем ошибки
 //       let message = error.message || 'Не удалось отправить письмо';

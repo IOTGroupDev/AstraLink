@@ -36,7 +36,7 @@
 //     try {
 //       setLoading(true);
 //       setLoadingProvider('google');
-//       console.log('🔐 Начинаем Google регистрацию');
+//       authLogger.log('🔐 Начинаем Google регистрацию');
 //
 //       // OAuth с биометрической защитой (если включена)
 //       const response = await withBiometricProtection(
@@ -44,21 +44,21 @@
 //         'Google'
 //       );
 //
-//       console.log('✅ Google авторизация успешна');
+//       authLogger.log('✅ Google авторизация успешна');
 //
 //       // Сохраняем пользователя в store
 //       login(response.user);
 //
 //       // Проверяем заполнены ли данные о рождении
 //       if (needsOnboarding(response.user)) {
-//         console.log('📝 Требуется заполнить данные о рождении');
+//         authLogger.log('📝 Требуется заполнить данные о рождении');
 //         navigation.navigate('OnboardingName' as never);
 //       } else {
 //         setCompleted(true);
 //         navigation.navigate('Main' as never);
 //       }
 //     } catch (error: any) {
-//       console.error('❌ Google sign up error:', error);
+//       authLogger.error('❌ Google sign up error:', error);
 //       handleOAuthError(error, 'Google');
 //     } finally {
 //       setLoading(false);
@@ -70,7 +70,7 @@
 //     try {
 //       setLoading(true);
 //       setLoadingProvider('apple');
-//       console.log('🍎 Apple sign up');
+//       authLogger.log('🍎 Apple sign up');
 //
 //       // TODO: Реализовать Apple OAuth
 //       Alert.alert(
@@ -79,7 +79,7 @@
 //         [{ text: 'OK' }]
 //       );
 //     } catch (error: any) {
-//       console.error('❌ Apple sign up error:', error);
+//       authLogger.error('❌ Apple sign up error:', error);
 //       handleOAuthError(error, 'Apple');
 //     } finally {
 //       setLoading(false);
@@ -91,7 +91,7 @@
 //     try {
 //       setLoading(true);
 //       setLoadingProvider('vk');
-//       console.log('🔵 VK sign up');
+//       authLogger.log('🔵 VK sign up');
 //
 //       // TODO: Реализовать VK OAuth
 //       Alert.alert(
@@ -100,7 +100,7 @@
 //         [{ text: 'OK' }]
 //       );
 //     } catch (error: any) {
-//       console.error('❌ VK sign up error:', error);
+//       authLogger.error('❌ VK sign up error:', error);
 //       handleOAuthError(error, 'VK');
 //     } finally {
 //       setLoading(false);
