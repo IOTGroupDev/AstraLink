@@ -1,11 +1,13 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -19,13 +21,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(request: any, _payload: any) {
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
     if (!token) {
-      console.log('[JwtStrategy] No token provided in request');
+      this.logger.debug('No token provided in request');
       return null;
     }
 
     // Development-only fallback for Supabase tokens
     if (process.env.NODE_ENV === 'development') {
-      console.warn(
+      this.logger.warn(
         '⚠️  DEVELOPMENT MODE: Using insecure JWT decode in JwtStrategy',
       );
       try {
@@ -42,13 +44,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           }
         }
       } catch (error) {
-        console.error('[JwtStrategy] Error decoding token:', error);
+        this.logger.error('Error decoding token:', error);
         // Fallback for simple userId tokens in development
         if (token && token.length > 10) {
-          console.log(
-            '[JwtStrategy] Treating token as userId for development:',
-            token,
-          );
+          this.logger.debug('Treating token as userId for development');
           return {
             userId: token,
             email: 'dev@example.com',
@@ -71,7 +70,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
     }
 
-    console.log('[JwtStrategy] Invalid token payload - no userId found');
+    this.logger.debug('Invalid token payload - no userId found');
     return null;
   }
 }

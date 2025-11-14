@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -12,6 +13,8 @@ import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     private supabaseService: SupabaseService,
     private chartService: ChartService,
@@ -248,7 +251,7 @@ export class UserService {
         if (!charts || charts.length === 0 || needsRecreate) {
           // Удаляем старую карту если пересоздаём
           if (needsRecreate && charts && charts.length > 0) {
-            console.log(
+            this.logger.log(
               `🔄 Данные рождения изменились, пересоздаём натальную карту для пользователя ${userId}`,
             );
             const adminClient = this.supabaseService.getAdminClient();
@@ -389,7 +392,7 @@ export class UserService {
    */
   async deleteAccount(userId: string): Promise<void> {
     try {
-      console.log(`🗑️ Начинаем удаление аккаунта пользователя: ${userId}`);
+      this.logger.log(`🗑️ Начинаем удаление аккаунта пользователя: ${userId}`);
 
       // Проверяем существование пользователя
       const { data: user, error: userError } =
@@ -399,102 +402,105 @@ export class UserService {
         throw new NotFoundException(`Пользователь с ID ${userId} не найден`);
       }
 
-      console.log(`✅ Пользователь найден: ${user.email}`);
+      this.logger.log(`✅ Пользователь найден: ${user.email}`);
 
       // Используем admin client для обхода RLS
       const adminClient = this.supabaseService.getAdminClient();
 
       // 1. Удаляем Charts (натальные карты)
-      console.log('🗑️ Удаление натальных карт...');
+      this.logger.log('🗑️ Удаление натальных карт...');
       const { error: chartsError } = await adminClient
         .from('charts')
         .delete()
         .eq('user_id', userId);
 
       if (chartsError) {
-        console.error('❌ Ошибка удаления charts:', chartsError);
+        this.logger.error('❌ Ошибка удаления charts:', chartsError);
         throw new InternalServerErrorException(
           'Ошибка при удалении натальных карт',
         );
       }
-      console.log('✅ Натальные карты удалены');
+      this.logger.log('✅ Натальные карты удалены');
 
       // 2. Удаляем Connections (связи)
-      console.log('🗑️ Удаление связей...');
+      this.logger.log('🗑️ Удаление связей...');
       const { error: connectionsError } = await adminClient
         .from('connections')
         .delete()
         .eq('user_id', userId);
 
       if (connectionsError) {
-        console.error('❌ Ошибка удаления connections:', connectionsError);
+        this.logger.error('❌ Ошибка удаления connections:', connectionsError);
         throw new InternalServerErrorException('Ошибка при удалении связей');
       }
-      console.log('✅ Связи удалены');
+      this.logger.log('✅ Связи удалены');
 
       // 3. Удаляем DatingMatches (данные знакомств)
-      console.log('🗑️ Удаление данных знакомств...');
+      this.logger.log('🗑️ Удаление данных знакомств...');
       const { error: matchesError } = await adminClient
         .from('dating_matches')
         .delete()
         .eq('user_id', userId);
 
       if (matchesError) {
-        console.error('❌ Ошибка удаления dating_matches:', matchesError);
+        this.logger.error('❌ Ошибка удаления dating_matches:', matchesError);
         throw new InternalServerErrorException(
           'Ошибка при удалении данных знакомств',
         );
       }
-      console.log('✅ Данные знакомств удалены');
+      this.logger.log('✅ Данные знакомств удалены');
 
       // 4. Удаляем Subscriptions (подписки)
       // Note: В схеме есть onDelete: Cascade, но удалим явно для надежности
-      console.log('🗑️ Удаление подписок...');
+      this.logger.log('🗑️ Удаление подписок...');
       const { error: subscriptionsError } = await adminClient
         .from('subscriptions')
         .delete()
         .eq('user_id', userId);
 
       if (subscriptionsError) {
-        console.error('❌ Ошибка удаления subscriptions:', subscriptionsError);
+        this.logger.error(
+          '❌ Ошибка удаления subscriptions:',
+          subscriptionsError,
+        );
         // Не выбрасываем ошибку, т.к. CASCADE должен был их удалить
       } else {
-        console.log('✅ Подписки удалены');
+        this.logger.log('✅ Подписки удалены');
       }
 
       // 5. Удаляем профиль пользователя из таблицы users
-      console.log('🗑️ Удаление профиля пользователя...');
+      this.logger.log('🗑️ Удаление профиля пользователя...');
       const { error: profileError } = await adminClient
         .from('users')
         .delete()
         .eq('id', userId);
 
       if (profileError) {
-        console.error('❌ Ошибка удаления user profile:', profileError);
+        this.logger.error('❌ Ошибка удаления user profile:', profileError);
         throw new InternalServerErrorException(
           'Ошибка при удалении профиля пользователя',
         );
       }
-      console.log('✅ Профиль пользователя удален');
+      this.logger.log('✅ Профиль пользователя удален');
 
       // 6. Удаляем пользователя из Supabase Auth
-      console.log('🗑️ Удаление пользователя из Supabase Auth...');
+      this.logger.log('🗑️ Удаление пользователя из Supabase Auth...');
       const { error: authError } =
         await this.supabaseService.deleteUser(userId);
 
       if (authError) {
-        console.error('❌ Ошибка удаления auth user:', authError);
+        this.logger.error('❌ Ошибка удаления auth user:', authError);
         // Логируем, но не выбрасываем ошибку, т.к. основные данные уже удалены
-        console.warn(
+        this.logger.warn(
           '⚠️ Не удалось удалить пользователя из Auth, но данные в БД удалены',
         );
       } else {
-        console.log('✅ Пользователь удален из Supabase Auth');
+        this.logger.log('✅ Пользователь удален из Supabase Auth');
       }
 
-      console.log(`✅ Аккаунт пользователя ${userId} полностью удален`);
+      this.logger.log(`✅ Аккаунт пользователя ${userId} полностью удален`);
     } catch (error) {
-      console.error('❌ Критическая ошибка при удалении аккаунта:', error);
+      this.logger.error('❌ Критическая ошибка при удалении аккаунта:', error);
 
       if (error instanceof NotFoundException) {
         throw error;
