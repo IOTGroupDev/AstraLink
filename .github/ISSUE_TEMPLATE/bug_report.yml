@@ -1,0 +1,120 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Please fill out the sections below to help us understand and fix the issue.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area is affected?
+      options:
+        - Backend API
+        - Frontend Mobile App
+        - Database
+        - Authentication
+        - AI Features
+        - Dating Features
+        - Chart Calculations
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: I expected...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Instead, I saw...
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Logs
+      description: If applicable, add screenshots or error logs
+      placeholder: Paste screenshots or logs here
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical (app crashes, data loss)
+        - High (major feature broken)
+        - Medium (feature partially works)
+        - Low (minor issue, workaround exists)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide environment details
+      value: |
+        - OS: [e.g. iOS 17, Android 13, macOS 14]
+        - App Version: [e.g. 1.0.0]
+        - Node Version (if backend): [e.g. 20.0.0]
+        - Browser (if web): [e.g. Chrome 120]
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: Any additional information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have provided all requested information
+          required: true

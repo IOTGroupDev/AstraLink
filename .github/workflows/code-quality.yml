@@ -1,0 +1,211 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  prettier:
+    name: Prettier Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: |
+          npx prettier --check "**/*.{ts,tsx,js,jsx,json,md}" || {
+            echo "❌ Code formatting issues found"
+            echo "Run: npm run format"
+            exit 1
+          }
+
+  eslint-backend:
+    name: ESLint Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint -- --format json --output-file eslint-report.json || true
+
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-backend-report
+          path: backend/eslint-report.json
+          retention-days: 30
+
+      - name: Annotate code
+        uses: ataylorme/eslint-annotate-action@v2
+        if: always()
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          report-json: "backend/eslint-report.json"
+          check-name: "ESLint Backend"
+
+  typescript-check:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        project: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.project }}
+        run: npm ci
+
+      - name: Generate Prisma Client (backend only)
+        if: matrix.project == 'backend'
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: TypeScript check
+        working-directory: ${{ matrix.project }}
+        run: npx tsc --noEmit --pretty
+
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install complexity analyzer
+        run: npm install -g complexity-report
+
+      - name: Analyze backend complexity
+        run: |
+          cr backend/src --format json > backend-complexity.json || true
+
+      - name: Analyze frontend complexity
+        run: |
+          cr frontend/src --format json > frontend-complexity.json || true
+
+      - name: Upload complexity reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: complexity-reports
+          path: |
+            backend-complexity.json
+            frontend-complexity.json
+          retention-days: 30
+
+  duplicate-code:
+    name: Duplicate Code Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install jscpd
+        run: npm install -g jscpd
+
+      - name: Check for duplicates
+        run: |
+          jscpd backend/src frontend/src \
+            --min-lines 5 \
+            --min-tokens 50 \
+            --format "json" \
+            --output "./jscpd-report.json" || true
+
+      - name: Upload duplicate code report
+        uses: actions/upload-artifact@v4
+        with:
+          name: duplicate-code-report
+          path: jscpd-report.json
+          retention-days: 30
+
+  bundle-size:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Check bundle size
+        uses: preactjs/compressed-size-action@v2
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          pattern: "frontend/dist/**/*.{js,css}"
+          exclude: "{**/*.map,**/node_modules/**}"
+
+  code-quality-summary:
+    name: Code Quality Summary
+    runs-on: ubuntu-latest
+    needs: [prettier, eslint-backend, typescript-check, complexity-analysis, duplicate-code]
+    if: always()
+
+    steps:
+      - name: Check quality status
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') }}" == "true" ]; then
+            echo "❌ Code quality checks failed"
+            exit 1
+          else
+            echo "✅ All code quality checks passed"
+          fi
