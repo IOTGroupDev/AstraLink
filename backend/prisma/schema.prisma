@@ -32,6 +32,8 @@ model Connection {
   createdAt  DateTime     @default(now()) @map("created_at")
   users      public_users @relation(fields: [userId], references: [id])
 
+  @@index([userId])
+  @@index([createdAt])
   @@map("connections")
   @@schema("public")
 }
@@ -46,6 +48,12 @@ model DatingMatch {
   createdAt     DateTime     @default(now()) @map("created_at")
   users         public_users @relation(fields: [userId], references: [id])
 
+  @@index([userId])
+  @@index([compatibility])
+  @@index([createdAt])
+  @@index([liked])
+  @@index([rejected])
+  @@index([userId, compatibility])
   @@map("dating_matches")
   @@schema("public")
 }
