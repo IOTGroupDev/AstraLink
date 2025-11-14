@@ -304,7 +304,7 @@ export class ChartController {
 
   @Get('interpretation/details')
   @ApiOperation({
-    summary: 'Получить расширенные детали интерпретации (“Подробнее”)',
+    summary: 'Получить расширенные детали интерпретации ("Подробнее")',
   })
   @ApiQuery({
     name: 'type',
@@ -320,7 +320,7 @@ export class ChartController {
   @ApiQuery({ name: 'locale', description: 'ru | en | es', required: false })
   @ApiResponse({
     status: 200,
-    description: 'Массив строк для показа в “Подробнее”',
+    description: 'Массив строк для показа в "Подробнее"',
   })
   async getInterpretationDetails(
     @Request() req: AuthenticatedRequest,
@@ -341,5 +341,32 @@ export class ChartController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
     return this.chartService.getInterpretationDetails(userId, query);
+  }
+
+  @Get('transits/interpretation')
+  @ApiOperation({
+    summary:
+      'Получить детальную интерпретацию транзитов (FREE: базовая, PREMIUM/MAX: AI)',
+  })
+  @ApiQuery({
+    name: 'date',
+    description: 'Дата для анализа транзитов (YYYY-MM-DD)',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Интерпретация транзитов с учётом подписки',
+  })
+  async getTransitInterpretation(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') dateStr?: string,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+
+    const date = dateStr ? new Date(dateStr) : new Date();
+    return this.chartService.getTransitInterpretation(userId, date);
   }
 }

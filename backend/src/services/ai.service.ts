@@ -651,4 +651,63 @@ ${aspectsDesc}
     };
     return names[aspect] || aspect;
   }
+
+  /**
+   * Universal text generation method with automatic fallback
+   * Can be used for any AI generation task
+   */
+  async generateText(
+    prompt: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+    },
+  ): Promise<string> {
+    if (!this.isAvailable()) {
+      throw new Error('AI service unavailable');
+    }
+
+    this.logger.log(
+      `🤖 Generating text via ${this.primaryProvider.toUpperCase()}`,
+    );
+
+    try {
+      // Try primary provider
+      const provider = this.providers.get(this.primaryProvider);
+      if (!provider) {
+        throw new Error(`Provider ${this.primaryProvider} not found`);
+      }
+
+      return await provider.generate(prompt);
+    } catch (error) {
+      this.logger.error(
+        `❌ Text generation error via ${this.primaryProvider}:`,
+        error,
+      );
+
+      // 🔄 Automatic fallback to alternative providers
+      const availableProviders = this.getAvailableProviders().filter(
+        (p) => p !== this.primaryProvider,
+      );
+
+      for (const fallbackProvider of availableProviders) {
+        this.logger.log(
+          `🔄 Attempting fallback to ${fallbackProvider.toUpperCase()}...`,
+        );
+        try {
+          const provider = this.providers.get(fallbackProvider);
+          if (!provider) continue;
+
+          return await provider.generate(prompt);
+        } catch (fallbackError) {
+          this.logger.error(
+            `❌ Fallback to ${fallbackProvider} also failed:`,
+            fallbackError,
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
 }

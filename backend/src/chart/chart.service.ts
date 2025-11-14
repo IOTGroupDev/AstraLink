@@ -184,6 +184,30 @@ export class ChartService {
     return this.transitService.getCurrentPlanets(userId);
   }
 
+  /**
+   * Get detailed transit interpretation with AI (subscription-aware)
+   */
+  async getTransitInterpretation(userId: string, date: Date) {
+    // Get user's subscription
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
+
+    // Determine subscription tier (default to FREE)
+    const tier = (subscription?.tier as any) || 'free';
+
+    // Get natal chart
+    const natalChart = await this.natalChartService.getNatalChart(userId);
+
+    // Get transit interpretation from service
+    return this.transitService.getTransitInterpretation(
+      userId,
+      natalChart,
+      date,
+      tier,
+    );
+  }
+
   // ============================================================
   // PREDICTION OPERATIONS (Delegate to PredictionService)
   // ============================================================

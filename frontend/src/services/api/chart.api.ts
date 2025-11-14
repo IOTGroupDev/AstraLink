@@ -167,4 +167,34 @@ export const chartAPI = {
     const response = await api.post('/chart/regenerate-ai');
     return response.data;
   },
+
+  /**
+   * Get detailed transit interpretation with AI (subscription-aware)
+   * FREE: Basic rule-based interpretation
+   * PREMIUM/MAX: AI-enhanced personalized interpretation
+   */
+  getTransitInterpretation: async (date?: string): Promise<{
+    date: string;
+    transitPlanets: Record<string, any>;
+    natalPlanets: Record<string, any>;
+    aspects: Array<{
+      transitPlanet: string;
+      natalPlanet: string;
+      aspect: string;
+      orb: number;
+      strength: number;
+      transitSign?: string;
+      isRetrograde?: boolean;
+    }>;
+    aiInterpretation: string;
+    subscriptionTier: string;
+    hasAIAccess: boolean;
+    message: string;
+  }> => {
+    const url = date
+      ? `/chart/transits/interpretation?date=${date}`
+      : '/chart/transits/interpretation';
+    const response = await api.get(url);
+    return response.data;
+  },
 };

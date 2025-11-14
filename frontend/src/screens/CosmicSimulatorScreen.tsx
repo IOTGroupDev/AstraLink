@@ -70,6 +70,9 @@ export default function CosmicSimulatorScreen() {
   const [activeTransits, setActiveTransits] = useState<TransitData[]>([]);
   const [loading, setLoading] = useState(true);
   const [transitsLoading, setTransitsLoading] = useState(false);
+  const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
+  const [hasAIAccess, setHasAIAccess] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
   // UI состояния
   const [activeTab, setActiveTab] = useState<SimulatorTab>('transits');
@@ -214,43 +217,46 @@ export default function CosmicSimulatorScreen() {
   const loadTransitsForDate = async (date: Date) => {
     setTransitsLoading(true);
     try {
-      // Используем реальный API для получения транзитных планет
-      const currentPlanetsData = await chartAPI.getCurrentPlanets();
+      // Загружаем AI интерпретацию транзитов (с проверкой подписки на backend)
+      const dateStr = date.toISOString().split('T')[0];
+      const interpretationData = await chartAPI.getTransitInterpretation(dateStr);
 
-      if (currentPlanetsData?.planets) {
-        // Конвертируем данные с бэкенда в формат для UI
-        const planets: PlanetPosition[] = Object.entries(
-          currentPlanetsData.planets
-        ).map(([name, data]: [string, any]) => ({
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          longitude: data.longitude || 0,
-          sign: data.sign || '',
-          degree: data.degree || 0,
-          speed: data.speed,
-          isRetrograde: data.isRetrograde || false,
-        }));
+      // Сохраняем AI интерпретацию
+      setAiInterpretation(interpretationData.aiInterpretation);
+      setHasAIAccess(interpretationData.hasAIAccess);
+      setSubscriptionTier(interpretationData.subscriptionTier);
 
-        setTransitPlanets(planets);
+      // Конвертируем планеты в формат UI
+      const planets: PlanetPosition[] = Object.entries(
+        interpretationData.transitPlanets || {}
+      ).map(([name, data]: [string, any]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        longitude: data.longitude || 0,
+        sign: data.sign || '',
+        degree: data.degree || 0,
+        speed: data.speed,
+        isRetrograde: data.isRetrograde || false,
+      }));
 
-        // Рассчитываем активные транзиты
-        const activeTransits = calculateActiveTransits(
-          planets,
-          natalChart,
-          date
-        );
-        setActiveTransits(activeTransits);
-      } else {
-        // Fallback на расчётные данные
-        const transitPlanets = calculateTransitPlanets(date);
-        setTransitPlanets(transitPlanets);
+      setTransitPlanets(planets);
 
-        const activeTransits = calculateActiveTransits(
-          transitPlanets,
-          natalChart,
-          date
-        );
-        setActiveTransits(activeTransits);
-      }
+      // Используем аспекты с backend
+      const transits: TransitData[] = interpretationData.aspects.map((aspect) => ({
+        planet: aspect.transitPlanet.charAt(0).toUpperCase() + aspect.transitPlanet.slice(1),
+        aspect: aspect.aspect,
+        target: planetRu[aspect.natalPlanet] || aspect.natalPlanet,
+        orb: Math.round(aspect.orb * 10) / 10,
+        date: date.toDateString(),
+        description: getTransitDescription(
+          aspect.transitPlanet.charAt(0).toUpperCase() + aspect.transitPlanet.slice(1),
+          aspect.aspect,
+          aspect.natalPlanet
+        ),
+        type: getAspectType(aspect.aspect),
+        strength: aspect.strength,
+      }));
+
+      setActiveTransits(transits.sort((a, b) => (b.strength || 0) - (a.strength || 0)));
     } catch (error) {
       console.error('Ошибка загрузки транзитов:', error);
       // Fallback на расчётные данные
@@ -726,31 +732,70 @@ export default function CosmicSimulatorScreen() {
 
           {/* ВКЛАДКА: ТРАНЗИТЫ */}
           {activeTab === 'transits' && (
-            <BlurView intensity={10} tint="dark" style={styles.contentCard}>
-              <View style={styles.contentHeader}>
-                <View style={styles.contentTitleContainer}>
-                  <Text style={styles.contentTitle}>Активные транзиты</Text>
-                  <View style={styles.contentBadge}>
-                    <Text style={styles.contentBadgeText}>
-                      {filteredTransits.length}
-                    </Text>
+            <>
+              {/* AI Интерпретация */}
+              {aiInterpretation && (
+                <BlurView intensity={10} tint="dark" style={styles.aiInterpretationCard}>
+                  <View style={styles.aiHeader}>
+                    <View style={styles.aiIconContainer}>
+                      <LinearGradient
+                        colors={hasAIAccess ? ['#8B5CF6', '#6366F1'] : ['#6B7280', '#4B5563']}
+                        style={styles.aiIcon}
+                      >
+                        <Ionicons name={hasAIAccess ? 'sparkles' : 'information-circle'} size={20} color="#FFFFFF" />
+                      </LinearGradient>
+                    </View>
+                    <View style={styles.aiTitleContainer}>
+                      <Text style={styles.aiTitle}>
+                        {hasAIAccess ? 'AI Интерпретация транзитов' : 'Базовая интерпретация'}
+                      </Text>
+                      {!hasAIAccess && (
+                        <Text style={styles.aiSubtitle}>
+                          Обновите подписку для AI-анализа
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                </View>
+                  <Text style={styles.aiInterpretationText}>{aiInterpretation}</Text>
+                  {!hasAIAccess && (
+                    <TouchableOpacity style={styles.upgradeButton}>
+                      <LinearGradient
+                        colors={['#8B5CF6', '#6366F1']}
+                        style={styles.upgradeGradient}
+                      >
+                        <Text style={styles.upgradeText}>Получить Premium</Text>
+                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </BlurView>
+              )}
 
-                <TouchableOpacity
-                  onPress={() => setShowOnlyMajor(!showOnlyMajor)}
-                  style={[
-                    styles.filterButton,
-                    showOnlyMajor && styles.filterButtonActive,
-                  ]}
-                >
-                  <Ionicons
-                    name="filter"
-                    size={16}
-                    color={showOnlyMajor ? '#FFFFFF' : 'rgba(255,255,255,0.5)'}
-                  />
-                </TouchableOpacity>
-              </View>
+              <BlurView intensity={10} tint="dark" style={styles.contentCard}>
+                <View style={styles.contentHeader}>
+                  <View style={styles.contentTitleContainer}>
+                    <Text style={styles.contentTitle}>Активные транзиты</Text>
+                    <View style={styles.contentBadge}>
+                      <Text style={styles.contentBadgeText}>
+                        {filteredTransits.length}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => setShowOnlyMajor(!showOnlyMajor)}
+                    style={[
+                      styles.filterButton,
+                      showOnlyMajor && styles.filterButtonActive,
+                    ]}
+                  >
+                    <Ionicons
+                      name="filter"
+                      size={16}
+                      color={showOnlyMajor ? '#FFFFFF' : 'rgba(255,255,255,0.5)'}
+                    />
+                  </TouchableOpacity>
+                </View>
 
               {transitsLoading ? (
                 <View style={styles.loadingTransits}>
@@ -834,6 +879,7 @@ export default function CosmicSimulatorScreen() {
                 </View>
               )}
             </BlurView>
+            </>
           )}
 
           {/* ВКЛАДКА: ПЛАНЕТЫ */}
@@ -1818,5 +1864,71 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+
+  // AI Interpretation Card
+  aiInterpretationCard: {
+    marginHorizontal: 8,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.3)',
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  aiIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  aiIcon: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiTitleContainer: {
+    flex: 1,
+  },
+  aiTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  aiSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  aiInterpretationText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  upgradeButton: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  upgradeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  upgradeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
