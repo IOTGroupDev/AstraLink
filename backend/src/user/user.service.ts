@@ -7,6 +7,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
@@ -412,7 +413,7 @@ export class UserService {
 
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
       // Если хотя бы одна операция упадёт - всё откатится автоматически
-      await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // 1. Удаляем Charts (натальные карты)
         this.logger.log('🗑️ Удаление натальных карт...');
         const chartsDeleted = await tx.chart.deleteMany({

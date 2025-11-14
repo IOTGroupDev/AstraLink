@@ -516,7 +516,7 @@ export class DatingService {
     });
 
     // ✅ ОПТИМИЗАЦИЯ: Фильтрация ПЕРЕД расчётом совместимости
-    const filteredCandidates = candidates.filter((c) => {
+    const filteredCandidates = candidates.filter((c: any) => {
       // Фильтр по городу
       if (filters?.city) {
         const city = filters.city.trim().toLowerCase();
@@ -554,7 +554,7 @@ export class DatingService {
 
       // Параллельная обработка батча с Promise.all()
       const batchResults = await Promise.allSettled(
-        batch.map(async (c) => {
+        batch.map(async (c: any) => {
           const syn = await this.ephemerisService.getSynastry(
             selfChart.data as any,
             c.data as any,

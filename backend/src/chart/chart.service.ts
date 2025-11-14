@@ -68,7 +68,9 @@ export class ChartService {
     // Ограничиваем размер кэша (максимум 1000 пользователей)
     if (this.subscriptionCache.size > 1000) {
       const firstKey = this.subscriptionCache.keys().next().value;
-      this.subscriptionCache.delete(firstKey);
+      if (firstKey) {
+        this.subscriptionCache.delete(firstKey);
+      }
     }
 
     return subscription;
