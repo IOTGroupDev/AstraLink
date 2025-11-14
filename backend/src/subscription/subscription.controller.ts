@@ -244,24 +244,9 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Получить историю платежей' })
   @ApiResponse({ status: 200, description: 'История платежей' })
   async getPaymentHistory(@Request() req: AuthenticatedRequest) {
-    const { data, error } = await this.subscriptionService['supabaseService']
-      .from('payments')
-      .select('*')
-      .eq('user_id', this.getUserId(req))
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (error) return [];
-
-    return (
-      data?.map((payment: any) => ({
-        id: payment.id,
-        amount: payment.amount,
-        currency: payment.currency,
-        status: payment.status,
-        provider: payment.provider,
-        createdAt: payment.created_at,
-      })) || []
+    // ✅ PRISMA: Используем новый метод сервиса
+    return await this.subscriptionService.getPaymentHistory(
+      this.getUserId(req),
     );
   }
 }
