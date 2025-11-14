@@ -319,4 +319,45 @@ export class NatalChartService {
 
     return locations[birthPlace] || locations['default'];
   }
+
+  /**
+   * Regenerate chart interpretation with AI
+   * Used for manual regeneration by users (with rate limiting)
+   */
+  async regenerateInterpretation(userId: string): Promise<void> {
+    const chart = await this.chartRepository.findByUserId(userId);
+
+    if (!chart) {
+      throw new NotFoundException('Natal chart not found');
+    }
+
+    const chartData = chart.data as any;
+
+    // Generate new interpretation
+    const interpretation =
+      await this.interpretationService.generateNatalChartInterpretation(
+        userId,
+        chartData,
+      );
+
+    // Update chart with interpretation and version
+    const updatedData = {
+      ...chartData,
+      interpretation,
+      interpretationVersion: 'v3',
+    };
+
+    await this.chartRepository.update(chart.id, { data: updatedData });
+
+    // Invalidate cached horoscopes and user-specific transits
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+    } catch (_e) {
+      // Ignore Redis errors during interpretation regeneration
+      void 0;
+    }
+
+    this.logger.log(`Interpretation regenerated for user ${userId}`);
+  }
 }

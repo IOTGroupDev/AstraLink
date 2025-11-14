@@ -53,10 +53,10 @@ export class ChartEventListener {
           `Birth time changed from "${changes.birthTime.old}" to "${changes.birthTime.new}"`,
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
-        `Failed to invalidate charts for user ${userId}: ${error.message}`,
-        error.stack,
+        `Failed to invalidate charts for user ${userId}: ${error?.message || String(error)}`,
+        error?.stack,
       );
       // Don't throw - this is a background operation
       // The main profile update should not fail if chart invalidation fails
