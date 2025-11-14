@@ -127,7 +127,7 @@ export class AnalyticsService {
       let maxUsers = 0;
       let activeTrials = 0;
 
-      subscriptions?.forEach((sub) => {
+      subscriptions?.forEach((sub: any) => {
         const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
         const trialEndsAt = sub.trial_ends_at
           ? new Date(sub.trial_ends_at)
@@ -254,7 +254,7 @@ export class AnalyticsService {
         }
       >();
 
-      data?.forEach((record) => {
+      data?.forEach((record: any) => {
         const feature = record.feature_name;
         if (!statsMap.has(feature)) {
           statsMap.set(feature, {
@@ -322,12 +322,12 @@ export class AnalyticsService {
 
       // Если пользователь пытался 3+ раз получить доступ к премиум функциям
       const totalAttempts = data.reduce(
-        (sum, record) => sum + record.counter,
+        (sum: number, record: any) => sum + record.counter,
         0,
       );
 
       if (totalAttempts >= 3) {
-        const topFeatures = data.slice(0, 3).map((r) => r.feature_name);
+        const topFeatures = data.slice(0, 3).map((r: any) => r.feature_name);
 
         return {
           shouldShowOffer: true,

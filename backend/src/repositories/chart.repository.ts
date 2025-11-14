@@ -183,7 +183,7 @@ export class ChartRepository implements IChartRepository {
         orderBy: { createdAt: 'desc' },
       });
 
-      return charts.map((c) => this.normalizeChartData(c));
+      return charts.map((c: any) => this.normalizeChartData(c));
     } catch (error) {
       this.logger.warn(`Prisma findMany failed for user ${userId}`, error);
       return [];
@@ -203,7 +203,7 @@ export class ChartRepository implements IChartRepository {
 
       // Return most recent chart
       const sorted = data.sort(
-        (a, b) =>
+        (a: any, b: any) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
@@ -225,7 +225,7 @@ export class ChartRepository implements IChartRepository {
         return [];
       }
 
-      return data.map((c) => this.normalizeChartData(c));
+      return data.map((c: any) => this.normalizeChartData(c));
     } catch (error) {
       this.logger.warn(`Admin client findAll failed for user ${userId}`, error);
       return [];
@@ -245,7 +245,7 @@ export class ChartRepository implements IChartRepository {
 
       // Return most recent chart
       const sorted = data.sort(
-        (a, b) =>
+        (a: any, b: any) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 

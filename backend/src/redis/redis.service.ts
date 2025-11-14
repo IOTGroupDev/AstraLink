@@ -17,7 +17,7 @@ export class RedisService {
         lazyConnect: false,
       });
 
-      this.client.on('error', (err) => {
+      this.client.on('error', (err: any) => {
         this.logger.error(
           `Redis error: ${err instanceof Error ? err.message : String(err)}`,
         );

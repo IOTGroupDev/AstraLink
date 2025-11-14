@@ -254,7 +254,7 @@ export class SubscriptionController {
     if (error) return [];
 
     return (
-      data?.map((payment) => ({
+      data?.map((payment: any) => ({
         id: payment.id,
         amount: payment.amount,
         currency: payment.currency,

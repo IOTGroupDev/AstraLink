@@ -166,7 +166,7 @@ async function getOrCreateAuthUser(
     });
     if (listErr) throw listErr;
     const found = list.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase(),
+      (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
     );
     if (!found) throw createErr;
     return found;

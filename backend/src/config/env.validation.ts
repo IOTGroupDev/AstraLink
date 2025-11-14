@@ -34,9 +34,9 @@ export const envSchema = z.object({
   PORT: z
     .string()
     .regex(/^\d+$/, 'PORT must be a number')
+    .default('3000')
     .transform(Number)
-    .pipe(z.number().int().positive())
-    .default('3000'),
+    .pipe(z.number().int().positive()),
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
@@ -51,9 +51,9 @@ export const envSchema = z.object({
   MAX_AI_REQUESTS_PER_HOUR: z
     .string()
     .regex(/^\d+$/, 'MAX_AI_REQUESTS_PER_HOUR must be a number')
+    .default('1000')
     .transform(Number)
-    .pipe(z.number().int().positive())
-    .default('1000'),
+    .pipe(z.number().int().positive()),
 
   // Logging
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -79,8 +79,8 @@ export function validateEnv(): EnvConfig {
     return parsed;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
-        .map((err) => `  - ${err.path.join('.')}: ${err.message}`)
+      const errorMessages = error.issues
+        .map((err: any) => `  - ${err.path.join('.')}: ${err.message}`)
         .join('\n');
 
       throw new Error(
