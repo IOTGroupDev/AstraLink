@@ -127,7 +127,8 @@ async function bootstrap() {
       },
     }),
   );
-  app.setGlobalPrefix('api');
+  // API Versioning - all endpoints will be prefixed with /api/v1
+  app.setGlobalPrefix('api/v1');
 
   app.useGlobalPipes(
     new ValidationPipe({
