@@ -31,8 +31,7 @@ export class AdvisorController {
   constructor(private readonly advisor: AdvisorService) {}
 
   @Post('evaluate')
-  // Note: AdvisorRateLimitGuard commented out until Redis methods are implemented
-  // @UseGuards(AdvisorRateLimitGuard) // 🎯 Rate limiting: 30/day (Premium), 100/day (MAX)
+  @UseGuards(AdvisorRateLimitGuard) // 🎯 Rate limiting: 30/day (Premium), 100/day (MAX)
   @ApiOperation({
     summary:
       'AI Советник: совет для заданной темы (Premium: 30/день, MAX: 100/день)',
