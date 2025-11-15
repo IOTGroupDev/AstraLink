@@ -22,6 +22,7 @@ import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecomme
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/index';
+import { chartLogger } from '../services/logger';
 import NatalChartWheel from '../intgr/NatalChartWheel';
 import NatalChartScreenImplementation from '../intgr/NatalChartScreenImplementation';
 import ChartScreenExample from '../intgr/ChartScreenExample';
@@ -101,13 +102,13 @@ const HoroscopeScreen: React.FC = () => {
       setLoading(true);
 
       if (!isAuthenticated) {
-        console.log('❌ Пользователь не авторизован, перенаправление на вход');
+        chartLogger.warn('Пользователь не авторизован, перенаправление на вход');
         navigation.navigate('Login' as never);
         return;
       }
 
       try {
-        console.log('🔍 Загружаю данные для HoroscopeScreen...');
+        chartLogger.log('Загружаю данные для HoroscopeScreen');
 
         const [chartData, transitsData, planetsData] = await Promise.all([
           chartAPI.getNatalChart(),
@@ -120,9 +121,9 @@ const HoroscopeScreen: React.FC = () => {
           chartAPI.getCurrentPlanets(),
         ]);
 
-        console.log('✅ Получены данные карты:', chartData);
-        console.log('✅ Получены транзиты:', transitsData);
-        console.log('✅ Получены текущие планеты:', planetsData);
+        chartLogger.log('Получены данные карты', chartData);
+        chartLogger.log('Получены транзиты', transitsData);
+        chartLogger.log('Получены текущие планеты', planetsData);
 
         setChart(chartData);
         setTransits(transitsData);
@@ -167,7 +168,7 @@ const HoroscopeScreen: React.FC = () => {
 
           setBiorhythms(finalValues);
 
-          console.log('✅ Биоритмы:', {
+          chartLogger.log('Биоритмы', {
             api: b,
             clientFallbackUsed: !!clientCalc,
             client: clientCalc,
@@ -175,7 +176,7 @@ const HoroscopeScreen: React.FC = () => {
             birthDateUsed: birthISO,
           });
         } catch (e) {
-          console.error('❌ Ошибка загрузки биоритмов:', e);
+          chartLogger.error('Ошибка загрузки биоритмов', e);
           // Попробуем хотя бы клиентский расчёт, если есть дата рождения
           try {
             const now = new Date();
@@ -191,7 +192,7 @@ const HoroscopeScreen: React.FC = () => {
             const clientCalc = computeClientBiorhythms(birthISO, localDateStr);
             if (clientCalc) {
               setBiorhythms(clientCalc);
-              console.log(
+              chartLogger.log(
                 'ℹ️ Поставлены клиентские биоритмы (fallback):',
                 clientCalc
               );
@@ -201,7 +202,7 @@ const HoroscopeScreen: React.FC = () => {
           }
         }
       } catch (error: any) {
-        console.error('❌ Ошибка загрузки данных карты:', error);
+        chartLogger.error('Ошибка загрузки данных карты', error);
 
         if (error.response?.status === 401) {
           console.log(
@@ -212,13 +213,13 @@ const HoroscopeScreen: React.FC = () => {
         }
 
         if (error.response?.status === 404) {
-          console.log('📋 Карта не найдена, создаю новую карту');
+          chartLogger.log('Карта не найдена, создаю новую карту');
           try {
             const newChart = await chartAPI.createNatalChart({});
             setChart(newChart);
-            console.log('✅ Карта успешно создана');
+            chartLogger.log('Карта успешно создана');
           } catch (createError) {
-            console.error('❌ Ошибка создания карты:', createError);
+            chartLogger.error('Ошибка создания карты', createError);
             Alert.alert(
               'Необходимо создать натальную карту',
               'Пожалуйста, заполните данные о рождении в профиле для создания астрологической карты.',
@@ -228,7 +229,7 @@ const HoroscopeScreen: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('❌ Общая ошибка в loadData:', error);
+      chartLogger.error('Общая ошибка в loadData', error);
     } finally {
       setLoading(false);
     }
@@ -237,7 +238,7 @@ const HoroscopeScreen: React.FC = () => {
   // Загрузка прогнозов
   const loadAllPredictions = async () => {
     try {
-      console.log('🔮 Загружаю прогнозы...');
+      chartLogger.log('Загружаю прогнозы');
 
       const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
         chartAPI.getHoroscope('day'),
@@ -245,7 +246,7 @@ const HoroscopeScreen: React.FC = () => {
         chartAPI.getHoroscope('week'),
       ]);
 
-      console.log('✅ Получены прогнозы:', {
+      chartLogger.log('Получены прогнозы', {
         day: dayResponse,
         tomorrow: tomorrowResponse,
         week: weekResponse,
@@ -277,15 +278,15 @@ const HoroscopeScreen: React.FC = () => {
         week: extractPredictions(weekResponse),
       };
 
-      console.log('🔮 Устанавливаю прогнозы:', newPredictions);
-      console.log('🔮 Структура predictions.day:', {
+      chartLogger.log('Устанавливаю прогнозы', newPredictions);
+      chartLogger.log('Структура predictions.day', {
         hasPredictions: !!newPredictions.day,
         general: newPredictions.day?.general?.substring(0, 50) + '...',
         keys: Object.keys(newPredictions.day || {}),
       });
       setPredictions(newPredictions);
     } catch (error) {
-      console.error('❌ Ошибка загрузки прогнозов:', error);
+      chartLogger.error('Ошибка загрузки прогнозов', error);
       Alert.alert(
         'Ошибка',
         'Не удалось загрузить прогнозы. Попробуйте обновить страницу.',
@@ -415,7 +416,7 @@ const HoroscopeScreen: React.FC = () => {
   // Загрузка прогнозов после получения основных данных
   useEffect(() => {
     if (currentPlanets && chart) {
-      console.log('🚀 Вызываю loadAllPredictions...');
+      chartLogger.log('Вызываю loadAllPredictions');
       loadAllPredictions();
     }
   }, [currentPlanets, chart]);
@@ -455,7 +456,7 @@ const HoroscopeScreen: React.FC = () => {
   }, [currentPlanets]);
 
   // Логирование для отладки
-  console.log('📊 Данные виджетов:', {
+  chartLogger.log('Данные виджетов', {
     energyValue,
     energyMessage,
     mainTransit: mainTransit?.name,
