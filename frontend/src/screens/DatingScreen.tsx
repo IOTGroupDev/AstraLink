@@ -554,6 +554,7 @@ import {
   type ElementType,
 } from '../services/zodiac.service';
 import CosmicBackground from '../components/shared/CosmicBackground';
+import { logger } from '../services/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -651,7 +652,7 @@ export default function DatingScreen() {
           await datingAPI.like?.(current.userId, 'pass');
         }
       } catch (e) {
-        console.log('❌ Ошибка свайпа:', e);
+        logger.error('Ошибка свайпа', e);
       } finally {
         nextCard();
       }
@@ -692,7 +693,7 @@ export default function DatingScreen() {
         });
         setSelectedUser(null);
       } catch (error) {
-        console.error('Ошибка отправки сообщения:', error);
+        logger.error('Ошибка отправки сообщения', error);
         Alert.alert('Ошибка', 'Не удалось отправить сообщение');
       }
     },
@@ -714,11 +715,11 @@ export default function DatingScreen() {
       setLoadingCards(true);
       try {
         let data: ApiCandidate[] = (await datingAPI.getCandidates?.(20)) || [];
-        console.log('[Dating] candidates raw count =', data.length);
+        logger.info('[Dating] candidates raw count', data.length);
 
         // ВРЕМЕННО: Если нет данных, создаем моковые для тестирования
         if (data.length === 0) {
-          console.log('[Dating] Нет данных от API, используем моковые данные');
+          logger.info('[Dating] Нет данных от API, используем моковые данные');
           data = [
             {
               userId: 'mock-1',
@@ -827,11 +828,11 @@ export default function DatingScreen() {
           };
         });
 
-        console.log('[Dating] enriched candidates count =', enriched.length);
+        logger.info('[Dating] enriched candidates count', enriched.length);
         setCandidates(enriched);
         setCurrentIndex(0);
       } catch (err) {
-        console.error('[Dating] Ошибка загрузки:', err);
+        logger.error('[Dating] Ошибка загрузки', err);
         Alert.alert('Ошибка', 'Не удалось загрузить кандидатов');
       } finally {
         setLoadingCards(false);

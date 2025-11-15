@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { chartAPI } from '../services/api';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
+import { logger } from '../services/logger';
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -152,7 +153,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     try {
       setLoading(true);
       const data = await chartAPI.getNatalChartWithInterpretation();
-      console.log('📊 Загружены данные натальной карты:', {
+      logger.info('Загружены данные натальной карты', {
         hasData: !!data?.data,
         hasInterpretation: !!data?.data?.interpretation,
         hasSummary: !!data?.data?.interpretation?.summary,
@@ -166,7 +167,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       });
       setChartData(data);
     } catch (error: any) {
-      console.error('❌ Ошибка загрузки натальной карты:', error);
+      logger.error('Ошибка загрузки натальной карты', error);
       Alert.alert('Ошибка', 'Не удалось загрузить натальную карту');
     } finally {
       setLoading(false);
@@ -753,7 +754,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const renderSummary = () => {
     const summary = interpretation?.summary;
 
-    console.log('📊 Interpretation данные:', {
+    logger.info('Interpretation данные', {
       hasInterpretation: !!interpretation,
       hasSummary: !!summary,
       interpretationKeys: interpretation ? Object.keys(interpretation) : [],

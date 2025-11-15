@@ -22,6 +22,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -77,7 +78,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       await onConfirm();
       setStep('warning');
     } catch (error) {
-      console.error('Error deleting account:', error);
+      logger.error('Error deleting account', error);
     } finally {
       setIsDeleting(false);
     }

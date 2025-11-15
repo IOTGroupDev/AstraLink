@@ -16,6 +16,7 @@ import { useAuthStore } from '../stores';
 import { authAPI, userAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
 import CosmicBackground from '../components/shared/CosmicBackground';
+import { authLogger } from '../services/logger';
 
 // Define your navigation type
 type RootStackParamList = {
@@ -82,7 +83,7 @@ export default function WelcomeScreen() {
         Alert.alert('Ошибка', 'Биометрическая аутентификация не удалась');
       }
     } catch (error) {
-      console.error('Biometric login error:', error);
+      authLogger.error('Biometric login error', error);
       Alert.alert('Ошибка', 'Произошла ошибка при входе');
     } finally {
       setLoading(false);
@@ -103,7 +104,7 @@ export default function WelcomeScreen() {
       });
 
       setUser(response.user);
-      console.log('✅ Успешный вход');
+      authLogger.info('Успешный вход');
 
       // Navigate to main app instead of callback
       navigation.reset({
@@ -111,7 +112,7 @@ export default function WelcomeScreen() {
         routes: [{ name: 'MainTabs' }],
       });
     } catch (error: any) {
-      console.error('Login error:', error);
+      authLogger.error('Login error', error);
       Alert.alert('Ошибка входа', error.message || 'Произошла ошибка');
     } finally {
       setLoading(false);

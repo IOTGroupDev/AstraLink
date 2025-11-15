@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CodePurpose, PersonalCodeResult } from '../types/personal-code';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { logger } from '../services/logger';
 
 const PersonalCodeScreen = () => {
   const { user } = useAuth();
@@ -99,7 +100,7 @@ const PersonalCodeScreen = () => {
       setResult(data);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка генерации кода');
-      console.error('Error generating code:', err);
+      logger.error('Error generating code', err);
     } finally {
       setLoading(false);
     }

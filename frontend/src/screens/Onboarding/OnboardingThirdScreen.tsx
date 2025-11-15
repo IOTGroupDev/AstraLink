@@ -253,6 +253,7 @@ import {
   ONBOARDING_LAYOUT,
   FRAME,
 } from '../../constants/onboarding.constants';
+import { logger } from '../../services/logger';
 
 type RootStackParamList = {
   Onboarding3: undefined;
@@ -271,9 +272,9 @@ export default function OnboardingThirdScreen() {
   const month = birthDate?.month ?? 1;
   const { zodiacSign, dateRange } = useZodiac(day, month);
 
-  console.log('birthdate', birthDate);
-  console.log('day', day);
-  console.log('zodiac', zodiacSign);
+  logger.info('birthdate', birthDate);
+  logger.info('day', day);
+  logger.info('zodiac', zodiacSign);
 
   const handleBack = () => navigation.goBack();
   const handleNext = () => navigation.navigate('Onboarding4');

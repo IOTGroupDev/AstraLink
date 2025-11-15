@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
+import { logger } from '../services/logger';
 
 type ConversationItem = {
   otherUserId: string;
@@ -52,7 +53,7 @@ export default function ChatListScreen() {
       const data = await chatAPI.listConversations(50);
       setItems(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      console.error('Ошибка загрузки диалогов:', e);
+      logger.error('Ошибка загрузки диалогов', e);
       setError(e?.message ?? 'Не удалось загрузить диалоги');
     } finally {
       setLoading(false);
@@ -91,7 +92,7 @@ export default function ChatListScreen() {
       setItems(Array.isArray(data) ? data : []);
       setError(null);
     } catch (e: any) {
-      console.error('Ошибка обновления:', e);
+      logger.error('Ошибка обновления', e);
       setError(e?.message ?? 'Не удалось обновить');
     } finally {
       setRefreshing(false);
@@ -234,7 +235,7 @@ export default function ChatListScreen() {
                 await chatAPI.deleteConversation(conv.otherUserId);
                 deleteConversationLocal(conv.otherUserId);
               } catch (e) {
-                console.error('Удаление переписки не удалось:', e);
+                logger.error('Удаление переписки не удалось', e);
                 Alert.alert(
                   'Ошибка',
                   'Не удалось удалить переписку. Попробуйте ещё раз.'

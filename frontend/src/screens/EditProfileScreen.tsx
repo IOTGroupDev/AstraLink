@@ -25,6 +25,7 @@ import AstralInput from '../components/shared/AstralInput';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
+import { logger } from '../services/logger';
 
 interface Photo {
   id: string;
@@ -165,7 +166,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       // Load photos - оборачиваем в try-catch
       try {
         const photosData = await userPhotosAPI.listPhotos();
-        console.log('📸 Photos loaded:', photosData);
+        logger.info('Photos loaded', photosData);
         setPhotos(
           photosData.map((p) => ({
             id: p.id,
@@ -175,7 +176,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           }))
         );
       } catch (photoError) {
-        console.error('❌ Error loading photos:', photoError);
+        logger.error('Error loading photos', photoError);
         // Не прерываем загрузку, просто оставляем photos пустым
       }
 
@@ -187,10 +188,10 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setSelectedInterests(userProfile.preferences?.interests || []);
         setGender((userProfile.gender as any) || '');
       } catch (err) {
-        console.log('No extended profile yet');
+        logger.info('No extended profile yet');
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      logger.error('Error loading data', error);
       Alert.alert('Ошибка', 'Не удалось загрузить данные');
     } finally {
       setLoading(false);
@@ -224,24 +225,24 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const uploadPhoto = async (uri: string) => {
     try {
       setUploadingPhoto(true);
-      console.log('📸 Starting upload...');
+      logger.info('Starting upload...');
 
       // 1. Get upload URL
       const { path, signedUrl } = await userPhotosAPI.getUploadUrl({
         ext: 'jpg',
       });
-      console.log('✅ Got signed URL:', path);
+      logger.info('Got signed URL', path);
 
       // 2. Upload file
       const response = await fetch(uri);
       const blob = await response.blob();
 
       await userPhotosAPI.uploadToSignedUrl(signedUrl, blob, 'image/jpeg');
-      console.log('✅ Uploaded to storage');
+      logger.info('Uploaded to storage');
 
       // 3. Confirm upload
       await userPhotosAPI.confirmPhoto(path);
-      console.log('✅ Confirmed in DB');
+      logger.info('Confirmed in DB');
 
       // 4. Reload photos
       const photosData = await userPhotosAPI.listPhotos();
@@ -256,7 +257,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       Alert.alert('Успех', 'Фото добавлено');
     } catch (error) {
-      console.error('❌ Error uploading photo:', error);
+      logger.error('Error uploading photo', error);
       Alert.alert('Ошибка', 'Не удалось загрузить фото');
     } finally {
       setUploadingPhoto(false);
@@ -334,7 +335,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         Alert.alert('Ошибка', 'Не удалось определить адрес');
       }
     } catch (error) {
-      console.error('Geolocation error:', error);
+      logger.error('Geolocation error', error);
       Alert.alert(
         'Ошибка',
         'Не удалось определить местоположение. Проверьте настройки GPS.'
@@ -384,7 +385,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      console.error('Error saving profile:', error);
+      logger.error('Error saving profile', error);
       Alert.alert('Ошибка', 'Не удалось сохранить изменения');
     } finally {
       setSaving(false);

@@ -13,6 +13,7 @@ import {
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -53,7 +54,7 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
       await onSendMessage(message.trim());
       setMessage('');
     } catch (error) {
-      console.error('Ошибка отправки:', error);
+      logger.error('Ошибка отправки', error);
     } finally {
       setSending(false);
     }

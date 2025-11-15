@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
 import { chartAPI } from '../../services/api';
+import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -131,7 +132,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
         week: extractPredictions(weekResponse),
       });
     } catch (error) {
-      console.error('Ошибка загрузки гороскопов:', error);
+      logger.error('Ошибка загрузки гороскопов', error);
     } finally {
       setLoading(false);
     }

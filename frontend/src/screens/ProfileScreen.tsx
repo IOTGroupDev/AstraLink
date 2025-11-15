@@ -37,6 +37,7 @@ import {
   useSafeAreaInsets,
   SafeAreaView as SafeAreaViewSAC,
 } from 'react-native-safe-area-context';
+import { logger } from '../services/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -144,7 +145,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       } else {
         const st = pRes.reason?.response?.status;
         const data = pRes.reason?.response?.data;
-        console.log('⚠️ getProfile failed:', st, data);
+        logger.warn('getProfile failed', st, data);
 
         if (st === 401) {
           // нет/протух токен — выходим в логин
@@ -163,7 +164,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       } else {
         const st = sRes.reason?.response?.status;
         const data = sRes.reason?.response?.data;
-        console.log('ℹ️ getSubscription failed (игнорируем):', st, data);
+        logger.info('getSubscription failed (игнорируем)', st, data);
 
         // Игнорируем 404 и прочее — поставим дефолт
         setSubscription({
@@ -181,7 +182,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       } else {
         const st = cRes.reason?.response?.status;
         const data = cRes.reason?.response?.data;
-        console.log('ℹ️ getNatalChart failed (опционально):', st, data);
+        logger.info('getNatalChart failed (опционально)', st, data);
         setChart(null);
       }
 
@@ -191,15 +192,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         const primary = photos.find((p) => p.isPrimary) || photos[0];
         setPrimaryPhotoUrl(primary?.url || null);
       } catch (photoErr) {
-        console.log('ℹ️ listPhotos failed (опционально):', photoErr);
+        logger.info('listPhotos failed (опционально)', photoErr);
         setPrimaryPhotoUrl(null);
       }
     } catch (error: any) {
       // сюда попадём только если упал getProfile (критично)
       const st = error?.response?.status;
       const data = error?.response?.data;
-      console.error(
-        'Ошибка загрузки данных профиля:',
+      logger.error(
+        'Ошибка загрузки данных профиля',
         st,
         data,
         error?.message
@@ -244,7 +245,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         ]
       );
     } catch (error: any) {
-      console.error('Ошибка удаления аккаунта:', error);
+      logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(
         'Ошибка',
         error.message || 'Не удалось удалить аккаунт. Попробуйте позже.'
@@ -272,7 +273,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         Alert.alert('Ограничение', result.message);
       }
     } catch (error: any) {
-      console.error('Ошибка регенерации карты:', error);
+      logger.error('Ошибка регенерации карты', error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||

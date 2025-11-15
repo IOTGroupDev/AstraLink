@@ -20,6 +20,7 @@ import AdvisorAspectsWidget from '../components/advisor/AdvisorAspectsWidget';
 import AdvisorRecommendationsWidget from '../components/advisor/AdvisorRecommendationsWidget';
 import AdvisorResultWidget from 'src/components/advisor/AdvisorResultWidget';
 import BestWindowsWidget from 'src/components/advisor/BestWindowsWidget';
+import { logger } from '../services/logger';
 
 type Topic =
   | 'contract'
@@ -190,7 +191,7 @@ const AdvisorScreen: React.FC = () => {
               try {
                 navigation.navigate('Subscription' as never);
               } catch (e: any) {
-                console.error('navigation failed:', e?.message || e);
+                logger.error('navigation failed', e?.message || e);
               }
             }}
             style={styles.premiumButton}
