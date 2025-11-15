@@ -263,17 +263,25 @@ export class DatingService {
         }
       }
 
-      // Batch create signed URLs for all photos (performance optimization)
-      const photoUrlPromises = rows
+      // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for all photos
+      // Используем createSignedUrlsBatch вместо множества отдельных запросов
+      const photoPaths = rows
         .filter((r) => r.primary_photo_path)
-        .map((r) =>
-          this.supabaseService
-            .createSignedUrl('user-photos', r.primary_photo_path!, 900)
-            .then((url) => ({ userId: r.user_id, url })),
-        );
+        .map((r) => r.primary_photo_path!);
 
-      const photoUrls = await Promise.all(photoUrlPromises);
-      const photoUrlMap = new Map(photoUrls.map((p) => [p.userId, p.url]));
+      const photoUrlsBatch = await this.supabaseService.createSignedUrlsBatch(
+        'user-photos',
+        photoPaths,
+        900,
+      );
+
+      // Create userId -> URL map from path -> URL map
+      const photoUrlMap = new Map<string, string | null>();
+      for (const r of rows) {
+        if (r.primary_photo_path) {
+          photoUrlMap.set(r.user_id, photoUrlsBatch.get(r.primary_photo_path) ?? null);
+        }
+      }
 
       // Build candidate list without additional async calls
       result = rows.map((r) => {
@@ -389,23 +397,28 @@ export class DatingService {
             }
           }
 
-          // Batch create signed URLs for fallback candidates (performance optimization)
-          const fallbackPhotoPromises = extraIds
-            .slice(0, needMore) // Only process what we need
-            .filter((uid: string) => photosById.get(uid))
-            .map((uid: string) => {
-              const storagePath = photosById.get(uid);
-              return storagePath
-                ? this.supabaseService
-                    .createSignedUrl('user-photos', storagePath, 900)
-                    .then((url) => ({ userId: uid, url: url ?? null }))
-                : Promise.resolve({ userId: uid, url: null });
-            });
+          // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for fallback candidates
+          const fallbackUserIds = extraIds.slice(0, needMore);
+          const fallbackPhotoPaths = fallbackUserIds
+            .map((uid: string) => photosById.get(uid))
+            .filter((path: string | undefined): path is string => !!path);
 
-          const fallbackPhotoUrls = await Promise.all(fallbackPhotoPromises);
-          const fallbackPhotoUrlMap = new Map(
-            fallbackPhotoUrls.map((p) => [p.userId, p.url]),
+          const fallbackPhotoUrlsBatch = await this.supabaseService.createSignedUrlsBatch(
+            'user-photos',
+            fallbackPhotoPaths,
+            900,
           );
+
+          // Create userId -> URL map
+          const fallbackPhotoUrlMap = new Map<string, string | null>();
+          for (const uid of fallbackUserIds) {
+            const storagePath = photosById.get(uid);
+            if (storagePath) {
+              fallbackPhotoUrlMap.set(uid, fallbackPhotoUrlsBatch.get(storagePath) ?? null);
+            } else {
+              fallbackPhotoUrlMap.set(uid, null);
+            }
+          }
 
           const extraEnriched: EnrichedCandidate[] = [];
           for (const uid of extraIds) {
@@ -922,22 +935,44 @@ export class DatingService {
     let photos: string[] | null = null;
     try {
       if (allPhotos && allPhotos.length) {
-        const urls = await Promise.all(
-          allPhotos.slice(0, 8).map(async (p: any) => {
-            const path = p?.storagePath;
-            if (!path || typeof path !== 'string') return null;
-            if (/^https?:\/\//i.test(path)) {
-              return path;
-            }
-            return (
-              (await this.supabaseService.createSignedUrl(
-                'user-photos',
-                path,
-                900,
-              )) ?? null
-            );
-          }),
-        );
+        const photoItems = allPhotos.slice(0, 8);
+
+        // Separate absolute URLs from paths that need signed URLs
+        const absoluteUrls: Array<{ index: number; url: string }> = [];
+        const pathsToSign: string[] = [];
+        const pathIndexes: number[] = [];
+
+        photoItems.forEach((p: any, index: number) => {
+          const path = p?.storagePath;
+          if (!path || typeof path !== 'string') return;
+
+          if (/^https?:\/\//i.test(path)) {
+            absoluteUrls.push({ index, url: path });
+          } else {
+            pathsToSign.push(path);
+            pathIndexes.push(index);
+          }
+        });
+
+        // Batch generate signed URLs
+        const signedUrlsMap = pathsToSign.length > 0
+          ? await this.supabaseService.createSignedUrlsBatch(
+              'user-photos',
+              pathsToSign,
+              900,
+            )
+          : new Map<string, string | null>();
+
+        // Reconstruct URLs in original order
+        const urls: Array<string | null> = new Array(photoItems.length).fill(null);
+        absoluteUrls.forEach(({ index, url }) => {
+          urls[index] = url;
+        });
+        pathIndexes.forEach((index, i) => {
+          const path = pathsToSign[i];
+          urls[index] = signedUrlsMap.get(path) ?? null;
+        });
+
         photos = urls.filter((u) => !!u) as string[];
       }
     } catch {
