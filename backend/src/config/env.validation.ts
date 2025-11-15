@@ -24,7 +24,38 @@ export const envSchema = z.object({
   // Security
   JWT_SECRET: z
     .string()
-    .min(32, 'JWT_SECRET must be at least 32 characters long for security'),
+    .min(64, 'JWT_SECRET must be at least 64 characters long for security')
+    .refine(
+      (val) => {
+        // Check that secret doesn't contain common test/example values
+        const testValues = [
+          'test',
+          'example',
+          'secret',
+          'changeme',
+          'password',
+          '123456',
+          'abcdef',
+        ];
+        const lowerVal = val.toLowerCase();
+        return !testValues.some((test) => lowerVal.includes(test));
+      },
+      {
+        message:
+          'JWT_SECRET contains test/example values. Please use a strong random secret.',
+      },
+    )
+    .refine(
+      (val) => {
+        // Check for reasonable entropy (not all same character, has mix of characters)
+        const uniqueChars = new Set(val).size;
+        return uniqueChars >= 20; // At least 20 different characters
+      },
+      {
+        message:
+          'JWT_SECRET has insufficient entropy. Please use a strong random secret (e.g., openssl rand -base64 64)',
+      },
+    ),
 
   // AI Providers (at least one is required)
   ANTHROPIC_API_KEY: z.string().optional(),

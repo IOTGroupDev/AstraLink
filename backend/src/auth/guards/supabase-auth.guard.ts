@@ -8,7 +8,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
@@ -71,48 +70,10 @@ export class SupabaseAuthGuard implements CanActivate {
         this.logger.warn(
           `Supabase getUser failed: ${(error as any)?.message || 'no user'}`,
         );
-
-        // Development-only fallback: decode JWT without verifying signature
-        // SECURITY: This fallback is ONLY enabled in development mode
-        if (process.env.NODE_ENV === 'development') {
-          this.logger.warn(
-            '⚠️  DEVELOPMENT MODE: Using insecure JWT decode fallback',
-          );
-          try {
-            const decoded = jwt.decode(token) as any;
-            const userId =
-              decoded?.sub ||
-              decoded?.user_id ||
-              decoded?.userId ||
-              decoded?.id;
-
-            if (userId) {
-              request.user = {
-                userId,
-                id: userId,
-                email: decoded?.email,
-                role: decoded?.role,
-                rawUser: decoded,
-              };
-              this.logger.debug(
-                `DEV fallback decode success for user ${userId}`,
-              );
-              return true;
-            }
-          } catch (decodeErr) {
-            const errorMessage =
-              decodeErr instanceof Error ? decodeErr.message : 'Unknown error';
-            this.logger.error(`JWT decode fallback failed: ${errorMessage}`);
-          }
-        } else {
-          // In production: reject invalid tokens immediately
-          this.logger.error('Token validation failed in production');
-        }
-
         throw new UnauthorizedException('Недействительный токен');
       }
 
-      // Нормализуем пользователя для контроллеров
+      // Normalize user for controllers
       request.user = {
         userId: user.id,
         id: user.id,
@@ -123,6 +84,9 @@ export class SupabaseAuthGuard implements CanActivate {
 
       return true;
     } catch (e: any) {
+      if (e instanceof UnauthorizedException) {
+        throw e;
+      }
       this.logger.error(`Token validation failed: ${e?.message || e}`);
       throw new UnauthorizedException('Ошибка проверки токена');
     }

@@ -424,8 +424,28 @@ export class EphemerisService implements OnModuleInit {
       throw new Error('Не удалось рассчитать ни одной планеты');
     }
 
-    await this.redis.set(cacheKey, planets, 21600);
+    // Optimized TTL based on slowest planet in set (they change less frequently)
+    // Fast planets (Moon, Mercury) need shorter TTL, slow planets can use longer TTL
+    const ttl = this.getOptimalCacheTTL();
+    await this.redis.set(cacheKey, planets, ttl);
     return planets;
+  }
+
+  /**
+   * Get optimal cache TTL for planet data
+   * Fast-moving planets need shorter TTL, slow-moving planets can use longer TTL
+   */
+  private getOptimalCacheTTL(): number {
+    // Different TTLs for different planet speeds
+    // Since we cache all planets together, use a balanced TTL
+    // Fast planets (Moon, Mercury): 1-4 hours
+    // Medium planets (Sun, Venus, Mars): 12-24 hours
+    // Slow planets (Jupiter+): 48+ hours
+    //
+    // Balanced approach: use 12 hours (43200s) as default
+    // This balances between fast planets needing updates and
+    // avoiding unnecessary recalculations for slow planets
+    return 43200; // 12 hours instead of 6 hours
   }
 
   /**

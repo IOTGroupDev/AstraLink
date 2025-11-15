@@ -5,6 +5,7 @@ import * as compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { validateEnv } from './config/env.validation';
+import { getCorsConfig } from './config/cors.config';
 import * as os from 'os';
 
 // Функция для получения локального IP
@@ -73,31 +74,8 @@ async function bootstrap() {
     }),
   );
 
-  // // CORS — dev: отражаем Origin и разрешаем стандартные заголовки/методы
-  // app.enableCors({
-  //   origin: true, // отразит Origin запроса, добавит Access-Control-Allow-Origin
-  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  //   allowedHeaders:
-  //     'Authorization, Content-Type, X-Requested-With, Accept, Origin',
-  //   credentials: false, // мы используем Bearer-токены, cookie не нужны
-  //   preflightContinue: false,
-  //   optionsSuccessStatus: 204,
-  // });
-
-  app.enableCors({
-    origin: [
-      // web на этом же хосте
-      /^(http|https):\/\/localhost(:\d+)?$/,
-      // LAN (замени на свой диапазон при необходимости)
-      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/,
-      // Expo dev URLs (tunnel/LAN)
-      /\.exp\.direct$/,
-      /\.expo\.dev$/,
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Debug'],
-  });
+  // CORS configuration - environment-aware
+  app.enableCors(getCorsConfig());
 
   // Swagger документация
   const config = new DocumentBuilder()

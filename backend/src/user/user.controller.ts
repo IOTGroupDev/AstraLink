@@ -22,6 +22,7 @@ import {
 import { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
 import { BlockUserDto, ReportUserDto } from './dto/moderation.dto';
+import { UpdateExtendedProfileDto } from './dto/update-extended-profile.dto';
 import type {
   SubscriptionStatusResponse,
   UpdateProfileRequest,
@@ -218,27 +219,31 @@ export class UserController {
   }
 
   @Put('profile-extended')
+  @ApiOperation({ summary: 'Update extended user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   async updateExtendedProfile(
     @Request() req: AuthenticatedRequest,
-    @Body() updateData: any,
+    @Body() updateData: UpdateExtendedProfileDto,
   ) {
     const userId = req.user?.userId || req.user?.id;
     const token = this.getAccessToken(req as any);
 
-    // Создаем клиент с токеном пользователя для RLS
+    // Create client with user token for RLS
     const client = this.supabaseService.createClientWithToken(token);
 
-    // Формируем payload, чтобы передавать только указанные поля
+    // Build payload with validated data
     const payload: any = {
       user_id: userId,
-      bio: updateData?.bio ?? null,
-      preferences: updateData?.preferences ?? {},
+      bio: updateData.bio ?? null,
+      preferences: updateData.preferences ?? {},
       updated_at: new Date().toISOString(),
     };
-    if (typeof updateData?.gender === 'string') {
+
+    if (updateData.gender) {
       payload.gender = updateData.gender;
     }
-    if (typeof updateData?.is_onboarded === 'boolean') {
+
+    if (typeof updateData.is_onboarded === 'boolean') {
       payload.is_onboarded = updateData.is_onboarded;
     }
 
@@ -249,7 +254,6 @@ export class UserController {
       .single();
 
     if (error) {
-      console.error('Error updating extended profile:', error);
       throw error;
     }
 
