@@ -1,10 +1,12 @@
 import { IsString, IsNotEmpty, IsOptional, Matches } from 'class-validator';
+import { Sanitize } from '@/common/decorators/sanitize.decorator';
 
 export class CompleteSignupDto {
   @IsString()
   @IsNotEmpty()
   userId!: string;
 
+  @Sanitize('strict') // No HTML in names
   @IsString()
   @IsNotEmpty()
   name!: string;
@@ -23,6 +25,7 @@ export class CompleteSignupDto {
   })
   birthTime?: string;
 
+  @Sanitize('strict') // No HTML in location names
   @IsString()
   @IsOptional()
   birthPlace?: string;

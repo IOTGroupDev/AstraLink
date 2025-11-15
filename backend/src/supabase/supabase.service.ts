@@ -1,9 +1,10 @@
-import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, Logger } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
+  private readonly logger = new Logger(SupabaseService.name);
   public readonly client: SupabaseClient; // Добавь public
 
   constructor(@Inject(RedisService) private readonly redis: RedisService) {
@@ -25,15 +26,15 @@ export class SupabaseService implements OnModuleInit {
     }
 
     this.supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('✅ Supabase client initialized');
+    this.logger.log('Supabase client initialized');
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (serviceRoleKey) {
       this.adminSupabase = createClient(supabaseUrl, serviceRoleKey);
-      console.log('✅ Supabase admin client initialized');
+      this.logger.log('Supabase admin client initialized');
     } else {
-      console.warn(
-        '⚠️ SUPABASE_SERVICE_ROLE_KEY not set. Admin operations will be unavailable and RLS may cause 404.',
+      this.logger.warn(
+        'SUPABASE_SERVICE_ROLE_KEY not set. Admin operations will be unavailable and RLS may cause 404.',
       );
     }
   }
@@ -309,7 +310,7 @@ export class SupabaseService implements OnModuleInit {
    */
   async deleteUser(userId: string) {
     if (!this.adminSupabase) {
-      console.error('❌ Admin client not initialized');
+      this.logger.error('Admin client not initialized');
       return {
         error: new Error(
           'SUPABASE_SERVICE_ROLE_KEY is required to delete users',
@@ -318,20 +319,20 @@ export class SupabaseService implements OnModuleInit {
     }
 
     try {
-      console.log(`🗑️ Удаление пользователя ${userId} из Supabase Auth...`);
+      this.logger.log(`Deleting user ${userId} from Supabase Auth`);
 
       const { data, error } =
         await this.adminSupabase.auth.admin.deleteUser(userId);
 
       if (error) {
-        console.error('❌ Ошибка удаления пользователя из Auth:', error);
+        this.logger.error('Failed to delete user from Auth:', error);
         return { error };
       }
 
-      console.log('✅ Пользователь успешно удален из Supabase Auth');
+      this.logger.log(`User ${userId} successfully deleted from Supabase Auth`);
       return { data, error: null };
     } catch (error) {
-      console.error('❌ Критическая ошибка при удалении пользователя:', error);
+      this.logger.error('Critical error deleting user:', error);
       return { error };
     }
   }

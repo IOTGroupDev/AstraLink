@@ -7,6 +7,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { Sanitize } from '@/common/decorators/sanitize.decorator';
 
 export class CreateNatalChartDto {
   @ApiProperty({
@@ -27,6 +28,7 @@ export class CreateNatalChartDto {
     description: 'Место рождения',
     example: 'Moscow, Russia',
   })
+  @Sanitize('strict') // No HTML in location names
   @IsString()
   birthPlace!: string;
 
@@ -57,6 +59,7 @@ export class CreateNatalChartDto {
     example: 'Europe/Moscow',
     required: false,
   })
+  @Sanitize('strict') // No HTML in timezone strings
   @IsOptional()
   @IsString()
   timezone?: string;

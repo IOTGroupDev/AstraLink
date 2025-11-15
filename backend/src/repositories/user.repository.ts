@@ -26,7 +26,7 @@ export class UserRepository implements IUserRepository {
 
   /**
    * Find user by ID with fallback strategy
-   * Tries: Admin Client → Regular Client → Prisma → Hardcoded test users
+   * Tries: Admin Client → Regular Client
    */
   async findById(userId: string): Promise<UserProfile | null> {
     try {
@@ -42,18 +42,6 @@ export class UserRepository implements IUserRepository {
       if (regularResult) {
         this.logger.debug(`User ${userId} found via Regular Client`);
         return regularResult;
-      }
-
-      // Strategy 3: Hardcoded test users (development-only fallback)
-      // SECURITY: Test users are ONLY available in development mode
-      if (process.env.NODE_ENV === 'development') {
-        const testUser = this.getTestUser(userId);
-        if (testUser) {
-          this.logger.warn(
-            `⚠️  DEVELOPMENT MODE: User ${userId} found via test user fallback`,
-          );
-          return testUser;
-        }
       }
 
       return null;
@@ -97,35 +85,6 @@ export class UserRepository implements IUserRepository {
       this.logger.warn(`Regular client failed for user ${userId}`, error);
       return null;
     }
-  }
-
-  /**
-   * Hardcoded test users for development ONLY
-   * SECURITY: These users should never be available in production
-   */
-  private getTestUser(userId: string): UserProfile | null {
-    const testUsers: Record<string, UserProfile> = {
-      '5d995414-c513-47e6-b5dd-004d3f61c60b': {
-        id: '5d995414-c513-47e6-b5dd-004d3f61c60b',
-        email: 'test@example.com',
-        name: 'Test User 1',
-        birth_date: '1990-01-15',
-        birth_time: '14:30',
-        birth_place: 'Moscow, Russia',
-        gender: 'male',
-      },
-      'c875b4bc-302f-4e37-b123-359bee558163': {
-        id: 'c875b4bc-302f-4e37-b123-359bee558163',
-        email: 'test2@example.com',
-        name: 'Test User 2',
-        birth_date: '1985-06-20',
-        birth_time: '10:15',
-        birth_place: 'Saint Petersburg, Russia',
-        gender: 'female',
-      },
-    };
-
-    return testUsers[userId] || null;
   }
 
   /**

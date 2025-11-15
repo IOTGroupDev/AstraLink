@@ -12,6 +12,7 @@ import { TransitService } from './services/transit.service';
 import { PredictionService } from './services/prediction.service';
 import { BiorhythmService } from './services/biorhythm.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { RedisService } from '../redis/redis.service';
 import {
   CodePurpose,
   PersonalCodeService,
@@ -22,12 +23,8 @@ import { SubscriptionTier } from '@/types';
 export class ChartService {
   private readonly logger = new Logger(ChartService.name);
 
-  // ✅ ОПТИМИЗАЦИЯ: In-memory cache для подписок
-  private subscriptionCache = new Map<
-    string,
-    { subscription: any; timestamp: number }
-  >();
-  private readonly SUBSCRIPTION_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+  // Cache TTL in seconds (5 minutes)
+  private readonly SUBSCRIPTION_CACHE_TTL = 5 * 60;
 
   constructor(
     private prisma: PrismaService,
@@ -39,6 +36,7 @@ export class ChartService {
     private biorhythmService: BiorhythmService,
     private supabaseService: SupabaseService,
     private personalCodeService: PersonalCodeService,
+    private redis: RedisService,
   ) {}
 
   // ============================================================
@@ -46,37 +44,29 @@ export class ChartService {
   // ============================================================
 
   /**
-   * ✅ ОПТИМИЗАЦИЯ: Получить подписку с кэшированием
+   * ✅ ОПТИМИЗАЦИЯ: Получить подписку с кэшированием в Redis
    * Кэш на 5 минут для снижения нагрузки на БД
+   * Теперь работает в multi-instance deployment
    */
   private async getCachedSubscription(userId: string) {
-    const now = Date.now();
-    const cached = this.subscriptionCache.get(userId);
+    const cacheKey = `subscription:${userId}`;
 
-    // Проверяем актуальность кэша
-    if (cached && now - cached.timestamp < this.SUBSCRIPTION_CACHE_TTL) {
+    // Try to get from Redis cache
+    const cached = await this.redis.get<any>(cacheKey);
+    if (cached) {
       this.logger.debug(`Subscription cache HIT for user ${userId}`);
-      return cached.subscription;
+      return cached;
     }
 
-    // Запрашиваем из БД
+    // Cache MISS - query from database
     this.logger.debug(`Subscription cache MISS for user ${userId}`);
     const subscription = await this.prisma.subscription.findUnique({
       where: { userId },
     });
 
-    // Обновляем кэш
-    this.subscriptionCache.set(userId, {
-      subscription,
-      timestamp: now,
-    });
-
-    // Ограничиваем размер кэша (максимум 1000 пользователей)
-    if (this.subscriptionCache.size > 1000) {
-      const firstKey = this.subscriptionCache.keys().next().value;
-      if (firstKey) {
-        this.subscriptionCache.delete(firstKey);
-      }
+    // Store in Redis with TTL
+    if (subscription) {
+      await this.redis.set(cacheKey, subscription, this.SUBSCRIPTION_CACHE_TTL);
     }
 
     return subscription;

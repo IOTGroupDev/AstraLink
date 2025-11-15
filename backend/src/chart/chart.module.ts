@@ -6,6 +6,7 @@ import { SupabaseModule } from '../supabase/supabase.module';
 import { ServicesModule } from '../services/services.module';
 import { AuthModule } from '../auth/auth.module';
 import { RepositoriesModule } from '../repositories';
+import { RedisModule } from '../redis/redis.module';
 import {
   NatalChartService,
   TransitService,
@@ -22,6 +23,7 @@ import { PersonalCodeController } from '@/chart/services/personal-code.controlle
     SupabaseModule,
     RepositoriesModule,
     ServicesModule,
+    RedisModule,
     forwardRef(() => AuthModule),
   ],
   controllers: [ChartController, PersonalCodeController],

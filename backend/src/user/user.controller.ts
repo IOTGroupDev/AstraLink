@@ -12,6 +12,7 @@ import {
   HttpStatus,
   UnauthorizedException,
   Req,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -49,6 +50,8 @@ interface AuthenticatedRequest extends ExpressRequest {
 @UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(
     private readonly userService: UserService,
     private readonly subscriptionService: SubscriptionService,
@@ -175,7 +178,7 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   async deleteAccount(@Request() req: AuthenticatedRequest) {
     const userId = (req.user?.userId || req.user?.id) as string;
-    console.log(`🗑️ Запрос на удаление аккаунта пользователя: ${userId}`);
+    this.logger.log(`Delete account request for user: ${userId}`);
 
     await this.userService.deleteAccount(userId);
 
@@ -201,7 +204,7 @@ export class UserController {
 
     // PGRST116 = no rows found - это нормально для нового пользователя
     if (error && error.code !== 'PGRST116') {
-      console.error('Error getting extended profile:', error);
+      this.logger.error('Error getting extended profile:', error);
       throw error;
     }
 

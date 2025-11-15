@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Sanitize } from '@/common/decorators/sanitize.decorator';
 
 /**
  * Preferences DTO with validation
@@ -54,6 +55,7 @@ class PreferencesDto {
     type: String,
     description: 'Location preference',
   })
+  @Sanitize('strict') // No HTML allowed in location
   @IsString()
   @MaxLength(200)
   @IsOptional()
@@ -70,14 +72,12 @@ export class UpdateExtendedProfileDto {
     description: 'User bio/description',
     example: 'Interested in astrology and personal growth',
   })
+  @Sanitize('basic') // Allow basic formatting but prevent XSS
   @IsString({ message: 'Bio must be a string' })
   @MaxLength(500, { message: 'Bio must not exceed 500 characters' })
-  @Matches(/^[a-zA-Zа-яА-ЯёЁ0-9\s.,!?;:'"()\-—–]*$/, {
-    message: 'Bio contains invalid characters',
-  })
   @Transform(({ value }) => {
     if (!value) return null;
-    // Remove leading/trailing whitespace and normalize spaces
+    // Normalize whitespace after sanitization
     return value.trim().replace(/\s+/g, ' ');
   })
   @IsOptional()
