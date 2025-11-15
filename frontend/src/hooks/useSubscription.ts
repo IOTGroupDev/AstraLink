@@ -9,6 +9,7 @@ import {
   FEATURE_REQUIREMENTS,
   TRIAL_CONFIG,
 } from '../types/subscription';
+import { logger } from '../services/logger';
 
 /**
  * Главный хук для работы с подписками
@@ -148,7 +149,7 @@ export const useSubscription = () => {
       await activateTrialMutation.mutateAsync();
       return { success: true };
     } catch (error) {
-      console.error('Failed to activate trial:', error);
+      logger.error('Failed to activate trial', error);
       return { success: false, error };
     }
   };
@@ -161,7 +162,7 @@ export const useSubscription = () => {
       await upgradeMutation.mutateAsync({ tier, paymentMethod });
       return { success: true };
     } catch (error) {
-      console.error('Failed to upgrade:', error);
+      logger.error('Failed to upgrade', error);
       return { success: false, error };
     }
   };
@@ -174,7 +175,7 @@ export const useSubscription = () => {
       await cancelMutation.mutateAsync();
       return { success: true };
     } catch (error) {
-      console.error('Failed to cancel:', error);
+      logger.error('Failed to cancel', error);
       return { success: false, error };
     }
   };

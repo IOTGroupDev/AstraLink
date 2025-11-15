@@ -6,6 +6,7 @@ import type {
   Subscription,
   UpgradeSubscriptionRequest,
 } from '../../types';
+import { apiLogger } from '../logger';
 
 export const userAPI = {
   getProfile: async (): Promise<UserProfile> => {
@@ -37,13 +38,13 @@ export const userAPI = {
 
   deleteAccount: async (): Promise<void> => {
     try {
-      console.log('🗑️ Отправка запроса на удаление аккаунта');
+      apiLogger.log('Отправка запроса на удаление аккаунта');
       const response = await api.delete('/user/account');
-      console.log('✅ Аккаунт успешно удален', response.data);
+      apiLogger.log('Аккаунт успешно удален', response.data);
       tokenService.clearToken();
       return response.data;
     } catch (error: any) {
-      console.error('❌ Ошибка удаления аккаунта:', error);
+      apiLogger.error('Ошибка удаления аккаунта', error);
       if (error.response?.status === 401)
         throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
       else if (error.response?.status === 404)

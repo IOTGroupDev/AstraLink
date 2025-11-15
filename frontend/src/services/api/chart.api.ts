@@ -7,6 +7,7 @@ import type {
   MoonPhase,
 } from '../../types';
 import { CodePurpose, PersonalCodeResult } from '../../types/personal-code';
+import { chartLogger } from '../logger';
 
 export const chartAPI = {
   getNatalChart: async (): Promise<Chart | null> => {
@@ -15,7 +16,7 @@ export const chartAPI = {
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 404) {
-        console.log('ℹ️ Натальная карта не найдена');
+        chartLogger.log('Натальная карта не найдена');
         return null;
       }
       throw error;
@@ -32,7 +33,7 @@ export const chartAPI = {
       const response = await api.get('/chart/natal/interpretation');
       return response.data;
     } catch (error) {
-      console.error('Ошибка загрузки интерпретации:', error);
+      chartLogger.error('Ошибка загрузки интерпретации', error);
       return null;
     }
   },
@@ -42,7 +43,7 @@ export const chartAPI = {
       const response = await api.get('/chart/natal/full');
       return response.data;
     } catch (error) {
-      console.error('Ошибка загрузки полной карты:', error);
+      chartLogger.error('Ошибка загрузки полной карты', error);
       throw error;
     }
   },
@@ -54,7 +55,7 @@ export const chartAPI = {
       const response = await api.get(`/chart/horoscope?period=${period}`);
       return response.data;
     } catch (error) {
-      console.error(`Ошибка загрузки гороскопа на ${period}:`, error);
+      chartLogger.error(`Ошибка загрузки гороскопа на ${period}`, error);
       throw error;
     }
   },
@@ -70,7 +71,7 @@ export const chartAPI = {
       const response = await api.get('/chart/horoscope/all');
       return response.data;
     } catch (error) {
-      console.error('Ошибка загрузки всех гороскопов:', error);
+      chartLogger.error('Ошибка загрузки всех гороскопов', error);
       throw error;
     }
   },
@@ -91,7 +92,7 @@ export const chartAPI = {
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error('Ошибка загрузки фазы луны:', error);
+      chartLogger.error('Ошибка загрузки фазы луны', error);
       throw error;
     }
   },
@@ -102,7 +103,7 @@ export const chartAPI = {
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error('Ошибка загрузки лунного дня:', error);
+      chartLogger.error('Ошибка загрузки лунного дня', error);
       throw error;
     }
   },
@@ -120,7 +121,7 @@ export const chartAPI = {
       );
       return response.data;
     } catch (error) {
-      console.error('Ошибка загрузки лунного календаря:', error);
+      chartLogger.error('Ошибка загрузки лунного календаря', error);
       throw error;
     }
   },
@@ -221,7 +222,7 @@ export const chartAPI = {
       });
       return response.data;
     } catch (error) {
-      console.error('Error generating personal code:', error);
+      chartLogger.error('Error generating personal code', error);
       throw error;
     }
   },
@@ -242,7 +243,7 @@ export const chartAPI = {
       const response = await api.get('/personal-code/purposes');
       return response.data;
     } catch (error) {
-      console.error('Error fetching purposes:', error);
+      chartLogger.error('Error fetching purposes', error);
       throw error;
     }
   },
