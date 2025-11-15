@@ -110,7 +110,23 @@ async function bootstrap() {
     }),
   );
 
-  app.use(compression());
+  // ✅ GZIP compression with optimized settings
+  app.use(
+    compression({
+      // Compression level: 6 is optimal balance between speed and compression ratio
+      // 1 = fastest/least compression, 9 = slowest/best compression
+      level: 6,
+      // Only compress responses larger than 1KB (smaller responses add overhead)
+      threshold: 1024,
+      // Filter: compress all text-based responses (JSON, HTML, CSS, JS)
+      filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    }),
+  );
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
