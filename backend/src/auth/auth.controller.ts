@@ -92,6 +92,7 @@ import {
   HttpStatus,
   HttpCode,
   Query,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -103,6 +104,8 @@ import { SupabaseAuthService } from './supabase-auth.service';
 import type { SignupRequest, AuthResponse } from '@/types';
 import { Public } from './decorators/public.decorator';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { MagicLinkRateLimitGuard } from './guards/magic-link-rate-limit.guard';
+import { SignupRateLimitGuard } from './guards/signup-rate-limit.guard';
 import type { AuthenticatedRequest } from '@/types/auth';
 import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 import { SendMagicLinkDto } from '@/auth/dto/send-magic-link.dto';
@@ -110,6 +113,8 @@ import { SendMagicLinkDto } from '@/auth/dto/send-magic-link.dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly supabaseAuthService: SupabaseAuthService) {}
 
   /**
@@ -117,6 +122,7 @@ export class AuthController {
    * После регистрации на email отправляется письмо для верификации
    */
   @Public()
+  @UseGuards(SignupRateLimitGuard)
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -130,6 +136,10 @@ export class AuthController {
   })
   @ApiResponse({ status: 409, description: 'Пользователь уже существует' })
   @ApiResponse({ status: 400, description: 'Некорректные данные' })
+  @ApiResponse({
+    status: 429,
+    description: 'Превышен лимит попыток регистрации (5 в день на IP)',
+  })
   async signup(
     @Body() signupDto: SignupRequest,
   ): Promise<{ success: boolean; message: string }> {
@@ -141,6 +151,7 @@ export class AuthController {
    * Пользователь получит письмо со ссылкой для входа без пароля
    */
   @Public()
+  @UseGuards(MagicLinkRateLimitGuard)
   @Post('send-magic-link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -150,6 +161,11 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Ссылка отправлена на email' })
   @ApiResponse({ status: 400, description: 'Некорректный email' })
+  @ApiResponse({
+    status: 429,
+    description:
+      'Превышен лимит попыток отправки (3 в час на IP, 10 в час на email)',
+  })
   async sendMagicLink(
     @Body() dto: SendMagicLinkDto,
   ): Promise<{ success: boolean }> {
@@ -236,7 +252,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async completeSignup(@Body() dto: CompleteSignupDto) {
     try {
-      console.log('📝 Complete signup request for user:', dto.userId);
+      this.logger.log(`Complete signup request for user: ${dto.userId}`);
 
       const result = await this.supabaseAuthService.completeSignup(dto);
 
@@ -245,7 +261,7 @@ export class AuthController {
         user: result.user,
       };
     } catch (error) {
-      console.error('❌ Complete signup error:', error);
+      this.logger.error('Complete signup error:', error);
       throw error;
     }
   }

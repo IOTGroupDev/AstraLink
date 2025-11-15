@@ -7,13 +7,17 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthMiddleware } from './middleware/auth.middleware';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { MagicLinkRateLimitGuard } from './guards/magic-link-rate-limit.guard';
+import { SignupRateLimitGuard } from './guards/signup-rate-limit.guard';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { ChartModule } from '../chart/chart.module';
 import { ServicesModule } from '../services/services.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
     SupabaseModule,
+    CommonModule,
     forwardRef(() => ChartModule),
     ServicesModule,
     PassportModule,
@@ -31,8 +35,17 @@ import { ServicesModule } from '../services/services.module';
     JwtStrategy,
     AuthMiddleware,
     SupabaseAuthGuard,
+    MagicLinkRateLimitGuard,
+    SignupRateLimitGuard,
   ],
   controllers: [AuthController],
-  exports: [SupabaseAuthService, JwtModule, AuthMiddleware, SupabaseAuthGuard],
+  exports: [
+    SupabaseAuthService,
+    JwtModule,
+    AuthMiddleware,
+    SupabaseAuthGuard,
+    MagicLinkRateLimitGuard,
+    SignupRateLimitGuard,
+  ],
 })
 export class AuthModule {}
