@@ -4,31 +4,23 @@ import {
   ExecutionContext,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
-import { RedisService } from '@/redis/redis.service';
+import { RateLimiterService } from '@/common/services/rate-limiter.service';
 import { SubscriptionService } from '@/subscription/subscription.service';
 import { SubscriptionTier, getLimits } from '@/types/subscription';
 import type { AuthenticatedRequest } from '@/types/auth';
 
 @Injectable()
 export class AdvisorRateLimitGuard implements CanActivate {
+  private readonly logger = new Logger(AdvisorRateLimitGuard.name);
+
   constructor(
-    private readonly redisService: RedisService,
+    private readonly rateLimiter: RateLimiterService,
     private readonly subscriptionService: SubscriptionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // TODO: Implement rate limiting once Redis methods (incr, expire) are added to RedisService
-    // TODO: Implement getSubscription method in SubscriptionService
-
-    // For now, this guard is disabled - rate limiting not active
-    // The guard is commented out in advisor.controller.ts
-
-    throw new ForbiddenException(
-      'Advisor rate limiting is not implemented yet. This guard should not be used.',
-    );
-
-    /* Original implementation - commented out due to missing methods:
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const userId = request.user?.userId || request.user?.id || request.user?.sub;
 
@@ -36,7 +28,8 @@ export class AdvisorRateLimitGuard implements CanActivate {
       throw new BadRequestException('User ID not found');
     }
 
-    const subscription = await this.subscriptionService.getSubscription(userId);
+    // Get user subscription
+    const subscription = await this.subscriptionService.getStatus(userId);
 
     if (!subscription || !subscription.isActive) {
       throw new ForbiddenException('Требуется активная подписка');
@@ -47,41 +40,54 @@ export class AdvisorRateLimitGuard implements CanActivate {
 
     if (advisorLimit === 0 || subscription.tier === SubscriptionTier.FREE) {
       throw new ForbiddenException(
-        'Советник доступен только для подписчиков Premium и MAX',
+        'Советник доступен только для подписчиков Premium и Ultra',
       );
     }
 
-    const key = `advisor:rate_limit:${userId}`;
+    // Create rate limit key: advisor:<userId>:<date>
     const today = new Date().toISOString().split('T')[0];
-    const dayKey = `${key}:${today}`;
+    const key = `advisor:${userId}:${today}`;
 
-    const currentUsage = await this.redisService.get(dayKey);
-    const usageCount = currentUsage ? parseInt(currentUsage, 10) : 0;
-
-    if (usageCount >= advisorLimit) {
-      const tierName = subscription.tier === SubscriptionTier.PREMIUM ? 'Premium' : 'MAX';
-      throw new ForbiddenException(
-        `Достигнут лимит запросов к советнику (${advisorLimit} в сутки для ${tierName}). Попробуйте завтра.`,
-      );
-    }
-
-    await this.redisService.incr(dayKey);
-
+    // Calculate TTL until end of day
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     const ttl = Math.floor((tomorrow.getTime() - Date.now()) / 1000);
 
-    await this.redisService.expire(dayKey, ttl);
+    // Check rate limit
+    const result = await this.rateLimiter.consume(key, {
+      points: advisorLimit,
+      duration: ttl,
+    });
 
+    if (!result.allowed) {
+      const tierName = subscription.tier === SubscriptionTier.PREMIUM ? 'Premium' : 'Ultra';
+      throw new ForbiddenException(
+        `Достигнут лимит запросов к советнику (${advisorLimit} в сутки для ${tierName}). ` +
+        `Попробуйте завтра или обновите подписку.`,
+      );
+    }
+
+    // Add usage info to request for logging/analytics
     request['advisorUsage'] = {
-      current: usageCount + 1,
+      current: advisorLimit - result.remaining,
       limit: advisorLimit,
       tier: subscription.tier,
-      remaining: advisorLimit - usageCount - 1,
+      remaining: result.remaining,
+      resetTime: result.resetTime,
     };
 
+    // Add rate limit headers to response
+    const response = context.switchToHttp().getResponse();
+    response.setHeader('X-RateLimit-Limit', result.totalLimit.toString());
+    response.setHeader('X-RateLimit-Remaining', result.remaining.toString());
+    response.setHeader('X-RateLimit-Reset', Math.floor(result.resetTime / 1000).toString());
+
+    this.logger.debug(`Advisor request allowed for user ${userId}`, {
+      remaining: result.remaining,
+      limit: result.totalLimit,
+    });
+
     return true;
-    */
   }
 }

@@ -25,6 +25,50 @@ function getLocalIP(): string {
   return 'localhost';
 }
 
+/**
+ * Additional production safety checks
+ * Prevents common misconfigurations in production environment
+ */
+function validateProductionSecrets() {
+  if (process.env.NODE_ENV !== 'production') {
+    return; // Skip checks in non-production
+  }
+
+  const logger = new Logger('ProductionCheck');
+  const errors: string[] = [];
+
+  // Check JWT_SECRET
+  const jwtSecret = process.env.JWT_SECRET;
+  if (jwtSecret) {
+    if (jwtSecret.length < 64) {
+      errors.push('JWT_SECRET must be at least 64 characters in production');
+    }
+
+    const testPatterns = ['test', 'example', 'secret', 'changeme', 'password'];
+    if (testPatterns.some(pattern => jwtSecret.toLowerCase().includes(pattern))) {
+      errors.push('JWT_SECRET contains test/example values - SECURITY RISK');
+    }
+  }
+
+  // Check CORS configuration
+  if (!process.env.ALLOWED_ORIGINS) {
+    logger.warn('⚠️  ALLOWED_ORIGINS not set - CORS will reject all browser requests');
+  }
+
+  // Check Supabase keys
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY?.includes('example')) {
+    errors.push('SUPABASE_SERVICE_ROLE_KEY contains example value');
+  }
+
+  if (errors.length > 0) {
+    logger.error('🚨 PRODUCTION CONFIGURATION ERRORS:');
+    errors.forEach(err => logger.error(`  ❌ ${err}`));
+    throw new Error('Production configuration validation failed. Fix errors above.');
+  }
+
+  logger.log('✅ Production secrets validation passed');
+}
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
@@ -32,6 +76,9 @@ async function bootstrap() {
   try {
     validateEnv();
     logger.log('✅ Environment variables validated successfully');
+
+    // Additional production checks
+    validateProductionSecrets();
   } catch (error) {
     logger.error((error as Error).message);
     process.exit(1);

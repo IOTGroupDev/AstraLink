@@ -121,4 +121,124 @@ export class RedisService {
       return 0;
     }
   }
+
+  /**
+   * Increment a key's value by 1
+   * Used for rate limiting and counters
+   */
+  async incr(key: string): Promise<number | null> {
+    if (!this.client) return null;
+    try {
+      return await this.client.incr(key);
+    } catch (e) {
+      this.logger.warn(
+        `Redis INCR failed for key=${key}: ${(e as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Increment a key's value by a specific amount
+   */
+  async incrBy(key: string, amount: number): Promise<number | null> {
+    if (!this.client) return null;
+    try {
+      return await this.client.incrby(key, amount);
+    } catch (e) {
+      this.logger.warn(
+        `Redis INCRBY failed for key=${key}: ${(e as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Set expiration time on a key (in seconds)
+   * Returns true if timeout was set, false otherwise
+   */
+  async expire(key: string, seconds: number): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      const result = await this.client.expire(key, seconds);
+      return result === 1;
+    } catch (e) {
+      this.logger.warn(
+        `Redis EXPIRE failed for key=${key}: ${(e as Error).message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get time to live for a key (in seconds)
+   * Returns -1 if key exists but has no expiry, -2 if key doesn't exist
+   */
+  async ttl(key: string): Promise<number | null> {
+    if (!this.client) return null;
+    try {
+      return await this.client.ttl(key);
+    } catch (e) {
+      this.logger.warn(
+        `Redis TTL failed for key=${key}: ${(e as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Check if a key exists
+   */
+  async exists(key: string): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      const result = await this.client.exists(key);
+      return result === 1;
+    } catch (e) {
+      this.logger.warn(
+        `Redis EXISTS failed for key=${key}: ${(e as Error).message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get multiple keys at once
+   */
+  async mget<T = any>(keys: string[]): Promise<(T | null)[]> {
+    if (!this.client || keys.length === 0) return [];
+    try {
+      const values = await this.client.mget(...keys);
+      return values.map(val => {
+        if (!val) return null;
+        try {
+          return JSON.parse(val) as T;
+        } catch {
+          return null;
+        }
+      });
+    } catch (e) {
+      this.logger.warn(`Redis MGET failed: ${(e as Error).message}`);
+      return keys.map(() => null);
+    }
+  }
+
+  /**
+   * Set multiple key-value pairs at once
+   */
+  async mset(entries: Record<string, any>): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      const pairs: string[] = [];
+      for (const [key, value] of Object.entries(entries)) {
+        pairs.push(key, JSON.stringify(value));
+      }
+      if (pairs.length === 0) return true;
+      await this.client.mset(...pairs);
+      return true;
+    } catch (e) {
+      this.logger.warn(`Redis MSET failed: ${(e as Error).message}`);
+      return false;
+    }
+  }
 }

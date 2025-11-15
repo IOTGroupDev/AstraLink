@@ -25,6 +25,7 @@ import { ChatModule } from './chat/chat.module';
 import { AIModule } from './ai/ai.module';
 import { HealthModule } from '@/health/health.module';
 import { DebugController } from '@/debug/debug.controller';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { DebugController } from '@/debug/debug.controller';
         limit: 1000, // 1000 requests per hour
       },
     ]),
+    CommonModule,
     PrismaModule,
     SupabaseModule,
     ServicesModule,
