@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ChartService } from '../chart/chart.service';
@@ -12,6 +13,8 @@ import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 
 @Injectable()
 export class SupabaseAuthService {
+  private readonly logger = new Logger(SupabaseAuthService.name);
+
   constructor(
     private supabaseService: SupabaseService,
     private chartService: ChartService,
@@ -32,7 +35,7 @@ export class SupabaseAuthService {
 
       return { success: true };
     } catch (error) {
-      console.error('Send magic link error:', error);
+      this.logger.error('Send magic link error:', error);
       throw new BadRequestException('Ошибка отправки магической ссылки');
     }
   }
@@ -72,7 +75,7 @@ export class SupabaseAuthService {
               userProfile.birth_place,
             );
           } catch (error) {
-            console.error('Error creating natal chart during login:', error);
+            this.logger.error('Error creating natal chart during login:', error);
           }
         }
       }
@@ -96,7 +99,7 @@ export class SupabaseAuthService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      console.error('Verify magic link error:', error);
+      this.logger.error('Verify magic link error:', error);
       throw new UnauthorizedException('Ошибка верификации');
     }
   }
@@ -115,7 +118,7 @@ export class SupabaseAuthService {
         throw new BadRequestException('Неверный формат даты рождения');
       }
 
-      console.log('🔍 Starting signup for:', signupDto.email);
+      this.logger.log('🔍 Starting signup for:', signupDto.email);
 
       // 1) Проверяем, не существует ли уже пользователь в нашей таблице
       const { data: existingProfile } = await this.supabaseService
@@ -140,14 +143,14 @@ export class SupabaseAuthService {
         });
 
       if (createError || !created?.user) {
-        console.error('Create user error:', createError);
+        this.logger.error('Create user error:', createError);
         throw new BadRequestException('Ошибка создания пользователя');
       }
 
       const userId = created.user.id;
       const userEmail = created.user.email || signupDto.email;
 
-      console.log('✅ User created in auth.users:', userId);
+      this.logger.log('✅ User created in auth.users:', userId);
 
       // 3) Создаем профиль пользователя
       const { error: profileError } = await this.supabaseService
@@ -166,12 +169,12 @@ export class SupabaseAuthService {
         );
 
       if (profileError) {
-        console.error('Error creating user profile:', profileError);
+        this.logger.error('Error creating user profile:', profileError);
         await this.supabaseService.deleteUser(userId);
         throw new BadRequestException('Ошибка создания профиля пользователя');
       }
 
-      console.log('✅ User profile created');
+      this.logger.log('✅ User profile created');
 
       // 4) Создаем подписку (free с trial)
       await this.createUserSubscription(userId);
@@ -185,7 +188,7 @@ export class SupabaseAuthService {
           signupDto.birthPlace || 'Moscow',
         );
       } catch (chartError) {
-        console.error('Error creating natal chart (non-blocking):', chartError);
+        this.logger.error('Error creating natal chart (non-blocking):', chartError);
       }
 
       // 6) Отправляем verification email через Supabase
@@ -193,10 +196,10 @@ export class SupabaseAuthService {
         await this.supabaseService.sendVerificationEmail(userEmail);
 
       if (emailError) {
-        console.warn('⚠️ Ошибка отправки verification email:', emailError);
+        this.logger.warn('⚠️ Ошибка отправки verification email:', emailError);
       }
 
-      console.log('🎉 Signup completed successfully');
+      this.logger.log('🎉 Signup completed successfully');
 
       return {
         success: true,
@@ -209,7 +212,7 @@ export class SupabaseAuthService {
       ) {
         throw error;
       }
-      console.error('Signup error:', error);
+      this.logger.error('Signup error:', error);
       throw new BadRequestException('Ошибка регистрации');
     }
   }
@@ -224,14 +227,14 @@ export class SupabaseAuthService {
     try {
       const { user: userData } = data;
 
-      console.log('🔍 Обработка Google OAuth callback для:', userData.email);
+      this.logger.log('🔍 Обработка Google OAuth callback для:', userData.email);
 
       // 1. Проверяем существует ли профиль пользователя
       const { data: existingProfile } =
         await this.supabaseService.getUserProfileAdmin(userData.id);
 
       if (existingProfile) {
-        console.log('✅ Пользователь уже существует');
+        this.logger.log('✅ Пользователь уже существует');
 
         // Проверяем натальную карту
         const { data: existingCharts } =
@@ -251,7 +254,7 @@ export class SupabaseAuthService {
                 existingProfile.birth_place,
               );
             } catch (error) {
-              console.error('Error creating natal chart:', error);
+              this.logger.error('Error creating natal chart:', error);
             }
           }
         }
@@ -273,7 +276,7 @@ export class SupabaseAuthService {
         };
       }
 
-      console.log('🔍 Создаем новый профиль для OAuth пользователя');
+      this.logger.log('🔍 Создаем новый профиль для OAuth пользователя');
 
       // 2. Создаем профиль пользователя
       const { data: newProfile, error: profileError } =
@@ -293,16 +296,16 @@ export class SupabaseAuthService {
           .single();
 
       if (profileError) {
-        console.error('❌ Ошибка создания профиля:', profileError);
+        this.logger.error('❌ Ошибка создания профиля:', profileError);
         throw new BadRequestException('Ошибка создания профиля пользователя');
       }
 
-      console.log('✅ Профиль создан');
+      this.logger.log('✅ Профиль создан');
 
       // 3. Создаем подписку
       await this.createUserSubscription(userData.id);
 
-      console.log('🎉 Google OAuth профиль создан успешно');
+      this.logger.log('🎉 Google OAuth профиль создан успешно');
 
       return {
         user: {
@@ -318,7 +321,7 @@ export class SupabaseAuthService {
         access_token: data.access_token,
       };
     } catch (error) {
-      console.error('❌ Google callback error:', error);
+      this.logger.error('❌ Google callback error:', error);
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -330,8 +333,8 @@ export class SupabaseAuthService {
     try {
       const { userId, name, birthDate, birthTime, birthPlace } = dto;
 
-      console.log('📝 Completing signup for user:', userId);
-      console.log('📝 Completing signup for user:', dto);
+      this.logger.log('📝 Completing signup for user:', userId);
+      this.logger.log('📝 Completing signup for user:', dto);
 
       // Валидация даты рождения
       const parsedBirthDate = new Date(birthDate);
@@ -358,11 +361,11 @@ export class SupabaseAuthService {
         });
 
       if (updateError) {
-        console.error('Error updating user profile:', updateError);
+        this.logger.error('Error updating user profile:', updateError);
         throw new BadRequestException('Ошибка обновления профиля');
       }
 
-      console.log('✅ User profile updated');
+      this.logger.log('✅ User profile updated');
 
       // 3. Проверяем и создаем подписку, если ее нет
       const { data: existingSubscription } = await this.supabaseService
@@ -372,10 +375,10 @@ export class SupabaseAuthService {
         .single();
 
       if (!existingSubscription) {
-        console.log('📝 Creating subscription for user...');
+        this.logger.log('📝 Creating subscription for user...');
         await this.createUserSubscription(userId);
       } else {
-        console.log('✅ Subscription already exists');
+        this.logger.log('✅ Subscription already exists');
       }
 
       // 4. Создаем натальную карту
@@ -387,10 +390,10 @@ export class SupabaseAuthService {
           birthPlace || 'Moscow',
         );
       } catch (chartError) {
-        console.error('Error creating natal chart (non-blocking):', chartError);
+        this.logger.error('Error creating natal chart (non-blocking):', chartError);
       }
 
-      console.log('🎉 Signup completion successful');
+      this.logger.log('🎉 Signup completion successful');
 
       return {
         user: {
@@ -411,7 +414,7 @@ export class SupabaseAuthService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      console.error('Complete signup error:', error);
+      this.logger.error('Complete signup error:', error);
       throw new BadRequestException('Ошибка завершения регистрации');
     }
   }
@@ -440,10 +443,10 @@ export class SupabaseAuthService {
       await this.supabaseService.createUserChartAdmin(userId, natalChartData);
 
     if (chartInsertError) {
-      console.error('Error creating natal chart:', chartInsertError);
+      this.logger.error('Error creating natal chart:', chartInsertError);
       throw chartInsertError;
     } else {
-      console.log('✅ Natal chart created');
+      this.logger.log('✅ Natal chart created');
     }
   }
 
@@ -466,15 +469,15 @@ export class SupabaseAuthService {
         });
 
       if (subscriptionError) {
-        console.error(
+        this.logger.error(
           'Error creating subscription (non-blocking):',
           subscriptionError,
         );
       } else {
-        console.log('✅ Free subscription with trial created');
+        this.logger.log('✅ Free subscription with trial created');
       }
     } catch (subscriptionError) {
-      console.error(
+      this.logger.error(
         'Error creating subscription (non-blocking):',
         subscriptionError,
       );
