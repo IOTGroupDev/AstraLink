@@ -1,10 +1,9 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ChartController } from './chart.controller';
 import { ChartService } from './chart.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { ServicesModule } from '../services/services.module';
-import { AuthModule } from '../auth/auth.module';
 import { RepositoriesModule } from '../repositories';
 import { RedisModule } from '../redis/redis.module';
 import {
@@ -14,6 +13,7 @@ import {
   BiorhythmService,
 } from './services';
 import { ChartEventListener } from './listeners/chart-event.listener';
+import { UserSignupListener } from './listeners/user-signup.listener';
 import { PersonalCodeService } from '@/chart/services/personal-code.service';
 import { PersonalCodeController } from '@/chart/services/personal-code.controller';
 
@@ -24,7 +24,6 @@ import { PersonalCodeController } from '@/chart/services/personal-code.controlle
     RepositoriesModule,
     ServicesModule,
     RedisModule,
-    forwardRef(() => AuthModule),
   ],
   controllers: [ChartController, PersonalCodeController],
   providers: [
@@ -34,6 +33,7 @@ import { PersonalCodeController } from '@/chart/services/personal-code.controlle
     PredictionService,
     BiorhythmService,
     ChartEventListener,
+    UserSignupListener,
     PersonalCodeService,
   ],
   exports: [
