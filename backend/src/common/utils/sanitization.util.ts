@@ -3,7 +3,10 @@ import sanitizeHtml from 'sanitize-html';
 /**
  * Sanitization options for different input types
  */
-export const SANITIZE_OPTIONS = {
+export const SANITIZE_OPTIONS: Record<
+  string,
+  sanitizeHtml.IOptions
+> = {
   /**
    * Strict: No HTML allowed, only plain text
    * Use for: names, titles, short text fields
@@ -11,7 +14,7 @@ export const SANITIZE_OPTIONS = {
   strict: {
     allowedTags: [],
     allowedAttributes: {},
-    disallowedTagsMode: 'escape',
+    disallowedTagsMode: 'escape' as const,
   },
 
   /**
@@ -21,7 +24,7 @@ export const SANITIZE_OPTIONS = {
   basic: {
     allowedTags: ['b', 'i', 'em', 'strong', 'br', 'p'],
     allowedAttributes: {},
-    disallowedTagsMode: 'escape',
+    disallowedTagsMode: 'escape' as const,
   },
 
   /**
@@ -31,9 +34,9 @@ export const SANITIZE_OPTIONS = {
   none: {
     allowedTags: [],
     allowedAttributes: {},
-    disallowedTagsMode: 'recursiveEscape',
+    disallowedTagsMode: 'recursiveEscape' as const,
   },
-} as const;
+};
 
 /**
  * Sanitize HTML input

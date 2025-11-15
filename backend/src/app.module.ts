@@ -26,12 +26,14 @@ import { AIModule } from './ai/ai.module';
 import { HealthModule } from '@/health/health.module';
 import { DebugController } from '@/debug/debug.controller';
 import { CommonModule } from './common/common.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    QueueModule,
     EventEmitterModule.forRoot({
       wildcard: true,
       delimiter: '.',

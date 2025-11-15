@@ -69,7 +69,7 @@ export class AdvisorRateLimitGuard implements CanActivate {
     }
 
     // Add usage info to request for logging/analytics
-    request['advisorUsage'] = {
+    (request as any)['advisorUsage'] = {
       current: advisorLimit - result.remaining,
       limit: advisorLimit,
       tier: subscription.tier,
