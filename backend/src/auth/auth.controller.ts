@@ -14,7 +14,7 @@
 // } from '@nestjs/swagger';
 // import { SupabaseAuthService } from './supabase-auth.service';
 // import type { LoginRequest, SignupRequest, AuthResponse } from '@/types';
-// import { Public } from './decorators/public.decorator';
+// import { Public } from '../common/decorators/public.decorator';
 // import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 // import type { AuthenticatedRequest } from '@/types/auth';
 // import { SendVerificationCodeDto, VerifyCodeDto } from '@/auth/dto/send-verification-code.dto';
@@ -102,7 +102,7 @@ import {
 } from '@nestjs/swagger';
 import { SupabaseAuthService } from './supabase-auth.service';
 import type { SignupRequest, AuthResponse } from '@/types';
-import { Public } from './decorators/public.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { MagicLinkRateLimitGuard } from './guards/magic-link-rate-limit.guard';
 import { SignupRateLimitGuard } from './guards/signup-rate-limit.guard';
