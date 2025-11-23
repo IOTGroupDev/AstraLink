@@ -46,6 +46,30 @@ function getRedirectUri(): string {
   }
 }
 
+// Parse tokens from Supabase OAuth redirect URL (supports query and hash)
+function extractFromRedirectUrl(redirectedUrl: string): {
+  accessToken: string | null;
+  refreshToken: string | null;
+  code: string | null;
+} {
+  try {
+    const parsed = new URL(redirectedUrl);
+    const search = parsed.searchParams;
+    const hashString = parsed.hash?.startsWith('#')
+      ? parsed.hash.slice(1)
+      : parsed.hash || '';
+    const hash = new URLSearchParams(hashString);
+    const get = (k: string) => search.get(k) || hash.get(k);
+    return {
+      accessToken: get('access_token'),
+      refreshToken: get('refresh_token'),
+      code: get('code'),
+    };
+  } catch {
+    return { accessToken: null, refreshToken: null, code: null };
+  }
+}
+
 export const authAPI = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
@@ -170,6 +194,118 @@ export const authAPI = {
     }
   },
 
+  appleSignIn: async (): Promise<AuthResponse> => {
+    try {
+      const redirectUri = getRedirectUri();
+      authLogger.log('🍎 Apple sign in start. Redirect URI:', redirectUri);
+
+      if (Platform.OS === 'ios') {
+        // Dynamic import to avoid bundling issues on non-iOS platforms
+        // Ensure expo-apple-authentication is installed for iOS builds
+        const Apple = await import('expo-apple-authentication');
+        const credential = await Apple.signInAsync({
+          requestedScopes: [
+            Apple.AppleAuthenticationScope.FULL_NAME,
+            Apple.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        const idToken = (credential as any)?.identityToken as string | null;
+        if (!idToken) {
+          throw new Error('Apple identityToken отсутствует');
+        }
+
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: idToken,
+        });
+        if (error) throw error;
+
+        const { data: s } = await supabase.auth.getSession();
+        const accessToken = s.session?.access_token ?? null;
+        if (accessToken) {
+          await tokenService.setToken(accessToken);
+        }
+
+        const { data: userRes } = await supabase.auth.getUser(
+          (accessToken || undefined) as any
+        );
+        const user = userRes?.user;
+        if (!user)
+          throw new Error(
+            'Не удалось получить пользователя после Apple sign in'
+          );
+
+        return {
+          access_token: accessToken || '',
+          user: {
+            id: user.id,
+            email: user.email || '',
+            name: (user.user_metadata as any)?.name || '',
+            role: 'user',
+          },
+        };
+      }
+
+      // Android and others: use web OAuth flow
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: { redirectTo: redirectUri, skipBrowserRedirect: false },
+      });
+      if (error) throw error;
+
+      if (data.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUri
+        );
+        if (result.type === 'success' && result.url) {
+          const { accessToken, refreshToken } = extractFromRedirectUrl(
+            result.url
+          );
+
+          if (accessToken && refreshToken) {
+            const { error: setErr } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (setErr) throw setErr;
+            await tokenService.setToken(accessToken);
+          } else if (accessToken) {
+            await tokenService.setToken(accessToken);
+          } else {
+            throw new Error('Токены не получены из Apple OAuth потока');
+          }
+
+          const { data: userRes } = await supabase.auth.getUser(
+            ((await tokenService.getToken()) || undefined) as any
+          );
+          const user = userRes.user;
+          if (!user)
+            throw new Error(
+              'Не удалось получить пользователя после Apple OAuth'
+            );
+
+          return {
+            access_token: (await tokenService.getToken()) || '',
+            user: {
+              id: user.id,
+              email: user.email || '',
+              name: (user.user_metadata as any)?.name || '',
+              role: 'user',
+            },
+          };
+        }
+        throw new Error('Авторизация отменена или не завершена');
+      }
+
+      throw new Error('Не удалось инициировать Apple OAuth');
+    } catch (error: any) {
+      authLogger.error('❌ Apple sign in failed:', error);
+      throw error;
+    }
+  },
+
   googleSignIn: async (): Promise<AuthResponse> => {
     try {
       authLogger.log('🔐 Начало Google OAuth');
@@ -180,7 +316,6 @@ export const authAPI = {
         provider: 'google',
         options: { redirectTo: redirectUri, skipBrowserRedirect: false },
       });
-
       if (error) throw error;
 
       if (data.url) {
@@ -189,27 +324,37 @@ export const authAPI = {
           redirectUri
         );
         if (result.type === 'success' && result.url) {
-          const url = new URL(result.url);
-          const accessToken =
-            url.searchParams.get('access_token') ||
-            new URLSearchParams(url.hash.replace('#', '')).get('access_token');
+          const { accessToken, refreshToken } = extractFromRedirectUrl(
+            result.url
+          );
 
-          if (accessToken) {
-            await tokenService.setToken(accessToken);
-            const { data: userRes } = await supabase.auth.getUser(accessToken);
-            const user = userRes.user;
-            if (!user)
-              throw new Error('Не удалось получить данные пользователя');
-            return {
+          if (accessToken && refreshToken) {
+            const { error: setErr } = await supabase.auth.setSession({
               access_token: accessToken,
-              user: {
-                id: user.id,
-                email: user.email!,
-                name: (user.user_metadata as any)?.name || '',
-                role: 'user',
-              },
-            };
+              refresh_token: refreshToken,
+            });
+            if (setErr) throw setErr;
+            await tokenService.setToken(accessToken);
+          } else if (accessToken) {
+            await tokenService.setToken(accessToken);
+          } else {
+            throw new Error('Токены не получены из Google OAuth потока');
           }
+
+          const { data: userRes } = await supabase.auth.getUser(
+            ((await tokenService.getToken()) || undefined) as any
+          );
+          const user = userRes.user;
+          if (!user) throw new Error('Не удалось получить данные пользователя');
+          return {
+            access_token: (await tokenService.getToken()) || '',
+            user: {
+              id: user.id,
+              email: user.email!,
+              name: (user.user_metadata as any)?.name || '',
+              role: 'user',
+            },
+          };
         }
         throw new Error('Авторизация отменена или не завершена');
       }

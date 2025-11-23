@@ -42,12 +42,9 @@ export class BiorhythmService {
       ),
     );
 
-    // Get user's birth date from Supabase
-    const { data: user, error: userErr } = await this.supabaseService
-      .from('users')
-      .select('id, birth_date')
-      .eq('id', userId)
-      .single();
+    // Get user's birth date from Supabase (admin client to bypass RLS)
+    const { data: user, error: userErr } =
+      await this.supabaseService.getUserProfileAdmin(userId);
 
     if (userErr || !user?.birth_date) {
       // Fallback: if birth date is missing in users table — try to get from saved natal chart

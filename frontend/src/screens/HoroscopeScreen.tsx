@@ -536,9 +536,9 @@ const HoroscopeScreen: React.FC = () => {
                 <Text style={styles.placeholderText}>Загрузка данных...</Text>
               </View>
             )}
-            <View>
-              <PersonalCodeScreen />
-            </View>
+            {/*<View>*/}
+            {/*  <PersonalCodeScreen />*/}
+            {/*</View>*/}
           </View>
         </ScrollView>
       </TabScreenLayout>

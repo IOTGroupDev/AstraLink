@@ -16,6 +16,7 @@
     "ios": {
       "bundleIdentifier": "com.yourcompany.astroapp",
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение"
       }
@@ -57,7 +58,8 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      "expo-apple-authentication"
     ]
   }
 }

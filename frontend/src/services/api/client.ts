@@ -22,7 +22,19 @@ const getApiBaseUrl = () => {
     (typeof process !== 'undefined' &&
       (process as any)?.env?.EXPO_PUBLIC_API_URL) ||
     (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_URL;
-  if (envUrl) return ensureApiBase(envUrl);
+
+  // Флаг: внешний прокси уже монтирует backend под /api (например, Nginx/Cloudflare)
+  const hasApiPrefix =
+    (typeof process !== 'undefined' &&
+      (process as any)?.env?.EXPO_PUBLIC_API_HAS_PREFIX === 'true') ||
+    (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_HAS_PREFIX ===
+      'true';
+
+  if (envUrl) {
+    // Если прокси уже добавляет /api — не модифицируем путь
+    const trimmed = (envUrl as string).trim().replace(/\/+$/, '');
+    return hasApiPrefix ? trimmed : ensureApiBase(trimmed);
+  }
 
   // 2) Web (браузер/Expo Web): используем текущий origin
   if (
@@ -63,7 +75,8 @@ export const api = axios.create({
 
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
-  apiLogger.log('🔍 Получение токена для запроса:', config.url);
+  const fullUrl = `${(config as any).baseURL ?? ''}${config.url ?? ''}`;
+  apiLogger.log('🔍 Получение токена для запроса:', fullUrl);
 
   try {
     const { data } = await supabase.auth.getSession();
@@ -71,9 +84,9 @@ api.interceptors.request.use(async (config) => {
 
     if (token) {
       (config.headers as any).Authorization = `Bearer ${token}`;
-      apiLogger.log('🔐 Добавлен токен к запросу:', config.url);
+      apiLogger.log('🔐 Добавлен токен к запросу:', fullUrl);
     } else {
-      apiLogger.warn('⚠️ Нет токена для запроса:', config.url);
+      apiLogger.warn('⚠️ Нет токена для запроса:', fullUrl);
     }
   } catch (error) {
     apiLogger.error('❌ Ошибка получения токена:', error);
@@ -86,6 +99,13 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const fullUrl = `${error?.config?.baseURL ?? ''}${error?.config?.url ?? ''}`;
+    const status = error?.response?.status ?? 'ERR';
+    apiLogger.error(
+      `❌ HTTP ${status} for ${fullUrl}`,
+      error?.response?.data ?? error?.message
+    );
+
     if (error.response?.status === 401) {
       apiLogger.error('❌ 401 Unauthorized - токен истек или недействителен');
     }

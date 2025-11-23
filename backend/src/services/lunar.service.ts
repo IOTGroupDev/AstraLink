@@ -58,9 +58,35 @@ export class LunarService {
       );
 
       // Определяем дом, если есть натальная карта
+      // Расширенный фолбэк: если в сохранённой карте нет домов, пробуем реконструировать их по birthDate+location
       let house: number | undefined;
-      if (natalChart?.houses) {
-        house = this.getMoonHouse(moonLongitude, natalChart.houses);
+      let natalHouses: any = natalChart?.houses;
+
+      if (!natalHouses && natalChart?.birthDate && natalChart?.location) {
+        try {
+          const birth = new Date(natalChart.birthDate);
+          if (!isNaN(birth.getTime())) {
+            const dateStr = birth.toISOString().split('T')[0];
+            const timeIso =
+              birth.toISOString().split('T')[1] || '12:00:00.000Z';
+            const timeStr = timeIso.slice(0, 5); // HH:MM
+            const recomputed = await this.ephemerisService.calculateNatalChart(
+              dateStr,
+              timeStr,
+              natalChart.location,
+            );
+            natalHouses = recomputed?.houses;
+          }
+        } catch (e) {
+          this.logger.debug(
+            'Не удалось реконструировать дома для натальной карты (moon-phase)',
+            e as any,
+          );
+        }
+      }
+
+      if (natalHouses) {
+        house = this.getMoonHouse(moonLongitude, natalHouses);
       }
 
       // Рассчитываем дату следующей фазы
@@ -85,7 +111,7 @@ export class LunarService {
         illumination,
         sign: planets.moon.sign,
         degree: planets.moon.degree,
-        house,
+        house: house ?? 1,
         isVoidOfCourse,
         nextPhaseDate,
         recommendations,

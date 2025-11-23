@@ -407,11 +407,21 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('apple');
-      Alert.alert(
-        'В разработке',
-        'Авторизация через Apple будет доступна в следующей версии',
-        [{ text: 'OK' }]
+      const response = await withBiometricProtection(
+        () => authAPI.appleSignIn(),
+        'Apple'
       );
+
+      // Сохраняем пользователя в store
+      login(response.user);
+
+      // Проверяем, нужен ли онбординг
+      if (needsOnboarding(response.user)) {
+        navigation.navigate('OnboardingName' as never);
+      } else {
+        setCompleted(true);
+        navigation.navigate('Main' as never);
+      }
     } catch (error: any) {
       handleOAuthError(error, 'Apple');
     } finally {

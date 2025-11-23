@@ -402,17 +402,17 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             </View>
           )}
 
-          <TouchableOpacity style={styles.aiButton}>
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.aiButtonGradient}
-            >
-              <Ionicons name="sparkles" size={20} color="#fff" />
-              <Text style={styles.aiButtonText}>Получить AI прогноз</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          {/*    <TouchableOpacity style={styles.aiButton}>*/}
+          {/*      <LinearGradient*/}
+          {/*        colors={['#8B5CF6', '#EC4899']}*/}
+          {/*        start={{ x: 0, y: 0 }}*/}
+          {/*        end={{ x: 1, y: 1 }}*/}
+          {/*        style={styles.aiButtonGradient}*/}
+          {/*      >*/}
+          {/*        <Ionicons name="sparkles" size={20} color="#fff" />*/}
+          {/*        <Text style={styles.aiButtonText}>Получить AI прогноз</Text>*/}
+          {/*      </LinearGradient>*/}
+          {/*    </TouchableOpacity>*/}
         </View>
       </LinearGradient>
 
