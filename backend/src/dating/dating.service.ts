@@ -404,7 +404,7 @@ export class DatingService {
           const fallbackUserIds = extraIds.slice(0, needMore);
           const fallbackPhotoPaths = fallbackUserIds
             .map((uid: string) => photosById.get(uid))
-            .filter((path: string | undefined): path is string => !!path);
+            .filter((path): path is string => !!path && typeof path === 'string');
 
           const fallbackPhotoUrlsBatch =
             await this.supabaseService.createSignedUrlsBatch(
@@ -910,7 +910,7 @@ export class DatingService {
         }
       } else if (prefsRaw && typeof prefsRaw === 'object') {
         // Если это объект с полем interests
-        const intr = prefsRaw?.interests;
+        const intr = (prefsRaw as Record<string, any>)?.interests;
         if (Array.isArray(intr)) {
           interests = intr.filter((x: any) => typeof x === 'string');
         } else if (typeof intr === 'string') {

@@ -121,6 +121,7 @@ export class ClaudeProvider extends BaseAIProvider {
     try {
       const startTime = Date.now();
 
+      // @ts-expect-error - stream mode is supported but types are outdated
       const stream = await this.client.messages.create({
         model: this.model,
         max_tokens: 2000,

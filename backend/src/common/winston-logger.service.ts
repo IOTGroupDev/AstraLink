@@ -23,7 +23,13 @@ export class WinstonLoggerService implements LoggerService {
     const consoleFormat = winston.format.combine(
       winston.format.colorize(),
       winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.printf(({ timestamp, level, message, context, ...meta }) => {
+      winston.format.printf(({ timestamp, level, message, context, ...meta }: {
+        timestamp: string;
+        level: string;
+        message: string;
+        context?: string;
+        [key: string]: any;
+      }) => {
         const ctx = context ? `[${context}]` : '';
         const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
         return `${timestamp} ${level} ${ctx} ${message} ${metaStr}`;

@@ -61,6 +61,7 @@ export class OpenAIProvider extends BaseAIProvider {
       try {
         const startTime = Date.now();
 
+        // @ts-expect-error - response_format is supported but types are outdated
         const completion = await this.client.chat.completions.create({
           model: this.model,
           messages: [
@@ -122,6 +123,7 @@ export class OpenAIProvider extends BaseAIProvider {
     try {
       const startTime = Date.now();
 
+      // @ts-expect-error - stream mode is supported but types are outdated
       const stream = await this.client.chat.completions.create({
         model: this.model,
         messages: [

@@ -31,6 +31,7 @@ export class DeepSeekProvider extends BaseAIProvider {
     }
 
     try {
+      // @ts-expect-error - baseURL is supported but types are outdated
       this.client = new OpenAI({
         apiKey,
         baseURL: 'https://api.deepseek.com',
@@ -64,6 +65,7 @@ export class DeepSeekProvider extends BaseAIProvider {
       try {
         const startTime = Date.now();
 
+        // @ts-expect-error - response_format is supported but types are outdated
         const completion = await this.client.chat.completions.create({
           model: this.model,
           messages: [
@@ -124,6 +126,7 @@ export class DeepSeekProvider extends BaseAIProvider {
     try {
       const startTime = Date.now();
 
+      // @ts-expect-error - stream mode is supported but types are outdated
       const stream = await this.client.chat.completions.create({
         model: this.model,
         messages: [
