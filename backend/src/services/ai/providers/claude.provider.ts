@@ -121,7 +121,6 @@ export class ClaudeProvider extends BaseAIProvider {
     try {
       const startTime = Date.now();
 
-      // @ts-expect-error - stream mode is supported but types are outdated
       const stream = await this.client.messages.create({
         model: this.model,
         max_tokens: 2000,
@@ -134,12 +133,11 @@ export class ClaudeProvider extends BaseAIProvider {
           },
         ],
         stream: true,
-      });
+      } as any); // stream mode supported but types outdated
 
       let fullContent = '';
 
-      // @ts-expect-error - Claude SDK streaming types
-      for await (const event of stream) {
+      for await (const event of stream as any) {
         if (
           event.type === 'content_block_delta' &&
           event.delta?.type === 'text_delta'

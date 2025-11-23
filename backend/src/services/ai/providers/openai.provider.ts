@@ -61,7 +61,6 @@ export class OpenAIProvider extends BaseAIProvider {
       try {
         const startTime = Date.now();
 
-        // @ts-expect-error - response_format is supported but types are outdated
         const completion = await this.client.chat.completions.create({
           model: this.model,
           messages: [
@@ -77,7 +76,7 @@ export class OpenAIProvider extends BaseAIProvider {
           temperature: 0.7,
           max_tokens: 2000,
           response_format: { type: 'json_object' }, // JSON mode for reliable parsing
-        });
+        } as any); // response_format supported but types outdated
 
         const duration = Date.now() - startTime;
         const content = completion.choices[0]?.message?.content || '';
@@ -123,7 +122,6 @@ export class OpenAIProvider extends BaseAIProvider {
     try {
       const startTime = Date.now();
 
-      // @ts-expect-error - stream mode is supported but types are outdated
       const stream = await this.client.chat.completions.create({
         model: this.model,
         messages: [
@@ -139,11 +137,11 @@ export class OpenAIProvider extends BaseAIProvider {
         temperature: 0.7,
         max_tokens: 2000,
         stream: true,
-      });
+      } as any); // stream mode supported but types outdated
 
       let fullContent = '';
 
-      for await (const chunk of stream) {
+      for await (const chunk of stream as any) {
         const content = chunk.choices[0]?.delta?.content || '';
         if (content) {
           fullContent += content;
