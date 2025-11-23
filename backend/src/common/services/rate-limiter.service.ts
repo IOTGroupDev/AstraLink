@@ -2,15 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '@/redis/redis.service';
 
 export interface RateLimitConfig {
-  points: number;      // Number of requests allowed
-  duration: number;    // Duration in seconds
+  points: number; // Number of requests allowed
+  duration: number; // Duration in seconds
   blockDuration?: number; // Optional block duration in seconds
 }
 
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
-  resetTime: number;   // Unix timestamp when limit resets
+  resetTime: number; // Unix timestamp when limit resets
   totalLimit: number;
 }
 
@@ -40,7 +40,9 @@ export class RateLimiterService {
 
       if (current === null) {
         // Redis not available - allow request but log warning
-        this.logger.warn('Redis not available for rate limiting, allowing request');
+        this.logger.warn(
+          'Redis not available for rate limiting, allowing request',
+        );
         return {
           allowed: true,
           remaining: config.points - 1,

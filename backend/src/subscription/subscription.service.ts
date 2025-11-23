@@ -264,7 +264,7 @@ export class SubscriptionService {
 
       // 2) Если есть AI — генерируем premium-интерпретацию и сохраняем в карту
       if (chartRec && this.aiService.isAvailable()) {
-        const chartData = chartRec.data as any || {};
+        const chartData = (chartRec.data as any) || {};
         try {
           const aiText = await this.aiService.generateChartInterpretation({
             planets: chartData?.planets,

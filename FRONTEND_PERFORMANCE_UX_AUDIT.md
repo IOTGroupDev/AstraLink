@@ -29,6 +29,7 @@ The frontend codebase has significant performance, optimization, and UX issues t
 **File:** `/home/user/AstraLink/frontend/src/components/AnimatedStars.tsx`
 
 **Issues:**
+
 - Creates 50 random stars on every render (lines 24-31)
 - Each star is its own component (StarComponent) causing 50+ re-renders
 - Math.random() called inside render = different values every re-render
@@ -47,22 +48,25 @@ const stars: Star[] = Array.from({ length: 50 }, (_, i) => ({
 }));
 ```
 
-**Impact:** 
+**Impact:**
+
 - Severe performance degradation on every parent screen re-render
 - 50+ components recreated unnecessarily
 - RandomValues change every frame causing visual jitter
 
 **Recommendation:**
+
 ```tsx
-const STARS = useMemo(() => 
-  Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    x: Math.random() * width,
-    y: Math.random() * height,
-    size: Math.random() * 3 + 1,
-    opacity: Math.random() * 0.8 + 0.2,
-    duration: Math.random() * 3000 + 2000,
-  })), 
+const STARS = useMemo(
+  () =>
+    Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 3 + 1,
+      opacity: Math.random() * 0.8 + 0.2,
+      duration: Math.random() * 3000 + 2000,
+    })),
   [width]
 );
 
@@ -78,6 +82,7 @@ const StarComponent = React.memo(({ star }: { star: Star }) => {
 **File:** `/home/user/AstraLink/frontend/src/screens/MyChartScreen.tsx` (765 lines)
 
 **Issues:**
+
 - Components exceed 700 lines (best practice: 300-400 lines max)
 - Multiple inline function definitions causing re-renders
 - Complex state management in single component
@@ -85,6 +90,7 @@ const StarComponent = React.memo(({ star }: { star: Star }) => {
 - AnimatedStars used in every screen without memoization
 
 **DatingScreen Problems (Lines 1-560):**
+
 1. Two useEffect hooks (lines 216-249) cause multiple renders
 2. Inline animation calculations
 3. No React.memo for child components
@@ -93,8 +99,9 @@ const StarComponent = React.memo(({ star }: { star: Star }) => {
 
 **Recommendation:**
 Split into smaller components:
+
 - DatingCard (already exists but not optimized)
-- ConnectionsList 
+- ConnectionsList
 - DatingActions
 - MatchAnimation
 
@@ -105,6 +112,7 @@ Split into smaller components:
 ### 2.1 DatingScreen Issues
 
 **Problem 1: Inline Function Handlers (Lines 251-308)**
+
 ```tsx
 // PROBLEM: handleLike recreated on every render
 const handleLike = () => {
@@ -123,6 +131,7 @@ const nextCard = () => {
 **Impact:** PanGestureHandler (line 430) will re-bind on every render, breaking gesture smoothness.
 
 **Recommendation:**
+
 ```tsx
 const handleLike = useCallback(() => {
   Alert.alert('💜', `Вы лайкнули ${matches[currentIndex]?.name}!`);
@@ -130,9 +139,7 @@ const handleLike = useCallback(() => {
 }, [currentIndex, matches]);
 
 const nextCard = useCallback(() => {
-  setCurrentIndex(prev => 
-    prev < matches.length - 1 ? prev + 1 : prev
-  );
+  setCurrentIndex((prev) => (prev < matches.length - 1 ? prev + 1 : prev));
 }, [matches.length]);
 ```
 
@@ -141,12 +148,14 @@ const nextCard = useCallback(() => {
 **File:** `/home/user/AstraLink/frontend/src/screens/ConnectionsScreen.tsx`
 
 **Issues:**
+
 - Uses useCallback for fetchConnections (line 55) - GOOD
 - Missing useCallback for other handlers (onRefresh, handleAddConnection)
 - animationValue shared value recreated in useEffect (lines 48-52)
 - Map function directly in render (line 222) - OK but not optimal
 
 **Partial Fix Already Applied:**
+
 ```tsx
 const fetchConnections = useCallback(async () => {
   // ... code
@@ -154,6 +163,7 @@ const fetchConnections = useCallback(async () => {
 ```
 
 **Missing Optimizations:**
+
 ```tsx
 const onRefresh = useCallback(() => {
   setRefreshing(true);
@@ -171,27 +181,34 @@ const handleAddConnection = useCallback((connectionData: any) => {
 **File:** `/home/user/AstraLink/frontend/src/components/ConnectionCard.tsx`
 
 **Issues:**
+
 - Not wrapped in React.memo (line 170)
 - glow animation recreated on every render (lines 36-42)
 - getCompatibilityColor and getZodiacSymbol recreated every render
 
 **Recommendation:**
+
 ```tsx
-const ConnectionCard = React.memo(({ name, zodiacSign, compatibility, onPress, animationValue }) => {
-  const getCompatibilityColor = useCallback((score: number) => {
-    // ...
-  }, []);
-  
-  const getZodiacSymbol = useCallback((sign: string) => {
-    // ...
-  }, []);
-  
-  // ... rest of component
-}, (prevProps, nextProps) => {
-  // Custom comparison if needed
-  return prevProps.compatibility === nextProps.compatibility &&
-         prevProps.name === nextProps.name;
-});
+const ConnectionCard = React.memo(
+  ({ name, zodiacSign, compatibility, onPress, animationValue }) => {
+    const getCompatibilityColor = useCallback((score: number) => {
+      // ...
+    }, []);
+
+    const getZodiacSymbol = useCallback((sign: string) => {
+      // ...
+    }, []);
+
+    // ... rest of component
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison if needed
+    return (
+      prevProps.compatibility === nextProps.compatibility &&
+      prevProps.name === nextProps.name
+    );
+  }
+);
 ```
 
 ### 2.4 ProfileScreen Animation Issues
@@ -199,19 +216,23 @@ const ConnectionCard = React.memo(({ name, zodiacSign, compatibility, onPress, a
 **File:** `/home/user/AstraLink/frontend/src/screens/ProfileScreen.tsx`
 
 **Problems:**
+
 - animatedContainerStyle (line 173) not memoized
 - animatedGlowStyle (line 184) not memoized
 - animatedOrbStyle (line 190) not memoized
 - These are recreated on every render despite not changing
 
 **Recommendation:**
+
 ```tsx
 const animatedContainerStyle = useAnimatedStyle(() => {
   return {
     opacity: fadeAnim.value,
-    transform: [{
-      translateY: interpolate(fadeAnim.value, [0, 1], [50, 0])
-    }]
+    transform: [
+      {
+        translateY: interpolate(fadeAnim.value, [0, 1], [50, 0]),
+      },
+    ],
   };
 }, [fadeAnim]); // Add dependency if necessary
 ```
@@ -223,9 +244,10 @@ const animatedContainerStyle = useAnimatedStyle(() => {
 ### 3.1 DatingScreen - ConnectionsList (Lines 400-425)
 
 **Problem:**
+
 ```tsx
-<ScrollView 
-  horizontal 
+<ScrollView
+  horizontal
   showsHorizontalScrollIndicator={false}
   contentContainerStyle={styles.connectionsList}
 >
@@ -238,21 +260,21 @@ const animatedContainerStyle = useAnimatedStyle(() => {
 ```
 
 **Issues:**
+
 - Using ScrollView with horizontal map instead of FlatList
 - No virtualization for potentially large lists
 - All items rendered at once (3 items is OK, but not scalable)
 - No key prop consistency check
 
 **Recommendation:**
+
 ```tsx
 <FlatList
   data={connections}
   renderItem={({ item }) => (
-    <View style={styles.connectionItem}>
-      {/* Content */}
-    </View>
+    <View style={styles.connectionItem}>{/* Content */}</View>
   )}
-  keyExtractor={item => item.id.toString()}
+  keyExtractor={(item) => item.id.toString()}
   horizontal
   showsHorizontalScrollIndicator={false}
   scrollEventThrottle={16}
@@ -267,42 +289,52 @@ const animatedContainerStyle = useAnimatedStyle(() => {
 ### 3.2 DatingScreen - Interest Tags (Lines 519-524)
 
 **Problem:**
+
 ```tsx
-{currentMatch.interests.map((interest, index) => (
-  <View key={index} style={styles.interestTag}>
-    <Text style={styles.interestText}>{interest}</Text>
-  </View>
-))}
+{
+  currentMatch.interests.map((interest, index) => (
+    <View key={index} style={styles.interestTag}>
+      <Text style={styles.interestText}>{interest}</Text>
+    </View>
+  ));
+}
 ```
 
 **Issues:**
+
 - Using index as key (React anti-pattern)
 - No memoization of tag component
 - Recreates all tags on every character/property change
 
 **Recommendation:**
+
 ```tsx
-{currentMatch.interests.map((interest) => (
-  <View key={interest} style={styles.interestTag}>
-    <Text style={styles.interestText}>{interest}</Text>
-  </View>
-))}
+{
+  currentMatch.interests.map((interest) => (
+    <View key={interest} style={styles.interestTag}>
+      <Text style={styles.interestText}>{interest}</Text>
+    </View>
+  ));
+}
 ```
 
 ### 3.3 ConnectionsScreen - connectionsList (Lines 222-231)
 
 **Better Implementation:**
+
 ```tsx
-{connections.map((connection, index) => (
-  <ConnectionCard
-    key={connection.id}  // Good: using stable ID
-    name={connection.name}
-    zodiacSign={connection.zodiacSign}
-    compatibility={connection.compatibility}
-    onPress={() => handleConnectionPress(connection)}
-    animationValue={cardAnimations}
-  />
-))}
+{
+  connections.map((connection, index) => (
+    <ConnectionCard
+      key={connection.id} // Good: using stable ID
+      name={connection.name}
+      zodiacSign={connection.zodiacSign}
+      compatibility={connection.compatibility}
+      onPress={() => handleConnectionPress(connection)}
+      animationValue={cardAnimations}
+    />
+  ));
+}
 ```
 
 **Issue:** ConnectionCard should be memoized since it receives animationValue prop that might change unnecessarily.
@@ -315,11 +347,13 @@ const animatedContainerStyle = useAnimatedStyle(() => {
 
 **Current State:** No Image component imports detected
 **Issue:** SVG-only approach creates:
+
 - Larger bundle sizes
 - More CPU for rendering
 - No native image caching
 
 **Recommendations:**
+
 1. Use react-native-fast-image for better image caching
 2. Implement proper placeholder/skeleton loading
 3. Use image compression for assets
@@ -333,23 +367,26 @@ const animatedContainerStyle = useAnimatedStyle(() => {
 **File:** `/home/user/AstraLink/frontend/src/components/CosmicBackground.tsx`
 
 **Problems:**
+
 - Three animated Svg layers (lines 65-161)
 - Continuous animations: 60000ms, 80000ms, 100000ms durations
 - Glow effect animating constantly (lines 40-44)
 - Used on every screen
 
 **Frame Impact:**
+
 - Each Svg.Circle with stroke animation forces layout recalculation
 - Three gradients with interpolation on every frame
 - Total: ~10-15% CPU per screen on mid-range devices
 
 **Recommendation - Optimize:**
+
 ```tsx
 // Use static SVG if animation not critical
 const CosmicBackground = React.memo(() => {
   // Only animate if visible
   const [isVisible, setIsVisible] = useState(true);
-  
+
   // Reduce animation complexity
   return isVisible ? <AnimatedBackground /> : <StaticBackground />;
 });
@@ -360,28 +397,31 @@ const CosmicBackground = React.memo(() => {
 **File:** `/home/user/AstraLink/frontend/src/components/ZodiacWheel.tsx`
 
 **Problems (Lines 107-149):**
+
 - Maps over 12 zodiac signs creating Path + 2x Text elements = 36 elements
 - Animated rotation on entire SVG (120000ms duration)
 - Used on multiple screens simultaneously
 - No animation pause when off-screen
 
 **Performance Impact:**
+
 - ~5-8% CPU for SVG rendering
 - Blocks main thread during animation updates
 - Not memoized
 
 **Recommendation:**
+
 ```tsx
 const ZodiacWheel = React.memo(() => {
   // Add useWindowDimensions to detect visibility
   const [shouldAnimate, setShouldAnimate] = useState(false);
-  
+
   // Only animate when visible
   useEffect(() => {
-    rotation.value = shouldAnimate ? 
+    rotation.value = shouldAnimate ?
       withRepeat(...) : 0;
   }, [shouldAnimate]);
-  
+
   return (
     <ViewabilityAware onVisible={() => setShouldAnimate(true)}>
       {/* SVG content */}
@@ -395,30 +435,29 @@ const ZodiacWheel = React.memo(() => {
 **File:** `/home/user/AstraLink/frontend/src/components/SolarSystem.tsx` (Lines 54-66)
 
 **Issues:**
+
 - Math calculations (cos, sin) on every frame for 8 planets
 - `Math.PI` conversion on every animation frame
 - `interpolate` called for each planet
 - No caching of coordinate calculations
 
 **Recommendation:**
+
 ```tsx
 const PlanetComponent = React.memo(({ planet, rotation, scale }) => {
   const animatedStyle = useAnimatedStyle(() => {
-    const planetRotation = rotation.value * planet.speed + planet.currentPosition;
+    const planetRotation =
+      rotation.value * planet.speed + planet.currentPosition;
     // Cache these calculations
     const angle = (planetRotation * Math.PI) / 180; // Pre-computed constant
     const x = Math.cos(angle) * planet.distance;
     const y = Math.sin(angle) * planet.distance;
-    
+
     return {
-      transform: [
-        { translateX: x },
-        { translateY: y },
-        { scale: scale.value },
-      ],
+      transform: [{ translateX: x }, { translateY: y }, { scale: scale.value }],
     };
   }, [planet.speed, planet.distance, planet.currentPosition]);
-  
+
   // ...
 });
 ```
@@ -432,10 +471,11 @@ const PlanetComponent = React.memo(({ planet, rotation, scale }) => {
 **File:** `/home/user/AstraLink/frontend/src/screens/DatingScreen.tsx` (Lines 58-214)
 
 **Problem:**
+
 ```tsx
 const loadMatches = async () => {
   setLoading(true);
-  await new Promise(resolve => setTimeout(resolve, 1500)); // PROBLEM: No cleanup
+  await new Promise((resolve) => setTimeout(resolve, 1500)); // PROBLEM: No cleanup
   setMatches(mockMatches);
   setLoading(false);
 };
@@ -447,12 +487,14 @@ useEffect(() => {
 ```
 
 **Issues:**
+
 - Promise-based timeout with no AbortController
 - If component unmounts during async, setState called on unmounted component
 - fetchConnections (line 221) not dependency tracked
 - Multiple async operations without cancellation
 
 **Recommendation:**
+
 ```tsx
 useEffect(() => {
   let isMounted = true;
@@ -496,37 +538,52 @@ useEffect(() => {
 **File:** `/home/user/AstraLink/frontend/src/components/AnimatedStars.tsx` (Lines 46-57)
 
 **Problem:**
+
 ```tsx
 useEffect(() => {
   opacity.value = withRepeat(
-    withTiming(0.1, { duration: star.duration, easing: Easing.inOut(Easing.sin) }),
-    -1,  // INFINITE LOOP
+    withTiming(0.1, {
+      duration: star.duration,
+      easing: Easing.inOut(Easing.sin),
+    }),
+    -1, // INFINITE LOOP
     true
   );
   scale.value = withRepeat(
-    withTiming(1.5, { duration: star.duration, easing: Easing.inOut(Easing.sin) }),
-    -1,  // INFINITE LOOP
+    withTiming(1.5, {
+      duration: star.duration,
+      easing: Easing.inOut(Easing.sin),
+    }),
+    -1, // INFINITE LOOP
     true
   );
 }, []); // No cleanup
 ```
 
 **Issues:**
+
 - Infinite animations never cleaned up
 - 50 components × 2 animations = 100 active animations
 - If component unmounts, animations continue consuming memory
 - useEffect dependency array is empty but should track star
 
 **Recommendation:**
+
 ```tsx
 useEffect(() => {
   opacity.value = withRepeat(
-    withTiming(0.1, { duration: star.duration, easing: Easing.inOut(Easing.sin) }),
+    withTiming(0.1, {
+      duration: star.duration,
+      easing: Easing.inOut(Easing.sin),
+    }),
     -1,
     true
   );
   scale.value = withRepeat(
-    withTiming(1.5, { duration: star.duration, easing: Easing.inOut(Easing.sin) }),
+    withTiming(1.5, {
+      duration: star.duration,
+      easing: Easing.inOut(Easing.sin),
+    }),
     -1,
     true
   );
@@ -554,6 +611,7 @@ useEffect(() => {
 **File:** `/home/user/AstraLink/frontend/src/services/api.ts` (Lines 14-23)
 
 **CRITICAL ISSUE:**
+
 ```tsx
 api.interceptors.request.use((config) => {
   const token = getStoredToken(); // SYNCHRONOUS CALL
@@ -567,7 +625,7 @@ export const getStoredToken = (): string | null => {
   if (authToken) {
     return authToken;
   }
-  
+
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const token = localStorage.getItem('auth_token'); // SYNC OPERATION
@@ -579,23 +637,26 @@ export const getStoredToken = (): string | null => {
   } catch (error) {
     console.log('❌ Ошибка чтения localStorage:', error);
   }
-  
+
   return null;
 };
 ```
 
 **Problems:**
+
 - `getStoredToken()` tries to access `window.localStorage` (web API, not available in React Native)
 - Should use `AsyncStorage` for React Native
 - Synchronous operation in request interceptor blocks network calls
 - Token retrieval happens on EVERY request
 
-**Impact:** 
+**Impact:**
+
 - All network requests delayed until token retrieval
 - Potential blocking of UI thread
 - localStorage doesn't work in React Native
 
 **Recommendation:**
+
 ```tsx
 // Use AsyncStorage (already imported but not used)
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -615,7 +676,7 @@ export const getStoredToken = async (): Promise<string | null> => {
   if (authToken) {
     return authToken;
   }
-  
+
   try {
     const token = await AsyncStorage.getItem('auth_token');
     if (token) {
@@ -625,7 +686,7 @@ export const getStoredToken = async (): Promise<string | null> => {
   } catch (error) {
     console.error('Failed to retrieve token:', error);
   }
-  
+
   return null;
 };
 
@@ -642,23 +703,25 @@ api.interceptors.request.use(async (config) => {
 ### 7.2 No Request Caching
 
 **Issue:** Every API call is fresh, no caching strategy
+
 - `chartAPI.getCurrentPlanets()` called every time screen mounts
 - `datingAPI.getMatches()` called without caching
 - `connectionsAPI.getConnections()` has no cache
 
 **Recommendation:** Implement response caching:
+
 ```tsx
 const createCachedAPI = (api, cacheDuration = 5000) => {
   const cache = new Map();
-  
+
   return (key, fn) => {
     const cached = cache.get(key);
-    
+
     if (cached && Date.now() - cached.timestamp < cacheDuration) {
       return Promise.resolve(cached.data);
     }
-    
-    return fn().then(data => {
+
+    return fn().then((data) => {
       cache.set(key, { data, timestamp: Date.now() });
       return data;
     });
@@ -669,22 +732,24 @@ const createCachedAPI = (api, cacheDuration = 5000) => {
 ### 7.3 No Request Cancellation
 
 **Problem:** Multiple simultaneous requests without AbortController
+
 ```tsx
 useEffect(() => {
-  loadMatches();      // Not cancelled if unmount
+  loadMatches(); // Not cancelled if unmount
   fetchConnections(); // Not cancelled if unmount
 }, []);
 ```
 
 **Recommendation:** Use AbortController (already available in axios):
+
 ```tsx
 useEffect(() => {
   const controller = new AbortController();
-  
+
   const loadMatches = async () => {
     try {
       const response = await api.get('/matches', {
-        signal: controller.signal
+        signal: controller.signal,
       });
       setMatches(response.data);
     } catch (error) {
@@ -693,9 +758,9 @@ useEffect(() => {
       }
     }
   };
-  
+
   loadMatches();
-  
+
   return () => {
     controller.abort(); // Cancel request on unmount
   };
@@ -716,6 +781,7 @@ useEffect(() => {
 **Current State:** Mock data used when API fails, but no intelligent caching
 
 **Recommendation:**
+
 ```tsx
 // Implement Redux with Redux Persist or MobX with AsyncStorage
 import { createSlice } from '@reduxjs/toolkit';
@@ -738,7 +804,7 @@ const matchesSlice = createSlice({
 // Check cache before API call
 const shouldRefetch = () => {
   const lastFetch = store.getState().matches.timestamp;
-  return !lastFetch || (Date.now() - lastFetch) > CACHE_DURATION;
+  return !lastFetch || Date.now() - lastFetch > CACHE_DURATION;
 };
 ```
 
@@ -747,30 +813,36 @@ const shouldRefetch = () => {
 ## 9. Offline Support - MISSING
 
 **Issue:** Zero offline support
+
 - No offline mode indicator
 - No offline data persistence
 - No queue for offline actions
 - No sync mechanism
 
 **Recommendation:**
+
 ```tsx
 // Implement offline queue
 class OfflineQueue {
-  private queue: Array<{ id: string; action: () => Promise<any>; retries: number }> = [];
-  
+  private queue: Array<{
+    id: string;
+    action: () => Promise<any>;
+    retries: number;
+  }> = [];
+
   add(action: () => Promise<any>) {
-    this.queue.push({ 
-      id: UUID(), 
-      action, 
-      retries: 0 
+    this.queue.push({
+      id: UUID(),
+      action,
+      retries: 0,
     });
   }
-  
+
   async sync() {
     for (const item of this.queue) {
       try {
         await item.action();
-        this.queue = this.queue.filter(q => q.id !== item.id);
+        this.queue = this.queue.filter((q) => q.id !== item.id);
       } catch (error) {
         if (item.retries < 3) {
           item.retries++;
@@ -790,6 +862,7 @@ class OfflineQueue {
 **File:** `/home/user/AstraLink/frontend/src/components/ShimmerLoader.tsx`
 
 **Status:** ✅ Good implementation (64 lines)
+
 - Simple, effective animation
 - Reusable with width/height/borderRadius props
 - Used consistently across app
@@ -797,6 +870,7 @@ class OfflineQueue {
 ### 10.2 Missing Loading States
 
 **DatingScreen (Lines 322-339):**
+
 ```tsx
 if (loading) {
   return (
@@ -818,6 +892,7 @@ if (loading) {
 **Issue:** Shows loading ONLY initially, not on refresh. Should show skeleton on refresh.
 
 **Recommendation:**
+
 ```tsx
 {refreshing && <ShimmerLoader style={styles.cardSkeleton} />}
 {!refreshing && currentMatch && <MatchCard {...} />}
@@ -837,6 +912,7 @@ if (loading) {
 **File:** `/home/user/AstraLink/frontend/src/services/api.ts` (Lines 141-180)
 
 **Current Errors:**
+
 ```tsx
 if (error.response?.status === 401) {
   error.message = 'Неверный email или пароль';
@@ -848,21 +924,23 @@ if (error.response?.status === 401) {
 ```
 
 **Issues:**
+
 - No user-friendly error UI component
 - Alert.alert() used (obtrusive)
 - No error logging
 - No recovery suggestions
 
 **Recommendation:**
+
 ```tsx
 // Create ErrorBoundary
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
-  
+
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
-  
+
   render() {
     if (this.state.hasError) {
       return <ErrorFallback error={this.state.error} onReset={...} />;
@@ -890,10 +968,11 @@ const ErrorNotification = ({ message, onDismiss }) => (
 ### 11.3 API Error Response Handling
 
 **LoginScreen (Lines 137-166):**
+
 ```tsx
 if (error.response?.status === 401) {
   Alert.alert(
-    'Ошибка входа', 
+    'Ошибка входа',
     'Неверный email или пароль. Проверьте правильность введенных данных.',
     [{ text: 'OK', style: 'default' }]
   );
@@ -901,6 +980,7 @@ if (error.response?.status === 401) {
 ```
 
 **Issues:**
+
 - Alert.alert() is intrusive
 - No suggestion to retry
 - No social login option mentioned
@@ -913,6 +993,7 @@ if (error.response?.status === 401) {
 ### 12.1 Missing Accessibility Labels
 
 **LoginScreen - Input Fields:**
+
 ```tsx
 <AstralInput
   placeholder="Email"
@@ -923,11 +1004,13 @@ if (error.response?.status === 401) {
 ```
 
 **Issues:**
+
 - Screen readers won't read field purpose
 - No WCAG 2.1 AA compliance
 - Touch targets might be too small
 
 **Recommendation:**
+
 ```tsx
 <TextInput
   accessible={true}
@@ -941,6 +1024,7 @@ if (error.response?.status === 401) {
 ### 12.2 Missing Color Contrast
 
 **Text on Backgrounds:**
+
 ```tsx
 // Problem: Gray text on dark gradient - low contrast
 <Text style={[styles.settingText, { color: '#FF6B6B' }]}>
@@ -948,15 +1032,18 @@ if (error.response?.status === 401) {
 </Text>
 ```
 
-**WCAG Requirement:** 
+**WCAG Requirement:**
+
 - Normal text: 4.5:1 contrast ratio
 - Large text: 3:1 contrast ratio
 
 **Audit Issues:**
+
 - `color: '#666'` (gray) on dark background = ~2:1 contrast (FAILS)
 - `color: 'rgba(255, 255, 255, 0.5)'` = very low contrast (FAILS)
 
 **Recommendation:**
+
 ```tsx
 // Use CSS Color Contrast Checker
 // Good: White (#FFFFFF) on dark background = 16:1 (PASSES)
@@ -966,6 +1053,7 @@ if (error.response?.status === 401) {
 ### 12.3 Missing Keyboard Navigation
 
 **TouchableOpacity Components:** No keyboard focus states
+
 ```tsx
 <TouchableOpacity onPress={handleLogin} style={styles.button}>
   {/* No accessible focus ring */}
@@ -973,6 +1061,7 @@ if (error.response?.status === 401) {
 ```
 
 **Recommendation:**
+
 ```tsx
 <TouchableOpacity
   onPress={handleLogin}
@@ -989,9 +1078,10 @@ if (error.response?.status === 401) {
 ### 12.4 Missing Button Semantic Roles
 
 **ProfileScreen (Lines 286-319):**
+
 ```tsx
-<TouchableOpacity 
-  style={styles.settingItem}  // Looks like button but not semantic
+<TouchableOpacity
+  style={styles.settingItem} // Looks like button but not semantic
   onPress={() => navigation.navigate('EditProfile')}
 >
   {/* Missing accessibility role */}
@@ -1008,6 +1098,7 @@ if (error.response?.status === 401) {
 ### 12.6 Icon-Only Buttons Have No Labels
 
 **ConnectionsScreen:**
+
 ```tsx
 <TouchableOpacity onPress={() => setShowAddModal(true)}>
   <LinearGradient>
@@ -1018,6 +1109,7 @@ if (error.response?.status === 401) {
 ```
 
 **Recommendation:**
+
 ```tsx
 <TouchableOpacity
   accessible={true}
@@ -1042,22 +1134,29 @@ if (error.response?.status === 401) {
 ### 13.2 Unnecessary Imports
 
 **DatingCard (Line 17):**
+
 ```tsx
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 ```
+
 Full SVG import adds ~100KB to bundle (gzipped)
 
 **Recommendation:** Use CSS gradients instead of SVG for simple cases:
+
 ```tsx
-<LinearGradient
-  colors={['#8B5CF6', '#3B82F6']}
-  style={styles.gradient}
-/>
+<LinearGradient colors={['#8B5CF6', '#3B82F6']} style={styles.gradient} />
 ```
 
 ### 13.3 Asset Optimization Missing
 
 **Issue:** No image optimization pipeline
+
 - No responsive images
 - No WebP support mentioned
 - No lazy loading strategy
@@ -1066,45 +1165,49 @@ Full SVG import adds ~100KB to bundle (gzipped)
 
 ## Summary Table of Issues
 
-| Issue | Severity | Type | Files | Impact |
-|-------|----------|------|-------|--------|
-| AnimatedStars 50 components | CRITICAL | Performance | AnimatedStars.tsx | 50+ re-renders per screen |
-| No token caching | CRITICAL | Performance | api.ts | Blocks all network requests |
-| Large monolithic screens | CRITICAL | Architecture | CosmicSimulatorScreen.tsx | Slow rendering, hard to maintain |
-| No error boundaries | CRITICAL | Stability | All screens | App crashes without proper handling |
-| Missing accessibility labels | CRITICAL | Accessibility | All components | WCAG non-compliant |
-| No useMemo/useCallback | HIGH | Performance | DatingScreen, ProfileScreen | Unnecessary re-renders |
-| Heavy SVG animations | HIGH | Performance | CosmicBackground, ZodiacWheel | 10-15% CPU usage |
-| No offline support | HIGH | UX | App-wide | No offline functionality |
-| Async cleanup missing | HIGH | Memory Leaks | DatingScreen, ChartScreen | Memory leaks on unmount |
-| ScrollView instead of FlatList | MEDIUM | Performance | DatingScreen | Not scalable for large lists |
-| No caching strategy | MEDIUM | Performance | Services | Redundant API calls |
-| Low contrast text | MEDIUM | Accessibility | Multiple screens | Low readability, WCAG fails |
-| No keyboard navigation | MEDIUM | Accessibility | Forms | Keyboard-only users blocked |
+| Issue                          | Severity | Type          | Files                         | Impact                              |
+| ------------------------------ | -------- | ------------- | ----------------------------- | ----------------------------------- |
+| AnimatedStars 50 components    | CRITICAL | Performance   | AnimatedStars.tsx             | 50+ re-renders per screen           |
+| No token caching               | CRITICAL | Performance   | api.ts                        | Blocks all network requests         |
+| Large monolithic screens       | CRITICAL | Architecture  | CosmicSimulatorScreen.tsx     | Slow rendering, hard to maintain    |
+| No error boundaries            | CRITICAL | Stability     | All screens                   | App crashes without proper handling |
+| Missing accessibility labels   | CRITICAL | Accessibility | All components                | WCAG non-compliant                  |
+| No useMemo/useCallback         | HIGH     | Performance   | DatingScreen, ProfileScreen   | Unnecessary re-renders              |
+| Heavy SVG animations           | HIGH     | Performance   | CosmicBackground, ZodiacWheel | 10-15% CPU usage                    |
+| No offline support             | HIGH     | UX            | App-wide                      | No offline functionality            |
+| Async cleanup missing          | HIGH     | Memory Leaks  | DatingScreen, ChartScreen     | Memory leaks on unmount             |
+| ScrollView instead of FlatList | MEDIUM   | Performance   | DatingScreen                  | Not scalable for large lists        |
+| No caching strategy            | MEDIUM   | Performance   | Services                      | Redundant API calls                 |
+| Low contrast text              | MEDIUM   | Accessibility | Multiple screens              | Low readability, WCAG fails         |
+| No keyboard navigation         | MEDIUM   | Accessibility | Forms                         | Keyboard-only users blocked         |
 
 ---
 
 ## Priority Action Items
 
 ### Week 1 - Critical Fixes
+
 1. Fix AnimatedStars (memoization + useMemo)
 2. Add AsyncStorage for token (sync vs async issue)
 3. Add error boundaries to all screens
 4. Add accessibility labels to buttons/inputs
 
 ### Week 2 - High Priority
+
 1. Add useCallback to handlers (DatingScreen, ProfileScreen)
 2. Split monolithic components
 3. Optimize SVG animations
 4. Implement offline caching
 
 ### Week 3 - Medium Priority
+
 1. Add input color contrast audit
 2. Implement keyboard navigation
 3. Add request caching layer
 4. Optimize bundle size
 
 ### Week 4 - Nice to Have
+
 1. Add loading skeleton animations
 2. Implement image optimization
 3. Add performance monitoring
@@ -1115,18 +1218,21 @@ Full SVG import adds ~100KB to bundle (gzipped)
 ## Testing Recommendations
 
 ### Performance Testing
+
 ```bash
 npm run build --analyzer
 expo-perf-monitor
 ```
 
 ### Accessibility Testing
+
 ```bash
 # Use Accessibility Inspector on iOS/Android
 # Test with VoiceOver/TalkBack enabled
 ```
 
 ### Network Testing
+
 - Test with "Network: Slow 3G" throttling
 - Test offline mode
 - Verify request cancellation
@@ -1140,4 +1246,3 @@ expo-perf-monitor
 3. **WCAG 2.1:** https://www.w3.org/WAI/WCAG21/quickref/
 4. **Reanimated:** https://docs.swmansion.com/react-native-reanimated/
 5. **Accessibility in React Native:** https://reactnative.dev/docs/accessibility
-

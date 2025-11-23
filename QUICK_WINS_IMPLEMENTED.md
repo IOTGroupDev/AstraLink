@@ -1,4 +1,5 @@
 # QUICK WINS - РЕАЛИЗОВАНО
+
 ## Критические исправления безопасности и оптимизации производительности
 
 **Дата:** 2025-11-14
@@ -14,6 +15,7 @@
 #### 1. Устранена уязвимость обхода аутентификации ✅
 
 **Файлы:**
+
 - `backend/src/auth/strategies/jwt.strategy.ts`
 - `backend/src/auth/guards/supabase-auth.guard.ts`
 
@@ -21,11 +23,12 @@
 Dev fallback позволял любому токену длиннее 10 символов проходить аутентификацию без проверки подписи.
 
 **До:**
+
 ```typescript
 // КРИТИЧЕСКАЯ УЯЗВИМОСТЬ
 if (token && token.length > 10) {
   return {
-    userId: token,  // Любой токен = доступ!
+    userId: token, // Любой токен = доступ!
     email: 'dev@example.com',
     role: 'authenticated',
   };
@@ -33,6 +36,7 @@ if (token && token.length > 10) {
 ```
 
 **После:**
+
 ```typescript
 // Безопасная валидация
 if (!payload) {
@@ -42,7 +46,11 @@ const userId = payload.sub || payload.id || payload.userId || payload.user_id;
 if (!userId) {
   return null;
 }
-return { userId, email: payload.email || '', role: payload.role || 'authenticated' };
+return {
+  userId,
+  email: payload.email || '',
+  role: payload.role || 'authenticated',
+};
 ```
 
 **Результат:** Полное устранение уязвимости обхода аутентификации
@@ -52,6 +60,7 @@ return { userId, email: payload.email || '', role: payload.role || 'authenticate
 #### 2. Защищена CORS политика для production ✅
 
 **Файлы:**
+
 - `backend/src/config/cors.config.ts` (новый)
 - `backend/src/main.ts`
 
@@ -59,30 +68,33 @@ return { userId, email: payload.email || '', role: payload.role || 'authenticate
 Широкая CORS политика разрешала запросы с любых локальных IP и Expo доменов даже в production.
 
 **До:**
+
 ```typescript
 app.enableCors({
   origin: [
-    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/,  // ❌ Любой локальный IP
-    /\.expo\.dev$/,  // ❌ Любой Expo домен
+    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/, // ❌ Любой локальный IP
+    /\.expo\.dev$/, // ❌ Любой Expo домен
   ],
-  credentials: true,  // ⚠️ Опасно с широким origin
+  credentials: true, // ⚠️ Опасно с широким origin
 });
 ```
 
 **После:**
+
 ```typescript
 // Production: только явно указанные домены
 origin: (origin, callback) => {
-  if (!origin) return callback(null, true);  // Mobile apps
+  if (!origin) return callback(null, true); // Mobile apps
   if (allowedOrigins.includes(origin)) {
     callback(null, true);
   } else {
     callback(new Error('Not allowed by CORS'));
   }
-}
+};
 ```
 
 **Конфигурация:**
+
 ```bash
 # .env.production
 ALLOWED_ORIGINS=https://astralink.com,https://app.astralink.com
@@ -100,15 +112,16 @@ ALLOWED_ORIGINS=https://astralink.com,https://app.astralink.com
 Слабые требования к JWT_SECRET (минимум 32 символа, без проверки на тестовые значения).
 
 **До:**
+
 ```typescript
-JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters')
+JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters');
 ```
 
 **После:**
+
 ```typescript
-JWT_SECRET: z
-  .string()
-  .min(64, 'JWT_SECRET must be at least 64 characters')  // Увеличено с 32
+JWT_SECRET: z.string()
+  .min(64, 'JWT_SECRET must be at least 64 characters') // Увеличено с 32
   .refine(
     (val) => {
       const testValues = ['test', 'example', 'secret', 'changeme', 'password'];
@@ -120,10 +133,10 @@ JWT_SECRET: z
   .refine(
     (val) => {
       const uniqueChars = new Set(val).size;
-      return uniqueChars >= 20;  // Проверка энтропии
+      return uniqueChars >= 20; // Проверка энтропии
     },
     { message: 'JWT_SECRET has insufficient entropy' }
-  )
+  );
 ```
 
 **Результат:** Гарантия использования сильных секретов в production
@@ -133,6 +146,7 @@ JWT_SECRET: z
 #### 4. Добавлена строгая валидация пользовательского ввода ✅
 
 **Файлы:**
+
 - `backend/src/user/dto/update-extended-profile.dto.ts` (новый)
 - `backend/src/user/user.controller.ts`
 
@@ -140,6 +154,7 @@ JWT_SECRET: z
 Endpoint `PUT /user/profile-extended` принимал `any` без валидации.
 
 **До:**
+
 ```typescript
 async updateExtendedProfile(@Body() updateData: any) {
   const payload: any = {
@@ -150,6 +165,7 @@ async updateExtendedProfile(@Body() updateData: any) {
 ```
 
 **После:**
+
 ```typescript
 export class UpdateExtendedProfileDto {
   @IsString()
@@ -203,6 +219,7 @@ CREATE INDEX connections_user_status_idx ON connections(user_id, status);
 ```
 
 **Ожидаемый результат:**
+
 - Запросы к charts: **50-80% быстрее**
 - Запросы к user_photos: **60-70% быстрее**
 - JSON поиск в dating_matches: **70-90% быстрее**
@@ -217,11 +234,13 @@ CREATE INDEX connections_user_status_idx ON connections(user_id, status);
 TTL кэша планет был слишком коротким (6 часов), вызывая частые пересчеты.
 
 **До:**
+
 ```typescript
-await this.redis.set(cacheKey, planets, 21600);  // 6 часов
+await this.redis.set(cacheKey, planets, 21600); // 6 часов
 ```
 
 **После:**
+
 ```typescript
 private getOptimalCacheTTL(): number {
   // Balanced TTL: 12 hours (43200s)
@@ -234,6 +253,7 @@ await this.redis.set(cacheKey, planets, this.getOptimalCacheTTL());
 ```
 
 **Результат:**
+
 - Cache miss rate: **снижение на ~50%**
 - Количество астрономических расчетов: **сокращение на ~40%**
 - Готова инфраструктура для per-planet TTL оптимизации
@@ -243,6 +263,7 @@ await this.redis.set(cacheKey, planets, this.getOptimalCacheTTL());
 ### 📦 ДРУГИЕ УЛУЧШЕНИЯ
 
 #### 7. GZIP Compression
+
 - Уже включен через `compression` middleware в `main.ts`
 - Сжатие API responses: **~70%**
 
@@ -251,45 +272,51 @@ await this.redis.set(cacheKey, planets, this.getOptimalCacheTTL());
 ## 📊 МЕТРИКИ УЛУЧШЕНИЙ
 
 ### Безопасность
-| Метрика | До | После | Улучшение |
-|---------|-----|-------|-----------|
-| Критических уязвимостей | 3 | 0 | ✅ **100%** |
-| CORS защита | ❌ Широкая | ✅ Строгая | ✅ |
-| Валидация ввода | ❌ Отсутствует | ✅ Полная | ✅ |
-| JWT SECRET требования | 32 chars | 64 chars + entropy | ✅ **+100%** |
+
+| Метрика                 | До             | После              | Улучшение    |
+| ----------------------- | -------------- | ------------------ | ------------ |
+| Критических уязвимостей | 3              | 0                  | ✅ **100%**  |
+| CORS защита             | ❌ Широкая     | ✅ Строгая         | ✅           |
+| Валидация ввода         | ❌ Отсутствует | ✅ Полная          | ✅           |
+| JWT SECRET требования   | 32 chars       | 64 chars + entropy | ✅ **+100%** |
 
 ### Производительность
-| Метрика | До | После | Улучшение |
-|---------|-----|-------|-----------|
-| Chart queries | N/A | Indexed | **50-80%** быстрее |
-| Photo queries | N/A | Indexed | **60-70%** быстрее |
-| JSON queries | Sequential scan | GIN index | **70-90%** быстрее |
-| Ephemeris cache misses | ~high | ~low | **~50%** меньше |
-| API response size | Full | GZIP | **~70%** меньше |
+
+| Метрика                | До              | После     | Улучшение          |
+| ---------------------- | --------------- | --------- | ------------------ |
+| Chart queries          | N/A             | Indexed   | **50-80%** быстрее |
+| Photo queries          | N/A             | Indexed   | **60-70%** быстрее |
+| JSON queries           | Sequential scan | GIN index | **70-90%** быстрее |
+| Ephemeris cache misses | ~high           | ~low      | **~50%** меньше    |
+| API response size      | Full            | GZIP      | **~70%** меньше    |
 
 ---
 
 ## 🚀 ПРИМЕНЕНИЕ ИЗМЕНЕНИЙ
 
 ### 1. Синхронизация кода
+
 ```bash
 git checkout claude/audit-and-optimize-01ADbV6MFnKALCkw8hC3drtU
 git pull
 ```
 
 ### 2. Обновление зависимостей
+
 ```bash
 cd backend
 npm install
 ```
 
 ### 3. Применение миграций БД
+
 ```bash
 cd backend
 npx prisma migrate deploy
 ```
 
 ### 4. Обновление .env
+
 ```bash
 # Добавить в .env.production
 ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
@@ -299,6 +326,7 @@ openssl rand -base64 64
 ```
 
 ### 5. Проверка
+
 ```bash
 # Валидация окружения
 npm run start:prod
@@ -313,6 +341,7 @@ npm run start:prod
 **НЕТ BREAKING CHANGES** - все изменения обратно совместимы.
 
 Однако, при первом запуске в production:
+
 - Может потребоваться обновить `JWT_SECRET` (если текущий < 64 символов)
 - Нужно установить `ALLOWED_ORIGINS` для CORS
 - Рекомендуется применить миграции БД для производительности
@@ -322,17 +351,20 @@ npm run start:prod
 ## 📋 СЛЕДУЮЩИЕ ШАГИ
 
 ### Немедленно (эта неделя):
+
 1. ✅ Применить миграции БД в production
 2. ✅ Обновить JWT_SECRET если необходимо
 3. ✅ Настроить ALLOWED_ORIGINS
 
 ### В течение месяца (из аудита):
+
 4. ⏳ Реализовать rate limiting для AI endpoints
 5. ⏳ Добавить CSRF protection
 6. ⏳ Настроить мониторинг (Sentry, DataDog)
 7. ⏳ Написать unit tests (70% coverage)
 
 ### В течение 3 месяцев:
+
 8. ⏳ Оптимизировать DatingService с background workers
 9. ⏳ Batch API для Supabase signed URLs
 10. ⏳ API versioning (/api/v1/)
@@ -351,6 +383,7 @@ npm run start:prod
 ## 🎯 ИТОГИ
 
 ### Реализовано за 1 сессию:
+
 - ✅ Устранено **3 критических уязвимости безопасности**
 - ✅ Добавлено **11 индексов** для оптимизации БД
 - ✅ Улучшено **кэширование** ephemeris
@@ -358,12 +391,14 @@ npm run start:prod
 - ✅ Настроена **CORS защита** для production
 
 ### Улучшения:
+
 - **Безопасность:** с 4/10 → **9/10** 🎉
 - **Производительность БД:** **+50-80%** 🚀
 - **Кэш эффективность:** **+50%** ⚡
 - **API responses:** **-70% размер** 📦
 
 ### Время реализации:
+
 - **~2 часа** (вместо запланированных 1-2 дней)
 
 ---

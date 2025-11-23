@@ -29,7 +29,9 @@ export class UserSignupListener {
         timezone: event.birthData.timezone,
       });
 
-      this.logger.log(`Natal chart created successfully for user ${event.userId}`);
+      this.logger.log(
+        `Natal chart created successfully for user ${event.userId}`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to create natal chart for user ${event.userId}:`,

@@ -22,7 +22,8 @@ export class AdvisorRateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const userId = request.user?.userId || request.user?.id || request.user?.sub;
+    const userId =
+      request.user?.userId || request.user?.id || request.user?.sub;
 
     if (!userId) {
       throw new BadRequestException('User ID not found');
@@ -36,7 +37,7 @@ export class AdvisorRateLimitGuard implements CanActivate {
     }
 
     const limits = getLimits(subscription.tier);
-    const advisorLimit = limits.advisorQueries as number;
+    const advisorLimit = limits.advisorQueries;
 
     if (advisorLimit === 0 || subscription.tier === SubscriptionTier.FREE) {
       throw new ForbiddenException(
@@ -61,10 +62,11 @@ export class AdvisorRateLimitGuard implements CanActivate {
     });
 
     if (!result.allowed) {
-      const tierName = subscription.tier === SubscriptionTier.PREMIUM ? 'Premium' : 'Ultra';
+      const tierName =
+        subscription.tier === SubscriptionTier.PREMIUM ? 'Premium' : 'Ultra';
       throw new ForbiddenException(
         `Достигнут лимит запросов к советнику (${advisorLimit} в сутки для ${tierName}). ` +
-        `Попробуйте завтра или обновите подписку.`,
+          `Попробуйте завтра или обновите подписку.`,
       );
     }
 
@@ -81,7 +83,10 @@ export class AdvisorRateLimitGuard implements CanActivate {
     const response = context.switchToHttp().getResponse();
     response.setHeader('X-RateLimit-Limit', result.totalLimit.toString());
     response.setHeader('X-RateLimit-Remaining', result.remaining.toString());
-    response.setHeader('X-RateLimit-Reset', Math.floor(result.resetTime / 1000).toString());
+    response.setHeader(
+      'X-RateLimit-Reset',
+      Math.floor(result.resetTime / 1000).toString(),
+    );
 
     this.logger.debug(`Advisor request allowed for user ${userId}`, {
       remaining: result.remaining,

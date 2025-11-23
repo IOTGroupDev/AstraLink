@@ -1,4 +1,5 @@
 # ПРИМЕРЫ РЕАЛИЗАЦИИ ИСПРАВЛЕНИЙ
+
 ## Конкретный код для устранения найденных проблем
 
 ---
@@ -8,6 +9,7 @@
 ### 1. Удаление Dev Fallback в JWT Strategy
 
 **Текущий код** (`backend/src/auth/strategies/jwt.strategy.ts`):
+
 ```typescript
 async validate(payload: any) {
   // ❌ УДАЛИТЬ ЭТО:
@@ -26,6 +28,7 @@ async validate(payload: any) {
 ```
 
 **Исправленный код:**
+
 ```typescript
 async validate(payload: any) {
   // Убираем dev fallback полностью
@@ -46,6 +49,7 @@ async validate(payload: any) {
 ```
 
 **Дополнительно - проверка на старте:**
+
 ```typescript
 // backend/src/main.ts
 async function bootstrap() {
@@ -58,7 +62,10 @@ async function bootstrap() {
         throw new Error(`Missing required secret: ${secret}`);
       }
 
-      if (process.env[secret].includes('example') || process.env[secret].includes('test')) {
+      if (
+        process.env[secret].includes('example') ||
+        process.env[secret].includes('test')
+      ) {
         throw new Error(`Production secret ${secret} contains test values`);
       }
     }
@@ -73,6 +80,7 @@ async function bootstrap() {
 ### 2. Реализация Rate Limiting для Advisor
 
 **Создать сервис** (`backend/src/advisor/services/rate-limiter.service.ts`):
+
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { RedisService } from '@/redis/redis.service';
@@ -88,7 +96,7 @@ export class RateLimiterService {
   async checkLimit(
     key: string,
     maxPoints: number,
-    durationSeconds: number,
+    durationSeconds: number
   ): Promise<boolean> {
     const redisKey = `ratelimit:${key}`;
 
@@ -106,14 +114,11 @@ export class RateLimiterService {
   /**
    * Get remaining points
    */
-  async getRemaining(
-    key: string,
-    maxPoints: number,
-  ): Promise<number> {
+  async getRemaining(key: string, maxPoints: number): Promise<number> {
     const redisKey = `ratelimit:${key}`;
     const current = await this.redis.client.get(redisKey);
 
-    return Math.max(0, maxPoints - (parseInt(current || '0', 10)));
+    return Math.max(0, maxPoints - parseInt(current || '0', 10));
   }
 
   /**
@@ -127,6 +132,7 @@ export class RateLimiterService {
 ```
 
 **Обновить guard** (`backend/src/advisor/guards/advisor-rate-limit.guard.ts`):
+
 ```typescript
 import {
   CanActivate,
@@ -141,7 +147,7 @@ import { SubscriptionService } from '@/subscription/subscription.service';
 export class AdvisorRateLimitGuard implements CanActivate {
   constructor(
     private readonly rateLimiter: RateLimiterService,
-    private readonly subscriptionService: SubscriptionService,
+    private readonly subscriptionService: SubscriptionService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -153,7 +159,8 @@ export class AdvisorRateLimitGuard implements CanActivate {
     }
 
     // Get user subscription tier
-    const subscription = await this.subscriptionService.getUserSubscription(userId);
+    const subscription =
+      await this.subscriptionService.getUserSubscription(userId);
 
     // Define limits per tier
     const limits = {
@@ -171,13 +178,16 @@ export class AdvisorRateLimitGuard implements CanActivate {
     const allowed = await this.rateLimiter.checkLimit(
       key,
       limit.maxPoints,
-      limit.duration,
+      limit.duration
     );
 
     if (!allowed) {
-      const remaining = await this.rateLimiter.getRemaining(key, limit.maxPoints);
+      const remaining = await this.rateLimiter.getRemaining(
+        key,
+        limit.maxPoints
+      );
       throw new ForbiddenException(
-        `Rate limit exceeded. You have ${remaining} requests remaining. Upgrade your subscription for more.`,
+        `Rate limit exceeded. You have ${remaining} requests remaining. Upgrade your subscription for more.`
       );
     }
 
@@ -192,6 +202,7 @@ export class AdvisorRateLimitGuard implements CanActivate {
 ```
 
 **Добавить методы в RedisService** (`backend/src/redis/redis.service.ts`):
+
 ```typescript
 @Injectable()
 export class RedisService {
@@ -226,6 +237,7 @@ export class RedisService {
 ### 3. Ограничение CORS для Production
 
 **Текущий код** (`backend/src/main.ts`):
+
 ```typescript
 app.enableCors({
   origin: [
@@ -238,6 +250,7 @@ app.enableCors({
 ```
 
 **Исправленный код:**
+
 ```typescript
 // backend/src/config/cors.config.ts
 export const getCorsConfig = () => {
@@ -284,6 +297,7 @@ export const getCorsConfig = () => {
 ```
 
 **Использование** (`backend/src/main.ts`):
+
 ```typescript
 import { getCorsConfig } from './config/cors.config';
 
@@ -297,6 +311,7 @@ async function bootstrap() {
 ```
 
 **.env.production файл:**
+
 ```env
 ALLOWED_ORIGINS=https://astralink.com,https://app.astralink.com,https://www.astralink.com
 ```
@@ -306,11 +321,13 @@ ALLOWED_ORIGINS=https://astralink.com,https://app.astralink.com,https://www.astr
 ### 4. Добавление CSRF Protection
 
 **Установка:**
+
 ```bash
 npm install @nestjs/csrf
 ```
 
 **Настройка** (`backend/src/main.ts`):
+
 ```typescript
 import { CsrfMiddleware } from '@nestjs/csrf';
 
@@ -346,6 +363,7 @@ async function bootstrap() {
 ### 5. Создание строгих DTO с валидацией
 
 **Пример DTO** (`backend/src/user/dto/update-extended-profile.dto.ts`):
+
 ```typescript
 import {
   IsString,
@@ -421,6 +439,7 @@ export class UpdateExtendedProfileDto {
 ```
 
 **Использование в контроллере:**
+
 ```typescript
 @Patch('extended-profile')
 @UseGuards(SupabaseAuthGuard)
@@ -439,6 +458,7 @@ async updateExtendedProfile(
 ### 6. Оптимизация Dating Service - Background Worker
 
 **Создать Bull Queue** (`backend/src/dating/queues/compatibility.queue.ts`):
+
 ```typescript
 import { Processor, Process } from '@nestjs/bull';
 import { Job } from 'bull';
@@ -458,7 +478,7 @@ export class CompatibilityProcessor {
   constructor(
     private readonly ephemeris: EphemerisService,
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly redis: RedisService
   ) {}
 
   @Process('calculate')
@@ -500,7 +520,7 @@ export class CompatibilityProcessor {
           // Рассчитать synastry
           const synastry = await this.ephemeris.getSynastry(
             userChart.data as any,
-            candidateChart.data as any,
+            candidateChart.data as any
           );
 
           // Сохранить в кэш на 24 часа
@@ -511,17 +531,17 @@ export class CompatibilityProcessor {
             compatibility: synastry.overall,
             synastry,
           };
-        }),
+        })
       );
 
       results.push(
         ...batchResults
           .filter((r) => r.status === 'fulfilled' && r.value)
-          .map((r: any) => r.value),
+          .map((r: any) => r.value)
       );
 
       // Progress update
-      await job.progress((i + batch.length) / candidateIds.length * 100);
+      await job.progress(((i + batch.length) / candidateIds.length) * 100);
     }
 
     // Сохранить результаты в кэш
@@ -534,6 +554,7 @@ export class CompatibilityProcessor {
 ```
 
 **Обновить DatingService:**
+
 ```typescript
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -542,7 +563,7 @@ import { Queue } from 'bull';
 export class DatingService {
   constructor(
     @InjectQueue('compatibility') private compatibilityQueue: Queue,
-    private readonly redis: RedisService,
+    private readonly redis: RedisService
     // ...
   ) {}
 
@@ -611,6 +632,7 @@ export class DatingService {
 ### 7. Batch API для Signed URLs
 
 **Создать метод** (`backend/src/supabase/supabase.service.ts`):
+
 ```typescript
 async createSignedUrlsBatch(
   bucket: string,
@@ -656,6 +678,7 @@ async createSignedUrlsBatch(
 ```
 
 **Использование в DatingService:**
+
 ```typescript
 async findCandidates(userId: string, limit: number = 20) {
   // ... получение кандидатов
@@ -689,12 +712,14 @@ async findCandidates(userId: string, limit: number = 20) {
 ### 8. Оптимизация Ephemeris Кэширования
 
 **Текущий код:**
+
 ```typescript
 const cacheKey = `ephe:planets:${Math.round(julianDay * 1000)}`;
 await this.redis.set(cacheKey, result, 21600); // 6 часов
 ```
 
 **Оптимизированный код:**
+
 ```typescript
 // Разные TTL для разных скоростей планет
 private getCacheTTL(planet: string): number {
@@ -740,11 +765,13 @@ async getPlanetPosition(planet: string, julianDay: number) {
 ### 9. Добавление Недостающих Индексов
 
 **Создать миграцию:**
+
 ```bash
 npx prisma migrate create add_performance_indexes
 ```
 
 **SQL миграция** (`backend/prisma/migrations/.../migration.sql`):
+
 ```sql
 -- Индекс для Chart.aiGeneratedAt (используется в фильтрации)
 CREATE INDEX IF NOT EXISTS "idx_charts_ai_generated_at"
@@ -772,6 +799,7 @@ ON "connections"("status");
 ```
 
 **Применить:**
+
 ```bash
 npx prisma migrate deploy
 ```
@@ -781,6 +809,7 @@ npx prisma migrate deploy
 ### 10. Frontend Optimization - React.memo
 
 **Пример компонента:**
+
 ```typescript
 // ДО: без оптимизации
 export function DatingCard({ profile, onLike, onDislike }) {
@@ -803,6 +832,7 @@ export function DatingCard({ profile, onLike, onDislike }) {
 ```
 
 **ПОСЛЕ: с оптимизацией:**
+
 ```typescript
 // Вынести helper функции за пределы компонента
 const BADGE_LABELS = {
@@ -875,14 +905,17 @@ export const DatingCard = React.memo<{
 ### 11. API Versioning
 
 **Создать** (`backend/src/common/decorators/api-version.decorator.ts`):
+
 ```typescript
 import { SetMetadata } from '@nestjs/common';
 
 export const API_VERSION_KEY = 'api_version';
-export const ApiVersion = (version: string) => SetMetadata(API_VERSION_KEY, version);
+export const ApiVersion = (version: string) =>
+  SetMetadata(API_VERSION_KEY, version);
 ```
 
 **Middleware** (`backend/src/common/middleware/api-version.middleware.ts`):
+
 ```typescript
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
@@ -905,6 +938,7 @@ export class ApiVersionMiddleware implements NestMiddleware {
 ```
 
 **Применить глобально** (`backend/src/main.ts`):
+
 ```typescript
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -919,6 +953,7 @@ async function bootstrap() {
 ```
 
 **Обновить контроллеры:**
+
 ```typescript
 @Controller('users') // Теперь доступен как /api/v1/users
 export class UserController {
@@ -931,6 +966,7 @@ export class UserController {
 ### 12. Response Wrapper
 
 **Создать interceptor** (`backend/src/common/interceptors/response.interceptor.ts`):
+
 ```typescript
 import {
   Injectable,
@@ -953,7 +989,10 @@ export interface Response<T> {
 
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T, Response<T>> {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler
+  ): Observable<Response<T>> {
     const request = context.switchToHttp().getRequest();
 
     return next.handle().pipe(
@@ -965,13 +1004,14 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, Response<T>> {
           version: request['apiVersion'] || 'v1',
           path: request.path,
         },
-      })),
+      }))
     );
   }
 }
 ```
 
 **Применить глобально:**
+
 ```typescript
 // backend/src/main.ts
 app.useGlobalInterceptors(new ResponseInterceptor());
@@ -984,6 +1024,7 @@ app.useGlobalInterceptors(new ResponseInterceptor());
 ### 13. Пример Unit Test
 
 **Создать** (`backend/src/dating/dating.service.spec.ts`):
+
 ```typescript
 import { Test, TestingModule } from '@nestjs/testing';
 import { DatingService } from './dating.service';
@@ -1030,7 +1071,9 @@ describe('DatingService', () => {
   describe('getMatches', () => {
     it('should return cached results if available', async () => {
       const userId = 'test-user-id';
-      const cachedResults = [{ candidateId: 'candidate-1', compatibility: 0.8 }];
+      const cachedResults = [
+        { candidateId: 'candidate-1', compatibility: 0.8 },
+      ];
 
       jest.spyOn(redis, 'get').mockResolvedValue(cachedResults);
 
@@ -1044,7 +1087,9 @@ describe('DatingService', () => {
       const userId = 'test-user-id';
 
       jest.spyOn(redis, 'get').mockResolvedValue(null);
-      jest.spyOn(service['compatibilityQueue'], 'add').mockResolvedValue({ id: 'job-123' } as any);
+      jest
+        .spyOn(service['compatibilityQueue'], 'add')
+        .mockResolvedValue({ id: 'job-123' } as any);
 
       const result = await service.getMatches(userId, 20);
 
@@ -1056,6 +1101,7 @@ describe('DatingService', () => {
 ```
 
 **Запустить:**
+
 ```bash
 npm test
 ```
@@ -1065,6 +1111,7 @@ npm test
 ## 📋 CHECKLIST ДЛЯ ВНЕДРЕНИЯ
 
 ### Phase 1 - Security (1 неделя):
+
 - [ ] Удалить dev fallback в JWT
 - [ ] Реализовать rate limiting
 - [ ] Ограничить CORS
@@ -1074,6 +1121,7 @@ npm test
 - [ ] Удалить hardcoded users
 
 ### Phase 2 - Performance (2 недели):
+
 - [ ] Bull queue для compatibility
 - [ ] Batch signed URLs
 - [ ] Оптимизировать ephemeris кэш
@@ -1082,6 +1130,7 @@ npm test
 - [ ] GZIP compression
 
 ### Phase 3 - Architecture (3 недели):
+
 - [ ] API versioning
 - [ ] Response wrapper
 - [ ] Централизованный error handling
@@ -1089,6 +1138,7 @@ npm test
 - [ ] Refactoring сервисов
 
 ### Phase 4 - Testing (4 недели):
+
 - [ ] Unit tests (70% coverage)
 - [ ] Integration tests
 - [ ] E2E tests

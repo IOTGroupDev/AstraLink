@@ -3,9 +3,11 @@
 ## Most Critical Issues to Fix (Do These First)
 
 ### 1. **Exception Handling is Inconsistent** ⛔
+
 Files affected: user.service.ts, chart.service.ts, ephemeris.service.ts
 
 **Current Problem:**
+
 ```typescript
 // user.service.ts:25 - WRONG
 throw new Error(`User with id ${userId} not found`);
@@ -18,6 +20,7 @@ throw new Error('Не удалось рассчитать натальную к�
 ```
 
 **What it should be:**
+
 ```typescript
 // For missing resources:
 throw new NotFoundException('User not found');
@@ -33,9 +36,11 @@ throw new BadRequestException('Invalid time format. Expected HH:MM');
 ---
 
 ### 2. **Duplicate Code - Location Lookup** ⛔
+
 Appears in: chart.service.ts (lines 107-118) AND connections.service.ts (lines 120-130)
 
 **Solution:** Create a shared service
+
 ```typescript
 // Create: src/common/services/location.service.ts
 @Injectable()
@@ -52,9 +57,11 @@ export class LocationService {
 ---
 
 ### 3. **Zod Schemas Defined But Never Validated** ⛔
+
 All controllers accept unvalidated input despite schemas existing
 
 **Current:**
+
 ```typescript
 // Types defined but ignored
 LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema...
@@ -64,6 +71,7 @@ async login(@Body() loginDto: LoginRequest) { ... }
 ```
 
 **Fix:** Use ValidationPipe with Zod
+
 ```typescript
 // In each controller
 async login(@Body() loginDto: LoginRequest): Promise<AuthResponse> {
@@ -80,15 +88,18 @@ async login(@Body() loginDto: LoginRequest): Promise<AuthResponse> {
 ---
 
 ### 4. **No Global Error Handler** ⛔
+
 Errors handled inconsistently across the app
 
 **Current Problems:**
+
 - AuthMiddleware returns custom format (line 69-79)
 - Services throw different exception types
 - Controllers don't catch errors
 - Result: Inconsistent responses to clients
 
 **Fix:** Create global exception filter
+
 ```typescript
 // Create: src/common/filters/global-exception.filter.ts
 @Catch()
@@ -122,9 +133,11 @@ app.useGlobalFilters(new GlobalExceptionFilter());
 ---
 
 ### 5. **Dating Service is Just Mock Data** ⛔
+
 Doesn't actually use database (dating.service.ts lines 11-66)
 
 **Current:**
+
 ```typescript
 async getMatches(userId: number): Promise<DatingMatchResponse[]> {
   const mockCandidates = [
@@ -136,6 +149,7 @@ async getMatches(userId: number): Promise<DatingMatchResponse[]> {
 ```
 
 **Fix:** Implement real database queries
+
 ```typescript
 async getMatches(userId: number): Promise<DatingMatchResponse[]> {
   const user = await this.prisma.user.findUnique({
@@ -163,12 +177,15 @@ async likeMatch(userId: number, matchId: number) {
 ### 6. **Security Issues** ⛔
 
 #### Issue 1: Hardcoded JWT Secret
+
 **File:** jwt.strategy.ts line 12
+
 ```typescript
 secretOrKey: configService.get<string>('JWT_SECRET') || 'supersecret', // BAD!
 ```
 
 **Fix:**
+
 ```typescript
 secretOrKey: configService.get<string>('JWT_SECRET'),
 // Throw error if not set:
@@ -178,7 +195,9 @@ if (!secretOrKey) {
 ```
 
 #### Issue 2: Wildcard CORS
+
 **File:** main.ts line 30
+
 ```typescript
 origin: [
   // ... specific origins ...
@@ -187,6 +206,7 @@ origin: [
 ```
 
 **Fix:**
+
 ```typescript
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
   'http://localhost:3000',
@@ -204,6 +224,7 @@ app.enableCors({
 ## Quick Fix Checklist
 
 ### Priority 1 - Fix This Week
+
 - [ ] Create GlobalExceptionFilter
 - [ ] Fix all exception types (Error → BadRequestException/NotFoundException)
 - [ ] Extract location lookup to LocationService
@@ -211,6 +232,7 @@ app.enableCors({
 - [ ] Remove hardcoded JWT secret
 
 ### Priority 2 - Fix This Sprint
+
 - [ ] Add try-catch to all controllers (or rely on global filter)
 - [ ] Validate URL parameters (add ParseIntPipe)
 - [ ] Implement Zod validation in controllers
@@ -218,6 +240,7 @@ app.enableCors({
 - [ ] Add null checks in services
 
 ### Priority 3 - Refactor
+
 - [ ] Reduce logging verbosity
 - [ ] Consolidate duplicate aspect calculation
 - [ ] Add transaction management for multi-step operations
@@ -228,7 +251,9 @@ app.enableCors({
 ## File-by-File Fixes
 
 ### Controllers (all 6 files)
+
 **Issue:** No error handling
+
 ```typescript
 // BEFORE (bad)
 async login(@Body() loginDto: LoginRequest) {
@@ -248,7 +273,9 @@ async login(@Body() loginDto: LoginRequest) {
 ```
 
 ### Services (all 6 files)
+
 **Issue:** Wrong exception types
+
 ```typescript
 // BEFORE (bad)
 throw new Error('Not found');
@@ -260,14 +287,15 @@ throw new BadRequestException('Invalid format');
 ```
 
 ### Auth Security
+
 ```typescript
 // BEFORE (jwt.strategy.ts)
-secretOrKey: configService.get<string>('JWT_SECRET') || 'supersecret'
+secretOrKey: configService.get<string>('JWT_SECRET') || 'supersecret';
 
 // AFTER
 const secret = configService.get<string>('JWT_SECRET');
 if (!secret) throw new Error('JWT_SECRET not configured');
-secretOrKey: secret
+secretOrKey: secret;
 ```
 
 ---
@@ -275,6 +303,7 @@ secretOrKey: secret
 ## Testing Recommendations
 
 Add tests for:
+
 1. Authentication (valid/invalid credentials, expired tokens)
 2. Validation (invalid dates, formats, ranges)
 3. Exception handling (verify correct status codes)
@@ -285,12 +314,14 @@ Add tests for:
 // Example test
 describe('AuthService', () => {
   it('should throw BadRequestException for invalid date', async () => {
-    expect(() => service.signup({
-      email: 'test@example.com',
-      password: 'password',
-      birthDate: '2050-01-01', // Future date
-      name: 'Test',
-    })).toThrow(BadRequestException);
+    expect(() =>
+      service.signup({
+        email: 'test@example.com',
+        password: 'password',
+        birthDate: '2050-01-01', // Future date
+        name: 'Test',
+      })
+    ).toThrow(BadRequestException);
   });
 });
 ```
@@ -326,4 +357,3 @@ describe('AuthService', () => {
 
 1. `/home/user/AstraLink/BACKEND_ARCHITECTURE_AUDIT.md` - Complete analysis with 25 issues
 2. `/home/user/AstraLink/BACKEND_AUDIT_SUMMARY.txt` - Quick stats and overview
-

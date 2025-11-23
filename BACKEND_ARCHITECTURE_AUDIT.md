@@ -1,6 +1,7 @@
 # AstraLink Backend Architecture Audit Report
 
 ## Executive Summary
+
 The backend demonstrates a NestJS-based REST API with reasonable module organization, but has several critical architectural issues including inconsistent error handling, code duplication, missing validation, and improper exception handling patterns.
 
 ---
@@ -12,18 +13,27 @@ The backend demonstrates a NestJS-based REST API with reasonable module organiza
 **Issue**: Services throw different exception types inconsistently.
 
 **Examples**:
+
 - **File**: `/home/user/AstraLink/backend/src/user/user.service.ts` (Line 25)
+
   ```typescript
   throw new Error(`User with id ${userId} not found`);
   ```
+
   **Problem**: Throws generic `Error` instead of NestJS `NotFoundException`
   **Impact**: Inconsistent HTTP response codes and error format
 
 - **File**: `/home/user/AstraLink/backend/src/chart/chart.service.ts` (Lines 46, 52)
+
   ```typescript
-  throw new NotFoundException('Некорректный формат времени рождения. Ожидается HH:MM');
-  throw new NotFoundException('Некорректный формат даты рождения. Ожидается YYYY-MM-DD');
+  throw new NotFoundException(
+    'Некорректный формат времени рождения. Ожидается HH:MM'
+  );
+  throw new NotFoundException(
+    'Некорректный формат даты рождения. Ожидается YYYY-MM-DD'
+  );
   ```
+
   **Problem**: Uses `NotFoundException` for validation errors (should be `BadRequestException`)
   **Impact**: Wrong HTTP status codes (404 for validation errors instead of 400)
 
@@ -41,6 +51,7 @@ The backend demonstrates a NestJS-based REST API with reasonable module organiza
 **Issue**: Identical location coordinate lookup code exists in multiple services.
 
 - **File 1**: `/home/user/AstraLink/backend/src/chart/chart.service.ts` (Lines 107-118)
+
   ```typescript
   private getLocationCoordinates(birthPlace: string): { latitude: number; longitude: number; timezone: number } {
     const locations: { [key: string]: { latitude: number; longitude: number; timezone: number } } = {
@@ -72,6 +83,7 @@ The backend demonstrates a NestJS-based REST API with reasonable module organiza
   **Problem**: `AuthMiddleware` should not be exported as it's a middleware, and exporting it causes tight coupling
 
 **Issue**: EphemerisService initialization without proper error recovery
+
 - **File**: `/home/user/AstraLink/backend/src/services/ephemeris.service.ts` (Lines 10-16)
   ```typescript
   constructor() {
@@ -92,11 +104,13 @@ The backend demonstrates a NestJS-based REST API with reasonable module organiza
 **Issue**: Zod schemas defined but never used for validation
 
 - **File**: `/home/user/AstraLink/backend/src/chart/chart.controller.ts` (Lines 48-50)
+
   ```typescript
   async getTransits(@Request() req, @Query() query: TransitRequest) {
     return this.chartService.getTransits(req.user.userId, query.from, query.to);
   }
   ```
+
   **Problem**: No validation that `from < to` or proper date format validation
   **Missing**: Validation decorators or pipe implementation
 
@@ -106,6 +120,7 @@ The backend demonstrates a NestJS-based REST API with reasonable module organiza
     return this.userService.updateProfile(req.user.userId, updateData);
   }
   **Problem**: No validation that birthDate is not in future or valid format
+  ```
 
 ---
 
@@ -119,10 +134,12 @@ The backend demonstrates a NestJS-based REST API with reasonable module organiza
   - Logic for aspect calculation duplicated from `EphemerisService`
 
 **Example**:
+
 ```typescript
 // Line 156 - redundant call
 const natalChart = await this.getNatalChart(userId);
 ```
+
 When `getNatalChart` is already called at line 82 in `getTransits`
 
 ---
@@ -132,11 +149,13 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 **Issue**: No try-catch blocks or error handling in controller methods
 
 - **File**: `/home/user/AstraLink/backend/src/auth/auth.controller.ts` (Lines 18-20, 27-29)
+
   ```typescript
   async login(@Body() loginDto: LoginRequest): Promise<AuthResponse> {
     return this.authService.login(loginDto);  // No try-catch
   }
   ```
+
   **Problem**: If service throws, error propagates without proper handling
 
 - **File**: `/home/user/AstraLink/backend/src/connections/connections.controller.ts` (Lines 33-35)
@@ -154,6 +173,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 **Issue**: Dating service returns hardcoded mock data
 
 - **File**: `/home/user/AstraLink/backend/src/dating/dating.service.ts` (Lines 9-66)
+
   ```typescript
   async getMatches(userId: number): Promise<DatingMatchResponse[]> {
     const mockCandidates = [
@@ -178,6 +198,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 ### 8. Security Issues
 
 **Issue 1**: Hardcoded JWT secret fallback
+
 - **File**: `/home/user/AstraLink/backend/src/auth/strategies/jwt.strategy.ts` (Line 12)
   ```typescript
   secretOrKey: configService.get<string>('JWT_SECRET') || 'supersecret',
@@ -185,6 +206,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
   **Problem**: Insecure hardcoded fallback if environment variable missing
 
 **Issue 2**: Overly permissive CORS
+
 - **File**: `/home/user/AstraLink/backend/src/main.ts` (Line 30)
   ```typescript
   origin: [
@@ -195,6 +217,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
   **Problem**: Allows any origin; should be removed in production
 
 **Issue 3**: Weak password validation
+
 - **File**: `/home/user/AstraLink/backend/src/types/user.ts` (Line 18)
   ```typescript
   password: z.string().min(6),
@@ -208,6 +231,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 **Issue**: Different validation in type and service
 
 - **File**: `/home/user/AstraLink/backend/src/types/subscription.ts` (Lines 6, 15)
+
   ```typescript
   level: z.enum(['Free', 'AstraPlus', 'DatingPremium', 'MAX']),
   // vs
@@ -227,15 +251,17 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 **Issue**: Multi-step operations not wrapped in transactions
 
 - **File**: `/home/user/AstraLink/backend/src/chart/chart.service.ts` (Lines 65-77)
+
   ```typescript
   // Delete old chart
   await this.prisma.chart.deleteMany({ where: { userId } });
-  
+
   // Then create new one
   return this.prisma.chart.create({
     data: { userId, data: natalChartData },
   });
   ```
+
   **Problem**: If second operation fails after delete, data loss occurs
 
 ---
@@ -248,7 +274,9 @@ When `getNatalChart` is already called at line 82 in `getTransits`
   ```typescript
   const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
   if (!timeRegex.test(birthTime)) {
-    throw new NotFoundException('Некорректный формат времени рождения. Ожидается HH:MM');
+    throw new NotFoundException(
+      'Некорректный формат времени рождения. Ожидается HH:MM'
+    );
   }
   ```
   **Should be**: `BadRequestException` not `NotFoundException`
@@ -263,6 +291,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
   **Missing**: `APP_FILTER` provider or `useGlobalFilters()`
 
 **Current inconsistency**:
+
 - Auth middleware returns custom JSON format (line 69-79 in auth.middleware.ts)
 - Services throw various NestJS exceptions
 - Controllers don't catch errors
@@ -275,9 +304,11 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 **Issue**: Type assertions without validation
 
 - **File**: `/home/user/AstraLink/backend/src/connections/connections.service.ts` (Line 53)
+
   ```typescript
   const targetData = connection.targetData as any;
   ```
+
   **Problem**: `as any` defeats type safety; no validation of structure
 
 - **File**: `/home/user/AstraLink/backend/src/services/ephemeris.service.ts` (Lines 104-113)
@@ -314,14 +345,16 @@ When `getNatalChart` is already called at line 82 in `getTransits`
 **Issue**: Type parameter conversions without validation
 
 - **File**: `/home/user/AstraLink/backend/src/connections/connections.controller.ts` (Line 34)
+
   ```typescript
-  parseInt(connectionId)
+  parseInt(connectionId);
   ```
+
   **Problem**: No validation that connectionId is numeric string; `parseInt('abc')` returns `NaN`
 
 - **File**: `/home/user/AstraLink/backend/src/dating/dating.controller.ts` (Lines 27, 36)
   ```typescript
-  parseInt(matchId)
+  parseInt(matchId);
   ```
   Same issue repeated
 
@@ -337,7 +370,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
     const predictions = { /*...*/ };
     const natalPlanets = natalChart.data?.planets || natalChart.planets || {};
     const current = currentPlanets.planets || {};
-    ```
+  ```
   **Problem**: Accessing properties without checking if objects exist
 
 ---
@@ -352,7 +385,7 @@ When `getNatalChart` is already called at line 82 in `getTransits`
     return req.user;
   }
   ```
-  **Problem**: 
+  **Problem**:
   - No type annotation for `req`
   - No validation that `req.user` exists
   - If JwtAuthGuard fails, could return undefined
@@ -373,9 +406,11 @@ Both calculate aspects identically but separately
 ### 19. Hardcoded Configuration Values
 
 - **File**: `/home/user/AstraLink/backend/src/auth/auth.service.ts` (Line 19)
+
   ```typescript
-  const token = this.jwtService.sign(payload);  // Uses 24h from module config
+  const token = this.jwtService.sign(payload); // Uses 24h from module config
   ```
+
   - 24 hour expiry is hardcoded in auth.module.ts line 19
 
 - **File**: `/home/user/AstraLink/backend/src/subscription/subscription.service.ts` (Line 35)
@@ -451,6 +486,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 ## RECOMMENDATIONS
 
 ### Critical Fixes (Priority 1)
+
 1. [ ] Create global exception filter to standardize error responses
 2. [ ] Fix exception types (use BadRequestException for validation, NotFoundException for resources)
 3. [ ] Extract location lookup to shared utility/service
@@ -459,6 +495,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 6. [ ] Add transaction management for multi-step operations
 
 ### High Priority (Priority 2)
+
 1. [ ] Add try-catch blocks or implement global error handling in controllers
 2. [ ] Validate all URL parameters (parseInt validation)
 3. [ ] Implement consistent Zod validation with ValidationPipe
@@ -466,6 +503,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 5. [ ] Add proper type annotations and remove `as any` casts
 
 ### Medium Priority (Priority 3)
+
 1. [ ] Reduce logging verbosity in production paths
 2. [ ] Add null/undefined checks throughout
 3. [ ] Consolidate duplicate aspect calculation logic
@@ -474,6 +512,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 6. [ ] Add validation that from < to for transit queries
 
 ### Code Quality (Priority 4)
+
 1. [ ] Add comprehensive test coverage
 2. [ ] Implement repository pattern for data access
 3. [ ] Add request/response examples to Swagger
@@ -485,6 +524,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 ## Files Affected Summary
 
 **Controllers**: 6 files
+
 - auth.controller.ts
 - user.controller.ts
 - chart.controller.ts
@@ -493,6 +533,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 - subscription.controller.ts
 
 **Services**: 6 files
+
 - auth.service.ts (password validation, exception types)
 - user.service.ts (generic Error usage)
 - chart.service.ts (complex logic, duplicates, validation)
@@ -501,6 +542,7 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 - subscription.service.ts (validation inconsistency)
 
 **Infrastructure**: 7 files
+
 - main.ts (CORS, error handling)
 - auth.middleware.ts (auth logic, custom responses)
 - jwt.strategy.ts (hardcoded secret)
@@ -509,4 +551,5 @@ LoginRequestSchema, SignupRequestSchema, UpdateProfileRequestSchema, etc.
 - prisma.schema (missing constraints)
 
 **Types/Validation**: 6 files
+
 - All type definition files in `/types` (validation not enforced)

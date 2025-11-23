@@ -25,28 +25,31 @@
 
 ### Общая статистика
 
-| Компонент | Зависимости | Уязвимости | Устаревшие |
-|-----------|-------------|------------|------------|
-| **Backend** | 913 (292 prod, 621 dev) | 20 moderate | 12 minor updates |
-| **Frontend** | ~45 | 0 | 15 minor updates |
-| **Root** | 8 dev | 0 | 3 minor updates |
-| **ИТОГО** | ~966 | **20 moderate** | **30 updates** |
+| Компонент    | Зависимости             | Уязвимости      | Устаревшие       |
+| ------------ | ----------------------- | --------------- | ---------------- |
+| **Backend**  | 913 (292 prod, 621 dev) | 20 moderate     | 12 minor updates |
+| **Frontend** | ~45                     | 0               | 15 minor updates |
+| **Root**     | 8 dev                   | 0               | 3 minor updates  |
+| **ИТОГО**    | ~966                    | **20 moderate** | **30 updates**   |
 
 ### Критические находки
 
 🔴 **КРИТИЧНО:**
+
 - 20 уязвимостей средней степени в зависимостях тестирования (jest, js-yaml)
 - Отсутствует `.env` файл - используется только `.env.example`
 - TypeScript настроен слабо (`noImplicitAny: false`)
 - Версионирование зависимостей использует `^` (нестабильно)
 
 🟠 **ВЫСОКИЙ ПРИОРИТЕТ:**
+
 - Устаревшие мажорные версии в корне (eslint, typescript)
 - Отсутствие lockfile проверки в CI/CD
 - Дублирование TypeScript версий (5.6.3, 5.7.3, 5.9.2)
 - Отсутствие renovate/dependabot для автообновлений
 
 🟡 **СРЕДНИЙ ПРИОРИТЕТ:**
+
 - 30 минорных обновлений доступно
 - Отсутствие docker-compose.override.yml для локальной разработки
 - Нет npm audit в pre-commit hooks
@@ -59,25 +62,25 @@
 
 ```json
 {
-  "@nestjs/common": "^11.0.1",        // ✅ Актуально
-  "@nestjs/config": "^4.0.2",         // ✅ Актуально
-  "@nestjs/core": "^11.0.1",          // ✅ Актуально
-  "@nestjs/jwt": "^11.0.0",           // ✅ Актуально
-  "@nestjs/passport": "^11.0.5",      // ✅ Актуально
+  "@nestjs/common": "^11.0.1", // ✅ Актуально
+  "@nestjs/config": "^4.0.2", // ✅ Актуально
+  "@nestjs/core": "^11.0.1", // ✅ Актуально
+  "@nestjs/jwt": "^11.0.0", // ✅ Актуально
+  "@nestjs/passport": "^11.0.5", // ✅ Актуально
   "@nestjs/platform-express": "^11.0.1", // ✅ Актуально
-  "@nestjs/swagger": "^11.2.0",       // ⚠️ Moderate vulnerability (js-yaml)
-  "@prisma/client": "^6.16.1",        // ⬆️ 6.19.0 доступна
-  "bcryptjs": "^3.0.2",               // ⬆️ 3.0.3 доступна
-  "class-transformer": "^0.5.1",      // ✅ Актуально
-  "class-validator": "^0.14.2",       // ✅ Актуально
-  "passport": "^0.7.0",               // ✅ Актуально
-  "passport-jwt": "^4.0.1",           // ✅ Актуально
-  "passport-local": "^1.0.0",         // ✅ Актуально
-  "prisma": "^6.16.1",                // ⬆️ 6.19.0 доступна
-  "reflect-metadata": "^0.2.2",       // ✅ Актуально
-  "rxjs": "^7.8.2",                   // ✅ Актуально
-  "swisseph": "^0.5.17",              // ✅ Актуально
-  "zod": "^4.1.8"                     // ⬆️ 4.1.12 доступна
+  "@nestjs/swagger": "^11.2.0", // ⚠️ Moderate vulnerability (js-yaml)
+  "@prisma/client": "^6.16.1", // ⬆️ 6.19.0 доступна
+  "bcryptjs": "^3.0.2", // ⬆️ 3.0.3 доступна
+  "class-transformer": "^0.5.1", // ✅ Актуально
+  "class-validator": "^0.14.2", // ✅ Актуально
+  "passport": "^0.7.0", // ✅ Актуально
+  "passport-jwt": "^4.0.1", // ✅ Актуально
+  "passport-local": "^1.0.0", // ✅ Актуально
+  "prisma": "^6.16.1", // ⬆️ 6.19.0 доступна
+  "reflect-metadata": "^0.2.2", // ✅ Актуально
+  "rxjs": "^7.8.2", // ✅ Актуально
+  "swisseph": "^0.5.17", // ✅ Актуально
+  "zod": "^4.1.8" // ⬆️ 4.1.12 доступна
 }
 ```
 
@@ -98,30 +101,30 @@
 
 ```json
 {
-  "@nestjs/cli": "^11.0.0",           // ✅ Актуально
-  "@nestjs/schematics": "^11.0.0",    // ✅ Актуально
-  "@nestjs/testing": "^11.0.1",       // ✅ Актуально
-  "@types/bcryptjs": "^2.4.6",        // ✅ Актуально
-  "@types/express": "^5.0.0",         // ✅ Актуально
-  "@types/jest": "^30.0.0",           // ✅ Актуально
-  "@types/node": "^22.10.7",          // ✅ Актуально
-  "@types/passport-jwt": "^4.0.1",    // ✅ Актуально
+  "@nestjs/cli": "^11.0.0", // ✅ Актуально
+  "@nestjs/schematics": "^11.0.0", // ✅ Актуально
+  "@nestjs/testing": "^11.0.1", // ✅ Актуально
+  "@types/bcryptjs": "^2.4.6", // ✅ Актуально
+  "@types/express": "^5.0.0", // ✅ Актуально
+  "@types/jest": "^30.0.0", // ✅ Актуально
+  "@types/node": "^22.10.7", // ✅ Актуально
+  "@types/passport-jwt": "^4.0.1", // ✅ Актуально
   "@types/passport-local": "^1.0.38", // ✅ Актуально
-  "@types/supertest": "^6.0.2",       // ✅ Актуально
-  "eslint": "^9.18.0",                // ✅ Актуально
+  "@types/supertest": "^6.0.2", // ✅ Актуально
+  "eslint": "^9.18.0", // ✅ Актуально
   "eslint-config-prettier": "^10.0.1", // ✅ Актуально
   "eslint-plugin-prettier": "^5.2.2", // ✅ Актуально
-  "globals": "^16.0.0",               // ✅ Актуально
-  "jest": "^30.0.0",                  // ⚠️ Multiple vulnerabilities
-  "prettier": "^3.4.2",               // ✅ Актуально
-  "source-map-support": "^0.5.21",    // ✅ Актуально
-  "supertest": "^7.0.0",              // ✅ Актуально
-  "ts-jest": "^29.2.5",               // ⚠️ Vulnerabilities
-  "ts-loader": "^9.5.2",              // ✅ Актуально
-  "ts-node": "^10.9.2",               // ✅ Актуально
-  "tsconfig-paths": "^4.2.0",         // ✅ Актуально
-  "typescript": "^5.7.3",             // ✅ Актуально
-  "typescript-eslint": "^8.20.0"      // ✅ Актуально
+  "globals": "^16.0.0", // ✅ Актуально
+  "jest": "^30.0.0", // ⚠️ Multiple vulnerabilities
+  "prettier": "^3.4.2", // ✅ Актуально
+  "source-map-support": "^0.5.21", // ✅ Актуально
+  "supertest": "^7.0.0", // ✅ Актуально
+  "ts-jest": "^29.2.5", // ⚠️ Vulnerabilities
+  "ts-loader": "^9.5.2", // ✅ Актуально
+  "ts-node": "^10.9.2", // ✅ Актуально
+  "tsconfig-paths": "^4.2.0", // ✅ Актуально
+  "typescript": "^5.7.3", // ✅ Актуально
+  "typescript-eslint": "^8.20.0" // ✅ Актуально
 }
 ```
 
@@ -156,26 +159,26 @@ Total:       ~505 MB (node_modules)
 
 ```json
 {
-  "@expo/vector-icons": "^15.0.2",           // ⬆️ 15.0.3
+  "@expo/vector-icons": "^15.0.2", // ⬆️ 15.0.3
   "@react-native-async-storage/async-storage": "^2.2.0", // ✅ Актуально
-  "@react-native-community/datetimepicker": "^8.4.5",    // ⬆️ 8.5.0
+  "@react-native-community/datetimepicker": "^8.4.5", // ⬆️ 8.5.0
   "@react-navigation/bottom-tabs": "^7.4.7", // ⬆️ 7.8.5 (breaking?)
-  "@react-navigation/native": "^7.1.17",     // ⬆️ 7.1.20
-  "@react-navigation/stack": "^7.4.8",       // ⬆️ 7.6.4
-  "axios": "^1.12.2",                        // ⬆️ 1.13.2
-  "expo": "~54.0.7",                         // ⬆️ 54.0.23
-  "expo-linear-gradient": "^15.0.7",         // ✅ Актуально
-  "expo-status-bar": "~3.0.8",               // ✅ Актуально
-  "react": "19.1.0",                         // ⬆️ 19.2.0 MAJOR
-  "react-dom": "19.1.0",                     // ⬆️ 19.2.0 MAJOR
-  "react-native": "0.81.4",                  // ⬆️ 0.82.1 MINOR
+  "@react-navigation/native": "^7.1.17", // ⬆️ 7.1.20
+  "@react-navigation/stack": "^7.4.8", // ⬆️ 7.6.4
+  "axios": "^1.12.2", // ⬆️ 1.13.2
+  "expo": "~54.0.7", // ⬆️ 54.0.23
+  "expo-linear-gradient": "^15.0.7", // ✅ Актуально
+  "expo-status-bar": "~3.0.8", // ✅ Актуально
+  "react": "19.1.0", // ⬆️ 19.2.0 MAJOR
+  "react-dom": "19.1.0", // ⬆️ 19.2.0 MAJOR
+  "react-native": "0.81.4", // ⬆️ 0.82.1 MINOR
   "react-native-gesture-handler": "^2.28.0", // ⬆️ 2.29.1
-  "react-native-reanimated": "^4.1.0",       // ⬆️ 4.1.5
+  "react-native-reanimated": "^4.1.0", // ⬆️ 4.1.5
   "react-native-safe-area-context": "^5.6.1", // ⬆️ 5.6.2
-  "react-native-screens": "^4.16.0",         // ⬆️ 4.18.0
-  "react-native-svg": "^15.13.0",            // ⬆️ 15.15.0
-  "react-native-vector-icons": "^10.3.0",    // ✅ Актуально
-  "react-native-web": "^0.21.0"              // ⬆️ 0.21.2
+  "react-native-screens": "^4.16.0", // ⬆️ 4.18.0
+  "react-native-svg": "^15.13.0", // ⬆️ 15.15.0
+  "react-native-vector-icons": "^10.3.0", // ✅ Актуально
+  "react-native-web": "^0.21.0" // ⬆️ 0.21.2
 }
 ```
 
@@ -198,8 +201,8 @@ Total:       ~505 MB (node_modules)
 
 ```json
 {
-  "@types/react": "~19.1.0",          // ✅ Актуально
-  "typescript": "~5.9.2"              // ⚠️ Конфликт версий с root
+  "@types/react": "~19.1.0", // ✅ Актуально
+  "typescript": "~5.9.2" // ⚠️ Конфликт версий с root
 }
 ```
 
@@ -229,14 +232,14 @@ Total:       ~505 MB (node_modules)
 
 ```json
 {
-  "concurrently": "^8.2.2",                   // ✅ Актуально
-  "prettier": "^3.3.3",                       // ⬆️ 3.4.2 (backend новее!)
-  "eslint": "^8.57.0",                        // ⚠️ 8.x EOL, обновить до 9.x
-  "typescript": "^5.6.3",                     // ⬆️ 5.9.2
-  "husky": "^9.1.6",                          // ✅ Актуально
-  "lint-staged": "^15.2.10",                  // ✅ Актуально
+  "concurrently": "^8.2.2", // ✅ Актуально
+  "prettier": "^3.3.3", // ⬆️ 3.4.2 (backend новее!)
+  "eslint": "^8.57.0", // ⚠️ 8.x EOL, обновить до 9.x
+  "typescript": "^5.6.3", // ⬆️ 5.9.2
+  "husky": "^9.1.6", // ✅ Актуально
+  "lint-staged": "^15.2.10", // ✅ Актуально
   "@typescript-eslint/eslint-plugin": "^7.18.0", // ⚠️ Устарел для eslint 9
-  "@typescript-eslint/parser": "^7.18.0"      // ⚠️ Устарел для eslint 9
+  "@typescript-eslint/parser": "^7.18.0" // ⚠️ Устарел для eslint 9
 }
 ```
 
@@ -285,6 +288,7 @@ Total vulnerabilities: 20
 Уязвимость prototype pollution в функции merge с использованием `<<` оператора YAML.
 
 **Путь зависимости:**
+
 ```
 @nestjs/swagger@11.2.0
 └── js-yaml@3.x
@@ -294,11 +298,13 @@ Total vulnerabilities: 20
 ```
 
 **Влияние на проект:**
+
 - ⚠️ Moderate - используется только в dev (Swagger docs, тесты)
 - Не используется в production runtime
 - Потенциально опасно если Swagger включен в production
 
 **Решение:**
+
 ```bash
 # Опция 1: Откат Swagger (breaking change)
 npm install @nestjs/swagger@5.2.1
@@ -329,17 +335,20 @@ if (process.env.NODE_ENV !== 'production') {
 Уязвимость в функции `isURL()` позволяет обходить валидацию URL и внедрять XSS.
 
 **Путь зависимости:**
+
 ```
 class-validator@0.14.2
 └── validator@13.x
 ```
 
 **Влияние на проект:**
+
 - ⚠️ Moderate - используется в DTO для валидации пользовательского ввода
 - Потенциально опасно если принимаются URL от пользователей
 - В текущем коде URL валидация не используется явно
 
 **Решение:**
+
 ```bash
 npm audit fix  # Автоматическое исправление доступно
 ```
@@ -351,6 +360,7 @@ npm audit fix  # Автоматическое исправление досту�
 #### 3. Jest экосистема (18 уязвимостей)
 
 **Affected packages:**
+
 - jest
 - @jest/core, @jest/transform, @jest/reporters, @jest/expect, @jest/globals
 - jest-runner, jest-runtime, jest-snapshot, jest-circus
@@ -361,11 +371,13 @@ npm audit fix  # Автоматическое исправление досту�
 **Severity:** Moderate (все связаны с js-yaml)
 
 **Влияние на проект:**
+
 - ✅ Low risk - используется только в dev/test
 - Не влияет на production сборку
 - Потенциально опасно если тесты принимают внешние данные
 
 **Решение:**
+
 ```bash
 # Опция 1: Откат Jest (breaking change)
 npm install jest@25.0.0 ts-jest@29.1.2 --save-dev
@@ -390,6 +402,7 @@ npm audit --production  # Проверять только prod зависимо�
 #### Немедленные действия (в течение 48 часов):
 
 1. ✅ Добавить npm override для js-yaml:
+
 ```json
 // package.json
 {
@@ -400,11 +413,13 @@ npm audit --production  # Проверять только prod зависимо�
 ```
 
 2. ✅ Исправить validator.js:
+
 ```bash
 cd backend && npm audit fix
 ```
 
 3. ✅ Отключить Swagger в production:
+
 ```typescript
 // main.ts
 if (process.env.NODE_ENV !== 'production') {
@@ -431,18 +446,19 @@ npm audit --audit-level=high --production
 
 ### Backend (12 обновлений)
 
-| Пакет | Текущая | Доступна | Тип | Приоритет |
-|-------|---------|----------|-----|-----------|
-| @nestjs/common | 11.0.1 | 11.1.9 | minor | Medium |
-| @nestjs/core | 11.0.1 | 11.1.9 | minor | Medium |
-| @nestjs/platform-express | 11.0.1 | 11.1.9 | minor | Medium |
-| @nestjs/swagger | 11.2.0 | 11.2.1 | patch | High (fix) |
-| @prisma/client | 6.16.1 | 6.19.0 | minor | High |
-| prisma | 6.16.1 | 6.19.0 | minor | High |
-| bcryptjs | 3.0.2 | 3.0.3 | patch | Low |
-| zod | 4.1.8 | 4.1.12 | patch | Medium |
+| Пакет                    | Текущая | Доступна | Тип   | Приоритет  |
+| ------------------------ | ------- | -------- | ----- | ---------- |
+| @nestjs/common           | 11.0.1  | 11.1.9   | minor | Medium     |
+| @nestjs/core             | 11.0.1  | 11.1.9   | minor | Medium     |
+| @nestjs/platform-express | 11.0.1  | 11.1.9   | minor | Medium     |
+| @nestjs/swagger          | 11.2.0  | 11.2.1   | patch | High (fix) |
+| @prisma/client           | 6.16.1  | 6.19.0   | minor | High       |
+| prisma                   | 6.16.1  | 6.19.0   | minor | High       |
+| bcryptjs                 | 3.0.2   | 3.0.3    | patch | Low        |
+| zod                      | 4.1.8   | 4.1.12   | patch | Medium     |
 
 **Команда обновления:**
+
 ```bash
 cd backend
 npm update @nestjs/common @nestjs/core @nestjs/platform-express
@@ -453,23 +469,24 @@ npm audit fix
 
 ### Frontend (15 обновлений)
 
-| Пакет | Текущая | Доступна | Тип | Приоритет |
-|-------|---------|----------|-----|-----------|
-| expo | 54.0.7 | 54.0.23 | patch | **Critical** |
-| react | 19.1.0 | 19.2.0 | minor | Medium |
-| react-dom | 19.1.0 | 19.2.0 | minor | Medium |
-| react-native | 0.81.4 | 0.82.1 | minor | High |
-| @react-navigation/bottom-tabs | 7.4.7 | 7.8.5 | minor | Medium |
-| @react-navigation/native | 7.1.17 | 7.1.20 | patch | Medium |
-| @react-navigation/stack | 7.4.8 | 7.6.4 | minor | Medium |
-| axios | 1.12.2 | 1.13.2 | minor | Medium |
-| react-native-reanimated | 4.1.0 | 4.1.5 | patch | High |
-| react-native-screens | 4.16.0 | 4.18.0 | minor | Medium |
-| react-native-svg | 15.13.0 | 15.15.0 | minor | Low |
+| Пакет                         | Текущая | Доступна | Тип   | Приоритет    |
+| ----------------------------- | ------- | -------- | ----- | ------------ |
+| expo                          | 54.0.7  | 54.0.23  | patch | **Critical** |
+| react                         | 19.1.0  | 19.2.0   | minor | Medium       |
+| react-dom                     | 19.1.0  | 19.2.0   | minor | Medium       |
+| react-native                  | 0.81.4  | 0.82.1   | minor | High         |
+| @react-navigation/bottom-tabs | 7.4.7   | 7.8.5    | minor | Medium       |
+| @react-navigation/native      | 7.1.17  | 7.1.20   | patch | Medium       |
+| @react-navigation/stack       | 7.4.8   | 7.6.4    | minor | Medium       |
+| axios                         | 1.12.2  | 1.13.2   | minor | Medium       |
+| react-native-reanimated       | 4.1.0   | 4.1.5    | patch | High         |
+| react-native-screens          | 4.16.0  | 4.18.0   | minor | Medium       |
+| react-native-svg              | 15.13.0 | 15.15.0  | minor | Low          |
 
 **⚠️ Важно:** Обновление Expo с 54.0.7 до 54.0.23 включает 16 патчей (вероятно баг-фиксы и security)
 
 **Команда обновления:**
+
 ```bash
 cd frontend
 # Критичное обновление Expo
@@ -487,14 +504,15 @@ npm update
 
 ### Root (3 обновления)
 
-| Пакет | Текущая | Доступна | Тип | Приоритет |
-|-------|---------|----------|-----|-----------|
-| eslint | 8.57.0 | 9.18.0 | **major** | **Critical** (EOL) |
-| typescript | 5.6.3 | 5.9.2 | minor | High |
-| prettier | 3.3.3 | 3.4.2 | minor | Low |
-| @typescript-eslint/* | 7.18.0 | 8.20.0 | major | Critical |
+| Пакет                 | Текущая | Доступна | Тип       | Приоритет          |
+| --------------------- | ------- | -------- | --------- | ------------------ |
+| eslint                | 8.57.0  | 9.18.0   | **major** | **Critical** (EOL) |
+| typescript            | 5.6.3   | 5.9.2    | minor     | High               |
+| prettier              | 3.3.3   | 3.4.2    | minor     | Low                |
+| @typescript-eslint/\* | 7.18.0  | 8.20.0   | major     | Critical           |
 
 **Команда обновления:**
+
 ```bash
 # ESLint 9 migration (breaking changes!)
 npm install eslint@^9.18.0 --save-dev
@@ -516,13 +534,13 @@ npm update typescript prettier
 ```json
 {
   "compilerOptions": {
-    "module": "nodenext",               // ✅ Правильно
-    "moduleResolution": "nodenext",     // ✅ Правильно
-    "target": "ES2023",                 // ✅ Правильно
-    "strict": false,                    // ❌ ПРОБЛЕМА
-    "noImplicitAny": false,             // ❌ ПРОБЛЕМА
-    "strictNullChecks": true,           // ⚠️ Частично strict
-    "strictBindCallApply": false,       // ❌ ПРОБЛЕМА
+    "module": "nodenext", // ✅ Правильно
+    "moduleResolution": "nodenext", // ✅ Правильно
+    "target": "ES2023", // ✅ Правильно
+    "strict": false, // ❌ ПРОБЛЕМА
+    "noImplicitAny": false, // ❌ ПРОБЛЕМА
+    "strictNullChecks": true, // ⚠️ Частично strict
+    "strictBindCallApply": false, // ❌ ПРОБЛЕМА
     "noFallthroughCasesInSwitch": false // ❌ ПРОБЛЕМА
   }
 }
@@ -557,20 +575,21 @@ npm update typescript prettier
     "forceConsistentCasingInFileNames": true,
 
     // ✅ ИСПРАВИТЬ:
-    "strict": true,                     // Включить все strict проверки
-    "noImplicitAny": true,              // Запретить implicit any
-    "strictNullChecks": true,           // Уже включено
-    "strictBindCallApply": true,        // Включить
+    "strict": true, // Включить все strict проверки
+    "noImplicitAny": true, // Запретить implicit any
+    "strictNullChecks": true, // Уже включено
+    "strictBindCallApply": true, // Включить
     "noFallthroughCasesInSwitch": true, // Включить
-    "noUnusedLocals": true,             // Новое
-    "noUnusedParameters": true,         // Новое
-    "noImplicitReturns": true,          // Новое
-    "noUncheckedIndexedAccess": true    // Новое (важно!)
+    "noUnusedLocals": true, // Новое
+    "noUnusedParameters": true, // Новое
+    "noImplicitReturns": true, // Новое
+    "noUncheckedIndexedAccess": true // Новое (важно!)
   }
 }
 ```
 
 **Влияние:**
+
 - Потребуется исправить ~50-100 ошибок типизации
 - Улучшит надежность кода
 - Предотвратит runtime ошибки
@@ -579,9 +598,9 @@ npm update typescript prettier
 
 ```json
 {
-  "extends": "expo/tsconfig.base",    // ✅ Правильно
+  "extends": "expo/tsconfig.base", // ✅ Правильно
   "compilerOptions": {
-    "strict": true                    // ✅ ОТЛИЧНО!
+    "strict": true // ✅ ОТЛИЧНО!
   }
 }
 ```
@@ -721,6 +740,7 @@ npm-debug.log
 ```
 
 **Улучшения:**
+
 - ✅ Multi-stage build: Финальный образ ~150MB вместо ~600MB
 - ✅ Non-root user (безопасность)
 - ✅ Health check endpoint
@@ -739,9 +759,9 @@ services:
     environment:
       POSTGRES_DB: astralink
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres       # ❌ ПРОБЛЕМА
+      POSTGRES_PASSWORD: postgres # ❌ ПРОБЛЕМА
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -754,16 +774,16 @@ services:
     container_name: astralink-backend
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/astralink?schema=public
-      JWT_SECRET: supersecret            # ❌ ПРОБЛЕМА
+      JWT_SECRET: supersecret # ❌ ПРОБЛЕМА
       PORT: 3000
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
       - postgres
     networks:
       - astralink-network
     volumes:
-      - ./backend:/app                   # ⚠️ ПРОБЛЕМА
+      - ./backend:/app # ⚠️ ПРОБЛЕМА
       - /app/node_modules
 
 volumes:
@@ -797,14 +817,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Password required}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/prisma/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
     networks:
       - astralink-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -827,14 +847,20 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-astralink}?schema=public
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
+      - '${BACKEND_PORT:-3000}:3000'
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - astralink-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health')"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:3000/api/health')",
+        ]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -869,7 +895,7 @@ version: '3.8'
 services:
   backend:
     build:
-      target: builder  # Используем stage builder
+      target: builder # Используем stage builder
     environment:
       NODE_ENV: development
     volumes:
@@ -879,6 +905,7 @@ services:
 ```
 
 **Добавить в .gitignore:**
+
 ```
 docker-compose.override.yml
 ```
@@ -894,6 +921,7 @@ docker-compose.override.yml
 ```
 
 **Отсутствующие файлы:**
+
 - ❌ `/home/user/AstraLink/backend/.env`
 - ❌ `/home/user/AstraLink/frontend/.env`
 - ❌ `/home/user/AstraLink/.env`
@@ -1053,10 +1081,12 @@ const envSchema = z.object({
 
   // Server
   PORT: z.coerce.number().int().positive().default(3000),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
 
   // CORS
-  CORS_ORIGIN: z.string().transform(val => val.split(',')),
+  CORS_ORIGIN: z.string().transform((val) => val.split(',')),
   CORS_CREDENTIALS: z.coerce.boolean().default(true),
 
   // Swagger
@@ -1119,7 +1149,7 @@ async function bootstrap() {
 
 **Создать:** `backend/ENV_SETUP.md`
 
-```markdown
+````markdown
 # Environment Setup Guide
 
 ## Quick Start
@@ -1128,8 +1158,10 @@ async function bootstrap() {
    ```bash
    cp .env.example .env
    ```
+````
 
 2. Generate a secure JWT secret:
+
    ```bash
    openssl rand -base64 32
    ```
@@ -1159,7 +1191,8 @@ async function bootstrap() {
 3. **Use different secrets** for dev/staging/production
 4. **Use environment-specific configs** in CI/CD
 5. **Enable strict CORS** in production
-```
+
+````
 
 ---
 
@@ -1186,7 +1219,7 @@ npm audit fix
 
 # Проверить результат
 npm audit --production
-```
+````
 
 **Ожидаемый результат:** 0 critical, 0 high vulnerabilities в production
 
@@ -1279,35 +1312,35 @@ npm install @typescript-eslint/parser@^8.20.0 --save-dev
 version: 2
 updates:
   # Backend dependencies
-  - package-ecosystem: "npm"
-    directory: "/backend"
+  - package-ecosystem: 'npm'
+    directory: '/backend'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 10
     reviewers:
-      - "your-team"
+      - 'your-team'
     labels:
-      - "dependencies"
-      - "backend"
+      - 'dependencies'
+      - 'backend'
 
   # Frontend dependencies
-  - package-ecosystem: "npm"
-    directory: "/frontend"
+  - package-ecosystem: 'npm'
+    directory: '/frontend'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 10
     labels:
-      - "dependencies"
-      - "frontend"
+      - 'dependencies'
+      - 'frontend'
 
   # Root dependencies
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     labels:
-      - "dependencies"
-      - "tooling"
+      - 'dependencies'
+      - 'tooling'
 ```
 
 **Опция 2: Renovate Bot**
@@ -1347,9 +1380,10 @@ npm update
 ```
 
 **Проверить breaking changes:**
+
 - React 19.1 → 19.2
 - React Native 0.81 → 0.82
-- @react-navigation/* (множественные обновления)
+- @react-navigation/\* (множественные обновления)
 
 #### 10. 🧪 Добавить тесты для зависимостей
 
@@ -1391,7 +1425,7 @@ on:
     branches: [main, develop]
   pull_request:
   schedule:
-    - cron: '0 0 * * 1'  # Every Monday
+    - cron: '0 0 * * 1' # Every Monday
 
 jobs:
   audit:
@@ -1438,12 +1472,14 @@ jobs:
 ## Core Dependencies
 
 ### Backend
+
 - **NestJS 11.x**: Web framework
 - **Prisma 6.x**: ORM
 - **Passport.js**: Authentication
 - **Swiss Ephemeris**: Astronomical calculations
 
 ### Frontend
+
 - **Expo 54.x**: React Native platform
 - **React Navigation 7.x**: Routing
 - **React Native Reanimated 4.x**: Animations
@@ -1490,7 +1526,7 @@ jobs:
 - [ ] Обновить Expo 54.0.7 → 54.0.23
 - [ ] Создать .env файлы (backend, frontend)
 - [ ] Унифицировать TypeScript до 5.9.2
-- [ ] Добавить .env* в .gitignore
+- [ ] Добавить .env\* в .gitignore
 - [ ] Отключить Swagger в production (main.ts)
 
 ### Фаза 2: Важные улучшения (1 неделя)
@@ -1565,6 +1601,7 @@ jobs:
 4. **ВЫСОКО** - 30 устаревших пакетов (обновить за 2 недели)
 
 **Усилия:**
+
 - Фаза 1: ~4-6 часов
 - Фаза 2: ~8-12 часов
 - Фаза 3: ~16-20 часов

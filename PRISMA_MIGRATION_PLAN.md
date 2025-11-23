@@ -9,27 +9,27 @@
 
 ### ✅ Уже на Prisma (5 таблиц)
 
-| Таблица | Prisma Model | Статус | Использование |
-|---------|--------------|--------|---------------|
-| `charts` | `Chart` | ✅ 80% Prisma | user.service, chart.service, dating.service |
-| `connections` | `Connection` | ✅ 100% Prisma | connections.service (идеальный пример!) |
-| `dating_matches` | `DatingMatch` | ✅ 100% Prisma | dating.service |
-| `subscriptions` | `Subscription` | ⚠️ 20% Prisma | subscription.service ИСПОЛЬЗУЕТ SUPABASE |
-| `users` | `public_users` | ✅ 70% Prisma | user.service, dating.service |
+| Таблица          | Prisma Model   | Статус         | Использование                               |
+| ---------------- | -------------- | -------------- | ------------------------------------------- |
+| `charts`         | `Chart`        | ✅ 80% Prisma  | user.service, chart.service, dating.service |
+| `connections`    | `Connection`   | ✅ 100% Prisma | connections.service (идеальный пример!)     |
+| `dating_matches` | `DatingMatch`  | ✅ 100% Prisma | dating.service                              |
+| `subscriptions`  | `Subscription` | ⚠️ 20% Prisma  | subscription.service ИСПОЛЬЗУЕТ SUPABASE    |
+| `users`          | `public_users` | ✅ 70% Prisma  | user.service, dating.service                |
 
 ### ⚠️ НЕ в Prisma (10+ таблиц)
 
-| Таблица | Используется в | Операции | Приоритет |
-|---------|---------------|----------|-----------|
-| `user_photos` | user-photos.service, dating.service, chat.service | INSERT, SELECT, UPDATE, DELETE | **P0 - HIGH** |
-| `user_profiles` | dating.service, user.controller | SELECT, UPDATE | **P0 - HIGH** |
-| `payments` | subscription.service, subscription.controller | INSERT, SELECT | **P1 - MEDIUM** |
-| `feature_usage` | analytics.service, subscription.controller | SELECT, INSERT | **P1 - MEDIUM** |
-| `messages` | chat.service | SELECT, INSERT, UPDATE | **P2 - LOW** |
-| `matches` | chat.service | SELECT, INSERT, UPDATE | **P2 - LOW** |
-| `user_blocks` | user.service | INSERT, SELECT | **P2 - LOW** |
-| `user_reports` | user.service | INSERT | **P2 - LOW** |
-| `user_fomo_counters` | (referenced) | Unknown | **P3 - OPTIONAL** |
+| Таблица              | Используется в                                    | Операции                       | Приоритет         |
+| -------------------- | ------------------------------------------------- | ------------------------------ | ----------------- |
+| `user_photos`        | user-photos.service, dating.service, chat.service | INSERT, SELECT, UPDATE, DELETE | **P0 - HIGH**     |
+| `user_profiles`      | dating.service, user.controller                   | SELECT, UPDATE                 | **P0 - HIGH**     |
+| `payments`           | subscription.service, subscription.controller     | INSERT, SELECT                 | **P1 - MEDIUM**   |
+| `feature_usage`      | analytics.service, subscription.controller        | SELECT, INSERT                 | **P1 - MEDIUM**   |
+| `messages`           | chat.service                                      | SELECT, INSERT, UPDATE         | **P2 - LOW**      |
+| `matches`            | chat.service                                      | SELECT, INSERT, UPDATE         | **P2 - LOW**      |
+| `user_blocks`        | user.service                                      | INSERT, SELECT                 | **P2 - LOW**      |
+| `user_reports`       | user.service                                      | INSERT                         | **P2 - LOW**      |
+| `user_fomo_counters` | (referenced)                                      | Unknown                        | **P3 - OPTIONAL** |
 
 ---
 
@@ -40,16 +40,18 @@
 **Файл:** `backend/src/subscription/subscription.service.ts`
 
 **Проблема:**
+
 ```typescript
 // Строки 33-36: НЕПРАВИЛЬНО - таблица УЖЕ в Prisma!
 const { data: subscription } = await this.supabaseService
-  .fromAdmin('subscriptions')  // ❌ Использует Supabase
+  .fromAdmin('subscriptions') // ❌ Использует Supabase
   .select('*')
   .eq('user_id', userId)
   .maybeSingle();
 ```
 
 **Должно быть:**
+
 ```typescript
 // ✅ ПРАВИЛЬНО - использовать Prisma
 const subscription = await this.prisma.subscription.findUnique({
@@ -66,6 +68,7 @@ const subscription = await this.prisma.subscription.findUnique({
 **Файл:** `backend/src/chart/chart.service.ts`
 
 **Проблема:**
+
 ```typescript
 // Строка 58: Использует Prisma для subscription ✅
 const subscription = await this.prisma.subscription.findUnique({...});
@@ -86,6 +89,7 @@ const { data: chartData } = await adminClient
 **Файл:** `backend/src/dating/dating.service.ts`
 
 **Проблема:**
+
 ```typescript
 // Строки 200-217: Смешанный подход
 const [{ data: users }, { data: profiles }, { data: charts }] =
@@ -97,6 +101,7 @@ const [{ data: users }, { data: profiles }, { data: charts }] =
 ```
 
 **Должно быть:**
+
 ```typescript
 // ✅ Использовать Prisma для users и charts
 const [users, profiles, charts] = await Promise.all([
@@ -225,6 +230,7 @@ model public_users {
 **Файл:** `backend/src/subscription/subscription.service.ts`
 
 **Было (Supabase):**
+
 ```typescript
 const { data: subscription } = await this.supabaseService
   .fromAdmin('subscriptions')
@@ -234,6 +240,7 @@ const { data: subscription } = await this.supabaseService
 ```
 
 **Стало (Prisma):**
+
 ```typescript
 const subscription = await this.prisma.subscription.findUnique({
   where: { userId },
@@ -241,6 +248,7 @@ const subscription = await this.prisma.subscription.findUnique({
 ```
 
 **Файлы для изменения:**
+
 - Lines 33-36: `getSubscription()` - findUnique
 - Lines 64-68: `getOrCreateSubscription()` - findUnique + create
 - Lines 256-270: `upsert()` - Prisma upsert
@@ -255,6 +263,7 @@ const subscription = await this.prisma.subscription.findUnique({
 **Файл:** `backend/src/chart/chart.service.ts`
 
 **Изменения:**
+
 ```typescript
 // Lines 317-323: БЫЛО (Supabase)
 const { data: chartData } = await adminClient
@@ -322,11 +331,13 @@ const photo = await this.prisma.userPhoto.create({
 ```
 
 **Остальные методы:**
+
 - `listPhotos()` → `this.prisma.userPhoto.findMany()`
 - `setPrimary()` → `this.prisma.userPhoto.update()`
 - `deletePhoto()` → `this.prisma.userPhoto.delete()`
 
 **Supabase Storage API остаётся:**
+
 - `createSignedUploadUrl()` - остаётся
 - `createSignedUrl()` - остаётся
 - File upload/download - остаётся
@@ -338,6 +349,7 @@ const photo = await this.prisma.userPhoto.create({
 **Файл:** `backend/src/dating/dating.service.ts`
 
 **БЫЛО (lines 200-217):**
+
 ```typescript
 const [{ data: users }, { data: profiles }, { data: charts }] =
   await Promise.all([
@@ -348,6 +360,7 @@ const [{ data: users }, { data: profiles }, { data: charts }] =
 ```
 
 **СТАЛО (Prisma):**
+
 ```typescript
 const [users, charts] = await Promise.all([
   this.prisma.public_users.findMany({
@@ -368,6 +381,7 @@ const [users, charts] = await Promise.all([
 ```
 
 **Эффект:**
+
 - Один запрос вместо трёх
 - N+1 query устранён
 - Type safety для profiles
@@ -459,6 +473,7 @@ npx prisma generate
 **Файл:** `backend/src/subscription/subscription.service.ts`
 
 **Замены:**
+
 1. Инжектить `PrismaService` в constructor
 2. Заменить все `.fromAdmin('subscriptions')` на `this.prisma.subscription`
 3. Заменить все `.fromAdmin('payments')` на `this.prisma.payment`
@@ -469,6 +484,7 @@ npx prisma generate
 **Файл:** `backend/src/chart/chart.service.ts`
 
 **Замены:**
+
 - Lines 317-323: chart lookup → `this.prisma.chart.findFirst()`
 - Lines 352-355: chart update → `this.prisma.chart.updateMany()`
 
@@ -477,6 +493,7 @@ npx prisma generate
 **Файл:** `backend/src/user/user-photos.service.ts`
 
 **Изменения:**
+
 - Database operations → Prisma
 - Storage operations → остаются на Supabase
 - Добавить type safety для UserPhoto
@@ -486,6 +503,7 @@ npx prisma generate
 **Файл:** `backend/src/dating/dating.service.ts`
 
 **Изменения:**
+
 - Lines 200-217: users/profiles/charts → Prisma с include
 - Lines 697-723: public profile → Prisma с include
 - Убрать повторяющиеся запросы благодаря relations
@@ -495,6 +513,7 @@ npx prisma generate
 **Файл:** `backend/src/user/user.service.ts`
 
 **Замены:**
+
 - Lines 141-144: user insert → Prisma (опционально, auth создаёт)
 - Line 264: charts delete → Prisma (уже есть в deleteAccount)
 - Lines 312-313: user_blocks → Prisma
@@ -506,40 +525,43 @@ npx prisma generate
 
 ### До миграции:
 
-| Метрика | Значение |
-|---------|----------|
-| Supabase client calls | ~150 в разных сервисах |
-| Type safety | Partial (только где Prisma) |
-| Query optimization | Нет (raw SQL через Supabase) |
-| N+1 queries | Много (особенно dating) |
-| Caching | Нет |
+| Метрика               | Значение                     |
+| --------------------- | ---------------------------- |
+| Supabase client calls | ~150 в разных сервисах       |
+| Type safety           | Partial (только где Prisma)  |
+| Query optimization    | Нет (raw SQL через Supabase) |
+| N+1 queries           | Много (особенно dating)      |
+| Caching               | Нет                          |
 
 ### После миграции:
 
-| Метрика | Значение | Улучшение |
-|---------|----------|-----------|
-| Supabase client calls | ~20 (только Auth + Storage) | **87% reduction** |
-| Type safety | 100% (все data операции) | **Full coverage** |
-| Query optimization | Prisma optimizer | **2-5x faster** |
-| N+1 queries | Eliminated (include/relations) | **10-20x faster** |
-| Caching | Prisma query cache | **60-80% fewer DB calls** |
+| Метрика               | Значение                       | Улучшение                 |
+| --------------------- | ------------------------------ | ------------------------- |
+| Supabase client calls | ~20 (только Auth + Storage)    | **87% reduction**         |
+| Type safety           | 100% (все data операции)       | **Full coverage**         |
+| Query optimization    | Prisma optimizer               | **2-5x faster**           |
+| N+1 queries           | Eliminated (include/relations) | **10-20x faster**         |
+| Caching               | Prisma query cache             | **60-80% fewer DB calls** |
 
 ---
 
 ## 🚨 Что ОСТАНЕТСЯ на Supabase
 
 ### ✅ Auth (должно остаться)
+
 - `auth.users` - управление через Supabase Auth API
 - `auth.sessions`, `auth.refresh_tokens` - JWT flow
 - `auth.identities` - OAuth providers
 - Все auth операции через `SupabaseAuthService`
 
 ### ✅ Storage (должно остаться)
+
 - `user-photos` bucket - хранение файлов
 - Signed URLs для upload/download
 - Storage operations через `SupabaseService.storage`
 
 ### ⚠️ Что УБРАТЬ с Supabase
+
 - Все операции с `public.*` таблицами
 - `.from('users')`, `.from('charts')`, `.from('subscriptions')` и т.д.
 - Row Level Security (RLS) для data queries (Prisma не использует RLS)
@@ -578,6 +600,7 @@ npm run test:e2e
 ## 📋 Checklist для миграции
 
 ### Phase 1: Schema Updates
+
 - [ ] Добавить `UserPhoto` модель в schema.prisma
 - [ ] Добавить `UserProfile` модель
 - [ ] Добавить `Payment` модель
@@ -587,6 +610,7 @@ npm run test:e2e
 - [ ] Проверить TypeScript compilation
 
 ### Phase 2: Service Migrations
+
 - [ ] Subscription Service → 100% Prisma
 - [ ] Chart Service → 100% Prisma
 - [ ] User Photos Service → Prisma (metadata) + Supabase (storage)
@@ -595,11 +619,13 @@ npm run test:e2e
 - [ ] Тестировать каждый сервис после миграции
 
 ### Phase 3: Optional
+
 - [ ] Chat Service → Prisma (messages, matches)
 - [ ] Analytics Service → Prisma (feature_usage)
 - [ ] Load testing для проверки производительности
 
 ### Phase 4: Cleanup
+
 - [ ] Удалить неиспользуемые Supabase client calls
 - [ ] Обновить документацию
 - [ ] Code review
@@ -610,17 +636,17 @@ npm run test:e2e
 
 ## ⏱️ Оценка времени
 
-| Phase | Задачи | Время | Приоритет |
-|-------|--------|-------|-----------|
-| Phase 1 | Schema updates | 30 мин | P0 |
-| Phase 2.1 | Subscription Service | 1 час | P0 |
-| Phase 2.2 | Chart Service | 30 мин | P0 |
-| Phase 2.3 | User Photos Service | 1 час | P0 |
-| Phase 2.4 | Dating Service | 1.5 часа | P0 |
-| Phase 2.5 | User Service | 30 мин | P1 |
-| Phase 3 | Chat + Analytics | 2 часа | P2 |
-| Testing | Integration tests | 1 час | P0 |
-| **ИТОГО** | **Full migration** | **~8 часов** | - |
+| Phase     | Задачи               | Время        | Приоритет |
+| --------- | -------------------- | ------------ | --------- |
+| Phase 1   | Schema updates       | 30 мин       | P0        |
+| Phase 2.1 | Subscription Service | 1 час        | P0        |
+| Phase 2.2 | Chart Service        | 30 мин       | P0        |
+| Phase 2.3 | User Photos Service  | 1 час        | P0        |
+| Phase 2.4 | Dating Service       | 1.5 часа     | P0        |
+| Phase 2.5 | User Service         | 30 мин       | P1        |
+| Phase 3   | Chat + Analytics     | 2 часа       | P2        |
+| Testing   | Integration tests    | 1 час        | P0        |
+| **ИТОГО** | **Full migration**   | **~8 часов** | -         |
 
 ---
 
@@ -629,12 +655,15 @@ npm run test:e2e
 Я могу начать миграцию прямо сейчас. Предлагаю следующий порядок:
 
 ### Option 1: Quick Win (30 мин)
+
 Начать с **Subscription Service** - таблица уже в Prisma, максимальный эффект при минимальных усилиях
 
 ### Option 2: Full Migration (8 часов)
+
 Полная миграция всех сервисов по плану выше
 
 ### Option 3: Schema Only (30 мин)
+
 Только добавить модели в schema.prisma, миграцию сервисов отложить
 
 **Что выбираете?** Или хотите, чтобы я начал с Option 1 (Subscription Service)?

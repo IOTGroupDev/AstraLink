@@ -2,14 +2,14 @@
 
 **Дата анализа:** 14 ноября 2025  
 **Аналитик:** Claude (Sonnet 4.5)  
-**Версия проекта:** 1.0.0  
+**Версия проекта:** 1.0.0
 
 ---
 
 ## 📊 Общая статистика проекта
 
 - **Backend:** 18,035 строк TypeScript кода
-- **Frontend:** 20,613 строк TypeScript/TSX кода  
+- **Frontend:** 20,613 строк TypeScript/TSX кода
 - **Общий размер:** ~38,648 строк кода
 - **Модулей NestJS:** 21
 - **API Endpoints:** 50+
@@ -46,12 +46,13 @@ AstraLink/
 ### 1.2 Технологический стек
 
 #### Backend
+
 - **Framework:** NestJS 10.x (Node.js 18+)
 - **Database:** PostgreSQL (через Supabase)
 - **ORM:** Prisma 6.16.1 (multi-schema: auth, public)
 - **Cache:** Redis (ioredis)
 - **Authentication:** Supabase Auth + JWT
-- **AI Providers:** 
+- **AI Providers:**
   - Anthropic Claude (primary)
   - OpenAI GPT
   - DeepSeek
@@ -60,6 +61,7 @@ AstraLink/
 - **Astrology Engine:** Swiss Ephemeris
 
 #### Frontend
+
 - **Framework:** React Native 0.81.5 + Expo 54
 - **Navigation:** React Navigation 7.x
 - **State Management:** Zustand 4.5.2
@@ -134,6 +136,7 @@ AppModule (root)
    - Иерархическая система модулей
 
 2. **Repository Pattern**
+
    ```typescript
    // RepositoriesModule предоставляет абстракцию над БД
    UserRepository
@@ -144,17 +147,19 @@ AppModule (root)
    ```
 
 3. **Strategy Pattern** (AI Providers)
+
    ```typescript
    AIService {
      providers: Map<AIProvider, IAIProvider>
      - ClaudeProvider
-     - OpenAIProvider  
+     - OpenAIProvider
      - DeepSeekProvider
      // Automatic fallback on failure
    }
    ```
 
 4. **Event-Driven Architecture**
+
    ```typescript
    @EventEmitter2
    - user.profile.updated
@@ -173,14 +178,15 @@ AppModule (root)
    - `AuthModule ←→ ChartModule`
    - `AdvisorModule ←→ ChartModule`
    - `AdvisorModule ←→ AuthModule`
-   
+
    **Проблема:** Указывает на tight coupling между модулями
-   
-   **Решение:** 
+
+   **Решение:**
    - Выделить shared events в отдельный EventsModule
    - Использовать Event Bus вместо прямых зависимостей
 
 2. **Mixed Responsibilities** (UserService)
+
    ```typescript
    UserService {
      getProfile()           // ✅ OK
@@ -190,10 +196,11 @@ AppModule (root)
      deleteAccount()        // ❌ Должно быть в AccountService
    }
    ```
-   
+
    **Нарушение:** Single Responsibility Principle (SOLID)
 
 3. **Database Access через два канала**
+
    ```typescript
    // Проблема: смешанное использование Prisma и Supabase client
    UserService {
@@ -201,7 +208,7 @@ AppModule (root)
      - Prisma для blocks/reports
    }
    ```
-   
+
    **Риск:** Сложность транзакций, data consistency
 
 ### 2.3 Dependency Injection анализ
@@ -245,20 +252,19 @@ ChartModule
 1. **Избыточное связывание модулей**
    - `UserModule` импортирует `ChartModule` для создания натальной карты
    - Лучше: использовать Event Bus
-   
 2. **Большой граф зависимостей**
    - Некоторые модули импортируют 5+ других модулей
    - Снижает testability
 
 ### 2.4 SOLID принципы - оценка
 
-| Принцип | Статус | Комментарий |
-|---------|--------|-------------|
-| **S**ingle Responsibility | ⚠️ 6/10 | UserService нарушает, ChartService OK |
-| **O**pen/Closed | ✅ 8/10 | Хорошее использование интерфейсов (IAIProvider) |
-| **L**iskov Substitution | ✅ 9/10 | Провайдеры AI корректно заменяемы |
-| **I**nterface Segregation | ⚠️ 7/10 | Некоторые интерфейсы слишком большие |
-| **D**ependency Inversion | ✅ 8/10 | DI контейнер используется правильно |
+| Принцип                   | Статус  | Комментарий                                     |
+| ------------------------- | ------- | ----------------------------------------------- |
+| **S**ingle Responsibility | ⚠️ 6/10 | UserService нарушает, ChartService OK           |
+| **O**pen/Closed           | ✅ 8/10 | Хорошее использование интерфейсов (IAIProvider) |
+| **L**iskov Substitution   | ✅ 9/10 | Провайдеры AI корректно заменяемы               |
+| **I**nterface Segregation | ⚠️ 7/10 | Некоторые интерфейсы слишком большие            |
+| **D**ependency Inversion  | ✅ 8/10 | DI контейнер используется правильно             |
 
 ### 2.5 Проблемы с Path Aliases
 
@@ -268,6 +274,7 @@ ChartModule
 **Проблема:** Непоследовательное использование
 
 **Рекомендация:**
+
 ```typescript
 // ❌ Избегать
 import { X } from '../../services/x.service';
@@ -324,20 +331,20 @@ src/
 ```typescript
 interface AuthState {
   // State
-  user: User | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+
   // Settings (persisted)
-  onboardingCompleted: boolean
-  biometricEnabled: boolean
-  rememberMe: boolean
-  
+  onboardingCompleted: boolean;
+  biometricEnabled: boolean;
+  rememberMe: boolean;
+
   // Actions
-  login(user: User): void
-  logout(): void
-  updateUser(updates: Partial<User>): void
-  initialize(): Promise<void>
+  login(user: User): void;
+  logout(): void;
+  updateUser(updates: Partial<User>): void;
+  initialize(): Promise<void>;
 }
 
 // ✅ Плюсы:
@@ -351,7 +358,6 @@ interface AuthState {
 
 1. **Нет error handling стратегии**
    - Store.error есть, но не используется консистентно
-   
 2. **Отсутствие DevTools integration**
    - Сложно дебажить state changes
 
@@ -378,13 +384,17 @@ MainStackNavigator
 #### ✅ Сильные стороны:
 
 1. **Правильная логика навигации**
+
    ```typescript
    useEffect(() => {
-     const target = 
-       isAuthenticated && !onboardingCompleted ? 'UserDataLoader' :
-       !onboardingCompleted ? 'Onboarding1' :
-       !isAuthenticated ? 'SignUp' :
-       'MainTabs';
+     const target =
+       isAuthenticated && !onboardingCompleted
+         ? 'UserDataLoader'
+         : !onboardingCompleted
+           ? 'Onboarding1'
+           : !isAuthenticated
+             ? 'SignUp'
+             : 'MainTabs';
      navigation.reset({ index: 0, routes: [{ name: target }] });
    }, [isAuthenticated, onboardingCompleted]);
    ```
@@ -404,7 +414,6 @@ MainStackNavigator
 1. **Hard reset на каждое изменение auth/onboarding**
    - Убивает весь navigation stack
    - Пользователь теряет контекст
-   
 2. **Нет deep linking конфигурации**
    - Ограничивает маркетинговые возможности
 
@@ -429,7 +438,7 @@ MainStackNavigator
 ```typescript
 // Добавить automatic token refresh
 api.interceptors.response.use(
-  response => response,
+  (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
       // Try refresh token
@@ -495,19 +504,21 @@ DatingMatch {
 
 Subscription {
   @@index([userId, expiresAt])          // Composite
-  @@index([tier, expiresAt])            // Composite  
+  @@index([tier, expiresAt])            // Composite
 }
 ```
 
 #### ⚠️ Отсутствующие индексы:
 
 1. **UserPhoto** - нет индекса на `storagePath`
+
    ```prisma
    // Добавить:
    @@index([storagePath])  // Для поиска по path
    ```
 
 2. **FeatureUsage** - нет composite индекса
+
    ```prisma
    // Добавить:
    @@index([userId, featureName, usedAt])  // Для аналитики
@@ -529,7 +540,7 @@ Subscription {
 }
 
 UserPhoto {
-  users  public_users @relation(..., onDelete: Cascade)  
+  users  public_users @relation(..., onDelete: Cascade)
 }
 
 UserProfile {
@@ -540,12 +551,13 @@ UserProfile {
 #### ⚠️ Проблемы:
 
 1. **Chart не имеет onDelete CASCADE**
+
    ```prisma
    // Текущее:
    Chart {
      users  public_users @relation(fields: [userId], references: [id])
    }
-   
+
    // Должно быть:
    Chart {
      users  public_users @relation(..., onDelete: Cascade)
@@ -598,7 +610,7 @@ UserRepository {
   // ✅ Multi-strategy fallback
   async findById(userId: string): Promise<UserProfile | null> {
     // Strategy 1: Admin Client (bypasses RLS)
-    // Strategy 2: Regular Client (respects RLS)  
+    // Strategy 2: Regular Client (respects RLS)
     // Strategy 3: Hardcoded test users (DEV only) // ⚠️ РИСК
   }
 }
@@ -607,6 +619,7 @@ UserRepository {
 **Проблемы:**
 
 1. **Test users в production коде**
+
    ```typescript
    // ⚠️ КРИТИЧНО
    if (process.env.NODE_ENV === 'development') {
@@ -614,15 +627,16 @@ UserRepository {
      // ...
    }
    ```
-   
+
    **Риск:** `NODE_ENV` может быть изменен, test users станут доступны
 
 2. **Смешанный Prisma + Supabase access**
+
    ```typescript
    // UserService.updateProfile()
    - Использует supabase.getUserProfileAdmin()
    - Использует this.prisma.userBlock.create()
-   
+
    // Риск: транзакции не работают между двумя клиентами
    ```
 
@@ -667,12 +681,12 @@ UserRepository {
 ```typescript
 // Вариант 1: URL versioning
 @Controller('v1/user')
-export class UserController { }
+export class UserController {}
 
-// Вариант 2: Header versioning  
+// Вариант 2: Header versioning
 @Version('1')
 @Controller('user')
-export class UserController { }
+export class UserController {}
 
 // app.module.ts
 app.enableVersioning({
@@ -706,6 +720,7 @@ app.enableVersioning({
 #### ⚠️ Проблемы консистентности:
 
 1. **Несогласованные имена endpoints**
+
    ```typescript
    // ❌ Непоследовательно
    POST /api/auth/signup
@@ -716,13 +731,14 @@ app.enableVersioning({
    ```
 
 2. **Смешанные стили response**
+
    ```typescript
    // Вариант 1
    return { success: true, data: {...} };
-   
+
    // Вариант 2
    return {...};  // прямо данные
-   
+
    // Вариант 3
    return { message: "Success", ...data };
    ```
@@ -746,11 +762,12 @@ interface APIResponse<T> {
 ```
 
 3. **Inconsistent pagination**
+
    ```typescript
    // Dating
    @Query('limit') limit?: string
    @Query('offset') offset?: string
-   
+
    // Должно быть:
    class PaginationDto {
      @IsOptional()
@@ -758,7 +775,7 @@ interface APIResponse<T> {
      @Min(1)
      @Max(100)
      limit?: number = 50;
-     
+
      @IsOptional()
      @IsInt()
      @Min(0)
@@ -778,19 +795,21 @@ throw new InternalServerErrorException('Something went wrong');
 ```
 
 #### ✅ Плюсы:
+
 - Стандартные HTTP статусы
 - Exception filters работают глобально
 
 #### ⚠️ Проблемы:
 
 1. **Нет кастомных error codes**
+
    ```json
    // Текущее:
    {
      "statusCode": 404,
      "message": "User not found"
    }
-   
+
    // Должно быть:
    {
      "statusCode": 404,
@@ -828,24 +847,27 @@ export class CustomExceptionFilter implements ExceptionFilter {
 #### ❌ КРИТИЧНЫЕ проблемы:
 
 1. **JWT Token Expiration отключен**
+
    ```typescript
    // jwt.strategy.ts:27
    super({
-     ignoreExpiration: true,  // ❌ ОПАСНО!
+     ignoreExpiration: true, // ❌ ОПАСНО!
      secretOrKey: 'dummy-secret-for-development',
    });
    ```
-   
+
    **Риск:** Украденные токены действуют вечно
 
 2. **Hardcoded secrets**
+
    ```typescript
-   secretOrKey: 'dummy-secret-for-development'
+   secretOrKey: 'dummy-secret-for-development';
    ```
-   
+
    **Риск:** Все токены можно подделать
 
 3. **Development fallback в production**
+
    ```typescript
    // supabase-auth.guard.ts:80-109
    if (!decoded || !decoded.sub) {
@@ -853,22 +875,23 @@ export class CustomExceptionFilter implements ExceptionFilter {
      const decoded = jwt.decode(token) as any;
    }
    ```
-   
+
    **Риск:** Можно обойти проверку подписи
 
 #### ⚠️ Средние проблемы:
 
 4. **Global auth guard закомментирован**
+
    ```typescript
    // app.module.ts:88
    {
      provide: APP_GUARD,
      useClass: SupabaseAuthGuard,  // Применяется глобально
    }
-   
+
    // Но многие endpoints используют @Public() decorator
    ```
-   
+
    **Проблема:** Легко забыть защитить новый endpoint
 
 5. **Отсутствие refresh token механизма**
@@ -884,7 +907,7 @@ export class UpdateProfileRequest {
   @IsOptional()
   @IsString()
   name?: string;
-  
+
   @IsOptional()
   @IsDateString()
   birthDate?: string;
@@ -894,6 +917,7 @@ export class UpdateProfileRequest {
 #### ⚠️ Проблемы:
 
 1. **Некоторые endpoints без валидации**
+
    ```typescript
    // user.controller.ts:223
    @Body() updateData: any  // ❌ any type, нет валидации
@@ -910,7 +934,7 @@ import { sanitize } from 'class-sanitizer';
 
 export class UpdateProfileDto {
   @IsString()
-  @Sanitize()  // Удалить HTML теги
+  @Sanitize() // Удалить HTML теги
   @MaxLength(500)
   bio?: string;
 }
@@ -922,15 +946,16 @@ export class UpdateProfileDto {
 
 ```typescript
 ThrottlerModule.forRoot([
-  { name: 'short', ttl: 1000, limit: 10 },   // 10/sec
+  { name: 'short', ttl: 1000, limit: 10 }, // 10/sec
   { name: 'medium', ttl: 60000, limit: 100 }, // 100/min
   { name: 'long', ttl: 3600000, limit: 1000 }, // 1000/hour
-])
+]);
 ```
 
 #### ⚠️ Проблемы:
 
 1. **AI endpoints имеют свой rate limiting**
+
    ```typescript
    // advisor-rate-limit.guard.ts
    // Дублирование логики
@@ -943,9 +968,9 @@ ThrottlerModule.forRoot([
 **Рекомендация:**
 
 ```typescript
-@Throttle({ 
+@Throttle({
   default: { limit: 100, ttl: 60 },
-  ai: { limit: 10, ttl: 60 },  // Отдельный для AI
+  ai: { limit: 10, ttl: 60 }, // Отдельный для AI
 })
 export class AdvisorController {}
 ```
@@ -965,6 +990,7 @@ RedisModule
 ```
 
 **Используется для:**
+
 - AI responses caching
 - User session data
 - Horoscope caching (по дате)
@@ -972,6 +998,7 @@ RedisModule
 #### ⚠️ Проблемы:
 
 1. **Отсутствие cache invalidation стратегии**
+
    ```typescript
    // Когда инвалидировать кеш при:
    // - User updates profile?
@@ -992,13 +1019,13 @@ export class CacheService {
     await this.redis.del(`chart:${userId}:*`);
     this.logger.log(`Cache invalidated for user ${userId}`);
   }
-  
+
   async getCacheStats() {
     const info = await this.redis.info('stats');
     return {
       hits: parseInfo(info, 'keyspace_hits'),
       misses: parseInfo(info, 'keyspace_misses'),
-      hitRate: hits / (hits + misses)
+      hitRate: hits / (hits + misses),
     };
   }
 }
@@ -1009,6 +1036,7 @@ export class CacheService {
 #### ✅ Хорошие практики:
 
 1. **Select только нужные поля**
+
    ```typescript
    const blocks = await this.prisma.userBlock.findMany({
      select: {
@@ -1027,21 +1055,23 @@ export class CacheService {
 #### ⚠️ Проблемы:
 
 1. **N+1 queries в DatingService**
+
    ```typescript
    // Получаем matches
    const matches = await prisma.datingMatch.findMany(...);
-   
+
    // Для каждого match делаем отдельный запрос
    for (const match of matches) {
      const user = await prisma.users.findUnique({
        where: { id: match.candidateData.userId }
      });
    }
-   
+
    // Решение: include/select с relations
    ```
 
 2. **Отсутствие database connection pooling конфигурации**
+
    ```prisma
    // schema.prisma
    datasource db {
@@ -1049,7 +1079,7 @@ export class CacheService {
      url      = env("DATABASE_URL")
      // ⚠️ Нет настройки connection pool
    }
-   
+
    // Добавить в DATABASE_URL:
    // ?connection_limit=20&pool_timeout=10
    ```
@@ -1060,10 +1090,9 @@ export class CacheService {
 
 1. **AI generation endpoints** (могут занимать 10-30 секунд)
    - ✅ Есть streaming endpoint для real-time updates
-   
 2. **Natal chart calculation** (Swiss Ephemeris - CPU intensive)
    - ⚠️ Нет кеширования вычислений
-   
+
 **Рекомендация:**
 
 ```typescript
@@ -1091,12 +1120,14 @@ export class PerformanceInterceptor implements NestInterceptor {
 ### 8.1 Текущее покрытие
 
 **Backend tests:** 3 файла найдено
+
 ```
 backend/test/app.e2e-spec.ts
 backend/src/services/__tests__/...
 ```
 
 **Frontend tests:** 1 файл
+
 ```
 frontend/src/services/__tests__/zodiac.service.test.ts
 ```
@@ -1134,7 +1165,7 @@ frontend/src/services/__tests__/zodiac.service.test.ts
 describe('UserService', () => {
   let service: UserService;
   let prisma: MockPrismaService;
-  
+
   beforeEach(async () => {
     const module = await Test.createTestingModule({
       providers: [
@@ -1143,10 +1174,10 @@ describe('UserService', () => {
         { provide: SupabaseService, useValue: mockSupabase },
       ],
     }).compile();
-    
+
     service = module.get(UserService);
   });
-  
+
   it('should create user profile', async () => {
     // ...
   });
@@ -1155,11 +1186,11 @@ describe('UserService', () => {
 // 2. Integration tests для критичных потоков
 describe('Auth Integration', () => {
   let app: INestApplication;
-  
+
   beforeAll(async () => {
     // Setup test DB
   });
-  
+
   it('should complete signup flow', async () => {
     // POST /auth/signup
     // GET /auth/verify
@@ -1184,6 +1215,7 @@ describe('User Journey (e2e)', () => {
 ### 9.1 Docker
 
 **Файлы:**
+
 - `backend/Dockerfile`
 - `backend/Dockerfile.optimized`
 - `docker-compose.yml`
@@ -1216,20 +1248,20 @@ services:
   backend:
     build: ./backend
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
-  
+
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis-data:/data
-  
+
   # Для разработки: локальный PostgreSQL
   postgres:
     image: postgres:15-alpine
@@ -1238,7 +1270,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
@@ -1250,11 +1282,13 @@ volumes:
 ### 9.2 CI/CD
 
 **Найдено:**
+
 - `.github/workflows/` (вероятно есть)
 - `CI_CD_SETUP.md`
 - `CI_CD_SUMMARY.md`
 
 **Судя по документации:**
+
 - ✅ GitHub Actions настроен
 - ✅ Automated testing
 - ✅ Deployment pipelines
@@ -1262,6 +1296,7 @@ volumes:
 #### Рекомендации по улучшению:
 
 1. **Добавить Database migration проверку**
+
    ```yaml
    # .github/workflows/ci.yml
    - name: Check migrations
@@ -1271,6 +1306,7 @@ volumes:
    ```
 
 2. **Frontend bundle size checking**
+
    ```yaml
    - name: Check bundle size
      run: |
@@ -1290,6 +1326,7 @@ volumes:
 ### 9.3 Environment Variables
 
 **Файлы:**
+
 - `.env.example` (root, backend, frontend)
 - Использование: `@nestjs/config`
 
@@ -1308,7 +1345,10 @@ volumes:
 
 ```typescript
 // Use AWS Secrets Manager / Vault / etc
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from '@aws-sdk/client-secrets-manager';
 
 export async function loadSecrets() {
   const client = new SecretsManagerClient({ region: 'us-east-1' });
@@ -1363,7 +1403,7 @@ export class AppLogger {
       new transports.File({ filename: 'error.log', level: 'error' }),
     ],
   });
-  
+
   error(message: string, trace?: string, context?: any) {
     this.logger.error(message, { trace, context });
     Sentry.captureException(new Error(message));
@@ -1395,10 +1435,10 @@ export class AppLogger {
 
 ```sql
 -- Добавить CASCADE для всех foreign keys
-ALTER TABLE "charts" 
+ALTER TABLE "charts"
   DROP CONSTRAINT "charts_user_id_fkey",
-  ADD CONSTRAINT "charts_user_id_fkey" 
-  FOREIGN KEY ("user_id") REFERENCES "users"("id") 
+  ADD CONSTRAINT "charts_user_id_fkey"
+  FOREIGN KEY ("user_id") REFERENCES "users"("id")
   ON DELETE CASCADE;
 
 -- Аналогично для connections, dating_matches
@@ -1442,7 +1482,8 @@ this.eventEmitter.emit('user.registered', { userId });
 ```
 
 **Затраты:** 1 неделя  
-**Преимущества:** 
+**Преимущества:**
+
 - Уменьшение coupling
 - Улучшение testability
 
@@ -1458,7 +1499,7 @@ export class UserRepository {
   async findById(userId: string): Promise<User | null> {
     return this.prisma.users.findUnique({ where: { id: userId } });
   }
-  
+
   // ✅ Транзакции работают
   async updateWithRelations(userId: string, data: UpdateUserDto) {
     return this.prisma.$transaction(async (tx) => {
@@ -1472,6 +1513,7 @@ export class UserRepository {
 
 **Затраты:** 1.5 недели  
 **Преимущества:**
+
 - Единый data access layer
 - Работающие транзакции
 - Проще тестировать
@@ -1510,6 +1552,7 @@ throw new AppException(
 
 **Затраты:** 4-5 дней  
 **Преимущества:**
+
 - Консистентные error responses
 - Проще обрабатывать на frontend
 - Лучше для i18n
@@ -1597,7 +1640,8 @@ import { trace } from '@react-native-firebase/perf';
 ```
 
 **Затраты:** 2-3 недели  
-**Результат:** 
+**Результат:**
+
 - Лучший UX
 - Меньше crashes
 - Faster load times
@@ -1608,18 +1652,18 @@ import { trace } from '@react-native-firebase/perf';
 
 ### 11.1 Scorecard
 
-| Категория | Оценка | Комментарий |
-|-----------|--------|-------------|
-| **Модульность** | 8/10 | ✅ Хорошая структура модулей |
-| **SOLID принципы** | 6/10 | ⚠️ Некоторые нарушения SRP |
-| **Dependency Management** | 7/10 | ⚠️ Circular dependencies |
-| **Database Design** | 7/10 | ⚠️ Отсутствующие индексы, CASCADE |
-| **API Design** | 6/10 | ⚠️ Нет версионирования, консистентности |
-| **Security** | 4/10 | 🔴 Критичные проблемы |
-| **Testing** | 1/10 | 🔴 Практически отсутствует |
-| **Performance** | 7/10 | ⚠️ Есть bottlenecks |
-| **Documentation** | 8/10 | ✅ Swagger, множество MD файлов |
-| **DevOps** | 7/10 | ⚠️ Нет полного CI/CD, monitoring |
+| Категория                 | Оценка | Комментарий                             |
+| ------------------------- | ------ | --------------------------------------- |
+| **Модульность**           | 8/10   | ✅ Хорошая структура модулей            |
+| **SOLID принципы**        | 6/10   | ⚠️ Некоторые нарушения SRP              |
+| **Dependency Management** | 7/10   | ⚠️ Circular dependencies                |
+| **Database Design**       | 7/10   | ⚠️ Отсутствующие индексы, CASCADE       |
+| **API Design**            | 6/10   | ⚠️ Нет версионирования, консистентности |
+| **Security**              | 4/10   | 🔴 Критичные проблемы                   |
+| **Testing**               | 1/10   | 🔴 Практически отсутствует              |
+| **Performance**           | 7/10   | ⚠️ Есть bottlenecks                     |
+| **Documentation**         | 8/10   | ✅ Swagger, множество MD файлов         |
+| **DevOps**                | 7/10   | ⚠️ Нет полного CI/CD, monitoring        |
 
 **Общая оценка:** **6.1/10** - Хорошая база, требуются улучшения
 
@@ -1647,16 +1691,19 @@ import { trace } from '@react-native-firebase/perf';
 ### 11.4 Технический долг
 
 **Приоритет 1 (СРОЧНО):**
+
 - Security fixes (3-5 дней)
 - API versioning (2-3 дня)
 - Database CASCADE (1 день)
 
 **Приоритет 2 (ВАЖНО):**
+
 - Circular dependencies removal (1 неделя)
 - Repository pattern improvements (1.5 недели)
 - Error handling standardization (4-5 дней)
 
 **Приоритет 3 (ЖЕЛАТЕЛЬНО):**
+
 - Testing infrastructure (3-4 недели)
 - Performance optimization (2 недели)
 - Frontend improvements (2-3 недели)
@@ -1733,16 +1780,19 @@ import { trace } from '@react-native-firebase/perf';
 ### Рекомендации
 
 **Немедленно (1-2 недели):**
+
 - Исправить security issues
 - Добавить API versioning
 - Database integrity fixes
 
 **Краткосрочно (1-2 месяца):**
+
 - Устранить architectural smells
 - Внедрить тестирование
 - Performance optimization
 
 **Долгосрочно (3-6 месяцев):**
+
 - Comprehensive monitoring
 - Advanced caching
 - Scalability improvements
@@ -1760,5 +1810,5 @@ import { trace } from '@react-native-firebase/perf';
 
 **Конец отчета**
 
-*Сгенерировано: Claude (Sonnet 4.5)*  
-*Дата: 14 ноября 2025*
+_Сгенерировано: Claude (Sonnet 4.5)_  
+_Дата: 14 ноября 2025_

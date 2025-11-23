@@ -1,4 +1,5 @@
 # КОМПЛЕКСНЫЙ АУДИТ ПРОЕКТА ASTRALINK
+
 ## Полный технический аудит с рекомендациями по оптимизации
 
 **Дата аудита:** 2025-11-14
@@ -14,6 +15,7 @@
 AstraLink - это амбициозный астрологический сервис с хорошей архитектурной базой, но требующий существенных улучшений перед выходом в production. Проект демонстрирует правильное использование современных технологий (NestJS, React Native, Prisma, Supabase), но содержит **критические уязвимости безопасности** и **узкие места производительности**.
 
 ### Ключевые метрики:
+
 - **Строк кода:** ~40,000 (Backend: 18,035, Frontend: 20,613)
 - **Модулей NestJS:** 21
 - **API Endpoints:** 50+
@@ -28,14 +30,16 @@ AstraLink - это амбициозный астрологический сер�
 ## 🎯 ТОП-10 КРИТИЧЕСКИХ ПРОБЛЕМ
 
 ### 🔴 1. Обход JWT аутентификации в dev режиме
+
 **Файл:** `backend/src/auth/strategies/jwt.strategy.ts:29-57`
 
 **Проблема:**
+
 ```typescript
 if (process.env.NODE_ENV === 'development') {
   if (token && token.length > 10) {
     return {
-      userId: token,  // ← Любой токен = авторизация
+      userId: token, // ← Любой токен = авторизация
       email: 'dev@example.com',
       role: 'authenticated',
     };
@@ -50,9 +54,11 @@ if (process.env.NODE_ENV === 'development') {
 ---
 
 ### 🔴 2. Отсутствие rate limiting для AI операций
+
 **Файл:** `backend/src/advisor/guards/advisor-rate-limit.guard.ts`
 
 **Проблема:**
+
 ```typescript
 async canActivate(context: ExecutionContext): Promise<boolean> {
   // TODO: Implement rate limiting
@@ -67,14 +73,16 @@ async canActivate(context: ExecutionContext): Promise<boolean> {
 ---
 
 ### 🔴 3. N+1 queries при расчете совместимости
+
 **Файл:** `backend/src/dating/dating.service.ts:539-665`
 
 **Проблема:**
+
 ```typescript
 const candidates = await this.prisma.chart.findMany({
   where: { NOT: { userId } },
   include: { users: true },
-  take: 200,  // Загружаем 200 полных charts
+  take: 200, // Загружаем 200 полных charts
 });
 
 // Затем в цикле для каждого:
@@ -88,17 +96,19 @@ const syn = await this.ephemerisService.getSynastry(selfChart.data, c.data);
 ---
 
 ### 🟠 4. Широкая CORS политика
+
 **Файл:** `backend/src/main.ts:87-100`
 
 **Проблема:**
+
 ```typescript
 app.enableCors({
   origin: [
-    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/,  // Любой локальный IP
-    /\.exp\.direct$/,  // Любой Expo домен
+    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Любой локальный IP
+    /\.exp\.direct$/, // Любой Expo домен
     /\.expo\.dev$/,
   ],
-  credentials: true,  // Опасно
+  credentials: true, // Опасно
 });
 ```
 
@@ -109,6 +119,7 @@ app.enableCors({
 ---
 
 ### 🟠 5. Отсутствие CSRF защиты
+
 **Файл:** `backend/src/main.ts`
 
 **Риск:** State-changing операции без CSRF токенов
@@ -118,9 +129,11 @@ app.enableCors({
 ---
 
 ### 🟠 6. Недостаточная валидация пользовательского ввода
+
 **Файл:** `backend/src/user/user.controller.ts:223-257`
 
 **Проблема:**
+
 ```typescript
 async updateExtendedProfile(@Body() updateData: any) {
   const payload: any = {
@@ -137,6 +150,7 @@ async updateExtendedProfile(@Body() updateData: any) {
 ---
 
 ### 🟡 7. Неэффективное кэширование ephemeris
+
 **Файл:** `backend/src/services/ephemeris.service.ts`
 
 **Проблема:** TTL слишком короткий (6ч), кэш не переиспользуется между пользователями
@@ -146,14 +160,20 @@ async updateExtendedProfile(@Body() updateData: any) {
 ---
 
 ### 🟡 8. Последовательная генерация signed URLs
+
 **Файл:** `backend/src/dating/dating.service.ts:256-264`
 
 **Проблема:**
+
 ```typescript
 const photoUrlPromises = rows
   .filter((r) => r.primary_photo_path)
   .map((r) =>
-    this.supabaseService.createSignedUrl('user-photos', r.primary_photo_path!, 900)
+    this.supabaseService.createSignedUrl(
+      'user-photos',
+      r.primary_photo_path!,
+      900
+    )
   );
 ```
 
@@ -164,9 +184,11 @@ const photoUrlPromises = rows
 ---
 
 ### 🟡 9. In-memory кэш подписок не масштабируется
+
 **Файл:** `backend/src/chart/chart.service.ts:26-30`
 
 **Проблема:**
+
 ```typescript
 private subscriptionCache = new Map<string, { subscription: any; timestamp: number }>();
 ```
@@ -178,6 +200,7 @@ private subscriptionCache = new Map<string, { subscription: any; timestamp: numb
 ---
 
 ### 🟡 10. Отсутствие React.memo и useMemo
+
 **Файл:** `frontend/src/screens/HoroscopeScreen.tsx`
 
 **Проблема:** Множественные re-renders, helper функции пересоздаются на каждом render
@@ -237,15 +260,18 @@ private subscriptionCache = new Map<string, { subscription: any; timestamp: numb
 
 5. **Недостаточная валидация ввода** - см. проблему #6
 6. **Hardcoded test users:**
+
    ```typescript
    // backend/src/repositories/user.repository.ts
    const hardcodedUser = this.getHardcodedTestUser(userId);
    ```
+
    **Решение:** Удалить полностью
 
 7. **Слабая проверка JWT_SECRET:**
+
    ```typescript
-   JWT_SECRET: z.string().min(32)  // Должно быть min(64)
+   JWT_SECRET: z.string().min(32); // Должно быть min(64)
    ```
 
 8. **Отсутствие HTML санитизации:**
@@ -337,12 +363,12 @@ private subscriptionCache = new Map<string, { subscription: any; timestamp: numb
 
 ### Ожидаемые улучшения после оптимизации:
 
-| Операция | Сейчас | После | Улучшение |
-|----------|--------|-------|-----------|
-| Dating.getMatches() | 10-20 сек | 0.5-1 сек | **95%** |
-| HoroscopeScreen load | 3-5 сек | 1-2 сек | **60%** |
-| API response size | 500KB | 100KB | **80%** |
-| Signed URLs (20 фото) | 2-3 сек | 0.3-0.5 сек | **85%** |
+| Операция              | Сейчас    | После       | Улучшение |
+| --------------------- | --------- | ----------- | --------- |
+| Dating.getMatches()   | 10-20 сек | 0.5-1 сек   | **95%**   |
+| HoroscopeScreen load  | 3-5 сек   | 1-2 сек     | **60%**   |
+| API response size     | 500KB     | 100KB       | **80%**   |
+| Signed URLs (20 фото) | 2-3 сек   | 0.3-0.5 сек | **85%**   |
 
 ---
 
@@ -420,9 +446,11 @@ private subscriptionCache = new Map<string, { subscription: any; timestamp: numb
 #### ❌ Проблемы:
 
 1. **Отсутствие CASCADE для некоторых FK:**
+
    ```prisma
    // Chart, Connection, DatingMatch - нет onDelete: Cascade
    ```
+
    **Решение:** Добавить CASCADE или SetNull
 
 2. **Недостающие индексы:**

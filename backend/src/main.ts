@@ -45,14 +45,18 @@ function validateProductionSecrets() {
     }
 
     const testPatterns = ['test', 'example', 'secret', 'changeme', 'password'];
-    if (testPatterns.some(pattern => jwtSecret.toLowerCase().includes(pattern))) {
+    if (
+      testPatterns.some((pattern) => jwtSecret.toLowerCase().includes(pattern))
+    ) {
       errors.push('JWT_SECRET contains test/example values - SECURITY RISK');
     }
   }
 
   // Check CORS configuration
   if (!process.env.ALLOWED_ORIGINS) {
-    logger.warn('⚠️  ALLOWED_ORIGINS not set - CORS will reject all browser requests');
+    logger.warn(
+      '⚠️  ALLOWED_ORIGINS not set - CORS will reject all browser requests',
+    );
   }
 
   // Check Supabase keys
@@ -62,8 +66,10 @@ function validateProductionSecrets() {
 
   if (errors.length > 0) {
     logger.error('🚨 PRODUCTION CONFIGURATION ERRORS:');
-    errors.forEach(err => logger.error(`  ❌ ${err}`));
-    throw new Error('Production configuration validation failed. Fix errors above.');
+    errors.forEach((err) => logger.error(`  ❌ ${err}`));
+    throw new Error(
+      'Production configuration validation failed. Fix errors above.',
+    );
   }
 
   logger.log('✅ Production secrets validation passed');

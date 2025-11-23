@@ -3,22 +3,34 @@
 ## Critical Fixes (Do These First!)
 
 ### 1. Fix Token Storage (CRITICAL)
+
 **File:** `frontend/src/services/api.ts`
 
 ```typescript
 // REPLACE THIS:
-import { LoginRequest, SignupRequest, AuthResponse, User, Chart, TransitsResponse, UserProfile, UpdateProfileRequest, Subscription, UpgradeSubscriptionRequest } from '../types';
+import {
+  LoginRequest,
+  SignupRequest,
+  AuthResponse,
+  User,
+  Chart,
+  TransitsResponse,
+  UserProfile,
+  UpdateProfileRequest,
+  Subscription,
+  UpgradeSubscriptionRequest,
+} from '../types';
 
-const API_BASE_URL = 'http://192.168.1.14:3000/api';  // BAD!
+const API_BASE_URL = 'http://192.168.1.14:3000/api'; // BAD!
 
 let authToken: string | null = null;
 
 export const setStoredToken = (token: string) => {
-  console.log('💾 Сохраняем токен:', token.substring(0, 20) + '...');  // BAD!
+  console.log('💾 Сохраняем токен:', token.substring(0, 20) + '...'); // BAD!
   authToken = token;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('auth_token', token);  // BAD!
+      localStorage.setItem('auth_token', token); // BAD!
     }
   } catch (error) {
     console.log('❌ Ошибка сохранения в localStorage:', error);
@@ -27,9 +39,21 @@ export const setStoredToken = (token: string) => {
 
 // WITH THIS:
 import * as SecureStore from 'expo-secure-store';
-import { LoginRequest, SignupRequest, AuthResponse, User, Chart, TransitsResponse, UserProfile, UpdateProfileRequest, Subscription, UpgradeSubscriptionRequest } from '../types';
+import {
+  LoginRequest,
+  SignupRequest,
+  AuthResponse,
+  User,
+  Chart,
+  TransitsResponse,
+  UserProfile,
+  UpdateProfileRequest,
+  Subscription,
+  UpgradeSubscriptionRequest,
+} from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || 'https://api.astralink.com';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -61,19 +85,28 @@ export const removeStoredToken = async () => {
 ```
 
 ### 2. Remove Token Logging (CRITICAL)
+
 **Files:** Multiple
 
 ```typescript
 // REMOVE ALL OF:
-console.log('🔐 Добавлен токен к запросу:', config.url, token.substring(0, 20) + '...');
-console.log('✅ Успешный вход, получен токен:', response.access_token.substring(0, 20) + '...');
+console.log(
+  '🔐 Добавлен токен к запросу:',
+  config.url,
+  token.substring(0, 20) + '...'
+);
+console.log(
+  '✅ Успешный вход, получен токен:',
+  response.access_token.substring(0, 20) + '...'
+);
 console.log('🔍 Токен найден в памяти:', authToken.substring(0, 20) + '...');
 
 // REPLACE WITH:
-console.log('Token attached to request');  // or nothing
+console.log('Token attached to request'); // or nothing
 ```
 
 ### 3. Use Environment Variables (CRITICAL)
+
 **File:** Create `.env` file in frontend root
 
 ```bash
@@ -84,6 +117,7 @@ REACT_APP_ENABLE_DEBUG=false
 ```
 
 ### 4. Fix app.json - Disable Cleartext (HIGH)
+
 **File:** `frontend/app.json`
 
 ```json
@@ -139,28 +173,30 @@ REACT_APP_ENABLE_DEBUG=false
 ```
 
 ### 5. Fix Password Validation (HIGH)
+
 **File:** `frontend/src/screens/LoginScreen.tsx` and `frontend/src/screens/SignupScreen.tsx`
 
 ```typescript
 // REPLACE:
 const validatePassword = (password: string): boolean => {
-  return password.length >= 6;  // WEAK!
+  return password.length >= 6; // WEAK!
 };
 
 // WITH:
 const validatePassword = (password: string): boolean => {
   if (password.length < 12) return false;
-  
+
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumber = /\d/.test(password);
   const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-  
+
   return hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
 };
 ```
 
 ### 6. Add Dependencies (HIGH)
+
 **File:** `frontend/package.json`
 
 ```bash
@@ -172,7 +208,9 @@ npm install xss@1.0.14
 ```
 
 ### 7. Remove Sensitive Logging (HIGH)
+
 Search and remove all console.log with user data:
+
 - `frontend/src/screens/MyChartScreen.tsx` - lines 75-85
 - `frontend/src/services/api.ts` - all token logging
 - `frontend/src/screens/LoginScreen.tsx` - line 124
@@ -189,6 +227,7 @@ if (process.env.REACT_APP_LOG_LEVEL === 'debug') {
 ```
 
 ### 8. Implement Session Timeout (MEDIUM)
+
 Create `frontend/src/services/sessionManager.ts`:
 
 ```typescript
@@ -199,7 +238,7 @@ let sessionTimer: NodeJS.Timeout | null = null;
 
 export const startSessionTimer = () => {
   if (sessionTimer) clearTimeout(sessionTimer);
-  
+
   sessionTimer = setTimeout(async () => {
     await removeStoredToken();
     // Navigate to login
@@ -219,6 +258,7 @@ export const clearSessionTimer = () => {
 ```
 
 ### 9. Sanitize User Input (MEDIUM)
+
 Create `frontend/src/utils/sanitize.ts`:
 
 ```typescript
@@ -226,7 +266,7 @@ import xss from 'xss';
 
 export const sanitizeUserInput = (input: string): string => {
   if (!input) return '';
-  
+
   return xss(input, {
     whiteList: {},
     stripIgnoredTag: true,
@@ -235,13 +275,14 @@ export const sanitizeUserInput = (input: string): string => {
 
 export const sanitizeText = (text: string): string => {
   if (!text) return '';
-  
+
   // Remove control characters
   return text.replace(/[\x00-\x1F\x7F]/g, '');
 };
 ```
 
 ### 10. Add Input Validation Schema (MEDIUM)
+
 Create `frontend/src/validation/schemas.ts`:
 
 ```typescript
@@ -255,7 +296,8 @@ export const loginSchema = z.object({
 export const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
-  password: z.string()
+  password: z
+    .string()
     .min(12, 'Password must be at least 12 characters')
     .regex(/[A-Z]/, 'Password must contain uppercase letter')
     .regex(/[a-z]/, 'Password must contain lowercase letter')
@@ -284,4 +326,3 @@ export type SignupInput = z.infer<typeof signupSchema>;
 10. ✅ Add validation schemas - 1.5 hours
 
 **Total Estimated Time:** 10 hours for critical fixes
-

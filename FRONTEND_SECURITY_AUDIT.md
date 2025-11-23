@@ -1,4 +1,5 @@
 # Frontend React Native Security & Best Practices Audit
+
 ## AstraLink Project - Comprehensive Security Analysis
 
 **Audit Date:** 2025-11-15  
@@ -13,8 +14,9 @@
 The frontend application has **9 CRITICAL security vulnerabilities** and **12 HIGH severity issues** that require immediate remediation. The application is currently in a proof-of-concept stage with numerous security practices suitable only for development environments. Production deployment is **NOT RECOMMENDED** without addressing all CRITICAL and HIGH severity issues.
 
 ### Severity Statistics:
+
 - **CRITICAL:** 9 issues
-- **HIGH:** 12 issues  
+- **HIGH:** 12 issues
 - **MEDIUM:** 8 issues
 - **LOW:** 5 issues
 - **INFO:** 3 issues
@@ -36,7 +38,7 @@ export const setStoredToken = (token: string) => {
   authToken = token;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('auth_token', token);  // INSECURE!
+      localStorage.setItem('auth_token', token); // INSECURE!
     }
   } catch (error) {
     console.log('❌ Ошибка сохранения в localStorage:', error);
@@ -45,6 +47,7 @@ export const setStoredToken = (token: string) => {
 ```
 
 **Problems:**
+
 1. `localStorage` is accessible from any JavaScript code via XSS attacks
 2. Tokens are stored in plain text without encryption
 3. Persistent storage makes tokens vulnerable to device theft
@@ -64,6 +67,7 @@ export const setStoredToken = (token: string) => {
 ### CRITICAL - Tokens Exposed in Console Logs
 
 **Locations:**
+
 - `/home/user/AstraLink/frontend/src/services/api.ts` (lines 18, 55, 73, 82)
 - `/home/user/AstraLink/frontend/src/screens/LoginScreen.tsx` (line 126)
 - `/home/user/AstraLink/frontend/src/screens/MyChartScreen.tsx` (line 64)
@@ -72,11 +76,19 @@ export const setStoredToken = (token: string) => {
 
 ```typescript
 // VULNERABLE CODE
-console.log('🔐 Добавлен токен к запросу:', config.url, token.substring(0, 20) + '...');
-console.log('✅ Успешный вход, получен токен:', response.access_token.substring(0, 20) + '...');
+console.log(
+  '🔐 Добавлен токен к запросу:',
+  config.url,
+  token.substring(0, 20) + '...'
+);
+console.log(
+  '✅ Успешный вход, получен токен:',
+  response.access_token.substring(0, 20) + '...'
+);
 ```
 
 **Problems:**
+
 1. Even truncated tokens can be brute-forced
 2. Tokens visible in production console (via Sentry, LogRocket, or direct inspection)
 3. Tokens appear in Android logcat and iOS console logs
@@ -87,7 +99,8 @@ console.log('✅ Успешный вход, получен токен:', respons
 **Impact:** HIGH - Token exposure in logs allows attackers to forge valid tokens
 
 **Severity:** CRITICAL  
-**Recommendation:** 
+**Recommendation:**
+
 - Remove ALL console.log statements containing token data
 - Use only token presence indicators (not values)
 - Implement production log filtering
@@ -105,12 +118,13 @@ console.log('✅ Успешный вход, получен токен:', respons
 let authToken: string | null = null;
 
 export const setStoredToken = (token: string) => {
-  authToken = token;  // Memory storage
-  localStorage.setItem('auth_token', token);  // Web storage
+  authToken = token; // Memory storage
+  localStorage.setItem('auth_token', token); // Web storage
 };
 ```
 
 **Problems:**
+
 1. Inconsistent state between memory and persistent storage
 2. Memory tokens lost on app background/termination
 3. No token refresh mechanism
@@ -127,6 +141,7 @@ export const setStoredToken = (token: string) => {
 **Issue:** No token expiration checking or refresh mechanism implemented.
 
 **Problems:**
+
 1. No JWT expiration validation
 2. Expired tokens sent to API without refresh
 3. API must handle all validation (not client-side)
@@ -143,6 +158,7 @@ export const setStoredToken = (token: string) => {
 **Issue:** In-memory token (`authToken` variable) persists indefinitely while app is running.
 
 **Problems:**
+
 1. Token accessible to any loaded code in memory
 2. Potential memory dump vulnerabilities
 3. No automatic logout on inactivity
@@ -162,10 +178,11 @@ export const setStoredToken = (token: string) => {
 **Issue:** API endpoint is hardcoded with insecure HTTP protocol and private IP address.
 
 ```typescript
-const API_BASE_URL = 'http://192.168.1.14:3000/api';  // INSECURE!
+const API_BASE_URL = 'http://192.168.1.14:3000/api'; // INSECURE!
 ```
 
 **Problems:**
+
 1. **HTTP instead of HTTPS** - No encryption of data in transit
 2. **Private IP address exposed** - Network topology disclosed
 3. **Hardcoded URL** - Cannot change without rebuilding app
@@ -176,7 +193,8 @@ const API_BASE_URL = 'http://192.168.1.14:3000/api';  // INSECURE!
 **Impact:** CRITICAL - Complete compromise of client-server communication, MITM attacks possible
 
 **Severity:** CRITICAL  
-**Recommendation:** 
+**Recommendation:**
+
 - Use environment variables or app configuration files
 - Implement HTTPS with certificate pinning
 - Use conditional URLs based on build environment
@@ -190,6 +208,7 @@ const API_BASE_URL = 'http://192.168.1.14:3000/api';  // INSECURE!
 **Issue:** No SSL/TLS certificate pinning mechanism implemented.
 
 **Problems:**
+
 1. Vulnerable to MITM attacks
 2. Attacker with compromised CA can intercept traffic
 3. Corporate proxy MITM attacks possible
@@ -215,6 +234,7 @@ if (error.response?.status === 401) {
 ```
 
 **Problems:**
+
 1. Backend error details may leak sensitive info
 2. API structure disclosed through error responses
 3. User enumeration possible (user exists vs wrong password)
@@ -234,6 +254,7 @@ if (error.response?.status === 401) {
 **Location:** `/home/user/AstraLink/frontend/src/screens/EditProfileScreen.tsx` (lines 40-45)
 
 **Problems:**
+
 1. Birth data is PII protected under GDPR
 2. Stored in plain text via API
 3. No encryption at rest on device
@@ -241,7 +262,8 @@ if (error.response?.status === 401) {
 5. Birth data uniqueness makes re-identification easy
 
 **Severity:** CRITICAL  
-**Recommendation:** 
+**Recommendation:**
+
 - Encrypt sensitive fields at rest
 - Use HTTPS/TLS for transmission
 - Implement data minimization
@@ -265,6 +287,7 @@ if (error.response?.status === 401) {
 **Issue:** Using HTTP instead of HTTPS means all data transmitted unencrypted.
 
 **Scope:**
+
 - Credentials (email, password)
 - Birth dates and personal information
 - API tokens
@@ -280,6 +303,7 @@ if (error.response?.status === 401) {
 **Location:** Multiple screens store user data in component state
 
 **Problems:**
+
 1. React state exposed to DevTools inspection
 2. User data potentially logged in error reports
 3. Memory dumps could expose sensitive data
@@ -315,7 +339,8 @@ const signupData: SignupRequest = {
 
 ### HIGH - Weak Password Validation
 
-**Locations:** 
+**Locations:**
+
 - `/home/user/AstraLink/frontend/src/screens/LoginScreen.tsx` (line 108)
 - `/home/user/AstraLink/frontend/src/screens/SignupScreen.tsx` (lines 89-91)
 
@@ -323,11 +348,12 @@ const signupData: SignupRequest = {
 
 ```typescript
 const validatePassword = (password: string): boolean => {
-  return password.length >= 6;  // WEAK!
+  return password.length >= 6; // WEAK!
 };
 ```
 
 **Problems:**
+
 1. 6-character passwords are easily brute-forced
 2. No complexity requirements (uppercase, numbers, symbols)
 3. No common password checking
@@ -335,6 +361,7 @@ const validatePassword = (password: string): boolean => {
 
 **Severity:** HIGH  
 **Recommendation:** Enforce:
+
 - Minimum 12 characters
 - Complexity checks
 - Common password blacklist
@@ -353,13 +380,15 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 ```
 
 **Problems:**
+
 1. Accepts technically valid but invalid emails (test@test.c)
 2. No DNS validation
 3. No actual email confirmation
 4. Allows disposable emails
 
 **Severity:** MEDIUM  
-**Recommendation:** 
+**Recommendation:**
+
 - RFC 5322 compliant regex or library
 - Server-side email verification
 - Double opt-in confirmation
@@ -370,23 +399,27 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 **Issue:** User input directly rendered in components without sanitization
 
-**Locations:** 
+**Locations:**
+
 - `/home/user/AstraLink/frontend/src/screens/ProfileScreen.tsx` (line 265)
 - `/home/user/AstraLink/frontend/src/components/CosmicChat.tsx` (line 72)
 
 **Example:**
+
 ```typescript
 <Text style={styles.userName}>{profile.name}</Text>
 ```
 
 **Problems:**
+
 1. If user inputs script-like content (injected via API manipulation)
 2. User names with control characters may cause issues
 3. Emojis and special characters not validated
 4. User-generated content from dating profiles not sanitized
 
 **Severity:** MEDIUM  
-**Recommendation:** 
+**Recommendation:**
+
 - Sanitize all user inputs before rendering
 - Use TextEncoder/native escaping
 - Validate character sets server-side
@@ -410,6 +443,7 @@ const validateBirthDate = (date: string): boolean => {
 ```
 
 **Problems:**
+
 1. Timezone handling issues (date may be different in user's timezone)
 2. No validation of historically valid dates
 3. Birth time not validated for format
@@ -429,17 +463,20 @@ const validateBirthDate = (date: string): boolean => {
 **Locations:** `/home/user/AstraLink/frontend/src/screens/DatingScreen.tsx` (lines 72-74)
 
 **Code:**
+
 ```typescript
 bio: 'Люблю астрологию и медитации под звездным небом. Ищу духовную связь и гармонию в отношениях.',
 interests: ['Астрология', 'Йога', 'Путешествия', 'Медитация'],
 ```
 
 **Rendered as:**
+
 ```typescript
 <Text>{match.bio}</Text>
 ```
 
 **Problems:**
+
 1. API-returned user data not validated
 2. Malicious users could inject HTML/script-like content
 3. If API returns user-controlled data (user bios, descriptions), XSS possible
@@ -447,7 +484,8 @@ interests: ['Астрология', 'Йога', 'Путешествия', 'Ме�
 5. Connections data from other users not sanitized
 
 **Severity:** HIGH  
-**Recommendation:** 
+**Recommendation:**
+
 - Validate and sanitize all API responses
 - Use strict whitelist for allowed content
 - Escape all dynamic content
@@ -466,6 +504,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 ```
 
 **Problems:**
+
 1. Personal data visible in logs
 2. Charts data (sensitive astrology data) exposed
 3. Predictions/private data in logs
@@ -486,6 +525,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 ```
 
 **Problems:**
+
 1. User-generated message content directly rendered
 2. If messages come from API, they should be validated
 3. Long strings could cause layout issues
@@ -504,18 +544,20 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Location:** `/home/user/AstraLink/frontend/app.json`
 
 **Current Configuration:**
+
 ```json
 {
   "expo": {
     "name": "frontend",
     "slug": "frontend",
-    "version": "1.0.0",
+    "version": "1.0.0"
     // NO linking configuration
   }
 }
 ```
 
 **Problems:**
+
 1. Lacks universal linking (iOS)
 2. No app link verification (Android)
 3. No deep link validation
@@ -527,6 +569,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Recommendation:** Add proper deep linking configuration
 
 **Example Fix:**
+
 ```json
 {
   "expo": {
@@ -590,13 +633,15 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 
 **Location:** `app.json` - missing build properties
 
-**Problem:** 
+**Problem:**
+
 1. Android allows HTTP traffic by default
 2. No network security configuration
 3. MITM attacks possible on Android
 
 **Severity:** HIGH  
 **Recommendation:**
+
 ```json
 {
   "expo": {
@@ -621,6 +666,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Issue:** App doesn't detect if device is jailbroken/rooted
 
 **Problems:**
+
 1. Rooted Android devices can bypass security measures
 2. Jailbroken iOS can inspect app data
 3. No protection against device tampering
@@ -635,7 +681,8 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Issue:** No biometric (Face/Touch ID) authentication despite handling sensitive data
 
 **Severity:** MEDIUM  
-**Recommendation:** 
+**Recommendation:**
+
 - Implement biometric auth for sensitive operations
 - Use `expo-local-authentication` or `react-native-biometrics`
 - Require biometric for token access
@@ -672,7 +719,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
   "severity": "moderate",
   "title": "js-yaml has prototype pollution in merge (<<)",
   "url": "https://github.com/advisories/GHSA-mh29-5h37-fv8m",
-  "cvss": {"score": 5.3}
+  "cvss": { "score": 5.3 }
 }
 ```
 
@@ -687,6 +734,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Issue:** `@react-native-async-storage/async-storage` is a dependency but not used
 
 **Problems:**
+
 1. Unused dependency increases bundle size
 2. Indicates token storage not properly implemented
 3. Misleading codebase
@@ -701,7 +749,8 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Issue:** No evidence of automated dependency scanning
 
 **Severity:** MEDIUM  
-**Recommendation:** 
+**Recommendation:**
+
 - Add `npm audit` to CI/CD pipeline
 - Fail builds on high/critical vulnerabilities
 - Regular dependency updates
@@ -726,6 +775,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 **Locations:** No environment variables used in frontend code
 
 **Problems:**
+
 1. Hardcoded configuration values
 2. Same config for all environments (dev/staging/prod)
 3. No secrets management
@@ -734,6 +784,7 @@ console.log('🔮 Устанавливаю прогнозы:', newPredictions);
 
 **Severity:** CRITICAL  
 **Recommendation:**
+
 ```typescript
 // Create .env files
 REACT_APP_API_URL=https://api.astralink.com
@@ -752,12 +803,14 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 **Issue:** No secrets management system in place
 
 **Problems:**
+
 1. Secrets could be committed to git
 2. No secret rotation
 3. Secrets visible in build logs
 
 **Severity:** HIGH  
 **Recommendation:**
+
 - Use `.env.local` (gitignored)
 - Use platform secrets (GitHub Secrets, Expo Secrets)
 - No hardcoded credentials
@@ -780,6 +833,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 **Issue:** User data not encrypted when stored locally
 
 **Scope:**
+
 - User profiles
 - Birth data
 - Personal preferences
@@ -788,6 +842,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 
 **Severity:** CRITICAL  
 **Recommendation:**
+
 - Implement SQLite encryption (expo-sqlite + sqlcipher)
 - Encrypt AsyncStorage values
 - Use Realm with encryption
@@ -805,12 +860,14 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 ```
 
 **Problems:**
+
 1. AsyncStorage stores data unencrypted in device storage
 2. Any app with storage permission can read it
 3. Device theft exposes data
 
 **Severity:** HIGH  
 **Recommendation:**
+
 - Use SecureStore for sensitive data
 - Use encrypted AsyncStorage
 - Never store tokens in AsyncStorage
@@ -822,12 +879,14 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 **Issue:** No cache expiration or secure clearing of cached data
 
 **Problems:**
+
 1. User data may remain in memory cache
 2. No cache invalidation
 3. Sensitive data not cleared from cache
 
 **Severity:** HIGH  
 **Recommendation:**
+
 - Implement cache TTL
 - Clear cache on logout
 - Encrypt cached data
@@ -863,49 +922,50 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 
 ## Summary Table: All Security Issues
 
-| # | Category | Issue | Severity | Location |
-|---|----------|-------|----------|----------|
-| 1 | Token Storage | Tokens in localStorage | CRITICAL | api.ts:54-107 |
-| 2 | Token Storage | Tokens in console logs | CRITICAL | api.ts:18,55,73; LoginScreen.tsx:126 |
-| 3 | API Endpoint | Hardcoded HTTP URL | CRITICAL | api.ts:4 |
-| 4 | Sensitive Data | Birth date in plain text | CRITICAL | EditProfileScreen.tsx |
-| 5 | Environment | No env variables | CRITICAL | All files |
-| 6 | Data Persistence | No encryption at rest | CRITICAL | No implementation |
-| 7 | Token Storage | Dual storage (memory + localStorage) | HIGH | api.ts:51-107 |
-| 8 | Token Storage | No expiration handling | HIGH | api.ts |
-| 9 | API Endpoint | No certificate pinning | HIGH | api.ts |
-| 10 | Sensitive Data | Email unencrypted | HIGH | types, screens |
-| 11 | Sensitive Data | No transit encryption (HTTP) | HIGH | api.ts:4 |
-| 12 | Input Validation | Weak password (6 chars) | HIGH | LoginScreen.tsx:108 |
-| 13 | XSS | Unsanitized API data | HIGH | DatingScreen.tsx |
-| 14 | Deep Linking | No configuration | HIGH | app.json |
-| 15 | Platform Security | usesCleartextTraffic enabled | HIGH | app.json |
-| 16 | Dependency | js-yaml prototype pollution | HIGH | package.json |
-| 17 | Env Variables | No build secrets management | HIGH | All |
-| 18 | Data Persistence | Unencrypted AsyncStorage | HIGH | api.ts:57 |
-| 19 | Data Persistence | No secure cache | HIGH | All screens |
-| 20 | API Error Messages | Potential info leakage | MEDIUM | api.ts:142-148 |
-| 21 | Sensitive Data | User data in state | MEDIUM | Multiple screens |
-| 22 | Registration | Minimal validation | MEDIUM | SignupScreen.tsx |
-| 23 | Input Validation | Weak email regex | MEDIUM | LoginScreen.tsx:58 |
-| 24 | XSS | No input sanitization | MEDIUM | ProfileScreen, Chat |
-| 25 | Console Logs | User data logging | MEDIUM | MyChartScreen.tsx |
-| 26 | Deep Linking | No validation | MEDIUM | Navigation |
-| 27 | Platform | No jailbreak detection | MEDIUM | No implementation |
-| 28 | Platform | No biometric auth | MEDIUM | No implementation |
-| 29 | Platform | No auto-lock | MEDIUM | No implementation |
-| 30 | Dependencies | AsyncStorage unused | MEDIUM | Codebase |
-| 31 | Env Variables | No CI/CD scanning | MEDIUM | No configuration |
-| 32 | Birth Date | Incomplete validation | LOW | SignupScreen.tsx:97 |
-| 33 | Messages | No validation | LOW | CosmicChat.tsx:95 |
-| 34 | Platform | No secure enclave | LOW | No implementation |
-| 35 | Dependencies | Audit in CI/CD | INFO | No pipeline setup |
+| #   | Category           | Issue                                | Severity | Location                             |
+| --- | ------------------ | ------------------------------------ | -------- | ------------------------------------ |
+| 1   | Token Storage      | Tokens in localStorage               | CRITICAL | api.ts:54-107                        |
+| 2   | Token Storage      | Tokens in console logs               | CRITICAL | api.ts:18,55,73; LoginScreen.tsx:126 |
+| 3   | API Endpoint       | Hardcoded HTTP URL                   | CRITICAL | api.ts:4                             |
+| 4   | Sensitive Data     | Birth date in plain text             | CRITICAL | EditProfileScreen.tsx                |
+| 5   | Environment        | No env variables                     | CRITICAL | All files                            |
+| 6   | Data Persistence   | No encryption at rest                | CRITICAL | No implementation                    |
+| 7   | Token Storage      | Dual storage (memory + localStorage) | HIGH     | api.ts:51-107                        |
+| 8   | Token Storage      | No expiration handling               | HIGH     | api.ts                               |
+| 9   | API Endpoint       | No certificate pinning               | HIGH     | api.ts                               |
+| 10  | Sensitive Data     | Email unencrypted                    | HIGH     | types, screens                       |
+| 11  | Sensitive Data     | No transit encryption (HTTP)         | HIGH     | api.ts:4                             |
+| 12  | Input Validation   | Weak password (6 chars)              | HIGH     | LoginScreen.tsx:108                  |
+| 13  | XSS                | Unsanitized API data                 | HIGH     | DatingScreen.tsx                     |
+| 14  | Deep Linking       | No configuration                     | HIGH     | app.json                             |
+| 15  | Platform Security  | usesCleartextTraffic enabled         | HIGH     | app.json                             |
+| 16  | Dependency         | js-yaml prototype pollution          | HIGH     | package.json                         |
+| 17  | Env Variables      | No build secrets management          | HIGH     | All                                  |
+| 18  | Data Persistence   | Unencrypted AsyncStorage             | HIGH     | api.ts:57                            |
+| 19  | Data Persistence   | No secure cache                      | HIGH     | All screens                          |
+| 20  | API Error Messages | Potential info leakage               | MEDIUM   | api.ts:142-148                       |
+| 21  | Sensitive Data     | User data in state                   | MEDIUM   | Multiple screens                     |
+| 22  | Registration       | Minimal validation                   | MEDIUM   | SignupScreen.tsx                     |
+| 23  | Input Validation   | Weak email regex                     | MEDIUM   | LoginScreen.tsx:58                   |
+| 24  | XSS                | No input sanitization                | MEDIUM   | ProfileScreen, Chat                  |
+| 25  | Console Logs       | User data logging                    | MEDIUM   | MyChartScreen.tsx                    |
+| 26  | Deep Linking       | No validation                        | MEDIUM   | Navigation                           |
+| 27  | Platform           | No jailbreak detection               | MEDIUM   | No implementation                    |
+| 28  | Platform           | No biometric auth                    | MEDIUM   | No implementation                    |
+| 29  | Platform           | No auto-lock                         | MEDIUM   | No implementation                    |
+| 30  | Dependencies       | AsyncStorage unused                  | MEDIUM   | Codebase                             |
+| 31  | Env Variables      | No CI/CD scanning                    | MEDIUM   | No configuration                     |
+| 32  | Birth Date         | Incomplete validation                | LOW      | SignupScreen.tsx:97                  |
+| 33  | Messages           | No validation                        | LOW      | CosmicChat.tsx:95                    |
+| 34  | Platform           | No secure enclave                    | LOW      | No implementation                    |
+| 35  | Dependencies       | Audit in CI/CD                       | INFO     | No pipeline setup                    |
 
 ---
 
 ## Remediation Roadmap
 
 ### Phase 1: CRITICAL (Week 1-2)
+
 1. Replace localStorage with SecureStore
 2. Remove all token logging
 3. Implement HTTPS with certificate pinning
@@ -913,6 +973,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 5. Implement encryption at rest
 
 ### Phase 2: HIGH (Week 3-4)
+
 1. Fix token expiration handling
 2. Strengthen password requirements
 3. Sanitize all API input
@@ -921,6 +982,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 6. Fix Android cleartext traffic
 
 ### Phase 3: MEDIUM (Week 5-6)
+
 1. Add jailbreak detection
 2. Implement auto-lock
 3. Remove all sensitive logging
@@ -929,6 +991,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.astralink.com
 6. Update dependencies
 
 ### Phase 4: LOW & INFO (Week 7-8)
+
 1. Improve error handling
 2. Add secure enclave usage
 3. CI/CD security scanning
@@ -964,4 +1027,3 @@ The AstraLink frontend application requires significant security improvements be
 
 **Estimated Effort:** 6-8 weeks for comprehensive security hardening  
 **Risk Level:** CRITICAL without remediation
-

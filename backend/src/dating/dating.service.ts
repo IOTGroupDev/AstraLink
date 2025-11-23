@@ -279,7 +279,10 @@ export class DatingService {
       const photoUrlMap = new Map<string, string | null>();
       for (const r of rows) {
         if (r.primary_photo_path) {
-          photoUrlMap.set(r.user_id, photoUrlsBatch.get(r.primary_photo_path) ?? null);
+          photoUrlMap.set(
+            r.user_id,
+            photoUrlsBatch.get(r.primary_photo_path) ?? null,
+          );
         }
       }
 
@@ -403,18 +406,22 @@ export class DatingService {
             .map((uid: string) => photosById.get(uid))
             .filter((path): path is string => !!path);
 
-          const fallbackPhotoUrlsBatch = await this.supabaseService.createSignedUrlsBatch(
-            'user-photos',
-            fallbackPhotoPaths,
-            900,
-          );
+          const fallbackPhotoUrlsBatch =
+            await this.supabaseService.createSignedUrlsBatch(
+              'user-photos',
+              fallbackPhotoPaths,
+              900,
+            );
 
           // Create userId -> URL map
           const fallbackPhotoUrlMap = new Map<string, string | null>();
           for (const uid of fallbackUserIds) {
             const storagePath = photosById.get(uid);
             if (storagePath) {
-              fallbackPhotoUrlMap.set(uid, fallbackPhotoUrlsBatch.get(storagePath) ?? null);
+              fallbackPhotoUrlMap.set(
+                uid,
+                fallbackPhotoUrlsBatch.get(storagePath) ?? null,
+              );
             } else {
               fallbackPhotoUrlMap.set(uid, null);
             }
@@ -550,7 +557,9 @@ export class DatingService {
         candidateChartData,
       })
       .catch((err) =>
-        this.logger.warn(`Failed to queue synastry calculation: ${err.message}`),
+        this.logger.warn(
+          `Failed to queue synastry calculation: ${err.message}`,
+        ),
       );
 
     return synastry;
@@ -862,7 +871,7 @@ export class DatingService {
       profile?.display_name ?? user?.name ?? emailPrefix ?? null;
 
     // Знак: приоритет профиля, затем карты
-    const chartData = chart?.data as any;
+    const chartData = chart?.data;
     const sunSign =
       profile?.zodiac_sign ??
       chartData?.planets?.sun?.sign ??
@@ -882,8 +891,14 @@ export class DatingService {
           const parsed = JSON.parse(prefsRaw);
           if (Array.isArray(parsed)) {
             interests = parsed.filter((x: any) => typeof x === 'string');
-          } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.interests)) {
-            interests = parsed.interests.filter((x: any) => typeof x === 'string');
+          } else if (
+            parsed &&
+            typeof parsed === 'object' &&
+            Array.isArray(parsed.interests)
+          ) {
+            interests = parsed.interests.filter(
+              (x: any) => typeof x === 'string',
+            );
           }
         } catch {
           // Не JSON - разделяем по запятым
@@ -895,7 +910,7 @@ export class DatingService {
         }
       } else if (prefsRaw && typeof prefsRaw === 'object') {
         // Если это объект с полем interests
-        const intr = (prefsRaw as any)?.interests;
+        const intr = prefsRaw?.interests;
         if (Array.isArray(intr)) {
           interests = intr.filter((x: any) => typeof x === 'string');
         } else if (typeof intr === 'string') {
@@ -955,16 +970,19 @@ export class DatingService {
         });
 
         // Batch generate signed URLs
-        const signedUrlsMap = pathsToSign.length > 0
-          ? await this.supabaseService.createSignedUrlsBatch(
-              'user-photos',
-              pathsToSign,
-              900,
-            )
-          : new Map<string, string | null>();
+        const signedUrlsMap =
+          pathsToSign.length > 0
+            ? await this.supabaseService.createSignedUrlsBatch(
+                'user-photos',
+                pathsToSign,
+                900,
+              )
+            : new Map<string, string | null>();
 
         // Reconstruct URLs in original order
-        const urls: Array<string | null> = new Array(photoItems.length).fill(null);
+        const urls: Array<string | null> = new Array(photoItems.length).fill(
+          null,
+        );
         absoluteUrls.forEach(({ index, url }) => {
           urls[index] = url;
         });

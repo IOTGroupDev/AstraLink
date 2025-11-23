@@ -10,7 +10,9 @@ export const getCorsConfig = (): CorsOptions => {
 
   if (isProduction) {
     // Production: strict CORS policy
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .filter(Boolean);
 
     if (allowedOrigins.length === 0) {
       console.warn(

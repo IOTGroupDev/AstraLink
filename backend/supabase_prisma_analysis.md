@@ -10,15 +10,16 @@ The AstraLink backend has a **hybrid data access pattern** with significant Supa
 
 ### Defined in `prisma/schema.prisma` - PUBLIC SCHEMA
 
-| Table | Prisma Model | Status | Primary Usage |
-|-------|--------------|--------|---------------|
-| `charts` | `Chart` | ✅ MIGRATED | Natal chart data (user.service.ts, chart.service.ts, dating.service.ts, connections.service.ts) |
-| `connections` | `Connection` | ✅ MIGRATED | Astrological synastry/composite connections (connections.service.ts) |
-| `dating_matches` | `DatingMatch` | ✅ MIGRATED | Dating compatibility matches cache (dating.service.ts) |
-| `subscriptions` | `Subscription` | ✅ MIGRATED | User subscription/tier management (user.service.ts, chart.service.ts) |
-| `users` | `public_users` | ✅ MIGRATED | User profile data (user.service.ts, dating.service.ts, chart.service.ts) |
+| Table            | Prisma Model   | Status      | Primary Usage                                                                                   |
+| ---------------- | -------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| `charts`         | `Chart`        | ✅ MIGRATED | Natal chart data (user.service.ts, chart.service.ts, dating.service.ts, connections.service.ts) |
+| `connections`    | `Connection`   | ✅ MIGRATED | Astrological synastry/composite connections (connections.service.ts)                            |
+| `dating_matches` | `DatingMatch`  | ✅ MIGRATED | Dating compatibility matches cache (dating.service.ts)                                          |
+| `subscriptions`  | `Subscription` | ✅ MIGRATED | User subscription/tier management (user.service.ts, chart.service.ts)                           |
+| `users`          | `public_users` | ✅ MIGRATED | User profile data (user.service.ts, dating.service.ts, chart.service.ts)                        |
 
 ### Usage Files Using Prisma for These Tables:
+
 - `/home/user/AstraLink/backend/src/user/user.service.ts` - Uses Prisma for user & subscription management
 - `/home/user/AstraLink/backend/src/chart/chart.service.ts` - Uses Prisma for subscription cache
 - `/home/user/AstraLink/backend/src/dating/dating.service.ts` - Uses Prisma for Chart, DatingMatch queries
@@ -32,18 +33,18 @@ The AstraLink backend has a **hybrid data access pattern** with significant Supa
 
 ### Supabase-Only Tables Discovered
 
-| Table | Accessed By | Operations | Status |
-|-------|------------|-----------|--------|
-| `user_profiles` | dating.service.ts<br/>user.controller.ts | SELECT, UPDATE | ⚠️ SUPABASE ONLY |
-| `user_photos` | user-photos.service.ts<br/>dating.service.ts<br/>chat.service.ts | INSERT, SELECT, UPDATE, DELETE | ⚠️ SUPABASE ONLY |
-| `user_blocks` | user.service.ts | INSERT, SELECT | ⚠️ SUPABASE ONLY |
-| `user_reports` | user.service.ts | INSERT | ⚠️ SUPABASE ONLY |
-| `messages` | chat.service.ts | SELECT, INSERT, UPDATE | ⚠️ SUPABASE ONLY |
-| `matches` | chat.service.ts | SELECT, INSERT, UPDATE | ⚠️ SUPABASE ONLY |
-| `payments` | subscription.service.ts<br/>subscription.controller.ts | INSERT, SELECT | ⚠️ SUPABASE ONLY |
-| `feature_usage` | analytics.service.ts<br/>subscription.controller.ts | SELECT, INSERT | ⚠️ SUPABASE ONLY |
-| `user_fomo_counters` | (referenced in .from()) | Unknown | ⚠️ SUPABASE ONLY |
-| `_test_connection` | (test table) | Test operations | ⚠️ TEST TABLE |
+| Table                | Accessed By                                                      | Operations                     | Status           |
+| -------------------- | ---------------------------------------------------------------- | ------------------------------ | ---------------- |
+| `user_profiles`      | dating.service.ts<br/>user.controller.ts                         | SELECT, UPDATE                 | ⚠️ SUPABASE ONLY |
+| `user_photos`        | user-photos.service.ts<br/>dating.service.ts<br/>chat.service.ts | INSERT, SELECT, UPDATE, DELETE | ⚠️ SUPABASE ONLY |
+| `user_blocks`        | user.service.ts                                                  | INSERT, SELECT                 | ⚠️ SUPABASE ONLY |
+| `user_reports`       | user.service.ts                                                  | INSERT                         | ⚠️ SUPABASE ONLY |
+| `messages`           | chat.service.ts                                                  | SELECT, INSERT, UPDATE         | ⚠️ SUPABASE ONLY |
+| `matches`            | chat.service.ts                                                  | SELECT, INSERT, UPDATE         | ⚠️ SUPABASE ONLY |
+| `payments`           | subscription.service.ts<br/>subscription.controller.ts           | INSERT, SELECT                 | ⚠️ SUPABASE ONLY |
+| `feature_usage`      | analytics.service.ts<br/>subscription.controller.ts              | SELECT, INSERT                 | ⚠️ SUPABASE ONLY |
+| `user_fomo_counters` | (referenced in .from())                                          | Unknown                        | ⚠️ SUPABASE ONLY |
+| `_test_connection`   | (test table)                                                     | Test operations                | ⚠️ TEST TABLE    |
 
 ---
 
@@ -52,6 +53,7 @@ The AstraLink backend has a **hybrid data access pattern** with significant Supa
 ### 3.1 USER SERVICE (`user.service.ts`)
 
 **Prisma Usage (for data operations):**
+
 ```typescript
 // Line 416: Using Prisma transactions for atomic operations
 await this.prisma.$transaction(async (tx) => {
@@ -64,6 +66,7 @@ await this.prisma.$transaction(async (tx) => {
 ```
 
 **Supabase Client Usage:**
+
 ```typescript
 // Lines 141-144: Insert user profile (users table - public schema)
 const { data: inserted } = await admin
@@ -89,6 +92,7 @@ await adminClient.from('charts').delete().eq('user_id', userId);
 ### 3.2 CHART SERVICE (`chart.service.ts`)
 
 **Prisma Usage:**
+
 ```typescript
 // Line 58: Get subscription with caching
 const subscription = await this.prisma.subscription.findUnique({
@@ -97,6 +101,7 @@ const subscription = await this.prisma.subscription.findUnique({
 ```
 
 **Supabase Client Usage:**
+
 ```typescript
 // Lines 317-323: Check AI generation rate limit
 const { data: chartData } = await adminClient
@@ -117,6 +122,7 @@ const { error: updateError } = await adminClient
 ### 3.3 DATING SERVICE (`dating.service.ts`)
 
 **Prisma Usage:**
+
 ```typescript
 // Lines 491-495: Get cached dating matches
 const cached = await this.prisma.datingMatch.findMany({
@@ -143,6 +149,7 @@ await this.prisma.datingMatch.createMany({ data: topRows });
 ```
 
 **Supabase Client Usage:**
+
 ```typescript
 // Lines 200-217: Fetch candidate data (users, user_profiles, charts tables - MIXED)
 const [{ data: users }, { data: profiles }, { data: charts }] =
@@ -162,6 +169,7 @@ client.from('user_photos').select(...).eq('user_id', targetUserId); // SUPABASE 
 ### 3.4 SUBSCRIPTION SERVICE (`subscription.service.ts`)
 
 **Supabase Client Usage (Heavy - SHOULD BE MIGRATED):**
+
 ```typescript
 // Lines 33-36: Get subscription (uses .fromAdmin() - Supabase wrapper)
 const { data: subscription } = await this.supabaseService
@@ -192,28 +200,30 @@ await this.supabaseService
 ### 3.5 CONNECTIONS SERVICE (`connections.service.ts`)
 
 **Prisma Usage (FULLY PRISMA):**
+
 ```typescript
 // Lines 25-31: Create connection
 await this.prisma.connection.create({
-  data: { userId, targetName, targetData }
+  data: { userId, targetName, targetData },
 });
 
 // Lines 35-38: Get connections
 await this.prisma.connection.findMany({
   where: { userId },
-  orderBy: { createdAt: 'desc' }
+  orderBy: { createdAt: 'desc' },
 });
 
 // Lines 123-126: Get user chart
 const userChart = await this.prisma.chart.findFirst({
   where: { userId },
-  orderBy: { createdAt: 'desc' }
+  orderBy: { createdAt: 'desc' },
 });
 ```
 
 ### 3.6 USER PHOTOS SERVICE (`user-photos.service.ts`)
 
 **Supabase Client Usage (100% Supabase):**
+
 ```typescript
 // Lines 53-57: Check existing photos
 const { data: existing } = await admin
@@ -239,6 +249,7 @@ const { data } = await admin
 ### 3.7 USER REPOSITORY (`user.repository.ts`)
 
 **Mixed Strategy (Fallback Pattern):**
+
 ```typescript
 // Tries: Admin Client → Regular Client → Hardcoded test users
 async findById(userId: string): Promise<UserProfile | null> {
@@ -254,6 +265,7 @@ const { data } = await this.supabase.getUserProfileAdmin(userId);
 ### 3.8 CHART REPOSITORY (`chart.repository.ts`)
 
 **Mixed Strategy (Fallback Pattern):**
+
 ```typescript
 // Tries: Prisma → Admin Client → Regular Client
 async findByUserId(userId: string): Promise<NatalChart | null> {
@@ -357,16 +369,19 @@ const { data } = await this.supabase.getUserChartsAdmin(userId);
 ## 6. MIGRATION ROADMAP
 
 ### Phase 1 (High Priority)
+
 - [ ] Add `user_profiles` model to Prisma schema
 - [ ] Migrate `subscription.service.ts` from `.fromAdmin()` to Prisma client
 - [ ] Update chart service to use Prisma for AI timestamp updates
 
 ### Phase 2 (Medium Priority)
+
 - [ ] Add `user_photos` model to Prisma schema
 - [ ] Migrate user-photos.service.ts to use Prisma
 - [ ] Add `user_blocks` and `user_reports` models
 
 ### Phase 3 (Lower Priority)
+
 - [ ] Add `messages` and `matches` models to Prisma
 - [ ] Add `payments` and `feature_usage` models
 - [ ] Refactor repositories to use Prisma-first pattern (remove Supabase fallbacks)
@@ -376,16 +391,13 @@ const { data } = await this.supabase.getUserChartsAdmin(userId);
 ## 7. FILES TO MIGRATE (Priority Order)
 
 **MUST MIGRATE FIRST:**
+
 1. `/home/user/AstraLink/backend/src/subscription/subscription.service.ts` - Replace `.fromAdmin()` with Prisma client
 2. Add `user_profiles` to prisma/schema.prisma
 
-**SHOULD MIGRATE NEXT:**
-3. `/home/user/AstraLink/backend/src/user/user-photos.service.ts` - Entire file
-4. `/home/user/AstraLink/backend/src/dating/dating.service.ts` - For user_profiles queries
+**SHOULD MIGRATE NEXT:** 3. `/home/user/AstraLink/backend/src/user/user-photos.service.ts` - Entire file 4. `/home/user/AstraLink/backend/src/dating/dating.service.ts` - For user_profiles queries
 
-**NICE TO HAVE:**
-5. `/home/user/AstraLink/backend/src/chat/chat.service.ts` - For messages table
-6. `/home/user/AstraLink/backend/src/analytics/analytics.service.ts` - For feature_usage table
+**NICE TO HAVE:** 5. `/home/user/AstraLink/backend/src/chat/chat.service.ts` - For messages table 6. `/home/user/AstraLink/backend/src/analytics/analytics.service.ts` - For feature_usage table
 
 ---
 

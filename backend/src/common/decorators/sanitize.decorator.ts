@@ -18,9 +18,7 @@ import { sanitizeInput, SANITIZE_OPTIONS } from '../utils/sanitization.util';
  *   bio?: string;
  * }
  */
-export function Sanitize(
-  options: keyof typeof SANITIZE_OPTIONS = 'strict',
-) {
+export function Sanitize(options: keyof typeof SANITIZE_OPTIONS = 'strict') {
   return Transform(({ value }) => {
     if (typeof value !== 'string') return value;
     return sanitizeInput(value, options);

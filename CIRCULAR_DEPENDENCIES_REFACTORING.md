@@ -11,9 +11,11 @@
 ### 1. **AuthModule ↔ ChartModule** (Bidirectional - CRITICAL)
 
 **Direction 1: AuthModule → ChartModule**
+
 - **Location:** `backend/src/auth/supabase-auth.service.ts:885`
 - **Problem:** `SupabaseAuthService` directly injects `ChartService`
 - **Usage:** Creating natal chart during `completeSignup()` flow
+
 ```typescript
 constructor(
   private supabaseService: SupabaseService,
@@ -23,6 +25,7 @@ constructor(
 ```
 
 **Direction 2: ChartModule → AuthModule**
+
 - **Location:** `backend/src/chart/chart.controller.ts:27`
 - **Problem:** Controllers use `@UseGuards(SupabaseAuthGuard)` and `@Public` decorator
 - **Files Affected:**
@@ -30,11 +33,13 @@ constructor(
   - `personal-code.controller.ts` - Uses guard + decorator
 
 ### 2. **AdvisorModule → ChartModule** (Unidirectional - OK)
+
 - **Location:** `backend/src/advisor/advisor.module.ts:22`
 - **Status:** ✅ This is acceptable - one-way dependency doesn't create cycle
 - **Note:** Keep as-is, but monitor for future issues
 
 ### 3. **AdvisorModule → AuthModule** (Unidirectional - FIXABLE)
+
 - **Location:** `backend/src/advisor/advisor.module.ts:23`
 - **Problem:** Uses `forwardRef(() => AuthModule)` unnecessarily
 - **Reason:** Guards are already global (APP_GUARD in app.module.ts)
@@ -50,6 +55,7 @@ constructor(
 **Solution:** Guards and decorators should be globally available
 
 **Implementation Steps:**
+
 1. ✅ **Verify global guard is configured**
    - Check `app.module.ts` has `APP_GUARD` with `SupabaseAuthGuard`
    - Already configured: Yes (line 92)
@@ -64,6 +70,7 @@ constructor(
    - Update imports in all controllers
 
 **Impact:**
+
 - ✅ Eliminates half of bidirectional cycle
 - ✅ Better separation of concerns
 - ✅ Guards become truly global
@@ -77,18 +84,21 @@ constructor(
 **Solution:** Event-driven architecture (already available!)
 
 **Implementation Steps:**
+
 1. **Create UserSignupCompletedEvent**
+
    ```typescript
    // backend/src/auth/events/user-signup-completed.event.ts
    export class UserSignupCompletedEvent {
      constructor(
        public readonly userId: string,
-       public readonly birthData: BirthData,
+       public readonly birthData: BirthData
      ) {}
    }
    ```
 
 2. **Emit event in SupabaseAuthService.completeSignup()**
+
    ```typescript
    // Instead of:
    await this.chartService.createNatalChart(userId, birthData);
@@ -101,6 +111,7 @@ constructor(
    ```
 
 3. **Listen to event in ChartModule**
+
    ```typescript
    // backend/src/chart/listeners/user-signup.listener.ts
    @OnEvent('user.signup.completed')
@@ -117,6 +128,7 @@ constructor(
    - Remove `ChartService` injection from `SupabaseAuthService`
 
 **Benefits:**
+
 - ✅ Eliminates second half of bidirectional cycle
 - ✅ Loose coupling through events
 - ✅ Better testability (can test auth without chart logic)
@@ -132,11 +144,13 @@ constructor(
 **Solution:** Remove forwardRef since guards are global
 
 **Implementation Steps:**
+
 1. **Remove forwardRef from AdvisorModule**
    - Change `forwardRef(() => AuthModule)` to just remove the import
    - Guards work globally via APP_GUARD
 
 **Impact:**
+
 - ✅ Simpler module dependency graph
 - ✅ No performance overhead from forwardRef
 - ✅ Clearer module boundaries
@@ -146,6 +160,7 @@ constructor(
 ## 📊 Before vs After Dependency Graph
 
 ### Before (Current State):
+
 ```
 ┌─────────────┐         ┌─────────────┐
 │ AuthModule  │←───────→│ ChartModule │
@@ -165,6 +180,7 @@ Issues:
 ```
 
 ### After (Refactored):
+
 ```
 ┌─────────────┐                    ┌─────────────┐
 │ AuthModule  │──event──────────→│ ChartModule │
@@ -193,12 +209,14 @@ Benefits:
 ## 🚀 Implementation Order
 
 ### **Phase 1: Low-Risk Changes (30 min)**
+
 1. Move @Public decorator to CommonModule
 2. Remove AuthModule import from ChartModule
 3. Remove AuthModule forwardRef from AdvisorModule
 4. Test: Ensure guards still work
 
 ### **Phase 2: Event-Driven Refactoring (1-2 hours)**
+
 1. Create UserSignupCompletedEvent
 2. Create UserSignupListener in ChartModule
 3. Modify SupabaseAuthService to emit event
@@ -207,6 +225,7 @@ Benefits:
 6. Test: Complete signup flow end-to-end
 
 ### **Phase 3: Verification (30 min)**
+
 1. Build project: `npm run build`
 2. Run tests: `npm test`
 3. Verify no forwardRef() remains
@@ -218,16 +237,19 @@ Benefits:
 ## 🧪 Testing Strategy
 
 ### **Unit Tests:**
+
 - `SupabaseAuthService.completeSignup()` - verify event emission
 - `UserSignupListener` - verify chart creation from event
 - Controllers - verify guards still protect endpoints
 
 ### **Integration Tests:**
+
 - Complete signup flow (email → chart creation)
 - Protected endpoints still require auth
 - @Public endpoints bypass auth
 
 ### **Regression Tests:**
+
 - Existing auth flows unaffected
 - Chart creation still works
 - Advisor endpoints still protected
@@ -237,17 +259,20 @@ Benefits:
 ## 📈 Expected Outcomes
 
 ### **Code Quality:**
+
 - ✅ Zero circular dependencies
 - ✅ SOLID principles (Single Responsibility)
 - ✅ Event-driven architecture
 - ✅ Better testability
 
 ### **Performance:**
+
 - ✅ Faster NestJS module initialization
 - ✅ No forwardRef overhead
 - ✅ Cleaner dependency graph
 
 ### **Maintainability:**
+
 - ✅ Easier to reason about module relationships
 - ✅ Can test modules in isolation
 - ✅ Can swap implementations easily

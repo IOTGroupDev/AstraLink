@@ -26,6 +26,7 @@
 ### Общая оценка: 🟠 ТРЕБУЕТ ЗНАЧИТЕЛЬНЫХ УЛУЧШЕНИЙ
 
 AstraLink - это астрологическое приложение с архитектурой монорепозитория, состоящее из:
+
 - **Backend:** NestJS + PostgreSQL + Prisma ORM
 - **Frontend:** React Native + Expo
 - **Инфраструктура:** Docker + Docker Compose
@@ -79,16 +80,16 @@ AstraLink - это астрологическое приложение с арх
 
 ### Статистика проблем
 
-| Категория | Критичные | Высокие | Средние | Низкие | **ИТОГО** |
-|-----------|-----------|---------|---------|--------|-----------|
-| **Backend Security** | 4 | 6 | 8 | 5 | **23** |
-| **Backend Architecture** | 7 | 8 | 6 | 4 | **25** |
-| **Frontend Architecture** | 3 | 7 | 9 | 8 | **27** |
-| **Frontend Security** | 9 | 12 | 8 | 5 | **40** |
-| **Frontend Performance** | 5 | 5 | 5 | 0 | **15** |
-| **Dependencies** | 4 | 4 | 8 | 6 | **22** |
-| **Infrastructure** | 6 | 5 | 7 | 3 | **21** |
-| **ИТОГО** | **38** | **47** | **51** | **31** | **173** |
+| Категория                 | Критичные | Высокие | Средние | Низкие | **ИТОГО** |
+| ------------------------- | --------- | ------- | ------- | ------ | --------- |
+| **Backend Security**      | 4         | 6       | 8       | 5      | **23**    |
+| **Backend Architecture**  | 7         | 8       | 6       | 4      | **25**    |
+| **Frontend Architecture** | 3         | 7       | 9       | 8      | **27**    |
+| **Frontend Security**     | 9         | 12      | 8       | 5      | **40**    |
+| **Frontend Performance**  | 5         | 5       | 5       | 0      | **15**    |
+| **Dependencies**          | 4         | 4       | 8       | 6      | **22**    |
+| **Infrastructure**        | 6         | 5       | 7       | 3      | **21**    |
+| **ИТОГО**                 | **38**    | **47**  | **51**  | **31** | **173**   |
 
 ### Оценка готовности к production
 
@@ -121,6 +122,7 @@ AstraLink - это астрологическое приложение с арх
 **Тип:** Monorepo с раздельными backend/frontend
 
 **Структура:**
+
 ```
 AstraLink/
 ├── backend/           NestJS API (1,713 LOC)
@@ -132,12 +134,14 @@ AstraLink/
 **Оценка архитектуры:** 7/10
 
 **Плюсы:**
+
 - ✅ Чистое разделение frontend/backend
 - ✅ Shared конфигурация (ESLint, Prettier, Husky)
 - ✅ Модульная структура в Backend (9 модулей)
 - ✅ TypeScript везде
 
 **Минусы:**
+
 - ❌ Нет микросервисов (все в одном backend)
 - ❌ Нет shared библиотеки типов между frontend/backend
 - ❌ Дублирование конфигураций (3 разных версии TypeScript)
@@ -146,43 +150,43 @@ AstraLink/
 
 #### Backend
 
-| Компонент | Технология | Версия | Оценка |
-|-----------|-----------|--------|--------|
-| Framework | NestJS | 11.0.1 | ✅ Актуально |
-| Language | TypeScript | 5.7.3 | ⚠️ Несогласованная |
-| Database | PostgreSQL | 15 | ✅ LTS |
-| ORM | Prisma | 6.16.1 | ⚠️ Устарела (6.19) |
-| Auth | Passport + JWT | Latest | ✅ Актуально |
-| Validation | class-validator | 0.14.2 | ✅ Актуально |
-| Testing | Jest | 30.0.0 | ⚠️ Уязвимости |
-| API Docs | Swagger | 11.2.0 | ⚠️ Уязвимость |
+| Компонент  | Технология      | Версия | Оценка             |
+| ---------- | --------------- | ------ | ------------------ |
+| Framework  | NestJS          | 11.0.1 | ✅ Актуально       |
+| Language   | TypeScript      | 5.7.3  | ⚠️ Несогласованная |
+| Database   | PostgreSQL      | 15     | ✅ LTS             |
+| ORM        | Prisma          | 6.16.1 | ⚠️ Устарела (6.19) |
+| Auth       | Passport + JWT  | Latest | ✅ Актуально       |
+| Validation | class-validator | 0.14.2 | ✅ Актуально       |
+| Testing    | Jest            | 30.0.0 | ⚠️ Уязвимости      |
+| API Docs   | Swagger         | 11.2.0 | ⚠️ Уязвимость      |
 
 **Оценка стека:** 8/10 (современный, но нужны обновления)
 
 #### Frontend
 
-| Компонент | Технология | Версия | Оценка |
-|-----------|-----------|--------|--------|
-| Framework | React Native | 0.81.4 | ⚠️ Устарела (0.82) |
-| Platform | Expo | 54.0.7 | ⚠️ Устарела (54.0.23) |
-| Language | TypeScript | 5.9.2 | ✅ Актуально |
-| Navigation | React Navigation | 7.x | ✅ Актуально |
-| State | useState/useEffect | - | ⚠️ Нет Redux/Zustand |
-| HTTP | Axios | 1.12.2 | ⚠️ Устарела (1.13) |
-| Animation | Reanimated | 4.1.0 | ⚠️ Устарела (4.1.5) |
-| Testing | - | - | ❌ Отсутствует |
+| Компонент  | Технология         | Версия | Оценка                |
+| ---------- | ------------------ | ------ | --------------------- |
+| Framework  | React Native       | 0.81.4 | ⚠️ Устарела (0.82)    |
+| Platform   | Expo               | 54.0.7 | ⚠️ Устарела (54.0.23) |
+| Language   | TypeScript         | 5.9.2  | ✅ Актуально          |
+| Navigation | React Navigation   | 7.x    | ✅ Актуально          |
+| State      | useState/useEffect | -      | ⚠️ Нет Redux/Zustand  |
+| HTTP       | Axios              | 1.12.2 | ⚠️ Устарела (1.13)    |
+| Animation  | Reanimated         | 4.1.0  | ⚠️ Устарела (4.1.5)   |
+| Testing    | -                  | -      | ❌ Отсутствует        |
 
 **Оценка стека:** 6/10 (хороший выбор, но устаревшие версии)
 
 #### Infrastructure
 
-| Компонент | Технология | Оценка |
-|-----------|-----------|--------|
-| Containerization | Docker | ⚠️ Неоптимальный |
-| Orchestration | Docker Compose | ⚠️ Hardcoded secrets |
-| CI/CD | - | ❌ Отсутствует |
-| Monitoring | - | ❌ Отсутствует |
-| Logging | console.log | ❌ Production неготов |
+| Компонент        | Технология     | Оценка                |
+| ---------------- | -------------- | --------------------- |
+| Containerization | Docker         | ⚠️ Неоптимальный      |
+| Orchestration    | Docker Compose | ⚠️ Hardcoded secrets  |
+| CI/CD            | -              | ❌ Отсутствует        |
+| Monitoring       | -              | ❌ Отсутствует        |
+| Logging          | console.log    | ❌ Production неготов |
 
 **Оценка инфраструктуры:** 3/10 (требует серьезной доработки)
 
@@ -200,23 +204,22 @@ AstraLink/
 
 ```typescript
 app.enableCors({
-  origin: '*',  // ❌ ЛЮБОЙ домен может делать запросы!
+  origin: '*', // ❌ ЛЮБОЙ домен может делать запросы!
   credentials: true,
 });
 ```
 
 **Влияние:**
+
 - Любой сайт может украсть токены пользователей
 - CSRF атаки возможны
 - Session hijacking
 
 **Решение:**
+
 ```typescript
 app.enableCors({
-  origin: [
-    process.env.FRONTEND_URL,
-    'https://app.astralink.com',
-  ],
+  origin: [process.env.FRONTEND_URL, 'https://app.astralink.com'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -238,11 +241,13 @@ secretOrKey: configService.get<string>('JWT_SECRET') || 'supersecret',
 ```
 
 **Влияние:**
+
 - Атакующий может подделать JWT токены
 - Полный доступ к любому аккаунту
 - Невозможно отследить скомпрометированные токены
 
 **Решение:**
+
 ```typescript
 // 1. Удалить fallback
 secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
@@ -268,7 +273,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 ```typescript
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
-    localStorage.setItem('auth_token', token);  // ❌ НЕ РАБОТАЕТ В RN
+    localStorage.setItem('auth_token', token); // ❌ НЕ РАБОТАЕТ В RN
   }
 } catch (error) {
   console.error('Failed to store token', error);
@@ -276,11 +281,13 @@ try {
 ```
 
 **Влияние:**
+
 - Токены НЕ сохраняются в React Native
 - Пользователь выходит из приложения при каждом перезапуске
 - Функция getStoredToken() возвращает null
 
 **Решение:**
+
 ```typescript
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -320,11 +327,13 @@ api.interceptors.request.use(async (config) => {
 **Severity:** 🔴 CRITICAL
 
 **Влияние:**
+
 - Любая ошибка в компоненте роняет всё приложение
 - Белый экран смерти для пользователя
 - Невозможно восстановиться
 
 **Решение:**
+
 ```typescript
 // frontend/src/components/ErrorBoundary.tsx
 import React from 'react';
@@ -399,11 +408,13 @@ async getMatches(userId: number): Promise<DatingMatchResponse[]> {
 ```
 
 **Влияние:**
+
 - Dating функционал не работает
 - Невозможно создавать реальные матчи
 - Like/reject не сохраняются в БД
 
 **Решение:**
+
 ```typescript
 async getMatches(userId: number): Promise<DatingMatchResponse[]> {
   // Получить предпочтения пользователя
@@ -448,15 +459,17 @@ async getMatches(userId: number): Promise<DatingMatchResponse[]> {
 environment:
   POSTGRES_DB: astralink
   POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: postgres  # ❌ В открытом виде в git!
+  POSTGRES_PASSWORD: postgres # ❌ В открытом виде в git!
 ```
 
 **Влияние:**
+
 - Credentials в git истории
 - Слабый пароль (`postgres`)
 - Одинаковый пароль в dev и production
 
 **Решение:**
+
 ```yaml
 environment:
   POSTGRES_DB: ${POSTGRES_DB:-astralink}
@@ -485,11 +498,13 @@ password: string;
 ```
 
 **Влияние:**
+
 - Пароли `123456`, `qwerty` допустимы
 - Легко брутфорсятся (за минуты)
 - NIST рекомендует минимум 12 символов
 
 **Решение:**
+
 ```typescript
 @IsString()
 @MinLength(12, { message: 'Password must be at least 12 characters' })
@@ -510,11 +525,13 @@ password: string;
 **Severity:** 🔴 CRITICAL
 
 **Влияние:**
+
 - Brute force атаки на `/auth/login`
 - DoS атаки на `/chart/natal`
 - Account enumeration
 
 **Решение:**
+
 ```bash
 npm install @nestjs/throttler
 ```
@@ -555,14 +572,22 @@ export class AuthController {
 **Severity:** 🔴 CRITICAL
 
 **Влияние:**
+
 - Непоследовательные ответы об ошибках
 - Утечка стек-трейсов в production
 - Нет централизованного логирования
 
 **Решение:**
+
 ```typescript
 // common/filters/http-exception.filter.ts
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -571,13 +596,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
-    const status = exception instanceof HttpException
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message = exception instanceof HttpException
-      ? exception.getResponse()
-      : 'Internal server error';
+    const message =
+      exception instanceof HttpException
+        ? exception.getResponse()
+        : 'Internal server error';
 
     // Логирование
     if (status >= 500) {
@@ -589,9 +616,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      message: process.env.NODE_ENV === 'production' && status >= 500
-        ? 'Internal server error'
-        : message,
+      message:
+        process.env.NODE_ENV === 'production' && status >= 500
+          ? 'Internal server error'
+          : message,
     });
   }
 }
@@ -608,12 +636,14 @@ app.useGlobalFilters(new AllExceptionsFilter());
 
 **Severity:** 🔴 CRITICAL
 **Breakdown:**
+
 - js-yaml Prototype Pollution (CVSS 5.3) - 18 instances
 - validator.js URL bypass (CVSS 6.1) - 1 instance
 
 **Файлы:** `package.json` в backend и root
 
 **Решение:**
+
 ```bash
 # Добавить npm overrides
 cat >> backend/package.json << 'EOF'
@@ -633,18 +663,18 @@ npm audit --production
 
 ### Итоговая таблица критичных проблем
 
-| # | Проблема | Severity | CVSS | Deadline | Effort |
-|---|----------|----------|------|----------|--------|
-| 1 | CORS wildcard | CRITICAL | 9.1 | 24h | 15min |
-| 2 | Weak JWT secret | CRITICAL | 9.8 | 24h | 30min |
-| 3 | localStorage in RN | CRITICAL | N/A | 48h | 1h |
-| 4 | No Error Boundary | CRITICAL | N/A | 48h | 1h |
-| 5 | Mock data | CRITICAL | N/A | 1wk | 4h |
-| 6 | Hardcoded DB creds | CRITICAL | 8.9 | 24h | 20min |
-| 7 | Weak passwords | CRITICAL | 7.5 | 48h | 30min |
-| 8 | No rate limiting | CRITICAL | 7.5 | 3d | 2h |
-| 9 | No exception filter | CRITICAL | N/A | 3d | 2h |
-| 10 | npm vulnerabilities | CRITICAL | 6.1 | 48h | 1h |
+| #   | Проблема            | Severity | CVSS | Deadline | Effort |
+| --- | ------------------- | -------- | ---- | -------- | ------ |
+| 1   | CORS wildcard       | CRITICAL | 9.1  | 24h      | 15min  |
+| 2   | Weak JWT secret     | CRITICAL | 9.8  | 24h      | 30min  |
+| 3   | localStorage in RN  | CRITICAL | N/A  | 48h      | 1h     |
+| 4   | No Error Boundary   | CRITICAL | N/A  | 48h      | 1h     |
+| 5   | Mock data           | CRITICAL | N/A  | 1wk      | 4h     |
+| 6   | Hardcoded DB creds  | CRITICAL | 8.9  | 24h      | 20min  |
+| 7   | Weak passwords      | CRITICAL | 7.5  | 48h      | 30min  |
+| 8   | No rate limiting    | CRITICAL | 7.5  | 3d       | 2h     |
+| 9   | No exception filter | CRITICAL | N/A  | 3d       | 2h     |
+| 10  | npm vulnerabilities | CRITICAL | 6.1  | 48h      | 1h     |
 
 **Общее время на критичные исправления:** ~13 часов
 
@@ -660,11 +690,11 @@ npm audit --production
 
 **Всего проблем:** 48
 
-| Тип | Критичные | Высокие | Средние | Низкие |
-|-----|-----------|---------|---------|--------|
-| Архитектура | 7 | 8 | 6 | 4 |
-| Безопасность | 4 | 6 | 8 | 5 |
-| Производительность | 2 | 3 | 5 | 2 |
+| Тип                | Критичные | Высокие | Средние | Низкие |
+| ------------------ | --------- | ------- | ------- | ------ |
+| Архитектура        | 7         | 8       | 6       | 4      |
+| Безопасность       | 4         | 6       | 8       | 5      |
+| Производительность | 2         | 3       | 5       | 2      |
 
 ### Топ-5 проблем Backend
 
@@ -686,11 +716,12 @@ if (!chart) {
 
 // ❌ ПЛОХО - src/chart/chart.service.ts:46
 if (!timeRegex.test(birthTime)) {
-  throw new NotFoundException('Некорректный формат времени');  // Должен быть BadRequestException!
+  throw new NotFoundException('Некорректный формат времени'); // Должен быть BadRequestException!
 }
 ```
 
 **Решение:**
+
 ```typescript
 // ✅ ХОРОШО
 if (!chart) {
@@ -726,6 +757,7 @@ private getLocationCoordinates(birthPlace: string) {
 ```
 
 **Решение:**
+
 ```typescript
 // ✅ ХОРОШО - services/location.service.ts
 @Injectable()
@@ -748,18 +780,21 @@ const location = this.locationService.getCoordinates(user.birthPlace);
 ### Рекомендации Backend
 
 **Phase 1 (Week 1):**
+
 - ✅ Создать GlobalExceptionFilter
 - ✅ Исправить типы исключений
 - ✅ Удалить дублирование кода
 - ✅ Исправить уязвимости безопасности
 
 **Phase 2 (Week 2):**
+
 - ⚠️ Реализовать реальные DB запросы в DatingService
 - ⚠️ Добавить валидацию с Zod
 - ⚠️ Добавить rate limiting
 - ⚠️ Улучшить типизацию (strict mode)
 
 **Phase 3 (Week 3-4):**
+
 - 📦 Добавить unit тесты (coverage target: 70%)
 - 📦 Добавить E2E тесты для критичных flows
 - 📦 Настроить Sentry для мониторинга
@@ -772,6 +807,7 @@ const location = this.locationService.getCoordinates(user.birthPlace);
 ### Детальные результаты
 
 Полные отчеты:
+
 - [`FRONTEND_ARCHITECTURE_AUDIT.md`](./FRONTEND_ARCHITECTURE_AUDIT.md)
 - [`FRONTEND_SECURITY_AUDIT.md`](./FRONTEND_SECURITY_AUDIT.md)
 - [`FRONTEND_PERFORMANCE_UX_AUDIT.md`](./FRONTEND_PERFORMANCE_UX_AUDIT.md)
@@ -780,12 +816,12 @@ const location = this.locationService.getCoordinates(user.birthPlace);
 
 **Всего проблем:** 82
 
-| Тип | Критичные | Высокие | Средние | Низкие |
-|-----|-----------|---------|---------|--------|
-| Архитектура | 3 | 7 | 9 | 8 |
-| Безопасность | 9 | 12 | 8 | 5 |
-| Производительность | 5 | 5 | 5 | 0 |
-| UX/Accessibility | 0 | 3 | 8 | 5 |
+| Тип                | Критичные | Высокие | Средние | Низкие |
+| ------------------ | --------- | ------- | ------- | ------ |
+| Архитектура        | 3         | 7       | 9       | 8      |
+| Безопасность       | 9         | 12      | 8       | 5      |
+| Производительность | 5         | 5       | 5       | 0      |
+| UX/Accessibility   | 0         | 3       | 8       | 5      |
 
 ### Топ-10 проблем Frontend
 
@@ -832,6 +868,7 @@ export default function AnimatedStars() {
 **Влияние:** 50 компонентов пересоздаются на каждом render → 30-40% потеря производительности
 
 **Решение:**
+
 ```typescript
 // ✅ ХОРОШО
 const Star = React.memo(({ x, y, size }: StarProps) => (
@@ -892,6 +929,7 @@ export default function CosmicSimulatorScreen() {
 ```
 
 **Решение:**
+
 ```typescript
 // ✅ ХОРОШО - Разбить на компоненты
 // screens/CosmicSimulatorScreen.tsx (150 строк)
@@ -921,18 +959,21 @@ export default function CosmicSimulatorScreen() {
 ### Рекомендации Frontend
 
 **Phase 1 (Week 1) - Critical:**
+
 - ✅ Replace localStorage with AsyncStorage
 - ✅ Add ErrorBoundary
 - ✅ Fix AnimatedStars performance
 - ✅ Update Expo 54.0.7 → 54.0.23
 
 **Phase 2 (Week 2) - High:**
+
 - ⚠️ Split large components (887-1199 lines → <300 lines)
 - ⚠️ Add memoization (useMemo, useCallback, React.memo)
 - ⚠️ Remove console.log from production
 - ⚠️ Fix hardcoded HTTP URL
 
 **Phase 3 (Week 3-4) - Medium:**
+
 - 📦 Add accessibility features (labels, roles, contrast)
 - 📦 Implement state management (Zustand/Redux)
 - 📦 Add unit tests with React Testing Library
@@ -949,6 +990,7 @@ export default function CosmicSimulatorScreen() {
 ### Краткая сводка
 
 **Всего зависимостей:** 966
+
 - Backend: 913 (292 prod, 621 dev)
 - Frontend: ~45
 - Root: 8
@@ -989,6 +1031,7 @@ CMD ["npm", "run", "start:prod"]  # ❌ Через npm (медленнее)
 ```
 
 **Проблемы:**
+
 - Не multi-stage build → 600MB образ
 - Build-зависимости в production
 - Нет .dockerignore
@@ -1025,6 +1068,7 @@ CMD ["node", "dist/main.js"]
 ```
 
 **Улучшения:**
+
 - ✅ Multi-stage → 150MB (вместо 600MB)
 - ✅ Non-root user (безопасность)
 - ✅ Health checks
@@ -1033,17 +1077,20 @@ CMD ["node", "dist/main.js"]
 ### Рекомендации по инфраструктуре
 
 **Phase 1 (48 hours):**
+
 - ✅ Исправить 20 npm уязвимостей (npm override + audit fix)
 - ✅ Создать .env файлы с валидацией
 - ✅ Обновить Expo до 54.0.23
 
 **Phase 2 (Week 1):**
+
 - ⚠️ Обновить ESLint 8 → 9
 - ⚠️ Улучшить Dockerfile (multi-stage)
 - ⚠️ Создать .dockerignore
 - ⚠️ Убрать hardcoded secrets из docker-compose
 
 **Phase 3 (Week 2-4):**
+
 - 📦 Настроить Dependabot/Renovate
 - 📦 Добавить CI/CD pipeline
 - 📦 Настроить мониторинг (Sentry, Datadog)
@@ -1061,45 +1108,46 @@ CMD ["node", "dist/main.js"]
 
 #### Backend (20 часов)
 
-| Задача | Приоритет | Время | Ответственный |
-|--------|-----------|-------|---------------|
-| Исправить CORS wildcard | 🔴 | 15min | Backend Dev |
-| Убрать JWT secret fallback | 🔴 | 30min | Backend Dev |
-| Создать GlobalExceptionFilter | 🔴 | 2h | Backend Dev |
-| Исправить типы исключений | 🔴 | 3h | Backend Dev |
-| Добавить rate limiting | 🔴 | 2h | Backend Dev |
-| Удалить дублирование кода | 🔴 | 4h | Backend Dev |
-| Реализовать DatingService DB queries | 🔴 | 4h | Backend Dev |
-| Создать .env + validation | 🔴 | 2h | Backend Dev |
-| Исправить npm уязвимости | 🔴 | 1h | Backend Dev |
-| Увеличить требования к паролю | 🔴 | 30min | Backend Dev |
+| Задача                               | Приоритет | Время | Ответственный |
+| ------------------------------------ | --------- | ----- | ------------- |
+| Исправить CORS wildcard              | 🔴        | 15min | Backend Dev   |
+| Убрать JWT secret fallback           | 🔴        | 30min | Backend Dev   |
+| Создать GlobalExceptionFilter        | 🔴        | 2h    | Backend Dev   |
+| Исправить типы исключений            | 🔴        | 3h    | Backend Dev   |
+| Добавить rate limiting               | 🔴        | 2h    | Backend Dev   |
+| Удалить дублирование кода            | 🔴        | 4h    | Backend Dev   |
+| Реализовать DatingService DB queries | 🔴        | 4h    | Backend Dev   |
+| Создать .env + validation            | 🔴        | 2h    | Backend Dev   |
+| Исправить npm уязвимости             | 🔴        | 1h    | Backend Dev   |
+| Увеличить требования к паролю        | 🔴        | 30min | Backend Dev   |
 
 #### Frontend (12 часов)
 
-| Задача | Приоритет | Время | Ответственный |
-|--------|-----------|-------|---------------|
-| Replace localStorage → AsyncStorage | 🔴 | 2h | Frontend Dev |
-| Добавить ErrorBoundary | 🔴 | 1h | Frontend Dev |
-| Исправить AnimatedStars performance | 🔴 | 1h | Frontend Dev |
-| Обновить Expo 54.0.7 → 54.0.23 | 🔴 | 30min | Frontend Dev |
-| Убрать console.log из production | 🔴 | 1h | Frontend Dev |
-| Исправить hardcoded HTTP URL | 🔴 | 30min | Frontend Dev |
-| Увеличить минимум пароля до 12 | 🔴 | 30min | Frontend Dev |
-| Разделить компонент 1199 строк | 🔴 | 4h | Frontend Dev |
-| Добавить useMemo/useCallback | 🔴 | 2h | Frontend Dev |
+| Задача                              | Приоритет | Время | Ответственный |
+| ----------------------------------- | --------- | ----- | ------------- |
+| Replace localStorage → AsyncStorage | 🔴        | 2h    | Frontend Dev  |
+| Добавить ErrorBoundary              | 🔴        | 1h    | Frontend Dev  |
+| Исправить AnimatedStars performance | 🔴        | 1h    | Frontend Dev  |
+| Обновить Expo 54.0.7 → 54.0.23      | 🔴        | 30min | Frontend Dev  |
+| Убрать console.log из production    | 🔴        | 1h    | Frontend Dev  |
+| Исправить hardcoded HTTP URL        | 🔴        | 30min | Frontend Dev  |
+| Увеличить минимум пароля до 12      | 🔴        | 30min | Frontend Dev  |
+| Разделить компонент 1199 строк      | 🔴        | 4h    | Frontend Dev  |
+| Добавить useMemo/useCallback        | 🔴        | 2h    | Frontend Dev  |
 
 #### Infrastructure (8 часов)
 
-| Задача | Приоритет | Время | Ответственный |
-|--------|-----------|-------|---------------|
-| Убрать hardcoded DB credentials | 🔴 | 1h | DevOps |
-| Улучшить Dockerfile (multi-stage) | 🔴 | 3h | DevOps |
-| Создать .dockerignore | 🔴 | 30min | DevOps |
-| Исправить npm уязвимости | 🔴 | 1h | DevOps |
-| Унифицировать TypeScript версии | 🔴 | 1h | DevOps |
-| Создать .env.example | 🔴 | 1h | DevOps |
+| Задача                            | Приоритет | Время | Ответственный |
+| --------------------------------- | --------- | ----- | ------------- |
+| Убрать hardcoded DB credentials   | 🔴        | 1h    | DevOps        |
+| Улучшить Dockerfile (multi-stage) | 🔴        | 3h    | DevOps        |
+| Создать .dockerignore             | 🔴        | 30min | DevOps        |
+| Исправить npm уязвимости          | 🔴        | 1h    | DevOps        |
+| Унифицировать TypeScript версии   | 🔴        | 1h    | DevOps        |
+| Создать .env.example              | 🔴        | 1h    | DevOps        |
 
 **Deliverables Phase 1:**
+
 - [ ] 0 критичных уязвимостей в npm audit
 - [ ] 0 hardcoded secrets
 - [ ] GlobalExceptionFilter работает
@@ -1142,6 +1190,7 @@ CMD ["node", "dist/main.js"]
 - Настроить CI/CD базовый (2h)
 
 **Deliverables Phase 2:**
+
 - [ ] TypeScript strict mode включен
 - [ ] Test coverage >50%
 - [ ] Все компоненты <300 строк
@@ -1181,6 +1230,7 @@ CMD ["node", "dist/main.js"]
 - Добавить load testing (4h)
 
 **Deliverables Phase 3:**
+
 - [ ] Redis кэширование работает
 - [ ] Test coverage >70%
 - [ ] Bundle size оптимизирован
@@ -1199,6 +1249,7 @@ CMD ["node", "dist/main.js"]
 #### Final Checklist
 
 **Security:**
+
 - [ ] Penetration testing пройден
 - [ ] Security headers настроены
 - [ ] Rate limiting протестирован
@@ -1206,24 +1257,28 @@ CMD ["node", "dist/main.js"]
 - [ ] GDPR compliance проверен
 
 **Performance:**
+
 - [ ] Load testing пройден (1000 concurrent users)
 - [ ] Database indexing оптимизирован
 - [ ] CDN настроен для frontend
 - [ ] API response time <200ms (p95)
 
 **Monitoring:**
+
 - [ ] Sentry error tracking работает
 - [ ] Logs централизованы (ELK/Datadog)
 - [ ] Uptime monitoring настроен
 - [ ] Alerts для критичных метрик
 
 **Documentation:**
+
 - [ ] API документация актуальна
 - [ ] Runbooks созданы
 - [ ] Disaster recovery plan
 - [ ] Onboarding guide для новых разработчиков
 
 **Deliverables Phase 4:**
+
 - [ ] Production deployment успешен
 - [ ] Monitoring dashboards активны
 - [ ] 99.9% uptime достигнут
@@ -1235,41 +1290,41 @@ CMD ["node", "dist/main.js"]
 
 ### Текущее состояние
 
-| Метрика | Текущее | Целевое | Status |
-|---------|---------|---------|--------|
-| **Security** |
-| Critical vulnerabilities | 10 | 0 | 🔴 Fail |
-| High vulnerabilities | 13 | 0 | 🔴 Fail |
-| Moderate vulnerabilities | 20 | <5 | 🔴 Fail |
-| Hardcoded secrets | 6 | 0 | 🔴 Fail |
-| **Code Quality** |
-| Backend test coverage | 0% | 70% | 🔴 Fail |
-| Frontend test coverage | 0% | 70% | 🔴 Fail |
-| TypeScript strict mode | No | Yes | 🔴 Fail |
-| ESLint issues | 15+ | 0 | 🔴 Fail |
-| Code duplication | 15% | <5% | 🟡 Warn |
-| **Performance** |
-| Backend response time (p95) | Unknown | <200ms | ⚪ N/A |
-| Frontend render time | ~350ms | <200ms | 🔴 Fail |
-| Docker image size | 600MB | <200MB | 🔴 Fail |
-| Bundle size | Unknown | <5MB | ⚪ N/A |
-| **Infrastructure** |
-| CI/CD pipeline | No | Yes | 🔴 Fail |
-| Monitoring | No | Yes | 🔴 Fail |
-| Automated backups | No | Yes | 🔴 Fail |
-| Health checks | No | Yes | 🔴 Fail |
+| Метрика                     | Текущее | Целевое | Status  |
+| --------------------------- | ------- | ------- | ------- |
+| **Security**                |
+| Critical vulnerabilities    | 10      | 0       | 🔴 Fail |
+| High vulnerabilities        | 13      | 0       | 🔴 Fail |
+| Moderate vulnerabilities    | 20      | <5      | 🔴 Fail |
+| Hardcoded secrets           | 6       | 0       | 🔴 Fail |
+| **Code Quality**            |
+| Backend test coverage       | 0%      | 70%     | 🔴 Fail |
+| Frontend test coverage      | 0%      | 70%     | 🔴 Fail |
+| TypeScript strict mode      | No      | Yes     | 🔴 Fail |
+| ESLint issues               | 15+     | 0       | 🔴 Fail |
+| Code duplication            | 15%     | <5%     | 🟡 Warn |
+| **Performance**             |
+| Backend response time (p95) | Unknown | <200ms  | ⚪ N/A  |
+| Frontend render time        | ~350ms  | <200ms  | 🔴 Fail |
+| Docker image size           | 600MB   | <200MB  | 🔴 Fail |
+| Bundle size                 | Unknown | <5MB    | ⚪ N/A  |
+| **Infrastructure**          |
+| CI/CD pipeline              | No      | Yes     | 🔴 Fail |
+| Monitoring                  | No      | Yes     | 🔴 Fail |
+| Automated backups           | No      | Yes     | 🔴 Fail |
+| Health checks               | No      | Yes     | 🔴 Fail |
 
 ### Целевые метрики (Post-Fix)
 
-| Метрика | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
-|---------|---------|---------|---------|---------|
-| Critical vulnerabilities | 0 | 0 | 0 | 0 |
-| Backend test coverage | 0% | 50% | 70% | 80% |
-| Frontend test coverage | 0% | 40% | 70% | 80% |
-| TypeScript strict | No | Yes | Yes | Yes |
-| Docker image size | 150MB | 150MB | 150MB | 150MB |
-| Response time (p95) | N/A | <300ms | <200ms | <150ms |
-| Uptime | N/A | N/A | 99% | 99.9% |
+| Метрика                  | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
+| ------------------------ | ------- | ------- | ------- | ------- |
+| Critical vulnerabilities | 0       | 0       | 0       | 0       |
+| Backend test coverage    | 0%      | 50%     | 70%     | 80%     |
+| Frontend test coverage   | 0%      | 40%     | 70%     | 80%     |
+| TypeScript strict        | No      | Yes     | Yes     | Yes     |
+| Docker image size        | 150MB   | 150MB   | 150MB   | 150MB   |
+| Response time (p95)      | N/A     | <300ms  | <200ms  | <150ms  |
+| Uptime                   | N/A     | N/A     | 99%     | 99.9%   |
 
 ### Production Readiness Score
 
@@ -1427,12 +1482,14 @@ AstraLink - это **хорошо спроектированное прилож�
 ### Ключевые выводы
 
 ✅ **Что хорошо:**
+
 - Современные технологии (NestJS, React Native, TypeScript)
 - Модульная архитектура
 - Хорошая структура проекта
 - Swagger документация
 
 🔴 **Что критично:**
+
 - 38 критичных проблем безопасности и архитектуры
 - Mock данные вместо реальной функциональности
 - Нет тестирования (0% coverage)

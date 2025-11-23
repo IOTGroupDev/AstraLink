@@ -209,7 +209,7 @@ export class RedisService {
     if (!this.client || keys.length === 0) return [];
     try {
       const values = await this.client.mget(...keys);
-      return values.map(val => {
+      return values.map((val) => {
         if (!val) return null;
         try {
           return JSON.parse(val) as T;
