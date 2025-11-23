@@ -12,11 +12,41 @@ interface MainTransitWidgetProps {
     strength?: number;
     description: string;
   } | null;
+  isLoading?: boolean;
 }
 
 const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
   transitData,
+  isLoading,
 }) => {
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <BlurView intensity={10} style={styles.blurContainer}>
+          <LinearGradient
+            colors={['rgba(35, 0, 46, 0.4)', 'rgba(89, 1, 114, 0.4)']}
+            start={{ x: 0.5, y: 1 }}
+            end={{ x: 0.5, y: 0 }}
+            style={styles.gradient}
+          >
+            <LinearGradient
+              colors={['rgba(237, 164, 255, 1)', 'rgba(241, 197, 255, 1)']}
+              start={{ x: 0.5, y: 1 }}
+              end={{ x: 0.5, y: 0 }}
+              style={styles.border}
+            />
+            <View style={styles.content}>
+              <Text style={styles.title}>🪐 Главный транзит</Text>
+              <Text style={{ color: '#A78BFA', textAlign: 'center' }}>
+                Загрузка транзита...
+              </Text>
+            </View>
+          </LinearGradient>
+        </BlurView>
+      </View>
+    );
+  }
+
   if (!transitData) {
     return null;
   }

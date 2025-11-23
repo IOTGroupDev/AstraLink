@@ -82,11 +82,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { tokenService } from './tokenService';
-import { useAuthStore } from '../stores/auth.store';
+// useAuthStore is imported lazily inside initSupabaseAuth to avoid require cycles
 import { supabaseLogger } from './logger';
 
-const supabaseUrl = Constants.expoConfig?.extra?.SUPABASE_URL;
-const supabaseAnonKey = Constants.expoConfig?.extra?.SUPABASE_ANON_KEY;
+const env: any =
+  (typeof process !== 'undefined' ? (process as any).env : {}) || {};
+const expoExtra: any = Constants?.expoConfig?.extra || {};
+
+const supabaseUrl =
+  env.EXPO_PUBLIC_SUPABASE_URL || expoExtra.SUPABASE_URL || env.SUPABASE_URL;
+
+const supabaseAnonKey =
+  env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  expoExtra.SUPABASE_ANON_KEY ||
+  env.SUPABASE_ANON_KEY;
 
 // Validate required Supabase credentials
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -137,6 +146,7 @@ export const initSupabaseAuth = async () => {
 
       // Синхронизируем Zustand-стор аутентификации до рендера App (чтобы initialRoute не прыгал на онбординг)
       try {
+        const { useAuthStore } = await import('../stores/auth.store');
         const st = useAuthStore.getState();
         if (data.session?.user) {
           st.login({
@@ -161,6 +171,7 @@ export const initSupabaseAuth = async () => {
 
         // синхронизация стора авторизации
         try {
+          const { useAuthStore } = await import('../stores/auth.store');
           const st = useAuthStore.getState();
           if (session?.user) {
             st.login({

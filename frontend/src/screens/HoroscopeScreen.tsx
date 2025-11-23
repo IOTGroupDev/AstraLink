@@ -429,6 +429,18 @@ const HoroscopeScreen: React.FC = () => {
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
 
+  // Локальные флаги готовности данных для каждого виджета
+  // Важно: не блокируем виджеты отсутствием соседних данных.
+  const planetaryLoading =
+    loading ||
+    !Array.isArray(transitPlanetsArr) ||
+    transitPlanetsArr.length === 0;
+  const energyLoading = loading || !chart || !currentPlanets;
+  // Транзит: показываем лоадер только на время общей загрузки, а если транзит не найден — не «висим» в лоадере
+  const mainTransitLoading = loading;
+  const horoscopeLoading = loading || !predictions;
+  const biorhythmsLoading = loading || !biorhythms;
+
   // Нормализация данных для PlanetaryRecommendationWidget
   const natalPlanetsObj = React.useMemo(() => {
     return chart?.data?.planets || chart?.planets || null;
@@ -506,34 +518,38 @@ const HoroscopeScreen: React.FC = () => {
             <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
 
             {/* Рекомендация дня (нормализованные данные для виджета) */}
-            {natalPlanetsObj && transitPlanetsArr.length > 0 && (
-              <PlanetaryRecommendationWidget
-                natalPlanets={natalPlanetsObj}
-                transitPlanets={transitPlanetsArr}
-              />
-            )}
+            <PlanetaryRecommendationWidget
+              natalPlanets={natalPlanetsObj}
+              transitPlanets={transitPlanetsArr}
+              isLoading={planetaryLoading}
+            />
 
             {/* Виджет энергии */}
-            {!loading && (
-              <EnergyWidget energy={energyValue} message={energyMessage} />
-            )}
+            <EnergyWidget
+              energy={energyValue}
+              message={energyMessage}
+              isLoading={energyLoading}
+            />
 
             {/* Виджет главный транзит */}
-            {!loading && mainTransit && (
-              <MainTransitWidget transitData={mainTransit} />
-            )}
+            <MainTransitWidget
+              transitData={mainTransit}
+              isLoading={mainTransitLoading}
+            />
 
             {/* Гороскоп виджет */}
-            {predictions && <HoroscopeWidget predictions={predictions} />}
+            <HoroscopeWidget
+              predictions={predictions ?? null}
+              isLoading={horoscopeLoading}
+            />
 
             {/* Виджет Биоритмы */}
-            {biorhythms && (
-              <BiorhythmsWidget
-                physical={biorhythms.physical}
-                emotional={biorhythms.emotional}
-                intellectual={biorhythms.intellectual}
-              />
-            )}
+            <BiorhythmsWidget
+              physical={biorhythms?.physical ?? 0}
+              emotional={biorhythms?.emotional ?? 0}
+              intellectual={biorhythms?.intellectual ?? 0}
+              isLoading={biorhythmsLoading}
+            />
 
             {/* Placeholder для будущих виджетов */}
             {loading && (
