@@ -257,7 +257,7 @@ export class DatingService {
           const ch = u.charts[0]; // First chart (already sorted by createdAt desc)
           chartsMap.set(u.id, {
             user_id: u.id,
-            data: ch.data as any,
+            data: ch.data as ChartData,
             created_at: ch.createdAt.toISOString(),
           } as UserChart);
         }
@@ -375,13 +375,13 @@ export class DatingService {
             if (u.profile) {
               profilesById.set(u.id, {
                 user_id: u.id,
-                bio: u.profile.bio,
-                preferences: u.profile.interests, // interests is the new field name
-                city: u.profile.city,
+                bio: u.profile.bio ?? null,
+                preferences: u.profile.interests ?? {},
+                city: u.profile.city ?? null,
                 gender: undefined,
                 display_name: undefined,
-                zodiac_sign: u.profile.zodiacSign,
-              } as any as UserProfile);
+                zodiac_sign: u.profile.zodiacSign ?? null,
+              } as UserProfile);
             }
 
             // Chart (first one)
@@ -389,7 +389,7 @@ export class DatingService {
               const ch = u.charts[0];
               chartsById.set(u.id, {
                 user_id: u.id,
-                data: ch.data as any,
+                data: ch.data as ChartData,
                 created_at: ch.createdAt.toISOString(),
               } as UserChart);
             }
@@ -677,7 +677,7 @@ export class DatingService {
           const syn = await this.getCachedSynastry(
             selfChart.id,
             c.id,
-            selfChart.data as any,
+            selfChart.data as ChartData,
             c.data,
           );
 
@@ -846,7 +846,7 @@ export class DatingService {
       userData.charts && userData.charts.length > 0
         ? {
             user_id: userData.id,
-            data: userData.charts[0].data as any,
+            data: userData.charts[0].data as ChartData,
             created_at: userData.charts[0].createdAt.toISOString(),
           }
         : null;
@@ -881,10 +881,10 @@ export class DatingService {
     // Интересы - в новой схеме это уже массив strings
     let interests: string[] | null = null;
     try {
-      const prefsRaw = profile?.preferences as any;
+      const prefsRaw = profile?.preferences as unknown;
       // Если это уже массив (из interests поля)
       if (Array.isArray(prefsRaw)) {
-        interests = prefsRaw.filter((x: any) => typeof x === 'string');
+        interests = prefsRaw.filter((x: unknown) => typeof x === 'string');
       } else if (typeof prefsRaw === 'string') {
         // Если это строка - пробуем разобрать
         try {

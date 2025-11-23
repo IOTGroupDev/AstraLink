@@ -34,7 +34,7 @@ export class DeepSeekProvider extends BaseAIProvider {
       this.client = new OpenAI({
         apiKey,
         baseURL: 'https://api.deepseek.com',
-      } as any);
+      });
       this.logger.log('✅ DeepSeek AI initialized');
     } catch (error) {
       const errorMessage =
@@ -79,7 +79,7 @@ export class DeepSeekProvider extends BaseAIProvider {
           temperature: 0.7,
           max_tokens: 2000,
           response_format: { type: 'json_object' }, // JSON mode
-        } as any);
+        });
 
         const duration = Date.now() - startTime;
         const content = completion.choices[0]?.message?.content || '';
@@ -139,11 +139,11 @@ export class DeepSeekProvider extends BaseAIProvider {
         temperature: 0.7,
         max_tokens: 2000,
         stream: true,
-      } as any);
+      });
 
       let fullContent = '';
 
-      for await (const chunk of stream as any) {
+      for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         if (content) {
           fullContent += content;

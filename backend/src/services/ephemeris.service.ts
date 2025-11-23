@@ -6,6 +6,7 @@ import {
   isDayBirth,
   getPartOfFortuneInterpretation,
 } from '../shared/astro-calculations';
+import type { Planet, ChartData } from '../dating/dating.types';
 
 let swisseph: any;
 
@@ -286,17 +287,17 @@ export class EphemerisService implements OnModuleInit {
   /**
    * Рассчитывает синастрию между двумя картами
    */
-  async getSynastry(chartA: any, chartB: any): Promise<any> {
+  async getSynastry(chartA: ChartData, chartB: ChartData): Promise<any> {
     const aspects: any[] = [];
-    const planetsA = chartA.planets;
-    const planetsB = chartB.planets;
+    const planetsA = chartA.planets ?? {};
+    const planetsB = chartB.planets ?? {};
 
     for (const [planetA, dataA] of Object.entries(planetsA)) {
       for (const [planetB, dataB] of Object.entries(planetsB)) {
-        if (planetA !== planetB) {
+        if (planetA !== planetB && dataA && dataB) {
           const aspect = this.calculateAspect(
-            (dataA as any).longitude,
-            (dataB as any).longitude,
+            (dataA as Planet).longitude,
+            (dataB as Planet).longitude,
           );
           if (aspect) {
             aspects.push({
@@ -323,17 +324,17 @@ export class EphemerisService implements OnModuleInit {
   /**
    * Рассчитывает композитную карту
    */
-  async getComposite(chartA: any, chartB: any): Promise<any> {
+  async getComposite(chartA: ChartData, chartB: ChartData): Promise<any> {
     const compositePlanets: any = {};
-    const planetsA = chartA.planets;
-    const planetsB = chartB.planets;
+    const planetsA = chartA.planets ?? {};
+    const planetsB = chartB.planets ?? {};
 
     for (const [planet, dataA] of Object.entries(planetsA)) {
-      if (planetsB[planet]) {
+      if (planetsB[planet] && dataA) {
         const dataB = planetsB[planet];
         const compositeLongitude = this.averageLongitude(
-          (dataA as any).longitude,
-          dataB.longitude,
+          (dataA as Planet).longitude,
+          (dataB as Planet).longitude,
         );
 
         compositePlanets[planet] = {
@@ -517,7 +518,7 @@ export class EphemerisService implements OnModuleInit {
     return houses;
   }
 
-  private calculateAspects(planets: any): any[] {
+  private calculateAspects(planets: Record<string, Planet>): any[] {
     const aspects: any[] = [];
     const planetEntries = Object.entries(planets);
 
@@ -526,18 +527,20 @@ export class EphemerisService implements OnModuleInit {
         const [planetA, dataA] = planetEntries[i];
         const [planetB, dataB] = planetEntries[j];
 
-        const aspect = this.calculateAspect(
-          (dataA as any).longitude,
-          (dataB as any).longitude,
-        );
-        if (aspect) {
-          aspects.push({
-            planetA,
-            planetB,
-            aspect: aspect.type,
-            orb: aspect.orb,
-            strength: aspect.strength,
-          });
+        if (dataA && dataB) {
+          const aspect = this.calculateAspect(
+            (dataA as Planet).longitude,
+            (dataB as Planet).longitude,
+          );
+          if (aspect) {
+            aspects.push({
+              planetA,
+              planetB,
+              aspect: aspect.type,
+              orb: aspect.orb,
+              strength: aspect.strength,
+            });
+          }
         }
       }
     }
