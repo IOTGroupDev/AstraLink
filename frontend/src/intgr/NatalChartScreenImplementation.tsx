@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import ChartDisplay from './ChartDisplay';
 import type { ChartData, BirthData } from './astrology.types';
+import { chartLogger } from '../services/logger';
 
 interface NatalChartScreenProps {
   birthData: BirthData;
@@ -89,7 +90,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
         }),
       });
     } catch (err) {
-      console.error('Failed to save chart:', err);
+      chartLogger.error('Failed to save chart', err);
     }
   };
 

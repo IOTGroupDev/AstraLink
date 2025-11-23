@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../../services/logger';
 
 export default function ClearScreen() {
   const handleClear = async () => {
@@ -9,7 +10,7 @@ export default function ClearScreen() {
       Alert.alert('✅ Успех', 'AsyncStorage полностью очищен!');
     } catch (e) {
       Alert.alert('❌ Ошибка', 'Не удалось очистить хранилище');
-      console.error(e);
+      logger.error('Clear storage error', e);
     }
   };
 

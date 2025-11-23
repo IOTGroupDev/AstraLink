@@ -15,6 +15,7 @@ import Svg, {
   RadialGradient,
   Stop,
 } from 'react-native-svg';
+import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -170,7 +171,7 @@ const calculateActiveTransits = (
     // Сортируем по силе (самые точные аспекты первыми)
     return transits.sort((a, b) => b.strength - a.strength);
   } catch (error) {
-    console.error('Ошибка в calculateActiveTransits:', error);
+    logger.error('Ошибка в calculateActiveTransits', error);
     return [];
   }
 };
@@ -225,7 +226,7 @@ const PlanetaryRecommendationWidget: React.FC<
 
   // Если данные невалидны - показываем загрузку или скрываем виджет
   if (!hasValidNatalData || !hasValidTransitData) {
-    console.log('⚠️ PlanetaryRecommendationWidget: Невалидные данные', {
+    logger.warn('PlanetaryRecommendationWidget: Невалидные данные', {
       natalPlanets: typeof natalPlanets,
       transitPlanets: typeof transitPlanets,
       hasValidNatalData,
@@ -241,7 +242,7 @@ const PlanetaryRecommendationWidget: React.FC<
   try {
     activeTransits = calculateActiveTransits(transitPlanets, natalPlanets);
   } catch (error) {
-    console.error('Ошибка при расчете транзитов:', error);
+    logger.error('Ошибка при расчете транзитов', error);
     return null;
   }
   const { positive: positiveRecs, negative: negativeRecs } =
@@ -266,7 +267,7 @@ const PlanetaryRecommendationWidget: React.FC<
         return { key };
       });
     } catch (error) {
-      console.error('Ошибка при преобразовании натальных планет:', error);
+      logger.error('Ошибка при преобразовании натальных планет', error);
       return null;
     }
 
@@ -346,7 +347,7 @@ const PlanetaryRecommendationWidget: React.FC<
               />
             );
           } catch (error) {
-            console.error('Ошибка при рисовании аспекта:', error);
+            logger.error('Ошибка при рисовании аспекта', error);
             return null;
           }
         })}
@@ -366,7 +367,7 @@ const PlanetaryRecommendationWidget: React.FC<
               </G>
             );
           } catch (error) {
-            console.error('Ошибка при рисовании натальной планеты:', error);
+            logger.error('Ошибка при рисовании натальной планеты', error);
             return null;
           }
         })}
@@ -397,7 +398,7 @@ const PlanetaryRecommendationWidget: React.FC<
                 </G>
               );
             } catch (error) {
-              console.error('Ошибка при рисовании транзитной планеты:', error);
+              logger.error('Ошибка при рисовании транзитной планеты', error);
               return null;
             }
           })}

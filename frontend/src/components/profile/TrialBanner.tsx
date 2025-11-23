@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../../services/logger';
 
 import { useSubscription } from '../../hooks/useSubscription';
 import { TRIAL_CONFIG } from '../../types/subscription';
@@ -77,7 +78,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
         setDismissCount(parseInt(count, 10));
       }
     } catch (error) {
-      console.error('Error loading dismiss count:', error);
+      logger.error('Error loading dismiss count', error);
     }
   };
 
@@ -117,7 +118,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
     try {
       await AsyncStorage.setItem(STORAGE_KEY, newCount.toString());
     } catch (error) {
-      console.error('Error saving dismiss count:', error);
+      logger.error('Error saving dismiss count', error);
     }
 
     if (onDismiss) {

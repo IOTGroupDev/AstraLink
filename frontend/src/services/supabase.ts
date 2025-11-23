@@ -85,13 +85,15 @@ import { tokenService } from './tokenService';
 import { useAuthStore } from '../stores/auth.store';
 import { supabaseLogger } from './logger';
 
-const supabaseUrl =
-  Constants.expoConfig?.extra?.SUPABASE_URL ||
-  'https://ayoucajwdyinyhamousz.supabase.co';
+const supabaseUrl = Constants.expoConfig?.extra?.SUPABASE_URL;
+const supabaseAnonKey = Constants.expoConfig?.extra?.SUPABASE_ANON_KEY;
 
-const supabaseAnonKey =
-  Constants.expoConfig?.extra?.SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo';
+// Validate required Supabase credentials
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase credentials. Please configure SUPABASE_URL and SUPABASE_ANON_KEY in your environment variables.'
+  );
+}
 
 supabaseLogger.log('🔐 Инициализация Supabase клиента');
 

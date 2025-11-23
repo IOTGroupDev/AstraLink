@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import PremiumFeature from './PremiumFeature';
+import { logger } from '../../../services/logger';
 
 // ========================================
 // ПРИМЕР 1: Режим HIDE (по умолчанию)
@@ -52,15 +53,15 @@ export function Example1_HideMode() {
 
 export function Example2_LockModeWithButtons() {
   const exportToPDF = () => {
-    console.log('Экспорт в PDF');
+    logger.info('Экспорт в PDF');
   };
 
   const exportToExcel = () => {
-    console.log('Экспорт в Excel');
+    logger.info('Экспорт в Excel');
   };
 
   const exportToCSV = () => {
-    console.log('Экспорт в CSV');
+    logger.info('Экспорт в CSV');
   };
 
   return (

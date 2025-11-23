@@ -4,6 +4,7 @@ import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import SwissEphemerisChart from './SwissEphemerisChart';
 import type { ChartData } from './astrology.types';
+import { chartLogger } from '../services/logger';
 
 const ChartScreen = () => {
   // Example data based on your chart image
@@ -17,27 +18,27 @@ const ChartScreen = () => {
   };
 
   const handleChartCalculated = (chartData: ChartData) => {
-    console.log('Chart calculated:', chartData);
+    chartLogger.log('Chart calculated', chartData);
 
     // Access planetary positions
     chartData.planets.forEach((planet) => {
-      console.log(
+      chartLogger.log(
         `${planet.name}: ${planet.sign} ${planet.degree}°${planet.minute}'`
       );
-      console.log(`  House: ${planet.house}`);
-      console.log(`  Retrograde: ${planet.isRetrograde ? 'Yes' : 'No'}`);
+      chartLogger.log(`  House: ${planet.house}`);
+      chartLogger.log(`  Retrograde: ${planet.isRetrograde ? 'Yes' : 'No'}`);
     });
 
     // Access aspects
     chartData.aspects.forEach((aspect) => {
-      console.log(
+      chartLogger.log(
         `${aspect.planet1} ${aspect.type} ${aspect.planet2} (orb: ${aspect.orb.toFixed(2)}°)`
       );
     });
 
     // Access angles
-    console.log(`Ascendant: ${chartData.ascendant}`);
-    console.log(`MC: ${chartData.mc}`);
+    chartLogger.log(`Ascendant: ${chartData.ascendant}`);
+    chartLogger.log(`MC: ${chartData.mc}`);
   };
 
   return (

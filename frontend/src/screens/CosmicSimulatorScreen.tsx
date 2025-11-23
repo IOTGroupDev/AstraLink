@@ -27,6 +27,7 @@ import {
 import { AstroLesson } from '../types/lessons';
 import { LessonCard } from '../components/lessons/LessonCard';
 import { ChartVisualization } from '../components/simulator/Chartvisualization';
+import { logger } from '../services/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -191,7 +192,7 @@ export default function CosmicSimulatorScreen() {
       const data = await chartAPI.getNatalChartWithInterpretation();
       setNatalChart(data);
     } catch (error) {
-      console.error('Ошибка загрузки натальной карты:', error);
+      logger.error('Ошибка загрузки натальной карты', error);
       // Mock данные
       setNatalChart({
         data: {
@@ -266,7 +267,7 @@ export default function CosmicSimulatorScreen() {
         transits.sort((a, b) => (b.strength || 0) - (a.strength || 0))
       );
     } catch (error) {
-      console.error('Ошибка загрузки транзитов:', error);
+      logger.error('Ошибка загрузки транзитов', error);
       // Fallback на расчётные данные
       const transitPlanets = calculateTransitPlanets(date);
       setTransitPlanets(transitPlanets);
@@ -488,7 +489,7 @@ export default function CosmicSimulatorScreen() {
 
       setDetailContent(details);
     } catch (error) {
-      console.error('Ошибка загрузки деталей:', error);
+      logger.error('Ошибка загрузки деталей', error);
       // Fallback на базовую информацию
       setDetailContent({
         lines: [

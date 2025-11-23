@@ -3,6 +3,7 @@
 
 import { tokenService } from './tokenService';
 import { Alert } from 'react-native';
+import { authLogger } from './logger';
 
 /**
  * Проверяет биометрию перед OAuth авторизацией (если включена)
@@ -21,7 +22,7 @@ export const checkBiometricBeforeOAuth = async (): Promise<boolean> => {
 
     if (!available) {
       // Биометрия недоступна на устройстве, продолжаем без проверки
-      console.log('⚠️ Биометрия включена но недоступна на устройстве');
+      authLogger.warn('Биометрия включена но недоступна на устройстве');
       return true;
     }
 
@@ -29,14 +30,14 @@ export const checkBiometricBeforeOAuth = async (): Promise<boolean> => {
     const authenticated = await tokenService.authenticateWithBiometrics();
 
     if (!authenticated) {
-      console.log('❌ Биометрическая аутентификация не пройдена');
+      authLogger.log('Биометрическая аутентификация не пройдена');
       return false;
     }
 
-    console.log('✅ Биометрическая аутентификация успешна');
+    authLogger.log('Биометрическая аутентификация успешна');
     return true;
   } catch (error) {
-    console.error('❌ Ошибка проверки биометрии:', error);
+    authLogger.error('Ошибка проверки биометрии', error);
     // В случае ошибки разрешаем продолжить
     return true;
   }

@@ -18,6 +18,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import { logger } from '../../../services/logger';
 
 import { useSubscription } from '../../../hooks/useSubscription';
 import {
@@ -132,7 +133,7 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
     const result = await activateTrial();
     if (result.success) {
       // Trial активирован - компонент автоматически перерисуется
-      console.log('Trial activated successfully!');
+      logger.info('Trial activated successfully!');
     }
   };
 

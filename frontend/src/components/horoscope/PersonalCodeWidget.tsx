@@ -11,6 +11,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { PersonalCodeResult } from '../../types/personal-code';
 import { chartAPI } from '../../services/api';
+import { logger } from '../../services/logger';
 
 interface PersonalCodeWidgetProps {
   onPress?: () => void;
@@ -31,7 +32,7 @@ const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
       const code = await chartAPI.generatePersonalCode('luck', 4);
       setTodayCode(code);
     } catch (error) {
-      console.error('Failed to load daily code:', error);
+      logger.error('Failed to load daily code', error);
     } finally {
       setLoading(false);
     }

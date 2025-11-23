@@ -33,6 +33,7 @@ import { supabase } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { logger } from '../services/logger';
 
 type RouteParams = {
   otherUserId: string;
@@ -154,7 +155,7 @@ export default function ChatDialogScreen() {
 
       setMessages(mapped);
     } catch (e) {
-      console.error('Ошибка загрузки сообщений:', e);
+      logger.error('Ошибка загрузки сообщений', e);
     } finally {
       setLoading(false);
     }
@@ -398,7 +399,7 @@ export default function ChatDialogScreen() {
               );
             }
           } catch (e) {
-            console.error('Ошибка обработки realtime сообщения:', e);
+            logger.error('Ошибка обработки realtime сообщения', e);
           }
         }
       )
@@ -407,7 +408,7 @@ export default function ChatDialogScreen() {
       try {
         supabase.removeChannel(channel);
       } catch (e) {
-        console.error('Ошибка отписки от канала:', e);
+        logger.error('Ошибка отписки от канала', e);
       }
     };
   }, [user, otherUserId]);
@@ -474,7 +475,7 @@ export default function ChatDialogScreen() {
         fetchMessages().catch(() => void 0);
       }, 500);
     } catch (error) {
-      console.error('Ошибка отправки сообщения:', error);
+      logger.error('Ошибка отправки сообщения', error);
       Alert.alert(
         'Ошибка',
         'Не удалось отправить сообщение. Попробуйте еще раз.'
@@ -556,7 +557,7 @@ export default function ChatDialogScreen() {
         fetchMessages().catch(() => void 0);
       }, 400);
     } catch (err) {
-      console.error('Ошибка загрузки вложения:', err);
+      logger.error('Ошибка загрузки вложения', err);
       Alert.alert('Ошибка', 'Не удалось отправить файл. Попробуйте ещё раз.');
     } finally {
       setUploading(false);
@@ -578,7 +579,7 @@ export default function ChatDialogScreen() {
         await chatAPI.deleteMessage(m.id, 'for_me');
         removeMessageLocal(m.id);
       } catch (e) {
-        console.error('Удаление у себя не удалось:', e);
+        logger.error('Удаление у себя не удалось', e);
         Alert.alert('Ошибка', 'Не удалось удалить сообщение у вас.');
       }
     },
@@ -596,7 +597,7 @@ export default function ChatDialogScreen() {
         await chatAPI.deleteMessage(m.id, 'for_all');
         removeMessageLocal(m.id);
       } catch (e) {
-        console.error('Удаление у всех не удалось:', e);
+        logger.error('Удаление у всех не удалось', e);
         Alert.alert('Ошибка', 'Не удалось удалить сообщение для всех.');
       }
     },

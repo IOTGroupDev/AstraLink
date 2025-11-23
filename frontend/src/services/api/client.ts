@@ -4,13 +4,14 @@ import Constants from 'expo-constants';
 import { supabase } from '../supabase';
 import { apiLogger } from '../logger';
 
-// Ensure base URL ends with /api
+// Ensure base URL ends with /api/v1 (API versioning)
 function ensureApiBase(url: string): string {
   try {
     const u = (url || '').trim();
-    if (!u) return '/api';
-    if (u.endsWith('/api')) return u;
-    return u.replace(/\/+$/, '') + '/api';
+    if (!u) return '/api/v1';
+    if (u.endsWith('/api/v1')) return u;
+    if (u.endsWith('/api')) return u + '/v1';
+    return u.replace(/\/+$/, '') + '/api/v1';
   } catch {
     return url;
   }
@@ -42,7 +43,7 @@ const getApiBaseUrl = () => {
     typeof window !== 'undefined' &&
     window.location
   ) {
-    return `${window.location.origin}/api`;
+    return `${window.location.origin}/api/v1`;
   }
 
   // 3) Попробуем взять хост из Expo (для LAN/туннеля)
@@ -55,11 +56,11 @@ const getApiBaseUrl = () => {
 
   if (hostUri) {
     const host = hostUri.split(':')[0];
-    return `http://${host}:3000/api`;
+    return `http://${host}:3000/api/v1`;
   }
 
   // 4) Фолбэк — localhost
-  return 'http://localhost:3000/api';
+  return 'http://localhost:3000/api/v1';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

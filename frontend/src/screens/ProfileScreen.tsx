@@ -37,6 +37,7 @@ import {
   useSafeAreaInsets,
   SafeAreaView as SafeAreaViewSAC,
 } from 'react-native-safe-area-context';
+import { logger } from '../services/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -93,6 +94,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [regeneratingChart, setRegeneratingChart] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
@@ -143,7 +145,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       } else {
         const st = pRes.reason?.response?.status;
         const data = pRes.reason?.response?.data;
-        console.log('⚠️ getProfile failed:', st, data);
+        logger.warn('getProfile failed', st, data);
 
         if (st === 401) {
           // нет/протух токен — выходим в логин
@@ -162,7 +164,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       } else {
         const st = sRes.reason?.response?.status;
         const data = sRes.reason?.response?.data;
-        console.log('ℹ️ getSubscription failed (игнорируем):', st, data);
+        logger.info('getSubscription failed (игнорируем)', st, data);
 
         // Игнорируем 404 и прочее — поставим дефолт
         setSubscription({
@@ -180,7 +182,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       } else {
         const st = cRes.reason?.response?.status;
         const data = cRes.reason?.response?.data;
-        console.log('ℹ️ getNatalChart failed (опционально):', st, data);
+        logger.info('getNatalChart failed (опционально)', st, data);
         setChart(null);
       }
 
@@ -190,19 +192,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         const primary = photos.find((p) => p.isPrimary) || photos[0];
         setPrimaryPhotoUrl(primary?.url || null);
       } catch (photoErr) {
-        console.log('ℹ️ listPhotos failed (опционально):', photoErr);
+        logger.info('listPhotos failed (опционально)', photoErr);
         setPrimaryPhotoUrl(null);
       }
     } catch (error: any) {
       // сюда попадём только если упал getProfile (критично)
       const st = error?.response?.status;
       const data = error?.response?.data;
-      console.error(
-        'Ошибка загрузки данных профиля:',
-        st,
-        data,
-        error?.message
-      );
+      logger.error('Ошибка загрузки данных профиля', st, data, error?.message);
       Alert.alert(
         'Ошибка',
         data?.message || 'Не удалось загрузить данные профиля'
@@ -243,7 +240,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         ]
       );
     } catch (error: any) {
-      console.error('Ошибка удаления аккаунта:', error);
+      logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(
         'Ошибка',
         error.message || 'Не удалось удалить аккаунт. Попробуйте позже.'
@@ -255,9 +252,31 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigation.navigate('Subscription');
   };
 
-  const handleRegenerateChart = () => {
-    // Переход на экран PersonalCodeScreen
-    navigation.navigate('PersonalCode');
+  const handleRegenerateChart = async () => {
+    try {
+      setRegeneratingChart(true);
+      const result = await chartAPI.regenerateChartWithAI();
+
+      if (result.success) {
+        Alert.alert('Успешно', result.message, [
+          {
+            text: 'OK',
+            onPress: () => fetchProfileData(), // Refresh chart data
+          },
+        ]);
+      } else {
+        Alert.alert('Ограничение', result.message);
+      }
+    } catch (error: any) {
+      logger.error('Ошибка регенерации карты', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Не удалось регенерировать карту. Попробуйте позже.';
+      Alert.alert('Ошибка', errorMessage);
+    } finally {
+      setRegeneratingChart(false);
+    }
   };
 
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -397,16 +416,27 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   style={styles.regenerateButton}
                   onPress={handleRegenerateChart}
                   activeOpacity={0.8}
+                  disabled={regeneratingChart}
                 >
                   <LinearGradient
                     colors={['#8B5CF6', '#6D28D9']}
                     style={styles.buttonGradient}
                   >
-                    <Ionicons name="keypad" size={24} color="#fff" />
+                    <Ionicons
+                      name={
+                        regeneratingChart ? 'hourglass-outline' : 'sparkles'
+                      }
+                      size={24}
+                      color="#fff"
+                    />
                     <Text style={styles.regenerateButtonText}>
-                      Персональные коды
+                      {regeneratingChart
+                        ? 'Генерация...'
+                        : 'Регенерировать с AI'}
                     </Text>
-                    <Ionicons name="chevron-forward" size={24} color="#fff" />
+                    {!regeneratingChart && (
+                      <Ionicons name="chevron-forward" size={24} color="#fff" />
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

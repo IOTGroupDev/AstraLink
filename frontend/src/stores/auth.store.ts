@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { tokenService } from '../services/tokenService';
+import { authLogger } from '../services/logger';
 
 interface User {
   id: string;
@@ -169,11 +170,11 @@ export const useAuthStore = create<AuthState>()(
             if (token) {
               // Токен есть, пытаемся восстановить user
               // (это будет сделано в App.tsx через API call)
-              console.log('🔓 Token found, will restore session');
+              authLogger.log('Token found, will restore session');
             }
           }
         } catch (error) {
-          console.error('Auth initialization error:', error);
+          authLogger.error('Auth initialization error', error);
         } finally {
           set({ initializing: false });
         }
