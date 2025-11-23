@@ -133,7 +133,7 @@ export class ClaudeProvider extends BaseAIProvider {
           },
         ],
         stream: true,
-      } as any);
+      });
 
       let fullContent = '';
 
