@@ -21,6 +21,7 @@ import {
   getExtendedAscendant,
   getExtendedHouseSign,
 } from '../../modules/shared/astro-text';
+import type { PlanetKey, Sign } from '../../modules/shared/astro-text/types';
 
 @Injectable()
 export class NatalChartService {
@@ -426,19 +427,19 @@ export class NatalChartService {
     const { type, planet, sign, houseNum, aspect } = query;
 
     if (type === 'planet' && planet && sign) {
-      const extended = getExtendedPlanetInSign(planet as any, sign as any);
+      const extended = getExtendedPlanetInSign(planet as PlanetKey, sign as Sign);
       return extended || [];
     }
 
     if (type === 'ascendant' && sign) {
-      const extended = getExtendedAscendant(sign as any);
+      const extended = getExtendedAscendant(sign as Sign);
       return extended || [];
     }
 
     if (type === 'house' && houseNum && sign) {
       const num =
         typeof houseNum === 'string' ? parseInt(houseNum, 10) : houseNum;
-      const extended = getExtendedHouseSign(num, sign as any);
+      const extended = getExtendedHouseSign(num, sign as Sign);
       return extended || [];
     }
 
