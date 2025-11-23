@@ -1565,7 +1565,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const interpretation = chartData.data?.interpretation;
 
   // Вкладки
-  const tabs = [
+  const tabs: Array<{
+    id: 'overview' | 'planets' | 'houses' | 'aspects' | 'summary';
+    label: string;
+    icon: 'star-outline' | 'planet-outline' | 'home-outline' | 'git-network-outline' | 'document-text-outline';
+  }> = [
     { id: 'overview', label: 'Обзор', icon: 'star-outline' },
     { id: 'planets', label: 'Планеты', icon: 'planet-outline' },
     { id: 'houses', label: 'Дома', icon: 'home-outline' },
@@ -2446,10 +2450,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               key={tab.id}
               style={[styles.tab, activeTab === tab.id && styles.activeTab]}
-              onPress={() => setActiveTab(tab.id as any)}
+              onPress={() => setActiveTab(tab.id)}
             >
               <Ionicons
-                name={tab.icon as any}
+                name={tab.icon}
                 size={20}
                 color={activeTab === tab.id ? '#8B5CF6' : '#B0B0B0'}
               />

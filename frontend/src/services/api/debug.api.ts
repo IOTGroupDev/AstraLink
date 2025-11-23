@@ -1,20 +1,24 @@
-import { AxiosError, AxiosHeaders } from 'axios';
+import { AxiosError, AxiosHeaders, InternalAxiosRequestConfig } from 'axios';
 import { api } from './client';
 
-function headersToPlain(h: any): Record<string, string> {
+function headersToPlain(h: unknown): Record<string, string> {
   if (!h) return {};
   const out: Record<string, string> = {};
   // AxiosHeaders v1/v2
-  if (typeof (h as AxiosHeaders).forEach === 'function') {
-    (h as AxiosHeaders).forEach((v: any, k: string) => (out[k] = String(v)));
+  if (h instanceof AxiosHeaders && typeof h.forEach === 'function') {
+    h.forEach((v: unknown, k: string) => (out[k] = String(v)));
     return out;
   }
   // Plain object
-  for (const k of Object.keys(h)) out[k] = String(h[k]);
+  if (typeof h === 'object' && h !== null) {
+    for (const k of Object.keys(h)) {
+      out[k] = String((h as Record<string, unknown>)[k]);
+    }
+  }
   return out;
 }
 
-function safeJsonify(value: any) {
+function safeJsonify(value: unknown): unknown {
   try {
     if (typeof value === 'string') return value;
     return JSON.parse(JSON.stringify(value));
@@ -58,21 +62,21 @@ export async function testBackendDebug(): Promise<DebugHttpDump> {
     });
 
     const durationMs = Date.now() - started;
-    const cfg = res.config || {};
-    const baseURL = (cfg as any).baseURL || '';
-    const url = (cfg as any).url || '';
+    const cfg = res.config as InternalAxiosRequestConfig;
+    const baseURL = cfg?.baseURL || '';
+    const url = cfg?.url || '';
     const fullUrl = `${baseURL}${url}`;
 
     return {
       durationMs,
       request: {
-        method: (cfg as any).method,
+        method: cfg?.method,
         baseURL,
         url,
         fullUrl,
-        headers: headersToPlain((cfg as any).headers),
-        data: safeJsonify((cfg as any).data),
-        params: safeJsonify((cfg as any).params),
+        headers: headersToPlain(cfg?.headers),
+        data: safeJsonify(cfg?.data),
+        params: safeJsonify(cfg?.params),
       },
       response: {
         status: res.status,
@@ -84,26 +88,26 @@ export async function testBackendDebug(): Promise<DebugHttpDump> {
   } catch (e) {
     const err = e as AxiosError;
     const durationMs = Date.now() - started;
-    const cfg = err.config || {};
-    const baseURL = (cfg as any).baseURL || '';
-    const url = (cfg as any).url || '';
+    const cfg = err.config as InternalAxiosRequestConfig | undefined;
+    const baseURL = cfg?.baseURL || '';
+    const url = cfg?.url || '';
     const fullUrl = `${baseURL}${url}`;
 
     const dump: DebugHttpDump = {
       durationMs,
       request: {
-        method: (cfg as any).method,
+        method: cfg?.method,
         baseURL,
         url,
         fullUrl,
-        headers: headersToPlain((cfg as any).headers),
-        data: safeJsonify((cfg as any).data),
-        params: safeJsonify((cfg as any).params),
+        headers: headersToPlain(cfg?.headers),
+        data: safeJsonify(cfg?.data),
+        params: safeJsonify(cfg?.params),
       },
       error: {
         message: err.message,
         code: err.code,
-        isAxiosError: !!(err as any).isAxiosError,
+        isAxiosError: err.isAxiosError ?? false,
       },
     };
 
