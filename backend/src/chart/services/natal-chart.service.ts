@@ -14,6 +14,7 @@ import { EphemerisService } from '../../services/ephemeris.service';
 import { InterpretationService } from '../../services/interpretation.service';
 import { RedisService } from '../../redis/redis.service';
 import { ChartRepository } from '../../repositories/chart.repository';
+import { createHash } from 'crypto';
 import {
   getSignColors,
   getExtendedPlanetInSign,
@@ -32,6 +33,22 @@ export class NatalChartService {
     private redis: RedisService,
     private chartRepository: ChartRepository,
   ) {}
+
+  /**
+   * Compute fingerprint of birth inputs to detect changes.
+   * Uses normalized ISO date (YYYY-MM-DD), HH:MM time, and raw place string.
+   */
+  private computeFingerprint(
+    birthDateISO: string,
+    birthTime: string,
+    birthPlace: string,
+  ): string {
+    const date = birthDateISO?.trim() || '';
+    const time = birthTime?.trim() || '';
+    const place = (birthPlace ?? '').trim();
+    const payload = `${date}|${time}|${place}`.toLowerCase();
+    return createHash('sha1').update(payload).digest('hex');
+  }
 
   /**
    * Create natal chart with interpretation at registration
@@ -68,6 +85,9 @@ export class NatalChartService {
     const dateStr = birthDate.toISOString().split('T')[0];
     const location = this.getLocationCoordinates(birthPlace);
 
+    // Fingerprint for birth data
+    const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
+
     // Calculate natal chart via Swiss Ephemeris
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
@@ -82,11 +102,15 @@ export class NatalChartService {
         natalChartData,
       );
 
-    // Save chart with interpretation (including version)
+    // Save chart with interpretation (including version) + metadata (fingerprint)
     const chartWithInterpretation = {
       ...natalChartData,
       interpretation,
       interpretationVersion: 'v3',
+      metadata: {
+        ...natalChartData?.metadata,
+        fingerprint,
+      },
     };
 
     const created = await this.chartRepository.create({
@@ -118,7 +142,88 @@ export class NatalChartService {
 
     const chartData = chart.data;
 
-    // If interpretation is missing or version is outdated — regenerate for v3
+    // 1) Check fingerprint vs current user profile (if profile filled)
+    let currentFingerprint: string | null = null;
+    try {
+      const { data: userProfile } =
+        await this.supabaseService.getUserProfileAdmin(chart.user_id);
+      const bd = userProfile?.birth_date as string | undefined;
+      const bt = userProfile?.birth_time as string | undefined;
+      const bp = userProfile?.birth_place as string | undefined;
+
+      if (bd && bt && bp) {
+        const dateStr = new Date(bd).toISOString().split('T')[0];
+        currentFingerprint = this.computeFingerprint(dateStr, bt, bp);
+      }
+    } catch (_e) {
+      // ignore profile read issues
+    }
+
+    const existingFingerprint: string | undefined =
+      chartData?.metadata?.fingerprint;
+
+    if (
+      currentFingerprint &&
+      existingFingerprint &&
+      currentFingerprint !== existingFingerprint
+    ) {
+      // Birth inputs changed -> fully recompute natal chart + interpretation and persist
+      try {
+        const { data: userProfile } =
+          await this.supabaseService.getUserProfileAdmin(chart.user_id);
+        const bd = userProfile?.birth_date as string;
+        const bt = userProfile?.birth_time as string;
+        const bp = userProfile?.birth_place as string;
+
+        const dateStr = new Date(bd).toISOString().split('T')[0];
+        const location = this.getLocationCoordinates(bp);
+
+        const newNatal = await this.ephemerisService.calculateNatalChart(
+          dateStr,
+          bt,
+          location,
+        );
+
+        const newInterp =
+          await this.interpretationService.generateNatalChartInterpretation(
+            userId,
+            newNatal,
+          );
+
+        const updatedData = {
+          ...newNatal,
+          interpretation: newInterp,
+          interpretationVersion: 'v3',
+          metadata: {
+            ...newNatal?.metadata,
+            fingerprint: currentFingerprint,
+          },
+        };
+
+        await this.chartRepository.update(chart.id, { data: updatedData });
+
+        try {
+          await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+          await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+        } catch (_e) {
+          void 0;
+        }
+
+        return {
+          id: chart.id,
+          userId: chart.user_id,
+          data: updatedData,
+          createdAt: chart.created_at,
+          updatedAt: chart.updated_at,
+        };
+      } catch (e) {
+        this.logger.warn(
+          `Failed to recompute natal chart for fingerprint change user ${userId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+
+    // 2) If interpretation is missing or version is outdated — regenerate for v3
     if (!chartData.interpretation || chartData.interpretationVersion !== 'v3') {
       this.logger.log(
         `Regenerating interpretation for user ${userId} (version: ${chartData.interpretationVersion || 'none'})`,
@@ -130,11 +235,33 @@ export class NatalChartService {
           chartData,
         );
 
-      // Update chart with interpretation and version
+      // If no fingerprint stored yet but we can derive from chartData, try to set from chartData
+      const derivedFingerprint = existingFingerprint;
+      try {
+        if (
+          !derivedFingerprint &&
+          chartData?.birthDate &&
+          chartData?.location
+        ) {
+          const d = new Date(chartData.birthDate as string)
+            .toISOString()
+            .split('T')[0];
+          // chartData.location likely { latitude, longitude, timezone } but not place string; skip place in that case
+          // leave fingerprint undefined if not derivable
+        }
+      } catch {
+        // ignore
+      }
+
+      // Update chart with interpretation and version (preserve metadata)
       const updatedData = {
         ...chartData,
         interpretation,
         interpretationVersion: 'v3',
+        metadata: {
+          ...(chartData?.metadata || {}),
+          fingerprint: existingFingerprint ?? derivedFingerprint,
+        },
       };
 
       await this.chartRepository.update(chart.id, { data: updatedData });
@@ -226,16 +353,42 @@ export class NatalChartService {
 
     const location = this.getLocationCoordinates(user.birth_place as string);
 
+    const dateStr = birthDate.toISOString().split('T')[0];
+
     const natalChartData = await this.ephemerisService.calculateNatalChart(
-      birthDate.toISOString().split('T')[0],
+      dateStr,
       birthTime,
       location,
     );
 
+    // Generate interpretation immediately on creation
+    const interpretation =
+      await this.interpretationService.generateNatalChartInterpretation(
+        userId,
+        natalChartData,
+      );
+
+    // Fingerprint for birth data
+    const fingerprint = this.computeFingerprint(
+      dateStr,
+      birthTime,
+      user.birth_place as string,
+    );
+
+    const chartWithInterpretation = {
+      ...natalChartData,
+      interpretation,
+      interpretationVersion: 'v3',
+      metadata: {
+        ...natalChartData?.metadata,
+        fingerprint,
+      },
+    };
+
     // Save chart via repository
     const newChart = await this.chartRepository.create({
       user_id: userId,
-      data: natalChartData,
+      data: chartWithInterpretation,
     });
 
     // Invalidate cached horoscopes and user-specific transits

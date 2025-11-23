@@ -11,6 +11,11 @@ import { ChartRepository } from '../repositories';
 import { AIService } from './ai.service';
 import { RedisService } from '../redis/redis.service';
 import {
+  LIMITS,
+  secondsUntilEndOfUTCDate,
+  utcDayKey,
+} from '../config/limits.config';
+import {
   PlanetKey,
   PLANET_WEIGHTS,
   getEssentialDignity,
@@ -257,6 +262,7 @@ export class HoroscopeGeneratorService {
           targetDate,
           cacheKey,
           ttlSec,
+          userId,
         );
       } else {
         result = this.generateFreeHoroscope(
@@ -299,8 +305,71 @@ export class HoroscopeGeneratorService {
     targetDate: Date,
     _cacheKey: string,
     _ttlSec: number,
+    userId: string,
   ): Promise<HoroscopePrediction> {
     this.logger.log('💎 PREMIUM: Генерация через AI');
+
+    // Ежесуточный лимит одного AI-запроса для гороскопов (на пользователя)
+    try {
+      const dayKey = utcDayKey(); // по текущей UTC-дате
+      const quotaKey = `ai:horoscope:quota:${userId}:${dayKey}`;
+      const used = await this.redis.incr(quotaKey);
+      if (used != null) {
+        if (used === 1) {
+          // Первая попытка за сутки — ставим истечение к концу дня
+          await this.redis.expire(quotaKey, secondsUntilEndOfUTCDate());
+        }
+        if (used > LIMITS.HOROSCOPE.AI_DAILY_PER_USER) {
+          this.logger.warn(
+            `AI daily limit reached for horoscope user=${userId} used=${used}/${LIMITS.HOROSCOPE.AI_DAILY_PER_USER}`,
+          );
+          // Фолбэк на интерпретатор (без AI)
+          const dominantTransit = this.getDominantTransit(
+            transitAspects,
+            'general',
+          );
+          const energy = this.calculateEnergy(transitAspects);
+          const mood = this.determineMood(energy, transitAspects);
+          const predictions = this.generateRuleBasedPredictions(
+            chartData.planets?.sun?.sign || 'Aries',
+            chartData.planets?.moon?.sign || 'Cancer',
+            dominantTransit,
+            transitAspects,
+            period,
+            targetDate,
+            chartData,
+          );
+          const lunarPhase = this.calculateLunarPhaseForDate(transits);
+
+          return {
+            period: period as 'day' | 'tomorrow' | 'week' | 'month',
+            date: targetDate.toISOString(),
+            general: predictions.general,
+            love: predictions.love,
+            career: predictions.career,
+            health: predictions.health,
+            finance: predictions.finance,
+            advice: predictions.advice,
+            luckyNumbers: this.generateLuckyNumbers(chartData, targetDate),
+            luckyColors: this.generateLuckyColors(
+              chartData.planets?.sun?.sign || 'Aries',
+              dominantTransit,
+            ),
+            energy,
+            mood,
+            challenges: [],
+            opportunities: [],
+            generatedBy: 'interpreter',
+            lunarPhase,
+          };
+        }
+      }
+    } catch (e) {
+      this.logger.warn(
+        `AI daily limiter failed (fallback to best-effort): ${(e as Error)?.message || String(e)}`,
+      );
+      // Продолжаем без лимитера, чтобы не ломать UX при проблемах Redis
+    }
 
     if (!this.aiService.isAvailable()) {
       this.logger.error('❌ AI недоступен для PREMIUM пользователя!');

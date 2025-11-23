@@ -9,6 +9,12 @@ import { AIService } from '../../services/ai.service';
 import { calculateAspect } from '../../shared/astro-calculations';
 import { SubscriptionTier, hasAIAccess } from '../../types/subscription';
 import type { TransitAspect } from '../../services/horoscope.types';
+import { RedisService } from '../../redis/redis.service';
+import {
+  LIMITS,
+  secondsUntilEndOfUTCDate,
+  utcDayKey,
+} from '../../config/limits.config';
 
 @Injectable()
 export class TransitService {
@@ -17,6 +23,7 @@ export class TransitService {
   constructor(
     private ephemerisService: EphemerisService,
     private aiService: AIService,
+    private redis: RedisService,
   ) {}
 
   /**
@@ -83,11 +90,41 @@ export class TransitService {
     // Get top 10 most significant transits
     const significantTransits = sortedAspects.slice(0, 10);
 
-    // Check if user has AI access
+    // Check if user has AI access by subscription
     const canUseAI = hasAIAccess(subscriptionTier);
 
+    // Daily per-user limit for Time Machine AI usage (Premium / MAX)
+    let allowAI = canUseAI;
+    if (canUseAI) {
+      try {
+        const dayKey = utcDayKey(); // UTC day (now)
+        const quotaKey = `ai:time_machine:quota:${userId}:${dayKey}`;
+        const limit =
+          subscriptionTier === SubscriptionTier.PREMIUM
+            ? LIMITS.TIME_MACHINE.PREMIUM_DAILY
+            : LIMITS.TIME_MACHINE.MAX_DAILY;
+
+        const used = await this.redis.incr(quotaKey);
+        if (used != null) {
+          if (used === 1) {
+            await this.redis.expire(quotaKey, secondsUntilEndOfUTCDate());
+          }
+          if (used > limit) {
+            this.logger.warn(
+              `Time Machine daily limit reached user=${userId} used=${used}/${limit} tier=${subscriptionTier}`,
+            );
+            allowAI = false; // fallback to rule-based
+          }
+        }
+      } catch (e) {
+        this.logger.warn(
+          `Time Machine limiter failed (fallback to best-effort): ${(e as Error)?.message || String(e)}`,
+        );
+      }
+    }
+
     let aiInterpretation = null;
-    if (canUseAI && significantTransits.length > 0) {
+    if (allowAI && significantTransits.length > 0) {
       try {
         // Generate AI interpretation for top 5 transits
         aiInterpretation = await this.generateAITransitInterpretation(
@@ -111,9 +148,9 @@ export class TransitService {
         this.getRuleBasedInterpretation(significantTransits),
       subscriptionTier,
       hasAIAccess: canUseAI,
-      message: canUseAI
+      message: allowAI
         ? 'AI-enhanced transit interpretation (PREMIUM/MAX)'
-        : 'Basic transit interpretation (FREE)',
+        : 'Basic transit interpretation (FREE or daily AI limit reached)',
     };
   }
 

@@ -30,7 +30,7 @@ import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
 
 const HoroscopeScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   // State для данных
   const [chart, setChart] = useState<Chart | null>(null);
@@ -484,7 +484,9 @@ const HoroscopeScreen: React.FC = () => {
               <HoroscopeSvg size={60} />
             </View>
             <Text style={styles.headerTitle}>Гороскоп</Text>
-            <Text style={styles.headerSubtitle}>Астрологический дашборд</Text>
+            <Text style={styles.headerSubtitle}>
+              Космос для вас{user?.name ? `, ${user.name}` : ''}
+            </Text>
             <Text style={styles.headerDate}>
               Позиции на{' '}
               {new Date().toLocaleDateString('ru-RU', {

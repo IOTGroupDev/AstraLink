@@ -32,6 +32,7 @@
 
 // backend/src/types/subscription.ts
 import { z } from 'zod';
+import { LIMITS } from '../config/limits.config';
 
 // ========================================
 // SUBSCRIPTION TIERS (3 уровня)
@@ -120,18 +121,19 @@ export const FEATURE_MATRIX = {
       'Кто лайкнул в Dating',
       'Лунный календарь (полный месяц)',
       'Биоритмы и практики',
-      'AI Советник (30 запросов в сутки)', // 🎯
+      'AI Советник (30 запросов в сутки)',
     ],
     limits: {
-      natalChart: 1, // Полная карта
-      horoscope: 'ai', // AI генерация
-      transits: 'detailed', // Детальные транзиты
-      connections: Infinity, // Неограниченно
-      dating: Infinity, // Неограниченный доступ
-      lunarCalendar: 'month', // Полный месяц
-      aiAccess: true, // ✅ Полный доступ к AI
-      advisorQueries: 30, // 🎯 30 запросов к советнику в сутки
-      horoscopeRefresh: 'daily', // 🎯 Гороскоп обновляется 1 раз в сутки
+      natalChart: 1,
+      horoscope: 'ai',
+      transits: 'detailed',
+      connections: Infinity,
+      dating: Infinity,
+      lunarCalendar: 'month',
+      aiAccess: true,
+      advisorQueries: LIMITS.ADVISOR.PREMIUM_DAILY,
+      timeMachineQueries: LIMITS.TIME_MACHINE.PREMIUM_DAILY,
+      horoscopeRefresh: 'daily',
     },
   },
   [SubscriptionTier.MAX]: {
@@ -145,7 +147,7 @@ export const FEATURE_MATRIX = {
       'VIP поддержка',
       'Индивидуальный годовой гороскоп (PDF)',
       'Приоритет в Dating',
-      'AI Советник (100 запросов в сутки)', // 🎯
+      'AI Советник (50 запросов в сутки)',
     ],
     limits: {
       natalChart: 1,
@@ -154,11 +156,12 @@ export const FEATURE_MATRIX = {
       connections: Infinity,
       dating: Infinity,
       lunarCalendar: 'month',
-      astrologerConsultations: 2, // 2 консультации в год
-      priority: true, // VIP приоритет
-      aiAccess: true, // ✅ Полный доступ к AI
-      advisorQueries: 100, // 🎯 100 запросов к советнику в сутки
-      horoscopeRefresh: 'daily', // 🎯 Гороскоп обновляется 1 раз в сутки
+      astrologerConsultations: 2,
+      priority: true,
+      aiAccess: true,
+      advisorQueries: LIMITS.ADVISOR.MAX_DAILY,
+      timeMachineQueries: LIMITS.TIME_MACHINE.MAX_DAILY,
+      horoscopeRefresh: 'daily',
     },
   },
 };

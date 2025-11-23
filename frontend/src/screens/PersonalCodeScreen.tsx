@@ -13,9 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { CodePurpose, PersonalCodeResult } from '../types/personal-code';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PersonalCodeScreen = () => {
   const { user } = useAuth();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [selectedPurpose, setSelectedPurpose] = useState<CodePurpose>('luck');
   const [selectedDigitCount, setSelectedDigitCount] = useState<number>(4);
   const [result, setResult] = useState<PersonalCodeResult | null>(null);
@@ -118,6 +122,18 @@ const PersonalCodeScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Safe header with back button */}
+        <View style={[styles.headerSafe, { paddingTop: insets.top }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Text style={styles.backText}>Назад</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Персональные Коды</Text>
@@ -457,6 +473,20 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: '#A78BFA',
+  },
+  headerSafe: {
+    paddingHorizontal: 12,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  backText: {
+    fontSize: 16,
+    color: '#FFFFFF',
   },
   section: {
     marginBottom: 24,

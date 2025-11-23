@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 // src/types/navigation.ts
 export type RootStackParamList = {
   // Onboarding
@@ -33,6 +34,7 @@ export type RootStackParamList = {
   };
 
   NatalChart: undefined;
+  PersonalCode: undefined;
 };
 
 declare global {

@@ -21,6 +21,7 @@ import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
+import PersonalCodeScreen from '../screens/PersonalCodeScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -163,6 +164,11 @@ export default function MainStackNavigator() {
           <Stack.Screen
             name="NatalChart"
             component={NatalChartScreen}
+            options={{ presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="PersonalCode"
+            component={PersonalCodeScreen}
             options={{ presentation: 'card' }}
           />
         </>
