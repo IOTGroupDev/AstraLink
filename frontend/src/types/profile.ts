@@ -8,7 +8,7 @@ export interface UserProfile {
   birthTime: string;
   birthPlace: string;
   avatar?: string;
-  registrationDate: string;
+  createdAt: string;
   isDarkMode: boolean;
 }
 
@@ -22,10 +22,19 @@ export interface UpdateProfileRequest {
   isDarkMode?: boolean;
 }
 
-export type ZodiacSign = 
-  | 'Aries' | 'Taurus' | 'Gemini' | 'Cancer' 
-  | 'Leo' | 'Virgo' | 'Libra' | 'Scorpio' 
-  | 'Sagittarius' | 'Capricorn' | 'Aquarius' | 'Pisces';
+export type ZodiacSign =
+  | 'Aries'
+  | 'Taurus'
+  | 'Gemini'
+  | 'Cancer'
+  | 'Leo'
+  | 'Virgo'
+  | 'Libra'
+  | 'Scorpio'
+  | 'Sagittarius'
+  | 'Capricorn'
+  | 'Aquarius'
+  | 'Pisces';
 
 export type Element = 'Fire' | 'Earth' | 'Air' | 'Water';
 

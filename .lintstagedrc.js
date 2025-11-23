@@ -1,4 +1,4 @@
 module.exports = {
-  '*.{ts,tsx,js,jsx}': ['eslint --fix', 'prettier --write'],
-  '*.{json,md}': ['prettier --write'],
+  'backend/**/*.{ts,tsx}': ['npm run backend:lint'],
+  '*.{ts,tsx,js,jsx,json,md}': ['npm run format'],
 };

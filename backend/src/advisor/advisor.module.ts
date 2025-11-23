@@ -1,0 +1,31 @@
+import { Module } from '@nestjs/common';
+import { AdvisorController } from './advisor.controller';
+import { AdvisorService } from './advisor.service';
+import { ServicesModule } from '@/services/services.module';
+import { ChartModule } from '@/chart/chart.module';
+import { RedisModule } from '@/redis/redis.module';
+import { SubscriptionModule } from '@/subscription/subscription.module';
+import { AnalyticsModule } from '@/analytics/analytics.module';
+import { SubscriptionGuard } from '@/common/guards/subscription.guard';
+import { AdvisorRateLimitGuard } from './guards/advisor-rate-limit.guard';
+import { SupabaseModule } from '@/supabase/supabase.module';
+import { InterpretationService } from '@/services/interpretation.service';
+
+@Module({
+  imports: [
+    ServicesModule,
+    RedisModule,
+    SubscriptionModule,
+    AnalyticsModule,
+    SupabaseModule,
+    ChartModule,
+  ],
+  controllers: [AdvisorController],
+  providers: [
+    AdvisorService,
+    SubscriptionGuard,
+    AdvisorRateLimitGuard, // 🎯 Rate limiting для советника
+    InterpretationService,
+  ],
+})
+export class AdvisorModule {}

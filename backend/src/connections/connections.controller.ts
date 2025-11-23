@@ -1,8 +1,28 @@
-import { Controller, Get, Post, Param, UseGuards, Request, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  Request,
+  Body,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ConnectionsService } from './connections.service';
-import type { CreateConnectionRequest, SynastryResponse, CompositeResponse } from '../types';
+import type {
+  CreateConnectionRequest,
+  SynastryResponse,
+  CompositeResponse,
+} from '../types';
+import type { AuthenticatedRequest } from '../types/auth';
 
 @ApiTags('Connections')
 @Controller('connections')
@@ -14,15 +34,26 @@ export class ConnectionsController {
   @Post()
   @ApiOperation({ summary: 'Создать новую связь' })
   @ApiResponse({ status: 201, description: 'Связь создана' })
-  async createConnection(@Request() req, @Body() connectionData: CreateConnectionRequest) {
-    return this.connectionsService.createConnection(req.user.userId, connectionData);
+  async createConnection(
+    @Request() req: AuthenticatedRequest,
+    @Body() connectionData: CreateConnectionRequest,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.createConnection(userId, connectionData);
   }
 
   @Get()
   @ApiOperation({ summary: 'Получить список связей пользователя' })
   @ApiResponse({ status: 200, description: 'Список связей' })
-  async getConnections(@Request() req) {
-    return this.connectionsService.getConnections(req.user.userId);
+  async getConnections(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.getConnections(userId);
   }
 
   @Get(':id/synastry')
@@ -30,8 +61,15 @@ export class ConnectionsController {
   @ApiParam({ name: 'id', description: 'ID связи' })
   @ApiResponse({ status: 200, description: 'Данные синастрии' })
   @ApiResponse({ status: 404, description: 'Связь не найдена' })
-  async getSynastry(@Request() req, @Param('id') connectionId: string): Promise<SynastryResponse> {
-    return this.connectionsService.getSynastry(req.user.userId, parseInt(connectionId));
+  async getSynastry(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') connectionId: string,
+  ): Promise<SynastryResponse> {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.getSynastry(userId, connectionId);
   }
 
   @Get(':id/composite')
@@ -39,7 +77,14 @@ export class ConnectionsController {
   @ApiParam({ name: 'id', description: 'ID связи' })
   @ApiResponse({ status: 200, description: 'Данные композитной карты' })
   @ApiResponse({ status: 404, description: 'Связь не найдена' })
-  async getComposite(@Request() req, @Param('id') connectionId: string): Promise<CompositeResponse> {
-    return this.connectionsService.getComposite(req.user.userId, parseInt(connectionId));
+  async getComposite(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') connectionId: string,
+  ): Promise<CompositeResponse> {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.connectionsService.getComposite(userId, connectionId);
   }
 }

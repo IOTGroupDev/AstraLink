@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/IOTGroupDev/AstraLink/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 📖 Documentation
+    url: https://github.com/IOTGroupDev/AstraLink#readme
+    about: Read the project documentation
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/IOTGroupDev/AstraLink/security/advisories/new
+    about: Report a security vulnerability privately

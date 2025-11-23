@@ -5,13 +5,22 @@ services:
     image: postgres:15
     container_name: astralink-postgres
     environment:
-      POSTGRES_DB: astralink
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-astralink}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - astralink-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: astralink-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     networks:
       - astralink-network
 
@@ -21,13 +30,18 @@ services:
       dockerfile: Dockerfile
     container_name: astralink-backend
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/astralink?schema=public
-      JWT_SECRET: supersecret
-      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-astralink}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+      PORT: ${BACKEND_PORT:-3000}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NODE_ENV: ${NODE_ENV:-development}
     ports:
       - "3000:3000"
     depends_on:
       - postgres
+      - redis
     networks:
       - astralink-network
     volumes:

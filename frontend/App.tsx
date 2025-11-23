@@ -1,141 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import 'react-native-reanimated';
+import 'react-native-gesture-handler';
+import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
+
+import { TextEncoder, TextDecoder } from 'text-encoding';
+if (typeof globalThis.TextEncoder === 'undefined')
+  (globalThis as any).TextEncoder = TextEncoder;
+if (typeof globalThis.TextDecoder === 'undefined')
+  (globalThis as any).TextDecoder = TextDecoder;
+
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSpring,
-  withDelay,
-  FadeIn,
-  SlideInUp,
-  Easing,
-  interpolate,
-} from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { ActivityIndicator, View, Text } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import MainStackNavigator from './src/navigation/MainStackNavigator';
+import { initSupabaseAuth } from './src/services/supabase';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { userExtendedProfileAPI } from './src/services/api';
+import { useAuthStore } from './src/stores/auth.store';
 
-import { getStoredToken, authAPI } from './src/services/api';
-import LoginScreen from './src/screens/LoginScreen';
-import SignupScreen from './src/screens/SignupScreen';
-import TabNavigator from './src/navigation/TabNavigator';
-import AnimatedStars from './src/components/AnimatedStars';
-import AstrologicalChart from './src/components/AstrologicalChart';
-import LoadingLogo from './src/components/LoadingLogo';
-import CosmicBackground from './src/components/CosmicBackground';
-
-const { width, height } = Dimensions.get('window');
+const queryClient = new QueryClient();
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showSignup, setShowSignup] = useState(false);
+  const [booted, setBooted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const setOnboardingCompleted = useAuthStore((s) => s.setOnboardingCompleted);
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    (async () => {
+      try {
+        console.log('🚀 Starting app initialization...');
 
-  const checkAuthStatus = async () => {
-    try {
-      const token = await getStoredToken();
-      if (token) {
-        console.log('🔍 Найден токен, пользователь авторизован');
-        setIsAuthenticated(true);
-        // Не проверяем профиль здесь, чтобы избежать ошибок backend
-        // Проверка будет происходить в компонентах при необходимости
-      } else {
-        console.log('❌ Токен не найден, требуется авторизация');
-        setIsAuthenticated(false);
+        // Инициализируем Supabase (который инициализирует tokenService внутри)
+        await initSupabaseAuth();
+
+        // После восстановления сессии пробуем подтянуть флаг онбординга из БД
+        // чтобы навигация не отправляла на онбординг при повторной авторизации
+        try {
+          const ext = await userExtendedProfileAPI.getUserProfile();
+          if (ext?.is_onboarded === true) {
+            await setOnboardingCompleted(true);
+            console.log(
+              '✅ Onboarding flag synced from DB (is_onboarded=true)'
+            );
+          }
+        } catch (syncErr) {
+          console.log(
+            'ℹ️ Onboarding flag sync skipped:',
+            syncErr?.message || syncErr
+          );
+        }
+
+        console.log('✅ App initialization complete');
+      } catch (err) {
+        console.error('❌ App initialization error:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setBooted(true);
       }
-    } catch (error) {
-      console.log('❌ Ошибка проверки авторизации:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    })();
+  }, [setOnboardingCompleted]);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleSignup = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setShowSignup(false);
-  };
-
-  // Добавляем обработчик выхода в Navigation context
-  const navigationProps = {
-    onLogout: handleLogout,
-  };
-
-  if (isLoading) {
+  if (!booted) {
     return (
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
-        style={styles.loadingContainer}
-      >
-        <StatusBar style="light" />
-        <AnimatedStars />
-        <CosmicBackground />
-        <LoadingLogo />
-      </LinearGradient>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
-        style={styles.container}
-      >
-        <StatusBar style="light" />
-        <AnimatedStars />
-        <CosmicBackground />
-        {showSignup ? (
-          <SignupScreen
-            onSignup={handleSignup}
-            onSwitchToLogin={() => setShowSignup(false)}
-          />
-        ) : (
-          <LoginScreen
-            onLogin={handleLogin}
-            onSwitchToSignup={() => setShowSignup(true)}
-          />
-        )}
-      </LinearGradient>
+      <SafeAreaProvider>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
+            Загрузка приложения...
+          </Text>
+          {error && (
+            <Text
+              style={{
+                marginTop: 8,
+                fontSize: 14,
+                color: '#ef4444',
+                textAlign: 'center',
+              }}
+            >
+              Ошибка: {error}
+            </Text>
+          )}
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#0F172A', '#1E293B', '#334155']}
-      style={styles.container}
-    >
-      <StatusBar style="light" />
-      <AnimatedStars />
-      <CosmicBackground />
-      <NavigationContainer>
-        <TabNavigator />
-      </NavigationContainer>
-    </LinearGradient>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <NavigationContainer>
+          <MainStackNavigator />
+        </NavigationContainer>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

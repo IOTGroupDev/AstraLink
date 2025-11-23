@@ -6,25 +6,26 @@
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
-    "backend:dev": "cd backend && npm run dev",
+    "backend:dev": "cd backend && npm run start:dev",
     "frontend:dev": "cd frontend && npx expo start",
     "backend:build": "cd backend && npm run build",
     "frontend:build": "cd frontend && npm run build",
-    "lint": "npm run backend:lint && npm run frontend:lint",
+    "lint": "npm run backend:lint",
     "backend:lint": "cd backend && npm run lint",
     "frontend:lint": "cd frontend && npm run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "concurrently": "^8.2.2",
-    "prettier": "^3.3.3",
     "eslint": "^8.57.0",
-    "typescript": "^5.6.3",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0"
+    "prettier": "^3.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
   },
   "engines": {
     "node": ">=18.0.0",

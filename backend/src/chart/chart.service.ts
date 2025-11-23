@@ -1,286 +1,376 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+/**
+ * Chart Service (Refactored as Facade)
+ * Delegates to microservices: NatalChart, Transit, Prediction, Biorhythm
+ */
+
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { EphemerisService } from '../services/ephemeris.service';
+import { NatalChartService } from './services/natal-chart.service';
+import { TransitService } from './services/transit.service';
+import { PredictionService } from './services/prediction.service';
+import { BiorhythmService } from './services/biorhythm.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { RedisService } from '../redis/redis.service';
+import {
+  CodePurpose,
+  PersonalCodeService,
+} from '@/chart/services/personal-code.service';
+import { SubscriptionTier } from '@/types';
 
 @Injectable()
 export class ChartService {
+  private readonly logger = new Logger(ChartService.name);
+
+  // Cache TTL in seconds (5 minutes)
+  private readonly SUBSCRIPTION_CACHE_TTL = 5 * 60;
+
   constructor(
     private prisma: PrismaService,
+    private horoscopeService: HoroscopeGeneratorService,
     private ephemerisService: EphemerisService,
+    private natalChartService: NatalChartService,
+    private transitService: TransitService,
+    private predictionService: PredictionService,
+    private biorhythmService: BiorhythmService,
+    private supabaseService: SupabaseService,
+    private personalCodeService: PersonalCodeService,
+    private redis: RedisService,
   ) {}
 
-  async getNatalChart(userId: number) {
-    const chart = await this.prisma.chart.findFirst({
-      where: {
-        userId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  // ============================================================
+  // PRIVATE CACHE HELPERS
+  // ============================================================
 
-    if (!chart) {
-      throw new NotFoundException('Натальная карта не найдена');
+  /**
+   * ✅ ОПТИМИЗАЦИЯ: Получить подписку с кэшированием в Redis
+   * Кэш на 5 минут для снижения нагрузки на БД
+   * Теперь работает в multi-instance deployment
+   */
+  private async getCachedSubscription(userId: string) {
+    const cacheKey = `subscription:${userId}`;
+
+    // Try to get from Redis cache
+    const cached = await this.redis.get<any>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Subscription cache HIT for user ${userId}`);
+      return cached;
     }
 
-    return chart;
+    // Cache MISS - query from database
+    this.logger.debug(`Subscription cache MISS for user ${userId}`);
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
+
+    // Store in Redis with TTL
+    if (subscription) {
+      await this.redis.set(cacheKey, subscription, this.SUBSCRIPTION_CACHE_TTL);
+    }
+
+    return subscription;
   }
 
-  async createNatalChart(userId: number, data: any) {
-    // Получаем данные пользователя для расчёта
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user || !user.birthDate || !user.birthTime || !user.birthPlace) {
-      throw new NotFoundException('Недостаточно данных для расчёта натальной карты');
-    }
-
-    // Преобразуем дату и время с проверкой
-    const birthDate = user.birthDate.toISOString().split('T')[0];
-    const birthTime = user.birthTime || '12:00'; // Дефолтное время если не указано
-    
-    // Проверяем корректность времени
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(birthTime)) {
-      throw new NotFoundException('Некорректный формат времени рождения. Ожидается HH:MM');
-    }
-
-    // Проверяем корректность даты
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(birthDate)) {
-      throw new NotFoundException('Некорректный формат даты рождения. Ожидается YYYY-MM-DD');
-    }
-    
-    // Упрощённые координаты (можно захардкодить для тестирования)
-    const location = this.getLocationCoordinates(user.birthPlace);
-
-    // Рассчитываем натальную карту через Swiss Ephemeris
-    const natalChartData = await this.ephemerisService.calculateNatalChart(
-      birthDate,
-      birthTime,
-      location
+  /**
+   * Проверить, является ли подписка premium
+   */
+  private isPremiumSubscription(subscription: any): boolean {
+    return (
+      subscription?.tier !== 'free' &&
+      subscription?.expiresAt != null &&
+      new Date(subscription.expiresAt) > new Date()
     );
-
-    // Удаляем старую натальную карту, если есть
-    await this.prisma.chart.deleteMany({
-      where: {
-        userId,
-      },
-    });
-
-    return this.prisma.chart.create({
-      data: {
-        userId,
-        data: natalChartData,
-      },
-    });
   }
 
-  async getTransits(userId: number, from: string, to: string) {
-    // Получаем натальную карту пользователя
-    const natalChart = await this.getNatalChart(userId);
-    
-    // Рассчитываем транзиты через Swiss Ephemeris
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
-    
-    const transits = await this.ephemerisService.getTransits(
+  // ============================================================
+  // UTILITY METHODS (Backward Compatibility)
+  // ============================================================
+
+  /**
+   * Get location coordinates (delegated to NatalChartService)
+   */
+  getLocationCoordinates(birthPlace: string): {
+    latitude: number;
+    longitude: number;
+    timezone: number;
+  } {
+    return this.natalChartService.getLocationCoordinates(birthPlace);
+  }
+
+  // ============================================================
+  // NATAL CHART OPERATIONS (Delegate to NatalChartService)
+  // ============================================================
+
+  /**
+   * Create natal chart with interpretation at registration
+   */
+  async createNatalChartWithInterpretation(
+    userId: string,
+    birthDateISO: string,
+    birthTime: string,
+    birthPlace: string,
+  ) {
+    return this.natalChartService.createNatalChartWithInterpretation(
       userId,
-      fromDate,
-      toDate
+      birthDateISO,
+      birthTime,
+      birthPlace,
     );
-
-    return {
-      from,
-      to,
-      transits,
-      natalChart: natalChart.data,
-      message: 'Транзиты рассчитаны на основе натальной карты',
-    };
   }
 
   /**
-   * Получает координаты места рождения
-   * Упрощённая версия - можно захардкодить для тестирования
+   * Get natal chart with interpretation
    */
-  private getLocationCoordinates(birthPlace: string): { latitude: number; longitude: number; timezone: number } {
-    // Упрощённые координаты для основных городов
-    const locations: { [key: string]: { latitude: number; longitude: number; timezone: number } } = {
-      'Москва': { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
-      'Санкт-Петербург': { latitude: 59.9311, longitude: 30.3609, timezone: 3 },
-      'Екатеринбург': { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
-      'Новосибирск': { latitude: 55.0084, longitude: 82.9357, timezone: 7 },
-      'default': { latitude: 55.7558, longitude: 37.6176, timezone: 3 }, // Москва по умолчанию
-    };
-
-    return locations[birthPlace] || locations['default'];
-  }
-
-
-  /**
-   * Получить текущие позиции планет
-   */
-  async getCurrentPlanets(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-
-    const now = new Date();
-    const julianDay = this.ephemerisService.dateToJulianDay(now);
-    const currentPlanets = await this.ephemerisService.calculatePlanets(julianDay);
-
-    return {
-      date: now.toISOString(),
-      planets: currentPlanets,
-    };
+  async getNatalChartWithInterpretation(userId: string) {
+    return this.natalChartService.getNatalChartWithInterpretation(userId);
   }
 
   /**
-   * Получить астрологические предсказания
+   * Get only natal chart interpretation
    */
-  async getPredictions(userId: number, period: string = 'day') {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  async getChartInterpretation(userId: string) {
+    return this.natalChartService.getChartInterpretation(userId);
+  }
 
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
+  /**
+   * Get natal chart
+   */
+  async getNatalChart(userId: string) {
+    return this.natalChartService.getNatalChart(userId);
+  }
 
-    // Получаем натальную карту
-    const natalChart = await this.getNatalChart(userId);
-    if (!natalChart) {
-      throw new NotFoundException('Натальная карта не найдена');
-    }
+  /**
+   * Create natal chart (basic method for backward compatibility)
+   */
+  async createNatalChart(userId: string, data: any) {
+    return this.natalChartService.createNatalChart(userId, data);
+  }
 
-    // Вычисляем дату для предсказания
-    let targetDate = new Date();
-    if (period === 'tomorrow') {
-      targetDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    } else if (period === 'week') {
-      targetDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    }
+  /**
+   * Get lazy interpretation details ("Read more")
+   */
+  async getInterpretationDetails(
+    userId: string,
+    query: {
+      type: 'planet' | 'ascendant' | 'house' | 'aspect';
+      planet?: string;
+      sign?: string;
+      houseNum?: number | string;
+      aspect?: string;
+    },
+  ): Promise<string[]> {
+    return this.natalChartService.getInterpretationDetails(userId, query);
+  }
 
-    // Получаем позиции планет для целевой даты
-    const julianDay = this.ephemerisService.dateToJulianDay(targetDate);
-    const targetPlanets = await this.ephemerisService.calculatePlanets(julianDay);
-    
-    // Генерируем предсказания на основе транзитов
-    const predictions = this.generatePredictions(natalChart, { planets: targetPlanets }, period);
+  // ============================================================
+  // HOROSCOPE OPERATIONS (Stay in ChartService)
+  // ============================================================
 
-    return {
+  /**
+   * Get horoscope for specific period
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
+   */
+  async getHoroscope(
+    userId: string,
+    period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
+  ) {
+    // Check user subscription (cached)
+    const subscription = await this.getCachedSubscription(userId);
+    const isPremium = this.isPremiumSubscription(subscription);
+
+    // Generate horoscope via HoroscopeGeneratorService
+    return await this.horoscopeService.generateHoroscope(
+      userId,
       period,
-      date: targetDate.toISOString(),
-      predictions,
-      currentPlanets: targetPlanets,
-    };
+      isPremium,
+    );
   }
 
   /**
-   * Генерирует предсказания на основе натальной карты и текущих позиций
+   * Get all horoscope types (for widget)
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
-  private generatePredictions(natalChart: any, currentPlanets: any, period: string) {
-    const predictions = {
-      general: '',
-      love: '',
-      career: '',
-      health: '',
-      advice: '',
+  async getAllHoroscopes(userId: string) {
+    // Check user subscription (cached)
+    const subscription = await this.getCachedSubscription(userId);
+    const isPremium = this.isPremiumSubscription(subscription);
+
+    const [today, tomorrow, week, month] = await Promise.all([
+      this.horoscopeService.generateHoroscope(userId, 'day', isPremium),
+      this.horoscopeService.generateHoroscope(userId, 'tomorrow', isPremium),
+      this.horoscopeService.generateHoroscope(userId, 'week', isPremium),
+      this.horoscopeService.generateHoroscope(userId, 'month', isPremium),
+    ]);
+
+    return {
+      today,
+      tomorrow,
+      week,
+      month,
     };
+  }
 
-    // Простая логика предсказаний на основе планет
-    const natalPlanets = natalChart.data?.planets || natalChart.planets || {};
-    const current = currentPlanets.planets || {};
+  // ============================================================
+  // TRANSIT OPERATIONS (Delegate to TransitService)
+  // ============================================================
 
-    // Базовые предсказания в зависимости от периода
-    const periodText = period === 'tomorrow' ? 'завтра' : period === 'week' ? 'на неделе' : 'сегодня';
-    const periodPrefix = period === 'tomorrow' ? 'Завтра' : period === 'week' ? 'На неделе' : 'Сегодня';
-
-    // Анализ Солнца
-    if (current.sun && natalPlanets.sun) {
-      const sunAspect = this.calculateAspect(current.sun.longitude, natalPlanets.sun.longitude);
-      if (sunAspect === 'conjunction') {
-        predictions.general = `${periodPrefix} благоприятный день для новых начинаний. Энергия Солнца усиливает ваши лидерские качества.`;
-      } else if (sunAspect === 'opposition') {
-        predictions.general = `${periodPrefix} возможны конфликты в отношениях. Старайтесь быть более дипломатичными.`;
-      } else {
-        predictions.general = `${periodPrefix} энергия Солнца будет влиять на вашу активность и уверенность в себе.`;
-      }
-    }
-
-    // Анализ Луны
-    if (current.moon && natalPlanets.moon) {
-      const moonAspect = this.calculateAspect(current.moon.longitude, natalPlanets.moon.longitude);
-      if (moonAspect === 'conjunction') {
-        predictions.love = `${periodPrefix} эмоциональная близость в отношениях. Хорошее время для романтических встреч.`;
-      } else {
-        predictions.love = `${periodPrefix} Луна будет влиять на ваши эмоции и интуицию в отношениях.`;
-      }
-    }
-
-    // Анализ Венеры
-    if (current.venus && natalPlanets.venus) {
-      const venusAspect = this.calculateAspect(current.venus.longitude, natalPlanets.venus.longitude);
-      if (venusAspect === 'trine') {
-        predictions.love = `${periodPrefix} гармония в любовных отношениях. Возможны новые знакомства.`;
-      } else if (venusAspect === 'square') {
-        predictions.love = `${periodPrefix} возможны сложности в отношениях. Будьте терпеливы.`;
-      } else {
-        predictions.love = `${periodPrefix} Венера будет влиять на вашу привлекательность и отношения.`;
-      }
-    }
-
-    // Анализ Марса
-    if (current.mars && natalPlanets.mars) {
-      const marsAspect = this.calculateAspect(current.mars.longitude, natalPlanets.mars.longitude);
-      if (marsAspect === 'square') {
-        predictions.career = `${periodPrefix} возможны препятствия в работе. Проявите терпение и настойчивость.`;
-      } else if (marsAspect === 'trine') {
-        predictions.career = `${periodPrefix} хорошее время для карьерных достижений. Проявляйте инициативу.`;
-      } else {
-        predictions.career = `${periodPrefix} Марс будет влиять на вашу энергию и амбиции в работе.`;
-      }
-    }
-
-    // Анализ Юпитера для здоровья
-    if (current.jupiter && natalPlanets.jupiter) {
-      const jupiterAspect = this.calculateAspect(current.jupiter.longitude, natalPlanets.jupiter.longitude);
-      if (jupiterAspect === 'trine') {
-        predictions.health = `${periodPrefix} хорошее время для укрепления здоровья. Занимайтесь спортом.`;
-      } else {
-        predictions.health = `${periodPrefix} Юпитер будет влиять на ваше общее самочувствие и жизненную силу.`;
-      }
-    }
-
-    // Общие советы в зависимости от периода
-    if (period === 'week') {
-      predictions.advice = 'На этой неделе фокусируйтесь на долгосрочных целях и планировании.';
-    } else if (period === 'tomorrow') {
-      predictions.advice = 'Завтра будьте готовы к новым возможностям и изменениям.';
-    } else {
-      predictions.advice = 'Сегодня слушайте свою интуицию и доверяйте внутреннему голосу.';
-    }
-
-    return predictions;
+  /**
+   * Get transits for date range
+   */
+  async getTransits(userId: string, from: string, to: string) {
+    const natalChart = await this.natalChartService.getNatalChart(userId);
+    return this.transitService.getTransits(userId, natalChart, from, to);
   }
 
   /**
-   * Вычисляет аспект между двумя планетами
+   * Get current planetary positions
    */
-  private calculateAspect(longitude1: number, longitude2: number): string {
-    const diff = Math.abs(longitude1 - longitude2);
-    const normalizedDiff = Math.min(diff, 360 - diff);
+  async getCurrentPlanets(userId: string) {
+    return this.transitService.getCurrentPlanets(userId);
+  }
 
-    if (normalizedDiff <= 8) return 'conjunction';
-    if (normalizedDiff >= 82 && normalizedDiff <= 98) return 'square';
-    if (normalizedDiff >= 118 && normalizedDiff <= 122) return 'trine';
-    if (normalizedDiff >= 172 && normalizedDiff <= 188) return 'opposition';
-    
-    return 'other';
+  /**
+   * Get detailed transit interpretation with AI (subscription-aware)
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
+   */
+  async getTransitInterpretation(userId: string, date: Date) {
+    // Get user's subscription (cached)
+    const subscription = await this.getCachedSubscription(userId);
+
+    // Determine subscription tier (default to FREE)
+    const tier = subscription?.tier || 'free';
+
+    // Get natal chart
+    const natalChart = await this.natalChartService.getNatalChart(userId);
+
+    // Get transit interpretation from service
+    return this.transitService.getTransitInterpretation(
+      userId,
+      natalChart,
+      date,
+      tier,
+    );
+  }
+
+  // ============================================================
+  // PREDICTION OPERATIONS (Delegate to PredictionService)
+  // ============================================================
+
+  /**
+   * Get astrological predictions
+   */
+  async getPredictions(userId: string, period: string = 'day') {
+    const natalChart = await this.natalChartService.getNatalChart(userId);
+    return this.predictionService.getPredictions(natalChart, period);
+  }
+
+  // ============================================================
+  // BIORHYTHM OPERATIONS (Delegate to BiorhythmService)
+  // ============================================================
+
+  /**
+   * Get real biorhythms based on user's birth date
+   */
+  async getBiorhythms(
+    userId: string,
+    dateStr?: string,
+  ): Promise<{
+    date: string;
+    physical: number;
+    emotional: number;
+    intellectual: number;
+  }> {
+    const natalChart = await this.natalChartService.getNatalChart(userId);
+    return this.biorhythmService.getBiorhythms(userId, natalChart, dateStr);
+  }
+
+  // ============================================================
+  // AI REGENERATION WITH RATE LIMITING
+  // ============================================================
+
+  /**
+   * Regenerate chart interpretation with AI
+   * Rate limited: 1 generation per 24 hours
+   */
+  async regenerateChartWithAI(userId: string): Promise<{
+    success: boolean;
+    message: string;
+    canRegenerateAt?: string;
+  }> {
+    try {
+      // 1. Check natal chart exists
+      const natalChart = await this.natalChartService.getNatalChart(userId);
+      if (!natalChart) {
+        return {
+          success: false,
+          message: 'Натальная карта не найдена. Создайте карту сначала.',
+        };
+      }
+
+      // 2. Check rate limiting (24 hours) using Prisma
+      const chartData = await this.prisma.chart.findFirst({
+        where: { userId },
+        select: { aiGeneratedAt: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (chartData?.aiGeneratedAt) {
+        const lastGenerated = chartData.aiGeneratedAt;
+        const now = new Date();
+        const hoursSinceLastGen =
+          (now.getTime() - lastGenerated.getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceLastGen < 24) {
+          const canRegenerateAt = new Date(
+            lastGenerated.getTime() + 24 * 60 * 60 * 1000,
+          );
+
+          return {
+            success: false,
+            message: `Вы можете обновить гороскоп только раз в сутки. Попробуйте через ${Math.ceil(24 - hoursSinceLastGen)} часов.`,
+            canRegenerateAt: canRegenerateAt.toISOString(),
+          };
+        }
+      }
+
+      // 3. Regenerate interpretation with AI
+      await this.natalChartService.regenerateInterpretation(userId);
+
+      // 4. Update ai_generated_at timestamp using Prisma
+      await this.prisma.chart.updateMany({
+        where: { userId },
+        data: { aiGeneratedAt: new Date() },
+      });
+
+      this.logger.log(`AI regeneration successful for user ${userId}`);
+
+      return {
+        success: true,
+        message: 'Гороскоп успешно обновлен с помощью AI',
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to regenerate chart for user ${userId}: ${error?.message || String(error)}`,
+      );
+
+      return {
+        success: false,
+        message: 'Ошибка при обновлении гороскопа. Попробуйте позже.',
+      };
+    }
+  }
+  async generatePersonalCode(
+    userId: string,
+    purpose: CodePurpose,
+    digitCount: number,
+    tier: SubscriptionTier,
+  ) {
+    return this.personalCodeService.generatePersonalCode(
+      userId,
+      purpose,
+      digitCount,
+      tier,
+    );
   }
 }

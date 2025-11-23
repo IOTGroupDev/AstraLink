@@ -1,888 +1,989 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  FadeIn,
-  SlideInUp,
-  Easing,
-  interpolate,
-  runOnJS,
-} from 'react-native-reanimated';
-import { PanGestureHandler, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+// import React, { useEffect, useState, useCallback } from 'react';
+// import {
+//   View,
+//   Text,
+//   StyleSheet,
+//   TouchableOpacity,
+//   Dimensions,
+//   Alert,
+//   ActivityIndicator,
+// } from 'react-native';
+// import { LinearGradient } from 'expo-linear-gradient';
+// import { GestureHandlerRootView } from 'react-native-gesture-handler';
+// import { Ionicons } from '@expo/vector-icons';
+// import { useNavigation } from '@react-navigation/native';
+// import { useAuth } from '../hooks/useAuth';
+// import { datingAPI, chatAPI } from '../services/api';
+// import CosmicChat from '../components/dating/CosmicChat';
+// import DatingCard from '../components/dating/DatingCard';
+// import { TabScreenLayout } from '../components/layout/TabScreenLayout';
+// import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// import {
+//   getAllZodiacSigns,
+//   type ZodiacSign,
+//   type ElementType,
+// } from '../services/zodiac.service';
+// import CosmicBackground from '../components/shared/CosmicBackground';
+//
+// const { width, height } = Dimensions.get('window');
+//
+// // API типы
+// type ApiCandidate = {
+//   userId: string;
+//   badge: 'high' | 'medium' | 'low';
+//   photoUrl?: string | null;
+//   avatarUrl?: string | null;
+//   name?: string | null;
+//   age?: number | null;
+//   zodiacSign?: string | null;
+//   bio?: string | null;
+//   interests?: string[] | null;
+//   city?: string | null;
+// };
+//
+// // Расширенный тип для UI
+// type Candidate = ApiCandidate & {
+//   name: string;
+//   age: number;
+//   zodiacSign: string;
+//   bio: string;
+//   interests: string[];
+//   distance: number;
+//   city?: string;
+//   photos?: string[];
+// };
+//
+// export default function DatingScreen() {
+//   const [candidates, setCandidates] = useState<Candidate[]>([]);
+//   const [currentIndex, setCurrentIndex] = useState(0);
+//   const [chatVisible, setChatVisible] = useState(false);
+//   const [selectedUser, setSelectedUser] = useState<{
+//     id: string;
+//     name: string;
+//     zodiacSign: string;
+//     compatibility: number;
+//   } | null>(null);
+//   const [loadingCards, setLoadingCards] = useState<boolean>(true);
+//
+//   const current = candidates[currentIndex] || null;
+//
+//   const { user, isLoading: authLoading } = useAuth();
+//   const navigation = useNavigation<any>();
+//   const insets = useSafeAreaInsets();
+//
+//   // ===============================
+//   // Helpers
+//   // ===============================
+//   const getBadgeLabel = (b?: 'high' | 'medium' | 'low') =>
+//     b === 'high' ? 'Высокая' : b === 'medium' ? 'Средняя' : 'Низкая';
+//
+//   const getBadgeBg = (b?: 'high' | 'medium' | 'low') =>
+//     b === 'high'
+//       ? 'rgba(16,185,129,0.25)'
+//       : b === 'medium'
+//         ? 'rgba(245,158,11,0.25)'
+//         : 'rgba(239,68,68,0.25)';
+//
+//   const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low') =>
+//     b === 'high' ? 85 : b === 'medium' ? 65 : 45;
+//
+//   const getElementsFromZodiac = (zodiacName: string) => {
+//     const allSigns = getAllZodiacSigns();
+//     const zodiacSign = allSigns.find(
+//       (sign) =>
+//         sign.nameRu.toLowerCase() === zodiacName.toLowerCase() ||
+//         sign.nameEn.toLowerCase() === zodiacName.toLowerCase()
+//     );
+//
+//     if (!zodiacSign) {
+//       // Дефолтные значения если знак не найден
+//       return { fire: 50, water: 50, earth: 50, air: 50 };
+//     }
+//
+//     // Определяем базовые значения стихий на основе элемента знака
+//     const elements = { fire: 0, water: 0, earth: 0, air: 0 };
+//     const primaryElement = zodiacSign.element;
+//
+//     // Основная стихия - 80%
+//     elements[primaryElement] = 80;
+//
+//     // Распределяем остальные стихии в зависимости от основной
+//     switch (primaryElement) {
+//       case 'fire':
+//         elements.air = 60; // Воздух питает огонь
+//         elements.earth = 40; // Земля стабилизирует
+//         elements.water = 20; // Вода гасит огонь
+//         break;
+//       case 'earth':
+//         elements.water = 60; // Вода питает землю
+//         elements.fire = 40; // Огонь согревает
+//         elements.air = 20; // Воздух разрушает
+//         break;
+//       case 'air':
+//         elements.fire = 60; // Огонь согревает воздух
+//         elements.water = 40; // Вода увлажняет
+//         elements.earth = 20; // Земля ограничивает
+//         break;
+//       case 'water':
+//         elements.earth = 60; // Земля содержит воду
+//         elements.air = 40; // Воздух движет воду
+//         elements.fire = 20; // Огонь испаряет воду
+//         break;
+//     }
+//
+//     return elements;
+//   };
+//
+//   const getKeyAspectsFromInterests = (
+//     interests: string[],
+//     zodiacName: string
+//   ) => {
+//     const allSigns = getAllZodiacSigns();
+//     const zodiacSign = allSigns.find(
+//       (sign) =>
+//         sign.nameRu.toLowerCase() === zodiacName.toLowerCase() ||
+//         sign.nameEn.toLowerCase() === zodiacName.toLowerCase()
+//     );
+//
+//     const aspects: string[] = [];
+//
+//     // Добавляем черты знака зодиака
+//     if (zodiacSign && zodiacSign.traits.length > 0) {
+//       aspects.push(...zodiacSign.traits.slice(0, 2));
+//     }
+//
+//     // Добавляем интересы
+//     if (interests.length > 0) {
+//       aspects.push(...interests.slice(0, Math.min(2, 4 - aspects.length)));
+//     }
+//
+//     // Если все еще мало аспектов, добавляем дефолтные
+//     if (aspects.length === 0) {
+//       aspects.push(
+//         'Творческая личность',
+//         'Открыт к новому',
+//         'Интересный собеседник'
+//       );
+//     }
+//
+//     return aspects.slice(0, 4); // Максимум 4 аспекта
+//   };
+//
+//   const nextCard = useCallback(() => {
+//     setCurrentIndex((idx) => (idx + 1 < candidates.length ? idx + 1 : idx));
+//   }, [candidates.length]);
+//
+//   // ===============================
+//   // Handlers
+//   // ===============================
+//   const handleSwipe = useCallback(
+//     async (direction: 'left' | 'right') => {
+//       if (!current) return;
+//
+//       try {
+//         if (direction === 'right') {
+//           const res = await datingAPI.like?.(current.userId, 'like');
+//           if (res?.matchId) {
+//             Alert.alert('✨ Совпадение', 'У вас взаимная симпатия!', [
+//               { text: 'Закрыть', style: 'cancel' },
+//               {
+//                 text: 'Открыть чат',
+//                 onPress: () =>
+//                   navigation.navigate('ChatDialog', {
+//                     otherUserId: current.userId,
+//                     displayName: current.name,
+//                   }),
+//               },
+//             ]);
+//           }
+//         } else {
+//           await datingAPI.like?.(current.userId, 'pass');
+//         }
+//       } catch (e) {
+//         console.log('❌ Ошибка свайпа:', e);
+//       } finally {
+//         nextCard();
+//       }
+//     },
+//     [current, navigation, nextCard]
+//   );
+//
+//   const handleChat = useCallback(() => {
+//     if (!current) {
+//       Alert.alert('Ошибка', 'Нет данных о пользователе');
+//       return;
+//     }
+//
+//     const userData = {
+//       id: current.userId,
+//       name: current.name,
+//       zodiacSign: current.zodiacSign,
+//       compatibility: getCompatibilityFromBadge(current.badge),
+//     };
+//
+//     setSelectedUser(userData);
+//     setChatVisible(true);
+//   }, [current]);
+//
+//   const handleSendMessage = useCallback(
+//     async (text: string) => {
+//       if (!selectedUser?.id) {
+//         Alert.alert('Ошибка', 'Пользователь не выбран');
+//         return;
+//       }
+//
+//       try {
+//         await chatAPI.sendMessage(selectedUser.id, text);
+//         setChatVisible(false);
+//         navigation.navigate('ChatDialog', {
+//           otherUserId: selectedUser.id,
+//           displayName: selectedUser.name,
+//         });
+//         setSelectedUser(null);
+//       } catch (error) {
+//         console.error('Ошибка отправки сообщения:', error);
+//         Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+//       }
+//     },
+//     [selectedUser, navigation]
+//   );
+//
+//   const handleCloseChat = useCallback(() => {
+//     setChatVisible(false);
+//     setSelectedUser(null);
+//   }, []);
+//
+//   // ===============================
+//   // Загрузка кандидатов
+//   // ===============================
+//   useEffect(() => {
+//     if (authLoading || !user) return;
+//
+//     (async () => {
+//       setLoadingCards(true);
+//       try {
+//         const data: ApiCandidate[] =
+//           (await datingAPI.getCandidates?.(20)) || [];
+//         console.log('[Dating] candidates raw count =', data.length);
+//
+//         const allZodiacSigns = getAllZodiacSigns();
+//         const randomInterests = [
+//           'Музыка',
+//           'Спорт',
+//           'Путешествия',
+//           'Книги',
+//           'Кино',
+//           'Искусство',
+//           'Кулинария',
+//           'Йога',
+//           'Медитация',
+//           'Природа',
+//         ];
+//
+//         const enriched: Candidate[] = data.map((c) => {
+//           // Используем знак из API или выбираем случайный
+//           let zodiacName = c.zodiacSign;
+//           if (!zodiacName) {
+//             const randomSign =
+//               allZodiacSigns[Math.floor(Math.random() * allZodiacSigns.length)];
+//             zodiacName = randomSign.nameRu;
+//           }
+//
+//           return {
+//             ...c,
+//             name: c.name || 'Пользователь',
+//             age: c.age || Math.floor(Math.random() * 15) + 25,
+//             zodiacSign: zodiacName,
+//             bio: c.bio || 'Ищу свою половинку среди звезд ✨',
+//             interests:
+//               c.interests ||
+//               randomInterests.slice(0, Math.floor(Math.random() * 3) + 2),
+//             distance: Math.floor(Math.random() * 50) + 1,
+//             photos: c.photoUrl ? [c.photoUrl] : [],
+//           };
+//         });
+//
+//         setCandidates(enriched);
+//         setCurrentIndex(0);
+//       } catch (err) {
+//         console.error('[Dating] Ошибка загрузки:', err);
+//         Alert.alert('Ошибка', 'Не удалось загрузить кандидатов');
+//       } finally {
+//         setLoadingCards(false);
+//       }
+//     })();
+//   }, [authLoading, user]);
+//
+//   // ===============================
+//   // Render
+//   // ===============================
+//   return (
+//     <TabScreenLayout>
+//       <GestureHandlerRootView style={styles.container}>
+//         {/* Космический фон */}
+//         <CosmicBackground />
+//
+//         <LinearGradient
+//           colors={[
+//             'rgba(26, 11, 46, 0.7)',
+//             'rgba(45, 27, 78, 0.8)',
+//             'rgba(26, 11, 46, 0.7)',
+//           ]}
+//           style={styles.gradient}
+//         >
+//           {/* Header */}
+//           <View style={styles.header}>
+//             <View style={styles.iconContainer}>
+//               <LinearGradient
+//                 colors={['#8B5CF6', '#A855F7']}
+//                 style={styles.iconCircle}
+//               >
+//                 <Ionicons name="heart" size={28} color="#fff" />
+//               </LinearGradient>
+//             </View>
+//             <Text style={styles.title}>Космические связи</Text>
+//             <Text style={styles.subtitle}>Найдите свою родственную душу</Text>
+//           </View>
+//
+//           {/* Content */}
+//           <View style={styles.content}>
+//             {loadingCards ? (
+//               <View style={styles.loadingContainer}>
+//                 <ActivityIndicator size="large" color="#8B5CF6" />
+//                 <Text style={styles.loadingText}>Ищем совпадения...</Text>
+//               </View>
+//             ) : !current ? (
+//               <View style={styles.emptyContainer}>
+//                 <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
+//                 <Text style={styles.emptyTitle}>Больше нет анкет</Text>
+//                 <Text style={styles.emptyText}>
+//                   Зайдите позже, чтобы увидеть новых людей
+//                 </Text>
+//               </View>
+//             ) : (
+//               <View style={styles.cardContainer}>
+//                 <DatingCard
+//                   user={{
+//                     id: current.userId,
+//                     name: current.name,
+//                     age: current.age,
+//                     zodiacSign: current.zodiacSign,
+//                     compatibility: getCompatibilityFromBadge(current.badge),
+//                     elements: getElementsFromZodiac(current.zodiacSign),
+//                     keyAspects: getKeyAspectsFromInterests(
+//                       current.interests,
+//                       current.zodiacSign
+//                     ),
+//                     isMatched: false,
+//                     photoUrl:
+//                       current.photoUrl ||
+//                       (current.photos && current.photos[0]) ||
+//                       undefined,
+//                     photos: current.photos,
+//                   }}
+//                   onSwipe={handleSwipe}
+//                   onChat={handleChat}
+//                   isTop={true}
+//                 />
+//               </View>
+//             )}
+//           </View>
+//
+//           {/* Action buttons */}
+//           {!loadingCards && current && (
+//             <View style={styles.actionButtons}>
+//               <TouchableOpacity
+//                 style={[styles.actionButton, styles.passButton]}
+//                 onPress={() => handleSwipe('left')}
+//                 activeOpacity={0.8}
+//               >
+//                 <Ionicons name="close" size={32} color="#EF4444" />
+//               </TouchableOpacity>
+//
+//               <TouchableOpacity
+//                 style={[styles.actionButton, styles.likeButton]}
+//                 onPress={() => handleSwipe('right')}
+//                 activeOpacity={0.8}
+//               >
+//                 <Ionicons name="heart" size={32} color="#10B981" />
+//               </TouchableOpacity>
+//             </View>
+//           )}
+//
+//           {/* Модалка чата */}
+//           {chatVisible && selectedUser && (
+//             <CosmicChat
+//               visible={chatVisible}
+//               user={selectedUser}
+//               onClose={handleCloseChat}
+//               onSendMessage={handleSendMessage}
+//             />
+//           )}
+//         </LinearGradient>
+//       </GestureHandlerRootView>
+//     </TabScreenLayout>
+//   );
+// }
+//
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#101010',
+//   },
+//   gradient: {
+//     flex: 1,
+//   },
+//   header: {
+//     alignItems: 'center',
+//     paddingVertical: 20,
+//     paddingTop: 40,
+//   },
+//   iconContainer: {
+//     marginBottom: 16,
+//   },
+//   iconCircle: {
+//     width: 60,
+//     height: 60,
+//     borderRadius: 30,
+//     borderWidth: 3,
+//     borderColor: '#fff',
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//   },
+//   title: {
+//     fontSize: 32,
+//     fontWeight: '600',
+//     color: '#fff',
+//     marginBottom: 8,
+//   },
+//   subtitle: {
+//     fontSize: 20,
+//     color: 'rgba(255,255,255,0.7)',
+//   },
+//   content: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     paddingHorizontal: 24,
+//   },
+//   loadingContainer: {
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//   },
+//   loadingText: {
+//     fontSize: 16,
+//     color: '#fff',
+//     marginTop: 16,
+//   },
+//   emptyContainer: {
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//     paddingHorizontal: 40,
+//   },
+//   emptyTitle: {
+//     fontSize: 24,
+//     fontWeight: '600',
+//     color: '#fff',
+//     marginTop: 16,
+//     marginBottom: 8,
+//   },
+//   emptyText: {
+//     fontSize: 16,
+//     color: 'rgba(255,255,255,0.7)',
+//     textAlign: 'center',
+//   },
+//   cardContainer: {
+//     width: width,
+//     height: height * 0.7,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   actionButtons: {
+//     flexDirection: 'row',
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     paddingVertical: 20,
+//     paddingBottom: 40,
+//     gap: 40,
+//   },
+//   actionButton: {
+//     width: 70,
+//     height: 70,
+//     borderRadius: 35,
+//     backgroundColor: '#fff',
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 4 },
+//     shadowOpacity: 0.3,
+//     shadowRadius: 8,
+//     elevation: 8,
+//   },
+//   passButton: {
+//     borderWidth: 2,
+//     borderColor: '#EF4444',
+//   },
+//   likeButton: {
+//     borderWidth: 2,
+//     borderColor: '#10B981',
+//   },
+// });
 
-import AnimatedStars from '../components/AnimatedStars';
-import ShimmerLoader from '../components/ShimmerLoader';
-import { connectionsAPI, getStoredToken } from '../services/api';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../hooks/useAuth';
+import { datingAPI, chatAPI } from '../services/api';
+import CosmicChat from '../components/dating/CosmicChat';
+import DatingCard from '../components/dating/DatingCard';
+import { TabScreenLayout } from '../components/layout/TabScreenLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  getAllZodiacSigns,
+  type ZodiacSign,
+  type ElementType,
+} from '../services/zodiac.service';
+import CosmicBackground from '../components/shared/CosmicBackground';
+import { logger } from '../services/logger';
 
 const { width, height } = Dimensions.get('window');
 
-interface DatingMatch {
-  id: string;
+// API типы
+type ApiCandidate = {
+  userId: string;
+  badge: 'high' | 'medium' | 'low';
+  photoUrl?: string | null;
+  avatarUrl?: string | null;
+  name?: string | null;
+  age?: number | null;
+  zodiacSign?: string | null;
+  bio?: string | null;
+  interests?: string[] | null;
+  city?: string | null;
+};
+
+// Расширенный тип для UI
+type Candidate = ApiCandidate & {
   name: string;
   age: number;
   zodiacSign: string;
-  compatibility: number;
-  distance: number;
   bio: string;
   interests: string[];
+  distance: number;
+  city?: string;
   photos?: string[];
-  occupation?: string;
-  education?: string;
-  height?: string;
-  relationshipGoals?: string;
-  lifestyle?: string[];
-  astrologySign?: string;
-  moonSign?: string;
-  risingSign?: string;
-}
+  photoUrl?: string;
+  height?: number;
+  lookingFor?: string;
+};
 
 export default function DatingScreen() {
-  const [matches, setMatches] = useState<DatingMatch[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [connections, setConnections] = useState<any[]>([]);
-  const [connectionsLoading, setConnectionsLoading] = useState(true);
+  const [chatVisible, setChatVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    id: string;
+    name: string;
+    zodiacSign: string;
+    compatibility: number;
+  } | null>(null);
+  const [loadingCards, setLoadingCards] = useState<boolean>(true);
 
-  const cardScale = useSharedValue(1);
-  const cardOpacity = useSharedValue(1);
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const rotate = useSharedValue(0);
+  const current = candidates[currentIndex] || null;
 
-  const loadMatches = async () => {
-    setLoading(true);
-    
-    // Симулируем загрузку данных
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Расширенные моковые данные для демонстрации
-    const mockMatches: DatingMatch[] = [
-      {
-        id: '1',
-        name: 'Елена',
-        age: 28,
-        zodiacSign: 'Рыбы',
-        compatibility: 87,
-        distance: 5,
-        bio: 'Люблю астрологию и медитации под звездным небом. Ищу духовную связь и гармонию в отношениях.',
-        interests: ['Астрология', 'Йога', 'Путешествия', 'Медитация'],
-        occupation: 'Астролог',
-        education: 'Психология',
-        height: '165 см',
-        relationshipGoals: 'Серьезные отношения',
-        lifestyle: ['Вегетарианство', 'ЗОЖ', 'Спорт'],
-        astrologySign: 'Рыбы',
-        moonSign: 'Рак',
-        risingSign: 'Скорпион'
-      },
-      {
-        id: '2', 
-        name: 'София',
-        age: 25,
-        zodiacSign: 'Лев',
-        compatibility: 93,
-        distance: 8,
-        bio: 'Творческая натура, ищу гармонию и вдохновение. Люблю искусство и глубокие разговоры.',
-        interests: ['Искусство', 'Музыка', 'Психология', 'Танцы'],
-        occupation: 'Художник',
-        education: 'Искусство',
-        height: '170 см',
-        relationshipGoals: 'Творческое партнерство',
-        lifestyle: ['Творчество', 'Концерты', 'Выставки'],
-        astrologySign: 'Лев',
-        moonSign: 'Весы',
-        risingSign: 'Близнецы'
-      },
-      {
-        id: '3',
-        name: 'Анна',
-        age: 30,
-        zodiacSign: 'Скорпион', 
-        compatibility: 76,
-        distance: 12,
-        bio: 'Глубокие разговоры о смысле жизни и космосе. Интересуюсь эзотерикой и философией.',
-        interests: ['Философия', 'Книги', 'Эзотерика', 'Астрология'],
-        occupation: 'Психолог',
-        education: 'Философия',
-        height: '168 см',
-        relationshipGoals: 'Духовная связь',
-        lifestyle: ['Чтение', 'Медитация', 'Природа'],
-        astrologySign: 'Скорпион',
-        moonSign: 'Скорпион',
-        risingSign: 'Рыбы'
-      },
-      {
-        id: '4',
-        name: 'Мария',
-        age: 26,
-        zodiacSign: 'Весы',
-        compatibility: 82,
-        distance: 3,
-        bio: 'Ищу баланс во всем. Люблю красоту, гармонию и интеллектуальные беседы.',
-        interests: ['Дизайн', 'Мода', 'Литература', 'Путешествия'],
-        occupation: 'Дизайнер',
-        education: 'Дизайн',
-        height: '172 см',
-        relationshipGoals: 'Гармоничные отношения',
-        lifestyle: ['Красота', 'Искусство', 'Социальная жизнь'],
-        astrologySign: 'Весы',
-        moonSign: 'Лев',
-        risingSign: 'Весы'
-      },
-      {
-        id: '5',
-        name: 'Виктория',
-        age: 29,
-        zodiacSign: 'Стрелец',
-        compatibility: 89,
-        distance: 15,
-        bio: 'Авантюристка по духу. Люблю путешествия, приключения и новые впечатления.',
-        interests: ['Путешествия', 'Спорт', 'Приключения', 'Фотография'],
-        occupation: 'Фотограф',
-        education: 'Журналистика',
-        height: '175 см',
-        relationshipGoals: 'Приключения вдвоем',
-        lifestyle: ['Активный отдых', 'Путешествия', 'Спорт'],
-        astrologySign: 'Стрелец',
-        moonSign: 'Овен',
-        risingSign: 'Стрелец'
-      },
-      {
-        id: '6',
-        name: 'Дарья',
-        age: 27,
-        zodiacSign: 'Дева',
-        compatibility: 71,
-        distance: 7,
-        bio: 'Практичная и организованная. Ценю порядок, качество и интеллектуальное общение.',
-        interests: ['Саморазвитие', 'Кулинария', 'Чтение', 'Планирование'],
-        occupation: 'Менеджер',
-        education: 'Экономика',
-        height: '163 см',
-        relationshipGoals: 'Стабильные отношения',
-        lifestyle: ['Планирование', 'ЗОЖ', 'Обучение'],
-        astrologySign: 'Дева',
-        moonSign: 'Дева',
-        risingSign: 'Козерог'
-      },
-      {
-        id: '7',
-        name: 'Алиса',
-        age: 24,
-        zodiacSign: 'Близнецы',
-        compatibility: 85,
-        distance: 10,
-        bio: 'Энергичная и общительная. Люблю новые знакомства, общение и разнообразие.',
-        interests: ['Общение', 'Технологии', 'Спорт', 'Развлечения'],
-        occupation: 'IT-специалист',
-        education: 'Информатика',
-        height: '167 см',
-        relationshipGoals: 'Легкие отношения',
-        lifestyle: ['Социальная жизнь', 'Технологии', 'Спорт'],
-        astrologySign: 'Близнецы',
-        moonSign: 'Близнецы',
-        risingSign: 'Лев'
-      },
-      {
-        id: '8',
-        name: 'Ксения',
-        age: 31,
-        zodiacSign: 'Козерог',
-        compatibility: 68,
-        distance: 20,
-        bio: 'Амбициозная и целеустремленная. Ценю стабильность, успех и серьезные отношения.',
-        interests: ['Карьера', 'Саморазвитие', 'Инвестиции', 'Спорт'],
-        occupation: 'Бизнес-аналитик',
-        education: 'Экономика',
-        height: '169 см',
-        relationshipGoals: 'Серьезные отношения',
-        lifestyle: ['Карьера', 'Спорт', 'Обучение'],
-        astrologySign: 'Козерог',
-        moonSign: 'Козерог',
-        risingSign: 'Дева'
+  const { user, isLoading: authLoading } = useAuth();
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
+
+  // ===============================
+  // Helpers
+  // ===============================
+  const getBadgeLabel = (b?: 'high' | 'medium' | 'low') =>
+    b === 'high' ? 'Высокая' : b === 'medium' ? 'Средняя' : 'Низкая';
+
+  const getBadgeBg = (b?: 'high' | 'medium' | 'low') =>
+    b === 'high'
+      ? 'rgba(16,185,129,0.25)'
+      : b === 'medium'
+        ? 'rgba(245,158,11,0.25)'
+        : 'rgba(239,68,68,0.25)';
+
+  const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low') =>
+    b === 'high' ? 85 : b === 'medium' ? 65 : 45;
+
+  const nextCard = useCallback(() => {
+    setCurrentIndex((idx) => (idx + 1 < candidates.length ? idx + 1 : idx));
+  }, [candidates.length]);
+
+  // ===============================
+  // Handlers
+  // ===============================
+  const handleSwipe = useCallback(
+    async (direction: 'left' | 'right') => {
+      if (!current) return;
+
+      try {
+        if (direction === 'right') {
+          const res = await datingAPI.like?.(current.userId, 'like');
+          if (res?.matchId) {
+            Alert.alert('✨ Совпадение', 'У вас взаимная симпатия!', [
+              { text: 'Закрыть', style: 'cancel' },
+              {
+                text: 'Открыть чат',
+                onPress: () =>
+                  navigation.navigate('ChatDialog', {
+                    otherUserId: current.userId,
+                    displayName: current.name,
+                  }),
+              },
+            ]);
+          }
+        } else {
+          await datingAPI.like?.(current.userId, 'pass');
+        }
+      } catch (e) {
+        logger.error('Ошибка свайпа', e);
+      } finally {
+        nextCard();
       }
-    ];
-    
-    setMatches(mockMatches);
-    setLoading(false);
-  };
+    },
+    [current, navigation, nextCard]
+  );
 
-  useEffect(() => {
-    loadMatches();
-    fetchConnections();
+  const handleChat = useCallback(() => {
+    if (!current) {
+      Alert.alert('Ошибка', 'Нет данных о пользователе');
+      return;
+    }
+
+    const userData = {
+      id: current.userId,
+      name: current.name,
+      zodiacSign: current.zodiacSign,
+      compatibility: getCompatibilityFromBadge(current.badge),
+    };
+
+    setSelectedUser(userData);
+    setChatVisible(true);
+  }, [current]);
+
+  const handleSendMessage = useCallback(
+    async (text: string) => {
+      if (!selectedUser?.id) {
+        Alert.alert('Ошибка', 'Пользователь не выбран');
+        return;
+      }
+
+      try {
+        await chatAPI.sendMessage(selectedUser.id, text);
+        setChatVisible(false);
+        navigation.navigate('ChatDialog', {
+          otherUserId: selectedUser.id,
+          displayName: selectedUser.name,
+        });
+        setSelectedUser(null);
+      } catch (error) {
+        logger.error('Ошибка отправки сообщения', error);
+        Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+      }
+    },
+    [selectedUser, navigation]
+  );
+
+  const handleCloseChat = useCallback(() => {
+    setChatVisible(false);
+    setSelectedUser(null);
   }, []);
 
-  const fetchConnections = async () => {
-    setConnectionsLoading(true);
-    try {
-      const token = getStoredToken();
-      if (token) {
-        const connectionsData = await connectionsAPI.getConnections();
-        setConnections(connectionsData.slice(0, 3)); // Показываем только первые 3 связи
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки связей:', error);
-      // Используем моковые данные для связей
-      setConnections([
-        { id: 1, name: 'Анна', zodiacSign: 'Рыбы', compatibility: 85 },
-        { id: 2, name: 'Михаил', zodiacSign: 'Скорпион', compatibility: 92 },
-        { id: 3, name: 'Елена', zodiacSign: 'Весы', compatibility: 78 }
-      ]);
-    } finally {
-      setConnectionsLoading(false);
-    }
-  };
-
-  // Сброс анимации при смене карточки
+  // ===============================
+  // Загрузка кандидатов
+  // ===============================
   useEffect(() => {
-    translateX.value = 0;
-    translateY.value = 0;
-    rotate.value = 0;
-    cardScale.value = 1;
-    cardOpacity.value = 1;
-  }, [currentIndex]);
+    if (authLoading || !user) return;
 
-  const nextCard = () => {
-        if (currentIndex < matches.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          Alert.alert('🌟', 'Это все совпадения на сегодня!\nЗавтра будут новые звездные встречи ✨');
+    (async () => {
+      setLoadingCards(true);
+      try {
+        let data: ApiCandidate[] = (await datingAPI.getCandidates?.(20)) || [];
+        logger.info('[Dating] candidates raw count', data.length);
+
+        // ВРЕМЕННО: Если нет данных, создаем моковые для тестирования
+        if (data.length === 0) {
+          logger.info('[Dating] Нет данных от API, используем моковые данные');
+          data = [
+            {
+              userId: 'mock-1',
+              badge: 'high',
+              name: 'Анна',
+              age: 28,
+              zodiacSign: 'Лев',
+              bio: 'Люблю путешествия и астрологию ✨',
+              interests: ['Путешествия', 'Йога', 'Музыка'],
+              city: 'Москва',
+              photoUrl: null,
+            },
+            {
+              userId: 'mock-2',
+              badge: 'medium',
+              name: 'Мария',
+              age: 25,
+              zodiacSign: 'Весы',
+              bio: 'Ищу гармонию и баланс в отношениях 💫',
+              interests: ['Искусство', 'Медитация', 'Кино'],
+              city: 'Санкт-Петербург',
+              photoUrl: null,
+            },
+            {
+              userId: 'mock-3',
+              badge: 'high',
+              name: 'Елена',
+              age: 30,
+              zodiacSign: 'Скорпион',
+              bio: 'Страстная натура с глубоким внутренним миром 🌙',
+              interests: ['Психология', 'Книги', 'Спорт'],
+              city: 'Казань',
+              photoUrl: null,
+            },
+            {
+              userId: 'mock-4',
+              badge: 'medium',
+              name: 'Дарья',
+              age: 26,
+              zodiacSign: 'Близнецы',
+              bio: 'Общительная и любознательная ⭐',
+              interests: ['Творчество', 'Путешествия', 'Фотография'],
+              city: 'Новосибирск',
+              photoUrl: null,
+            },
+            {
+              userId: 'mock-5',
+              badge: 'low',
+              name: 'Ольга',
+              age: 29,
+              zodiacSign: 'Телец',
+              bio: 'Ценю стабильность и красоту 🌸',
+              interests: ['Кулинария', 'Природа', 'Музыка'],
+              city: 'Екатеринбург',
+              photoUrl: null,
+            },
+          ] as ApiCandidate[];
         }
-  };
 
-  const onGestureEvent = (event: any) => {
-    translateX.value = event.nativeEvent.translationX;
-    translateY.value = event.nativeEvent.translationY;
-    
-    // Поворот карточки при свайпе
-    const rotation = interpolate(
-      event.nativeEvent.translationX,
-      [-width, 0, width],
-      [-15, 0, 15]
-    );
-    rotate.value = rotation;
-  };
+        const allZodiacSigns = getAllZodiacSigns();
+        const randomInterests = [
+          'Музыка',
+          'Спорт',
+          'Путешествия',
+          'Книги',
+          'Кино',
+          'Искусство',
+          'Кулинария',
+          'Йога',
+          'Медитация',
+          'Природа',
+        ];
+        const lookingForOptions = [
+          'Серьезные отношения',
+          'Дружба',
+          'Общение',
+          'Что-то новое',
+        ];
 
-  const onHandlerStateChange = (event: any) => {
-    if (event.nativeEvent.state === 5) { // END
-      const { translationX, velocityX } = event.nativeEvent;
-      
-      // Определяем направление свайпа
-      const shouldSwipeLeft = translationX < -width * 0.3 || velocityX < -500;
-      const shouldSwipeRight = translationX > width * 0.3 || velocityX > 500;
-      
-      if (shouldSwipeLeft) {
-        // Свайп влево - пропустить
-        translateX.value = withTiming(-width * 1.5, { duration: 300 }, () => {
-          runOnJS(handlePass)();
+        const enriched: Candidate[] = data.map((c) => {
+          // Используем знак из API или выбираем случайный
+          let zodiacName = c.zodiacSign;
+          if (!zodiacName) {
+            const randomSign =
+              allZodiacSigns[Math.floor(Math.random() * allZodiacSigns.length)];
+            zodiacName = randomSign.nameRu;
+          }
+
+          return {
+            ...c,
+            name: c.name || 'Пользователь',
+            age: c.age || Math.floor(Math.random() * 15) + 25,
+            zodiacSign: zodiacName,
+            bio: c.bio || 'Ищу свою половинку среди звезд ✨',
+            interests:
+              c.interests ||
+              randomInterests.slice(0, Math.floor(Math.random() * 3) + 2),
+            distance: Math.floor(Math.random() * 50) + 1,
+            photos: c.photoUrl ? [c.photoUrl] : [],
+            photoUrl: c.photoUrl || c.avatarUrl || null,
+            height: Math.floor(Math.random() * 25) + 160, // 160-185 см
+            lookingFor:
+              lookingForOptions[
+                Math.floor(Math.random() * lookingForOptions.length)
+              ],
+          };
         });
-        rotate.value = withTiming(-30, { duration: 300 });
-      } else if (shouldSwipeRight) {
-        // Свайп вправо - лайк
-        translateX.value = withTiming(width * 1.5, { duration: 300 }, () => {
-          runOnJS(handleLike)();
-        });
-        rotate.value = withTiming(30, { duration: 300 });
-      } else {
-        // Возврат в исходное положение
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
-        rotate.value = withSpring(0);
+
+        logger.info('[Dating] enriched candidates count', enriched.length);
+        setCandidates(enriched);
+        setCurrentIndex(0);
+      } catch (err) {
+        logger.error('[Dating] Ошибка загрузки', err);
+        Alert.alert('Ошибка', 'Не удалось загрузить кандидатов');
+      } finally {
+        setLoadingCards(false);
       }
-    }
-  };
+    })();
+  }, [authLoading, user]);
 
-  const handleLike = () => {
-    Alert.alert('💜', `Вы лайкнули ${matches[currentIndex]?.name}!`);
-    nextCard();
-  };
-
-  const handlePass = () => {
-    nextCard();
-  };
-
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { rotate: `${rotate.value}deg` },
-      { scale: cardScale.value }
-    ],
-    opacity: cardOpacity.value,
-  }));
-
-  const currentMatch = matches[currentIndex];
-
-  if (loading) {
-    return (
-      <LinearGradient
-        colors={['#1a0a2a', '#3a1a5a', '#000000']}
-        style={styles.container}
-      >
-        <AnimatedStars count={50} />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.title}>Cosmic Matches</Text>
-          <Text style={styles.subtitle}>Ищем ваши звездные совпадения...</Text>
-          <View style={styles.shimmerContainer}>
-            <ShimmerLoader width={width * 0.8} height={height * 0.5} borderRadius={25} />
-            <View style={{ height: 20 }} />
-            <ShimmerLoader width={width * 0.6} height={50} borderRadius={25} />
-          </View>
-        </View>
-      </LinearGradient>
-    );
-  }
-
-  if (!currentMatch) {
-    return (
-      <LinearGradient
-        colors={['#1a0a2a', '#3a1a5a', '#000000']}
-        style={styles.container}
-      >
-        <AnimatedStars count={50} />
-        <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={80} color="rgba(255, 255, 255, 0.3)" />
-          <Text style={styles.emptyTitle}>Нет новых совпадений</Text>
-          <Text style={styles.emptySubtitle}>
-            Звезды готовят для вас новые встречи.{'\n'}Загляните завтра! ✨
-          </Text>
-          <TouchableOpacity onPress={loadMatches} style={styles.refreshButton}>
-            <LinearGradient
-              colors={['#8B5CF6', '#A855F7']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.refreshGradient}
-            >
-              <Ionicons name="refresh" size={20} color="#fff" />
-              <Text style={styles.refreshText}>Обновить</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    );
-  }
-
+  // ===============================
+  // Render
+  // ===============================
   return (
-    <GestureHandlerRootView style={styles.container}>
-    <LinearGradient
-      colors={['#1a0a2a', '#3a1a5a', '#000000']}
-      style={styles.container}
-    >
-      <AnimatedStars count={50} />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Заголовок */}
-        <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
-          <Text style={styles.title}>Cosmic Matches</Text>
-          <Text style={styles.subtitle}>Астрологические совпадения</Text>
-        </Animated.View>
+    <TabScreenLayout>
+      <GestureHandlerRootView style={styles.container}>
+        {/* Космический фон */}
+        <CosmicBackground />
 
-        {/* Виджет связей */}
-        <Animated.View entering={FadeIn.delay(300)} style={styles.connectionsWidget}>
-          <View style={styles.connectionsHeader}>
-            <Ionicons name="people" size={20} color="#8B5CF6" />
-            <Text style={styles.connectionsTitle}>Ваши связи</Text>
-          </View>
-          
-          {connectionsLoading ? (
-            <View style={styles.connectionsLoading}>
-              <ShimmerLoader width={60} height={60} borderRadius={30} />
-              <ShimmerLoader width={60} height={60} borderRadius={30} />
-              <ShimmerLoader width={60} height={60} borderRadius={30} />
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <LinearGradient
+                colors={['#8B5CF6', '#A855F7']}
+                style={styles.iconCircle}
+              >
+                <Ionicons name="heart" size={24} color="#fff" />
+              </LinearGradient>
             </View>
-          ) : connections.length > 0 ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.connectionsList}
-            >
-              {connections.map((connection, index) => (
-                <View key={connection.id} style={styles.connectionItem}>
-                  <LinearGradient
-                    colors={['#8B5CF6', '#A855F7']}
-                    style={styles.connectionAvatar}
-                  >
-                    <Text style={styles.connectionInitial}>
-                      {connection.name?.charAt(0) || 'A'}
-                    </Text>
-                  </LinearGradient>
-                  <Text style={styles.connectionName}>{connection.name}</Text>
-                  <Text style={styles.connectionSign}>{connection.zodiacSign}</Text>
-                  <Text style={styles.connectionCompatibility}>{connection.compatibility}%</Text>
-                </View>
-              ))}
-            </ScrollView>
+            <Text style={styles.title}>Знакомства</Text>
+            <Text style={styles.subtitle}>Астрологические совпадения</Text>
+          </View>
+
+          {/* Content */}
+          {loadingCards ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#8B5CF6" />
+              <Text style={styles.loadingText}>Ищем совпадения...</Text>
+            </View>
+          ) : !current ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
+              <Text style={styles.emptyTitle}>Больше нет анкет</Text>
+              <Text style={styles.emptyText}>
+                Зайдите позже, чтобы увидеть новых людей
+              </Text>
+            </View>
           ) : (
-            <View style={styles.connectionsEmpty}>
-              <Text style={styles.connectionsEmptyText}>Нет связей</Text>
+            <View style={styles.cardContainer}>
+              <DatingCard
+                user={{
+                  id: current.userId,
+                  name: current.name,
+                  age: current.age,
+                  zodiacSign: current.zodiacSign,
+                  compatibility: getCompatibilityFromBadge(current.badge),
+                  bio: current.bio,
+                  interests: current.interests,
+                  distance: current.distance,
+                  photoUrl: current.photoUrl,
+                  height: current.height,
+                  lookingFor: current.lookingFor,
+                }}
+                onSwipe={handleSwipe}
+                onChat={handleChat}
+                isTop={true}
+              />
             </View>
           )}
-        </Animated.View>
 
-        {/* Карточка пользователя */}
-        <Animated.View entering={SlideInUp.delay(400)} style={styles.cardContainer}>
-          <PanGestureHandler
-            onGestureEvent={onGestureEvent}
-            onHandlerStateChange={onHandlerStateChange}
-          >
-            <Animated.View style={animatedCardStyle}>
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.matchCard}
-          >
-            {/* Аватар заглушка */}
-            <LinearGradient
-              colors={['#8B5CF6', '#A855F7']}
-              style={styles.avatar}
-            >
-              <Text style={styles.avatarText}>
-                {currentMatch.name.charAt(0)}
-              </Text>
-            </LinearGradient>
-
-            {/* Информация о пользователе */}
-            <Text style={styles.userName}>{currentMatch.name}, {currentMatch.age}</Text>
-            <Text style={styles.zodiacSign}>{currentMatch.zodiacSign}</Text>
-            
-            {/* Совместимость */}
-            <View style={styles.compatibilityContainer}>
-              <Text style={styles.compatibilityLabel}>Совместимость</Text>
-              <View style={styles.compatibilityBar}>
-                <LinearGradient
-                  colors={['#10B981', '#34D399']}
-                  style={[styles.compatibilityFill, { width: `${currentMatch.compatibility}%` }]}
-                />
-              </View>
-              <Text style={styles.compatibilityText}>{currentMatch.compatibility}%</Text>
-            </View>
-
-            {/* Расстояние */}
-            <View style={styles.distanceContainer}>
-              <Ionicons name="location-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-              <Text style={styles.distanceText}>{currentMatch.distance} км от вас</Text>
-            </View>
-
-            {/* Биография */}
-            <Text style={styles.bioText}>{currentMatch.bio}</Text>
-
-            {/* Дополнительная информация */}
-            <View style={styles.additionalInfo}>
-              {currentMatch.occupation && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="briefcase-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-                  <Text style={styles.infoText}>{currentMatch.occupation}</Text>
-                </View>
-              )}
-              {currentMatch.height && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="resize-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-                  <Text style={styles.infoText}>{currentMatch.height}</Text>
-                </View>
-              )}
-              {currentMatch.relationshipGoals && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="heart-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
-                  <Text style={styles.infoText}>{currentMatch.relationshipGoals}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Астрологическая информация */}
-            <View style={styles.astroInfo}>
-              <Text style={styles.astroTitle}>Астрологическая карта</Text>
-              <View style={styles.astroSigns}>
-                {currentMatch.moonSign && (
-                  <View style={styles.astroSign}>
-                    <Text style={styles.astroLabel}>Луна</Text>
-                    <Text style={styles.astroValue}>{currentMatch.moonSign}</Text>
-                  </View>
-                )}
-                {currentMatch.risingSign && (
-                  <View style={styles.astroSign}>
-                    <Text style={styles.astroLabel}>Восход</Text>
-                    <Text style={styles.astroValue}>{currentMatch.risingSign}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Интересы */}
-            <View style={styles.interestsContainer}>
-              {currentMatch.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))}
-            </View>
-          </LinearGradient>
-            </Animated.View>
-          </PanGestureHandler>
-        </Animated.View>
-
-        {/* Кнопки действий */}
-        <Animated.View entering={SlideInUp.delay(600)} style={styles.actionButtons}>
-          <TouchableOpacity onPress={handlePass} style={styles.actionButton}>
-            <LinearGradient
-              colors={['#EF4444', '#DC2626']}
-              style={styles.buttonGradient}
-            >
-              <Ionicons name="close" size={30} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
-            <LinearGradient
-              colors={['#EC4899', '#BE185D']}
-              style={styles.buttonGradient}
-            >
-              <Ionicons name="heart" size={30} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Счетчик карточек */}
-        <Animated.View entering={FadeIn.delay(800)} style={styles.counter}>
-          <Text style={styles.counterText}>
-            {currentIndex + 1} из {matches.length}
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </LinearGradient>
-    </GestureHandlerRootView>
+          {/* Модалка чата */}
+          {chatVisible && selectedUser && (
+            <CosmicChat
+              visible={chatVisible}
+              user={selectedUser}
+              onClose={handleCloseChat}
+              onSendMessage={handleSendMessage}
+            />
+          )}
+        </View>
+      </GestureHandlerRootView>
+    </TabScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0D0618',
   },
-  loadingContainer: {
+  content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  shimmerContainer: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 10,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  refreshButton: {
-    marginTop: 30,
-  },
-  refreshGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
-  },
-  refreshText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  scrollContent: {
-    paddingVertical: 20,
-    paddingHorizontal: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    paddingVertical: 16,
+    paddingTop: 60,
+  },
+  iconContainer: {
+    marginBottom: 12,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '600',
     color: '#fff',
-    textAlign: 'center',
-    textShadowColor: '#8B5CF6',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 5,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#fff',
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
   },
   cardContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  matchCard: {
-    width: width * 0.85,
-    borderRadius: 25,
-    padding: 25,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
-  },
-  zodiacSign: {
-    fontSize: 18,
-    color: '#8B5CF6',
-    marginBottom: 20,
-  },
-  compatibilityContainer: {
-    width: '100%',
-    marginBottom: 15,
-  },
-  compatibilityLabel: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  compatibilityBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 5,
-  },
-  compatibilityFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  compatibilityText: {
-    color: '#10B981',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  distanceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  distanceText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    marginLeft: 5,
-  },
-  bioText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  interestTag: {
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.5)',
-  },
-  interestText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 40,
-    marginBottom: 20,
-  },
-  actionButton: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  buttonGradient: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  counter: {
-    alignItems: 'center',
-  },
-  counterText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 14,
-  },
-  additionalInfo: {
-    width: '100%',
-    marginBottom: 15,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  astroInfo: {
-    width: '100%',
-    marginBottom: 15,
-    padding: 15,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-  },
-  astroTitle: {
-    color: '#8B5CF6',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  astroSigns: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  astroSign: {
-    alignItems: 'center',
-  },
-  astroLabel: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  astroValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  // Стили для виджета связей
-  connectionsWidget: {
-    width: '90%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    padding: 15,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-  },
-  connectionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  connectionsTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  connectionsLoading: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-  },
-  connectionsList: {
-    paddingHorizontal: 5,
-  },
-  connectionItem: {
-    alignItems: 'center',
-    marginRight: 15,
-    width: 70,
-  },
-  connectionAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  connectionInitial: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  connectionName: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  connectionSign: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 10,
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  connectionCompatibility: {
-    color: '#8B5CF6',
-    fontSize: 10,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  connectionsEmpty: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  connectionsEmptyText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 14,
+    paddingHorizontal: 24,
+    paddingBottom: 100,
   },
 });

@@ -24,8 +24,13 @@ export const SignupRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2),
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD'),
-  birthTime: z.string().regex(/^\d{2}:\d{2}$/, 'Время должно быть в формате HH:MM').optional(),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD'),
+  birthTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, 'Время должно быть в формате HH:MM')
+    .optional(),
   birthPlace: z.string().optional(),
 });
 
@@ -40,6 +45,7 @@ export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 
 export const UpdateProfileRequestSchema = z.object({
   name: z.string().min(2).optional(),
+  birthDate: z.string().optional(),
   birthPlace: z.string().optional(),
   birthTime: z.string().optional(),
 });

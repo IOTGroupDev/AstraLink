@@ -1,28 +1,51 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthService } from './auth.service';
+import { SupabaseAuthService } from './supabase-auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthMiddleware } from './middleware/auth.middleware';
-import { PrismaModule } from '../prisma/prisma.module';
+import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { MagicLinkRateLimitGuard } from './guards/magic-link-rate-limit.guard';
+import { SignupRateLimitGuard } from './guards/signup-rate-limit.guard';
+import { SupabaseModule } from '../supabase/supabase.module';
+import { ChartModule } from '../chart/chart.module';
+import { ServicesModule } from '../services/services.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
-    PrismaModule,
+    SupabaseModule,
+    CommonModule,
+    forwardRef(() => ChartModule),
+    ServicesModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '24h' },
       }),
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, AuthMiddleware],
+  providers: [
+    SupabaseAuthService,
+    JwtStrategy,
+    AuthMiddleware,
+    SupabaseAuthGuard,
+    MagicLinkRateLimitGuard,
+    SignupRateLimitGuard,
+  ],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule, AuthMiddleware],
+  exports: [
+    SupabaseAuthService,
+    JwtModule,
+    AuthMiddleware,
+    SupabaseAuthGuard,
+    MagicLinkRateLimitGuard,
+    SignupRateLimitGuard,
+  ],
 })
 export class AuthModule {}

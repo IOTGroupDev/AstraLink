@@ -1,43 +1,174 @@
-import { Controller, Get, Post, Query, Request, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Request,
+  Body,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ChartService } from './chart.service';
-import type { CreateNatalChartRequest, TransitRequest } from '../types';
-import { Public } from '../auth/decorators/public.decorator';
+import type { CreateNatalChartRequest, TransitRequest } from '@/types';
+import { Public } from '@/common/decorators/public.decorator';
+import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { LunarService } from '@/services/lunar.service';
+import type { AuthenticatedRequest } from '@/types/auth';
 
 @ApiTags('Chart')
 @Controller('chart')
+@UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class ChartController {
-  constructor(private readonly chartService: ChartService) {}
+  constructor(
+    private readonly chartService: ChartService,
+    private readonly lunarService: LunarService,
+  ) {}
 
   @Get('natal')
   @ApiOperation({ summary: 'Получить натальную карту пользователя' })
   @ApiResponse({ status: 200, description: 'Натальная карта' })
   @ApiResponse({ status: 404, description: 'Карта не найдена' })
-  async getNatalChart(@Request() req) {
-    return this.chartService.getNatalChart(req.user.userId);
+  async getNatalChart(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getNatalChart(userId);
+  }
+
+  @Get('natal/interpretation')
+  @ApiOperation({ summary: 'Получить детальную интерпретацию натальной карты' })
+  @ApiResponse({ status: 200, description: 'Интерпретация натальной карты' })
+  @ApiResponse({ status: 404, description: 'Интерпретация не найдена' })
+  async getChartInterpretation(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getChartInterpretation(userId);
+  }
+
+  @Get('natal/full')
+  @ApiOperation({ summary: 'Получить натальную карту с полной интерпретацией' })
+  @ApiResponse({
+    status: 200,
+    description: 'Полная натальная карта с интерпретацией',
+  })
+  async getNatalChartWithInterpretation(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getNatalChartWithInterpretation(userId);
   }
 
   @Post('natal')
-  @ApiOperation({ summary: 'Сохранить натальную карту' })
-  @ApiResponse({ status: 201, description: 'Карта сохранена' })
-  async createNatalChart(@Request() req, @Body() chartData: CreateNatalChartRequest) {
-    return this.chartService.createNatalChart(req.user.userId, chartData.data);
+  @ApiOperation({ summary: 'Создать натальную карту' })
+  @ApiResponse({ status: 201, description: 'Карта создана' })
+  async createNatalChart(
+    @Request() req: AuthenticatedRequest,
+    @Body() chartData: CreateNatalChartRequest,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.createNatalChart(userId, chartData.data);
+  }
+
+  @Post('regenerate-ai')
+  @ApiOperation({
+    summary:
+      'Регенерировать интерпретацию натальной карты с помощью AI (макс. 1 раз в 24 часа)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Интерпретация успешно регенерирована',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Превышен лимит генераций (доступна 1 раз в 24 часа)',
+  })
+  @ApiResponse({ status: 404, description: 'Натальная карта не найдена' })
+  async regenerateChartWithAI(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.regenerateChartWithAI(userId);
+  }
+
+  @Get('horoscope')
+  @ApiOperation({
+    summary: 'Получить гороскоп на период (FREE: базовый, PREMIUM: AI)',
+  })
+  @ApiQuery({
+    name: 'period',
+    description: 'Период: day, tomorrow, week, month',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Гороскоп на выбранный период' })
+  async getHoroscope(
+    @Request() req: AuthenticatedRequest,
+    @Query('period') period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getHoroscope(userId, period);
+  }
+
+  @Get('horoscope/all')
+  @ApiOperation({
+    summary: 'Получить все гороскопы (день, завтра, неделя, месяц)',
+  })
+  @ApiResponse({ status: 200, description: 'Все гороскопы' })
+  async getAllHoroscopes(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getAllHoroscopes(userId);
   }
 
   @Get('current')
   @ApiOperation({ summary: 'Получить текущие позиции планет' })
   @ApiResponse({ status: 200, description: 'Текущие позиции планет' })
-  async getCurrentPlanets(@Request() req) {
-    return this.chartService.getCurrentPlanets(req.user.userId);
+  async getCurrentPlanets(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getCurrentPlanets(userId);
   }
 
-  @Get('predictions')
-  @ApiOperation({ summary: 'Получить астрологические предсказания' })
-  @ApiQuery({ name: 'period', description: 'Период: day, week, month', required: false })
-  @ApiResponse({ status: 200, description: 'Предсказания' })
-  async getPredictions(@Request() req, @Query('period') period: string = 'day') {
-    return this.chartService.getPredictions(req.user.userId, period);
+  @Get('biorhythms')
+  @ApiOperation({ summary: 'Получить биоритмы на дату' })
+  @ApiQuery({
+    name: 'date',
+    description:
+      'Дата в формате YYYY-MM-DD (опционально, по умолчанию сегодня)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Биоритмы' })
+  async getBiorhythms(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') date?: string,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getBiorhythms(userId, date);
   }
 
   @Get('transits')
@@ -45,7 +176,197 @@ export class ChartController {
   @ApiQuery({ name: 'from', description: 'Дата начала (YYYY-MM-DD)' })
   @ApiQuery({ name: 'to', description: 'Дата окончания (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Данные транзитов' })
-  async getTransits(@Request() req, @Query() query: TransitRequest) {
-    return this.chartService.getTransits(req.user.userId, query.from, query.to);
+  async getTransits(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: TransitRequest,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getTransits(userId, query.from, query.to);
+  }
+
+  @Get('test')
+  @Public()
+  @ApiOperation({ summary: 'Тестовый эндпоинт для проверки расчетов' })
+  @ApiResponse({ status: 200, description: 'Тестовые данные' })
+  async testChart() {
+    const mockUser = {
+      birthDate: new Date('1990-01-01'),
+      birthTime: '12:00',
+      birthPlace: 'Москва',
+    };
+
+    const birthDate = mockUser.birthDate.toISOString().split('T')[0];
+    const birthTime = mockUser.birthTime;
+    const location = this.chartService.getLocationCoordinates(
+      mockUser.birthPlace,
+    );
+
+    const natalChartData = await this.chartService[
+      'ephemerisService'
+    ].calculateNatalChart(birthDate, birthTime, location);
+
+    return {
+      message: 'Тестовый расчет завершен',
+      data: natalChartData,
+    };
+  }
+
+  @Get('moon-phase')
+  @Get('moon-moon-phase') // legacy alias for backward compatibility
+  @ApiOperation({ summary: 'Получить фазу луны на указанную дату' })
+  @ApiQuery({
+    name: 'date',
+    description:
+      'Дата в формате YYYY-MM-DD (опционально, по умолчанию сегодня)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Фаза луны' })
+  async getMoonPhase(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') dateStr?: string,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+
+    // Парсим дату
+    const date = dateStr ? new Date(dateStr) : new Date();
+
+    // Получаем натальную карту для определения дома Луны
+    let natalChart: any = null;
+    try {
+      if (userId) {
+        const chart = await this.chartService.getNatalChart(userId);
+        natalChart = chart?.data;
+      }
+    } catch (_error) {
+      throw new UnauthorizedException(
+        'Не удалось загрузить натальную карту для moon-phase',
+      );
+    }
+
+    return this.lunarService.getMoonPhase(date, natalChart);
+  }
+
+  @Get('lunar-day')
+  @ApiOperation({ summary: 'Получить текущий лунный день' })
+  @ApiQuery({
+    name: 'date',
+    description: 'Дата в формате YYYY-MM-DD (опционально)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Лунный день' })
+  async getLunarDay(@Query('date') dateStr?: string) {
+    const date = dateStr ? new Date(dateStr) : new Date();
+    return this.lunarService.getLunarDay(date);
+  }
+
+  @Get('lunar-calendar')
+  @ApiOperation({ summary: 'Получить лунный календарь на месяц' })
+  @ApiQuery({
+    name: 'year',
+    description: 'Год',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'month',
+    description: 'Месяц (0-11)',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Лунный календарь на месяц' })
+  async getLunarCalendar(
+    @Request() req: AuthenticatedRequest,
+    @Query('year') yearStr?: string,
+    @Query('month') monthStr?: string,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+
+    const now = new Date();
+    const year = yearStr ? parseInt(yearStr) : now.getFullYear();
+    const month = monthStr ? parseInt(monthStr) : now.getMonth();
+
+    // Получаем натальную карту
+    let natalChart: any = null;
+    try {
+      if (userId) {
+        const chart = await this.chartService.getNatalChart(userId);
+        natalChart = chart?.data;
+      }
+    } catch (_error) {
+      throw new UnauthorizedException(
+        'Не удалось загрузить натальную карту для lunar-calendar',
+      );
+    }
+
+    return this.lunarService.getMonthlyCalendar(year, month, natalChart);
+  }
+
+  @Get('interpretation/details')
+  @ApiOperation({
+    summary: 'Получить расширенные детали интерпретации ("Подробнее")',
+  })
+  @ApiQuery({
+    name: 'type',
+    description: 'Тип блока: planet | ascendant | house | aspect',
+    required: true,
+  })
+  @ApiQuery({ name: 'planet', required: false })
+  @ApiQuery({ name: 'sign', required: false })
+  @ApiQuery({ name: 'houseNum', required: false })
+  @ApiQuery({ name: 'aspect', required: false })
+  @ApiQuery({ name: 'planetA', required: false })
+  @ApiQuery({ name: 'planetB', required: false })
+  @ApiQuery({ name: 'locale', description: 'ru | en | es', required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Массив строк для показа в "Подробнее"',
+  })
+  async getInterpretationDetails(
+    @Request() req: AuthenticatedRequest,
+    @Query()
+    query: {
+      type: 'planet' | 'ascendant' | 'house' | 'aspect';
+      planet?: string;
+      sign?: string;
+      houseNum?: number | string;
+      aspect?: string;
+      planetA?: string;
+      planetB?: string;
+      locale?: 'ru' | 'en' | 'es';
+    },
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    return this.chartService.getInterpretationDetails(userId, query);
+  }
+
+  @Get('transits/interpretation')
+  @ApiOperation({
+    summary:
+      'Получить детальную интерпретацию транзитов (FREE: базовая, PREMIUM/MAX: AI)',
+  })
+  @ApiQuery({
+    name: 'date',
+    description: 'Дата для анализа транзитов (YYYY-MM-DD)',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Интерпретация транзитов с учётом подписки',
+  })
+  async getTransitInterpretation(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') dateStr?: string,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+
+    const date = dateStr ? new Date(dateStr) : new Date();
+    return this.chartService.getTransitInterpretation(userId, date);
   }
 }

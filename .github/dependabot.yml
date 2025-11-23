@@ -1,0 +1,109 @@
+version: 2
+updates:
+  # Enable version updates for npm (backend)
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-team/backend-team"
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    versioning-strategy: increase
+    groups:
+      nestjs:
+        patterns:
+          - "@nestjs/*"
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Enable version updates for npm (frontend)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-team/frontend-team"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    versioning-strategy: increase
+    groups:
+      expo:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "@expo/*"
+      react:
+        patterns:
+          - "react"
+          - "react-*"
+          - "@react-*"
+      navigation:
+        patterns:
+          - "@react-navigation/*"
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Enable version updates for npm (root)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "root"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(docker)"
