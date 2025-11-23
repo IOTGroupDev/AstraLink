@@ -34,15 +34,12 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class UserPhotosController {
   constructor(private readonly photosService: UserPhotosService) {}
 
-  private getUserId(req: ExpressRequest): string {
-    const userId =
-      (req as any).user?.userId ||
-      (req as any).user?.id ||
-      (req as any).user?.sub;
+  private getUserId(req: AuthenticatedRequest): string {
+    const userId = req.user?.userId || req.user?.id;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return userId as string;
+    return userId;
   }
 
   private getAccessToken(req: ExpressRequest): string {

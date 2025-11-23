@@ -511,9 +511,8 @@ export function getExtendedPlanetInSign(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const byPlanet = (d as any).planetInSignExt?.[planet] as
-    | Partial<Record<Sign, string[]>>
-    | undefined;
+  // @ts-expect-error - planetInSignExt exists in runtime but not in inferred type
+  const byPlanet: Partial<Record<Sign, string[]>> | undefined = d.planetInSignExt?.[planet];
   if (!byPlanet) return [];
   return byPlanet[sign] || [];
 }
@@ -523,9 +522,8 @@ export function getExtendedAscendant(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const ext = (d as any).ascendantExt as
-    | Partial<Record<Sign, string[]>>
-    | undefined;
+  // @ts-expect-error - ascendantExt exists in runtime but not in inferred type
+  const ext: Partial<Record<Sign, string[]>> | undefined = d.ascendantExt;
   if (!ext) return [];
   return ext[sign] || [];
 }
@@ -536,9 +534,8 @@ export function getExtendedHouseSign(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const byHouse = (d as any).houseSignInterpretationsExt?.[houseNum] as
-    | Partial<Record<Sign, string[]>>
-    | undefined;
+  // @ts-expect-error - houseSignInterpretationsExt exists in runtime but not in inferred type
+  const byHouse: Partial<Record<Sign, string[]>> | undefined = d.houseSignInterpretationsExt?.[houseNum];
   if (!byHouse) return [];
   return byHouse[sign] || [];
 }
@@ -572,8 +569,9 @@ export function getPlanetInSignText(
 ): string {
   const d = dicts(locale);
   const bySign = d.planetInSign[planet] || {};
-  const found = (bySign as any)?.[sign];
-  if (found) return found as string;
+  // @ts-expect-error - bySign has sign indices but not in inferred type
+  const found: string | undefined = bySign[sign];
+  if (found) return found;
 
   // Fallback generic line
   if (locale === 'en') {
@@ -635,9 +633,8 @@ export function getAscendantMeta(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): { keywords: string[]; strengths: string[]; challenges: string[] } {
   if (locale === 'en') {
-    const meta = (ASCENDANT_META_EN as any)?.[sign] as
-      | { keywords: string[]; strengths: string[]; challenges: string[] }
-      | undefined;
+    // @ts-expect-error - ASCENDANT_META_EN has sign indices but not in type definition
+    const meta: { keywords: string[]; strengths: string[]; challenges: string[] } | undefined = ASCENDANT_META_EN[sign];
     return (
       meta || {
         keywords: ['attractive', 'charismatic', 'confident'],
@@ -646,9 +643,8 @@ export function getAscendantMeta(
       }
     );
   }
-  const meta = (ASCENDANT_META_RU as any)?.[sign] as
-    | { keywords: string[]; strengths: string[]; challenges: string[] }
-    | undefined;
+  // @ts-expect-error - ASCENDANT_META_RU has sign indices but not in type definition
+  const meta: { keywords: string[]; strengths: string[]; challenges: string[] } | undefined = ASCENDANT_META_RU[sign];
 
   return (
     meta || {

@@ -172,7 +172,7 @@ export class SubscriptionController {
     @Body() upgradeData: UpgradeSubscriptionDto,
   ): Promise<UpgradeSubscriptionResponseDto> {
     // Нормализуем вход (enum в рантайме — обычная строка)
-    const rawTier = (upgradeData as any)?.tier;
+    const rawTier = upgradeData?.tier;
     const tierStr =
       typeof rawTier === 'string' ? rawTier.toLowerCase().trim() : rawTier;
 
@@ -180,7 +180,7 @@ export class SubscriptionController {
       throw new BadRequestException('Неверный уровень подписки');
     }
 
-    const pmRaw = (upgradeData as any)?.paymentMethod;
+    const pmRaw = upgradeData?.paymentMethod;
     const paymentMethod =
       pmRaw === 'apple' || pmRaw === 'google' || pmRaw === 'mock'
         ? pmRaw
@@ -190,7 +190,7 @@ export class SubscriptionController {
       this.getUserId(req),
       tierStr as SubscriptionTier,
       paymentMethod,
-      (upgradeData as any)?.transactionId,
+      upgradeData?.transactionId,
     );
   }
 
