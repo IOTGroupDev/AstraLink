@@ -77,13 +77,9 @@ export class UserController {
     return this.userService.updateProfile(userId as string, updateData);
   }
 
-  private getUserId(req: Request): string {
-    // подстрой под то, как ты прокидываешь user в req (JWT/Passport/Supabase)
-    // Часто: req.user?.id или req['user']?.id
-    const userId =
-      (req as any).user?.id ||
-      (req as any).user?.sub || // JWT sub
-      (req as any).authUserId; // если где-то так положил
+  private getUserId(req: AuthenticatedRequest): string {
+    // Extract user ID from authenticated request
+    const userId = req.user?.userId || req.user?.id;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
@@ -91,8 +87,8 @@ export class UserController {
   }
 
   // Нужен для Supabase RLS-контекста (auth.uid()) — используем Bearer токен пользователя
-  private getAccessToken(req: any): string {
-    const auth = req?.headers?.authorization || '';
+  private getAccessToken(req: AuthenticatedRequest): string {
+    const auth = req.headers?.authorization || '';
     const [scheme, token] = auth.split(' ');
     if (!token || String(scheme).toLowerCase() !== 'bearer') {
       throw new UnauthorizedException('Missing bearer token');
@@ -102,7 +98,7 @@ export class UserController {
 
   @Get('subscription')
   async getMySubscription(
-    @Req() req: Request,
+    @Request() req: AuthenticatedRequest,
   ): Promise<SubscriptionStatusResponse> {
     const userId = this.getUserId(req);
     return this.subscriptionService.getStatus(userId);
@@ -119,7 +115,7 @@ export class UserController {
     if (!dto?.blockedUserId) {
       throw new UnauthorizedException('blockedUserId is required');
     }
-    const token = this.getAccessToken(req as any);
+    const token = this.getAccessToken(req);
     return this.userService.blockUserWithToken(token, dto.blockedUserId);
   }
 
@@ -134,7 +130,7 @@ export class UserController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    const token = this.getAccessToken(req as any);
+    const token = this.getAccessToken(req);
     const safeLimit = limit
       ? Math.max(1, Math.min(100, parseInt(limit, 10)))
       : 50;
@@ -154,7 +150,7 @@ export class UserController {
     if (!dto?.reportedUserId || !dto?.reason) {
       throw new UnauthorizedException('reportedUserId and reason are required');
     }
-    const token = this.getAccessToken(req as any);
+    const token = this.getAccessToken(req);
     return this.userService.reportUserWithToken(
       token,
       dto.reportedUserId,
@@ -191,7 +187,7 @@ export class UserController {
   @Get('profile-extended')
   async getExtendedProfile(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id;
-    const token = this.getAccessToken(req as any);
+    const token = this.getAccessToken(req);
 
     // Создаем клиент с токеном пользователя для RLS
     const client = this.supabaseService.createClientWithToken(token);
@@ -229,7 +225,7 @@ export class UserController {
     @Body() updateData: UpdateExtendedProfileDto,
   ) {
     const userId = req.user?.userId || req.user?.id;
-    const token = this.getAccessToken(req as any);
+    const token = this.getAccessToken(req);
 
     // Create client with user token for RLS
     const client = this.supabaseService.createClientWithToken(token);
