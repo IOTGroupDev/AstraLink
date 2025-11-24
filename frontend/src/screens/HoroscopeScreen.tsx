@@ -23,11 +23,6 @@ import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/index';
 import { chartLogger } from '../services/logger';
-import NatalChartWheel from '../intgr/NatalChartWheel';
-import NatalChartScreenImplementation from '../intgr/NatalChartScreenImplementation';
-import ChartScreenExample from '../intgr/ChartScreenExample';
-import PersonalCodeScreen from './PersonalCodeScreen';
-import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
 
 const HoroscopeScreen: React.FC = () => {
   const navigation = useNavigation();

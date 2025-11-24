@@ -295,10 +295,7 @@ export class EphemerisService implements OnModuleInit {
     for (const [planetA, dataA] of Object.entries(planetsA)) {
       for (const [planetB, dataB] of Object.entries(planetsB)) {
         if (planetA !== planetB && dataA && dataB) {
-          const aspect = this.calculateAspect(
-            (dataA as Planet).longitude,
-            (dataB as Planet).longitude,
-          );
+          const aspect = this.calculateAspect(dataA.longitude, dataB.longitude);
           if (aspect) {
             aspects.push({
               planetA,
@@ -333,8 +330,8 @@ export class EphemerisService implements OnModuleInit {
       if (planetsB[planet] && dataA) {
         const dataB = planetsB[planet];
         const compositeLongitude = this.averageLongitude(
-          (dataA as Planet).longitude,
-          (dataB as Planet).longitude,
+          dataA.longitude,
+          dataB.longitude,
         );
 
         compositePlanets[planet] = {
@@ -528,10 +525,7 @@ export class EphemerisService implements OnModuleInit {
         const [planetB, dataB] = planetEntries[j];
 
         if (dataA && dataB) {
-          const aspect = this.calculateAspect(
-            (dataA as Planet).longitude,
-            (dataB as Planet).longitude,
-          );
+          const aspect = this.calculateAspect(dataA.longitude, dataB.longitude);
           if (aspect) {
             aspects.push({
               planetA,
