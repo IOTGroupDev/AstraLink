@@ -13,6 +13,7 @@ interface BiorhythmsWidgetProps {
   physical: number; // 0-100
   emotional: number; // 0-100
   intellectual: number; // 0-100
+  isLoading?: boolean; // Показать состояние загрузки
 }
 
 interface CircularProgressProps {
@@ -146,7 +147,32 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
   physical,
   emotional,
   intellectual,
+  isLoading,
 }) => {
+  if (isLoading) {
+    return (
+      <LinearGradient
+        colors={['rgba(35, 0, 45, 0.4)', 'rgba(89, 2, 114, 0.4)']}
+        start={{ x: 0.5, y: 1 }}
+        end={{ x: 0.5, y: 0 }}
+        style={styles.container}
+      >
+        <LinearGradient
+          colors={['rgba(237, 164, 255, 0.1)', 'rgba(241, 197, 255, 0.1)']}
+          start={{ x: 0.5, y: 1 }}
+          end={{ x: 0.5, y: 0 }}
+          style={styles.borderGradient}
+        />
+        <View style={styles.content}>
+          <Text style={styles.headerText}>⏳️ Биоритмы</Text>
+          <View style={{ paddingVertical: 8 }}>
+            <Text style={{ color: '#A78BFA' }}>Загрузка биоритмов...</Text>
+          </View>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={['rgba(35, 0, 45, 0.4)', 'rgba(89, 2, 114, 0.4)']}

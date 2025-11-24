@@ -42,6 +42,7 @@ interface PlanetaryRecommendationWidgetProps {
     | any;
   transitPlanets: PlanetPosition[] | string | any;
   onPress?: () => void;
+  isLoading?: boolean;
 }
 
 // Функция для получения цвета планеты
@@ -73,24 +74,30 @@ const getAspectColor = (aspectType: string): string => {
   return colors[aspectType.toLowerCase()] || '#8B5CF6';
 };
 
-// Функция для проверки валидности данных планет
+// Функция для проверки валидности данных планет (поддержка объекта и массива)
 const isValidPlanetData = (data: any): boolean => {
-  if (!data || typeof data !== 'object') return false;
-  if (Array.isArray(data)) return false;
+  if (!data) return false;
 
-  // Проверяем, что есть хотя бы одна планета с longitude
-  const keys = Object.keys(data);
-  if (keys.length === 0) return false;
+  // Если это массив планет
+  if (Array.isArray(data)) {
+    return data.some(
+      (p) =>
+        p &&
+        typeof p === 'object' &&
+        typeof (p.longitude ?? p?.position?.longitude) === 'number'
+    );
+  }
 
-  for (const key of keys) {
-    const planet = data[key];
-    if (
-      planet &&
-      typeof planet === 'object' &&
-      typeof planet.longitude === 'number'
-    ) {
-      return true;
-    }
+  // Если это объект: проверяем значения
+  if (typeof data === 'object') {
+    const values = Object.values(data);
+    if (values.length === 0) return false;
+    return values.some(
+      (p: any) =>
+        p &&
+        typeof p === 'object' &&
+        typeof (p.longitude ?? p?.position?.longitude) === 'number'
+    );
   }
 
   return false;
@@ -110,23 +117,73 @@ const isValidTransitData = (data: any): boolean => {
   );
 };
 
-// Функция для расчета активных транзитов
+// Нормализация натальных планет к объекту Record<string, { longitude, sign, degree }>
+const normalizeNatalPlanets = (
+  raw: any
+): Record<string, { longitude: number; sign?: string; degree?: number }> => {
+  const out: Record<
+    string,
+    { longitude: number; sign?: string; degree?: number }
+  > = {};
+
+  try {
+    if (!raw) return out;
+
+    if (Array.isArray(raw)) {
+      raw.forEach((p: any, idx: number) => {
+        const lon = p?.longitude ?? p?.position?.longitude;
+        if (typeof lon === 'number') {
+          const key =
+            (typeof p?.name === 'string' && p.name.toLowerCase()) || `p${idx}`;
+          out[key] = {
+            longitude: lon,
+            sign: p?.sign,
+            degree: p?.degree,
+          };
+        }
+      });
+      return out;
+    }
+
+    if (typeof raw === 'object') {
+      for (const [k, v] of Object.entries(raw)) {
+        const lon = (v as any)?.longitude ?? (v as any)?.position?.longitude;
+        if (typeof lon === 'number') {
+          out[k.toLowerCase()] = {
+            longitude: lon,
+            sign: (v as any)?.sign,
+            degree: (v as any)?.degree,
+          };
+        }
+      }
+      return out;
+    }
+  } catch {
+    // ignore
+  }
+
+  return out;
+};
+
+// Функция для расчета активных транзитов (принимает «сырые» натальные планеты)
 const calculateActiveTransits = (
   transitPlanets: PlanetPosition[],
-  natalPlanets: Record<
-    string,
-    { longitude: number; sign: string; degree: number }
-  >
+  natalPlanetsRaw: any
 ): TransitData[] => {
   const transits: TransitData[] = [];
   const orbTolerance = 8; // орб в градусах
+  const natalPlanets = normalizeNatalPlanets(natalPlanetsRaw);
 
   try {
     if (!Array.isArray(transitPlanets) || !transitPlanets.length) {
       return [];
     }
 
-    if (!natalPlanets || typeof natalPlanets !== 'object') {
+    if (
+      !natalPlanets ||
+      typeof natalPlanets !== 'object' ||
+      !Object.keys(natalPlanets).length
+    ) {
       return [];
     }
 
@@ -219,22 +276,75 @@ function buildRecommendations(transits: TransitData[]) {
 
 const PlanetaryRecommendationWidget: React.FC<
   PlanetaryRecommendationWidgetProps
-> = ({ natalPlanets, transitPlanets, onPress }) => {
+> = ({ natalPlanets, transitPlanets, onPress, isLoading }) => {
   // Валидация данных
   const hasValidNatalData = isValidPlanetData(natalPlanets);
   const hasValidTransitData = isValidTransitData(transitPlanets);
 
-  // Если данные невалидны - показываем загрузку или скрываем виджет
-  if (!hasValidNatalData || !hasValidTransitData) {
-    logger.warn('PlanetaryRecommendationWidget: Невалидные данные', {
-      natalPlanets: typeof natalPlanets,
-      transitPlanets: typeof transitPlanets,
-      hasValidNatalData,
-      hasValidTransitData,
-    });
+  // Логирование для отладки валидации данных
+  React.useEffect(() => {
+    if (!hasValidNatalData || !hasValidTransitData) {
+      logger.warn('PlanetaryRecommendationWidget: Невалидные данные', {
+        hasValidNatalData,
+        hasValidTransitData,
+        natalPlanets: typeof natalPlanets,
+        transitPlanets: typeof transitPlanets,
+        natalIsArray: Array.isArray(natalPlanets),
+        transitIsArray: Array.isArray(transitPlanets),
+        natalKeys: natalPlanets && typeof natalPlanets === 'object' ? Object.keys(natalPlanets).length : 0,
+        transitLength: Array.isArray(transitPlanets) ? transitPlanets.length : 0,
+      });
+    }
+  }, [hasValidNatalData, hasValidTransitData, natalPlanets, transitPlanets]);
 
-    // Возвращаем null, чтобы скрыть виджет
-    return null;
+  // Если из экрана пришёл пустой объект ({}), считаем что данные ещё грузятся
+  const natalEmptyObject =
+    !!natalPlanets &&
+    typeof natalPlanets === 'object' &&
+    !Array.isArray(natalPlanets) &&
+    Object.keys(natalPlanets).length === 0;
+
+  const effectiveLoading = !!(isLoading || natalEmptyObject);
+
+  // Плейсхолдер загрузки — показываем только пока идёт глобальная загрузка
+  // или когда нет транзитов. Отсутствие натальных планет НЕ блокирует вывод (покажем транзиты без аспектов).
+  if (effectiveLoading || !hasValidTransitData) {
+    // Логируем только когда загрузка закончилась, а транзиты так и невалидны
+    if (!effectiveLoading && !hasValidTransitData) {
+      logger.warn(
+        'PlanetaryRecommendationWidget: Недоступны транзиты (после загрузки)',
+        {
+          transitPlanets: typeof transitPlanets,
+          hasValidTransitData,
+        }
+      );
+    }
+
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <Text style={styles.title}>🌙 Рекомендация дня</Text>
+            </View>
+            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+              <Text style={{ color: '#A78BFA' }}>Загрузка рекомендаций...</Text>
+            </View>
+          </View>
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.border}
+          />
+        </LinearGradient>
+      </View>
+    );
   }
 
   // Рассчитываем активные транзиты
@@ -254,18 +364,23 @@ const PlanetaryRecommendationWidget: React.FC<
     const natalRadius = 70;
     const transitRadius = 105;
 
-    // Преобразуем объект натальных планет в массив
+    // Преобразуем натальные планеты (поддержка объекта и массива)
     let natalPlanetsArray: any[] = [];
+    let normalizedNatal: Record<string, { longitude: number; sign?: string; degree?: number }> = {};
+
     try {
-      natalPlanetsArray = Object.entries(natalPlanets).map(([key, planet]) => {
-        if (typeof planet === 'object' && planet !== null) {
-          return {
-            key,
-            ...(planet as Record<string, any>),
-          };
+      normalizedNatal = normalizeNatalPlanets(natalPlanets);
+      natalPlanetsArray = Object.entries(normalizedNatal).map(
+        ([key, planet]) => {
+          if (typeof planet === 'object' && planet !== null) {
+            return {
+              key,
+              ...(planet as Record<string, any>),
+            };
+          }
+          return { key };
         }
-        return { key };
-      });
+      );
     } catch (error) {
       logger.error('Ошибка при преобразовании натальных планет', error);
       return null;
@@ -309,7 +424,7 @@ const PlanetaryRecommendationWidget: React.FC<
             const transitPlanet = transitPlanets.find(
               (p: PlanetPosition) => p.name === transit.planet
             );
-            const natalPlanet = natalPlanets[transit.target.toLowerCase()];
+            const natalPlanet = normalizedNatal[transit.target.toLowerCase()];
 
             if (!transitPlanet || !natalPlanet) return null;
             if (

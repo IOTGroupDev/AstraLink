@@ -1,55 +1,147 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database (Local development only - Production uses Supabase)
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: astralink-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-astralink}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - astralink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - development
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: astralink-redis
+    restart: unless-stopped
     ports:
-      - "6379:6379"
-    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+      - "${REDIS_PORT:-6379}:6379"
+    command:
+      - redis-server
+      - --save 60 1
+      - --loglevel warning
+      - --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
     networks:
       - astralink-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
+  # Backend NestJS Application
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: astralink-backend
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-astralink}?schema=public
+      # Database (Supabase in production, local in development)
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env file}
+
+      # Supabase (optional - if using Supabase client)
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+
+      # Security
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+
+      # Server
       PORT: ${BACKEND_PORT:-3000}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      NODE_ENV: ${NODE_ENV:-production}
+
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-}@redis:6379}
+
+      # AI Providers
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      NODE_ENV: ${NODE_ENV:-development}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+
+      # Upload/Storage
+      UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
+
+      # CORS
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:19006}
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     depends_on:
-      - postgres
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - astralink-network
     volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - ./backend/uploads:/app/uploads
+      - ./backend/ephe:/app/ephe
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy (Production only)
+  nginx:
+    image: nginx:alpine
+    container_name: astralink-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+    networks:
+      - astralink-network
+    profiles:
+      - production
+
+  # Certbot for SSL certificates (Production only)
+  certbot:
+    image: certbot/certbot:latest
+    container_name: astralink-certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    command: certonly --webroot --webroot-path=/var/www/certbot --email ${SSL_EMAIL} --agree-tos --no-eff-email -d ${DOMAIN}
+    profiles:
+      - production
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  certbot_www:
+    driver: local
+  certbot_conf:
+    driver: local
 
 networks:
   astralink-network:

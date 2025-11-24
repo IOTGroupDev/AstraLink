@@ -347,56 +347,130 @@ const HoroscopeScreen: React.FC = () => {
 
   // Получение главного транзита
   const getMainTransit = () => {
-    if (
-      chart &&
-      chart.data &&
-      chart.data.aspects &&
-      chart.data.aspects.length > 0
-    ) {
-      const strongestAspect = chart.data.aspects.reduce((strongest, current) =>
-        (current.strength || 0) > (strongest.strength || 0)
-          ? current
-          : strongest
-      );
-
-      const planetNames: Record<string, string> = {
-        sun: 'Солнце',
-        moon: 'Луна',
-        mercury: 'Меркурий',
-        venus: 'Венера',
-        mars: 'Марс',
-        jupiter: 'Юпитер',
-        saturn: 'Сатурн',
-        uranus: 'Уран',
-        neptune: 'Нептун',
-        pluto: 'Плутон',
-      };
-
-      const aspectNames: Record<string, string> = {
-        conjunction: 'соединение',
-        opposition: 'оппозиция',
-        trine: 'трин',
-        square: 'квадрат',
-        sextile: 'секстиль',
-      };
-
-      const planetA =
-        planetNames[strongestAspect.planetA] || strongestAspect.planetA;
-      const planetB =
-        planetNames[strongestAspect.planetB] || strongestAspect.planetB;
-      const aspectName =
-        aspectNames[strongestAspect.aspect] || strongestAspect.aspect;
-
-      return {
-        name: `${planetA} - ${aspectName} - ${planetB}`,
-        aspect: aspectName,
-        targetPlanet: planetB,
-        strength: strongestAspect.strength || 0.8,
-        description: `${planetA} формирует ${aspectName} с ${planetB}`,
-      };
+    // Проверяем наличие необходимых данных
+    if (!currentPlanets || !chart) {
+      chartLogger.warn('getMainTransit: нет данных планет или карты', {
+        hasCurrentPlanets: !!currentPlanets,
+        hasChart: !!chart
+      });
+      return null;
     }
 
-    return null;
+    // Получаем натальные планеты
+    const natalPlanets = chart.data?.planets || chart.planets;
+    if (!natalPlanets || typeof natalPlanets !== 'object') {
+      chartLogger.warn('getMainTransit: нет натальных планет');
+      return null;
+    }
+
+    const planetNames: Record<string, string> = {
+      sun: 'Солнце',
+      moon: 'Луна',
+      mercury: 'Меркурий',
+      venus: 'Венера',
+      mars: 'Марс',
+      jupiter: 'Юпитер',
+      saturn: 'Сатурн',
+      uranus: 'Уран',
+      neptune: 'Нептун',
+      pluto: 'Плутон',
+    };
+
+    const aspectNames: Record<string, string> = {
+      conjunction: 'соединение',
+      opposition: 'оппозиция',
+      trine: 'трин',
+      square: 'квадрат',
+      sextile: 'секстиль',
+    };
+
+    // Рассчитываем аспекты между транзитными и натальными планетами
+    const aspects: Array<{
+      transitPlanet: string;
+      natalPlanet: string;
+      aspect: string;
+      orb: number;
+      strength: number;
+    }> = [];
+
+    const orbTolerance = 8; // орб в градусах
+    const aspectAngles = [
+      { type: 'conjunction', angle: 0 },
+      { type: 'sextile', angle: 60 },
+      { type: 'square', angle: 90 },
+      { type: 'trine', angle: 120 },
+      { type: 'opposition', angle: 180 },
+    ];
+
+    // Нормализуем currentPlanets к единому формату
+    let transitPlanets: Record<string, { longitude: number }> = {};
+    if (Array.isArray(currentPlanets)) {
+      currentPlanets.forEach(p => {
+        if (p?.name && typeof p?.longitude === 'number') {
+          transitPlanets[p.name.toLowerCase()] = { longitude: p.longitude };
+        }
+      });
+    } else if (typeof currentPlanets === 'object') {
+      transitPlanets = currentPlanets;
+    }
+
+    // Проверяем аспекты между каждой транзитной и натальной планетой
+    Object.entries(transitPlanets).forEach(([transitKey, transitData]) => {
+      if (typeof transitData?.longitude !== 'number') return;
+
+      Object.entries(natalPlanets).forEach(([natalKey, natalData]: [string, any]) => {
+        if (typeof natalData?.longitude !== 'number') return;
+
+        const diff = Math.abs(transitData.longitude - natalData.longitude);
+        const normalizedDiff = diff > 180 ? 360 - diff : diff;
+
+        aspectAngles.forEach(({ type, angle }) => {
+          const orb = Math.abs(normalizedDiff - angle);
+          if (orb <= orbTolerance) {
+            const strength = 1 - orb / orbTolerance;
+            aspects.push({
+              transitPlanet: transitKey,
+              natalPlanet: natalKey,
+              aspect: type,
+              orb,
+              strength,
+            });
+          }
+        });
+      });
+    });
+
+    // Сортируем по силе и выбираем самый сильный
+    if (aspects.length === 0) {
+      chartLogger.warn('getMainTransit: не найдено аспектов', {
+        transitPlanetsCount: Object.keys(transitPlanets).length,
+        natalPlanetsCount: Object.keys(natalPlanets).length,
+      });
+      return null;
+    }
+
+    aspects.sort((a, b) => b.strength - a.strength);
+    const mainAspect = aspects[0];
+
+    const transitPlanetName = planetNames[mainAspect.transitPlanet.toLowerCase()] || mainAspect.transitPlanet;
+    const natalPlanetName = planetNames[mainAspect.natalPlanet.toLowerCase()] || mainAspect.natalPlanet;
+    const aspectName = aspectNames[mainAspect.aspect] || mainAspect.aspect;
+
+    chartLogger.log('getMainTransit: найден главный аспект', {
+      transit: mainAspect.transitPlanet,
+      natal: mainAspect.natalPlanet,
+      aspect: mainAspect.aspect,
+      strength: mainAspect.strength,
+      orb: mainAspect.orb,
+    });
+
+    return {
+      name: `${transitPlanetName} - ${aspectName} - ${natalPlanetName}`,
+      aspect: aspectName,
+      targetPlanet: natalPlanetName,
+      strength: mainAspect.strength,
+      description: `${transitPlanetName} формирует ${aspectName} с натальным ${natalPlanetName}`,
+    };
   };
 
   // Получение сообщения об энергии (по значению)
@@ -428,6 +502,18 @@ const HoroscopeScreen: React.FC = () => {
     (predictions?.day?.energy as number | undefined) ?? getCurrentEnergy();
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
+
+  // Локальные флаги готовности данных для каждого виджета
+  // Важно: не блокируем виджеты отсутствием соседних данных.
+  const planetaryLoading =
+    loading ||
+    !Array.isArray(transitPlanetsArr) ||
+    transitPlanetsArr.length === 0;
+  const energyLoading = loading || !chart || !currentPlanets;
+  // Транзит: показываем лоадер только на время общей загрузки, а если транзит не найден — не «висим» в лоадере
+  const mainTransitLoading = loading;
+  const horoscopeLoading = loading || !predictions;
+  const biorhythmsLoading = loading || !biorhythms;
 
   // Нормализация данных для PlanetaryRecommendationWidget
   const natalPlanetsObj = React.useMemo(() => {
@@ -506,34 +592,38 @@ const HoroscopeScreen: React.FC = () => {
             <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
 
             {/* Рекомендация дня (нормализованные данные для виджета) */}
-            {natalPlanetsObj && transitPlanetsArr.length > 0 && (
-              <PlanetaryRecommendationWidget
-                natalPlanets={natalPlanetsObj}
-                transitPlanets={transitPlanetsArr}
-              />
-            )}
+            <PlanetaryRecommendationWidget
+              natalPlanets={natalPlanetsObj}
+              transitPlanets={transitPlanetsArr}
+              isLoading={planetaryLoading}
+            />
 
             {/* Виджет энергии */}
-            {!loading && (
-              <EnergyWidget energy={energyValue} message={energyMessage} />
-            )}
+            <EnergyWidget
+              energy={energyValue}
+              message={energyMessage}
+              isLoading={energyLoading}
+            />
 
             {/* Виджет главный транзит */}
-            {!loading && mainTransit && (
-              <MainTransitWidget transitData={mainTransit} />
-            )}
+            <MainTransitWidget
+              transitData={mainTransit}
+              isLoading={mainTransitLoading}
+            />
 
             {/* Гороскоп виджет */}
-            {predictions && <HoroscopeWidget predictions={predictions} />}
+            <HoroscopeWidget
+              predictions={predictions ?? null}
+              isLoading={horoscopeLoading}
+            />
 
             {/* Виджет Биоритмы */}
-            {biorhythms && (
-              <BiorhythmsWidget
-                physical={biorhythms.physical}
-                emotional={biorhythms.emotional}
-                intellectual={biorhythms.intellectual}
-              />
-            )}
+            <BiorhythmsWidget
+              physical={biorhythms?.physical ?? 0}
+              emotional={biorhythms?.emotional ?? 0}
+              intellectual={biorhythms?.intellectual ?? 0}
+              isLoading={biorhythmsLoading}
+            />
 
             {/* Placeholder для будущих виджетов */}
             {loading && (
