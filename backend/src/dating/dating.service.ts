@@ -242,9 +242,9 @@ export class DatingService {
             {
               user_id: u.id,
               bio: u.profile!.bio,
-              preferences: u.profile!.interests, // interests is the new field
+              preferences: u.profile!.preferences as Record<string, any>,
               city: u.profile!.city,
-              gender: undefined, // not in current schema
+              gender: u.profile!.gender,
               display_name: undefined, // not in current schema
               zodiac_sign: u.profile!.zodiacSign,
             },
@@ -376,9 +376,9 @@ export class DatingService {
               profilesById.set(u.id, {
                 user_id: u.id,
                 bio: u.profile.bio ?? null,
-                preferences: u.profile.interests ?? {},
+                preferences: (u.profile.preferences as Record<string, any>) ?? {},
                 city: u.profile.city ?? null,
-                gender: undefined,
+                gender: u.profile.gender,
                 display_name: undefined,
                 zodiac_sign: u.profile.zodiacSign ?? null,
               } as UserProfile);
@@ -837,10 +837,11 @@ export class DatingService {
       ? {
           user_id: userData.id,
           bio: userData.profile.bio,
-          preferences: userData.profile.interests,
+          preferences: userData.profile.preferences as Record<string, any>,
           city: userData.profile.city,
           zodiac_sign: userData.profile.zodiacSign,
           display_name: null, // не в схеме
+          gender: userData.profile.gender,
         }
       : null;
 
