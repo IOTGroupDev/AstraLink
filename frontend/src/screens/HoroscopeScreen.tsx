@@ -353,12 +353,24 @@ const HoroscopeScreen: React.FC = () => {
       return null;
     }
 
+    // Логируем структуру первого транзита для отладки
+    chartLogger.log('getMainTransit: структура транзитов', {
+      transitsCount: transits.transits.length,
+      firstTransit: transits.transits[0],
+      transitKeys: Object.keys(transits.transits[0] || {}),
+    });
+
     // Ищем транзит с аспектом
     const transitWithAspect = transits.transits.find(t => t.aspect);
 
     if (!transitWithAspect || !transitWithAspect.aspect) {
       chartLogger.warn('getMainTransit: нет транзитов с аспектами', {
-        transitsCount: transits.transits.length
+        transitsCount: transits.transits.length,
+        allTransits: transits.transits.map(t => ({
+          date: t.date,
+          hasAspect: !!t.aspect,
+          planetKeys: Object.keys(t.planets || {})
+        }))
       });
       return null;
     }
