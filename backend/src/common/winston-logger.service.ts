@@ -150,7 +150,12 @@ export class WinstonLoggerService implements LoggerService {
   /**
    * Log subscription changes
    */
-  logSubscription(event: string, userId: string, tier: string, details?: any): void {
+  logSubscription(
+    event: string,
+    userId: string,
+    tier: string,
+    details?: any,
+  ): void {
     this.logger.info('Subscription event', {
       event,
       userId,
@@ -162,8 +167,13 @@ export class WinstonLoggerService implements LoggerService {
   /**
    * Log security events
    */
-  logSecurity(event: string, severity: 'low' | 'medium' | 'high', details?: any): void {
-    const level = severity === 'high' ? 'error' : severity === 'medium' ? 'warn' : 'info';
+  logSecurity(
+    event: string,
+    severity: 'low' | 'medium' | 'high',
+    details?: any,
+  ): void {
+    const level =
+      severity === 'high' ? 'error' : severity === 'medium' ? 'warn' : 'info';
     this.logger.log(level, 'Security event', {
       event,
       severity,

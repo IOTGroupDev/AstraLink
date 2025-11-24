@@ -427,7 +427,10 @@ export class NatalChartService {
     const { type, planet, sign, houseNum, aspect } = query;
 
     if (type === 'planet' && planet && sign) {
-      const extended = getExtendedPlanetInSign(planet as PlanetKey, sign as Sign);
+      const extended = getExtendedPlanetInSign(
+        planet as PlanetKey,
+        sign as Sign,
+      );
       return extended || [];
     }
 

@@ -211,7 +211,12 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const tabs: Array<{
     id: 'overview' | 'planets' | 'houses' | 'aspects' | 'summary';
     label: string;
-    icon: 'star-outline' | 'planet-outline' | 'home-outline' | 'git-network-outline' | 'document-text-outline';
+    icon:
+      | 'star-outline'
+      | 'planet-outline'
+      | 'home-outline'
+      | 'git-network-outline'
+      | 'document-text-outline';
   }> = [
     { id: 'overview', label: 'Обзор', icon: 'star-outline' },
     { id: 'planets', label: 'Планеты', icon: 'planet-outline' },

@@ -404,7 +404,9 @@ export class DatingService {
           const fallbackUserIds = extraIds.slice(0, needMore);
           const fallbackPhotoPaths = fallbackUserIds
             .map((uid: string) => photosById.get(uid))
-            .filter((path): path is string => !!path && typeof path === 'string');
+            .filter(
+              (path): path is string => !!path && typeof path === 'string',
+            );
 
           const fallbackPhotoUrlsBatch =
             await this.supabaseService.createSignedUrlsBatch(

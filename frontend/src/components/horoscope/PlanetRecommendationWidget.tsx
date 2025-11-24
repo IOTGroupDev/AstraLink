@@ -171,7 +171,7 @@ const calculateActiveTransits = (
   natalPlanetsRaw: any
 ): TransitData[] => {
   const transits: TransitData[] = [];
-  const orbTolerance = 8; // орб в градусах
+  const orbTolerance = 10; // орб в градусах (расширен для повышения чувствительности)
   const natalPlanets = normalizeNatalPlanets(natalPlanetsRaw);
 
   try {
@@ -253,24 +253,50 @@ const aspectRu: Record<string, string> = {
   opposition: 'оппозиция',
 };
 function buildRecommendations(transits: TransitData[]) {
+  // Если активных аспектов нет — возвращаем нейтральные рекомендации,
+  // чтобы виджет не выглядел «пустым».
+  if (!Array.isArray(transits) || transits.length === 0) {
+    return {
+      positive: [
+        'Сфокусируйтесь на текущих задачах и поддерживайте рутину',
+        'Планируйте шаги на ближайшие дни, избегая перегрузок',
+      ],
+      negative: ['Избегайте поспешных выводов без подтверждений'],
+    };
+  }
+
   const positive: string[] = [];
   const negative: string[] = [];
+
   for (const t of transits) {
     const targetName =
       planetRu[t.target?.toLowerCase?.() || t.target] || t.target;
     const aspect = aspectRu[t.type] || t.type;
+
     const isPositive =
       t.type === 'trine' || t.type === 'sextile' || t.type === 'conjunction';
+
     const line = isPositive
       ? `${aspect} с ${targetName} — благоприятно действовать`
       : `${aspect} с ${targetName} — избегайте импульсивности`;
+
     if (isPositive) {
       if (positive.length < 3) positive.push(line);
     } else {
       if (negative.length < 3) negative.push(line);
     }
+
     if (positive.length >= 3 && negative.length >= 3) break;
   }
+
+  // На случай, если после фильтра всё ещё пусто — добавляем базовые строки
+  if (positive.length === 0) {
+    positive.push('День подходит для выверенных шагов и подготовки базы');
+  }
+  if (negative.length === 0) {
+    negative.push('Не берите на себя лишнего и дозируйте нагрузку');
+  }
+
   return { positive, negative };
 }
 
@@ -289,6 +315,21 @@ const PlanetaryRecommendationWidget: React.FC<
     Object.keys(natalPlanets).length === 0;
 
   const effectiveLoading = !!(isLoading || natalEmptyObject);
+
+  // Диагностика состояния (без падения при отсутствии logger)
+  try {
+    logger.debug('PlanetaryRecommendationWidget status', {
+      isLoading,
+      effectiveLoading,
+      hasValidTransitData,
+      hasValidNatalData,
+      transitCount: Array.isArray(transitPlanets) ? transitPlanets.length : 0,
+      natalKeys:
+        typeof natalPlanets === 'object' && natalPlanets
+          ? Object.keys(natalPlanets).length
+          : 0,
+    });
+  } catch {}
 
   // Плейсхолдер загрузки — показываем только пока идёт глобальная загрузка
   // или когда нет транзитов. Отсутствие натальных планет НЕ блокирует вывод (покажем транзиты без аспектов).
@@ -525,36 +566,34 @@ const PlanetaryRecommendationWidget: React.FC<
           <View style={styles.chartWrapper}>{renderAstrologyChart()}</View>
 
           {/* Рекомендации: Плюсы / Что избегать */}
-          {/*{(positiveRecs.length > 0 || negativeRecs.length > 0) && (*/}
-          {/*  <View style={styles.adviceContainer}>*/}
-          {/*    <View style={styles.adviceRow}>*/}
-          {/*      <View style={styles.adviceCard}>*/}
-          {/*        <Text style={styles.adviceTitle}>Плюсы</Text>*/}
-          {/*        {positiveRecs.length === 0 ? (*/}
-          {/*          <Text style={styles.adviceItem}>—</Text>*/}
-          {/*        ) : (*/}
-          {/*          positiveRecs.map((s, i) => (*/}
-          {/*            <Text key={`pos-${i}`} style={styles.adviceItem}>*/}
-          {/*              • {s}*/}
-          {/*            </Text>*/}
-          {/*          ))*/}
-          {/*        )}*/}
-          {/*      </View>*/}
-          {/*      <View style={styles.adviceCard}>*/}
-          {/*        <Text style={styles.adviceTitle}>Что избегать</Text>*/}
-          {/*        {negativeRecs.length === 0 ? (*/}
-          {/*          <Text style={styles.adviceItem}>—</Text>*/}
-          {/*        ) : (*/}
-          {/*          negativeRecs.map((s, i) => (*/}
-          {/*            <Text key={`neg-${i}`} style={styles.adviceItem}>*/}
-          {/*              • {s}*/}
-          {/*            </Text>*/}
-          {/*          ))*/}
-          {/*        )}*/}
-          {/*      </View>*/}
-          {/*    </View>*/}
-          {/*  </View>*/}
-          {/*)}*/}
+          <View style={styles.adviceContainer}>
+            <View style={styles.adviceRow}>
+              <View style={styles.adviceCard}>
+                <Text style={styles.adviceTitle}>Плюсы</Text>
+                {positiveRecs && positiveRecs.length > 0 ? (
+                  positiveRecs.slice(0, 3).map((s, i) => (
+                    <Text key={`pos-${i}`} style={styles.adviceItem}>
+                      • {s}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.adviceItem}>Нет явных преимуществ</Text>
+                )}
+              </View>
+              <View style={styles.adviceCard}>
+                <Text style={styles.adviceTitle}>Что избегать</Text>
+                {negativeRecs && negativeRecs.length > 0 ? (
+                  negativeRecs.slice(0, 3).map((s, i) => (
+                    <Text key={`neg-${i}`} style={styles.adviceItem}>
+                      • {s}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.adviceItem}>Нет ограничений</Text>
+                )}
+              </View>
+            </View>
+          </View>
 
           {/* Статус */}
           <View style={styles.footer}>

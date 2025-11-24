@@ -511,7 +511,8 @@ export function getExtendedPlanetInSign(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const byPlanet: Partial<Record<Sign, string[]>> | undefined = d.planetInSignExt?.[planet];
+  const byPlanet: Partial<Record<Sign, string[]>> | undefined =
+    d.planetInSignExt?.[planet];
   if (!byPlanet) return [];
   return byPlanet[sign] || [];
 }
@@ -532,7 +533,8 @@ export function getExtendedHouseSign(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
   const d = dicts(locale);
-  const byHouse: Partial<Record<Sign, string[]>> | undefined = d.houseSignInterpretationsExt?.[houseNum];
+  const byHouse: Partial<Record<Sign, string[]>> | undefined =
+    d.houseSignInterpretationsExt?.[houseNum];
   if (!byHouse) return [];
   return byHouse[sign] || [];
 }
@@ -629,7 +631,9 @@ export function getAscendantMeta(
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): { keywords: string[]; strengths: string[]; challenges: string[] } {
   if (locale === 'en') {
-    const meta: { keywords: string[]; strengths: string[]; challenges: string[] } | undefined = ASCENDANT_META_EN[sign];
+    const meta:
+      | { keywords: string[]; strengths: string[]; challenges: string[] }
+      | undefined = ASCENDANT_META_EN[sign];
     return (
       meta || {
         keywords: ['attractive', 'charismatic', 'confident'],
@@ -638,7 +642,9 @@ export function getAscendantMeta(
       }
     );
   }
-  const meta: { keywords: string[]; strengths: string[]; challenges: string[] } | undefined = ASCENDANT_META_RU[sign];
+  const meta:
+    | { keywords: string[]; strengths: string[]; challenges: string[] }
+    | undefined = ASCENDANT_META_RU[sign];
 
   return (
     meta || {
