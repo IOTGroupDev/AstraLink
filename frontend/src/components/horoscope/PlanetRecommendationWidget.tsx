@@ -281,6 +281,22 @@ const PlanetaryRecommendationWidget: React.FC<
   const hasValidNatalData = isValidPlanetData(natalPlanets);
   const hasValidTransitData = isValidTransitData(transitPlanets);
 
+  // Логирование для отладки валидации данных
+  React.useEffect(() => {
+    if (!hasValidNatalData || !hasValidTransitData) {
+      logger.warn('PlanetaryRecommendationWidget: Невалидные данные', {
+        hasValidNatalData,
+        hasValidTransitData,
+        natalPlanets: typeof natalPlanets,
+        transitPlanets: typeof transitPlanets,
+        natalIsArray: Array.isArray(natalPlanets),
+        transitIsArray: Array.isArray(transitPlanets),
+        natalKeys: natalPlanets && typeof natalPlanets === 'object' ? Object.keys(natalPlanets).length : 0,
+        transitLength: Array.isArray(transitPlanets) ? transitPlanets.length : 0,
+      });
+    }
+  }, [hasValidNatalData, hasValidTransitData, natalPlanets, transitPlanets]);
+
   // Если из экрана пришёл пустой объект ({}), считаем что данные ещё грузятся
   const natalEmptyObject =
     !!natalPlanets &&
@@ -350,8 +366,10 @@ const PlanetaryRecommendationWidget: React.FC<
 
     // Преобразуем натальные планеты (поддержка объекта и массива)
     let natalPlanetsArray: any[] = [];
+    let normalizedNatal: Record<string, { longitude: number; sign?: string; degree?: number }> = {};
+
     try {
-      const normalizedNatal = normalizeNatalPlanets(natalPlanets);
+      normalizedNatal = normalizeNatalPlanets(natalPlanets);
       natalPlanetsArray = Object.entries(normalizedNatal).map(
         ([key, planet]) => {
           if (typeof planet === 'object' && planet !== null) {
@@ -406,7 +424,7 @@ const PlanetaryRecommendationWidget: React.FC<
             const transitPlanet = transitPlanets.find(
               (p: PlanetPosition) => p.name === transit.planet
             );
-            const natalPlanet = natalPlanets[transit.target.toLowerCase()];
+            const natalPlanet = normalizedNatal[transit.target.toLowerCase()];
 
             if (!transitPlanet || !natalPlanet) return null;
             if (
