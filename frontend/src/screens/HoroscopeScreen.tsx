@@ -347,31 +347,19 @@ const HoroscopeScreen: React.FC = () => {
 
   // Получение главного транзита
   const getMainTransit = () => {
-    // Проверяем наличие транзитных данных
-    if (!transits || !transits.transits || transits.transits.length === 0) {
-      chartLogger.warn('getMainTransit: нет данных транзитов', { transits });
+    // Проверяем наличие необходимых данных
+    if (!currentPlanets || !chart) {
+      chartLogger.warn('getMainTransit: нет данных планет или карты', {
+        hasCurrentPlanets: !!currentPlanets,
+        hasChart: !!chart
+      });
       return null;
     }
 
-    // Логируем структуру первого транзита для отладки
-    chartLogger.log('getMainTransit: структура транзитов', {
-      transitsCount: transits.transits.length,
-      firstTransit: transits.transits[0],
-      transitKeys: Object.keys(transits.transits[0] || {}),
-    });
-
-    // Ищем транзит с аспектом
-    const transitWithAspect = transits.transits.find(t => t.aspect);
-
-    if (!transitWithAspect || !transitWithAspect.aspect) {
-      chartLogger.warn('getMainTransit: нет транзитов с аспектами', {
-        transitsCount: transits.transits.length,
-        allTransits: transits.transits.map(t => ({
-          date: t.date,
-          hasAspect: !!t.aspect,
-          planetKeys: Object.keys(t.planets || {})
-        }))
-      });
+    // Получаем натальные планеты
+    const natalPlanets = chart.data?.planets || chart.planets;
+    if (!natalPlanets || typeof natalPlanets !== 'object') {
+      chartLogger.warn('getMainTransit: нет натальных планет');
       return null;
     }
 
@@ -396,21 +384,92 @@ const HoroscopeScreen: React.FC = () => {
       sextile: 'секстиль',
     };
 
-    // Получаем информацию о планетах из транзита
-    const transitPlanetKeys = Object.keys(transitWithAspect.planets || {});
-    const planetA = transitPlanetKeys[0] || 'unknown';
-    const planetB = transitPlanetKeys[1] || 'unknown';
+    // Рассчитываем аспекты между транзитными и натальными планетами
+    const aspects: Array<{
+      transitPlanet: string;
+      natalPlanet: string;
+      aspect: string;
+      orb: number;
+      strength: number;
+    }> = [];
 
-    const planetAName = planetNames[planetA.toLowerCase()] || planetA;
-    const planetBName = planetNames[planetB.toLowerCase()] || planetB;
-    const aspectName = aspectNames[transitWithAspect.aspect.toLowerCase()] || transitWithAspect.aspect;
+    const orbTolerance = 8; // орб в градусах
+    const aspectAngles = [
+      { type: 'conjunction', angle: 0 },
+      { type: 'sextile', angle: 60 },
+      { type: 'square', angle: 90 },
+      { type: 'trine', angle: 120 },
+      { type: 'opposition', angle: 180 },
+    ];
+
+    // Нормализуем currentPlanets к единому формату
+    let transitPlanets: Record<string, { longitude: number }> = {};
+    if (Array.isArray(currentPlanets)) {
+      currentPlanets.forEach(p => {
+        if (p?.name && typeof p?.longitude === 'number') {
+          transitPlanets[p.name.toLowerCase()] = { longitude: p.longitude };
+        }
+      });
+    } else if (typeof currentPlanets === 'object') {
+      transitPlanets = currentPlanets;
+    }
+
+    // Проверяем аспекты между каждой транзитной и натальной планетой
+    Object.entries(transitPlanets).forEach(([transitKey, transitData]) => {
+      if (typeof transitData?.longitude !== 'number') return;
+
+      Object.entries(natalPlanets).forEach(([natalKey, natalData]: [string, any]) => {
+        if (typeof natalData?.longitude !== 'number') return;
+
+        const diff = Math.abs(transitData.longitude - natalData.longitude);
+        const normalizedDiff = diff > 180 ? 360 - diff : diff;
+
+        aspectAngles.forEach(({ type, angle }) => {
+          const orb = Math.abs(normalizedDiff - angle);
+          if (orb <= orbTolerance) {
+            const strength = 1 - orb / orbTolerance;
+            aspects.push({
+              transitPlanet: transitKey,
+              natalPlanet: natalKey,
+              aspect: type,
+              orb,
+              strength,
+            });
+          }
+        });
+      });
+    });
+
+    // Сортируем по силе и выбираем самый сильный
+    if (aspects.length === 0) {
+      chartLogger.warn('getMainTransit: не найдено аспектов', {
+        transitPlanetsCount: Object.keys(transitPlanets).length,
+        natalPlanetsCount: Object.keys(natalPlanets).length,
+      });
+      return null;
+    }
+
+    aspects.sort((a, b) => b.strength - a.strength);
+    const mainAspect = aspects[0];
+
+    const transitPlanetName = planetNames[mainAspect.transitPlanet.toLowerCase()] || mainAspect.transitPlanet;
+    const natalPlanetName = planetNames[mainAspect.natalPlanet.toLowerCase()] || mainAspect.natalPlanet;
+    const aspectName = aspectNames[mainAspect.aspect] || mainAspect.aspect;
+
+    chartLogger.log('getMainTransit: найден главный аспект', {
+      transit: mainAspect.transitPlanet,
+      natal: mainAspect.natalPlanet,
+      aspect: mainAspect.aspect,
+      strength: mainAspect.strength,
+      orb: mainAspect.orb,
+    });
 
     return {
-      name: `${planetAName} - ${aspectName} - ${planetBName}`,
+      name: `${transitPlanetName} - ${aspectName} - ${natalPlanetName}`,
       aspect: aspectName,
-      targetPlanet: planetBName,
-      strength: 0.8, // По умолчанию, если нет данных о силе
-      description: `${planetAName} формирует ${aspectName} с ${planetBName}`,
+      targetPlanet: natalPlanetName,
+      strength: mainAspect.strength,
+      description: `${transitPlanetName} формирует ${aspectName} с натальным ${natalPlanetName}`,
     };
   };
 
