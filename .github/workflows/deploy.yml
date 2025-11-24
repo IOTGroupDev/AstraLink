@@ -80,34 +80,83 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }} \
             npx prisma migrate deploy
 
-      # TODO: Add your deployment steps here
-      # Examples:
-      # - Deploy to AWS ECS
-      # - Deploy to Google Cloud Run
-      # - Deploy to Kubernetes
-      # - Deploy to VPS via SSH
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to server (placeholder)
+      - name: Deploy to VPS
         id: deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
         run: |
           echo "🚀 Deploying to ${{ needs.prepare.outputs.environment }}"
           echo "Version: ${{ needs.prepare.outputs.version }}"
           echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}"
 
-          # TODO: Replace with actual deployment command
-          # Examples:
-          # - aws ecs update-service ...
-          # - gcloud run deploy ...
-          # - kubectl set image ...
-          # - ssh deploy@server "docker pull ... && docker-compose up -d"
+          # Deploy via SSH
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+            cd /opt/astralink
 
-          echo "url=https://api.example.com" >> $GITHUB_OUTPUT
+            # Pull latest code
+            git fetch --all
+            git checkout ${{ github.sha }}
+
+            # Create environment file from secrets
+            cat > .env << 'ENVEOF'
+          ${{ secrets.ENV_FILE }}
+          ENVEOF
+
+            # Login to GitHub Container Registry
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull latest images
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
+
+            # Tag as latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }} astralink-backend:latest
+
+            # Deploy with zero downtime
+            docker-compose --profile production up -d --no-deps --build backend
+
+            # Run migrations
+            docker-compose exec -T backend npx prisma migrate deploy
+
+            # Cleanup old images
+            docker image prune -f
+          EOF
+
+          # Set output URL
+          if [ "${{ needs.prepare.outputs.environment }}" == "production" ]; then
+            echo "url=https://${{ secrets.DOMAIN }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://staging.${{ secrets.DOMAIN }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Verify deployment
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          # TODO: Add health check
-          # curl -f https://api.example.com/health || exit 1
-          echo "✅ Deployment verified"
+          echo "Waiting for service to be ready..."
+          sleep 10
+
+          # Check health endpoint
+          for i in {1..30}; do
+            if curl -sf "${DEPLOY_URL}/health" > /dev/null; then
+              echo "✅ Deployment verified - service is healthy"
+              exit 0
+            fi
+            echo "Attempt $i/30 - waiting for service..."
+            sleep 2
+          done
+
+          echo "❌ Health check failed"
+          exit 1
 
       - name: Notify deployment
         if: always()
