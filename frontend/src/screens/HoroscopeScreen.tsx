@@ -342,56 +342,59 @@ const HoroscopeScreen: React.FC = () => {
 
   // Получение главного транзита
   const getMainTransit = () => {
-    if (
-      chart &&
-      chart.data &&
-      chart.data.aspects &&
-      chart.data.aspects.length > 0
-    ) {
-      const strongestAspect = chart.data.aspects.reduce((strongest, current) =>
-        (current.strength || 0) > (strongest.strength || 0)
-          ? current
-          : strongest
-      );
-
-      const planetNames: Record<string, string> = {
-        sun: 'Солнце',
-        moon: 'Луна',
-        mercury: 'Меркурий',
-        venus: 'Венера',
-        mars: 'Марс',
-        jupiter: 'Юпитер',
-        saturn: 'Сатурн',
-        uranus: 'Уран',
-        neptune: 'Нептун',
-        pluto: 'Плутон',
-      };
-
-      const aspectNames: Record<string, string> = {
-        conjunction: 'соединение',
-        opposition: 'оппозиция',
-        trine: 'трин',
-        square: 'квадрат',
-        sextile: 'секстиль',
-      };
-
-      const planetA =
-        planetNames[strongestAspect.planetA] || strongestAspect.planetA;
-      const planetB =
-        planetNames[strongestAspect.planetB] || strongestAspect.planetB;
-      const aspectName =
-        aspectNames[strongestAspect.aspect] || strongestAspect.aspect;
-
-      return {
-        name: `${planetA} - ${aspectName} - ${planetB}`,
-        aspect: aspectName,
-        targetPlanet: planetB,
-        strength: strongestAspect.strength || 0.8,
-        description: `${planetA} формирует ${aspectName} с ${planetB}`,
-      };
+    // Проверяем наличие транзитных данных
+    if (!transits || !transits.transits || transits.transits.length === 0) {
+      chartLogger.warn('getMainTransit: нет данных транзитов', { transits });
+      return null;
     }
 
-    return null;
+    // Ищем транзит с аспектом
+    const transitWithAspect = transits.transits.find(t => t.aspect);
+
+    if (!transitWithAspect || !transitWithAspect.aspect) {
+      chartLogger.warn('getMainTransit: нет транзитов с аспектами', {
+        transitsCount: transits.transits.length
+      });
+      return null;
+    }
+
+    const planetNames: Record<string, string> = {
+      sun: 'Солнце',
+      moon: 'Луна',
+      mercury: 'Меркурий',
+      venus: 'Венера',
+      mars: 'Марс',
+      jupiter: 'Юпитер',
+      saturn: 'Сатурн',
+      uranus: 'Уран',
+      neptune: 'Нептун',
+      pluto: 'Плутон',
+    };
+
+    const aspectNames: Record<string, string> = {
+      conjunction: 'соединение',
+      opposition: 'оппозиция',
+      trine: 'трин',
+      square: 'квадрат',
+      sextile: 'секстиль',
+    };
+
+    // Получаем информацию о планетах из транзита
+    const transitPlanetKeys = Object.keys(transitWithAspect.planets || {});
+    const planetA = transitPlanetKeys[0] || 'unknown';
+    const planetB = transitPlanetKeys[1] || 'unknown';
+
+    const planetAName = planetNames[planetA.toLowerCase()] || planetA;
+    const planetBName = planetNames[planetB.toLowerCase()] || planetB;
+    const aspectName = aspectNames[transitWithAspect.aspect.toLowerCase()] || transitWithAspect.aspect;
+
+    return {
+      name: `${planetAName} - ${aspectName} - ${planetBName}`,
+      aspect: aspectName,
+      targetPlanet: planetBName,
+      strength: 0.8, // По умолчанию, если нет данных о силе
+      description: `${planetAName} формирует ${aspectName} с ${planetBName}`,
+    };
   };
 
   // Получение сообщения об энергии (по значению)
