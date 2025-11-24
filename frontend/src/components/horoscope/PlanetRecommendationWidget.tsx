@@ -168,11 +168,13 @@ const normalizeNatalPlanets = (
 // Функция для расчета активных транзитов (принимает «сырые» натальные планеты)
 const calculateActiveTransits = (
   transitPlanets: PlanetPosition[],
-  natalPlanetsRaw: any
+  natalPlanets: Record<
+    string,
+    { longitude: number; sign: string; degree: number }
+  >
 ): TransitData[] => {
   const transits: TransitData[] = [];
-  const orbTolerance = 10; // орб в градусах (расширен для повышения чувствительности)
-  const natalPlanets = normalizeNatalPlanets(natalPlanetsRaw);
+  const orbTolerance = 8; // орб в градусах
 
   try {
     if (!Array.isArray(transitPlanets) || !transitPlanets.length) {
@@ -253,123 +255,45 @@ const aspectRu: Record<string, string> = {
   opposition: 'оппозиция',
 };
 function buildRecommendations(transits: TransitData[]) {
-  // Если активных аспектов нет — возвращаем нейтральные рекомендации,
-  // чтобы виджет не выглядел «пустым».
-  if (!Array.isArray(transits) || transits.length === 0) {
-    return {
-      positive: [
-        'Сфокусируйтесь на текущих задачах и поддерживайте рутину',
-        'Планируйте шаги на ближайшие дни, избегая перегрузок',
-      ],
-      negative: ['Избегайте поспешных выводов без подтверждений'],
-    };
-  }
-
   const positive: string[] = [];
   const negative: string[] = [];
-
   for (const t of transits) {
     const targetName =
       planetRu[t.target?.toLowerCase?.() || t.target] || t.target;
     const aspect = aspectRu[t.type] || t.type;
-
     const isPositive =
       t.type === 'trine' || t.type === 'sextile' || t.type === 'conjunction';
-
     const line = isPositive
       ? `${aspect} с ${targetName} — благоприятно действовать`
       : `${aspect} с ${targetName} — избегайте импульсивности`;
-
     if (isPositive) {
       if (positive.length < 3) positive.push(line);
     } else {
       if (negative.length < 3) negative.push(line);
     }
-
     if (positive.length >= 3 && negative.length >= 3) break;
   }
-
-  // На случай, если после фильтра всё ещё пусто — добавляем базовые строки
-  if (positive.length === 0) {
-    positive.push('День подходит для выверенных шагов и подготовки базы');
-  }
-  if (negative.length === 0) {
-    negative.push('Не берите на себя лишнего и дозируйте нагрузку');
-  }
-
   return { positive, negative };
 }
 
 const PlanetaryRecommendationWidget: React.FC<
   PlanetaryRecommendationWidgetProps
-> = ({ natalPlanets, transitPlanets, onPress, isLoading }) => {
+> = ({ natalPlanets, transitPlanets, onPress }) => {
   // Валидация данных
   const hasValidNatalData = isValidPlanetData(natalPlanets);
   const hasValidTransitData = isValidTransitData(transitPlanets);
 
-  // Если из экрана пришёл пустой объект ({}), считаем что данные ещё грузятся
-  const natalEmptyObject =
-    !!natalPlanets &&
-    typeof natalPlanets === 'object' &&
-    !Array.isArray(natalPlanets) &&
-    Object.keys(natalPlanets).length === 0;
-
-  const effectiveLoading = !!(isLoading || natalEmptyObject);
-
-  // Диагностика состояния (без падения при отсутствии logger)
-  try {
-    logger.debug('PlanetaryRecommendationWidget status', {
-      isLoading,
-      effectiveLoading,
-      hasValidTransitData,
+  // Если данные невалидны - показываем загрузку или скрываем виджет
+  if (!hasValidNatalData || !hasValidTransitData) {
+    logger.warn('PlanetaryRecommendationWidget: Невалидные данные', {
+      natalPlanets: typeof natalPlanets,
+      transitPlanets: typeof transitPlanets,
       hasValidNatalData,
-      transitCount: Array.isArray(transitPlanets) ? transitPlanets.length : 0,
-      natalKeys:
-        typeof natalPlanets === 'object' && natalPlanets
-          ? Object.keys(natalPlanets).length
-          : 0,
+      hasValidTransitData,
     });
-  } catch {}
 
-  // Плейсхолдер загрузки — показываем только пока идёт глобальная загрузка
-  // или когда нет транзитов. Отсутствие натальных планет НЕ блокирует вывод (покажем транзиты без аспектов).
-  if (effectiveLoading || !hasValidTransitData) {
-    // Логируем только когда загрузка закончилась, а транзиты так и невалидны
-    if (!effectiveLoading && !hasValidTransitData) {
-      logger.warn(
-        'PlanetaryRecommendationWidget: Недоступны транзиты (после загрузки)',
-        {
-          transitPlanets: typeof transitPlanets,
-          hasValidTransitData,
-        }
-      );
-    }
-
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
-          <View style={styles.content}>
-            <View style={styles.header}>
-              <Text style={styles.title}>🌙 Рекомендация дня</Text>
-            </View>
-            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <Text style={{ color: '#A78BFA' }}>Загрузка рекомендаций...</Text>
-            </View>
-          </View>
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.border}
-          />
-        </LinearGradient>
-      </View>
-    );
+    // Возвращаем null, чтобы скрыть виджет
+    return null;
   }
 
   // Рассчитываем активные транзиты
@@ -389,21 +313,18 @@ const PlanetaryRecommendationWidget: React.FC<
     const natalRadius = 70;
     const transitRadius = 105;
 
-    // Преобразуем натальные планеты (поддержка объекта и массива)
+    // Преобразуем объект натальных планет в массив
     let natalPlanetsArray: any[] = [];
     try {
-      const normalizedNatal = normalizeNatalPlanets(natalPlanets);
-      natalPlanetsArray = Object.entries(normalizedNatal).map(
-        ([key, planet]) => {
-          if (typeof planet === 'object' && planet !== null) {
-            return {
-              key,
-              ...(planet as Record<string, any>),
-            };
-          }
-          return { key };
+      natalPlanetsArray = Object.entries(natalPlanets).map(([key, planet]) => {
+        if (typeof planet === 'object' && planet !== null) {
+          return {
+            key,
+            ...(planet as Record<string, any>),
+          };
         }
-      );
+        return { key };
+      });
     } catch (error) {
       logger.error('Ошибка при преобразовании натальных планет', error);
       return null;
@@ -566,34 +487,36 @@ const PlanetaryRecommendationWidget: React.FC<
           <View style={styles.chartWrapper}>{renderAstrologyChart()}</View>
 
           {/* Рекомендации: Плюсы / Что избегать */}
-          <View style={styles.adviceContainer}>
-            <View style={styles.adviceRow}>
-              <View style={styles.adviceCard}>
-                <Text style={styles.adviceTitle}>Плюсы</Text>
-                {positiveRecs && positiveRecs.length > 0 ? (
-                  positiveRecs.slice(0, 3).map((s, i) => (
-                    <Text key={`pos-${i}`} style={styles.adviceItem}>
-                      • {s}
-                    </Text>
-                  ))
-                ) : (
-                  <Text style={styles.adviceItem}>Нет явных преимуществ</Text>
-                )}
-              </View>
-              <View style={styles.adviceCard}>
-                <Text style={styles.adviceTitle}>Что избегать</Text>
-                {negativeRecs && negativeRecs.length > 0 ? (
-                  negativeRecs.slice(0, 3).map((s, i) => (
-                    <Text key={`neg-${i}`} style={styles.adviceItem}>
-                      • {s}
-                    </Text>
-                  ))
-                ) : (
-                  <Text style={styles.adviceItem}>Нет ограничений</Text>
-                )}
-              </View>
-            </View>
-          </View>
+          {/*{(positiveRecs.length > 0 || negativeRecs.length > 0) && (*/}
+          {/*  <View style={styles.adviceContainer}>*/}
+          {/*    <View style={styles.adviceRow}>*/}
+          {/*      <View style={styles.adviceCard}>*/}
+          {/*        <Text style={styles.adviceTitle}>Плюсы</Text>*/}
+          {/*        {positiveRecs.length === 0 ? (*/}
+          {/*          <Text style={styles.adviceItem}>—</Text>*/}
+          {/*        ) : (*/}
+          {/*          positiveRecs.map((s, i) => (*/}
+          {/*            <Text key={`pos-${i}`} style={styles.adviceItem}>*/}
+          {/*              • {s}*/}
+          {/*            </Text>*/}
+          {/*          ))*/}
+          {/*        )}*/}
+          {/*      </View>*/}
+          {/*      <View style={styles.adviceCard}>*/}
+          {/*        <Text style={styles.adviceTitle}>Что избегать</Text>*/}
+          {/*        {negativeRecs.length === 0 ? (*/}
+          {/*          <Text style={styles.adviceItem}>—</Text>*/}
+          {/*        ) : (*/}
+          {/*          negativeRecs.map((s, i) => (*/}
+          {/*            <Text key={`neg-${i}`} style={styles.adviceItem}>*/}
+          {/*              • {s}*/}
+          {/*            </Text>*/}
+          {/*          ))*/}
+          {/*        )}*/}
+          {/*      </View>*/}
+          {/*    </View>*/}
+          {/*  </View>*/}
+          {/*)}*/}
 
           {/* Статус */}
           <View style={styles.footer}>
