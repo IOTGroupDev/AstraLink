@@ -2,7 +2,8 @@
 
 #######################################
 # AstraLink Backup Script
-# Automated backups of database and Redis
+# Automated backups of Redis and uploads
+# Note: PostgreSQL is managed by Supabase with automatic backups
 #######################################
 
 set -e
@@ -16,9 +17,11 @@ echo "=================="
 echo "Backup Directory: $BACKUP_DIR"
 echo "Retention: $RETENTION_DAYS days"
 echo ""
+echo "ℹ️  Database: Managed by Supabase (automatic backups)"
+echo ""
 
 # Create backup directory
-mkdir -p "$BACKUP_DIR"/{database,redis,uploads}
+mkdir -p "$BACKUP_DIR"/{redis,uploads}
 
 # Timestamp for backup files
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -26,24 +29,6 @@ DATE=$(date +%Y-%m-%d)
 
 # Change to app directory
 cd "$APP_DIR"
-
-# Backup PostgreSQL database
-echo "📦 Backing up PostgreSQL database..."
-docker-compose exec -T postgres pg_dump \
-  -U ${POSTGRES_USER:-postgres} \
-  -d ${POSTGRES_DB:-astralink} \
-  --format=custom \
-  --verbose \
-  --file=/tmp/backup.dump 2>&1
-
-docker cp astralink-postgres:/tmp/backup.dump "$BACKUP_DIR/database/db_${TIMESTAMP}.dump"
-docker-compose exec -T postgres rm /tmp/backup.dump
-
-# Compress the backup
-gzip "$BACKUP_DIR/database/db_${TIMESTAMP}.dump"
-
-BACKUP_SIZE=$(du -h "$BACKUP_DIR/database/db_${TIMESTAMP}.dump.gz" | cut -f1)
-echo "✅ Database backup created: db_${TIMESTAMP}.dump.gz ($BACKUP_SIZE)"
 
 # Backup Redis
 echo ""
@@ -88,8 +73,8 @@ cat > "$BACKUP_DIR/manifest_${TIMESTAMP}.json" << EOF
   "date": "$DATE",
   "git_commit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
   "git_branch": "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')",
+  "note": "Database is managed by Supabase with automatic backups",
   "backups": {
-    "database": "database/db_${TIMESTAMP}.dump.gz",
     "redis": "redis/redis_${TIMESTAMP}.rdb",
     "uploads": "uploads/uploads_${TIMESTAMP}.tar.gz"
   }
@@ -105,7 +90,6 @@ echo "🧹 Cleaning up old backups (older than $RETENTION_DAYS days)..."
 TOTAL_BEFORE=$(find "$BACKUP_DIR" -type f | wc -l)
 
 # Delete old files
-find "$BACKUP_DIR/database" -name "db_*.dump.gz" -mtime +$RETENTION_DAYS -delete
 find "$BACKUP_DIR/redis" -name "redis_*.rdb" -mtime +$RETENTION_DAYS -delete
 find "$BACKUP_DIR/uploads" -name "uploads_*.tar.gz" -mtime +$RETENTION_DAYS -delete
 find "$BACKUP_DIR" -name "manifest_*.json" -mtime +$RETENTION_DAYS -delete
@@ -124,14 +108,22 @@ echo "  Disk usage: $(du -sh "$BACKUP_DIR" | cut -f1)"
 echo ""
 
 # List recent backups
-echo "Recent backups:"
-ls -lh "$BACKUP_DIR/database" | tail -5
+echo "Recent Redis backups:"
+ls -lh "$BACKUP_DIR/redis" 2>/dev/null | tail -5 || echo "  No backups yet"
+echo ""
+echo "Recent upload backups:"
+ls -lh "$BACKUP_DIR/uploads" 2>/dev/null | tail -5 || echo "  No backups yet"
 echo ""
 
 echo "✅ Backup completed successfully!"
 echo ""
-echo "To restore database:"
-echo "  gunzip $BACKUP_DIR/database/db_${TIMESTAMP}.dump.gz"
-echo "  docker cp $BACKUP_DIR/database/db_${TIMESTAMP}.dump astralink-postgres:/tmp/"
-echo "  docker-compose exec postgres pg_restore -U postgres -d astralink --clean /tmp/db_${TIMESTAMP}.dump"
+echo "To restore Redis:"
+echo "  docker cp $BACKUP_DIR/redis/redis_${TIMESTAMP}.rdb astralink-redis:/data/dump.rdb"
+echo "  docker-compose restart redis"
+echo ""
+echo "To restore uploads:"
+echo "  tar -xzf $BACKUP_DIR/uploads/uploads_${TIMESTAMP}.tar.gz -C $APP_DIR/backend"
+echo ""
+echo "Database backups are managed by Supabase:"
+echo "  https://supabase.com/dashboard/project/[PROJECT-ID]/database/backups"
 echo ""

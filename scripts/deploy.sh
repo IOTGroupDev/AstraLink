@@ -46,22 +46,21 @@ fi
 # Create backup directory
 mkdir -p "$BACKUP_DIR"
 
-# Backup database
+# Note about database backups
 echo ""
-echo "💾 Backing up database..."
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-docker-compose exec -T postgres pg_dump -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-astralink} | gzip > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql.gz"
-echo "✅ Database backed up to $BACKUP_DIR/db_backup_$TIMESTAMP.sql.gz"
+echo "ℹ️  Database: Managed by Supabase (automatic backups enabled)"
+echo "   Manual backups available at: https://supabase.com/dashboard"
 
-# Keep only last 7 days of backups
-find "$BACKUP_DIR" -name "db_backup_*.sql.gz" -mtime +7 -delete
-
-# Backup Redis (if needed)
+# Backup Redis
 echo ""
 echo "💾 Backing up Redis..."
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 docker-compose exec -T redis redis-cli SAVE
 docker cp astralink-redis:/data/dump.rdb "$BACKUP_DIR/redis_backup_$TIMESTAMP.rdb" 2>/dev/null || true
-echo "✅ Redis backed up"
+echo "✅ Redis backed up to $BACKUP_DIR/redis_backup_$TIMESTAMP.rdb"
+
+# Keep only last 7 days of Redis backups
+find "$BACKUP_DIR" -name "redis_backup_*.rdb" -mtime +7 -delete
 
 # Build new images
 echo ""

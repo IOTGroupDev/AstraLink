@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (Local development only - Production uses Supabase)
   postgres:
     image: postgres:15-alpine
     container_name: astralink-postgres
@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-astralink}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -22,6 +22,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles:
+      - development
 
   # Redis Cache
   redis:
@@ -53,8 +55,13 @@ services:
     container_name: astralink-backend
     restart: unless-stopped
     environment:
-      # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-astralink}?schema=public
+      # Database (Supabase in production, local in development)
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env file}
+
+      # Supabase (optional - if using Supabase client)
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
 
       # Security
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
@@ -64,7 +71,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
 
       # Redis
-      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-}@redis:6379}
 
       # AI Providers
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -80,8 +87,6 @@ services:
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
