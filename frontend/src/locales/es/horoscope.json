@@ -12,8 +12,12 @@
   },
   "errors": {
     "chartNotFound": "Carta no encontrada",
+    "createChartTitle": "Es necesario crear la carta natal",
     "createChartFirst": "Por favor completa tus datos de nacimiento en tu perfil para crear una carta astrológica.",
     "failedToLoad": "Error al cargar pronósticos. Por favor actualiza la página."
+  },
+  "transit": {
+    "description": "{{planetA}} forma {{aspect}} con {{planetB}}"
   },
   "biorhythms": {
     "title": "Biorritmos",

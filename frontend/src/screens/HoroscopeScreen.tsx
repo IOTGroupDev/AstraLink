@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 import EnergyWidget from '../components/horoscope/EnergyWidget';
@@ -30,6 +31,7 @@ import PersonalCodeScreen from './PersonalCodeScreen';
 import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
 
 const HoroscopeScreen: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
@@ -223,9 +225,9 @@ const HoroscopeScreen: React.FC = () => {
           } catch (createError) {
             chartLogger.error('Ошибка создания карты', createError);
             Alert.alert(
-              'Необходимо создать натальную карту',
-              'Пожалуйста, заполните данные о рождении в профиле для создания астрологической карты.',
-              [{ text: 'OK' }]
+              t('horoscope.errors.createChartTitle'),
+              t('horoscope.errors.createChartFirst'),
+              [{ text: t('common.buttons.ok') }]
             );
           }
         }
@@ -290,9 +292,9 @@ const HoroscopeScreen: React.FC = () => {
     } catch (error) {
       chartLogger.error('Ошибка загрузки прогнозов', error);
       Alert.alert(
-        'Ошибка',
-        'Не удалось загрузить прогнозы. Попробуйте обновить страницу.',
-        [{ text: 'OK' }]
+        t('common.errors.generic'),
+        t('horoscope.errors.failedToLoad'),
+        [{ text: t('common.buttons.ok') }]
       );
     }
   };
@@ -359,40 +361,23 @@ const HoroscopeScreen: React.FC = () => {
           : strongest
       );
 
-      const planetNames: Record<string, string> = {
-        sun: 'Солнце',
-        moon: 'Луна',
-        mercury: 'Меркурий',
-        venus: 'Венера',
-        mars: 'Марс',
-        jupiter: 'Юпитер',
-        saturn: 'Сатурн',
-        uranus: 'Уран',
-        neptune: 'Нептун',
-        pluto: 'Плутон',
-      };
-
-      const aspectNames: Record<string, string> = {
-        conjunction: 'соединение',
-        opposition: 'оппозиция',
-        trine: 'трин',
-        square: 'квадрат',
-        sextile: 'секстиль',
-      };
-
       const planetA =
-        planetNames[strongestAspect.planetA] || strongestAspect.planetA;
+        t(`common.planets.${strongestAspect.planetA}`) || strongestAspect.planetA;
       const planetB =
-        planetNames[strongestAspect.planetB] || strongestAspect.planetB;
+        t(`common.planets.${strongestAspect.planetB}`) || strongestAspect.planetB;
       const aspectName =
-        aspectNames[strongestAspect.aspect] || strongestAspect.aspect;
+        t(`common.aspects.${strongestAspect.aspect}`) || strongestAspect.aspect;
 
       return {
         name: `${planetA} - ${aspectName} - ${planetB}`,
         aspect: aspectName,
         targetPlanet: planetB,
         strength: strongestAspect.strength || 0.8,
-        description: `${planetA} формирует ${aspectName} с ${planetB}`,
+        description: t('horoscope.transit.description', {
+          planetA,
+          aspect: aspectName,
+          planetB,
+        }),
       };
     }
 
@@ -401,11 +386,11 @@ const HoroscopeScreen: React.FC = () => {
 
   // Получение сообщения об энергии (по значению)
   const getEnergyMessage = (energy: number) => {
-    if (energy >= 80) return 'Сегодня отличный день для активности!';
-    if (energy >= 60) return 'Хорошая энергия для достижения целей';
-    if (energy >= 40) return 'Умеренная энергия, сохраняйте баланс';
-    if (energy >= 20) return 'Низкая энергия, отдохните';
-    return 'Очень низкая энергия, берегите силы';
+    if (energy >= 80) return t('horoscope.energy.veryHigh');
+    if (energy >= 60) return t('horoscope.energy.high');
+    if (energy >= 40) return t('horoscope.energy.moderate');
+    if (energy >= 20) return t('horoscope.energy.low');
+    return t('horoscope.energy.veryLow');
   };
 
   // Загрузка данных при монтировании
@@ -486,16 +471,20 @@ const HoroscopeScreen: React.FC = () => {
             <View style={styles.headerIconContainer}>
               <HoroscopeSvg size={60} />
             </View>
-            <Text style={styles.headerTitle}>Гороскоп</Text>
+            <Text style={styles.headerTitle}>{t('horoscope.title')}</Text>
             <Text style={styles.headerSubtitle}>
-              Космос для вас{user?.name ? `, ${user.name}` : ''}
+              {t('horoscope.subtitle', { name: user?.name ? `, ${user.name}` : '' })}
             </Text>
             <Text style={styles.headerDate}>
-              Позиции на{' '}
-              {new Date().toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
+              {t('horoscope.positionsOn', {
+                date: new Date().toLocaleDateString(
+                  i18n.language === 'ru' ? 'ru-RU' : i18n.language === 'es' ? 'es-ES' : 'en-US',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }
+                ),
               })}
             </Text>
           </BlurView>
@@ -538,7 +527,7 @@ const HoroscopeScreen: React.FC = () => {
             {/* Placeholder для будущих виджетов */}
             {loading && (
               <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>Загрузка данных...</Text>
+                <Text style={styles.placeholderText}>{t('horoscope.loading')}</Text>
               </View>
             )}
             {/*<View>*/}

@@ -12,8 +12,12 @@
   },
   "errors": {
     "chartNotFound": "Chart not found",
+    "createChartTitle": "Natal chart needs to be created",
     "createChartFirst": "Please fill in your birth data in your profile to create an astrological chart.",
     "failedToLoad": "Failed to load forecasts. Please refresh the page."
+  },
+  "transit": {
+    "description": "{{planetA}} forms {{aspect}} with {{planetB}}"
   },
   "biorhythms": {
     "title": "Biorhythms",
