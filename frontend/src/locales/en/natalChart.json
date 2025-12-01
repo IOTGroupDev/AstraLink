@@ -1,5 +1,13 @@
 {
   "title": "Natal Chart",
+  "subtitle": "Full astrological analysis",
+  "tabs": {
+    "overview": "Overview",
+    "planets": "Planets",
+    "houses": "Houses",
+    "aspects": "Aspects",
+    "summary": "Summary"
+  },
   "errors": {
     "notFound": "Natal chart not found",
     "failedToLoad": "Failed to load natal chart"
@@ -32,32 +40,57 @@
     "longitude": "Longitude:",
     "latitude": "Latitude:",
     "speed": "Speed:",
-    "house": "House:"
+    "house": "House:",
+    "perDay": "day"
   },
   "houses": {
-    "title": "House {{num}}"
+    "house": "House {{num}}",
+    "planetsInHouse": "Planets in house:",
+    "themes": [
+      "Personality, appearance, beginnings",
+      "Money, resources, values",
+      "Communication, learning, close environment",
+      "Home, family, roots",
+      "Creativity, children, romance",
+      "Health, work, service",
+      "Partnership, marriage, contracts",
+      "Transformation, shared resources",
+      "Philosophy, travel, higher education",
+      "Career, status, calling",
+      "Friendship, communities, dreams",
+      "Subconscious, isolation, spirituality"
+    ]
   },
   "aspectsStats": {
     "title": "Aspects Statistics",
-    "noAspects": "No Aspects",
+    "noAspects": "No Aspects"
+  },
+  "aspectDetails": {
     "angle": "Angle:",
     "orb": "Orb:",
-    "type": "Type:"
+    "type": "Type:",
+    "applying": "Applying",
+    "separating": "Separating"
   },
   "summary": {
-    "generating": "Summary is being generated",
+    "interpretationUnavailable": "Interpretation unavailable",
+    "interpretationNotLoaded": "Natal chart interpretation data not loaded.",
+    "tryRefresh": "Try refreshing the page.",
+    "summaryInProgress": "Summary is being generated",
+    "summaryNotFormed": "Complete personality summary not yet formed.",
+    "dataAvailableInOtherTabs": "Data is available in other tabs: Overview, Planets, Houses, Aspects.",
     "lifePurpose": "Life Purpose",
     "personalityTraits": "Personality Traits",
     "talents": "Talents and Gifts",
     "lifeThemes": "Life Themes",
-    "karmicLessons": "Karmic Lessons",
+    "karmaLessons": "Karmic Lessons",
     "relationships": "Relationships",
-    "career": "Career Path",
-    "spiritual": "Spiritual Path",
-    "health": "Health",
-    "finance": "Financial Approach",
+    "careerPath": "Career Path",
+    "spiritualPath": "Spiritual Path",
+    "healthFocus": "Health",
+    "financialApproach": "Financial Approach",
     "dominantElements": "Dominant Elements",
-    "dominantModalities": "Dominant Modalities",
+    "dominantQualities": "Dominant Qualities",
     "recommendations": "Recommendations"
   },
   "modalities": {
