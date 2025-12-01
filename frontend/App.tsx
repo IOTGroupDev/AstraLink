@@ -9,6 +9,9 @@ if (typeof globalThis.TextEncoder === 'undefined')
 if (typeof globalThis.TextDecoder === 'undefined')
   (globalThis as any).TextDecoder = TextDecoder;
 
+// Initialize i18n
+import './src/i18n';
+
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { ActivityIndicator, View, Text } from 'react-native';

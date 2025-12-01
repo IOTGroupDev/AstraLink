@@ -1,0 +1,49 @@
+{
+  "title": "Dating",
+  "subtitle": "Astrological Matches",
+  "oldTitle": "Cosmic Connections",
+  "oldSubtitle": "Find Your Soulmate",
+  "loading": "Finding matches...",
+  "empty": {
+    "title": "No more profiles",
+    "subtitle": "Check back later to see new people"
+  },
+  "compatibility": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "match": {
+    "title": "✨ Match",
+    "message": "You have mutual attraction!",
+    "openChat": "Open Chat"
+  },
+  "errors": {
+    "noUserData": "No user data",
+    "userNotSelected": "User not selected",
+    "failedToSendMessage": "Failed to send message",
+    "failedToLoad": "Failed to load candidates"
+  },
+  "interests": {
+    "music": "Music",
+    "sports": "Sports",
+    "travel": "Travel",
+    "books": "Books",
+    "movies": "Movies",
+    "art": "Art",
+    "cooking": "Cooking",
+    "yoga": "Yoga",
+    "meditation": "Meditation",
+    "nature": "Nature"
+  },
+  "lookingFor": {
+    "relationship": "Serious relationship",
+    "friendship": "Friendship",
+    "communication": "Communication",
+    "somethingNew": "Something new"
+  },
+  "defaults": {
+    "userName": "User",
+    "userBio": "Looking for my soulmate among the stars ✨"
+  }
+}

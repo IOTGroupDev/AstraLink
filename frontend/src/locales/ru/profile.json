@@ -1,0 +1,41 @@
+{
+  "title": "Мой космический\nпрофиль",
+  "sections": {
+    "subscription": "Подписка",
+    "natalChart": "Натальная карта",
+    "settings": "Настройки"
+  },
+  "natalChart": {
+    "viewChart": "Посмотреть натальную\nкарту с расшифровкой",
+    "regenerate": "Регенерировать с AI",
+    "regenerating": "Генерация..."
+  },
+  "settings": {
+    "editProfile": "Редактировать профиль",
+    "language": "Язык",
+    "logout": "Выйти",
+    "deleteAccount": "Удалить аккаунт",
+    "deleteAccountSubtitle": "Удалить все ваши данные на всегда"
+  },
+  "logout": {
+    "title": "Выход",
+    "message": "Вы уверены, что хотите выйти?",
+    "confirm": "Выйти"
+  },
+  "deleteAccount": {
+    "title": "Аккаунт удален",
+    "message": "Ваш аккаунт и все данные были безвозвратно удалены."
+  },
+  "errors": {
+    "profileNotFound": "Профиль не найден",
+    "failedToLoad": "Не удалось загрузить данные профиля",
+    "failedToDelete": "Не удалось удалить аккаунт. Попробуйте позже.",
+    "failedToRegenerate": "Не удалось регенерировать карту. Попробуйте позже."
+  },
+  "success": {
+    "regenerated": "Успешно"
+  },
+  "defaults": {
+    "userName": "Пользователь"
+  }
+}

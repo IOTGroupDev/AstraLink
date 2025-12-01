@@ -1,0 +1,69 @@
+{
+  "buttons": {
+    "ok": "Aceptar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "confirm": "Confirmar",
+    "retry": "Reintentar",
+    "send": "Enviar",
+    "edit": "Editar"
+  },
+  "errors": {
+    "generic": "Error",
+    "network": "Error de red. Inténtalo de nuevo.",
+    "unknown": "Ha ocurrido un error desconocido",
+    "sessionExpired": "Sesión expirada",
+    "pleaseLoginAgain": "Por favor, inicia sesión nuevamente.",
+    "failedToLoad": "Error al cargar datos",
+    "tryAgainLater": "Por favor, inténtalo más tarde."
+  },
+  "loading": {
+    "loading": "Cargando...",
+    "pleaseWait": "Por favor espera",
+    "loadingApp": "Cargando aplicación...",
+    "processing": "Procesando..."
+  },
+  "zodiacSigns": {
+    "aries": "Aries",
+    "taurus": "Tauro",
+    "gemini": "Géminis",
+    "cancer": "Cáncer",
+    "leo": "Leo",
+    "virgo": "Virgo",
+    "libra": "Libra",
+    "scorpio": "Escorpio",
+    "sagittarius": "Sagitario",
+    "capricorn": "Capricornio",
+    "aquarius": "Acuario",
+    "pisces": "Piscis"
+  },
+  "elements": {
+    "fire": "Fuego",
+    "water": "Agua",
+    "earth": "Tierra",
+    "air": "Aire"
+  },
+  "planets": {
+    "sun": "Sol",
+    "moon": "Luna",
+    "mercury": "Mercurio",
+    "venus": "Venus",
+    "mars": "Marte",
+    "jupiter": "Júpiter",
+    "saturn": "Saturno",
+    "uranus": "Urano",
+    "neptune": "Neptuno",
+    "pluto": "Plutón"
+  },
+  "aspects": {
+    "conjunction": "conjunción",
+    "opposition": "oposición",
+    "trine": "trígono",
+    "square": "cuadratura",
+    "sextile": "sextil"
+  }
+}

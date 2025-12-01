@@ -38,6 +38,7 @@ import {
   SafeAreaView as SafeAreaViewSAC,
 } from 'react-native-safe-area-context';
 import { logger } from '../services/logger';
+import LanguageSelector from '../components/settings/LanguageSelector';
 
 const { width, height } = Dimensions.get('window');
 
@@ -459,6 +460,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Text style={styles.settingText}>Редактировать профиль</Text>
                 <Ionicons name="chevron-forward" size={32} color="#fff" />
               </TouchableOpacity>
+
+              {/* Language Selector */}
+              <View style={styles.settingItem}>
+                <View style={styles.settingIcon}>
+                  <Ionicons name="language" size={32} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <LanguageSelector onLanguageChange={(lang) => {
+                    console.log('Language changed to:', lang);
+                  }} />
+                </View>
+              </View>
 
               {/* Logout */}
               <TouchableOpacity

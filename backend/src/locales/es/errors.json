@@ -1,0 +1,23 @@
+{
+  "chart": {
+    "notFound": "Carta natal no encontrada. Crea una carta primero.",
+    "horoscopeUpdateLimit": "Solo puedes actualizar el horóscopo una vez al día. Inténtalo de nuevo en {{hours}} horas.",
+    "horoscopeUpdateError": "Error al actualizar el horóscopo. Inténtalo más tarde.",
+    "ephemerisCalculationError": "Error al calcular efemérides",
+    "failedToLoadForMoonPhase": "Error al cargar carta natal para fase lunar",
+    "failedToLoadForLunarCalendar": "Error al cargar carta natal para calendario lunar"
+  },
+  "auth": {
+    "magicLinkError": "Error al enviar enlace mágico",
+    "unauthorized": "No autorizado",
+    "invalidCredentials": "Credenciales inválidas"
+  },
+  "validation": {
+    "invalidInput": "Datos de entrada inválidos",
+    "requiredField": "Este campo es obligatorio"
+  },
+  "server": {
+    "internalError": "Error interno del servidor",
+    "serviceUnavailable": "Servicio temporalmente no disponible"
+  }
+}

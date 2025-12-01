@@ -1,0 +1,23 @@
+{
+  "chart": {
+    "notFound": "Natal chart not found. Create a chart first.",
+    "horoscopeUpdateLimit": "You can update horoscope only once per day. Try again in {{hours}} hours.",
+    "horoscopeUpdateError": "Error updating horoscope. Try later.",
+    "ephemerisCalculationError": "Error calculating ephemeris",
+    "failedToLoadForMoonPhase": "Failed to load natal chart for moon-phase",
+    "failedToLoadForLunarCalendar": "Failed to load natal chart for lunar-calendar"
+  },
+  "auth": {
+    "magicLinkError": "Error sending magic link",
+    "unauthorized": "Unauthorized",
+    "invalidCredentials": "Invalid credentials"
+  },
+  "validation": {
+    "invalidInput": "Invalid input data",
+    "requiredField": "This field is required"
+  },
+  "server": {
+    "internalError": "Internal server error",
+    "serviceUnavailable": "Service temporarily unavailable"
+  }
+}

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores';
 import { authAPI, userAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
@@ -30,6 +31,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { t } = useTranslation();
 
   const {
     biometricEnabled,
@@ -76,15 +78,15 @@ export default function WelcomeScreen() {
               routes: [{ name: 'MainTabs' }],
             });
           } catch (error) {
-            Alert.alert('Ошибка', 'Не удалось восстановить сессию');
+            Alert.alert(t('common.errors.generic'), t('auth.errors.sessionRestoreFailed'));
           }
         }
       } else {
-        Alert.alert('Ошибка', 'Биометрическая аутентификация не удалась');
+        Alert.alert(t('common.errors.generic'), t('auth.errors.biometricFailed'));
       }
     } catch (error) {
       authLogger.error('Biometric login error', error);
-      Alert.alert('Ошибка', 'Произошла ошибка при входе');
+      Alert.alert(t('common.errors.generic'), t('auth.errors.loginError'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ export default function WelcomeScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Ошибка', 'Пожалуйста, заполните все поля');
+      Alert.alert(t('common.errors.generic'), t('auth.errors.fillAllFields'));
       return;
     }
 
@@ -113,7 +115,7 @@ export default function WelcomeScreen() {
       });
     } catch (error: any) {
       authLogger.error('Login error', error);
-      Alert.alert('Ошибка входа', error.message || 'Произошла ошибка');
+      Alert.alert(t('auth.errors.loginFailed'), error.message || t('auth.errors.loginError'));
     } finally {
       setLoading(false);
     }
@@ -127,7 +129,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       <CosmicBackground />
       <View style={styles.content}>
-        <Text style={styles.title}>Вход</Text>
+        <Text style={styles.title}>{t('auth.login.title')}</Text>
 
         {/* Биометрия (если доступна) */}
         {showBiometricButton && (
@@ -138,12 +140,12 @@ export default function WelcomeScreen() {
               disabled={loading}
             >
               <Ionicons name="finger-print" size={28} color="#fff" />
-              <Text style={styles.biometricText}>Войти с {biometricType}</Text>
+              <Text style={styles.biometricText}>{t('auth.login.biometricLogin', { type: biometricType })}</Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>или</Text>
+              <Text style={styles.dividerText}>{t('auth.login.divider')}</Text>
               <View style={styles.dividerLine} />
             </View>
           </>
@@ -159,7 +161,7 @@ export default function WelcomeScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder={t('auth.login.email')}
             placeholderTextColor="rgba(255,255,255,0.5)"
             value={email}
             onChangeText={setEmail}
@@ -179,7 +181,7 @@ export default function WelcomeScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Пароль"
+            placeholder={t('auth.login.password')}
             placeholderTextColor="rgba(255,255,255,0.5)"
             value={password}
             onChangeText={setPassword}
@@ -208,7 +210,7 @@ export default function WelcomeScreen() {
           <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
             {rememberMe && <Ionicons name="checkmark" size={16} color="#000" />}
           </View>
-          <Text style={styles.checkboxText}>Запомнить меня</Text>
+          <Text style={styles.checkboxText}>{t('auth.login.rememberMe')}</Text>
         </TouchableOpacity>
 
         {/* Кнопка входа */}
@@ -220,15 +222,15 @@ export default function WelcomeScreen() {
           {loading ? (
             <ActivityIndicator color="#000" />
           ) : (
-            <Text style={styles.loginButtonText}>Войти</Text>
+            <Text style={styles.loginButtonText}>{t('auth.login.loginButton')}</Text>
           )}
         </TouchableOpacity>
 
         {/* Регистрация */}
         <View style={styles.signupRow}>
-          <Text style={styles.signupText}>Нет аккаунта? </Text>
+          <Text style={styles.signupText}>{t('auth.login.noAccount')}</Text>
           <TouchableOpacity onPress={handleSwitchToSignup} disabled={loading}>
-            <Text style={styles.signupLink}>Зарегистрироваться</Text>
+            <Text style={styles.signupLink}>{t('auth.login.signUpLink')}</Text>
           </TouchableOpacity>
         </View>
       </View>

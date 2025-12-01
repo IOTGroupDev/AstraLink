@@ -1,0 +1,29 @@
+{
+  "title": "Horoscope",
+  "subtitle": "The cosmos for you{{name}}",
+  "positionsOn": "Positions on {{date}}",
+  "loading": "Loading data...",
+  "energy": {
+    "veryHigh": "Today is a great day for activity!",
+    "high": "Good energy for achieving goals",
+    "moderate": "Moderate energy, maintain balance",
+    "low": "Low energy, take a rest",
+    "veryLow": "Very low energy, preserve your strength"
+  },
+  "errors": {
+    "chartNotFound": "Chart not found",
+    "createChartFirst": "Please fill in your birth data in your profile to create an astrological chart.",
+    "failedToLoad": "Failed to load forecasts. Please refresh the page."
+  },
+  "biorhythms": {
+    "title": "Biorhythms",
+    "physical": "Physical",
+    "emotional": "Emotional",
+    "intellectual": "Intellectual"
+  },
+  "periods": {
+    "day": "Today",
+    "tomorrow": "Tomorrow",
+    "week": "This Week"
+  }
+}
