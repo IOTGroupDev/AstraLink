@@ -35,6 +35,9 @@
   "success": {
     "regenerated": "Success"
   },
+  "limitation": {
+    "title": "Limitation"
+  },
   "defaults": {
     "userName": "User"
   }

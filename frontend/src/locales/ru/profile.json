@@ -35,6 +35,9 @@
   "success": {
     "regenerated": "Успешно"
   },
+  "limitation": {
+    "title": "Ограничение"
+  },
   "defaults": {
     "userName": "Пользователь"
   }
