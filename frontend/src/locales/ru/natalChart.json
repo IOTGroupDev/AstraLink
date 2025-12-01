@@ -1,0 +1,68 @@
+{
+  "title": "Натальная карта",
+  "errors": {
+    "notFound": "Натальная карта не найдена",
+    "failedToLoad": "Не удалось загрузить натальную карту"
+  },
+  "buttons": {
+    "retry": "Повторить"
+  },
+  "bigThree": {
+    "title": "Большая Тройка",
+    "sun": "Солнце",
+    "moon": "Луна",
+    "ascendant": "Асцендент"
+  },
+  "statistics": {
+    "title": "Статистика карты",
+    "planets": "Планеты",
+    "aspects": "Аспекты",
+    "retrograde": "Ретроградных",
+    "dominantElement": "Доминирующий элемент",
+    "dominantModality": "Доминирующее качество"
+  },
+  "angles": {
+    "title": "Углы карты",
+    "ascendant": "Асцендент (1 дом)",
+    "midheaven": "Середина неба (10 дом)",
+    "descendant": "Десцендент (7 дом)",
+    "ic": "Нижнее небо (4 дом)"
+  },
+  "planetDetails": {
+    "longitude": "Долгота:",
+    "latitude": "Широта:",
+    "speed": "Скорость:",
+    "house": "Дом:"
+  },
+  "houses": {
+    "title": "Дом {{num}}"
+  },
+  "aspectsStats": {
+    "title": "Статистика аспектов",
+    "noAspects": "Нет аспектов",
+    "angle": "Угол:",
+    "orb": "Орб:",
+    "type": "Тип:"
+  },
+  "summary": {
+    "generating": "Резюме формируется",
+    "lifePurpose": "Жизненная цель",
+    "personalityTraits": "Личностные качества",
+    "talents": "Таланты и дары",
+    "lifeThemes": "Жизненные темы",
+    "karmicLessons": "Кармические уроки",
+    "relationships": "Отношения",
+    "career": "Карьерный путь",
+    "spiritual": "Духовный путь",
+    "health": "Здоровье",
+    "finance": "Финансовый подход",
+    "dominantElements": "Доминирующие элементы",
+    "dominantModalities": "Доминирующие качества",
+    "recommendations": "Рекомендации"
+  },
+  "modalities": {
+    "cardinal": "Кардинальное",
+    "fixed": "Фиксированное",
+    "mutable": "Мутабельное"
+  }
+}

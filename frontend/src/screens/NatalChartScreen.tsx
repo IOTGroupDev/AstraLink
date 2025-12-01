@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chartAPI } from '../services/api';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
@@ -138,6 +139,7 @@ const getHouseForLongitude = (
 };
 
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -168,7 +170,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       setChartData(data);
     } catch (error: any) {
       logger.error('Ошибка загрузки натальной карты', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить натальную карту');
+      Alert.alert(t('common.errors.generic'), t('natalChart.errors.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -195,9 +197,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       <TabScreenLayout>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#8B5CF6" />
-          <Text style={styles.errorText}>Натальная карта не найдена</Text>
+          <Text style={styles.errorText}>{t('natalChart.errors.notFound')}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadChartData}>
-            <Text style={styles.retryButtonText}>Повторить</Text>
+            <Text style={styles.retryButtonText}>{t('natalChart.buttons.retry')}</Text>
           </TouchableOpacity>
         </View>
       </TabScreenLayout>

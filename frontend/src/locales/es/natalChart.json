@@ -1,0 +1,68 @@
+{
+  "title": "Carta Natal",
+  "errors": {
+    "notFound": "Carta natal no encontrada",
+    "failedToLoad": "Error al cargar la carta natal"
+  },
+  "buttons": {
+    "retry": "Reintentar"
+  },
+  "bigThree": {
+    "title": "Los Tres Grandes",
+    "sun": "Sol",
+    "moon": "Luna",
+    "ascendant": "Ascendente"
+  },
+  "statistics": {
+    "title": "Estadísticas de la Carta",
+    "planets": "Planetas",
+    "aspects": "Aspectos",
+    "retrograde": "Retrógrados",
+    "dominantElement": "Elemento Dominante",
+    "dominantModality": "Modalidad Dominante"
+  },
+  "angles": {
+    "title": "Ángulos de la Carta",
+    "ascendant": "Ascendente (casa 1)",
+    "midheaven": "Medio Cielo (casa 10)",
+    "descendant": "Descendente (casa 7)",
+    "ic": "Fondo del Cielo (casa 4)"
+  },
+  "planetDetails": {
+    "longitude": "Longitud:",
+    "latitude": "Latitud:",
+    "speed": "Velocidad:",
+    "house": "Casa:"
+  },
+  "houses": {
+    "title": "Casa {{num}}"
+  },
+  "aspectsStats": {
+    "title": "Estadísticas de Aspectos",
+    "noAspects": "Sin Aspectos",
+    "angle": "Ángulo:",
+    "orb": "Orbe:",
+    "type": "Tipo:"
+  },
+  "summary": {
+    "generating": "El resumen se está generando",
+    "lifePurpose": "Propósito de Vida",
+    "personalityTraits": "Rasgos de Personalidad",
+    "talents": "Talentos y Dones",
+    "lifeThemes": "Temas de Vida",
+    "karmicLessons": "Lecciones Kármicas",
+    "relationships": "Relaciones",
+    "career": "Camino Profesional",
+    "spiritual": "Camino Espiritual",
+    "health": "Salud",
+    "finance": "Enfoque Financiero",
+    "dominantElements": "Elementos Dominantes",
+    "dominantModalities": "Modalidades Dominantes",
+    "recommendations": "Recomendaciones"
+  },
+  "modalities": {
+    "cardinal": "Cardinal",
+    "fixed": "Fijo",
+    "mutable": "Mutable"
+  }
+}
