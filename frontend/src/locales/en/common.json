@@ -10,8 +10,10 @@
     "confirm": "Confirm",
     "retry": "Retry",
     "send": "Send",
-    "edit": "Edit"
+    "edit": "Edit",
+    "primary": "Primary"
   },
+  "selectUpTo": "Select up to {{count}}",
   "errors": {
     "generic": "Error",
     "network": "Network error. Please try again.",
