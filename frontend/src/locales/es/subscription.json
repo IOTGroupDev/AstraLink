@@ -1,0 +1,44 @@
+{
+  "tiers": {
+    "free": {
+      "name": "Gratis",
+      "features": [
+        "Funciones básicas",
+        "Acceso limitado",
+        "Carta natal básica"
+      ]
+    },
+    "basic": {
+      "name": "AstraPlus",
+      "features": [
+        "Cartas natales completas",
+        "Tránsitos y predicciones",
+        "Compatibilidad",
+        "10 me gusta por día",
+        "2 súper me gusta por semana"
+      ]
+    },
+    "max": {
+      "name": "Cosmic Max",
+      "features": [
+        "Todo de AstraPlus",
+        "Me gusta ilimitados",
+        "Súper me gusta ilimitados",
+        "Quién te dio me gusta",
+        "Prioridad en búsqueda",
+        "Soporte VIP"
+      ]
+    }
+  },
+  "status": {
+    "freeAccount": "Cuenta gratuita",
+    "expired": "Suscripción caducada",
+    "trial": "Prueba",
+    "daysLeft": "{{count}} días restantes",
+    "validUntil": "Válida hasta {{date}}"
+  },
+  "buttons": {
+    "upgrade": "Mejorar",
+    "choosePlan": "Elegir Plan"
+  }
+}

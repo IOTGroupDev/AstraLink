@@ -6,6 +6,7 @@ import chat from './chat.json';
 import horoscope from './horoscope.json';
 import editProfile from './editProfile.json';
 import natalChart from './natalChart.json';
+import subscription from './subscription.json';
 
 export default {
   common,
@@ -16,4 +17,5 @@ export default {
   horoscope,
   editProfile,
   natalChart,
+  subscription,
 };

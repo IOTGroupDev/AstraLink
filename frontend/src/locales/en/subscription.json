@@ -1,0 +1,44 @@
+{
+  "tiers": {
+    "free": {
+      "name": "Free",
+      "features": [
+        "Basic features",
+        "Limited access",
+        "Basic natal chart"
+      ]
+    },
+    "basic": {
+      "name": "AstraPlus",
+      "features": [
+        "Full natal charts",
+        "Transits and predictions",
+        "Compatibility",
+        "10 likes per day",
+        "2 super-likes per week"
+      ]
+    },
+    "max": {
+      "name": "Cosmic Max",
+      "features": [
+        "Everything from AstraPlus",
+        "Unlimited likes",
+        "Unlimited super-likes",
+        "See who liked you",
+        "Priority in search",
+        "VIP support"
+      ]
+    }
+  },
+  "status": {
+    "freeAccount": "Free account",
+    "expired": "Subscription expired",
+    "trial": "Trial",
+    "daysLeft": "{{count}} days left",
+    "validUntil": "Valid until {{date}}"
+  },
+  "buttons": {
+    "upgrade": "Upgrade",
+    "choosePlan": "Choose Plan"
+  }
+}
