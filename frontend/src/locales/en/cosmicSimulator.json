@@ -1,0 +1,81 @@
+{
+  "loading": "Loading simulator...",
+  "header": {
+    "title": "Cosmic Simulator",
+    "dateFormat": "en-US"
+  },
+  "quickActions": {
+    "minusSevenDays": "-7d",
+    "minusOneDay": "-1d",
+    "plusOneDay": "+1d",
+    "plusSevenDays": "+7d"
+  },
+  "dailyLesson": {
+    "label": "📚 Lesson of the day",
+    "button": "Learn"
+  },
+  "tabs": {
+    "transits": "Transits",
+    "planets": "Planets",
+    "timeline": "History",
+    "lessons": "Learning"
+  },
+  "ai": {
+    "titleWithAccess": "AI Transit Interpretation",
+    "titleWithoutAccess": "Basic interpretation",
+    "upgradeMessage": "Upgrade subscription for AI analysis",
+    "upgradeButton": "Get Premium"
+  },
+  "transits": {
+    "title": "Active transits",
+    "loading": "Calculating transits...",
+    "empty": "No active transits",
+    "learnMore": "Learn more about the aspect \"{{aspect}}\"",
+    "description": "Transit {{planet}} forms {{aspect}} with natal {{target}}"
+  },
+  "planets": {
+    "title": "Transit planets"
+  },
+  "timeline": {
+    "title": "Historical notes",
+    "empty": "No notes yet",
+    "transitsLabel": "Transits: "
+  },
+  "lessons": {
+    "title": "Astrology Learning",
+    "subtitle": "{{completed}} of {{total}} lessons completed",
+    "categories": {
+      "basics": "Basics",
+      "planets": "Planets",
+      "aspects": "Aspects",
+      "transits": "Transits",
+      "practical": "Practice"
+    }
+  },
+  "modals": {
+    "addNote": {
+      "title": "Add note",
+      "placeholder": "What happened on this day?",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "transitDetail": {
+      "orb": "Orb:",
+      "strength": "Strength:",
+      "type": "Type:",
+      "harmonious": "Harmonious",
+      "challenging": "Challenging",
+      "neutral": "Neutral"
+    },
+    "datePicker": {
+      "title": "Select date",
+      "placeholder": "Date",
+      "done": "Done"
+    }
+  },
+  "errors": {
+    "loadNatalChart": "Error loading natal chart",
+    "loadTransits": "Error loading transits",
+    "loadDetails": "Error loading details"
+  }
+}

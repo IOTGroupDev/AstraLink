@@ -1,0 +1,81 @@
+{
+  "loading": "Cargando simulador...",
+  "header": {
+    "title": "Simulador Cósmico",
+    "dateFormat": "es-ES"
+  },
+  "quickActions": {
+    "minusSevenDays": "-7d",
+    "minusOneDay": "-1d",
+    "plusOneDay": "+1d",
+    "plusSevenDays": "+7d"
+  },
+  "dailyLesson": {
+    "label": "📚 Lección del día",
+    "button": "Aprender"
+  },
+  "tabs": {
+    "transits": "Tránsitos",
+    "planets": "Planetas",
+    "timeline": "Historia",
+    "lessons": "Aprendizaje"
+  },
+  "ai": {
+    "titleWithAccess": "Interpretación IA de tránsitos",
+    "titleWithoutAccess": "Interpretación básica",
+    "upgradeMessage": "Actualiza tu suscripción para análisis IA",
+    "upgradeButton": "Obtener Premium"
+  },
+  "transits": {
+    "title": "Tránsitos activos",
+    "loading": "Calculando tránsitos...",
+    "empty": "No hay tránsitos activos",
+    "learnMore": "Aprende más sobre el aspecto \"{{aspect}}\"",
+    "description": "{{planet}} en tránsito forma {{aspect}} con {{target}} natal"
+  },
+  "planets": {
+    "title": "Planetas en tránsito"
+  },
+  "timeline": {
+    "title": "Notas históricas",
+    "empty": "Aún no hay notas",
+    "transitsLabel": "Tránsitos: "
+  },
+  "lessons": {
+    "title": "Aprendizaje de astrología",
+    "subtitle": "{{completed}} de {{total}} lecciones completadas",
+    "categories": {
+      "basics": "Fundamentos",
+      "planets": "Planetas",
+      "aspects": "Aspectos",
+      "transits": "Tránsitos",
+      "practical": "Práctica"
+    }
+  },
+  "modals": {
+    "addNote": {
+      "title": "Agregar nota",
+      "placeholder": "¿Qué pasó en este día?",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    },
+    "transitDetail": {
+      "orb": "Orbe:",
+      "strength": "Fuerza:",
+      "type": "Tipo:",
+      "harmonious": "Armonioso",
+      "challenging": "Desafiante",
+      "neutral": "Neutral"
+    },
+    "datePicker": {
+      "title": "Seleccionar fecha",
+      "placeholder": "Fecha",
+      "done": "Listo"
+    }
+  },
+  "errors": {
+    "loadNatalChart": "Error al cargar la carta natal",
+    "loadTransits": "Error al cargar los tránsitos",
+    "loadDetails": "Error al cargar los detalles"
+  }
+}

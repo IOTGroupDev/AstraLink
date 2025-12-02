@@ -10,6 +10,7 @@ import natalChart from './natalChart.json';
 import subscription from './subscription.json';
 import advisor from './advisor.json';
 import personalCode from './personalCode.json';
+import cosmicSimulator from './cosmicSimulator.json';
 
 export default {
   common,
@@ -24,4 +25,5 @@ export default {
   subscription,
   advisor,
   personalCode,
+  cosmicSimulator,
 };
