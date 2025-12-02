@@ -13,6 +13,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
@@ -29,6 +30,7 @@ type ConversationItem = {
 };
 
 export default function ChatListScreen() {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<any>();
   const { user, isLoading: authLoading } = useAuth();
 
@@ -54,11 +56,11 @@ export default function ChatListScreen() {
       setItems(Array.isArray(data) ? data : []);
     } catch (e: any) {
       logger.error('Ошибка загрузки диалогов', e);
-      setError(e?.message ?? 'Не удалось загрузить диалоги');
+      setError(e?.message ?? t('chatList.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   // Debounced refetch to avoid API spam from burst realtime events
   const debouncedFetchRef = React.useRef<any>(null);
@@ -93,11 +95,11 @@ export default function ChatListScreen() {
       setError(null);
     } catch (e: any) {
       logger.error('Ошибка обновления', e);
-      setError(e?.message ?? 'Не удалось обновить');
+      setError(e?.message ?? t('chatList.errors.refreshFailed'));
     } finally {
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   /**
    * Перезагрузка при возврате на экран
@@ -119,8 +121,8 @@ export default function ChatListScreen() {
       if (!authAlertShown.current) {
         authAlertShown.current = true;
         Alert.alert(
-          'Требуется авторизация',
-          'Для просмотра сообщений необходимо войти в систему',
+          t('chatList.auth.required'),
+          t('chatList.auth.alertMessage'),
           [
             {
               text: 'OK',
@@ -132,7 +134,7 @@ export default function ChatListScreen() {
     } else {
       authAlertShown.current = false;
     }
-  }, [user, authLoading, navigation]);
+  }, [user, authLoading, navigation, t]);
 
   /**
    * Polling removed: relying on Realtime + onFocus refresh
@@ -189,18 +191,20 @@ export default function ChatListScreen() {
       const diff = now.getTime() - date.getTime();
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
+      const locale = i18n.language === 'ru' ? 'ru-RU' : i18n.language === 'es' ? 'es-ES' : 'en-US';
+
       if (days === 0) {
         // Сегодня - показываем время
-        return date.toLocaleTimeString('ru-RU', {
+        return date.toLocaleTimeString(locale, {
           hour: '2-digit',
           minute: '2-digit',
         });
       } else if (days === 1) {
-        return 'Вчера';
+        return t('chatList.date.yesterday');
       } else if (days < 7) {
-        return `${days} дн. назад`;
+        return t('chatList.date.daysAgo', { count: days });
       } else {
-        return date.toLocaleDateString('ru-RU', {
+        return date.toLocaleDateString(locale, {
           day: '2-digit',
           month: '2-digit',
         });
@@ -208,7 +212,7 @@ export default function ChatListScreen() {
     } catch {
       return '';
     }
-  }, []);
+  }, [t, i18n.language]);
 
   /**
    * Локально убрать переписку из списка
@@ -223,12 +227,12 @@ export default function ChatListScreen() {
   const handleDeleteConversation = useCallback(
     (conv: ConversationItem) => {
       Alert.alert(
-        'Удалить переписку?',
-        'Переписка будет скрыта у вас. Сообщения не удаляются у собеседника.',
+        t('chatList.deleteDialog.title'),
+        t('chatList.deleteDialog.message'),
         [
-          { text: 'Отмена', style: 'cancel' },
+          { text: t('chatList.deleteDialog.cancel'), style: 'cancel' },
           {
-            text: 'Удалить',
+            text: t('chatList.deleteDialog.delete'),
             style: 'destructive',
             onPress: async () => {
               try {
@@ -237,8 +241,8 @@ export default function ChatListScreen() {
               } catch (e) {
                 logger.error('Удаление переписки не удалось', e);
                 Alert.alert(
-                  'Ошибка',
-                  'Не удалось удалить переписку. Попробуйте ещё раз.'
+                  t('common.errors.generic'),
+                  t('chatList.errors.deleteFailed')
                 );
               }
             },
@@ -246,7 +250,7 @@ export default function ChatListScreen() {
         ]
       );
     },
-    [deleteConversationLocal]
+    [deleteConversationLocal, t]
   );
 
   /**
@@ -255,7 +259,7 @@ export default function ChatListScreen() {
   const renderItem = useCallback(
     ({ item }: { item: ConversationItem }) => {
       const isMedia = !!item.lastMessageMediaPath && !item.lastMessageText;
-      const preview = isMedia ? '📷 Медиа' : (item.lastMessageText ?? '—');
+      const preview = isMedia ? t('chatList.media') : (item.lastMessageText ?? '—');
       const dateLabel = formatDate(item.lastMessageAt);
 
       return (
@@ -307,7 +311,7 @@ export default function ChatListScreen() {
         </Pressable>
       );
     },
-    [formatDate, navigation, handleDeleteConversation]
+    [formatDate, navigation, handleDeleteConversation, t]
   );
 
   /**
@@ -322,13 +326,13 @@ export default function ChatListScreen() {
           size={64}
           color="rgba(255,255,255,0.3)"
         />
-        <Text style={styles.emptyTitle}>Пока нет диалогов</Text>
+        <Text style={styles.emptyTitle}>{t('chatList.empty.title')}</Text>
         <Text style={styles.emptyHint}>
-          Начните общение — отправьте сообщение из карточки кандидата
+          {t('chatList.empty.hint')}
         </Text>
       </View>
     );
-  }, [loading]);
+  }, [loading, t]);
 
   /**
    * Разделитель между элементами
@@ -348,7 +352,7 @@ export default function ChatListScreen() {
         />
         <View style={styles.loader}>
           <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Проверка авторизации...</Text>
+          <Text style={styles.loadingText}>{t('chatList.authCheck')}</Text>
         </View>
       </View>
     );
@@ -364,15 +368,15 @@ export default function ChatListScreen() {
         />
         <View style={styles.center}>
           <Ionicons name="lock-closed" size={64} color="#EF4444" />
-          <Text style={styles.errorTitle}>Требуется авторизация</Text>
+          <Text style={styles.errorTitle}>{t('chatList.auth.required')}</Text>
           <Text style={styles.errorHint}>
-            Войдите в систему, чтобы просматривать сообщения
+            {t('chatList.auth.screenMessage')}
           </Text>
           <Pressable
             style={styles.authButton}
             onPress={() => navigation.navigate('Profile')}
           >
-            <Text style={styles.authButtonText}>Войти</Text>
+            <Text style={styles.authButtonText}>{t('chatList.auth.signInButton')}</Text>
           </Pressable>
         </View>
       </View>
@@ -389,7 +393,7 @@ export default function ChatListScreen() {
 
       {/* Заголовок */}
       <View style={styles.header}>
-        <Text style={styles.title}>Сообщения</Text>
+        <Text style={styles.title}>{t('chatList.title')}</Text>
         <Pressable
           style={styles.refreshButton}
           onPress={onRefresh}
@@ -407,7 +411,7 @@ export default function ChatListScreen() {
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Загрузка диалогов...</Text>
+          <Text style={styles.loadingText}>{t('chatList.loading')}</Text>
         </View>
       ) : (
         <>
