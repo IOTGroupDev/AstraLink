@@ -1,0 +1,66 @@
+{
+  "title": "Астро-Советник",
+  "subtitle": "Хороший ли день для...",
+  "analysisFor": "Анализ на",
+  "topics": {
+    "contract": {
+      "label": "Контракт",
+      "description": "Подписание договоров и соглашений"
+    },
+    "meeting": {
+      "label": "Встреча",
+      "description": "Деловые и личные встречи"
+    },
+    "negotiation": {
+      "label": "Переговоры",
+      "description": "Важные переговоры и сделки"
+    },
+    "date": {
+      "label": "Свидание",
+      "description": "Романтические встречи"
+    },
+    "travel": {
+      "label": "Путешествие",
+      "description": "Поездки и путешествия"
+    },
+    "purchase": {
+      "label": "Покупка",
+      "description": "Крупные покупки и инвестиции"
+    },
+    "health": {
+      "label": "Здоровье",
+      "description": "Медицинские процедуры"
+    },
+    "custom": {
+      "label": "Другое",
+      "description": "Общая оценка дня"
+    }
+  },
+  "selectTopic": "Выберите тему",
+  "dateAnalysis": "Дата анализа",
+  "quickDates": {
+    "today": "Сегодня",
+    "tomorrow": "Завтра",
+    "nextWeek": "Через неделю"
+  },
+  "context": "Контекст",
+  "optional": "(опционально)",
+  "contextPlaceholder": "Например: важная встреча с инвестором...",
+  "submit": {
+    "analyze": "Получить совет",
+    "analyzing": "Анализируем..."
+  },
+  "errors": {
+    "requestFailed": "Ошибка запроса. Попробуйте позже."
+  },
+  "premium": {
+    "title": "Астро-Советник Premium",
+    "subtitle": "Персональные рекомендации на основе транзитов к вашей натальной карте",
+    "features": {
+      "hourlyAnalysis": "Почасовой анализ благоприятности дня",
+      "aspectInterpretations": "Детальные интерпретации аспектов",
+      "recommendations": "Рекомендации для 8 сфер жизни"
+    },
+    "getPremium": "Получить Premium"
+  }
+}

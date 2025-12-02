@@ -8,6 +8,7 @@ import horoscope from './horoscope.json';
 import editProfile from './editProfile.json';
 import natalChart from './natalChart.json';
 import subscription from './subscription.json';
+import advisor from './advisor.json';
 
 export default {
   common,
@@ -20,4 +21,5 @@ export default {
   editProfile,
   natalChart,
   subscription,
+  advisor,
 };
