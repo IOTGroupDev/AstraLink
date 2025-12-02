@@ -1,0 +1,65 @@
+{
+  "header": {
+    "title": "Códigos Personales",
+    "subtitle": "Números de poder prácticos para códigos PIN, contraseñas y decisiones importantes"
+  },
+  "purposes": {
+    "title": "Elige un propósito",
+    "luck": "Suerte",
+    "health": "Salud",
+    "wealth": "Riqueza",
+    "love": "Amor",
+    "career": "Carrera",
+    "creativity": "Creatividad",
+    "protection": "Protección",
+    "intuition": "Intuición",
+    "harmony": "Armonía",
+    "energy": "Energía"
+  },
+  "digitCount": {
+    "title": "Número de dígitos",
+    "hint": "Más dígitos = fórmula energética más compleja"
+  },
+  "generate": {
+    "button": "Generar código"
+  },
+  "errors": {
+    "generationFailed": "Error al generar el código"
+  },
+  "result": {
+    "codeLabel": "Tu código personal",
+    "energy": "Energía",
+    "vibration": "Vibración",
+    "numerology": {
+      "title": "Numerología",
+      "reducedNumber": "Número final",
+      "masterNumber": "Número maestro",
+      "prefix": "Numerología: "
+    },
+    "interpretation": {
+      "title": "Interpretación"
+    },
+    "breakdown": {
+      "title": "Desglose del código"
+    }
+  },
+  "examples": {
+    "title": "Dónde usar",
+    "fourDigits": {
+      "title": "4 dígitos",
+      "text": "• PIN de tarjeta bancaria para atraer dinero\n• Código de portero para seguridad del hogar\n• Hora de reuniones importantes (15:37)"
+    },
+    "sixDigits": {
+      "title": "6 dígitos",
+      "text": "• Contraseña de app bancaria\n• Contraseña WiFi de casa para suerte familiar\n• Contraseñas de cuentas importantes"
+    },
+    "sevenPlusDigits": {
+      "title": "7+ dígitos",
+      "text": "• Últimos dígitos del número de teléfono\n• Salario objetivo (código × $1000)\n• Número de boleto de lotería"
+    }
+  },
+  "usage": {
+    "title": "Instrucciones detalladas",
+    "whenToUse": "Cuándo usar"
+  }
+}

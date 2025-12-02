@@ -1,0 +1,31 @@
+{
+  "title": "Messages",
+  "loading": "Loading conversations...",
+  "authCheck": "Checking authorization...",
+  "errors": {
+    "loadFailed": "Failed to load conversations",
+    "refreshFailed": "Failed to refresh",
+    "deleteFailed": "Failed to delete conversation. Please try again."
+  },
+  "auth": {
+    "required": "Authorization required",
+    "alertMessage": "You need to sign in to view messages",
+    "screenMessage": "Sign in to view messages",
+    "signInButton": "Sign In"
+  },
+  "deleteDialog": {
+    "title": "Delete conversation?",
+    "message": "The conversation will be hidden for you. Messages will not be deleted for the other person.",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "date": {
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}}d ago"
+  },
+  "media": "📷 Media",
+  "empty": {
+    "title": "No conversations yet",
+    "hint": "Start chatting — send a message from a candidate's card"
+  }
+}

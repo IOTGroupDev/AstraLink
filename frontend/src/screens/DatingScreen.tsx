@@ -542,6 +542,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { datingAPI, chatAPI } from '../services/api';
 import CosmicChat from '../components/dating/CosmicChat';
@@ -588,6 +589,7 @@ type Candidate = ApiCandidate & {
 };
 
 export default function DatingScreen() {
+  const { t } = useTranslation();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [chatVisible, setChatVisible] = useState(false);
@@ -609,7 +611,11 @@ export default function DatingScreen() {
   // Helpers
   // ===============================
   const getBadgeLabel = (b?: 'high' | 'medium' | 'low') =>
-    b === 'high' ? 'Высокая' : b === 'medium' ? 'Средняя' : 'Низкая';
+    b === 'high'
+      ? t('dating.compatibility.high')
+      : b === 'medium'
+        ? t('dating.compatibility.medium')
+        : t('dating.compatibility.low');
 
   const getBadgeBg = (b?: 'high' | 'medium' | 'low') =>
     b === 'high'
@@ -636,10 +642,10 @@ export default function DatingScreen() {
         if (direction === 'right') {
           const res = await datingAPI.like?.(current.userId, 'like');
           if (res?.matchId) {
-            Alert.alert('✨ Совпадение', 'У вас взаимная симпатия!', [
-              { text: 'Закрыть', style: 'cancel' },
+            Alert.alert(t('dating.match.title'), t('dating.match.message'), [
+              { text: t('common.buttons.close'), style: 'cancel' },
               {
-                text: 'Открыть чат',
+                text: t('dating.match.openChat'),
                 onPress: () =>
                   navigation.navigate('ChatDialog', {
                     otherUserId: current.userId,
@@ -657,12 +663,12 @@ export default function DatingScreen() {
         nextCard();
       }
     },
-    [current, navigation, nextCard]
+    [current, navigation, nextCard, t]
   );
 
   const handleChat = useCallback(() => {
     if (!current) {
-      Alert.alert('Ошибка', 'Нет данных о пользователе');
+      Alert.alert(t('common.errors.generic'), t('dating.errors.noUserData'));
       return;
     }
 
@@ -680,7 +686,10 @@ export default function DatingScreen() {
   const handleSendMessage = useCallback(
     async (text: string) => {
       if (!selectedUser?.id) {
-        Alert.alert('Ошибка', 'Пользователь не выбран');
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.errors.userNotSelected')
+        );
         return;
       }
 
@@ -694,10 +703,13 @@ export default function DatingScreen() {
         setSelectedUser(null);
       } catch (error) {
         logger.error('Ошибка отправки сообщения', error);
-        Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.errors.failedToSendMessage')
+        );
       }
     },
-    [selectedUser, navigation]
+    [selectedUser, navigation, t]
   );
 
   const handleCloseChat = useCallback(() => {
@@ -781,22 +793,22 @@ export default function DatingScreen() {
 
         const allZodiacSigns = getAllZodiacSigns();
         const randomInterests = [
-          'Музыка',
-          'Спорт',
-          'Путешествия',
-          'Книги',
-          'Кино',
-          'Искусство',
-          'Кулинария',
-          'Йога',
-          'Медитация',
-          'Природа',
+          t('dating.interests.music'),
+          t('dating.interests.sports'),
+          t('dating.interests.travel'),
+          t('dating.interests.books'),
+          t('dating.interests.movies'),
+          t('dating.interests.art'),
+          t('dating.interests.cooking'),
+          t('dating.interests.yoga'),
+          t('dating.interests.meditation'),
+          t('dating.interests.nature'),
         ];
         const lookingForOptions = [
-          'Серьезные отношения',
-          'Дружба',
-          'Общение',
-          'Что-то новое',
+          t('dating.lookingFor.relationship'),
+          t('dating.lookingFor.friendship'),
+          t('dating.lookingFor.communication'),
+          t('dating.lookingFor.somethingNew'),
         ];
 
         const enriched: Candidate[] = data.map((c) => {
@@ -810,10 +822,10 @@ export default function DatingScreen() {
 
           return {
             ...c,
-            name: c.name || 'Пользователь',
+            name: c.name || t('dating.defaults.userName'),
             age: c.age || Math.floor(Math.random() * 15) + 25,
             zodiacSign: zodiacName,
-            bio: c.bio || 'Ищу свою половинку среди звезд ✨',
+            bio: c.bio || t('dating.defaults.userBio'),
             interests:
               c.interests ||
               randomInterests.slice(0, Math.floor(Math.random() * 3) + 2),
@@ -833,12 +845,15 @@ export default function DatingScreen() {
         setCurrentIndex(0);
       } catch (err) {
         logger.error('[Dating] Ошибка загрузки', err);
-        Alert.alert('Ошибка', 'Не удалось загрузить кандидатов');
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.errors.failedToLoad')
+        );
       } finally {
         setLoadingCards(false);
       }
     })();
-  }, [authLoading, user]);
+  }, [authLoading, user, t]);
 
   // ===============================
   // Render
@@ -860,23 +875,21 @@ export default function DatingScreen() {
                 <Ionicons name="heart" size={24} color="#fff" />
               </LinearGradient>
             </View>
-            <Text style={styles.title}>Знакомства</Text>
-            <Text style={styles.subtitle}>Астрологические совпадения</Text>
+            <Text style={styles.title}>{t('dating.title')}</Text>
+            <Text style={styles.subtitle}>{t('dating.subtitle')}</Text>
           </View>
 
           {/* Content */}
           {loadingCards ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#8B5CF6" />
-              <Text style={styles.loadingText}>Ищем совпадения...</Text>
+              <Text style={styles.loadingText}>{t('dating.loading')}</Text>
             </View>
           ) : !current ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
-              <Text style={styles.emptyTitle}>Больше нет анкет</Text>
-              <Text style={styles.emptyText}>
-                Зайдите позже, чтобы увидеть новых людей
-              </Text>
+              <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
+              <Text style={styles.emptyText}>{t('dating.empty.subtitle')}</Text>
             </View>
           ) : (
             <View style={styles.cardContainer}>

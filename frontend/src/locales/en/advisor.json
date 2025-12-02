@@ -1,0 +1,66 @@
+{
+  "title": "Astro Advisor",
+  "subtitle": "Is it a good day for...",
+  "analysisFor": "Analysis for",
+  "topics": {
+    "contract": {
+      "label": "Contract",
+      "description": "Signing contracts and agreements"
+    },
+    "meeting": {
+      "label": "Meeting",
+      "description": "Business and personal meetings"
+    },
+    "negotiation": {
+      "label": "Negotiation",
+      "description": "Important negotiations and deals"
+    },
+    "date": {
+      "label": "Date",
+      "description": "Romantic encounters"
+    },
+    "travel": {
+      "label": "Travel",
+      "description": "Trips and journeys"
+    },
+    "purchase": {
+      "label": "Purchase",
+      "description": "Major purchases and investments"
+    },
+    "health": {
+      "label": "Health",
+      "description": "Medical procedures"
+    },
+    "custom": {
+      "label": "Other",
+      "description": "General day evaluation"
+    }
+  },
+  "selectTopic": "Choose a topic",
+  "dateAnalysis": "Analysis date",
+  "quickDates": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "nextWeek": "In a week"
+  },
+  "context": "Context",
+  "optional": "(optional)",
+  "contextPlaceholder": "For example: important meeting with investor...",
+  "submit": {
+    "analyze": "Get advice",
+    "analyzing": "Analyzing..."
+  },
+  "errors": {
+    "requestFailed": "Request error. Try again later."
+  },
+  "premium": {
+    "title": "Astro Advisor Premium",
+    "subtitle": "Personal recommendations based on transits to your natal chart",
+    "features": {
+      "hourlyAnalysis": "Hourly analysis of day favorability",
+      "aspectInterpretations": "Detailed aspect interpretations",
+      "recommendations": "Recommendations for 8 life areas"
+    },
+    "getPremium": "Get Premium"
+  }
+}

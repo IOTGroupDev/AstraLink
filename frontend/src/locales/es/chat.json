@@ -1,0 +1,39 @@
+{
+  "header": {
+    "online": "En línea"
+  },
+  "input": {
+    "placeholder": "Escribe un mensaje...",
+    "send": "Enviar"
+  },
+  "empty": {
+    "noMessages": "Sin mensajes",
+    "startDialog": "¡Inicia la conversación!"
+  },
+  "loading": {
+    "messages": "Cargando mensajes...",
+    "authorization": "Verificando autorización..."
+  },
+  "errors": {
+    "authRequired": "Se requiere autorización",
+    "authRequiredMessage": "Debes iniciar sesión para usar el chat",
+    "noInterlocutor": "Interlocutor no especificado",
+    "failedToSend": "Error al enviar mensaje. Inténtalo de nuevo.",
+    "failedToSendFile": "Error al enviar archivo. Inténtalo de nuevo.",
+    "failedToDelete": "Error al eliminar mensaje.",
+    "failedToDeleteForAll": "Error al eliminar mensaje para todos.",
+    "failedToLoad": "Error al cargar mensajes"
+  },
+  "deleteMessage": {
+    "title": "Eliminar mensaje",
+    "subtitle": "Elige una acción",
+    "deleteForMe": "Eliminar para mí",
+    "deleteForAll": "Eliminar para todos",
+    "confirmTitle": "¿Eliminar para todos?",
+    "confirmMessage": "Esta acción no se puede deshacer.",
+    "delete": "Eliminar"
+  },
+  "media": {
+    "label": "📷 Multimedia"
+  }
+}

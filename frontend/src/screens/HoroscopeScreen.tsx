@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 import EnergyWidget from '../components/horoscope/EnergyWidget';
@@ -23,8 +24,14 @@ import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/index';
 import { chartLogger } from '../services/logger';
+import NatalChartWheel from '../intgr/NatalChartWheel';
+import NatalChartScreenImplementation from '../intgr/NatalChartScreenImplementation';
+import ChartScreenExample from '../intgr/ChartScreenExample';
+import PersonalCodeScreen from './PersonalCodeScreen';
+import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
 
 const HoroscopeScreen: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
@@ -218,9 +225,9 @@ const HoroscopeScreen: React.FC = () => {
           } catch (createError) {
             chartLogger.error('Ошибка создания карты', createError);
             Alert.alert(
-              'Необходимо создать натальную карту',
-              'Пожалуйста, заполните данные о рождении в профиле для создания астрологической карты.',
-              [{ text: 'OK' }]
+              t('horoscope.errors.createChartTitle'),
+              t('horoscope.errors.createChartFirst'),
+              [{ text: t('common.buttons.ok') }]
             );
           }
         }
@@ -285,9 +292,9 @@ const HoroscopeScreen: React.FC = () => {
     } catch (error) {
       chartLogger.error('Ошибка загрузки прогнозов', error);
       Alert.alert(
-        'Ошибка',
-        'Не удалось загрузить прогнозы. Попробуйте обновить страницу.',
-        [{ text: 'OK' }]
+        t('common.errors.generic'),
+        t('horoscope.errors.failedToLoad'),
+        [{ text: t('common.buttons.ok') }]
       );
     }
   };
@@ -342,139 +349,50 @@ const HoroscopeScreen: React.FC = () => {
 
   // Получение главного транзита
   const getMainTransit = () => {
-    // Проверяем наличие необходимых данных
-    if (!currentPlanets || !chart) {
-      chartLogger.warn('getMainTransit: нет данных планет или карты', {
-        hasCurrentPlanets: !!currentPlanets,
-        hasChart: !!chart
-      });
-      return null;
+    if (
+      chart &&
+      chart.data &&
+      chart.data.aspects &&
+      chart.data.aspects.length > 0
+    ) {
+      const strongestAspect = chart.data.aspects.reduce((strongest, current) =>
+        (current.strength || 0) > (strongest.strength || 0)
+          ? current
+          : strongest
+      );
+
+      const planetA =
+        t(`common.planets.${strongestAspect.planetA}`) ||
+        strongestAspect.planetA;
+      const planetB =
+        t(`common.planets.${strongestAspect.planetB}`) ||
+        strongestAspect.planetB;
+      const aspectName =
+        t(`common.aspects.${strongestAspect.aspect}`) || strongestAspect.aspect;
+
+      return {
+        name: `${planetA} - ${aspectName} - ${planetB}`,
+        aspect: aspectName,
+        targetPlanet: planetB,
+        strength: strongestAspect.strength || 0.8,
+        description: t('horoscope.transit.description', {
+          planetA,
+          aspect: aspectName,
+          planetB,
+        }),
+      };
     }
 
-    // Получаем натальные планеты
-    const natalPlanets = chart.data?.planets || chart.planets;
-    if (!natalPlanets || typeof natalPlanets !== 'object') {
-      chartLogger.warn('getMainTransit: нет натальных планет');
-      return null;
-    }
-
-    const planetNames: Record<string, string> = {
-      sun: 'Солнце',
-      moon: 'Луна',
-      mercury: 'Меркурий',
-      venus: 'Венера',
-      mars: 'Марс',
-      jupiter: 'Юпитер',
-      saturn: 'Сатурн',
-      uranus: 'Уран',
-      neptune: 'Нептун',
-      pluto: 'Плутон',
-    };
-
-    const aspectNames: Record<string, string> = {
-      conjunction: 'соединение',
-      opposition: 'оппозиция',
-      trine: 'трин',
-      square: 'квадрат',
-      sextile: 'секстиль',
-    };
-
-    // Рассчитываем аспекты между транзитными и натальными планетами
-    const aspects: Array<{
-      transitPlanet: string;
-      natalPlanet: string;
-      aspect: string;
-      orb: number;
-      strength: number;
-    }> = [];
-
-    const orbTolerance = 8; // орб в градусах
-    const aspectAngles = [
-      { type: 'conjunction', angle: 0 },
-      { type: 'sextile', angle: 60 },
-      { type: 'square', angle: 90 },
-      { type: 'trine', angle: 120 },
-      { type: 'opposition', angle: 180 },
-    ];
-
-    // Нормализуем currentPlanets к единому формату
-    let transitPlanets: Record<string, { longitude: number }> = {};
-    if (Array.isArray(currentPlanets)) {
-      currentPlanets.forEach(p => {
-        if (p?.name && typeof p?.longitude === 'number') {
-          transitPlanets[p.name.toLowerCase()] = { longitude: p.longitude };
-        }
-      });
-    } else if (typeof currentPlanets === 'object') {
-      transitPlanets = currentPlanets;
-    }
-
-    // Проверяем аспекты между каждой транзитной и натальной планетой
-    Object.entries(transitPlanets).forEach(([transitKey, transitData]) => {
-      if (typeof transitData?.longitude !== 'number') return;
-
-      Object.entries(natalPlanets).forEach(([natalKey, natalData]: [string, any]) => {
-        if (typeof natalData?.longitude !== 'number') return;
-
-        const diff = Math.abs(transitData.longitude - natalData.longitude);
-        const normalizedDiff = diff > 180 ? 360 - diff : diff;
-
-        aspectAngles.forEach(({ type, angle }) => {
-          const orb = Math.abs(normalizedDiff - angle);
-          if (orb <= orbTolerance) {
-            const strength = 1 - orb / orbTolerance;
-            aspects.push({
-              transitPlanet: transitKey,
-              natalPlanet: natalKey,
-              aspect: type,
-              orb,
-              strength,
-            });
-          }
-        });
-      });
-    });
-
-    // Сортируем по силе и выбираем самый сильный
-    if (aspects.length === 0) {
-      chartLogger.warn('getMainTransit: не найдено аспектов', {
-        transitPlanetsCount: Object.keys(transitPlanets).length,
-        natalPlanetsCount: Object.keys(natalPlanets).length,
-      });
-      return null;
-    }
-
-    aspects.sort((a, b) => b.strength - a.strength);
-    const mainAspect = aspects[0];
-
-    const transitPlanetName = planetNames[mainAspect.transitPlanet.toLowerCase()] || mainAspect.transitPlanet;
-    const natalPlanetName = planetNames[mainAspect.natalPlanet.toLowerCase()] || mainAspect.natalPlanet;
-    const aspectName = aspectNames[mainAspect.aspect] || mainAspect.aspect;
-
-    chartLogger.log('getMainTransit: найден главный аспект', {
-      transit: mainAspect.transitPlanet,
-      natal: mainAspect.natalPlanet,
-      aspect: mainAspect.aspect,
-      strength: mainAspect.strength,
-      orb: mainAspect.orb,
-    });
-
-    return {
-      name: `${transitPlanetName} - ${aspectName} - ${natalPlanetName}`,
-      aspect: aspectName,
-      targetPlanet: natalPlanetName,
-      strength: mainAspect.strength,
-      description: `${transitPlanetName} формирует ${aspectName} с натальным ${natalPlanetName}`,
-    };
+    return null;
   };
 
   // Получение сообщения об энергии (по значению)
   const getEnergyMessage = (energy: number) => {
-    if (energy >= 80) return 'Сегодня отличный день для активности!';
-    if (energy >= 60) return 'Хорошая энергия для достижения целей';
-    if (energy >= 40) return 'Умеренная энергия, сохраняйте баланс';
-    if (energy >= 20) return 'Низкая энергия, отдохните';
-    return 'Очень низкая энергия, берегите силы';
+    if (energy >= 80) return t('horoscope.energy.veryHigh');
+    if (energy >= 60) return t('horoscope.energy.high');
+    if (energy >= 40) return t('horoscope.energy.moderate');
+    if (energy >= 20) return t('horoscope.energy.low');
+    return t('horoscope.energy.veryLow');
   };
 
   // Загрузка данных при монтировании
@@ -497,18 +415,6 @@ const HoroscopeScreen: React.FC = () => {
     (predictions?.day?.energy as number | undefined) ?? getCurrentEnergy();
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
-
-  // Локальные флаги готовности данных для каждого виджета
-  // Важно: не блокируем виджеты отсутствием соседних данных.
-  const planetaryLoading =
-    loading ||
-    !Array.isArray(transitPlanetsArr) ||
-    transitPlanetsArr.length === 0;
-  const energyLoading = loading || !chart || !currentPlanets;
-  // Транзит: показываем лоадер только на время общей загрузки, а если транзит не найден — не «висим» в лоадере
-  const mainTransitLoading = loading;
-  const horoscopeLoading = loading || !predictions;
-  const biorhythmsLoading = loading || !biorhythms;
 
   // Нормализация данных для PlanetaryRecommendationWidget
   const natalPlanetsObj = React.useMemo(() => {
@@ -567,16 +473,26 @@ const HoroscopeScreen: React.FC = () => {
             <View style={styles.headerIconContainer}>
               <HoroscopeSvg size={60} />
             </View>
-            <Text style={styles.headerTitle}>Гороскоп</Text>
+            <Text style={styles.headerTitle}>{t('horoscope.title')}</Text>
             <Text style={styles.headerSubtitle}>
-              Космос для вас{user?.name ? `, ${user.name}` : ''}
+              {t('horoscope.subtitle', {
+                name: user?.name ? `, ${user.name}` : '',
+              })}
             </Text>
             <Text style={styles.headerDate}>
-              Позиции на{' '}
-              {new Date().toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
+              {t('horoscope.positionsOn', {
+                date: new Date().toLocaleDateString(
+                  i18n.language === 'ru'
+                    ? 'ru-RU'
+                    : i18n.language === 'es'
+                      ? 'es-ES'
+                      : 'en-US',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }
+                ),
               })}
             </Text>
           </BlurView>
@@ -587,43 +503,41 @@ const HoroscopeScreen: React.FC = () => {
             <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
 
             {/* Рекомендация дня (нормализованные данные для виджета) */}
-            <PlanetaryRecommendationWidget
-              natalPlanets={natalPlanetsObj}
-              transitPlanets={transitPlanetsArr}
-              isLoading={planetaryLoading}
-            />
+            {natalPlanetsObj && transitPlanetsArr.length > 0 && (
+              <PlanetaryRecommendationWidget
+                natalPlanets={natalPlanetsObj}
+                transitPlanets={transitPlanetsArr}
+              />
+            )}
 
             {/* Виджет энергии */}
-            <EnergyWidget
-              energy={energyValue}
-              message={energyMessage}
-              isLoading={energyLoading}
-            />
+            {!loading && (
+              <EnergyWidget energy={energyValue} message={energyMessage} />
+            )}
 
             {/* Виджет главный транзит */}
-            <MainTransitWidget
-              transitData={mainTransit}
-              isLoading={mainTransitLoading}
-            />
+            {!loading && mainTransit && (
+              <MainTransitWidget transitData={mainTransit} />
+            )}
 
             {/* Гороскоп виджет */}
-            <HoroscopeWidget
-              predictions={predictions ?? null}
-              isLoading={horoscopeLoading}
-            />
+            {predictions && <HoroscopeWidget predictions={predictions} />}
 
             {/* Виджет Биоритмы */}
-            <BiorhythmsWidget
-              physical={biorhythms?.physical ?? 0}
-              emotional={biorhythms?.emotional ?? 0}
-              intellectual={biorhythms?.intellectual ?? 0}
-              isLoading={biorhythmsLoading}
-            />
+            {biorhythms && (
+              <BiorhythmsWidget
+                physical={biorhythms.physical}
+                emotional={biorhythms.emotional}
+                intellectual={biorhythms.intellectual}
+              />
+            )}
 
             {/* Placeholder для будущих виджетов */}
             {loading && (
               <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>Загрузка данных...</Text>
+                <Text style={styles.placeholderText}>
+                  {t('horoscope.loading')}
+                </Text>
               </View>
             )}
             {/*<View>*/}

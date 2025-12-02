@@ -1,0 +1,152 @@
+{
+  "title": "Редактирование профиля",
+  "sections": {
+    "photos": "Фотографии",
+    "basicInfo": "Основная информация",
+    "birthData": "Данные рождения",
+    "interests": "Интересы",
+    "about": "О себе"
+  },
+  "fields": {
+    "name": "Имя",
+    "birthDate": "Дата рождения",
+    "birthTime": "Время рождения",
+    "birthPlace": "Место рождения",
+    "city": "Город",
+    "bio": "Биография",
+    "gender": "Пол"
+  },
+  "placeholders": {
+    "name": "Введите ваше имя",
+    "birthTime": "Введите время (ЧЧ:ММ)",
+    "birthPlace": "Введите место рождения",
+    "city": "Введите город",
+    "bio": "Расскажите о себе..."
+  },
+  "gender": {
+    "male": "Мужской",
+    "female": "Женский",
+    "other": "Другой"
+  },
+  "interests": {
+    "travel": "Путешествия",
+    "music": "Музыка",
+    "sport": "Спорт",
+    "reading": "Чтение",
+    "movies": "Кино",
+    "cooking": "Кулинария",
+    "art": "Искусство",
+    "photography": "Фотография",
+    "yoga": "Йога",
+    "meditation": "Медитация",
+    "hiking": "Походы",
+    "swimming": "Плавание",
+    "dancing": "Танцы",
+    "gaming": "Игры",
+    "pets": "Животные",
+    "wine": "Вино",
+    "coffee": "Кофе",
+    "fashion": "Мода",
+    "tech": "Технологии",
+    "nature": "Природа",
+    "astronomy": "Астрономия",
+    "astrology": "Астрология",
+    "volunteering": "Волонтёрство",
+    "languages": "Языки",
+    "entrepreneurship": "Бизнес",
+    "theater": "Театр",
+    "concerts": "Концерты",
+    "festivals": "Фестивали",
+    "gardening": "Садоводство",
+    "cycling": "Велоспорт"
+  },
+  "buttons": {
+    "addPhoto": "Добавить фото",
+    "setPrimary": "Сделать главным",
+    "delete": "Удалить",
+    "getCurrentLocation": "Определить местоположение",
+    "showMore": "Показать больше интересов",
+    "showLess": "Показать меньше",
+    "save": "Сохранить изменения",
+    "cancel": "Отмена"
+  },
+  "alerts": {
+    "photoLimit": {
+      "title": "Лимит",
+      "message": "Максимум 20 фотографий"
+    },
+    "galleryPermission": {
+      "title": "Ошибка",
+      "message": "Необходим доступ к галерее"
+    },
+    "photoAdded": {
+      "title": "Успех",
+      "message": "Фото добавлено"
+    },
+    "photoUploadFailed": {
+      "title": "Ошибка",
+      "message": "Не удалось загрузить фото"
+    },
+    "deletePhoto": {
+      "title": "Удалить фото?",
+      "message": "Это действие нельзя отменить"
+    },
+    "photoDeleted": {
+      "title": "Успех",
+      "message": "Фото удалено"
+    },
+    "photoDeleteFailed": {
+      "title": "Ошибка",
+      "message": "Не удалось удалить фото"
+    },
+    "primaryPhotoSet": {
+      "title": "Успех",
+      "message": "Главное фото установлено"
+    },
+    "primaryPhotoFailed": {
+      "title": "Ошибка",
+      "message": "Не удалось установить главное фото"
+    },
+    "locationPermission": {
+      "title": "Доступ запрещен",
+      "message": "Разрешите доступ к геолокации в настройках"
+    },
+    "locationFound": {
+      "title": "Успех",
+      "message": "Местоположение определено: {{location}}"
+    },
+    "locationNotFound": {
+      "title": "Ошибка",
+      "message": "Не удалось определить адрес"
+    },
+    "locationError": {
+      "title": "Ошибка",
+      "message": "Не удалось определить местоположение. Проверьте настройки GPS."
+    },
+    "nameRequired": {
+      "title": "Ошибка",
+      "message": "Введите имя"
+    },
+    "birthDateRequired": {
+      "title": "Ошибка",
+      "message": "Введите дату рождения"
+    },
+    "profileSaved": {
+      "title": "Успех",
+      "message": "Профиль обновлен"
+    },
+    "saveFailed": {
+      "title": "Ошибка",
+      "message": "Не удалось сохранить изменения"
+    },
+    "loadFailed": {
+      "title": "Ошибка",
+      "message": "Не удалось загрузить данные"
+    }
+  },
+  "status": {
+    "uploading": "Загрузка...",
+    "saving": "Сохранение...",
+    "loading": "Загрузка..."
+  }
+}

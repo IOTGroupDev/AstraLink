@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import {
   userAPI,
@@ -41,90 +42,45 @@ interface Interest {
   category: 'primary' | 'secondary';
 }
 
-const INTERESTS: Interest[] = [
-  { id: 'travel', label: 'Путешествия', icon: 'airplane', category: 'primary' },
-  { id: 'music', label: 'Музыка', icon: 'musical-notes', category: 'primary' },
-  { id: 'sport', label: 'Спорт', icon: 'fitness', category: 'primary' },
-  { id: 'reading', label: 'Чтение', icon: 'book', category: 'primary' },
-  { id: 'movies', label: 'Кино', icon: 'film', category: 'primary' },
-  {
-    id: 'cooking',
-    label: 'Кулинария',
-    icon: 'restaurant',
-    category: 'primary',
-  },
-  { id: 'art', label: 'Искусство', icon: 'color-palette', category: 'primary' },
-  {
-    id: 'photography',
-    label: 'Фотография',
-    icon: 'camera',
-    category: 'primary',
-  },
-  { id: 'yoga', label: 'Йога', icon: 'body', category: 'primary' },
-  {
-    id: 'meditation',
-    label: 'Медитация',
-    icon: 'sparkles',
-    category: 'primary',
-  },
-  { id: 'hiking', label: 'Походы', icon: 'trail-sign', category: 'secondary' },
-  { id: 'swimming', label: 'Плавание', icon: 'water', category: 'secondary' },
-  { id: 'dancing', label: 'Танцы', icon: 'person', category: 'secondary' },
-  {
-    id: 'gaming',
-    label: 'Игры',
-    icon: 'game-controller',
-    category: 'secondary',
-  },
-  { id: 'pets', label: 'Животные', icon: 'paw', category: 'secondary' },
-  { id: 'wine', label: 'Вино', icon: 'wine', category: 'secondary' },
-  { id: 'coffee', label: 'Кофе', icon: 'cafe', category: 'secondary' },
-  { id: 'fashion', label: 'Мода', icon: 'shirt', category: 'secondary' },
-  {
-    id: 'tech',
-    label: 'Технологии',
-    icon: 'hardware-chip',
-    category: 'secondary',
-  },
-  { id: 'nature', label: 'Природа', icon: 'leaf', category: 'secondary' },
-  {
-    id: 'astronomy',
-    label: 'Астрономия',
-    icon: 'telescope',
-    category: 'secondary',
-  },
-  { id: 'astrology', label: 'Астрология', icon: 'moon', category: 'secondary' },
-  {
-    id: 'volunteering',
-    label: 'Волонтёрство',
-    icon: 'heart',
-    category: 'secondary',
-  },
-  { id: 'languages', label: 'Языки', icon: 'language', category: 'secondary' },
-  {
-    id: 'entrepreneurship',
-    label: 'Бизнес',
-    icon: 'briefcase',
-    category: 'secondary',
-  },
-  { id: 'theater', label: 'Театр', icon: 'ticket', category: 'secondary' },
-  { id: 'concerts', label: 'Концерты', icon: 'mic', category: 'secondary' },
-  {
-    id: 'festivals',
-    label: 'Фестивали',
-    icon: 'balloon',
-    category: 'secondary',
-  },
-  {
-    id: 'gardening',
-    label: 'Садоводство',
-    icon: 'flower',
-    category: 'secondary',
-  },
-  { id: 'cycling', label: 'Велоспорт', icon: 'bicycle', category: 'secondary' },
+const INTERESTS_CONFIG: Array<{
+  id: string;
+  icon: string;
+  category: 'primary' | 'secondary';
+}> = [
+  { id: 'travel', icon: 'airplane', category: 'primary' },
+  { id: 'music', icon: 'musical-notes', category: 'primary' },
+  { id: 'sport', icon: 'fitness', category: 'primary' },
+  { id: 'reading', icon: 'book', category: 'primary' },
+  { id: 'movies', icon: 'film', category: 'primary' },
+  { id: 'cooking', icon: 'restaurant', category: 'primary' },
+  { id: 'art', icon: 'color-palette', category: 'primary' },
+  { id: 'photography', icon: 'camera', category: 'primary' },
+  { id: 'yoga', icon: 'body', category: 'primary' },
+  { id: 'meditation', icon: 'sparkles', category: 'primary' },
+  { id: 'hiking', icon: 'trail-sign', category: 'secondary' },
+  { id: 'swimming', icon: 'water', category: 'secondary' },
+  { id: 'dancing', icon: 'person', category: 'secondary' },
+  { id: 'gaming', icon: 'game-controller', category: 'secondary' },
+  { id: 'pets', icon: 'paw', category: 'secondary' },
+  { id: 'wine', icon: 'wine', category: 'secondary' },
+  { id: 'coffee', icon: 'cafe', category: 'secondary' },
+  { id: 'fashion', icon: 'shirt', category: 'secondary' },
+  { id: 'tech', icon: 'hardware-chip', category: 'secondary' },
+  { id: 'nature', icon: 'leaf', category: 'secondary' },
+  { id: 'astronomy', icon: 'telescope', category: 'secondary' },
+  { id: 'astrology', icon: 'moon', category: 'secondary' },
+  { id: 'volunteering', icon: 'heart', category: 'secondary' },
+  { id: 'languages', icon: 'language', category: 'secondary' },
+  { id: 'entrepreneurship', icon: 'briefcase', category: 'secondary' },
+  { id: 'theater', icon: 'ticket', category: 'secondary' },
+  { id: 'concerts', icon: 'mic', category: 'secondary' },
+  { id: 'festivals', icon: 'balloon', category: 'secondary' },
+  { id: 'gardening', icon: 'flower', category: 'secondary' },
+  { id: 'cycling', icon: 'bicycle', category: 'secondary' },
 ];
 
 const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -145,6 +101,16 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
 
   const animationValue = useSharedValue(1);
+
+  // Create translated interests array
+  const INTERESTS: Interest[] = React.useMemo(
+    () =>
+      INTERESTS_CONFIG.map((config) => ({
+        ...config,
+        label: t(`editProfile.interests.${config.id}`),
+      })),
+    [t]
+  );
 
   useEffect(() => {
     loadData();
@@ -192,7 +158,10 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     } catch (error) {
       logger.error('Error loading data', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить данные');
+      Alert.alert(
+        t('editProfile.alerts.loadFailed.title'),
+        t('editProfile.alerts.loadFailed.message')
+      );
     } finally {
       setLoading(false);
     }
@@ -200,13 +169,19 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleAddPhoto = async () => {
     if (photos.length >= 20) {
-      Alert.alert('Лимит', 'Максимум 20 фотографий');
+      Alert.alert(
+        t('editProfile.alerts.photoLimit.title'),
+        t('editProfile.alerts.photoLimit.message')
+      );
       return;
     }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходим доступ к галерее');
+      Alert.alert(
+        t('editProfile.alerts.galleryPermission.title'),
+        t('editProfile.alerts.galleryPermission.message')
+      );
       return;
     }
 
@@ -255,41 +230,63 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }))
       );
 
-      Alert.alert('Успех', 'Фото добавлено');
+      Alert.alert(
+        t('editProfile.alerts.photoAdded.title'),
+        t('editProfile.alerts.photoAdded.message')
+      );
     } catch (error) {
       logger.error('Error uploading photo', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить фото');
+      Alert.alert(
+        t('editProfile.alerts.photoUploadFailed.title'),
+        t('editProfile.alerts.photoUploadFailed.message')
+      );
     } finally {
       setUploadingPhoto(false);
     }
   };
 
   const handleDeletePhoto = async (photoId: string) => {
-    Alert.alert('Удалить фото?', 'Это действие нельзя отменить', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Удалить',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await userPhotosAPI.deletePhoto(photoId);
-            setPhotos(photos.filter((p) => p.id !== photoId));
-            Alert.alert('Успех', 'Фото удалено');
-          } catch (error) {
-            Alert.alert('Ошибка', 'Не удалось удалить фото');
-          }
+    Alert.alert(
+      t('editProfile.alerts.deletePhoto.title'),
+      t('editProfile.alerts.deletePhoto.message'),
+      [
+        { text: t('common.buttons.cancel'), style: 'cancel' },
+        {
+          text: t('editProfile.buttons.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await userPhotosAPI.deletePhoto(photoId);
+              setPhotos(photos.filter((p) => p.id !== photoId));
+              Alert.alert(
+                t('editProfile.alerts.photoDeleted.title'),
+                t('editProfile.alerts.photoDeleted.message')
+              );
+            } catch (error) {
+              Alert.alert(
+                t('editProfile.alerts.photoDeleteFailed.title'),
+                t('editProfile.alerts.photoDeleteFailed.message')
+              );
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const handleSetPrimaryPhoto = async (photoId: string) => {
     try {
       await userPhotosAPI.setPrimary(photoId);
       setPhotos(photos.map((p) => ({ ...p, isPrimary: p.id === photoId })));
-      Alert.alert('Успех', 'Главное фото установлено');
+      Alert.alert(
+        t('editProfile.alerts.primaryPhotoSet.title'),
+        t('editProfile.alerts.primaryPhotoSet.message')
+      );
     } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось установить главное фото');
+      Alert.alert(
+        t('editProfile.alerts.primaryPhotoFailed.title'),
+        t('editProfile.alerts.primaryPhotoFailed.message')
+      );
     }
   };
 
@@ -301,8 +298,8 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          'Доступ запрещен',
-          'Разрешите доступ к геолокации в настройках'
+          t('editProfile.alerts.locationPermission.title'),
+          t('editProfile.alerts.locationPermission.message')
         );
         return;
       }
@@ -330,15 +327,23 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         const locationString = parts.join(', ');
         setCity(locationString);
 
-        Alert.alert('Успех', `Местоположение определено: ${locationString}`);
+        Alert.alert(
+          t('editProfile.alerts.locationFound.title'),
+          t('editProfile.alerts.locationFound.message', {
+            location: locationString,
+          })
+        );
       } else {
-        Alert.alert('Ошибка', 'Не удалось определить адрес');
+        Alert.alert(
+          t('editProfile.alerts.locationNotFound.title'),
+          t('editProfile.alerts.locationNotFound.message')
+        );
       }
     } catch (error) {
       logger.error('Geolocation error', error);
       Alert.alert(
-        'Ошибка',
-        'Не удалось определить местоположение. Проверьте настройки GPS.'
+        t('editProfile.alerts.locationError.title'),
+        t('editProfile.alerts.locationError.message')
       );
     } finally {
       setGettingLocation(false);
@@ -358,12 +363,18 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       setSaving(true);
 
       if (!formData.name?.trim()) {
-        Alert.alert('Ошибка', 'Введите имя');
+        Alert.alert(
+          t('editProfile.alerts.nameRequired.title'),
+          t('editProfile.alerts.nameRequired.message')
+        );
         return;
       }
 
       if (!formData.birthDate) {
-        Alert.alert('Ошибка', 'Введите дату рождения');
+        Alert.alert(
+          t('editProfile.alerts.birthDateRequired.title'),
+          t('editProfile.alerts.birthDateRequired.message')
+        );
         return;
       }
 
@@ -381,12 +392,17 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (gender) extPayload.gender = gender;
       await userExtendedProfileAPI.updateUserProfile(extPayload);
 
-      Alert.alert('Успех', 'Профиль обновлен', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        t('editProfile.alerts.profileSaved.title'),
+        t('editProfile.alerts.profileSaved.message'),
+        [{ text: t('common.buttons.ok'), onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
       logger.error('Error saving profile', error);
-      Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+      Alert.alert(
+        t('editProfile.alerts.saveFailed.title'),
+        t('editProfile.alerts.saveFailed.message')
+      );
     } finally {
       setSaving(false);
     }
@@ -418,15 +434,18 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.title}>Редактировать профиль</Text>
+          <Text style={styles.title}>{t('editProfile.title')}</Text>
           <View style={styles.placeholder} />
         </View>
 
         {/* Photos Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Фотографии</Text>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.sections.photos')}
+          </Text>
           <Text style={styles.sectionSubtitle}>
-            До {20 - photos.length} фото
+            {20 - photos.length}{' '}
+            {t('editProfile.sections.photos').toLowerCase()}
           </Text>
 
           <ScrollView
@@ -441,7 +460,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 {photo.isPrimary && (
                   <View style={styles.primaryBadge}>
                     <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.primaryText}>Главное</Text>
+                    <Text style={styles.primaryText}>
+                      {t('common.buttons.primary')}
+                    </Text>
                   </View>
                 )}
 
@@ -476,7 +497,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 ) : (
                   <>
                     <Ionicons name="add" size={32} color="#8B5CF6" />
-                    <Text style={styles.addPhotoText}>Добавить фото</Text>
+                    <Text style={styles.addPhotoText}>
+                      {t('editProfile.buttons.addPhoto')}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -486,21 +509,25 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* Basic Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Основная информация</Text>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.sections.basicInfo')}
+          </Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Имя</Text>
+            <Text style={styles.inputLabel}>
+              {t('editProfile.fields.name')}
+            </Text>
             <AstralInput
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Введите ваше имя"
+              placeholder={t('editProfile.placeholders.name')}
               icon="person-outline"
               animationValue={animationValue}
             />
           </View>
 
           <AstralDateTimePicker
-            placeholder="Дата рождения"
+            placeholder={t('editProfile.fields.birthDate')}
             value={formData.birthDate}
             onChangeText={(text) =>
               setFormData({ ...formData, birthDate: text })
@@ -512,7 +539,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           />
 
           <AstralDateTimePicker
-            placeholder="Время рождения"
+            placeholder={t('editProfile.placeholders.birthTime')}
             value={formData.birthTime}
             onChangeText={(text) =>
               setFormData({ ...formData, birthTime: text })
@@ -523,13 +550,15 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           />
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Место рождения</Text>
+            <Text style={styles.inputLabel}>
+              {t('editProfile.fields.birthPlace')}
+            </Text>
             <AstralInput
               value={formData.birthPlace}
               onChangeText={(text) =>
                 setFormData({ ...formData, birthPlace: text })
               }
-              placeholder="Город, страна"
+              placeholder={t('editProfile.placeholders.birthPlace')}
               icon="location-outline"
               animationValue={animationValue}
             />
@@ -537,7 +566,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
           <View style={styles.inputGroup}>
             <View style={styles.locationHeader}>
-              <Text style={styles.inputLabel}>Место жительства</Text>
+              <Text style={styles.inputLabel}>
+                {t('editProfile.fields.city')}
+              </Text>
               <TouchableOpacity
                 style={styles.locationButton}
                 onPress={handleGetCurrentLocation}
@@ -553,7 +584,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <AstralInput
               value={city}
               onChangeText={setCity}
-              placeholder="Город, страна"
+              placeholder={t('editProfile.placeholders.city')}
               icon="home-outline"
               animationValue={animationValue}
             />
@@ -562,12 +593,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* Gender */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Пол</Text>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.fields.gender')}
+          </Text>
           <View style={styles.interestsGrid}>
             {[
-              { key: 'female', label: 'Женский', icon: 'female' as const },
-              { key: 'male', label: 'Мужской', icon: 'male' as const },
-              { key: 'other', label: 'Другое', icon: 'male-female' as const },
+              { key: 'female', icon: 'female' as const },
+              { key: 'male', icon: 'male' as const },
+              { key: 'other', icon: 'male-female' as const },
             ].map((g) => {
               const isSelected = gender === (g.key as any);
               return (
@@ -590,7 +623,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                       isSelected && styles.interestTextSelected,
                     ]}
                   >
-                    {g.label}
+                    {t(`editProfile.gender.${g.key}`)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -599,13 +632,15 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </View>
         {/* Bio */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>О себе</Text>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.sections.about')}
+          </Text>
           <View style={styles.textAreaContainer}>
             <TextInput
               style={styles.textArea}
               value={bio}
               onChangeText={setBio}
-              placeholder="Расскажите о себе..."
+              placeholder={t('editProfile.placeholders.bio')}
               placeholderTextColor="#666"
               multiline
               numberOfLines={6}
@@ -617,8 +652,12 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* Interests */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Интересы</Text>
-          <Text style={styles.sectionSubtitle}>Выберите до 10 интересов</Text>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.sections.interests')}
+          </Text>
+          <Text style={styles.sectionSubtitle}>
+            {t('common.selectUpTo', { count: 10 })}
+          </Text>
 
           <View style={styles.interestsGrid}>
             {displayedInterests.map((interest) => {
@@ -656,7 +695,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             onPress={() => setShowAllInterests(!showAllInterests)}
           >
             <Text style={styles.showMoreText}>
-              {showAllInterests ? 'Свернуть' : 'Показать все'}
+              {showAllInterests
+                ? t('editProfile.buttons.showLess')
+                : t('editProfile.buttons.showMore')}
             </Text>
             <Ionicons
               name={showAllInterests ? 'chevron-up' : 'chevron-down'}
@@ -681,7 +722,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             ) : (
               <>
                 <Ionicons name="checkmark" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Сохранить</Text>
+                <Text style={styles.saveButtonText}>
+                  {t('editProfile.buttons.save')}
+                </Text>
               </>
             )}
           </LinearGradient>

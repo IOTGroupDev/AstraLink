@@ -1,0 +1,44 @@
+{
+  "title": "My cosmic\nprofile",
+  "sections": {
+    "subscription": "Subscription",
+    "natalChart": "Natal Chart",
+    "settings": "Settings"
+  },
+  "natalChart": {
+    "viewChart": "View natal\nchart with interpretation",
+    "regenerate": "Regenerate with AI",
+    "regenerating": "Generating..."
+  },
+  "settings": {
+    "editProfile": "Edit Profile",
+    "language": "Language",
+    "logout": "Log Out",
+    "deleteAccount": "Delete Account",
+    "deleteAccountSubtitle": "Delete all your data forever"
+  },
+  "logout": {
+    "title": "Log Out",
+    "message": "Are you sure you want to log out?",
+    "confirm": "Log Out"
+  },
+  "deleteAccount": {
+    "title": "Account Deleted",
+    "message": "Your account and all data have been permanently deleted."
+  },
+  "errors": {
+    "profileNotFound": "Profile not found",
+    "failedToLoad": "Failed to load profile data",
+    "failedToDelete": "Failed to delete account. Please try again later.",
+    "failedToRegenerate": "Failed to regenerate chart. Please try again later."
+  },
+  "success": {
+    "regenerated": "Success"
+  },
+  "limitation": {
+    "title": "Limitation"
+  },
+  "defaults": {
+    "userName": "User"
+  }
+}

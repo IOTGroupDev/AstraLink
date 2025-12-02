@@ -1,0 +1,65 @@
+{
+  "header": {
+    "title": "Personal Codes",
+    "subtitle": "Practical power numbers for PIN codes, passwords, and important decisions"
+  },
+  "purposes": {
+    "title": "Choose a purpose",
+    "luck": "Luck",
+    "health": "Health",
+    "wealth": "Wealth",
+    "love": "Love",
+    "career": "Career",
+    "creativity": "Creativity",
+    "protection": "Protection",
+    "intuition": "Intuition",
+    "harmony": "Harmony",
+    "energy": "Energy"
+  },
+  "digitCount": {
+    "title": "Number of digits",
+    "hint": "More digits = more complex energy formula"
+  },
+  "generate": {
+    "button": "Generate code"
+  },
+  "errors": {
+    "generationFailed": "Code generation error"
+  },
+  "result": {
+    "codeLabel": "Your personal code",
+    "energy": "Energy",
+    "vibration": "Vibration",
+    "numerology": {
+      "title": "Numerology",
+      "reducedNumber": "Final number",
+      "masterNumber": "Master number",
+      "prefix": "Numerology: "
+    },
+    "interpretation": {
+      "title": "Interpretation"
+    },
+    "breakdown": {
+      "title": "Code breakdown"
+    }
+  },
+  "examples": {
+    "title": "Where to use",
+    "fourDigits": {
+      "title": "4 digits",
+      "text": "• Bank card PIN to attract money\n• Doorbell code for home security\n• Time of important meetings (3:37 PM)"
+    },
+    "sixDigits": {
+      "title": "6 digits",
+      "text": "• Banking app password\n• Home WiFi password for family luck\n• Important account passwords"
+    },
+    "sevenPlusDigits": {
+      "title": "7+ digits",
+      "text": "• Last digits of phone number\n• Target salary (code × $1000)\n• Lottery ticket number"
+    }
+  },
+  "usage": {
+    "title": "Detailed instructions",
+    "whenToUse": "When to use"
+  }
+}

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Subscription } from '../types';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types/navigation';
@@ -24,42 +25,19 @@ interface SubscriptionCardProps {
 
 const SUBSCRIPTION_LEVELS = {
   free: {
-    name: 'Free',
     color: '#6366F1',
     gradient: ['#4F46E5', '#6366F1'],
     icon: 'star-outline' as const,
-    features: [
-      'Базовые функции',
-      'Лимитированный доступ',
-      'Базовая натальная карта',
-    ],
   },
   basic: {
-    name: 'AstraPlus',
     color: '#8B5CF6',
     gradient: ['#7C3AED', '#8B5CF6'],
     icon: 'star' as const,
-    features: [
-      'Полные натальные карты',
-      'Транзиты и предсказания',
-      'Совместимость',
-      '10 лайков в день',
-      '2 супер-лайка в неделю',
-    ],
   },
   max: {
-    name: 'Cosmic Max',
     color: '#F59E0B',
     gradient: ['#F59E0B', '#DC2626'],
     icon: 'diamond' as const,
-    features: [
-      'Всё из AstraPlus',
-      'Неограниченные лайки',
-      'Безлимит супер-лайков',
-      'Кто лайкнул вас',
-      'Приоритет в поиске',
-      'VIP поддержка',
-    ],
   },
 };
 
@@ -68,17 +46,32 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   onUpgrade,
   showUpgradeButton = true,
 }) => {
+  const { t, i18n } = useTranslation();
   const currentLevel = subscription?.tier || 'free';
   const levelConfig =
     SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
 
+  // Get translated tier name and features
+  const tierName = t(`subscription.tiers.${currentLevel}.name`);
+  const tierFeatures: string[] = t(
+    `subscription.tiers.${currentLevel}.features`,
+    { returnObjects: true }
+  ) as string[];
+
   const formatExpiryDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+    return date.toLocaleDateString(
+      i18n.language === 'ru'
+        ? 'ru-RU'
+        : i18n.language === 'es'
+          ? 'es-ES'
+          : 'en-US',
+      {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }
+    );
   };
 
   const endDateStr = subscription?.expiresAt || subscription?.trialEndsAt;
@@ -113,7 +106,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               end={{ x: 1, y: 0 }}
             >
               <Ionicons name={levelConfig.icon} size={16} color="#FFF" />
-              <Text style={styles.badgeText}>{levelConfig.name}</Text>
+              <Text style={styles.badgeText}>{tierName}</Text>
             </LinearGradient>
           </View>
 
@@ -123,7 +116,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               onPress={onUpgrade}
               activeOpacity={0.7}
             >
-              <Text style={styles.upgradeText}>Улучшить</Text>
+              <Text style={styles.upgradeText}>
+                {t('subscription.buttons.upgrade')}
+              </Text>
               <Ionicons name="arrow-forward" size={14} color="#8B5CF6" />
             </TouchableOpacity>
           )}
@@ -132,7 +127,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         {/* Status */}
         <View style={styles.statusSection}>
           {subscription?.tier === 'free' ? (
-            <Text style={styles.statusText}>Бесплатный аккаунт</Text>
+            <Text style={styles.statusText}>
+              {t('subscription.status.freeAccount')}
+            </Text>
           ) : (
             <>
               {isExpired ? (
@@ -143,20 +140,21 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     color="#EF4444"
                   />
                   <Text style={[styles.statusText, { color: '#EF4444' }]}>
-                    Подписка истекла
+                    {t('subscription.status.expired')}
                   </Text>
                 </View>
               ) : (
                 <>
                   <Text style={styles.statusText}>
-                    {isOnTrial ? 'Пробный период до ' : 'Активна до '}
-                    {endDateStr ? formatExpiryDate(endDateStr) : '—'}
+                    {t('subscription.status.validUntil', {
+                      date: endDateStr ? formatExpiryDate(endDateStr) : '—',
+                    })}
                   </Text>
                   {daysLeft <= 7 && endDateStr && (
                     <View style={styles.warningBadge}>
                       <Ionicons name="time-outline" size={12} color="#F59E0B" />
                       <Text style={styles.warningText}>
-                        Осталось {daysLeft} {daysLeft === 1 ? 'день' : 'дней'}
+                        {t('subscription.status.daysLeft', { count: daysLeft })}
                       </Text>
                     </View>
                   )}
@@ -168,7 +166,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
         {/* Features */}
         <View style={styles.featuresSection}>
-          {levelConfig.features.map((feature, index) => (
+          {tierFeatures.map((feature, index) => (
             <View key={index} style={styles.featureRow}>
               <View
                 style={[
@@ -176,7 +174,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   { backgroundColor: levelConfig.color },
                 ]}
               />
-              <Text style={styles.featureText}>{String(feature)}</Text>
+              <Text style={styles.featureText}>{feature}</Text>
             </View>
           ))}
         </View>
@@ -196,7 +194,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               />
             </View>
             <Text style={styles.progressText}>
-              {daysLeft} {daysLeft === 1 ? 'день' : 'дней'} до окончания
+              {t('subscription.status.daysLeft', { count: daysLeft })}
             </Text>
           </View>
         )}

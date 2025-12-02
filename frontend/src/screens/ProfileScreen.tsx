@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -38,6 +39,7 @@ import {
   SafeAreaView as SafeAreaViewSAC,
 } from 'react-native-safe-area-context';
 import { logger } from '../services/logger';
+import LanguageSelector from '../components/settings/LanguageSelector';
 
 const { width, height } = Dimensions.get('window');
 
@@ -45,27 +47,27 @@ interface ProfileScreenProps {
   navigation: any;
 }
 
-// Темы по стихиям
+// Темы по стихиям (названия будут переведены в компоненте)
 const ELEMENT_THEMES = {
   fire: {
     colors: ['#FF6B35', '#F7931E', '#FFD700'] as const,
     glow: '#FF6B35',
-    name: 'Огонь',
+    key: 'fire',
   },
   water: {
     colors: ['#4ECDC4', '#44A08D', '#096B72'] as const,
     glow: '#4ECDC4',
-    name: 'Вода',
+    key: 'water',
   },
   earth: {
     colors: ['#8FBC8F', '#556B2F', '#2F4F2F'] as const,
     glow: '#8FBC8F',
-    name: 'Земля',
+    key: 'earth',
   },
   air: {
     colors: ['#FFD700', '#8B5CF6', '#DDA0DD'] as const,
     glow: '#FFD700',
-    name: 'Воздух',
+    key: 'air',
   },
 };
 
@@ -86,6 +88,7 @@ const ZODIAC_ELEMENTS = {
 };
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const { user: authUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -149,7 +152,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         if (st === 401) {
           // нет/протух токен — выходим в логин
-          Alert.alert('Сессия истекла', 'Пожалуйста, войдите снова.');
+          Alert.alert(
+            t('common.errors.sessionExpired'),
+            t('common.errors.pleaseLoginAgain')
+          );
           logout?.(); // если есть из стора
           return;
         }
@@ -201,8 +207,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       const data = error?.response?.data;
       logger.error('Ошибка загрузки данных профиля', st, data, error?.message);
       Alert.alert(
-        'Ошибка',
-        data?.message || 'Не удалось загрузить данные профиля'
+        t('common.errors.generic'),
+        data?.message || t('profile.errors.failedToLoad')
       );
     } finally {
       setLoading(false);
@@ -210,10 +216,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   };
 
   const handleLogout = () => {
-    Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('profile.logout.title'), t('profile.logout.message'), [
+      { text: t('common.buttons.cancel'), style: 'cancel' },
       {
-        text: 'Выйти',
+        text: t('profile.logout.confirm'),
         style: 'destructive',
         onPress: () => logout(),
       },
@@ -224,11 +230,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       await userAPI.deleteAccount();
       Alert.alert(
-        'Аккаунт удален',
-        'Ваш аккаунт и все данные были безвозвратно удалены.',
+        t('profile.deleteAccount.title'),
+        t('profile.deleteAccount.message'),
         [
           {
-            text: 'OK',
+            text: t('common.buttons.ok'),
             onPress: () => {
               tokenService.clearToken();
               navigation.reset({
@@ -242,8 +248,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     } catch (error: any) {
       logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(
-        'Ошибка',
-        error.message || 'Не удалось удалить аккаунт. Попробуйте позже.'
+        t('common.errors.generic'),
+        error.message || t('profile.errors.failedToDelete')
       );
     }
   };
@@ -258,22 +264,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       const result = await chartAPI.regenerateChartWithAI();
 
       if (result.success) {
-        Alert.alert('Успешно', result.message, [
+        Alert.alert(t('profile.success.regenerated'), result.message, [
           {
-            text: 'OK',
+            text: t('common.buttons.ok'),
             onPress: () => fetchProfileData(), // Refresh chart data
           },
         ]);
       } else {
-        Alert.alert('Ограничение', result.message);
+        Alert.alert(t('profile.limitation.title'), result.message);
       }
     } catch (error: any) {
       logger.error('Ошибка регенерации карты', error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
-        'Не удалось регенерировать карту. Попробуйте позже.';
-      Alert.alert('Ошибка', errorMessage);
+        t('profile.errors.failedToRegenerate');
+      Alert.alert(t('common.errors.generic'), errorMessage);
     } finally {
       setRegeneratingChart(false);
     }
@@ -300,7 +306,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     return (
       <View style={styles.container}>
         <CosmicBackground />
-        <Text style={styles.errorText}>Профиль не найден</Text>
+        <Text style={styles.errorText}>
+          {t('profile.errors.profileNotFound')}
+        </Text>
       </View>
     );
   }
@@ -330,7 +338,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <Animated.View style={[styles.content, animatedContainerStyle]}>
           {/* Header with Blur */}
           <View style={styles.headerCard}>
-            <Text style={styles.title}>Мой космический{'\n'}профиль</Text>
+            <Text style={styles.title}>{t('profile.title')}</Text>
           </View>
 
           {/* Avatar Section */}
@@ -367,20 +375,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
 
             <Text style={styles.userName}>
-              {profile.name || authUser?.name || 'Пользователь'}
+              {profile.name || authUser?.name || t('profile.defaults.userName')}
             </Text>
 
             <View style={styles.zodiacInfo}>
               <Text style={[styles.zodiacSign, { color: themePrimary }]}>
                 {zodiacSign}
               </Text>
-              <Text style={styles.elementName}>{elementTheme.name}</Text>
+              <Text style={styles.elementName}>
+                {t(`common.elements.${elementTheme.key}`)}
+              </Text>
             </View>
           </View>
 
           {/* Subscription */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Подписка</Text>
+            <Text style={styles.sectionTitle}>
+              {t('profile.sections.subscription')}
+            </Text>
             <SubscriptionCard
               subscription={subscription as any}
               onUpgrade={handleUpgradeSubscription}
@@ -391,7 +403,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* Natal Chart Section */}
           {chart && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Натальная карта</Text>
+              <Text style={styles.sectionTitle}>
+                {t('profile.sections.natalChart')}
+              </Text>
               <View style={styles.chartCard}>
                 <NatalChartWidget chart={chart} />
 
@@ -406,7 +420,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   >
                     <Ionicons name="telescope" size={32} color="#fff" />
                     <Text style={styles.viewChartText}>
-                      Посмотреть натальную{'\n'}карту с расшифровкой
+                      {t('profile.natalChart.viewChart')}
                     </Text>
                     <Ionicons name="chevron-forward" size={32} color="#fff" />
                   </LinearGradient>
@@ -431,8 +445,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     />
                     <Text style={styles.regenerateButtonText}>
                       {regeneratingChart
-                        ? 'Генерация...'
-                        : 'Регенерировать с AI'}
+                        ? t('profile.natalChart.regenerating')
+                        : t('profile.natalChart.regenerate')}
                     </Text>
                     {!regeneratingChart && (
                       <Ionicons name="chevron-forward" size={24} color="#fff" />
@@ -445,7 +459,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
           {/* Settings Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Настройки</Text>
+            <Text style={styles.sectionTitle}>
+              {t('profile.sections.settings')}
+            </Text>
 
             <View style={styles.settingsCard}>
               {/* Edit Profile */}
@@ -456,9 +472,25 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <View style={styles.settingIcon}>
                   <Ionicons name="person" size={32} color="#fff" />
                 </View>
-                <Text style={styles.settingText}>Редактировать профиль</Text>
+                <Text style={styles.settingText}>
+                  {t('profile.settings.editProfile')}
+                </Text>
                 <Ionicons name="chevron-forward" size={32} color="#fff" />
               </TouchableOpacity>
+
+              {/* Language Selector */}
+              <View style={styles.settingItem}>
+                <View style={styles.settingIcon}>
+                  <Ionicons name="language" size={32} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <LanguageSelector
+                    onLanguageChange={(lang) => {
+                      console.log('Language changed to:', lang);
+                    }}
+                  />
+                </View>
+              </View>
 
               {/* Logout */}
               <TouchableOpacity
@@ -468,7 +500,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <View style={styles.settingIcon}>
                   <Ionicons name="log-out-outline" size={32} color="#fff" />
                 </View>
-                <Text style={styles.settingText}>Выйти</Text>
+                <Text style={styles.settingText}>
+                  {t('profile.settings.logout')}
+                </Text>
                 <Ionicons name="chevron-forward" size={32} color="#fff" />
               </TouchableOpacity>
 
@@ -481,9 +515,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   <Ionicons name="trash-outline" size={32} color="#E25140" />
                 </View>
                 <View style={styles.deleteTextContainer}>
-                  <Text style={styles.deleteText}>Удалить аккаунт</Text>
+                  <Text style={styles.deleteText}>
+                    {t('profile.settings.deleteAccount')}
+                  </Text>
                   <Text style={styles.deleteSubtext}>
-                    Удалить все ваши данные на всегда
+                    {t('profile.settings.deleteAccountSubtitle')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={32} color="#E25140" />
@@ -498,7 +534,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteAccount}
-        userName={profile.name || authUser?.name || 'Пользователь'}
+        userName={
+          profile.name || authUser?.name || t('profile.defaults.userName')
+        }
       />
     </SafeAreaViewSAC>
   );

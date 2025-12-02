@@ -1,0 +1,49 @@
+{
+  "title": "Citas",
+  "subtitle": "Coincidencias astrológicas",
+  "oldTitle": "Conexiones Cósmicas",
+  "oldSubtitle": "Encuentra tu alma gemela",
+  "loading": "Buscando coincidencias...",
+  "empty": {
+    "title": "No hay más perfiles",
+    "subtitle": "Vuelve más tarde para ver nuevas personas"
+  },
+  "compatibility": {
+    "high": "Alta",
+    "medium": "Media",
+    "low": "Baja"
+  },
+  "match": {
+    "title": "✨ Coincidencia",
+    "message": "¡Tienen atracción mutua!",
+    "openChat": "Abrir chat"
+  },
+  "errors": {
+    "noUserData": "Sin datos de usuario",
+    "userNotSelected": "Usuario no seleccionado",
+    "failedToSendMessage": "Error al enviar mensaje",
+    "failedToLoad": "Error al cargar candidatos"
+  },
+  "interests": {
+    "music": "Música",
+    "sports": "Deportes",
+    "travel": "Viajes",
+    "books": "Libros",
+    "movies": "Cine",
+    "art": "Arte",
+    "cooking": "Cocina",
+    "yoga": "Yoga",
+    "meditation": "Meditación",
+    "nature": "Naturaleza"
+  },
+  "lookingFor": {
+    "relationship": "Relación seria",
+    "friendship": "Amistad",
+    "communication": "Comunicación",
+    "somethingNew": "Algo nuevo"
+  },
+  "defaults": {
+    "userName": "Usuario",
+    "userBio": "Buscando mi alma gemela entre las estrellas ✨"
+  }
+}

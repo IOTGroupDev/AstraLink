@@ -1,0 +1,72 @@
+{
+  "buttons": {
+    "ok": "ОК",
+    "cancel": "Отмена",
+    "close": "Закрыть",
+    "save": "Сохранить",
+    "delete": "Удалить",
+    "back": "Назад",
+    "next": "Далее",
+    "confirm": "Подтвердить",
+    "retry": "Повторить",
+    "send": "Отправить",
+    "edit": "Редактировать",
+    "primary": "Главное"
+  },
+  "selectUpTo": "Выберите до {{count}}",
+  "in": "в",
+  "errors": {
+    "generic": "Ошибка",
+    "network": "Ошибка сети. Попробуйте ещё раз.",
+    "unknown": "Произошла неизвестная ошибка",
+    "sessionExpired": "Сессия истекла",
+    "pleaseLoginAgain": "Пожалуйста, войдите снова.",
+    "failedToLoad": "Не удалось загрузить данные",
+    "tryAgainLater": "Попробуйте позже."
+  },
+  "loading": {
+    "loading": "Загрузка...",
+    "pleaseWait": "Пожалуйста, подождите",
+    "loadingApp": "Загрузка приложения...",
+    "processing": "Обработка..."
+  },
+  "zodiacSigns": {
+    "aries": "Овен",
+    "taurus": "Телец",
+    "gemini": "Близнецы",
+    "cancer": "Рак",
+    "leo": "Лев",
+    "virgo": "Дева",
+    "libra": "Весы",
+    "scorpio": "Скорпион",
+    "sagittarius": "Стрелец",
+    "capricorn": "Козерог",
+    "aquarius": "Водолей",
+    "pisces": "Рыбы"
+  },
+  "elements": {
+    "fire": "Огонь",
+    "water": "Вода",
+    "earth": "Земля",
+    "air": "Воздух"
+  },
+  "planets": {
+    "sun": "Солнце",
+    "moon": "Луна",
+    "mercury": "Меркурий",
+    "venus": "Венера",
+    "mars": "Марс",
+    "jupiter": "Юпитер",
+    "saturn": "Сатурн",
+    "uranus": "Уран",
+    "neptune": "Нептун",
+    "pluto": "Плутон"
+  },
+  "aspects": {
+    "conjunction": "соединение",
+    "opposition": "оппозиция",
+    "trine": "трин",
+    "square": "квадрат",
+    "sextile": "секстиль"
+  }
+}

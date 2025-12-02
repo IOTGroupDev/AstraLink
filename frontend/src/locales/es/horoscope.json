@@ -1,0 +1,33 @@
+{
+  "title": "Horóscopo",
+  "subtitle": "El cosmos para ti{{name}}",
+  "positionsOn": "Posiciones en {{date}}",
+  "loading": "Cargando datos...",
+  "energy": {
+    "veryHigh": "¡Hoy es un gran día para la actividad!",
+    "high": "Buena energía para lograr objetivos",
+    "moderate": "Energía moderada, mantén el equilibrio",
+    "low": "Energía baja, descansa",
+    "veryLow": "Energía muy baja, conserva tus fuerzas"
+  },
+  "errors": {
+    "chartNotFound": "Carta no encontrada",
+    "createChartTitle": "Es necesario crear la carta natal",
+    "createChartFirst": "Por favor completa tus datos de nacimiento en tu perfil para crear una carta astrológica.",
+    "failedToLoad": "Error al cargar pronósticos. Por favor actualiza la página."
+  },
+  "transit": {
+    "description": "{{planetA}} forma {{aspect}} con {{planetB}}"
+  },
+  "biorhythms": {
+    "title": "Biorritmos",
+    "physical": "Físico",
+    "emotional": "Emocional",
+    "intellectual": "Intelectual"
+  },
+  "periods": {
+    "day": "Hoy",
+    "tomorrow": "Mañana",
+    "week": "Esta semana"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "title": "Mi perfil\ncósmico",
+  "sections": {
+    "subscription": "Suscripción",
+    "natalChart": "Carta Natal",
+    "settings": "Configuración"
+  },
+  "natalChart": {
+    "viewChart": "Ver carta natal\ncon interpretación",
+    "regenerate": "Regenerar con IA",
+    "regenerating": "Generando..."
+  },
+  "settings": {
+    "editProfile": "Editar perfil",
+    "language": "Idioma",
+    "logout": "Cerrar sesión",
+    "deleteAccount": "Eliminar cuenta",
+    "deleteAccountSubtitle": "Eliminar todos tus datos para siempre"
+  },
+  "logout": {
+    "title": "Cerrar sesión",
+    "message": "¿Estás seguro de que quieres cerrar sesión?",
+    "confirm": "Cerrar sesión"
+  },
+  "deleteAccount": {
+    "title": "Cuenta eliminada",
+    "message": "Tu cuenta y todos los datos han sido eliminados permanentemente."
+  },
+  "errors": {
+    "profileNotFound": "Perfil no encontrado",
+    "failedToLoad": "Error al cargar datos del perfil",
+    "failedToDelete": "Error al eliminar cuenta. Inténtalo más tarde.",
+    "failedToRegenerate": "Error al regenerar carta. Inténtalo más tarde."
+  },
+  "success": {
+    "regenerated": "Éxito"
+  },
+  "limitation": {
+    "title": "Limitación"
+  },
+  "defaults": {
+    "userName": "Usuario"
+  }
+}

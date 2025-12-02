@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chartAPI } from '../services/api';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
@@ -60,19 +61,7 @@ interface ChartData {
   interpretation?: any;
 }
 
-const PLANET_NAMES: Record<string, string> = {
-  sun: 'Солнце',
-  moon: 'Луна',
-  mercury: 'Меркурий',
-  venus: 'Венера',
-  mars: 'Марс',
-  jupiter: 'Юпитер',
-  saturn: 'Сатурн',
-  uranus: 'Уран',
-  neptune: 'Нептун',
-  pluto: 'Плутон',
-};
-
+// Planet symbols remain constant across languages
 const PLANET_SYMBOLS: Record<string, string> = {
   sun: '☉',
   moon: '☽',
@@ -84,14 +73,6 @@ const PLANET_SYMBOLS: Record<string, string> = {
   uranus: '♅',
   neptune: '♆',
   pluto: '♇',
-};
-
-const ASPECT_NAMES: Record<string, string> = {
-  conjunction: 'Соединение',
-  opposition: 'Оппозиция',
-  trine: 'Тригон',
-  square: 'Квадрат',
-  sextile: 'Секстиль',
 };
 
 const ASPECT_SYMBOLS: Record<string, string> = {
@@ -138,6 +119,7 @@ const getHouseForLongitude = (
 };
 
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -168,7 +150,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       setChartData(data);
     } catch (error: any) {
       logger.error('Ошибка загрузки натальной карты', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить натальную карту');
+      Alert.alert(
+        t('common.errors.generic'),
+        t('natalChart.errors.failedToLoad')
+      );
     } finally {
       setLoading(false);
     }
@@ -195,9 +180,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       <TabScreenLayout>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#8B5CF6" />
-          <Text style={styles.errorText}>Натальная карта не найдена</Text>
+          <Text style={styles.errorText}>
+            {t('natalChart.errors.notFound')}
+          </Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadChartData}>
-            <Text style={styles.retryButtonText}>Повторить</Text>
+            <Text style={styles.retryButtonText}>
+              {t('natalChart.buttons.retry')}
+            </Text>
           </TouchableOpacity>
         </View>
       </TabScreenLayout>
@@ -218,11 +207,27 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       | 'git-network-outline'
       | 'document-text-outline';
   }> = [
-    { id: 'overview', label: 'Обзор', icon: 'star-outline' },
-    { id: 'planets', label: 'Планеты', icon: 'planet-outline' },
-    { id: 'houses', label: 'Дома', icon: 'home-outline' },
-    { id: 'aspects', label: 'Аспекты', icon: 'git-network-outline' },
-    { id: 'summary', label: 'Резюме', icon: 'document-text-outline' },
+    {
+      id: 'overview',
+      label: t('natalChart.tabs.overview'),
+      icon: 'star-outline',
+    },
+    {
+      id: 'planets',
+      label: t('natalChart.tabs.planets'),
+      icon: 'planet-outline',
+    },
+    { id: 'houses', label: t('natalChart.tabs.houses'), icon: 'home-outline' },
+    {
+      id: 'aspects',
+      label: t('natalChart.tabs.aspects'),
+      icon: 'git-network-outline',
+    },
+    {
+      id: 'summary',
+      label: t('natalChart.tabs.summary'),
+      icon: 'document-text-outline',
+    },
   ];
 
   // Основная информация
@@ -291,12 +296,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {/* Основная тройка */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
-            <Text style={styles.cardTitle}>Большая Тройка</Text>
+            <Text style={styles.cardTitle}>
+              {t('natalChart.bigThree.title')}
+            </Text>
 
             <View style={styles.bigThreeRow}>
               <View style={styles.bigThreeItem}>
                 <Text style={styles.bigThreeSymbol}>☉</Text>
-                <Text style={styles.bigThreeLabel}>Солнце</Text>
+                <Text style={styles.bigThreeLabel}>
+                  {t('natalChart.bigThree.sun')}
+                </Text>
                 <Text style={styles.bigThreeValue}>{sunSign}</Text>
                 <Text style={styles.bigThreeDegree}>
                   {formatDegree(planets.sun?.degree || 0)}
@@ -305,7 +314,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
               <View style={styles.bigThreeItem}>
                 <Text style={styles.bigThreeSymbol}>☽</Text>
-                <Text style={styles.bigThreeLabel}>Луна</Text>
+                <Text style={styles.bigThreeLabel}>
+                  {t('natalChart.bigThree.moon')}
+                </Text>
                 <Text style={styles.bigThreeValue}>{moonSign}</Text>
                 <Text style={styles.bigThreeDegree}>
                   {formatDegree(planets.moon?.degree || 0)}
@@ -314,7 +325,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
               <View style={styles.bigThreeItem}>
                 <Text style={styles.bigThreeSymbol}>ASC</Text>
-                <Text style={styles.bigThreeLabel}>Асцендент</Text>
+                <Text style={styles.bigThreeLabel}>
+                  {t('natalChart.bigThree.ascendant')}
+                </Text>
                 <Text style={styles.bigThreeValue}>{ascSign}</Text>
                 <Text style={styles.bigThreeDegree}>
                   {formatDegree(ascendant?.degree || 0)}
@@ -327,23 +340,31 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {/* Статистика карты */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
-            <Text style={styles.cardTitle}>Статистика карты</Text>
+            <Text style={styles.cardTitle}>
+              {t('natalChart.statistics.title')}
+            </Text>
 
             <View style={styles.statRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Планеты</Text>
+                <Text style={styles.statLabel}>
+                  {t('natalChart.statistics.planets')}
+                </Text>
                 <Text style={styles.statValue}>
                   {planets ? Object.keys(planets).length : 0}
                 </Text>
               </View>
 
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Аспекты</Text>
+                <Text style={styles.statLabel}>
+                  {t('natalChart.statistics.aspects')}
+                </Text>
                 <Text style={styles.statValue}>{aspects?.length || 0}</Text>
               </View>
 
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Ретроградных</Text>
+                <Text style={styles.statLabel}>
+                  {t('natalChart.statistics.retrograde')}
+                </Text>
                 <Text style={styles.statValue}>{retrogradeCount}</Text>
               </View>
             </View>
@@ -352,7 +373,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
             <View style={styles.statRow}>
               <View style={styles.statItemFull}>
-                <Text style={styles.statLabel}>Доминирующий элемент</Text>
+                <Text style={styles.statLabel}>
+                  {t('natalChart.statistics.dominantElement')}
+                </Text>
                 <Text style={styles.statValueLarge}>
                   {dominantElement?.[0]?.toUpperCase() || 'N/A'} (
                   {dominantElement?.[1] || 0})
@@ -362,7 +385,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
             <View style={styles.statRow}>
               <View style={styles.statItemFull}>
-                <Text style={styles.statLabel}>Доминирующее качество</Text>
+                <Text style={styles.statLabel}>
+                  {t('natalChart.statistics.dominantModality')}
+                </Text>
                 <Text style={styles.statValueLarge}>
                   {dominantQuality?.[0]?.toUpperCase() || 'N/A'} (
                   {dominantQuality?.[1] || 0})
@@ -375,12 +400,14 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {/* Углы карты */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
-            <Text style={styles.cardTitle}>Углы карты</Text>
+            <Text style={styles.cardTitle}>{t('natalChart.angles.title')}</Text>
 
             <View style={styles.angleItem}>
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>ASC</Text>
-                <Text style={styles.angleLabel}>Асцендент (1 дом)</Text>
+                <Text style={styles.angleLabel}>
+                  {t('natalChart.angles.ascendant')}
+                </Text>
               </View>
               <Text style={styles.angleValue}>
                 {ascendant?.sign} {formatDegree(ascendant?.degree || 0)}
@@ -392,7 +419,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.angleItem}>
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>MC</Text>
-                <Text style={styles.angleLabel}>Середина неба (10 дом)</Text>
+                <Text style={styles.angleLabel}>
+                  {t('natalChart.angles.midheaven')}
+                </Text>
               </View>
               <Text style={styles.angleValue}>
                 {midheaven?.sign} {formatDegree(midheaven?.degree || 0)}
@@ -404,7 +433,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.angleItem}>
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>DSC</Text>
-                <Text style={styles.angleLabel}>Десцендент (7 дом)</Text>
+                <Text style={styles.angleLabel}>
+                  {t('natalChart.angles.descendant')}
+                </Text>
               </View>
               <Text style={styles.angleValue}>
                 {houses?.[7]?.sign || 'N/A'}{' '}
@@ -417,7 +448,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.angleItem}>
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>IC</Text>
-                <Text style={styles.angleLabel}>Нижнее небо (4 дом)</Text>
+                <Text style={styles.angleLabel}>
+                  {t('natalChart.angles.ic')}
+                </Text>
               </View>
               <Text style={styles.angleValue}>
                 {houses?.[4]?.sign || 'N/A'}{' '}
@@ -439,7 +472,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {Object.entries(planets).map(([key, planet]) => {
           if (!planet) return null;
 
-          const name = PLANET_NAMES[key] || key;
+          const name = t(`common.planets.${key}`);
           const symbol = PLANET_SYMBOLS[key] || '●';
           const house = getHouseForLongitude(
             planet.longitude || 0,
@@ -455,7 +488,8 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                     <View>
                       <Text style={styles.planetName}>{name}</Text>
                       <Text style={styles.planetSign}>
-                        в {planet.sign || 'N/A'} {formatDegree(planet.degree)}
+                        {t('common.in')} {planet.sign || 'N/A'}{' '}
+                        {formatDegree(planet.degree)}
                       </Text>
                     </View>
                   </View>
@@ -470,28 +504,36 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
                 <View style={styles.planetDetails}>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Долгота:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.planetDetails.longitude')}
+                    </Text>
                     <Text style={styles.detailValue}>
                       {(planet.longitude || 0).toFixed(2)}°
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Широта:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.planetDetails.latitude')}
+                    </Text>
                     <Text style={styles.detailValue}>
                       {(planet.latitude || 0).toFixed(2)}°
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Скорость:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.planetDetails.speed')}
+                    </Text>
                     <Text style={styles.detailValue}>
                       {(planet.speed || 0).toFixed(4)}°/день
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Дом:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.planetDetails.house')}
+                    </Text>
                     <Text style={styles.detailValue}>{house}</Text>
                   </View>
                 </View>
@@ -524,20 +566,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const renderHouses = () => {
     if (!houses) return null;
 
-    const houseThemes = [
-      'Личность, внешность, начало',
-      'Деньги, ресурсы, ценности',
-      'Общение, обучение, близкое окружение',
-      'Дом, семья, корни',
-      'Творчество, дети, романтика',
-      'Здоровье, работа, служение',
-      'Партнерство, брак, контракты',
-      'Трансформация, общие ресурсы',
-      'Философия, путешествия, высшее образование',
-      'Карьера, статус, призвание',
-      'Дружба, сообщества, мечты',
-      'Подсознание, изоляция, духовность',
-    ];
+    const houseThemes: string[] = t('natalChart.houses.themes', {
+      returnObjects: true,
+    }) as string[];
 
     return (
       <View style={styles.content}>
@@ -559,7 +590,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 <View style={styles.houseHeader}>
                   <Text style={styles.houseNumber}>{num}</Text>
                   <View style={styles.houseInfo}>
-                    <Text style={styles.houseName}>Дом {num}</Text>
+                    <Text style={styles.houseName}>
+                      {t('natalChart.houses.house', { num })}
+                    </Text>
                     <Text style={styles.houseSign}>
                       {house.sign || 'N/A'}{' '}
                       {house.cusp ? formatDegree(house.cusp % 30) : ''}
@@ -574,7 +607,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                     <View style={styles.divider} />
                     <View style={styles.housePlanets}>
                       <Text style={styles.housePlanetsLabel}>
-                        Планеты в доме:
+                        {t('natalChart.houses.planetsInHouse')}
                       </Text>
                       <View style={styles.planetChips}>
                         {planetsInHouse.map(([key, planet]) => (
@@ -583,7 +616,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                               {PLANET_SYMBOLS[key] || '●'}
                             </Text>
                             <Text style={styles.planetChipText}>
-                              {PLANET_NAMES[key] || key}
+                              {t(`common.planets.${key}`)}
                             </Text>
                           </View>
                         ))}
@@ -621,7 +654,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         <View style={styles.content}>
           <BlurView intensity={20} tint="dark" style={styles.card}>
             <View style={styles.cardInner}>
-              <Text style={styles.cardTitle}>Нет аспектов</Text>
+              <Text style={styles.cardTitle}>
+                {t('natalChart.aspectsStats.noAspects')}
+              </Text>
             </View>
           </BlurView>
         </View>
@@ -642,7 +677,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {/* Статистика аспектов */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
-            <Text style={styles.cardTitle}>Статистика аспектов</Text>
+            <Text style={styles.cardTitle}>
+              {t('natalChart.aspectsStats.title')}
+            </Text>
             <View style={styles.aspectStats}>
               {Object.entries(groupedAspects).map(([type, list]) => (
                 <View key={type} style={styles.aspectStatItem}>
@@ -655,7 +692,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                     {ASPECT_SYMBOLS[type] || '●'}
                   </Text>
                   <Text style={styles.aspectStatLabel}>
-                    {ASPECT_NAMES[type] || type}
+                    {t(`common.aspects.${type}`)}
                   </Text>
                   <Text style={styles.aspectStatValue}>{list.length}</Text>
                 </View>
@@ -668,9 +705,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {aspects.map((aspect, idx) => {
           if (!aspect) return null;
 
-          const planetA = PLANET_NAMES[aspect.planetA] || aspect.planetA;
-          const planetB = PLANET_NAMES[aspect.planetB] || aspect.planetB;
-          const aspectName = ASPECT_NAMES[aspect.aspect] || aspect.aspect;
+          const planetA = t(`common.planets.${aspect.planetA}`);
+          const planetB = t(`common.planets.${aspect.planetB}`);
+          const aspectName = t(`common.aspects.${aspect.aspect}`);
           const symbolA = PLANET_SYMBOLS[aspect.planetA] || '●';
           const symbolB = PLANET_SYMBOLS[aspect.planetB] || '●';
           const aspectSymbol = ASPECT_SYMBOLS[aspect.aspect] || '●';
@@ -708,23 +745,31 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
                 <View style={styles.aspectDetails}>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Угол:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.aspectDetails.angle')}
+                    </Text>
                     <Text style={styles.detailValue}>
                       {(aspect.angle || 0).toFixed(2)}°
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Орб:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.aspectDetails.orb')}
+                    </Text>
                     <Text style={styles.detailValue}>
                       {Math.abs(aspect.orb || 0).toFixed(2)}°
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Тип:</Text>
+                    <Text style={styles.detailLabel}>
+                      {t('natalChart.aspectDetails.type')}
+                    </Text>
                     <Text style={styles.detailValue}>
-                      {aspect.applying ? 'Сходящийся' : 'Расходящийся'}
+                      {aspect.applying
+                        ? t('natalChart.aspectDetails.applying')
+                        : t('natalChart.aspectDetails.separating')}
                     </Text>
                   </View>
                 </View>
@@ -782,12 +827,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   color="#FF6B35"
                 />
                 <Text style={styles.summaryTitle}>
-                  Интерпретация недоступна
+                  {t('natalChart.summary.interpretationUnavailable')}
                 </Text>
               </View>
               <Text style={styles.summarySubtext}>
-                Данные интерпретации натальной карты не загружены.{'\n\n'}
-                Попробуйте обновить страницу.
+                {t('natalChart.summary.interpretationNotLoaded')}
+                {'\n\n'}
+                {t('natalChart.summary.tryRefresh')}
               </Text>
             </View>
           </BlurView>
@@ -806,12 +852,14 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   size={24}
                   color="#8B5CF6"
                 />
-                <Text style={styles.summaryTitle}>Резюме формируется</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.summaryInProgress')}
+                </Text>
               </View>
               <Text style={styles.summarySubtext}>
-                Полное резюме личности пока не сформировано.{'\n\n'}
-                Данные доступны в других вкладках: Обзор, Планеты, Дома,
-                Аспекты.
+                {t('natalChart.summary.summaryNotFormed')}
+                {'\n\n'}
+                {t('natalChart.summary.dataAvailableInOtherTabs')}
               </Text>
             </View>
           </BlurView>
@@ -827,7 +875,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="compass-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.summaryTitle}>Жизненная цель</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.lifePurpose')}
+                </Text>
               </View>
               <Text style={styles.summaryText}>{summary.lifePurpose}</Text>
             </View>
@@ -840,7 +890,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="person-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.summaryTitle}>Личностные качества</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.personalityTraits')}
+                </Text>
               </View>
               <View style={styles.traitsList}>
                 {summary.personalityTraits.map((trait: string, idx: number) => (
@@ -860,7 +912,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="sparkles-outline" size={24} color="#FFD700" />
-                <Text style={styles.summaryTitle}>Таланты и дары</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.talents')}
+                </Text>
               </View>
               <View style={styles.traitsList}>
                 {summary.talents.map((talent: string, idx: number) => (
@@ -880,7 +934,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="book-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.summaryTitle}>Жизненные темы</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.lifeThemes')}
+                </Text>
               </View>
               <View style={styles.traitsList}>
                 {summary.lifeThemes.map((theme: string, idx: number) => (
@@ -900,7 +956,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="school-outline" size={24} color="#FF6B35" />
-                <Text style={styles.summaryTitle}>Кармические уроки</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.karmaLessons')}
+                </Text>
               </View>
               <View style={styles.traitsList}>
                 {summary.karmaLessons.map((lesson: string, idx: number) => (
@@ -922,7 +980,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="heart-outline" size={24} color="#FF6B6B" />
-                <Text style={styles.summaryTitle}>Отношения</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.relationships')}
+                </Text>
               </View>
               <Text style={styles.summaryText}>{summary.relationships}</Text>
             </View>
@@ -935,7 +995,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="briefcase-outline" size={24} color="#4ECDC4" />
-                <Text style={styles.summaryTitle}>Карьерный путь</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.careerPath')}
+                </Text>
               </View>
               <Text style={styles.summaryText}>{summary.careerPath}</Text>
             </View>
@@ -948,7 +1010,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="flame-outline" size={24} color="#9B59B6" />
-                <Text style={styles.summaryTitle}>Духовный путь</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.spiritualPath')}
+                </Text>
               </View>
               <Text style={styles.summaryText}>{summary.spiritualPath}</Text>
             </View>
@@ -961,7 +1025,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="fitness-outline" size={24} color="#4ECDC4" />
-                <Text style={styles.summaryTitle}>Здоровье</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.healthFocus')}
+                </Text>
               </View>
               <Text style={styles.summaryText}>{summary.healthFocus}</Text>
             </View>
@@ -974,7 +1040,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="cash-outline" size={24} color="#FFD700" />
-                <Text style={styles.summaryTitle}>Финансовый подход</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.financialApproach')}
+                </Text>
               </View>
               <Text style={styles.summaryText}>
                 {summary.financialApproach}
@@ -989,7 +1057,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="water-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.summaryTitle}>Доминирующие элементы</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.dominantElements')}
+                </Text>
               </View>
               <View style={styles.chipContainer}>
                 {summary.dominantElements.map(
@@ -1010,7 +1080,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="settings-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.summaryTitle}>Доминирующие качества</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.dominantQualities')}
+                </Text>
               </View>
               <View style={styles.chipContainer}>
                 {summary.dominantQualities.map(
@@ -1031,7 +1103,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
                 <Ionicons name="bulb-outline" size={24} color="#FFD700" />
-                <Text style={styles.summaryTitle}>Рекомендации</Text>
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.recommendations')}
+                </Text>
               </View>
               <View style={styles.traitsList}>
                 {summary.recommendations.map(
@@ -1081,10 +1155,8 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           <View style={styles.headerIconContainer}>
             <Ionicons name="planet" size={60} color="#8B5CF6" />
           </View>
-          <Text style={styles.headerTitle}>Натальная карта</Text>
-          <Text style={styles.headerSubtitle}>
-            Полный астрологический анализ
-          </Text>
+          <Text style={styles.headerTitle}>{t('natalChart.title')}</Text>
+          <Text style={styles.headerSubtitle}>{t('natalChart.subtitle')}</Text>
         </BlurView>
 
         {/* Вкладки */}
