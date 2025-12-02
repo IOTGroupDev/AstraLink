@@ -9,6 +9,7 @@ import editProfile from './editProfile.json';
 import natalChart from './natalChart.json';
 import subscription from './subscription.json';
 import advisor from './advisor.json';
+import personalCode from './personalCode.json';
 
 export default {
   common,
@@ -22,4 +23,5 @@ export default {
   natalChart,
   subscription,
   advisor,
+  personalCode,
 };
