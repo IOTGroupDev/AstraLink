@@ -1,4 +1,11 @@
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import * as winston from 'winston';
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.simple(),
+  transports: [new winston.transports.Console()],
+});
 
 /**
  * Get CORS configuration based on environment
@@ -15,7 +22,7 @@ export const getCorsConfig = (): CorsOptions => {
       .filter(Boolean);
 
     if (allowedOrigins.length === 0) {
-      console.warn(
+      logger.warn(
         '⚠️  WARNING: No ALLOWED_ORIGINS configured for production. CORS will reject all browser requests.',
       );
     }

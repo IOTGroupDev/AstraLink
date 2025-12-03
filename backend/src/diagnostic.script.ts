@@ -4,32 +4,42 @@
 
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
+import * as winston from 'winston';
 
 dotenv.config();
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.simple(),
+  ),
+  transports: [new winston.transports.Console()],
+});
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const anonKey = process.env.SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log('🔍 ДИАГНОСТИКА ASTRALINK\n');
-console.log('====================================');
+logger.info('🔍 ДИАГНОСТИКА ASTRALINK\n');
+logger.info('====================================');
 
 // 1. Проверка переменных окружения
-console.log('\n1️⃣ Проверка переменных окружения:');
-console.log('   SUPABASE_URL:', supabaseUrl ? '✅' : '❌ НЕ УСТАНОВЛЕН');
-console.log(
-  '   SUPABASE_ANON_KEY:',
-  anonKey ? `✅ (${anonKey.substring(0, 20)}...)` : '❌ НЕ УСТАНОВЛЕН',
+logger.info('\n1️⃣ Проверка переменных окружения:');
+logger.info('   SUPABASE_URL: ' + (supabaseUrl ? '✅' : '❌ НЕ УСТАНОВЛЕН'));
+logger.info(
+  '   SUPABASE_ANON_KEY: ' +
+    (anonKey ? `✅ (${anonKey.substring(0, 20)}...)` : '❌ НЕ УСТАНОВЛЕН'),
 );
-console.log(
-  '   SUPABASE_SERVICE_ROLE_KEY:',
-  serviceRoleKey
-    ? `✅ (${serviceRoleKey.substring(0, 20)}...)`
-    : '❌ НЕ УСТАНОВЛЕН',
+logger.info(
+  '   SUPABASE_SERVICE_ROLE_KEY: ' +
+    (serviceRoleKey
+      ? `✅ (${serviceRoleKey.substring(0, 20)}...)`
+      : '❌ НЕ УСТАНОВЛЕН'),
 );
 
 if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-  console.error(
+  logger.error(
     '\n❌ КРИТИЧЕСКАЯ ОШИБКА: Не все переменные окружения установлены!',
   );
   process.exit(1);
@@ -39,26 +49,26 @@ const adminClient = createClient(supabaseUrl, serviceRoleKey);
 const regularClient = createClient(supabaseUrl, anonKey);
 
 async function runDiagnostics() {
-  console.log('\n====================================\n');
+  logger.info('\n====================================\n');
 
   // 2. Проверка подключения к Supabase
-  console.log('2️⃣ Проверка подключения к Supabase:');
+  logger.info('2️⃣ Проверка подключения к Supabase:');
   try {
     const { error } = await adminClient
       .from('_test_connection')
       .select('*')
       .limit(1);
     if (error && error.code !== 'PGRST204') {
-      console.log('   ✅ Подключение установлено');
+      logger.info('   ✅ Подключение установлено');
     } else {
-      console.log('   ✅ Подключение установлено');
+      logger.info('   ✅ Подключение установлено');
     }
   } catch (_error) {
-    console.log('   ✅ Подключение установлено (ошибка таблицы - норма)');
+    logger.info('   ✅ Подключение установлено (ошибка таблицы - норма)');
   }
 
   // 3. Проверка существования таблиц
-  console.log('\n3️⃣ Проверка существования таблиц:');
+  logger.info('\n3️⃣ Проверка существования таблиц:');
   const tables = [
     'users',
     'subscriptions',
@@ -72,14 +82,14 @@ async function runDiagnostics() {
     const { data, error } = await adminClient.from(table).select('*').limit(1);
 
     if (error) {
-      console.log(`   ❌ ${table}: ${error.message}`);
+      logger.info(`   ❌ ${table}: ${error.message}`);
     } else {
-      console.log(`   ✅ ${table}: существует (записей: ${data?.length || 0})`);
+      logger.info(`   ✅ ${table}: существует (записей: ${data?.length || 0})`);
     }
   }
 
   // 4. Проверка структуры таблицы subscriptions
-  console.log('\n4️⃣ Структура таблицы subscriptions:');
+  logger.info('\n4️⃣ Структура таблицы subscriptions:');
   try {
     const { data, error } = await adminClient
       .from('subscriptions')
@@ -87,26 +97,26 @@ async function runDiagnostics() {
       .limit(1);
 
     if (error) {
-      console.log(`   ❌ Ошибка: ${error.message}`);
-      console.log(`   📝 Детали:`, error);
+      logger.info(`   ❌ Ошибка: ${error.message}`);
+      logger.info(`   📝 Детали: ${JSON.stringify(error)}`);
     } else {
-      console.log('   ✅ Таблица существует и доступна');
+      logger.info('   ✅ Таблица существует и доступна');
       if (data && data.length > 0) {
-        console.log('   📋 Пример записи:', JSON.stringify(data[0], null, 2));
+        logger.info('   📋 Пример записи: ' + JSON.stringify(data[0], null, 2));
       } else {
-        console.log('   📋 Таблица пуста (это нормально)');
+        logger.info('   📋 Таблица пуста (это нормально)');
       }
     }
   } catch (error) {
-    console.log(`   ❌ Критическая ошибка:`, error);
+    logger.error(`   ❌ Критическая ошибка: ${error}`);
   }
 
   // 5. Проверка RLS политик
-  console.log('\n5️⃣ Проверка RLS политик:');
+  logger.info('\n5️⃣ Проверка RLS политик:');
   try {
     const { data, error } = await adminClient.rpc('exec_sql', {
       sql: `
-        SELECT 
+        SELECT
           schemaname,
           tablename,
           policyname,
@@ -115,32 +125,32 @@ async function runDiagnostics() {
           cmd,
           qual::text,
           with_check::text
-        FROM pg_policies 
-        WHERE schemaname = 'public' 
+        FROM pg_policies
+        WHERE schemaname = 'public'
           AND tablename = 'subscriptions'
         ORDER BY policyname;
       `,
     });
 
     if (error) {
-      console.log(
+      logger.info(
         '   ⚠️  Не удалось проверить RLS политики (требуется SQL функция)',
       );
-      console.log('   💡 Проверьте вручную в Supabase Dashboard');
+      logger.info('   💡 Проверьте вручную в Supabase Dashboard');
     } else if (data && data.length > 0) {
-      console.log('   ✅ RLS политики найдены:');
+      logger.info('   ✅ RLS политики найдены:');
       data.forEach((policy: any) => {
-        console.log(`      - ${policy.policyname} (${policy.cmd})`);
+        logger.info(`      - ${policy.policyname} (${policy.cmd})`);
       });
     } else {
-      console.log('   ❌ RLS политики НЕ НАЙДЕНЫ! Это проблема!');
+      logger.info('   ❌ RLS политики НЕ НАЙДЕНЫ! Это проблема!');
     }
   } catch (_error) {
-    console.log('   ⚠️  Проверка RLS пропущена (требуется расширенный доступ)');
+    logger.info('   ⚠️  Проверка RLS пропущена (требуется расширенный доступ)');
   }
 
   // 6. Тест создания записи с Admin Client
-  console.log('\n6️⃣ Тест создания подписки с Admin Client:');
+  logger.info('\n6️⃣ Тест создания подписки с Admin Client:');
   const testUserId = '00000000-0000-0000-0000-000000000001'; // Фейковый UUID для теста
 
   try {
@@ -152,7 +162,7 @@ async function runDiagnostics() {
       .single();
 
     if (existing) {
-      console.log('   ⚠️  Тестовая запись уже существует, удаляем...');
+      logger.info('   ⚠️  Тестовая запись уже существует, удаляем...');
       await adminClient
         .from('subscriptions')
         .delete()
@@ -171,30 +181,30 @@ async function runDiagnostics() {
       .single();
 
     if (error) {
-      console.log(`   ❌ ОШИБКА создания: ${error.message}`);
-      console.log(`   📝 Детали ошибки:`, JSON.stringify(error, null, 2));
-      console.log('\n   🔍 Возможные причины:');
-      console.log('      1. RLS политики блокируют даже service_role');
-      console.log('      2. Структура таблицы не соответствует запросу');
-      console.log(
+      logger.info(`   ❌ ОШИБКА создания: ${error.message}`);
+      logger.info(`   📝 Детали ошибки: ${JSON.stringify(error, null, 2)}`);
+      logger.info('\n   🔍 Возможные причины:');
+      logger.info('      1. RLS политики блокируют даже service_role');
+      logger.info('      2. Структура таблицы не соответствует запросу');
+      logger.info(
         '      3. Foreign key constraint на несуществующего пользователя',
       );
     } else {
-      console.log('   ✅ Запись успешно создана:', data);
+      logger.info('   ✅ Запись успешно создана: ' + JSON.stringify(data));
 
       // Удаляем тестовую запись
       await adminClient
         .from('subscriptions')
         .delete()
         .eq('user_id', testUserId);
-      console.log('   🧹 Тестовая запись удалена');
+      logger.info('   🧹 Тестовая запись удалена');
     }
   } catch (error) {
-    console.log(`   ❌ Критическая ошибка:`, error);
+    logger.error(`   ❌ Критическая ошибка: ${error}`);
   }
 
   // 7. Тест создания записи с Regular Client (должно упасть из-за RLS)
-  console.log(
+  logger.info(
     '\n7️⃣ Тест создания подписки с Regular Client (ожидается ошибка RLS):',
   );
   try {
@@ -209,9 +219,9 @@ async function runDiagnostics() {
       .single();
 
     if (error) {
-      console.log(`   ✅ Ожидаемая ошибка RLS: ${error.message}`);
+      logger.info(`   ✅ Ожидаемая ошибка RLS: ${error.message}`);
     } else {
-      console.log(
+      logger.info(
         '   ⚠️  Неожиданно: запись создана без service_role! RLS может быть отключен.',
       );
 
@@ -222,11 +232,11 @@ async function runDiagnostics() {
         .eq('user_id', testUserId);
     }
   } catch (error) {
-    console.log(`   ✅ RLS работает корректно:`, (error as Error).message);
+    logger.info(`   ✅ RLS работает корректно: ${(error as Error).message}`);
   }
 
   // 8. Проверка связи users -> subscriptions
-  console.log('\n8️⃣ Проверка foreign key constraint (users -> subscriptions):');
+  logger.info('\n8️⃣ Проверка foreign key constraint (users -> subscriptions):');
   try {
     // Создаем тестового пользователя
     const testEmail = `test-${Date.now()}@diagnostic.test`;
@@ -238,11 +248,11 @@ async function runDiagnostics() {
       });
 
     if (authError) {
-      console.log(
+      logger.info(
         `   ❌ Не удалось создать тестового пользователя: ${authError.message}`,
       );
     } else {
-      console.log(`   ✅ Тестовый пользователь создан: ${authData.user.id}`);
+      logger.info(`   ✅ Тестовый пользователь создан: ${authData.user.id}`);
 
       // Создаем запись в users
       const { error: userError } = await adminClient.from('users').insert({
@@ -252,9 +262,9 @@ async function runDiagnostics() {
       });
 
       if (userError) {
-        console.log(`   ⚠️  Ошибка создания профиля: ${userError.message}`);
+        logger.info(`   ⚠️  Ошибка создания профиля: ${userError.message}`);
       } else {
-        console.log('   ✅ Профиль пользователя создан в таблице users');
+        logger.info('   ✅ Профиль пользователя создан в таблице users');
       }
 
       // Пытаемся создать подписку
@@ -269,48 +279,48 @@ async function runDiagnostics() {
         .single();
 
       if (subError) {
-        console.log(`   ❌ Ошибка создания подписки: ${subError.message}`);
+        logger.info(`   ❌ Ошибка создания подписки: ${subError.message}`);
       } else {
-        console.log(
+        logger.info(
           '   ✅ Подписка успешно создана для тестового пользователя',
         );
-        console.log('   📋 Данные:', subData);
+        logger.info('   📋 Данные: ' + JSON.stringify(subData));
       }
 
       // Очистка: удаляем тестового пользователя
       await adminClient.auth.admin.deleteUser(authData.user.id);
-      console.log('   🧹 Тестовый пользователь удален');
+      logger.info('   🧹 Тестовый пользователь удален');
     }
   } catch (error) {
-    console.log(`   ❌ Ошибка проверки FK:`, error);
+    logger.error(`   ❌ Ошибка проверки FK: ${error}`);
   }
 
   // 9. Итоговая диагностика
-  console.log('\n====================================');
-  console.log('\n9️⃣ ИТОГОВАЯ ДИАГНОСТИКА:\n');
+  logger.info('\n====================================');
+  logger.info('\n9️⃣ ИТОГОВАЯ ДИАГНОСТИКА:\n');
 
-  console.log('📋 Чеклист:');
-  console.log(`   ${supabaseUrl ? '✅' : '❌'} SUPABASE_URL установлен`);
-  console.log(`   ${anonKey ? '✅' : '❌'} SUPABASE_ANON_KEY установлен`);
-  console.log(
+  logger.info('📋 Чеклист:');
+  logger.info(`   ${supabaseUrl ? '✅' : '❌'} SUPABASE_URL установлен`);
+  logger.info(`   ${anonKey ? '✅' : '❌'} SUPABASE_ANON_KEY установлен`);
+  logger.info(
     `   ${serviceRoleKey ? '✅' : '❌'} SUPABASE_SERVICE_ROLE_KEY установлен`,
   );
 
-  console.log('\n💡 РЕКОМЕНДАЦИИ:');
-  console.log('   1. Если тест #6 упал - проблема в структуре таблицы или RLS');
-  console.log('   2. Если тест #8 упал - проблема с foreign key constraint');
-  console.log('   3. Проверьте Supabase Dashboard → Database → subscriptions');
-  console.log('   4. Выполните SQL скрипт из артефакта "Supabase Setup SQL"');
+  logger.info('\n💡 РЕКОМЕНДАЦИИ:');
+  logger.info('   1. Если тест #6 упал - проблема в структуре таблицы или RLS');
+  logger.info('   2. Если тест #8 упал - проблема с foreign key constraint');
+  logger.info('   3. Проверьте Supabase Dashboard → Database → subscriptions');
+  logger.info('   4. Выполните SQL скрипт из артефакта "Supabase Setup SQL"');
 
-  console.log('\n====================================');
+  logger.info('\n====================================');
 }
 
 runDiagnostics()
   .then(() => {
-    console.log('\n✅ Диагностика завершена\n');
+    logger.info('\n✅ Диагностика завершена\n');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n❌ Критическая ошибка диагностики:', error);
+    logger.error('\n❌ Критическая ошибка диагностики: ' + error);
     process.exit(1);
   });

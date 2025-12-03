@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { setStoredLanguage } from '../../i18n';
+import { storageLogger } from '../../services/logger';
 
 interface Language {
   code: string;
@@ -44,7 +45,7 @@ export default function LanguageSelector({
       setModalVisible(false);
       onLanguageChange?.(languageCode);
     } catch (error) {
-      console.error('Failed to change language:', error);
+      storageLogger.error('Failed to change language:', error);
     }
   };
 

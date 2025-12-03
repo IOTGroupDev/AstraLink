@@ -486,7 +486,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <View style={{ flex: 1 }}>
                   <LanguageSelector
                     onLanguageChange={(lang) => {
-                      console.log('Language changed to:', lang);
+                      logger.log('Language changed to:', lang);
                     }}
                   />
                 </View>

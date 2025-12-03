@@ -2,7 +2,14 @@
  * Utility functions for location and timezone handling
  */
 
+import * as winston from 'winston';
 import type { LocationCoordinates } from '../types/connection';
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.simple(),
+  transports: [new winston.transports.Console()],
+});
 
 /**
  * Database of major cities with their coordinates and timezones
@@ -102,7 +109,7 @@ export function getLocationCoordinates(cityName: string): LocationCoordinates {
   }
 
   // Return default location if not found
-  console.warn(
+  logger.warn(
     `City "${cityName}" not found in database, using default location (Moscow)`,
   );
   return DEFAULT_LOCATION;

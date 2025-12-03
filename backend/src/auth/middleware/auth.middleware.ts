@@ -1,10 +1,12 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response, NextFunction } from 'express';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(AuthMiddleware.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -52,7 +54,7 @@ export class AuthMiddleware implements NestMiddleware {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      console.log('JWT verification error:', errorMessage);
+      this.logger.warn(`JWT verification error: ${errorMessage}`);
       return this.handleUnauthorized(res, 'Недействительный токен авторизации');
     }
   }

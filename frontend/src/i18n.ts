@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import en from './locales/en';
 import es from './locales/es';
 import ru from './locales/ru';
+import { storageLogger } from './services/logger';
 
 const LANGUAGE_STORAGE_KEY = '@AstraLink:language';
 
@@ -14,7 +15,7 @@ const getStoredLanguage = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
   } catch (error) {
-    console.error('Failed to get stored language:', error);
+    storageLogger.error('Failed to get stored language:', error);
     return null;
   }
 };
@@ -24,7 +25,7 @@ export const setStoredLanguage = async (language: string): Promise<void> => {
   try {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   } catch (error) {
-    console.error('Failed to store language:', error);
+    storageLogger.error('Failed to store language:', error);
   }
 };
 
