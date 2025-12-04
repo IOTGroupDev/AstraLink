@@ -49,8 +49,13 @@ RUN npm prune --production
 # ============ Stage 3: Runtime ============
 FROM node:20-alpine AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init curl
+# Install dumb-init for proper signal handling + Python for Swiss Ephemeris
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    python3 \
+    py3-pip && \
+    pip3 install --no-cache-dir pyswisseph
 
 WORKDIR /app
 
