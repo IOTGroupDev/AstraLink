@@ -65,10 +65,6 @@ prisma/migrations
 .prettierrc*
 .editorconfig
 
-# TypeScript
-tsconfig.json
-tsconfig.*.json
-
 # Misc
 .husky
 .lintstagedrc*
