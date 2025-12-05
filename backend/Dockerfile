@@ -5,6 +5,8 @@ FROM node:20-alpine3.19 AS builder
 
 WORKDIR /app
 
+RUN mkdir -p /app/ephe
+
 # Build deps для нативных модулей
 RUN apk add --no-cache \
     python3 \
@@ -49,7 +51,7 @@ COPY --from=builder /app/prisma ./prisma
 RUN npx prisma generate
 
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/ephe ./ephe 2>/dev/null || true
+COPY --from=builder --chown=nestjs:nodejs /app/ephe ./ephe
 
 RUN chown -R nestjs:nodejs /app
 
