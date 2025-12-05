@@ -27,6 +27,7 @@ import {
 } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chatAPI, userPhotosAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
@@ -52,6 +53,7 @@ type Message = {
 };
 
 export default function ChatDialogScreen() {
+  const { t, i18n } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { user, isLoading: authLoading } = useAuth();
@@ -109,9 +111,9 @@ export default function ChatDialogScreen() {
       if (!authAlertShown.current) {
         authAlertShown.current = true;
         Alert.alert(
-          'Требуется авторизация',
-          'Для использования чата необходимо войти в систему',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          t('chat.errors.authRequired'),
+          t('chat.errors.authRequiredMessage'),
+          [{ text: t('common.buttons.ok'), onPress: () => navigation.goBack() }]
         );
       }
     } else {
@@ -476,14 +478,11 @@ export default function ChatDialogScreen() {
       }, 500);
     } catch (error) {
       logger.error('Ошибка отправки сообщения', error);
-      Alert.alert(
-        'Ошибка',
-        'Не удалось отправить сообщение. Попробуйте еще раз.'
-      );
+      Alert.alert(t('common.errors.generic'), t('chat.errors.failedToSend'));
     } finally {
       setSending(false);
     }
-  }, [text, sending, otherUserId, user, fetchMessages]);
+  }, [text, sending, otherUserId, user, fetchMessages, t]);
 
   const onAttach = useCallback(async () => {
     if (uploading || sending) return;
@@ -558,11 +557,14 @@ export default function ChatDialogScreen() {
       }, 400);
     } catch (err) {
       logger.error('Ошибка загрузки вложения', err);
-      Alert.alert('Ошибка', 'Не удалось отправить файл. Попробуйте ещё раз.');
+      Alert.alert(
+        t('common.errors.generic'),
+        t('chat.errors.failedToSendFile')
+      );
     } finally {
       setUploading(false);
     }
-  }, [uploading, sending, user, otherUserId, fetchMessages]);
+  }, [uploading, sending, user, otherUserId, fetchMessages, t]);
 
   // Удаление сообщений
   const removeMessageLocal = useCallback((id: string) => {
@@ -580,10 +582,13 @@ export default function ChatDialogScreen() {
         removeMessageLocal(m.id);
       } catch (e) {
         logger.error('Удаление у себя не удалось', e);
-        Alert.alert('Ошибка', 'Не удалось удалить сообщение у вас.');
+        Alert.alert(
+          t('common.errors.generic'),
+          t('chat.errors.failedToDelete')
+        );
       }
     },
-    [removeMessageLocal]
+    [removeMessageLocal, t]
   );
 
   const handleDeleteForAll = useCallback(
@@ -598,10 +603,13 @@ export default function ChatDialogScreen() {
         removeMessageLocal(m.id);
       } catch (e) {
         logger.error('Удаление у всех не удалось', e);
-        Alert.alert('Ошибка', 'Не удалось удалить сообщение для всех.');
+        Alert.alert(
+          t('common.errors.generic'),
+          t('chat.errors.failedToDeleteForAll')
+        );
       }
     },
-    [removeMessageLocal]
+    [removeMessageLocal, t]
   );
 
   const onLongPressMessage = useCallback(
@@ -614,33 +622,41 @@ export default function ChatDialogScreen() {
       }> = [];
 
       buttons.push({
-        text: 'Удалить у меня',
+        text: t('chat.deleteMessage.deleteForMe'),
         onPress: () => handleDeleteForMe(m),
         style: 'default',
       });
 
       if (isMine && !m.id.startsWith('local-')) {
         buttons.push({
-          text: 'Удалить у всех',
+          text: t('chat.deleteMessage.deleteForAll'),
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Удалить для всех?', 'Это действие нельзя отменить.', [
-              { text: 'Отмена', style: 'cancel' },
-              {
-                text: 'Удалить',
-                style: 'destructive',
-                onPress: () => handleDeleteForAll(m),
-              },
-            ]);
+            Alert.alert(
+              t('chat.deleteMessage.confirmTitle'),
+              t('chat.deleteMessage.confirmMessage'),
+              [
+                { text: t('common.buttons.cancel'), style: 'cancel' },
+                {
+                  text: t('chat.deleteMessage.delete'),
+                  style: 'destructive',
+                  onPress: () => handleDeleteForAll(m),
+                },
+              ]
+            );
           },
         });
       }
 
-      buttons.push({ text: 'Отмена', style: 'cancel' });
+      buttons.push({ text: t('common.buttons.cancel'), style: 'cancel' });
 
-      Alert.alert('Удаление сообщения', 'Выберите действие', buttons);
+      Alert.alert(
+        t('chat.deleteMessage.title'),
+        t('chat.deleteMessage.subtitle'),
+        buttons
+      );
     },
-    [user, handleDeleteForMe, handleDeleteForAll]
+    [user, handleDeleteForMe, handleDeleteForAll, t]
   );
 
   const renderItem = useCallback(
@@ -672,23 +688,30 @@ export default function ChatDialogScreen() {
               ) : (
                 <View style={styles.mediaContainer}>
                   <Ionicons name="image" size={20} color="#fff" />
-                  <Text style={styles.msgText}>📷 Медиа</Text>
+                  <Text style={styles.msgText}>{t('chat.media.label')}</Text>
                 </View>
               )
             ) : (
               <Text style={styles.msgText}>—</Text>
             )}
             <Text style={styles.time}>
-              {new Date(item.createdAt).toLocaleTimeString('ru-RU', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              {new Date(item.createdAt).toLocaleTimeString(
+                i18n.language === 'ru'
+                  ? 'ru-RU'
+                  : i18n.language === 'es'
+                    ? 'es-ES'
+                    : 'en-US',
+                {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }
+              )}
             </Text>
           </Pressable>
         </View>
       );
     },
-    [user, onLongPressMessage]
+    [user, onLongPressMessage, t, i18n.language]
   );
 
   if (!otherUserId) {
@@ -696,14 +719,16 @@ export default function ChatDialogScreen() {
       <View style={styles.container}>
         <View style={styles.center}>
           <Ionicons name="alert-circle" size={48} color="#EF4444" />
-          <Text style={styles.error}>Не указан собеседник</Text>
+          <Text style={styles.error}>{t('chat.errors.noInterlocutor')}</Text>
           <Pressable
             style={styles.backButton}
             onPress={() =>
               navigation.navigate('MainTabs', { screen: 'Messages' })
             }
           >
-            <Text style={styles.backButtonText}>Назад</Text>
+            <Text style={styles.backButtonText}>
+              {t('common.buttons.back')}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -719,7 +744,9 @@ export default function ChatDialogScreen() {
         />
         <View style={styles.loader}>
           <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Проверка авторизации...</Text>
+          <Text style={styles.loadingText}>
+            {t('chat.loading.authorization')}
+          </Text>
         </View>
       </View>
     );
@@ -730,14 +757,16 @@ export default function ChatDialogScreen() {
       <View style={styles.container}>
         <View style={styles.center}>
           <Ionicons name="lock-closed" size={48} color="#EF4444" />
-          <Text style={styles.error}>Требуется авторизация</Text>
+          <Text style={styles.error}>{t('chat.errors.authRequired')}</Text>
           <Pressable
             style={styles.backButton}
             onPress={() =>
               navigation.navigate('MainTabs', { screen: 'Messages' })
             }
           >
-            <Text style={styles.backButtonText}>Назад</Text>
+            <Text style={styles.backButtonText}>
+              {t('common.buttons.back')}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -777,7 +806,7 @@ export default function ChatDialogScreen() {
             )}
             <View style={styles.headerTextContainer}>
               <Text style={styles.title}>{displayName || otherUserId}</Text>
-              <Text style={styles.subtitle}>В сети</Text>
+              <Text style={styles.subtitle}>{t('chat.header.online')}</Text>
             </View>
           </View>
           <View style={{ width: 40 }} />
@@ -786,7 +815,7 @@ export default function ChatDialogScreen() {
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator color="#8B5CF6" size="large" />
-            <Text style={styles.loadingText}>Загрузка сообщений...</Text>
+            <Text style={styles.loadingText}>{t('chat.loading.messages')}</Text>
           </View>
         ) : messages.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -795,8 +824,8 @@ export default function ChatDialogScreen() {
               size={64}
               color="rgba(255,255,255,0.3)"
             />
-            <Text style={styles.emptyText}>Нет сообщений</Text>
-            <Text style={styles.emptyHint}>Начните диалог!</Text>
+            <Text style={styles.emptyText}>{t('chat.empty.noMessages')}</Text>
+            <Text style={styles.emptyHint}>{t('chat.empty.startDialog')}</Text>
           </View>
         ) : (
           <FlatList
@@ -835,7 +864,7 @@ export default function ChatDialogScreen() {
               style={styles.input}
               value={text}
               onChangeText={setText}
-              placeholder="Напишите сообщение..."
+              placeholder={t('chat.input.placeholder')}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               multiline
               maxLength={1000}

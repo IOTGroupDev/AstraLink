@@ -4,14 +4,25 @@
 
 import 'dotenv/config';
 import { createClient, User } from '@supabase/supabase-js';
+import * as winston from 'winston';
 
 type CityKey = 'Москва' | 'Санкт-Петербург' | 'Екатеринбург' | 'Новосибирск';
+
+// Winston logger for seeding script
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.simple(),
+  ),
+  transports: [new winston.transports.Console()],
+});
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!SUPABASE_URL || !SERVICE_ROLE) {
-  console.error(
+  logger.error(
     '❌ Требуются SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в backend/.env',
   );
   process.exit(1);
@@ -219,7 +230,7 @@ async function replaceChart(userId: string, chartData: any) {
 }
 
 async function main() {
-  console.log('🌱 Seeding dating data...');
+  logger.info('🌱 Seeding dating data...');
 
   const usersCount = 30;
   const baseName = 'Тест';
@@ -240,16 +251,16 @@ async function main() {
       const chart = generateNatalData(birthDate, birthTime, city);
       await replaceChart(user.id, chart);
 
-      console.log(`✅ ${pad2(i)}/${usersCount} — ${email} (${city})`);
+      logger.info(`✅ ${pad2(i)}/${usersCount} — ${email} (${city})`);
     } catch (e: any) {
-      console.error(`❌ ${pad2(i)} — ${email}: ${e?.message || e}`);
+      logger.error(`❌ ${pad2(i)} — ${email}: ${e?.message || e}`);
     }
   }
 
-  console.log('🎉 Done.');
+  logger.info('🎉 Done.');
 }
 
 main().catch((e) => {
-  console.error('❌ Seed failed:', e);
+  logger.error('❌ Seed failed:', e);
   process.exit(1);
 });

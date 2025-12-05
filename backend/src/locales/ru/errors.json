@@ -1,0 +1,23 @@
+{
+  "chart": {
+    "notFound": "Натальная карта не найдена. Создайте карту сначала.",
+    "horoscopeUpdateLimit": "Вы можете обновить гороскоп только раз в сутки. Попробуйте через {{hours}} часов.",
+    "horoscopeUpdateError": "Ошибка при обновлении гороскопа. Попробуйте позже.",
+    "ephemerisCalculationError": "Ошибка расчета эфемерид",
+    "failedToLoadForMoonPhase": "Не удалось загрузить натальную карту для moon-phase",
+    "failedToLoadForLunarCalendar": "Не удалось загрузить натальную карту для lunar-calendar"
+  },
+  "auth": {
+    "magicLinkError": "Ошибка отправки магической ссылки",
+    "unauthorized": "Не авторизован",
+    "invalidCredentials": "Неверные учетные данные"
+  },
+  "validation": {
+    "invalidInput": "Неверные входные данные",
+    "requiredField": "Это поле обязательно"
+  },
+  "server": {
+    "internalError": "Внутренняя ошибка сервера",
+    "serviceUnavailable": "Сервис временно недоступен"
+  }
+}

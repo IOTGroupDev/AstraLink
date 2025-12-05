@@ -7,10 +7,12 @@
 ## Проблема
 
 **Найдено:** 263 использования console.log
+
 - Backend: 160 вхождений в 9 файлах
 - Frontend: 103 вхождения в 20 файлах
 
 **Риски:**
+
 - Невозможно контролировать уровни логирования
 - Нет structured logging для анализа
 - Логи не сохраняются в production
@@ -29,6 +31,7 @@ npm install --save-dev @types/node
 ### 2. Использование
 
 #### Before (❌ Плохо):
+
 ```typescript
 console.log('User logged in:', userId);
 console.error('Auth error:', error);
@@ -37,6 +40,7 @@ console.debug('Chart calculation:', data);
 ```
 
 #### After (✅ Хорошо):
+
 ```typescript
 import { WinstonLoggerService } from '@/common/winston-logger.service';
 
@@ -65,6 +69,7 @@ export class AuthService {
 ### Priority 1: Critical Services (сделать первыми)
 
 #### 1. Auth Files (76 console.log)
+
 ```bash
 # Files to update:
 backend/src/auth/supabase-auth.service.ts        # 76 console.log
@@ -72,6 +77,7 @@ backend/src/auth/middleware/auth.middleware.ts   # 1 console.log
 ```
 
 **Замены:**
+
 ```typescript
 // ❌ Before
 console.log(`Checking natal chart for user ${userId}`);
@@ -83,11 +89,13 @@ this.logger.error('Error getting user profile', error.stack);
 ```
 
 #### 2. Chat Service (3 console.log)
+
 ```bash
 backend/src/chat/chat.service.ts  # 3 console.log
 ```
 
 #### 3. Config Files (1 console.log)
+
 ```bash
 backend/src/config/cors.config.ts  # 1 console.log
 ```
@@ -95,17 +103,21 @@ backend/src/config/cors.config.ts  # 1 console.log
 ### Priority 2: Diagnostic & Utilities
 
 #### 4. Diagnostic Script (68 console.log - OK для диагностики)
+
 ```bash
 backend/src/diagnostic.script.ts  # 68 console.log - оставить как есть
 ```
+
 > ℹ️ Diagnostic scripts могут использовать console.log
 
 #### 5. Logging Interceptor (3 console.log)
+
 ```bash
 backend/src/common/logging.interceptor.ts  # 3 console.log
 ```
 
 Заменить на Winston:
+
 ```typescript
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new WinstonLoggerService(configService);
@@ -125,7 +137,7 @@ export class LoggingInterceptor implements NestInterceptor {
         const res = context.switchToHttp().getResponse();
         const responseTime = Date.now() - start;
         this.logger.logResponse(req, res, responseTime);
-      }),
+      })
     );
   }
 }
@@ -134,11 +146,13 @@ export class LoggingInterceptor implements NestInterceptor {
 ### Priority 3: Other Services
 
 #### 6. Location Utils (1 console.log)
+
 ```bash
 backend/src/utils/location.utils.ts  # 1 console.log
 ```
 
 #### 7. Seeds & Scripts (6 console.log)
+
 ```bash
 backend/src/scripts/seed.dating.ts  # 6 console.log
 ```
@@ -203,15 +217,16 @@ LOG_DIR=./logs
 
 ### Log Levels по окружениям:
 
-| Environment | Level | Output |
-|-------------|-------|--------|
-| Development | debug | Console (colorized) |
-| Staging | info | Console + Files |
-| Production | warn | Files only (error.log, combined.log) |
+| Environment | Level | Output                               |
+| ----------- | ----- | ------------------------------------ |
+| Development | debug | Console (colorized)                  |
+| Staging     | info  | Console + Files                      |
+| Production  | warn  | Files only (error.log, combined.log) |
 
 ## Преимущества Winston
 
 ### ✅ Structured Logging
+
 ```typescript
 this.logger.log('User action', {
   userId: '123',
@@ -232,6 +247,7 @@ this.logger.log('User action', {
 ```
 
 ### ✅ Log Rotation (добавить позже)
+
 ```bash
 npm install winston-daily-rotate-file
 ```
@@ -246,6 +262,7 @@ new winston.transports.DailyRotateFile({
 ```
 
 ### ✅ External Log Aggregation
+
 ```typescript
 // Можно добавить transports для:
 - Sentry (error tracking)
@@ -257,6 +274,7 @@ new winston.transports.DailyRotateFile({
 ## Migration Checklist
 
 ### Backend
+
 - [ ] Install Winston (`npm install winston`)
 - [ ] Create WinstonLoggerService ✅
 - [ ] Update common.module to export logger
@@ -273,6 +291,7 @@ new winston.transports.DailyRotateFile({
 - [ ] Test in production
 
 ### Frontend
+
 - [ ] Install loglevel (`npm install loglevel`)
 - [ ] Create logger service
 - [ ] Replace console.log in HoroscopeScreen.tsx (21)
@@ -288,24 +307,28 @@ new winston.transports.DailyRotateFile({
 ## Rollout Plan
 
 ### Week 1: Backend Critical Services
+
 1. Setup Winston infrastructure
 2. Migrate Auth services (77 console.log)
 3. Migrate Chat service (3 console.log)
 4. Test in staging
 
 ### Week 2: Backend Complete
+
 1. Migrate remaining backend files (10 console.log)
 2. Update all interceptors and middleware
 3. Add log rotation
 4. Production deployment
 
 ### Week 3: Frontend
+
 1. Setup loglevel infrastructure
 2. Migrate critical screens (52 console.log)
 3. Migrate API services (10 console.log)
 4. Test in staging
 
 ### Week 4: Frontend Complete & Monitoring
+
 1. Migrate remaining frontend files (41 console.log)
 2. Setup external monitoring (Sentry)
 3. Production deployment
@@ -314,6 +337,7 @@ new winston.transports.DailyRotateFile({
 ## Expected Results
 
 ### Before
+
 - ❌ 263 console.log statements
 - ❌ No log levels
 - ❌ Logs lost in production
@@ -321,6 +345,7 @@ new winston.transports.DailyRotateFile({
 - ❌ Debug logs in production
 
 ### After
+
 - ✅ 0 console.log statements
 - ✅ Proper log levels (debug/info/warn/error)
 - ✅ Logs persisted to files
@@ -381,11 +406,13 @@ this.logger.logSecurity('suspicious_activity', 'high', {
 ## Performance Impact
 
 Winston performance: **~0.1ms per log**
+
 - ✅ Minimal overhead
 - ✅ Async writes to files
 - ✅ No blocking operations
 
 Console.log: **~0.05ms per log**
+
 - ❌ But no features
 - ❌ No persistence
 - ❌ No filtering

@@ -1,0 +1,101 @@
+{
+  "title": "Natal Chart",
+  "subtitle": "Full astrological analysis",
+  "tabs": {
+    "overview": "Overview",
+    "planets": "Planets",
+    "houses": "Houses",
+    "aspects": "Aspects",
+    "summary": "Summary"
+  },
+  "errors": {
+    "notFound": "Natal chart not found",
+    "failedToLoad": "Failed to load natal chart"
+  },
+  "buttons": {
+    "retry": "Retry"
+  },
+  "bigThree": {
+    "title": "Big Three",
+    "sun": "Sun",
+    "moon": "Moon",
+    "ascendant": "Ascendant"
+  },
+  "statistics": {
+    "title": "Chart Statistics",
+    "planets": "Planets",
+    "aspects": "Aspects",
+    "retrograde": "Retrograde",
+    "dominantElement": "Dominant Element",
+    "dominantModality": "Dominant Modality"
+  },
+  "angles": {
+    "title": "Chart Angles",
+    "ascendant": "Ascendant (1st house)",
+    "midheaven": "Midheaven (10th house)",
+    "descendant": "Descendant (7th house)",
+    "ic": "Imum Coeli (4th house)"
+  },
+  "planetDetails": {
+    "longitude": "Longitude:",
+    "latitude": "Latitude:",
+    "speed": "Speed:",
+    "house": "House:",
+    "perDay": "day"
+  },
+  "houses": {
+    "house": "House {{num}}",
+    "planetsInHouse": "Planets in house:",
+    "themes": [
+      "Personality, appearance, beginnings",
+      "Money, resources, values",
+      "Communication, learning, close environment",
+      "Home, family, roots",
+      "Creativity, children, romance",
+      "Health, work, service",
+      "Partnership, marriage, contracts",
+      "Transformation, shared resources",
+      "Philosophy, travel, higher education",
+      "Career, status, calling",
+      "Friendship, communities, dreams",
+      "Subconscious, isolation, spirituality"
+    ]
+  },
+  "aspectsStats": {
+    "title": "Aspects Statistics",
+    "noAspects": "No Aspects"
+  },
+  "aspectDetails": {
+    "angle": "Angle:",
+    "orb": "Orb:",
+    "type": "Type:",
+    "applying": "Applying",
+    "separating": "Separating"
+  },
+  "summary": {
+    "interpretationUnavailable": "Interpretation unavailable",
+    "interpretationNotLoaded": "Natal chart interpretation data not loaded.",
+    "tryRefresh": "Try refreshing the page.",
+    "summaryInProgress": "Summary is being generated",
+    "summaryNotFormed": "Complete personality summary not yet formed.",
+    "dataAvailableInOtherTabs": "Data is available in other tabs: Overview, Planets, Houses, Aspects.",
+    "lifePurpose": "Life Purpose",
+    "personalityTraits": "Personality Traits",
+    "talents": "Talents and Gifts",
+    "lifeThemes": "Life Themes",
+    "karmaLessons": "Karmic Lessons",
+    "relationships": "Relationships",
+    "careerPath": "Career Path",
+    "spiritualPath": "Spiritual Path",
+    "healthFocus": "Health",
+    "financialApproach": "Financial Approach",
+    "dominantElements": "Dominant Elements",
+    "dominantQualities": "Dominant Qualities",
+    "recommendations": "Recommendations"
+  },
+  "modalities": {
+    "cardinal": "Cardinal",
+    "fixed": "Fixed",
+    "mutable": "Mutable"
+  }
+}

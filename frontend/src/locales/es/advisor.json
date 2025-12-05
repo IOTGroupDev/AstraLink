@@ -1,0 +1,66 @@
+{
+  "title": "Asesor Astral",
+  "subtitle": "¿Es un buen día para...",
+  "analysisFor": "Análisis para",
+  "topics": {
+    "contract": {
+      "label": "Contrato",
+      "description": "Firma de contratos y acuerdos"
+    },
+    "meeting": {
+      "label": "Reunión",
+      "description": "Reuniones profesionales y personales"
+    },
+    "negotiation": {
+      "label": "Negociación",
+      "description": "Negociaciones y tratos importantes"
+    },
+    "date": {
+      "label": "Cita",
+      "description": "Encuentros románticos"
+    },
+    "travel": {
+      "label": "Viaje",
+      "description": "Viajes y desplazamientos"
+    },
+    "purchase": {
+      "label": "Compra",
+      "description": "Grandes compras e inversiones"
+    },
+    "health": {
+      "label": "Salud",
+      "description": "Procedimientos médicos"
+    },
+    "custom": {
+      "label": "Otro",
+      "description": "Evaluación general del día"
+    }
+  },
+  "selectTopic": "Elige un tema",
+  "dateAnalysis": "Fecha de análisis",
+  "quickDates": {
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "nextWeek": "En una semana"
+  },
+  "context": "Contexto",
+  "optional": "(opcional)",
+  "contextPlaceholder": "Por ejemplo: reunión importante con inversor...",
+  "submit": {
+    "analyze": "Obtener consejo",
+    "analyzing": "Analizando..."
+  },
+  "errors": {
+    "requestFailed": "Error en la solicitud. Inténtalo más tarde."
+  },
+  "premium": {
+    "title": "Asesor Astral Premium",
+    "subtitle": "Recomendaciones personales basadas en tránsitos a tu carta natal",
+    "features": {
+      "hourlyAnalysis": "Análisis horario de la favorabilidad del día",
+      "aspectInterpretations": "Interpretaciones detalladas de aspectos",
+      "recommendations": "Recomendaciones para 8 áreas de la vida"
+    },
+    "getPremium": "Obtener Premium"
+  }
+}

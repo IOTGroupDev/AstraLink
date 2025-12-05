@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useSubscription } from '../hooks/useSubscription';
 import { advisorAPI } from '../services/api';
@@ -40,66 +41,27 @@ interface TopicOption {
   description: string;
 }
 
-const topics: TopicOption[] = [
-  {
-    key: 'contract',
-    label: 'Контракт',
-    icon: 'document-text',
-    gradient: ['#8B5CF6', '#6366F1'],
-    description: 'Подписание договоров и соглашений',
-  },
-  {
-    key: 'meeting',
-    label: 'Встреча',
-    icon: 'people',
-    gradient: ['#EC4899', '#F43F5E'],
-    description: 'Деловые и личные встречи',
-  },
-  {
-    key: 'negotiation',
-    label: 'Переговоры',
-    icon: 'chatbubbles',
-    gradient: ['#F59E0B', '#EAB308'],
-    description: 'Важные переговоры и сделки',
-  },
-  {
-    key: 'date',
-    label: 'Свидание',
-    icon: 'heart',
-    gradient: ['#EC4899', '#EF4444'],
-    description: 'Романтические встречи',
-  },
-  {
-    key: 'travel',
-    label: 'Путешествие',
-    icon: 'airplane',
-    gradient: ['#3B82F6', '#06B6D4'],
-    description: 'Поездки и путешествия',
-  },
-  {
-    key: 'purchase',
-    label: 'Покупка',
-    icon: 'cart',
-    gradient: ['#10B981', '#14B8A6'],
-    description: 'Крупные покупки и инвестиции',
-  },
-  {
-    key: 'health',
-    label: 'Здоровье',
-    icon: 'fitness',
-    gradient: ['#EF4444', '#F97316'],
-    description: 'Медицинские процедуры',
-  },
+const TOPIC_CONFIG: Array<{
+  key: Topic;
+  icon: keyof typeof Ionicons.glyphMap;
+  gradient: string[];
+}> = [
+  { key: 'contract', icon: 'document-text', gradient: ['#8B5CF6', '#6366F1'] },
+  { key: 'meeting', icon: 'people', gradient: ['#EC4899', '#F43F5E'] },
+  { key: 'negotiation', icon: 'chatbubbles', gradient: ['#F59E0B', '#EAB308'] },
+  { key: 'date', icon: 'heart', gradient: ['#EC4899', '#EF4444'] },
+  { key: 'travel', icon: 'airplane', gradient: ['#3B82F6', '#06B6D4'] },
+  { key: 'purchase', icon: 'cart', gradient: ['#10B981', '#14B8A6'] },
+  { key: 'health', icon: 'fitness', gradient: ['#EF4444', '#F97316'] },
   {
     key: 'custom',
-    label: 'Другое',
     icon: 'ellipsis-horizontal',
     gradient: ['#6366F1', '#8B5CF6'],
-    description: 'Общая оценка дня',
   },
 ];
 
 const AdvisorScreen: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const { isPremium } = useSubscription();
   const premium = useMemo(() => isPremium(), [isPremium]);
@@ -120,6 +82,16 @@ const AdvisorScreen: React.FC = () => {
       return 'UTC';
     }
   }, []);
+
+  const topics: TopicOption[] = useMemo(
+    () =>
+      TOPIC_CONFIG.map((config) => ({
+        ...config,
+        label: t(`advisor.topics.${config.key}.label`),
+        description: t(`advisor.topics.${config.key}.description`),
+      })),
+    [t]
+  );
 
   const selectedTopicOption = topics.find((t) => t.key === selectedTopic)!;
 
@@ -145,7 +117,7 @@ const AdvisorScreen: React.FC = () => {
         bestWindows: [],
         recommendations: [],
         explanation:
-          e?.response?.data?.message || 'Ошибка запроса. Попробуйте позже.',
+          e?.response?.data?.message || t('advisor.errors.requestFailed'),
       });
     } finally {
       setLoading(false);
@@ -161,28 +133,27 @@ const AdvisorScreen: React.FC = () => {
           style={styles.premiumGradient}
         >
           <Ionicons name="lock-closed" size={72} color="#8B5CF6" />
-          <Text style={styles.premiumTitle}>Астро-Советник Premium</Text>
+          <Text style={styles.premiumTitle}>{t('advisor.premium.title')}</Text>
           <Text style={styles.premiumSubtitle}>
-            Персональные рекомендации на основе транзитов к вашей натальной
-            карте
+            {t('advisor.premium.subtitle')}
           </Text>
           <View style={styles.premiumFeatures}>
             <View style={styles.featureRow}>
               <Ionicons name="checkmark-circle" size={20} color="#10B981" />
               <Text style={styles.featureText}>
-                Почасовой анализ благоприятности дня
+                {t('advisor.premium.features.hourlyAnalysis')}
               </Text>
             </View>
             <View style={styles.featureRow}>
               <Ionicons name="checkmark-circle" size={20} color="#10B981" />
               <Text style={styles.featureText}>
-                Детальные интерпретации аспектов
+                {t('advisor.premium.features.aspectInterpretations')}
               </Text>
             </View>
             <View style={styles.featureRow}>
               <Ionicons name="checkmark-circle" size={20} color="#10B981" />
               <Text style={styles.featureText}>
-                Рекомендации для 8 сфер жизни
+                {t('advisor.premium.features.recommendations')}
               </Text>
             </View>
           </View>
@@ -202,7 +173,9 @@ const AdvisorScreen: React.FC = () => {
               end={{ x: 1, y: 0 }}
               style={styles.premiumButtonGradient}
             >
-              <Text style={styles.premiumButtonText}>Получить Premium</Text>
+              <Text style={styles.premiumButtonText}>
+                {t('advisor.premium.getPremium')}
+              </Text>
               <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
             </LinearGradient>
           </TouchableOpacity>
@@ -229,15 +202,18 @@ const AdvisorScreen: React.FC = () => {
                 <Ionicons name="bulb" size={32} color="#FFFFFF" />
               </LinearGradient>
             </View>
-            <Text style={styles.headerTitle}>Астро-Советник</Text>
-            <Text style={styles.headerSubtitle}>Хороший ли день для...</Text>
+            <Text style={styles.headerTitle}>{t('advisor.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('advisor.subtitle')}</Text>
             <Text style={styles.headerDate}>
-              Анализ на{' '}
-              {new Date(date).toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
+              {t('advisor.analysisFor')}{' '}
+              {new Date(date).toLocaleDateString(
+                i18n.language === 'ru'
+                  ? 'ru-RU'
+                  : i18n.language === 'es'
+                    ? 'es-ES'
+                    : 'en-US',
+                { day: 'numeric', month: 'long', year: 'numeric' }
+              )}
             </Text>
           </BlurView>
 
@@ -247,7 +223,9 @@ const AdvisorScreen: React.FC = () => {
             <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="grid" size={20} color="#8B5CF6" />
-                <Text style={styles.sectionTitle}>Выберите тему</Text>
+                <Text style={styles.sectionTitle}>
+                  {t('advisor.selectTopic')}
+                </Text>
               </View>
 
               <View style={styles.topicGrid}>
@@ -308,7 +286,9 @@ const AdvisorScreen: React.FC = () => {
             <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="calendar" size={20} color="#8B5CF6" />
-                <Text style={styles.sectionTitle}>Дата анализа</Text>
+                <Text style={styles.sectionTitle}>
+                  {t('advisor.dateAnalysis')}
+                </Text>
               </View>
 
               <View style={styles.dateInputContainer}>
@@ -332,7 +312,9 @@ const AdvisorScreen: React.FC = () => {
                   onPress={() => setDate(new Date().toISOString().slice(0, 10))}
                   style={styles.quickDateButton}
                 >
-                  <Text style={styles.quickDateButtonText}>Сегодня</Text>
+                  <Text style={styles.quickDateButtonText}>
+                    {t('advisor.quickDates.today')}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -342,7 +324,9 @@ const AdvisorScreen: React.FC = () => {
                   }}
                   style={styles.quickDateButton}
                 >
-                  <Text style={styles.quickDateButtonText}>Завтра</Text>
+                  <Text style={styles.quickDateButtonText}>
+                    {t('advisor.quickDates.tomorrow')}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -352,7 +336,9 @@ const AdvisorScreen: React.FC = () => {
                   }}
                   style={styles.quickDateButton}
                 >
-                  <Text style={styles.quickDateButtonText}>Через неделю</Text>
+                  <Text style={styles.quickDateButtonText}>
+                    {t('advisor.quickDates.nextWeek')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </BlurView>
@@ -362,15 +348,17 @@ const AdvisorScreen: React.FC = () => {
               <View style={styles.sectionHeader}>
                 <Ionicons name="text" size={20} color="#8B5CF6" />
                 <Text style={styles.sectionTitle}>
-                  Контекст{' '}
-                  <Text style={styles.optionalLabel}>(опционально)</Text>
+                  {t('advisor.context')}{' '}
+                  <Text style={styles.optionalLabel}>
+                    {t('advisor.optional')}
+                  </Text>
                 </Text>
               </View>
 
               <TextInput
                 value={customNote}
                 onChangeText={setCustomNote}
-                placeholder="Например: важная встреча с инвестором..."
+                placeholder={t('advisor.contextPlaceholder')}
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 style={styles.customNoteInput}
                 multiline
@@ -397,12 +385,16 @@ const AdvisorScreen: React.FC = () => {
                 {loading ? (
                   <>
                     <ActivityIndicator color="#fff" />
-                    <Text style={styles.submitButtonText}>Анализируем...</Text>
+                    <Text style={styles.submitButtonText}>
+                      {t('advisor.submit.analyzing')}
+                    </Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-                    <Text style={styles.submitButtonText}>Получить совет</Text>
+                    <Text style={styles.submitButtonText}>
+                      {t('advisor.submit.analyze')}
+                    </Text>
                   </>
                 )}
               </LinearGradient>

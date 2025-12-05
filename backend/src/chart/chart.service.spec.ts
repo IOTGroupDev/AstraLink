@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ChartService } from './chart.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -174,7 +175,10 @@ describe('ChartService', () => {
       const result = service.getLocationCoordinates('Москва');
 
       expect(result).toEqual(expected);
-      expect(natalChartService.getLocationCoordinates).toHaveBeenCalledWith('Москва');
+
+      expect(natalChartService.getLocationCoordinates).toHaveBeenCalledWith(
+        'Москва',
+      );
     });
 
     it('should return coordinates for New York', () => {
@@ -214,21 +218,32 @@ describe('ChartService', () => {
       const result = await (service as any).getCachedSubscription(mockUserId);
 
       expect(result).toEqual(mockSubscription);
-      expect(redisService.get).toHaveBeenCalledWith(`subscription:${mockUserId}`);
+
+      expect(redisService.get).toHaveBeenCalledWith(
+        `subscription:${mockUserId}`,
+      );
+
       expect(prismaService.subscription.findUnique).not.toHaveBeenCalled();
     });
 
     it('should query database on cache MISS and cache result', async () => {
       redisService.get.mockResolvedValue(null); // Cache miss
-      prismaService.subscription.findUnique.mockResolvedValue(mockSubscription as any);
+      prismaService.subscription.findUnique.mockResolvedValue(
+        mockSubscription as any,
+      );
 
       const result = await (service as any).getCachedSubscription(mockUserId);
 
       expect(result).toEqual(mockSubscription);
-      expect(redisService.get).toHaveBeenCalledWith(`subscription:${mockUserId}`);
+
+      expect(redisService.get).toHaveBeenCalledWith(
+        `subscription:${mockUserId}`,
+      );
+
       expect(prismaService.subscription.findUnique).toHaveBeenCalledWith({
         where: { userId: mockUserId },
       });
+
       expect(redisService.set).toHaveBeenCalledWith(
         `subscription:${mockUserId}`,
         mockSubscription,
@@ -243,6 +258,7 @@ describe('ChartService', () => {
       const result = await (service as any).getCachedSubscription(mockUserId);
 
       expect(result).toBeNull();
+
       expect(redisService.set).not.toHaveBeenCalled();
     });
   });
@@ -269,7 +285,9 @@ describe('ChartService', () => {
         expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
       };
 
-      const result = (service as any).isPremiumSubscription(expiredSubscription);
+      const result = (service as any).isPremiumSubscription(
+        expiredSubscription,
+      );
       expect(result).toBe(false);
     });
 
@@ -313,6 +331,7 @@ describe('ChartService', () => {
     it('should validate date format before calculation', async () => {
       // Invalid date format should be rejected
       const invalidDate = '1990-13-45'; // Invalid month and day
+      void invalidDate; // prevent eslint no-unused-vars
 
       // Should throw validation error
     });
@@ -320,6 +339,7 @@ describe('ChartService', () => {
     it('should validate time format (HH:MM)', async () => {
       // Invalid time format should be rejected
       const invalidTime = '25:99';
+      void invalidTime; // prevent eslint no-unused-vars
 
       // Should throw validation error
     });
@@ -347,7 +367,9 @@ describe('ChartService', () => {
     it('should cache subscription lookup to reduce DB queries', async () => {
       // First call - cache miss
       redisService.get.mockResolvedValueOnce(null);
-      prismaService.subscription.findUnique.mockResolvedValue(mockSubscription as any);
+      prismaService.subscription.findUnique.mockResolvedValue(
+        mockSubscription as any,
+      );
 
       await (service as any).getCachedSubscription(mockUserId);
 
@@ -357,7 +379,9 @@ describe('ChartService', () => {
       await (service as any).getCachedSubscription(mockUserId);
 
       // DB should only be queried once
+
       expect(prismaService.subscription.findUnique).toHaveBeenCalledTimes(1);
+
       expect(redisService.get).toHaveBeenCalledTimes(2);
     });
 
@@ -392,6 +416,7 @@ describe('ChartService', () => {
         ...mockBirthData,
         birthTime: '00:00',
       };
+      void midnightBirth; // prevent eslint no-unused-vars
 
       // Should calculate correctly without errors
     });
@@ -401,6 +426,7 @@ describe('ChartService', () => {
         ...mockBirthData,
         birthTime: '23:59',
       };
+      void endOfDayBirth; // prevent eslint no-unused-vars
 
       // Should calculate correctly without errors
     });
@@ -410,6 +436,7 @@ describe('ChartService', () => {
         ...mockBirthData,
         birthDate: '2000-02-29', // Leap year
       };
+      void leapYearBirth; // prevent eslint no-unused-vars
 
       // Should handle leap year correctly
     });
@@ -420,6 +447,7 @@ describe('ChartService', () => {
         ...mockBirthData,
         birthDate: '1990-03-25', // DST transition date in Europe
       };
+      void dstBirth; // prevent eslint no-unused-vars
 
       // Should handle DST correctly
     });
@@ -441,7 +469,9 @@ describe('ChartService', () => {
   describe('Error Handling', () => {
     it('should handle Redis connection failures gracefully', async () => {
       redisService.get.mockRejectedValue(new Error('Redis connection failed'));
-      prismaService.subscription.findUnique.mockResolvedValue(mockSubscription as any);
+      prismaService.subscription.findUnique.mockResolvedValue(
+        mockSubscription as any,
+      );
 
       // Should fallback to database query
       const result = await (service as any).getCachedSubscription(mockUserId);

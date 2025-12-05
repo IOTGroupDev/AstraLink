@@ -1,0 +1,152 @@
+{
+  "title": "Editar perfil",
+  "sections": {
+    "photos": "Fotos",
+    "basicInfo": "Información básica",
+    "birthData": "Datos de nacimiento",
+    "interests": "Intereses",
+    "about": "Sobre mí"
+  },
+  "fields": {
+    "name": "Nombre",
+    "birthDate": "Fecha de nacimiento",
+    "birthTime": "Hora de nacimiento",
+    "birthPlace": "Lugar de nacimiento",
+    "city": "Ciudad",
+    "bio": "Biografía",
+    "gender": "Género"
+  },
+  "placeholders": {
+    "name": "Ingresa tu nombre",
+    "birthTime": "Ingresa la hora (HH:MM)",
+    "birthPlace": "Ingresa el lugar de nacimiento",
+    "city": "Ingresa la ciudad",
+    "bio": "Cuéntanos sobre ti..."
+  },
+  "gender": {
+    "male": "Masculino",
+    "female": "Femenino",
+    "other": "Otro"
+  },
+  "interests": {
+    "travel": "Viajes",
+    "music": "Música",
+    "sport": "Deportes",
+    "reading": "Lectura",
+    "movies": "Películas",
+    "cooking": "Cocina",
+    "art": "Arte",
+    "photography": "Fotografía",
+    "yoga": "Yoga",
+    "meditation": "Meditación",
+    "hiking": "Senderismo",
+    "swimming": "Natación",
+    "dancing": "Baile",
+    "gaming": "Videojuegos",
+    "pets": "Mascotas",
+    "wine": "Vino",
+    "coffee": "Café",
+    "fashion": "Moda",
+    "tech": "Tecnología",
+    "nature": "Naturaleza",
+    "astronomy": "Astronomía",
+    "astrology": "Astrología",
+    "volunteering": "Voluntariado",
+    "languages": "Idiomas",
+    "entrepreneurship": "Negocios",
+    "theater": "Teatro",
+    "concerts": "Conciertos",
+    "festivals": "Festivales",
+    "gardening": "Jardinería",
+    "cycling": "Ciclismo"
+  },
+  "buttons": {
+    "addPhoto": "Agregar foto",
+    "setPrimary": "Establecer como principal",
+    "delete": "Eliminar",
+    "getCurrentLocation": "Obtener ubicación actual",
+    "showMore": "Mostrar más intereses",
+    "showLess": "Mostrar menos",
+    "save": "Guardar cambios",
+    "cancel": "Cancelar"
+  },
+  "alerts": {
+    "photoLimit": {
+      "title": "Límite",
+      "message": "Máximo 20 fotos"
+    },
+    "galleryPermission": {
+      "title": "Error",
+      "message": "Se requiere acceso a la galería"
+    },
+    "photoAdded": {
+      "title": "Éxito",
+      "message": "Foto agregada"
+    },
+    "photoUploadFailed": {
+      "title": "Error",
+      "message": "Error al cargar la foto"
+    },
+    "deletePhoto": {
+      "title": "¿Eliminar foto?",
+      "message": "Esta acción no se puede deshacer"
+    },
+    "photoDeleted": {
+      "title": "Éxito",
+      "message": "Foto eliminada"
+    },
+    "photoDeleteFailed": {
+      "title": "Error",
+      "message": "Error al eliminar la foto"
+    },
+    "primaryPhotoSet": {
+      "title": "Éxito",
+      "message": "Foto principal establecida"
+    },
+    "primaryPhotoFailed": {
+      "title": "Error",
+      "message": "Error al establecer la foto principal"
+    },
+    "locationPermission": {
+      "title": "Acceso denegado",
+      "message": "Permite el acceso a la ubicación en la configuración"
+    },
+    "locationFound": {
+      "title": "Éxito",
+      "message": "Ubicación determinada: {{location}}"
+    },
+    "locationNotFound": {
+      "title": "Error",
+      "message": "No se pudo determinar la dirección"
+    },
+    "locationError": {
+      "title": "Error",
+      "message": "No se pudo determinar la ubicación. Verifica la configuración de GPS."
+    },
+    "nameRequired": {
+      "title": "Error",
+      "message": "Ingresa el nombre"
+    },
+    "birthDateRequired": {
+      "title": "Error",
+      "message": "Ingresa la fecha de nacimiento"
+    },
+    "profileSaved": {
+      "title": "Éxito",
+      "message": "Perfil actualizado"
+    },
+    "saveFailed": {
+      "title": "Error",
+      "message": "Error al guardar los cambios"
+    },
+    "loadFailed": {
+      "title": "Error",
+      "message": "Error al cargar los datos"
+    }
+  },
+  "status": {
+    "uploading": "Subiendo...",
+    "saving": "Guardando...",
+    "loading": "Cargando..."
+  }
+}

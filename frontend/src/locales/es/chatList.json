@@ -1,0 +1,31 @@
+{
+  "title": "Mensajes",
+  "loading": "Cargando conversaciones...",
+  "authCheck": "Verificando autorización...",
+  "errors": {
+    "loadFailed": "Error al cargar conversaciones",
+    "refreshFailed": "Error al actualizar",
+    "deleteFailed": "Error al eliminar la conversación. Inténtalo de nuevo."
+  },
+  "auth": {
+    "required": "Se requiere autorización",
+    "alertMessage": "Necesitas iniciar sesión para ver mensajes",
+    "screenMessage": "Inicia sesión para ver mensajes",
+    "signInButton": "Iniciar Sesión"
+  },
+  "deleteDialog": {
+    "title": "¿Eliminar conversación?",
+    "message": "La conversación se ocultará para ti. Los mensajes no se eliminarán para la otra persona.",
+    "cancel": "Cancelar",
+    "delete": "Eliminar"
+  },
+  "date": {
+    "yesterday": "Ayer",
+    "daysAgo": "Hace {{count}}d"
+  },
+  "media": "📷 Multimedia",
+  "empty": {
+    "title": "Aún no hay conversaciones",
+    "hint": "Comienza a chatear: envía un mensaje desde la tarjeta de un candidato"
+  }
+}

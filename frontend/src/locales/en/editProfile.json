@@ -1,0 +1,152 @@
+{
+  "title": "Edit Profile",
+  "sections": {
+    "photos": "Photos",
+    "basicInfo": "Basic Information",
+    "birthData": "Birth Data",
+    "interests": "Interests",
+    "about": "About Me"
+  },
+  "fields": {
+    "name": "Name",
+    "birthDate": "Birth Date",
+    "birthTime": "Birth Time",
+    "birthPlace": "Birth Place",
+    "city": "City",
+    "bio": "Bio",
+    "gender": "Gender"
+  },
+  "placeholders": {
+    "name": "Enter your name",
+    "birthTime": "Enter time (HH:MM)",
+    "birthPlace": "Enter birth place",
+    "city": "Enter city",
+    "bio": "Tell about yourself..."
+  },
+  "gender": {
+    "male": "Male",
+    "female": "Female",
+    "other": "Other"
+  },
+  "interests": {
+    "travel": "Travel",
+    "music": "Music",
+    "sport": "Sports",
+    "reading": "Reading",
+    "movies": "Movies",
+    "cooking": "Cooking",
+    "art": "Art",
+    "photography": "Photography",
+    "yoga": "Yoga",
+    "meditation": "Meditation",
+    "hiking": "Hiking",
+    "swimming": "Swimming",
+    "dancing": "Dancing",
+    "gaming": "Gaming",
+    "pets": "Pets",
+    "wine": "Wine",
+    "coffee": "Coffee",
+    "fashion": "Fashion",
+    "tech": "Technology",
+    "nature": "Nature",
+    "astronomy": "Astronomy",
+    "astrology": "Astrology",
+    "volunteering": "Volunteering",
+    "languages": "Languages",
+    "entrepreneurship": "Business",
+    "theater": "Theater",
+    "concerts": "Concerts",
+    "festivals": "Festivals",
+    "gardening": "Gardening",
+    "cycling": "Cycling"
+  },
+  "buttons": {
+    "addPhoto": "Add Photo",
+    "setPrimary": "Set as Primary",
+    "delete": "Delete",
+    "getCurrentLocation": "Get Current Location",
+    "showMore": "Show more interests",
+    "showLess": "Show less",
+    "save": "Save Changes",
+    "cancel": "Cancel"
+  },
+  "alerts": {
+    "photoLimit": {
+      "title": "Limit",
+      "message": "Maximum 20 photos"
+    },
+    "galleryPermission": {
+      "title": "Error",
+      "message": "Gallery access is required"
+    },
+    "photoAdded": {
+      "title": "Success",
+      "message": "Photo added"
+    },
+    "photoUploadFailed": {
+      "title": "Error",
+      "message": "Failed to upload photo"
+    },
+    "deletePhoto": {
+      "title": "Delete photo?",
+      "message": "This action cannot be undone"
+    },
+    "photoDeleted": {
+      "title": "Success",
+      "message": "Photo deleted"
+    },
+    "photoDeleteFailed": {
+      "title": "Error",
+      "message": "Failed to delete photo"
+    },
+    "primaryPhotoSet": {
+      "title": "Success",
+      "message": "Primary photo set"
+    },
+    "primaryPhotoFailed": {
+      "title": "Error",
+      "message": "Failed to set primary photo"
+    },
+    "locationPermission": {
+      "title": "Access denied",
+      "message": "Allow location access in settings"
+    },
+    "locationFound": {
+      "title": "Success",
+      "message": "Location determined: {{location}}"
+    },
+    "locationNotFound": {
+      "title": "Error",
+      "message": "Failed to determine address"
+    },
+    "locationError": {
+      "title": "Error",
+      "message": "Failed to determine location. Check GPS settings."
+    },
+    "nameRequired": {
+      "title": "Error",
+      "message": "Enter name"
+    },
+    "birthDateRequired": {
+      "title": "Error",
+      "message": "Enter birth date"
+    },
+    "profileSaved": {
+      "title": "Success",
+      "message": "Profile updated"
+    },
+    "saveFailed": {
+      "title": "Error",
+      "message": "Failed to save changes"
+    },
+    "loadFailed": {
+      "title": "Error",
+      "message": "Failed to load data"
+    }
+  },
+  "status": {
+    "uploading": "Uploading...",
+    "saving": "Saving...",
+    "loading": "Loading..."
+  }
+}

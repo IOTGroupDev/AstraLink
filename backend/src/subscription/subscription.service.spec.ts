@@ -84,6 +84,7 @@ describe('SubscriptionService', () => {
       expect(result.tier).toBe(SubscriptionTier.FREE);
       expect(result.isActive).toBe(true);
       expect(result.isTrial).toBe(false);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(prismaService.subscription.create).toHaveBeenCalled();
     });
 
@@ -169,6 +170,7 @@ describe('SubscriptionService', () => {
 
       expect(result.tier).toBe(SubscriptionTier.FREE);
       expect(result.isActive).toBe(true);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(prismaService.subscription.update).toHaveBeenCalledWith({
         where: { userId: mockUserId },
         data: {
@@ -435,7 +437,7 @@ describe('SubscriptionService', () => {
       } as any);
 
       // Should handle gracefully or throw appropriate error
-      const result = await service.getStatus(mockUserId);
+      await service.getStatus(mockUserId);
 
       // Verify error handling
     });

@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../redis/redis.service';
 import {
@@ -41,6 +41,7 @@ export interface ChatConversation {
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
   // RPC отключён по умолчанию, включайте через CHAT_PREFER_RPC=true
   private readonly preferRpc = process.env.CHAT_PREFER_RPC === 'true';
   // RPC для удаления сообщений (если в БД есть SECURITY DEFINER delete_message)
@@ -206,7 +207,7 @@ export class ChatService {
         return { id: newId };
       }
       if (!this.rpcWarned) {
-        console.warn('send_message RPC failed, using fallback insert', {
+        this.logger.warn('send_message RPC failed, using fallback insert', {
           rpcError: error?.message ?? error,
         });
         this.rpcWarned = true;
@@ -220,7 +221,7 @@ export class ChatService {
     const typedUserRes = userRes as SupabaseUserResponse | null;
     const uid = typedUserRes?.user?.id;
     if (!uid || userErr) {
-      console.error('Cannot resolve user from token for sendMessage fallback', {
+      this.logger.error('Cannot resolve user from token for sendMessage fallback', {
         userErr: userErr?.message ?? userErr,
       });
       throw new Error('send_message failed (no user from token)');
@@ -387,7 +388,7 @@ export class ChatService {
       }
     }
 
-    console.error('send_message fallback insert failed', {
+    this.logger.error('send_message fallback insert failed', {
       firstError: firstErr?.message ?? firstErr,
       lastError: lastErr?.message ?? lastErr,
       existingColumns: Array.from(existing),

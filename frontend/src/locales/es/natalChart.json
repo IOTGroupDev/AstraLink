@@ -1,0 +1,101 @@
+{
+  "title": "Carta Natal",
+  "subtitle": "Análisis astrológico completo",
+  "tabs": {
+    "overview": "Resumen",
+    "planets": "Planetas",
+    "houses": "Casas",
+    "aspects": "Aspectos",
+    "summary": "Síntesis"
+  },
+  "errors": {
+    "notFound": "Carta natal no encontrada",
+    "failedToLoad": "Error al cargar la carta natal"
+  },
+  "buttons": {
+    "retry": "Reintentar"
+  },
+  "bigThree": {
+    "title": "Los Tres Grandes",
+    "sun": "Sol",
+    "moon": "Luna",
+    "ascendant": "Ascendente"
+  },
+  "statistics": {
+    "title": "Estadísticas de la Carta",
+    "planets": "Planetas",
+    "aspects": "Aspectos",
+    "retrograde": "Retrógrados",
+    "dominantElement": "Elemento Dominante",
+    "dominantModality": "Modalidad Dominante"
+  },
+  "angles": {
+    "title": "Ángulos de la Carta",
+    "ascendant": "Ascendente (casa 1)",
+    "midheaven": "Medio Cielo (casa 10)",
+    "descendant": "Descendente (casa 7)",
+    "ic": "Fondo del Cielo (casa 4)"
+  },
+  "planetDetails": {
+    "longitude": "Longitud:",
+    "latitude": "Latitud:",
+    "speed": "Velocidad:",
+    "house": "Casa:",
+    "perDay": "día"
+  },
+  "houses": {
+    "house": "Casa {{num}}",
+    "planetsInHouse": "Planetas en la casa:",
+    "themes": [
+      "Personalidad, apariencia, inicios",
+      "Dinero, recursos, valores",
+      "Comunicación, aprendizaje, entorno cercano",
+      "Hogar, familia, raíces",
+      "Creatividad, hijos, romance",
+      "Salud, trabajo, servicio",
+      "Asociación, matrimonio, contratos",
+      "Transformación, recursos compartidos",
+      "Filosofía, viajes, educación superior",
+      "Carrera, estatus, vocación",
+      "Amistad, comunidades, sueños",
+      "Subconsciente, aislamiento, espiritualidad"
+    ]
+  },
+  "aspectsStats": {
+    "title": "Estadísticas de Aspectos",
+    "noAspects": "Sin Aspectos"
+  },
+  "aspectDetails": {
+    "angle": "Ángulo:",
+    "orb": "Orbe:",
+    "type": "Tipo:",
+    "applying": "Aplicativo",
+    "separating": "Separativo"
+  },
+  "summary": {
+    "interpretationUnavailable": "Interpretación no disponible",
+    "interpretationNotLoaded": "Los datos de interpretación de la carta natal no se cargaron.",
+    "tryRefresh": "Intenta actualizar la página.",
+    "summaryInProgress": "El resumen se está generando",
+    "summaryNotFormed": "El resumen completo de personalidad aún no se ha formado.",
+    "dataAvailableInOtherTabs": "Los datos están disponibles en otras pestañas: Resumen, Planetas, Casas, Aspectos.",
+    "lifePurpose": "Propósito de Vida",
+    "personalityTraits": "Rasgos de Personalidad",
+    "talents": "Talentos y Dones",
+    "lifeThemes": "Temas de Vida",
+    "karmaLessons": "Lecciones Kármicas",
+    "relationships": "Relaciones",
+    "careerPath": "Camino Profesional",
+    "spiritualPath": "Camino Espiritual",
+    "healthFocus": "Salud",
+    "financialApproach": "Enfoque Financiero",
+    "dominantElements": "Elementos Dominantes",
+    "dominantQualities": "Cualidades Dominantes",
+    "recommendations": "Recomendaciones"
+  },
+  "modalities": {
+    "cardinal": "Cardinal",
+    "fixed": "Fijo",
+    "mutable": "Mutable"
+  }
+}

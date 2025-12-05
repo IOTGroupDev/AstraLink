@@ -1,0 +1,39 @@
+{
+  "header": {
+    "online": "Online"
+  },
+  "input": {
+    "placeholder": "Write a message...",
+    "send": "Send"
+  },
+  "empty": {
+    "noMessages": "No messages",
+    "startDialog": "Start the conversation!"
+  },
+  "loading": {
+    "messages": "Loading messages...",
+    "authorization": "Checking authorization..."
+  },
+  "errors": {
+    "authRequired": "Authorization Required",
+    "authRequiredMessage": "You must be logged in to use chat",
+    "noInterlocutor": "Interlocutor not specified",
+    "failedToSend": "Failed to send message. Please try again.",
+    "failedToSendFile": "Failed to send file. Please try again.",
+    "failedToDelete": "Failed to delete message.",
+    "failedToDeleteForAll": "Failed to delete message for everyone.",
+    "failedToLoad": "Error loading messages"
+  },
+  "deleteMessage": {
+    "title": "Delete Message",
+    "subtitle": "Choose action",
+    "deleteForMe": "Delete for me",
+    "deleteForAll": "Delete for everyone",
+    "confirmTitle": "Delete for everyone?",
+    "confirmMessage": "This action cannot be undone.",
+    "delete": "Delete"
+  },
+  "media": {
+    "label": "📷 Media"
+  }
+}

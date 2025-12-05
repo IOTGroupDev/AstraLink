@@ -17,6 +17,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { chartAPI } from '../services/api';
@@ -61,6 +62,8 @@ interface HistoricalNote {
 type SimulatorTab = 'transits' | 'planets' | 'timeline' | 'lessons';
 
 export default function CosmicSimulatorScreen() {
+  const { t, i18n } = useTranslation();
+
   // Константы (до всех хуков)
   const screenWidth = width;
 
@@ -192,7 +195,7 @@ export default function CosmicSimulatorScreen() {
       const data = await chartAPI.getNatalChartWithInterpretation();
       setNatalChart(data);
     } catch (error) {
-      logger.error('Ошибка загрузки натальной карты', error);
+      logger.error(t('cosmicSimulator.errors.loadNatalChart'), error);
       // Mock данные
       setNatalChart({
         data: {
@@ -267,7 +270,7 @@ export default function CosmicSimulatorScreen() {
         transits.sort((a, b) => (b.strength || 0) - (a.strength || 0))
       );
     } catch (error) {
-      logger.error('Ошибка загрузки транзитов', error);
+      logger.error(t('cosmicSimulator.errors.loadTransits'), error);
       // Fallback на расчётные данные
       const transitPlanets = calculateTransitPlanets(date);
       setTransitPlanets(transitPlanets);
@@ -433,7 +436,13 @@ export default function CosmicSimulatorScreen() {
     aspect: string,
     target: string
   ): string => {
-    return `Транзитный ${planet} формирует ${aspectRu[aspect] || aspect} с натальным ${planetRu[target] || target}`;
+    const aspectTranslated = t(`common.aspects.${aspect}`) || aspect;
+    const targetTranslated = planetRu[target] || target;
+    return t('cosmicSimulator.transits.description', {
+      planet,
+      aspect: aspectTranslated,
+      target: targetTranslated,
+    });
   };
 
   const getAspectType = (
@@ -489,13 +498,13 @@ export default function CosmicSimulatorScreen() {
 
       setDetailContent(details);
     } catch (error) {
-      logger.error('Ошибка загрузки деталей', error);
+      logger.error(t('cosmicSimulator.errors.loadDetails'), error);
       // Fallback на базовую информацию
       setDetailContent({
         lines: [
           transit.description,
-          `Орб: ${transit.orb}°`,
-          `Сила: ${Math.round((transit.strength || 0) * 100)}%`,
+          `${t('cosmicSimulator.modals.transitDetail.orb')} ${transit.orb}°`,
+          `${t('cosmicSimulator.modals.transitDetail.strength')} ${Math.round((transit.strength || 0) * 100)}%`,
           'Это аспект между транзитной и натальной планетой.',
         ],
       });
@@ -555,7 +564,7 @@ export default function CosmicSimulatorScreen() {
       <TabScreenLayout>
         <View style={styles.loadingContainer}>
           <Ionicons name="planet" size={64} color="#8B5CF6" />
-          <Text style={styles.loadingText}>Загрузка симулятора...</Text>
+          <Text style={styles.loadingText}>{t('cosmicSimulator.loading')}</Text>
         </View>
       </TabScreenLayout>
     );
@@ -580,13 +589,18 @@ export default function CosmicSimulatorScreen() {
                 </LinearGradient>
               </View>
               <View style={styles.headerTextContainer}>
-                <Text style={styles.headerTitle}>Космический симулятор</Text>
+                <Text style={styles.headerTitle}>
+                  {t('cosmicSimulator.header.title')}
+                </Text>
                 <Text style={styles.headerSubtitle}>
-                  {currentDate.toLocaleDateString('ru-RU', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  {currentDate.toLocaleDateString(
+                    t('cosmicSimulator.header.dateFormat'),
+                    {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }
+                  )}
                 </Text>
               </View>
             </View>
@@ -598,14 +612,18 @@ export default function CosmicSimulatorScreen() {
                 style={styles.quickButton}
               >
                 <Ionicons name="chevron-back" size={16} color="#FFFFFF" />
-                <Text style={styles.quickButtonText}>-7д</Text>
+                <Text style={styles.quickButtonText}>
+                  {t('cosmicSimulator.quickActions.minusSevenDays')}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => adjustDate(-1)}
                 style={styles.quickButton}
               >
-                <Text style={styles.quickButtonText}>-1д</Text>
+                <Text style={styles.quickButtonText}>
+                  {t('cosmicSimulator.quickActions.minusOneDay')}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -624,14 +642,18 @@ export default function CosmicSimulatorScreen() {
                 onPress={() => adjustDate(1)}
                 style={styles.quickButton}
               >
-                <Text style={styles.quickButtonText}>+1д</Text>
+                <Text style={styles.quickButtonText}>
+                  {t('cosmicSimulator.quickActions.plusOneDay')}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => adjustDate(7)}
                 style={styles.quickButton}
               >
-                <Text style={styles.quickButtonText}>+7д</Text>
+                <Text style={styles.quickButtonText}>
+                  {t('cosmicSimulator.quickActions.plusSevenDays')}
+                </Text>
                 <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
@@ -653,7 +675,9 @@ export default function CosmicSimulatorScreen() {
                 </View>
 
                 <View style={styles.dailyLessonContent}>
-                  <Text style={styles.dailyLessonLabel}>📚 Урок дня</Text>
+                  <Text style={styles.dailyLessonLabel}>
+                    {t('cosmicSimulator.dailyLesson.label')}
+                  </Text>
                   <Text style={styles.dailyLessonTitle} numberOfLines={1}>
                     {dailyLesson.title}
                   </Text>
@@ -678,7 +702,9 @@ export default function CosmicSimulatorScreen() {
                 onPress={() => setActiveTab('lessons')}
                 style={styles.dailyLessonButton}
               >
-                <Text style={styles.dailyLessonButtonText}>Изучить</Text>
+                <Text style={styles.dailyLessonButtonText}>
+                  {t('cosmicSimulator.dailyLesson.button')}
+                </Text>
                 <Ionicons name="arrow-forward" size={16} color="#8B5CF6" />
               </TouchableOpacity>
             </BlurView>
@@ -699,12 +725,6 @@ export default function CosmicSimulatorScreen() {
                   planets: 'planet',
                   timeline: 'calendar',
                   lessons: 'book',
-                };
-                const labels = {
-                  transits: 'Транзиты',
-                  planets: 'Планеты',
-                  timeline: 'История',
-                  lessons: 'Обучение',
                 };
 
                 const isActive = activeTab === tab;
@@ -730,7 +750,9 @@ export default function CosmicSimulatorScreen() {
                           size={20}
                           color="rgba(255,255,255,0.5)"
                         />
-                        <Text style={styles.tabText}>{labels[tab]}</Text>
+                        <Text style={styles.tabText}>
+                          {t(`cosmicSimulator.tabs.${tab}`)}
+                        </Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -769,12 +791,12 @@ export default function CosmicSimulatorScreen() {
                     <View style={styles.aiTitleContainer}>
                       <Text style={styles.aiTitle}>
                         {hasAIAccess
-                          ? 'AI Интерпретация транзитов'
-                          : 'Базовая интерпретация'}
+                          ? t('cosmicSimulator.ai.titleWithAccess')
+                          : t('cosmicSimulator.ai.titleWithoutAccess')}
                       </Text>
                       {!hasAIAccess && (
                         <Text style={styles.aiSubtitle}>
-                          Обновите подписку для AI-анализа
+                          {t('cosmicSimulator.ai.upgradeMessage')}
                         </Text>
                       )}
                     </View>
@@ -788,7 +810,9 @@ export default function CosmicSimulatorScreen() {
                         colors={['#8B5CF6', '#6366F1']}
                         style={styles.upgradeGradient}
                       >
-                        <Text style={styles.upgradeText}>Получить Premium</Text>
+                        <Text style={styles.upgradeText}>
+                          {t('cosmicSimulator.ai.upgradeButton')}
+                        </Text>
                         <Ionicons
                           name="arrow-forward"
                           size={16}
@@ -803,7 +827,9 @@ export default function CosmicSimulatorScreen() {
               <BlurView intensity={10} tint="dark" style={styles.contentCard}>
                 <View style={styles.contentHeader}>
                   <View style={styles.contentTitleContainer}>
-                    <Text style={styles.contentTitle}>Активные транзиты</Text>
+                    <Text style={styles.contentTitle}>
+                      {t('cosmicSimulator.transits.title')}
+                    </Text>
                     <View style={styles.contentBadge}>
                       <Text style={styles.contentBadgeText}>
                         {filteredTransits.length}
@@ -831,7 +857,7 @@ export default function CosmicSimulatorScreen() {
                 {transitsLoading ? (
                   <View style={styles.loadingTransits}>
                     <Text style={styles.loadingTransitsText}>
-                      Расчёт транзитов...
+                      {t('cosmicSimulator.transits.loading')}
                     </Text>
                   </View>
                 ) : filteredTransits.length === 0 ? (
@@ -842,7 +868,7 @@ export default function CosmicSimulatorScreen() {
                       color="rgba(255,255,255,0.3)"
                     />
                     <Text style={styles.emptyTransitsText}>
-                      Нет активных транзитов
+                      {t('cosmicSimulator.transits.empty')}
                     </Text>
                   </View>
                 ) : (
@@ -899,8 +925,11 @@ export default function CosmicSimulatorScreen() {
                                 color="#FBBF24"
                               />
                               <Text style={styles.learnMoreText}>
-                                Узнать больше об аспекте "
-                                {aspectRu[transit.aspect]}"
+                                {t('cosmicSimulator.transits.learnMore', {
+                                  aspect:
+                                    t(`common.aspects.${transit.aspect}`) ||
+                                    aspectRu[transit.aspect],
+                                })}
                               </Text>
                             </TouchableOpacity>
                           )}
@@ -916,7 +945,9 @@ export default function CosmicSimulatorScreen() {
           {/* ВКЛАДКА: ПЛАНЕТЫ */}
           {activeTab === 'planets' && (
             <BlurView intensity={10} tint="dark" style={styles.contentCard}>
-              <Text style={styles.contentTitle}>Транзитные планеты</Text>
+              <Text style={styles.contentTitle}>
+                {t('cosmicSimulator.planets.title')}
+              </Text>
 
               {/* Визуализация карты */}
               <View style={styles.chartVisualizationContainer}>
@@ -957,7 +988,9 @@ export default function CosmicSimulatorScreen() {
           {activeTab === 'timeline' && (
             <BlurView intensity={10} tint="dark" style={styles.contentCard}>
               <View style={styles.contentHeader}>
-                <Text style={styles.contentTitle}>Исторические заметки</Text>
+                <Text style={styles.contentTitle}>
+                  {t('cosmicSimulator.timeline.title')}
+                </Text>
                 <TouchableOpacity
                   onPress={() => setShowNoteModal(true)}
                   style={styles.addNoteButton}
@@ -973,19 +1006,24 @@ export default function CosmicSimulatorScreen() {
                     size={48}
                     color="rgba(255,255,255,0.3)"
                   />
-                  <Text style={styles.emptyNotesText}>Пока нет заметок</Text>
+                  <Text style={styles.emptyNotesText}>
+                    {t('cosmicSimulator.timeline.empty')}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.notesList}>
                   {historicalNotes.map((note, index) => (
                     <View key={index} style={styles.noteItem}>
                       <Text style={styles.noteDate}>
-                        {new Date(note.date).toLocaleDateString('ru-RU')}
+                        {new Date(note.date).toLocaleDateString(
+                          t('cosmicSimulator.header.dateFormat')
+                        )}
                       </Text>
                       <Text style={styles.noteText}>{note.note}</Text>
                       {note.transits.length > 0 && (
                         <Text style={styles.noteTransits}>
-                          Транзиты: {note.transits.join(', ')}
+                          {t('cosmicSimulator.timeline.transitsLabel')}
+                          {note.transits.join(', ')}
                         </Text>
                       )}
                     </View>
@@ -1000,10 +1038,14 @@ export default function CosmicSimulatorScreen() {
             <View style={styles.lessonsContainer}>
               <BlurView intensity={10} tint="dark" style={styles.lessonsHeader}>
                 <View>
-                  <Text style={styles.lessonsTitle}>Обучение астрологии</Text>
+                  <Text style={styles.lessonsTitle}>
+                    {t('cosmicSimulator.lessons.title')}
+                  </Text>
                   <Text style={styles.lessonsSubtitle}>
-                    {completedLessons.size} из {ASTRO_LESSONS.length} уроков
-                    пройдено
+                    {t('cosmicSimulator.lessons.subtitle', {
+                      completed: completedLessons.size,
+                      total: ASTRO_LESSONS.length,
+                    })}
                   </Text>
                 </View>
               </BlurView>
@@ -1040,18 +1082,12 @@ export default function CosmicSimulatorScreen() {
                 ] as const
               ).map((category) => {
                 const categoryLessons = getLessonsByCategory(category);
-                const categoryLabels = {
-                  basics: 'Основы',
-                  planets: 'Планеты',
-                  aspects: 'Аспекты',
-                  transits: 'Транзиты',
-                  practical: 'Практика',
-                };
 
                 return (
                   <View key={category} style={styles.lessonCategory}>
                     <Text style={styles.categoryTitle}>
-                      {categoryLabels[category]} ({categoryLessons.length})
+                      {t(`cosmicSimulator.lessons.categories.${category}`)} (
+                      {categoryLessons.length})
                     </Text>
                     {categoryLessons.map((lesson) => (
                       <LessonCard
@@ -1081,23 +1117,28 @@ export default function CosmicSimulatorScreen() {
           <View style={styles.modalOverlay}>
             <BlurView intensity={80} tint="dark" style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Добавить заметку</Text>
+                <Text style={styles.modalTitle}>
+                  {t('cosmicSimulator.modals.addNote.title')}
+                </Text>
                 <TouchableOpacity onPress={() => setShowNoteModal(false)}>
                   <Ionicons name="close" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
 
               <Text style={styles.modalDate}>
-                {currentDate.toLocaleDateString('ru-RU', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
+                {currentDate.toLocaleDateString(
+                  t('cosmicSimulator.header.dateFormat'),
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }
+                )}
               </Text>
 
               <TextInput
                 style={styles.noteInput}
-                placeholder="Что произошло в этот день?"
+                placeholder={t('cosmicSimulator.modals.addNote.placeholder')}
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={noteText}
                 onChangeText={setNoteText}
@@ -1110,7 +1151,9 @@ export default function CosmicSimulatorScreen() {
                   onPress={() => setShowNoteModal(false)}
                   style={styles.modalCancelButton}
                 >
-                  <Text style={styles.modalCancelText}>Отмена</Text>
+                  <Text style={styles.modalCancelText}>
+                    {t('cosmicSimulator.modals.addNote.cancel')}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1121,7 +1164,9 @@ export default function CosmicSimulatorScreen() {
                     colors={['#8B5CF6', '#6366F1']}
                     style={styles.modalSaveGradient}
                   >
-                    <Text style={styles.modalSaveText}>Сохранить</Text>
+                    <Text style={styles.modalSaveText}>
+                      {t('cosmicSimulator.modals.addNote.save')}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1156,19 +1201,25 @@ export default function CosmicSimulatorScreen() {
 
                     <View style={styles.detailMeta}>
                       <View style={styles.detailMetaItem}>
-                        <Text style={styles.detailMetaLabel}>Орб:</Text>
+                        <Text style={styles.detailMetaLabel}>
+                          {t('cosmicSimulator.modals.transitDetail.orb')}
+                        </Text>
                         <Text style={styles.detailMetaValue}>
                           {selectedTransit.orb}°
                         </Text>
                       </View>
                       <View style={styles.detailMetaItem}>
-                        <Text style={styles.detailMetaLabel}>Сила:</Text>
+                        <Text style={styles.detailMetaLabel}>
+                          {t('cosmicSimulator.modals.transitDetail.strength')}
+                        </Text>
                         <Text style={styles.detailMetaValue}>
                           {Math.round((selectedTransit.strength || 0) * 100)}%
                         </Text>
                       </View>
                       <View style={styles.detailMetaItem}>
-                        <Text style={styles.detailMetaLabel}>Тип:</Text>
+                        <Text style={styles.detailMetaLabel}>
+                          {t('cosmicSimulator.modals.transitDetail.type')}
+                        </Text>
                         <Text
                           style={[
                             styles.detailMetaValue,
@@ -1183,10 +1234,16 @@ export default function CosmicSimulatorScreen() {
                           ]}
                         >
                           {selectedTransit.type === 'harmonious'
-                            ? 'Гармоничный'
+                            ? t(
+                                'cosmicSimulator.modals.transitDetail.harmonious'
+                              )
                             : selectedTransit.type === 'challenging'
-                              ? 'Напряжённый'
-                              : 'Нейтральный'}
+                              ? t(
+                                  'cosmicSimulator.modals.transitDetail.challenging'
+                                )
+                              : t(
+                                  'cosmicSimulator.modals.transitDetail.neutral'
+                                )}
                         </Text>
                       </View>
                     </View>
@@ -1219,7 +1276,9 @@ export default function CosmicSimulatorScreen() {
           <View style={styles.modalOverlay}>
             <BlurView intensity={80} tint="dark" style={styles.datePickerModal}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Выбрать дату</Text>
+                <Text style={styles.modalTitle}>
+                  {t('cosmicSimulator.modals.datePicker.title')}
+                </Text>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
                   <Ionicons name="close" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -1228,7 +1287,7 @@ export default function CosmicSimulatorScreen() {
               <AstralDateTimePicker
                 value={datePickerValue}
                 onChangeText={handleDatePickerChange}
-                placeholder="Дата"
+                placeholder={t('cosmicSimulator.modals.datePicker.placeholder')}
                 icon="calendar"
                 mode="date"
                 animationValue={datePickerAnimation}
@@ -1242,7 +1301,9 @@ export default function CosmicSimulatorScreen() {
                   colors={['#8B5CF6', '#6366F1']}
                   style={styles.datePickerDoneGradient}
                 >
-                  <Text style={styles.datePickerDoneText}>Готово</Text>
+                  <Text style={styles.datePickerDoneText}>
+                    {t('cosmicSimulator.modals.datePicker.done')}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </BlurView>

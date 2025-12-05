@@ -13,9 +13,14 @@ import Svg, {
 interface EnergyWidgetProps {
   energy: number; // 0-100
   message: string; // Пожелание/описание
+  isLoading?: boolean; // Показать лоадер
 }
 
-const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
+const EnergyWidget: React.FC<EnergyWidgetProps> = ({
+  energy,
+  message,
+  isLoading,
+}) => {
   // Определение уровня энергии
   const getEnergyLevel = (value: number): string => {
     if (value >= 80) return 'Высокая';
@@ -37,6 +42,24 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
   const glowSize = 72;
   const glowRadius = 36;
 
+  if (isLoading) {
+    return (
+      <LinearGradient
+        colors={['rgba(35, 0, 45, 0.4)', 'rgba(158,0,200,0.4)']}
+        start={{ x: 0.5, y: 1 }}
+        end={{ x: 0.5, y: 0 }}
+        style={styles.container}
+      >
+        <View style={styles.innerContainer}>
+          <Text style={styles.title}>⚡️ Энергия дня</Text>
+          <View style={{ paddingVertical: 8 }}>
+            <Text style={{ color: '#A78BFA' }}>Загрузка энергии...</Text>
+          </View>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={['rgba(35, 0, 45, 0.4)', 'rgba(158,0,200,0.4)']}
@@ -45,7 +68,6 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({ energy, message }) => {
       style={styles.container}
     >
       <View style={styles.innerContainer}>
-        {/* Заголовок */}
         <Text style={styles.title}>⚡️ Энергия дня</Text>
 
         {/* Основной контент */}

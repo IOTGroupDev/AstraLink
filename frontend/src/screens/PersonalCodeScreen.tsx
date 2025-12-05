@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,31 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { CodePurpose, PersonalCodeResult } from '../types/personal-code';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../services/logger';
 
+const PURPOSE_CONFIG: Array<{
+  key: CodePurpose;
+  icon: string;
+  color: string;
+}> = [
+  { key: 'luck', icon: '🍀', color: '#10B981' },
+  { key: 'health', icon: '❤️', color: '#EF4444' },
+  { key: 'wealth', icon: '💰', color: '#F59E0B' },
+  { key: 'love', icon: '💕', color: '#EC4899' },
+  { key: 'career', icon: '🎯', color: '#8B5CF6' },
+  { key: 'creativity', icon: '🎨', color: '#F97316' },
+  { key: 'protection', icon: '🛡️', color: '#6366F1' },
+  { key: 'intuition', icon: '🔮', color: '#A855F7' },
+  { key: 'harmony', icon: '☯️', color: '#06B6D4' },
+  { key: 'energy', icon: '⚡', color: '#FBBF24' },
+];
+
 const PersonalCodeScreen = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [selectedPurpose, setSelectedPurpose] = useState<CodePurpose>('luck');
   const [selectedDigitCount, setSelectedDigitCount] = useState<number>(4);
@@ -23,68 +42,14 @@ const PersonalCodeScreen = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const purposes = [
-    {
-      key: 'luck' as CodePurpose,
-      label: 'Удача',
-      icon: '🍀',
-      color: '#10B981',
-    },
-    {
-      key: 'health' as CodePurpose,
-      label: 'Здоровье',
-      icon: '❤️',
-      color: '#EF4444',
-    },
-    {
-      key: 'wealth' as CodePurpose,
-      label: 'Богатство',
-      icon: '💰',
-      color: '#F59E0B',
-    },
-    {
-      key: 'love' as CodePurpose,
-      label: 'Любовь',
-      icon: '💕',
-      color: '#EC4899',
-    },
-    {
-      key: 'career' as CodePurpose,
-      label: 'Карьера',
-      icon: '🎯',
-      color: '#8B5CF6',
-    },
-    {
-      key: 'creativity' as CodePurpose,
-      label: 'Творчество',
-      icon: '🎨',
-      color: '#F97316',
-    },
-    {
-      key: 'protection' as CodePurpose,
-      label: 'Защита',
-      icon: '🛡️',
-      color: '#6366F1',
-    },
-    {
-      key: 'intuition' as CodePurpose,
-      label: 'Интуиция',
-      icon: '🔮',
-      color: '#A855F7',
-    },
-    {
-      key: 'harmony' as CodePurpose,
-      label: 'Гармония',
-      icon: '☯️',
-      color: '#06B6D4',
-    },
-    {
-      key: 'energy' as CodePurpose,
-      label: 'Энергия',
-      icon: '⚡',
-      color: '#FBBF24',
-    },
-  ];
+  const purposes = useMemo(
+    () =>
+      PURPOSE_CONFIG.map((config) => ({
+        ...config,
+        label: t(`personalCode.purposes.${config.key}`),
+      })),
+    [t]
+  );
 
   const digitCounts = [3, 4, 5, 6, 7, 8, 9];
 
@@ -99,7 +64,9 @@ const PersonalCodeScreen = () => {
       );
       setResult(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Ошибка генерации кода');
+      setError(
+        err.response?.data?.message || t('personalCode.errors.generationFailed')
+      );
       logger.error('Error generating code', err);
     } finally {
       setLoading(false);
@@ -121,15 +88,19 @@ const PersonalCodeScreen = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Персональные Коды</Text>
+          <Text style={styles.headerTitle}>
+            {t('personalCode.header.title')}
+          </Text>
           <Text style={styles.headerSubtitle}>
-            Практичные числа силы для PIN-кодов, паролей и важных решений
+            {t('personalCode.header.subtitle')}
           </Text>
         </View>
 
         {/* Purpose Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Выберите цель</Text>
+          <Text style={styles.sectionTitle}>
+            {t('personalCode.purposes.title')}
+          </Text>
           <View style={styles.purposeGrid}>
             {purposes.map((purpose) => (
               <TouchableOpacity
@@ -167,7 +138,9 @@ const PersonalCodeScreen = () => {
 
         {/* Digit Count Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Количество цифр</Text>
+          <Text style={styles.sectionTitle}>
+            {t('personalCode.digitCount.title')}
+          </Text>
           <View style={styles.digitCountRow}>
             {digitCounts.map((count) => (
               <TouchableOpacity
@@ -191,7 +164,7 @@ const PersonalCodeScreen = () => {
             ))}
           </View>
           <Text style={styles.digitHint}>
-            Больше цифр = более сложная энергетическая формула
+            {t('personalCode.digitCount.hint')}
           </Text>
         </View>
 
@@ -219,7 +192,9 @@ const PersonalCodeScreen = () => {
             ) : (
               <>
                 <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-                <Text style={styles.generateButtonText}>Сгенерировать код</Text>
+                <Text style={styles.generateButtonText}>
+                  {t('personalCode.generate.button')}
+                </Text>
               </>
             )}
           </LinearGradient>
@@ -243,7 +218,9 @@ const PersonalCodeScreen = () => {
                 style={styles.codeCardGradient}
               >
                 <View style={styles.codeHeader}>
-                  <Text style={styles.codeLabel}>Ваш персональный код</Text>
+                  <Text style={styles.codeLabel}>
+                    {t('personalCode.result.codeLabel')}
+                  </Text>
                   {result.subscriptionTier !== 'free' && (
                     <View style={styles.premiumBadge}>
                       <Ionicons name="star" size={12} color="#F59E0B" />
@@ -256,7 +233,9 @@ const PersonalCodeScreen = () => {
 
                 <View style={styles.codeMetaRow}>
                   <View style={styles.codeMeta}>
-                    <Text style={styles.codeMetaLabel}>Энергия</Text>
+                    <Text style={styles.codeMetaLabel}>
+                      {t('personalCode.result.energy')}
+                    </Text>
                     <View style={styles.energyBar}>
                       <View
                         style={[
@@ -275,7 +254,9 @@ const PersonalCodeScreen = () => {
                   </View>
 
                   <View style={styles.codeMeta}>
-                    <Text style={styles.codeMetaLabel}>Вибрация</Text>
+                    <Text style={styles.codeMetaLabel}>
+                      {t('personalCode.result.vibration')}
+                    </Text>
                     <Text style={styles.codeMetaValue}>
                       {result.interpretation.vibration}
                     </Text>
@@ -283,13 +264,17 @@ const PersonalCodeScreen = () => {
                 </View>
 
                 <View style={styles.numerologyCard}>
-                  <Text style={styles.numerologyLabel}>Нумерология</Text>
+                  <Text style={styles.numerologyLabel}>
+                    {t('personalCode.result.numerology.title')}
+                  </Text>
                   <View style={styles.numerologyRow}>
                     <View style={styles.numerologyItem}>
                       <Text style={styles.numerologyNumber}>
                         {result.numerology.reducedNumber}
                       </Text>
-                      <Text style={styles.numerologyText}>Итоговое число</Text>
+                      <Text style={styles.numerologyText}>
+                        {t('personalCode.result.numerology.reducedNumber')}
+                      </Text>
                     </View>
                     {result.numerology.masterNumber && (
                       <View style={styles.numerologyItem}>
@@ -298,7 +283,9 @@ const PersonalCodeScreen = () => {
                         >
                           {result.numerology.masterNumber}
                         </Text>
-                        <Text style={styles.numerologyText}>Мастер-число</Text>
+                        <Text style={styles.numerologyText}>
+                          {t('personalCode.result.numerology.masterNumber')}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -311,7 +298,9 @@ const PersonalCodeScreen = () => {
 
             {/* Interpretation */}
             <View style={styles.interpretationSection}>
-              <Text style={styles.interpretationTitle}>Интерпретация</Text>
+              <Text style={styles.interpretationTitle}>
+                {t('personalCode.result.interpretation.title')}
+              </Text>
 
               <BlurView intensity={20} style={styles.interpretationCard}>
                 <Text style={styles.interpretationSummary}>
@@ -334,7 +323,9 @@ const PersonalCodeScreen = () => {
 
             {/* Breakdown */}
             <View style={styles.breakdownSection}>
-              <Text style={styles.sectionTitle}>Расшифровка кода</Text>
+              <Text style={styles.sectionTitle}>
+                {t('personalCode.result.breakdown.title')}
+              </Text>
               {result.breakdown.map((item, index) => (
                 <BlurView
                   key={index}
@@ -356,7 +347,8 @@ const PersonalCodeScreen = () => {
                     {item.astrologyMeaning}
                   </Text>
                   <Text style={styles.breakdownNumerology}>
-                    Нумерология: {item.numerologyMeaning}
+                    {t('personalCode.result.numerology.prefix')}
+                    {item.numerologyMeaning}
                   </Text>
                 </BlurView>
               ))}
@@ -364,17 +356,19 @@ const PersonalCodeScreen = () => {
 
             {/* Practical Examples */}
             <View style={styles.examplesSection}>
-              <Text style={styles.sectionTitle}>Где использовать</Text>
+              <Text style={styles.sectionTitle}>
+                {t('personalCode.examples.title')}
+              </Text>
 
               <BlurView intensity={20} style={styles.exampleCard}>
                 <View style={styles.exampleHeader}>
                   <Ionicons name="card-outline" size={24} color="#10B981" />
-                  <Text style={styles.exampleTitle}>4 цифры</Text>
+                  <Text style={styles.exampleTitle}>
+                    {t('personalCode.examples.fourDigits.title')}
+                  </Text>
                 </View>
                 <Text style={styles.exampleText}>
-                  • PIN банковской карты для привлечения денег{'\n'}• Код
-                  домофона для безопасности дома{'\n'}• Время важных встреч
-                  (15:37)
+                  {t('personalCode.examples.fourDigits.text')}
                 </Text>
               </BlurView>
 
@@ -385,34 +379,40 @@ const PersonalCodeScreen = () => {
                     size={24}
                     color="#8B5CF6"
                   />
-                  <Text style={styles.exampleTitle}>6 цифр</Text>
+                  <Text style={styles.exampleTitle}>
+                    {t('personalCode.examples.sixDigits.title')}
+                  </Text>
                 </View>
                 <Text style={styles.exampleText}>
-                  • Пароль банковского приложения{'\n'}• WiFi пароль дома для
-                  удачи семьи{'\n'}• Пароль важных аккаунтов
+                  {t('personalCode.examples.sixDigits.text')}
                 </Text>
               </BlurView>
 
               <BlurView intensity={20} style={styles.exampleCard}>
                 <View style={styles.exampleHeader}>
                   <Ionicons name="call-outline" size={24} color="#F59E0B" />
-                  <Text style={styles.exampleTitle}>7+ цифр</Text>
+                  <Text style={styles.exampleTitle}>
+                    {t('personalCode.examples.sevenPlusDigits.title')}
+                  </Text>
                 </View>
                 <Text style={styles.exampleText}>
-                  • Последние цифры номера телефона{'\n'}• Целевая зарплата (код
-                  × 1000 руб){'\n'}• Номер лотерейного билета
+                  {t('personalCode.examples.sevenPlusDigits.text')}
                 </Text>
               </BlurView>
             </View>
 
             {/* How to Use */}
             <View style={styles.usageSection}>
-              <Text style={styles.sectionTitle}>Детальные инструкции</Text>
+              <Text style={styles.sectionTitle}>
+                {t('personalCode.usage.title')}
+              </Text>
 
               <BlurView intensity={20} style={styles.usageCard}>
                 <View style={styles.usageItem}>
                   <Ionicons name="time-outline" size={20} color="#A78BFA" />
-                  <Text style={styles.usageLabel}>Когда использовать</Text>
+                  <Text style={styles.usageLabel}>
+                    {t('personalCode.usage.whenToUse')}
+                  </Text>
                 </View>
                 <Text style={styles.usageText}>
                   {result.interpretation.whenToUse}

@@ -1,0 +1,72 @@
+{
+  "buttons": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "retry": "Retry",
+    "send": "Send",
+    "edit": "Edit",
+    "primary": "Primary"
+  },
+  "selectUpTo": "Select up to {{count}}",
+  "in": "in",
+  "errors": {
+    "generic": "Error",
+    "network": "Network error. Please try again.",
+    "unknown": "An unknown error occurred",
+    "sessionExpired": "Session expired",
+    "pleaseLoginAgain": "Please log in again.",
+    "failedToLoad": "Failed to load data",
+    "tryAgainLater": "Please try again later."
+  },
+  "loading": {
+    "loading": "Loading...",
+    "pleaseWait": "Please wait",
+    "loadingApp": "Loading app...",
+    "processing": "Processing..."
+  },
+  "zodiacSigns": {
+    "aries": "Aries",
+    "taurus": "Taurus",
+    "gemini": "Gemini",
+    "cancer": "Cancer",
+    "leo": "Leo",
+    "virgo": "Virgo",
+    "libra": "Libra",
+    "scorpio": "Scorpio",
+    "sagittarius": "Sagittarius",
+    "capricorn": "Capricorn",
+    "aquarius": "Aquarius",
+    "pisces": "Pisces"
+  },
+  "elements": {
+    "fire": "Fire",
+    "water": "Water",
+    "earth": "Earth",
+    "air": "Air"
+  },
+  "planets": {
+    "sun": "Sun",
+    "moon": "Moon",
+    "mercury": "Mercury",
+    "venus": "Venus",
+    "mars": "Mars",
+    "jupiter": "Jupiter",
+    "saturn": "Saturn",
+    "uranus": "Uranus",
+    "neptune": "Neptune",
+    "pluto": "Pluto"
+  },
+  "aspects": {
+    "conjunction": "conjunction",
+    "opposition": "opposition",
+    "trine": "trine",
+    "square": "square",
+    "sextile": "sextile"
+  }
+}
