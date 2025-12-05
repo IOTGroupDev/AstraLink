@@ -32,7 +32,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 \
     py3-pip && \
-    pip3 install --no-cache-dir --break-system-packages pyswissep
+    pip3 install --no-cache-dir --break-system-packages pyswisseph
 
 # non-root юзер
 RUN addgroup -g 1001 -S nodejs && \
