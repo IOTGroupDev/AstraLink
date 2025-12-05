@@ -28,10 +28,14 @@ FROM node:20-alpine3.19
 
 WORKDIR /app
 
-# Python + pyswisseph (здесь уже нормальный Python 3.11)
+# Python + pyswisseph + build tools для swisseph
 RUN apk add --no-cache \
     python3 \
-    py3-pip && \
+    py3-pip \
+    make \
+    g++ \
+    gcc \
+    python3-dev && \
     pip3 install --no-cache-dir --break-system-packages pyswisseph
 
 # non-root юзер
