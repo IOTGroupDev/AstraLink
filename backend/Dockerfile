@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Builder - Build with dependencies
 # ============================================
-FROM node:20-alpine3.19 AS builder
+FROM node:23-alpine3.19 AS builder
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ RUN npm run build
 # ============================================
 # Stage 2: Production - Minimal runtime image
 # ============================================
-FROM node:20-alpine3.19
+FROM node:23-alpine3.19
 
 WORKDIR /app
 
