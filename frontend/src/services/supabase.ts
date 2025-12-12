@@ -127,65 +127,76 @@ export const initSupabaseAuth = async () => {
       // Гарантируем готовность локального стораджа токенов
       await tokenService.init();
 
-      // Берём текущую сессию из Supabase
-      const { data, error } = await supabase.auth.getSession();
+      // CRITICAL FIX: Wait for Supabase to fully restore session from AsyncStorage
+      // We need to wait for the INITIAL_SESSION event before proceeding
+      const initialSessionPromise = new Promise<void>((resolve) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (event === 'INITIAL_SESSION') {
+              const email = session?.user?.email || 'no user';
+              supabaseLogger.log('🔄 Auth event:', event, email);
 
-      if (error) {
-        supabaseLogger.error('❌ Session error:', error);
-        await tokenService.setToken(null);
-        return;
-      }
+              // Синхронизация токена
+              await tokenService.setToken(session?.access_token ?? null);
 
-      // Лог + первичная синхронизация токена
-      if (data.session) {
-        supabaseLogger.log('✅ Session restored:', data.session.user.email);
-      } else {
-        supabaseLogger.log('ℹ️ No active session');
-      }
-      await tokenService.setToken(data.session?.access_token ?? null);
+              // Синхронизация Zustand-стора
+              try {
+                const { useAuthStore } = await import('../stores/auth.store');
+                const st = useAuthStore.getState();
+                if (session?.user) {
+                  st.login({
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    role: 'user',
+                  });
+                  supabaseLogger.log('✅ Session restored:', session.user.email);
+                } else {
+                  st.logout();
+                  supabaseLogger.log('ℹ️ No active session');
+                }
+              } catch (e) {
+                supabaseLogger.warn('Auth store sync (initial session) failed:', e);
+              }
 
-      // Синхронизируем Zustand-стор аутентификации до рендера App (чтобы initialRoute не прыгал на онбординг)
-      try {
-        const { useAuthStore } = await import('../stores/auth.store');
-        const st = useAuthStore.getState();
-        if (data.session?.user) {
-          st.login({
-            id: data.session.user.id,
-            email: data.session.user.email || '',
-            role: 'user',
-          });
-        } else {
-          st.logout();
-        }
-      } catch (e) {
-        supabaseLogger.warn('Auth store sync (initial session) failed:', e);
-      }
+              // Initial session processed, resolve
+              resolve();
+            } else {
+              // Handle other auth events (SIGNED_IN, SIGNED_OUT, etc.)
+              const email = session?.user?.email || 'no user';
+              supabaseLogger.log('🔄 Auth event:', event, email);
 
-      // Подписка на изменения auth-состояния: держим tokenService и Zustand-store в актуальном состоянии
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        const email = session?.user?.email || 'no user';
-        supabaseLogger.log('🔄 Auth event:', event, email);
+              // Синхронизация токена
+              await tokenService.setToken(session?.access_token ?? null);
 
-        // синхронизация токена
-        await tokenService.setToken(session?.access_token ?? null);
-
-        // синхронизация стора авторизации
-        try {
-          const { useAuthStore } = await import('../stores/auth.store');
-          const st = useAuthStore.getState();
-          if (session?.user) {
-            st.login({
-              id: session.user.id,
-              email: session.user.email || '',
-              role: 'user',
-            });
-          } else {
-            st.logout();
+              // Синхронизация стора авторизации
+              try {
+                const { useAuthStore } = await import('../stores/auth.store');
+                const st = useAuthStore.getState();
+                if (session?.user) {
+                  st.login({
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    role: 'user',
+                  });
+                } else {
+                  st.logout();
+                }
+              } catch (e) {
+                supabaseLogger.warn('Auth store sync (onAuthStateChange) failed:', e);
+              }
+            }
           }
-        } catch (e) {
-          supabaseLogger.warn('Auth store sync (onAuthStateChange) failed:', e);
-        }
+        );
       });
+
+      // Wait for INITIAL_SESSION event with timeout
+      await Promise.race([
+        initialSessionPromise,
+        new Promise<void>((resolve) => setTimeout(() => {
+          supabaseLogger.warn('⚠️ INITIAL_SESSION timeout, continuing...');
+          resolve();
+        }, 5000)), // 5 second timeout
+      ]);
 
       supabaseLogger.log('✅ Supabase auth initialized');
     } catch (error) {
