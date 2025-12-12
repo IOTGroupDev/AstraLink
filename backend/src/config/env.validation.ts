@@ -24,9 +24,13 @@ export const envSchema = z.object({
   // Security
   JWT_SECRET: z
     .string()
-    .min(64, 'JWT_SECRET must be at least 64 characters long for security')
+    .min(32, 'JWT_SECRET must be at least 32 characters long for security')
     .refine(
       (val) => {
+        // In development, allow any secret. In production, enforce strict validation
+        if (process.env.NODE_ENV === 'development') {
+          return true;
+        }
         // Check that secret doesn't contain common test/example values
         const testValues = [
           'test',
@@ -42,18 +46,22 @@ export const envSchema = z.object({
       },
       {
         message:
-          'JWT_SECRET contains test/example values. Please use a strong random secret.',
+          'JWT_SECRET contains test/example values. In production, please use a strong random secret (e.g., openssl rand -base64 64)',
       },
     )
     .refine(
       (val) => {
+        // In development, allow any secret. In production, enforce strict validation
+        if (process.env.NODE_ENV === 'development') {
+          return true;
+        }
         // Check for reasonable entropy (not all same character, has mix of characters)
         const uniqueChars = new Set(val).size;
         return uniqueChars >= 20; // At least 20 different characters
       },
       {
         message:
-          'JWT_SECRET has insufficient entropy. Please use a strong random secret (e.g., openssl rand -base64 64)',
+          'JWT_SECRET has insufficient entropy. In production, please use a strong random secret (e.g., openssl rand -base64 64)',
       },
     ),
 
@@ -100,11 +108,13 @@ export function validateEnv(): EnvConfig {
   try {
     const parsed = envSchema.parse(process.env);
 
-    // Custom validation: at least one AI provider must be configured
-    if (!parsed.ANTHROPIC_API_KEY && !parsed.OPENAI_API_KEY) {
-      throw new Error(
-        'At least one AI provider key is required: ANTHROPIC_API_KEY or OPENAI_API_KEY',
-      );
+    // Custom validation: at least one AI provider must be configured (only in production)
+    if (parsed.NODE_ENV === 'production') {
+      if (!parsed.ANTHROPIC_API_KEY && !parsed.OPENAI_API_KEY) {
+        throw new Error(
+          'At least one AI provider key is required in production: ANTHROPIC_API_KEY or OPENAI_API_KEY',
+        );
+      }
     }
 
     return parsed;

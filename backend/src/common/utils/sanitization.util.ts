@@ -1,4 +1,6 @@
-import sanitizeHtml from 'sanitize-html';
+/* eslint-disable @typescript-eslint/no-require-imports */
+import sanitizeHtml = require('sanitize-html');
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 /**
  * Sanitization options for different input types
