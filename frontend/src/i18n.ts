@@ -31,14 +31,14 @@ export const setStoredLanguage = async (language: string): Promise<void> => {
 
 // Определяем язык по умолчанию
 const getDefaultLanguage = (): string => {
-  const deviceLanguage = Localization.locale.split('-')[0]; // 'en-US' -> 'en'
   const supportedLanguages = ['en', 'es', 'ru'];
 
-  if (supportedLanguages.includes(deviceLanguage)) {
-    return deviceLanguage;
-  }
+  const raw =
+    (Localization as any).locale || (Localization as any).locales?.[0] || 'en';
 
-  return 'en'; // Fallback to English
+  const deviceLanguage = String(raw).split(/[-_]/)[0].toLowerCase();
+
+  return supportedLanguages.includes(deviceLanguage) ? deviceLanguage : 'en';
 };
 
 // Инициализация i18next
@@ -69,4 +69,5 @@ const initI18n = async () => {
 // Инициализируем i18n при импорте модуля
 initI18n();
 
+export const i18nReady = initI18n();
 export default i18n;
