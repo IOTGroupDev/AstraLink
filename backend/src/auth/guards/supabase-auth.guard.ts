@@ -32,6 +32,7 @@ export class SupabaseAuthGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) {
+      this.logger.debug(`Public endpoint: ${request.path}`);
       return true;
     }
 
@@ -55,23 +56,34 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     if (!token) {
-      this.logger.debug(
-        `No or invalid Authorization header for path ${request.path}`,
+      this.logger.warn(
+        `❌ No or invalid Authorization header for ${request.method} ${request.path}`,
       );
+      this.logger.debug(`Raw header: ${rawHeader}`);
       throw new UnauthorizedException('Токен авторизации не предоставлен');
     }
 
     try {
+      this.logger.debug(
+        `🔐 Validating token for ${request.method} ${request.path}`,
+      );
+
       const { data, error } = await this.supabaseService.getUser(token);
 
       const user = data?.user;
 
       if (error || !user) {
         this.logger.warn(
-          `Supabase getUser failed: ${(error as any)?.message || 'no user'}`,
+          `❌ Supabase getUser failed for ${request.path}: ${(error as any)?.message || 'no user'}`,
         );
+        this.logger.debug(`Token (first 20 chars): ${token.substring(0, 20)}...`);
+        this.logger.debug(`Error details: ${JSON.stringify(error)}`);
         throw new UnauthorizedException('Недействительный токен');
       }
+
+      this.logger.debug(
+        `✅ Token validated for user ${user.email} (${user.id})`,
+      );
 
       // Normalize user for controllers
       request.user = {
@@ -87,7 +99,9 @@ export class SupabaseAuthGuard implements CanActivate {
       if (e instanceof UnauthorizedException) {
         throw e;
       }
-      this.logger.error(`Token validation failed: ${e?.message || e}`);
+      this.logger.error(
+        `❌ Token validation exception for ${request.path}: ${e?.message || e}`,
+      );
       throw new UnauthorizedException('Ошибка проверки токена');
     }
   }

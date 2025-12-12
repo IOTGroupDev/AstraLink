@@ -22,19 +22,30 @@ export class SupabaseService implements OnModuleInit {
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
+      this.logger.error(
+        '❌ SUPABASE_URL or SUPABASE_ANON_KEY not found in environment',
+      );
+      this.logger.error('Check that .env file exists and is loaded correctly');
       throw new Error('Supabase URL and Anon Key are required');
     }
 
     this.supabase = createClient(supabaseUrl, supabaseKey);
-    this.logger.log('Supabase client initialized');
+    this.logger.log(`✅ Supabase client initialized`);
+    this.logger.debug(`📍 Supabase URL: ${supabaseUrl}`);
+    this.logger.debug(
+      `🔑 Anon Key (first 20 chars): ${supabaseKey.substring(0, 20)}...`,
+    );
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (serviceRoleKey) {
       this.adminSupabase = createClient(supabaseUrl, serviceRoleKey);
-      this.logger.log('Supabase admin client initialized');
+      this.logger.log('✅ Supabase admin client initialized');
+      this.logger.debug(
+        `🔑 Service Key (first 20 chars): ${serviceRoleKey.substring(0, 20)}...`,
+      );
     } else {
       this.logger.warn(
-        'SUPABASE_SERVICE_ROLE_KEY not set. Admin operations will be unavailable and RLS may cause 404.',
+        '⚠️  SUPABASE_SERVICE_ROLE_KEY not set. Admin operations will be unavailable and RLS may cause 404.',
       );
     }
   }
