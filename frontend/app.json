@@ -17,7 +17,7 @@
       "bundleIdentifier": "astralink.test",
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение",
         "ITSAppUsesNonExemptEncryption": false
