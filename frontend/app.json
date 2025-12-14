@@ -5,7 +5,6 @@
     "scheme": "astralink",
     "version": "1.0.0",
     "orientation": "portrait",
-    "main": "index.ts",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -18,7 +17,7 @@
       "bundleIdentifier": "astralink.test",
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение",
         "ITSAppUsesNonExemptEncryption": false
@@ -69,6 +68,10 @@
       "expo-local-authentication",
       "expo-apple-authentication"
     ],
+    "updates": {
+      "enabled": false,
+      "fallbackToCacheTimeout": 0
+    },
     "owner": "andreiya"
   }
 }
