@@ -103,7 +103,7 @@
 // ========================================
 export enum SubscriptionTier {
   FREE = 'free',
-  PREMIUM = 'premium',
+  BASIC = 'basic',
   MAX = 'max',
 }
 
@@ -185,8 +185,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     colors: ['#6B7280', '#9CA3AF'],
   },
   {
-    tier: SubscriptionTier.PREMIUM,
-    name: 'Premium',
+    tier: SubscriptionTier.BASIC,
+    name: 'AstraPlus',
     price: 599,
     currency: 'RUB',
     period: 'month',
@@ -246,27 +246,27 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 // ========================================
 export const FEATURE_REQUIREMENTS: Record<string, SubscriptionTier[]> = {
   // Натальная карта
-  fullNatalChart: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  natalInterpretation: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  fullNatalChart: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
+  natalInterpretation: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
 
   // Гороскопы
-  aiHoroscope: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  aiHoroscope: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
 
   // Транзиты
-  detailedTransits: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  astroSimulator: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  detailedTransits: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
+  astroSimulator: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
 
   // Связи
-  unlimitedConnections: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  detailedSynastry: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  unlimitedConnections: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
+  detailedSynastry: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
 
   // Dating
-  cosmicDating: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  unlimitedLikes: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  seeWhoLiked: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  cosmicDating: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
+  unlimitedLikes: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
+  seeWhoLiked: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
 
   // Лунный календарь
-  fullLunarCalendar: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  fullLunarCalendar: [SubscriptionTier.BASIC, SubscriptionTier.MAX],
 
   // Только MAX
   astrologerConsultations: [SubscriptionTier.MAX],
@@ -330,25 +330,25 @@ export interface UpgradeSuggestion {
 export const UPGRADE_SUGGESTIONS: Record<string, UpgradeSuggestion> = {
   fullNatalChart: {
     featureName: 'Полная натальная карта',
-    requiredTier: SubscriptionTier.PREMIUM,
+    requiredTier: SubscriptionTier.BASIC,
     benefit: 'Откройте все секреты вашей карты с AI интерпретацией',
     icon: 'star',
   },
   aiHoroscope: {
     featureName: 'AI-гороскопы',
-    requiredTier: SubscriptionTier.PREMIUM,
+    requiredTier: SubscriptionTier.BASIC,
     benefit: 'Персональные прогнозы на основе вашей карты',
     icon: 'sparkles',
   },
   astroSimulator: {
     featureName: 'Астросимулятор',
-    requiredTier: SubscriptionTier.PREMIUM,
+    requiredTier: SubscriptionTier.BASIC,
     benefit: 'Путешествуйте во времени и изучайте транзиты',
     icon: 'time',
   },
   cosmicDating: {
     featureName: 'Cosmic Dating',
-    requiredTier: SubscriptionTier.PREMIUM,
+    requiredTier: SubscriptionTier.BASIC,
     benefit: 'Находите совместимых партнеров по звездам',
     icon: 'heart',
   },
@@ -365,6 +365,6 @@ export const UPGRADE_SUGGESTIONS: Record<string, UpgradeSuggestion> = {
 // ========================================
 export const TRIAL_CONFIG = {
   duration: 7, // дней
-  tier: SubscriptionTier.PREMIUM,
+  tier: SubscriptionTier.BASIC,
   enabled: true,
 };

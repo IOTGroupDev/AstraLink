@@ -1,4 +1,8 @@
 {
+  "title": "Subscription Plans",
+  "subtitle": "Choose the plan that works for you",
+  "popular": "Most Popular",
+  "current": "Current Plan",
   "tiers": {
     "free": {
       "name": "Free",
@@ -32,6 +36,10 @@
     "trial": "Trial",
     "daysLeft": "{{count}} days left",
     "validUntil": "Valid until {{date}}"
+  },
+  "period": {
+    "month": "month",
+    "year": "year"
   },
   "buttons": {
     "upgrade": "Upgrade",

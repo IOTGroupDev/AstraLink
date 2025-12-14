@@ -1,4 +1,8 @@
 {
+  "title": "Planes de Suscripción",
+  "subtitle": "Elige el plan que funcione para ti",
+  "popular": "Más Popular",
+  "current": "Plan Actual",
   "tiers": {
     "free": {
       "name": "Gratis",
@@ -32,6 +36,10 @@
     "trial": "Prueba",
     "daysLeft": "{{count}} días restantes",
     "validUntil": "Válida hasta {{date}}"
+  },
+  "period": {
+    "month": "mes",
+    "year": "año"
   },
   "buttons": {
     "upgrade": "Mejorar",
