@@ -239,7 +239,11 @@ export class ChartService {
     const subscription = await this.getCachedSubscription(userId);
 
     // Determine subscription tier (default to FREE)
-    const tier = subscription?.tier || 'free';
+    const tier = (subscription?.tier || SubscriptionTier.FREE) as SubscriptionTier;
+
+    this.logger.debug(
+      `Transit interpretation for user ${userId}, tier: ${tier}, subscription: ${JSON.stringify(subscription)}`,
+    );
 
     // Get natal chart
     const natalChart = await this.natalChartService.getNatalChart(userId);
