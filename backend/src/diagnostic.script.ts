@@ -108,7 +108,8 @@ async function runDiagnostics() {
       }
     }
   } catch (error) {
-    logger.error(`   ❌ Критическая ошибка: ${error}`);
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`   ❌ Критическая ошибка: ${msg}`);
   }
 
   // 5. Проверка RLS политик
@@ -200,7 +201,8 @@ async function runDiagnostics() {
       logger.info('   🧹 Тестовая запись удалена');
     }
   } catch (error) {
-    logger.error(`   ❌ Критическая ошибка: ${error}`);
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`   ❌ Критическая ошибка: ${msg}`);
   }
 
   // 7. Тест создания записи с Regular Client (должно упасть из-за RLS)
@@ -292,7 +294,8 @@ async function runDiagnostics() {
       logger.info('   🧹 Тестовый пользователь удален');
     }
   } catch (error) {
-    logger.error(`   ❌ Ошибка проверки FK: ${error}`);
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`   ❌ Ошибка проверки FK: ${msg}`);
   }
 
   // 9. Итоговая диагностика

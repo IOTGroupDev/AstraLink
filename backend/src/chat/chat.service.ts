@@ -221,9 +221,12 @@ export class ChatService {
     const typedUserRes = userRes as SupabaseUserResponse | null;
     const uid = typedUserRes?.user?.id;
     if (!uid || userErr) {
-      this.logger.error('Cannot resolve user from token for sendMessage fallback', {
-        userErr: userErr?.message ?? userErr,
-      });
+      this.logger.error(
+        'Cannot resolve user from token for sendMessage fallback',
+        {
+          userErr: userErr?.message ?? userErr,
+        },
+      );
       throw new Error('send_message failed (no user from token)');
     }
 

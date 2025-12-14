@@ -38,6 +38,7 @@ npm run start:dev
 #### 401 Unauthorized - "Недействительный токен" (Invalid Token)
 
 **Symptoms:**
+
 ```
 ERROR ❌ [API] ❌ HTTP 401 for /api/v1/user/profile-extended
 {"error": "Unauthorized", "message": "Недействительный токен", "statusCode": 401}
@@ -46,11 +47,13 @@ ERROR ❌ [API] ❌ HTTP 401 for /api/v1/user/profile-extended
 **Cause:** Backend Supabase credentials are not configured or don't match the frontend.
 
 **Solution:**
+
 1. Verify `backend/.env` file exists and contains correct Supabase credentials
 2. Ensure `SUPABASE_URL` and `SUPABASE_ANON_KEY` match the frontend configuration (see `frontend/app.json` > `extra.eas`)
 3. Restart the backend server to pick up environment variable changes
 
 **Quick Fix:**
+
 ```bash
 cd backend
 cp .env.migration .env  # Copy credentials from migration file
@@ -96,5 +99,6 @@ npm run start:dev
 ### Verify Token Validation
 
 Check backend logs when frontend makes a request:
+
 - ✅ Good: `Supabase client initialized`
 - ❌ Bad: `Supabase URL and Anon Key are required`

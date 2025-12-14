@@ -76,7 +76,9 @@ export class SupabaseAuthGuard implements CanActivate {
         this.logger.warn(
           `❌ Supabase getUser failed for ${request.path}: ${(error as any)?.message || 'no user'}`,
         );
-        this.logger.debug(`Token (first 20 chars): ${token.substring(0, 20)}...`);
+        this.logger.debug(
+          `Token (first 20 chars): ${token.substring(0, 20)}...`,
+        );
         this.logger.debug(`Error details: ${JSON.stringify(error)}`);
         throw new UnauthorizedException('Недействительный токен');
       }

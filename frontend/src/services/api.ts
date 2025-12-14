@@ -5,9 +5,6 @@
  * All API modules are in separate files in /api/ directory.
  */
 
-// Re-export everything from the modular API structure
-export * from './api';
-
 // Explicit named exports for backward compatibility
 export { api, API_BASE_URL } from './api/client';
 export { authAPI } from './api/auth.api';
