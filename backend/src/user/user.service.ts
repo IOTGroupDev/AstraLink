@@ -167,7 +167,7 @@ export class UserService {
       if (!sub) {
         await this.supabaseService.createSubscription({
           user_id: userId,
-          tier: 'free',
+          tier: 'max',
         });
       }
     } catch (_e) {
