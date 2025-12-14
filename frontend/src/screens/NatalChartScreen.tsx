@@ -308,7 +308,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
                 <Text style={styles.bigThreeValue}>{sunSign}</Text>
                 <Text style={styles.bigThreeDegree}>
-                  {formatDegree(planets.sun?.degree || 0)}
+                  {formatDegree(planets?.sun?.degree || 0)}
                 </Text>
               </View>
 
@@ -319,7 +319,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
                 <Text style={styles.bigThreeValue}>{moonSign}</Text>
                 <Text style={styles.bigThreeDegree}>
-                  {formatDegree(planets.moon?.degree || 0)}
+                  {formatDegree(planets?.moon?.degree || 0)}
                 </Text>
               </View>
 
@@ -538,22 +538,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
-                {interpretation?.planets?.find(
-                  (p: any) => p.planet === name
-                ) && (
-                  <>
-                    <View style={styles.divider} />
-                    <View style={styles.interpretationSection}>
-                      <Text style={styles.interpretationText}>
-                        {
-                          interpretation.planets.find(
-                            (p: any) => p.planet === name
-                          ).interpretation
-                        }
-                      </Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const planetInterpretation = interpretation?.planets?.find(
+                    (p: any) => p.planet === name
+                  );
+                  return planetInterpretation ? (
+                    <>
+                      <View style={styles.divider} />
+                      <View style={styles.interpretationSection}>
+                        <Text style={styles.interpretationText}>
+                          {planetInterpretation.interpretation}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null;
+                })()}
               </View>
             </BlurView>
           );
@@ -625,20 +624,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </>
                 )}
 
-                {interpretation?.houses?.find((h: any) => h.house === num) && (
-                  <>
-                    <View style={styles.divider} />
-                    <View style={styles.interpretationSection}>
-                      <Text style={styles.interpretationText}>
-                        {
-                          interpretation.houses.find(
-                            (h: any) => h.house === num
-                          ).interpretation
-                        }
-                      </Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const houseInterpretation = interpretation?.houses?.find(
+                    (h: any) => h.house === num
+                  );
+                  return houseInterpretation ? (
+                    <>
+                      <View style={styles.divider} />
+                      <View style={styles.interpretationSection}>
+                        <Text style={styles.interpretationText}>
+                          {houseInterpretation.interpretation}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null;
+                })()}
               </View>
             </BlurView>
           );
@@ -774,28 +774,24 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
-                {interpretation?.aspects?.find(
-                  (a: any) =>
-                    a.planetA === planetA &&
-                    a.planetB === planetB &&
-                    a.aspect === aspectName
-                ) && (
-                  <>
-                    <View style={styles.divider} />
-                    <View style={styles.interpretationSection}>
-                      <Text style={styles.interpretationText}>
-                        {
-                          interpretation.aspects.find(
-                            (a: any) =>
-                              a.planetA === planetA &&
-                              a.planetB === planetB &&
-                              a.aspect === aspectName
-                          ).interpretation
-                        }
-                      </Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const aspectInterpretation = interpretation?.aspects?.find(
+                    (a: any) =>
+                      a.planetA === planetA &&
+                      a.planetB === planetB &&
+                      a.aspect === aspectName
+                  );
+                  return aspectInterpretation ? (
+                    <>
+                      <View style={styles.divider} />
+                      <View style={styles.interpretationSection}>
+                        <Text style={styles.interpretationText}>
+                          {aspectInterpretation.interpretation}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null;
+                })()}
               </View>
             </BlurView>
           );
