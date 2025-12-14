@@ -3,6 +3,16 @@
   "subtitle": "Choose the plan that works for you",
   "popular": "Most Popular",
   "current": "Current Plan",
+  "currentPlan": "Current Plan",
+  "currentPlanMessage": "This is your current subscription plan.",
+  "choosePlan": "Choose Plan",
+  "chooseFree": "Choose Free",
+  "purchasing": "Processing...",
+  "confirmTitle": "Confirm Subscription",
+  "confirmMessage": "Upgrade to {{planName}}?",
+  "successTitle": "Success!",
+  "successMessage": "Your subscription has been upgraded successfully.",
+  "errorMessage": "Failed to upgrade subscription. Please try again.",
   "tiers": {
     "free": {
       "name": "Free",
