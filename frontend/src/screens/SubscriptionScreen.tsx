@@ -66,9 +66,10 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     }
 
     // Confirm purchase
+    const displayName = t(`subscription.tiers.${tier}.name`, planName);
     Alert.alert(
       t('subscription.confirmTitle', 'Confirm Subscription'),
-      t('subscription.confirmMessage', `Upgrade to ${planName}?`),
+      t('subscription.confirmMessage', { planName: displayName }),
       [
         {
           text: t('common.buttons.cancel', 'Cancel'),
@@ -123,7 +124,9 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
+          <Text style={styles.loadingText}>
+            {t('common.loading.loading', 'Loading...')}
+          </Text>
         </View>
       </SafeAreaView>
     );
