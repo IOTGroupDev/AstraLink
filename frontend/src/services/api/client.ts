@@ -77,7 +77,7 @@ export const api = axios.create({
 // Список публичных эндпоинтов (не требуют авторизации)
 const PUBLIC_ENDPOINTS = [
   '/auth/login',
-  '/auth/register',
+  '/auth/signup',
   '/auth/verify',
   '/auth/magic-link',
   '/auth/complete-signup',
