@@ -196,19 +196,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
-  // Находим правильный уровень данных, где есть planets
-  let natalData = chartData.data;
-
-  // Проверяем разные уровни вложенности
-  if (!natalData?.planets && natalData?.data) {
-    natalData = natalData.data; // Уровень 3
-    if (!natalData?.planets && natalData?.data) {
-      natalData = natalData.data; // Уровень 4
-    }
-  }
-
-  const { planets, houses, aspects, ascendant, midheaven } = natalData;
-  const interpretation = chartData.data?.interpretation || natalData?.interpretation;
+  // Извлекаем данные из правильной структуры
+  const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
+  const interpretation = chartData.data?.interpretation;
 
   // Логирование для проверки структуры
   logger.info('Деструктуризация данных карты', {
@@ -220,8 +210,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     planetsCount: planets ? Object.keys(planets).length : 0,
     housesCount: houses ? Object.keys(houses).length : 0,
     aspectsCount: aspects ? aspects.length : 0,
-    usedDataPath: !chartData.data?.planets ?
-      (!chartData.data?.data?.planets ? 'level4' : 'level3') : 'level2',
   });
 
   // Вкладки
