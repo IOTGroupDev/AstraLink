@@ -196,34 +196,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
-  // Находим правильный уровень данных, где есть planets
-  // Бэкенд может возвращать данные с множественной вложенностью
-  let natalData: any = chartData.data;
-  let depth = 2;
-  const maxDepth = 20; // Максимальная глубина для защиты от бесконечного цикла
-
-  // Идем вглубь по цепочке data.data.data... пока не найдем planets
-  while (!natalData?.planets && natalData?.data && depth < maxDepth) {
-    natalData = natalData.data;
-    depth++;
-  }
-
-  const { planets, houses, aspects, ascendant, midheaven } = natalData;
-
-  // Интерпретация может быть на любом уровне
-  let interpretation = chartData.data?.interpretation;
-  if (!interpretation) {
-    let temp: any = chartData.data;
-    let searchDepth = 2;
-    while (!temp?.interpretation && temp?.data && searchDepth < maxDepth) {
-      temp = temp.data;
-      searchDepth++;
-      if (temp?.interpretation) {
-        interpretation = temp.interpretation;
-        break;
-      }
-    }
-  }
+  // Извлекаем данные из правильной структуры
+  const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
+  const interpretation = chartData.data?.interpretation;
 
   // Логирование для проверки структуры
   logger.info('Деструктуризация данных карты', {
@@ -235,8 +210,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     planetsCount: planets ? Object.keys(planets).length : 0,
     housesCount: houses ? Object.keys(houses).length : 0,
     aspectsCount: aspects ? aspects.length : 0,
-    depth: depth,
-    foundAtLevel: `level${depth}`,
   });
 
   // Вкладки
