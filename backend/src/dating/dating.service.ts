@@ -376,7 +376,8 @@ export class DatingService {
               profilesById.set(u.id, {
                 user_id: u.id,
                 bio: u.profile.bio ?? null,
-                preferences: (u.profile.preferences as Record<string, any>) ?? {},
+                preferences:
+                  (u.profile.preferences as Record<string, any>) ?? {},
                 city: u.profile.city ?? null,
                 gender: u.profile.gender,
                 display_name: undefined,

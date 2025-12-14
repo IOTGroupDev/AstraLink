@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Astralink",
+    "name": "AstraLinkTest",
     "slug": "astralink",
     "scheme": "astralink",
     "version": "1.0.0",
@@ -17,9 +17,10 @@
       "bundleIdentifier": "astralink.test",
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение"
+        "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -28,7 +29,12 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0618"
       },
-      "permissions": ["USE_BIOMETRIC", "USE_FINGERPRINT"],
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -49,7 +55,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "your-project-id",
+        "projectId": "7b9aafa6-b55f-4a64-bcc3-a2ed358959bc",
         "SUPABASE_URL": "https://ayoucajwdyinyhamousz.supabase.co",
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo",
         "API_URL": "https://api.astralink.vip/api"
@@ -61,6 +67,7 @@
       "expo-web-browser",
       "expo-local-authentication",
       "expo-apple-authentication"
-    ]
+    ],
+    "owner": "andreiya"
   }
 }
