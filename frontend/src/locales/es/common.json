@@ -67,6 +67,12 @@
     "opposition": "Oposición",
     "trine": "Trígono",
     "square": "Cuadratura",
-    "sextile": "Sextil"
+    "sextile": "Sextil",
+    "semi-sextile": "Semi-sextil",
+    "semi-square": "Semi-cuadratura",
+    "sesquiquadrate": "Sesquicuadratura",
+    "quincunx": "Quincuncio",
+    "quintile": "Quintil",
+    "biquintile": "Biquintil"
   }
 }

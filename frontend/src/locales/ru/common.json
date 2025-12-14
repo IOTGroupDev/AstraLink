@@ -67,6 +67,12 @@
     "opposition": "Оппозиция",
     "trine": "Трин",
     "square": "Квадрат",
-    "sextile": "Секстиль"
+    "sextile": "Секстиль",
+    "semi-sextile": "Полусекстиль",
+    "semi-square": "Полуквадрат",
+    "sesquiquadrate": "Полутораквадрат",
+    "quincunx": "Квинконс",
+    "quintile": "Квинтиль",
+    "biquintile": "Биквинтиль"
   }
 }
