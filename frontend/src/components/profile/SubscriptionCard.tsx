@@ -268,6 +268,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    marginHorizontal: 16,
     marginBottom: 20,
   },
   card: {

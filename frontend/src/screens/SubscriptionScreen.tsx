@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginBottom: 24,
   },
   subtitle: {
@@ -285,12 +285,12 @@ const styles = StyleSheet.create({
   },
   planContainer: {
     position: 'relative',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   popularBadge: {
     position: 'absolute',
     top: -8,
-    right: 32,
+    right: 28,
     backgroundColor: '#8B5CF6',
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   currentBadge: {
     position: 'absolute',
     top: -8,
-    left: 32,
+    left: 28,
     backgroundColor: '#10B981',
     paddingHorizontal: 12,
     paddingVertical: 4,
