@@ -135,22 +135,20 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     try {
       setLoading(true);
       const data = await chartAPI.getNatalChartWithInterpretation();
-      logger.info('Загружены данные натальной карты', {
-        hasData: !!data?.data,
-        hasInterpretation: !!data?.data?.interpretation,
-        hasSummary: !!data?.data?.interpretation?.summary,
-        dataKeys: data?.data ? Object.keys(data.data) : [],
-        interpretationKeys: data?.data?.interpretation
-          ? Object.keys(data.data.interpretation)
-          : [],
-        summaryKeys: data?.data?.interpretation?.summary
-          ? Object.keys(data.data.interpretation.summary)
-          : [],
-        // Дополнительная информация о структуре
-        hasNestedData: !!data?.data?.data,
-        nestedDataKeys: data?.data?.data ? Object.keys(data.data.data) : [],
-        hasPlanets: !!data?.data?.planets,
-        hasNestedPlanets: !!data?.data?.data?.planets,
+      // Подробное логирование для отладки структуры
+      logger.info('Полная структура данных', {
+        level1Keys: data ? Object.keys(data) : [],
+        level2Keys: data?.data ? Object.keys(data.data) : [],
+        level3Keys: data?.data?.data ? Object.keys(data.data.data) : [],
+        level4Keys: data?.data?.data?.data ? Object.keys(data.data.data.data) : [],
+
+        // Где находятся planets?
+        hasPlanetsInL2: !!data?.data?.planets,
+        hasPlanetsInL3: !!data?.data?.data?.planets,
+        hasPlanetsInL4: !!data?.data?.data?.data?.planets,
+
+        // Проверка полного пути
+        fullDataStructure: JSON.stringify(data, null, 2).substring(0, 2000),
       });
       setChartData(data);
     } catch (error: any) {
@@ -198,10 +196,19 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
-  // Данные могут быть либо в chartData.data.data (новая структура), либо в chartData.data (старая структура)
-  const natalData = chartData.data.data || chartData.data;
+  // Находим правильный уровень данных, где есть planets
+  let natalData = chartData.data;
+
+  // Проверяем разные уровни вложенности
+  if (!natalData?.planets && natalData?.data) {
+    natalData = natalData.data; // Уровень 3
+    if (!natalData?.planets && natalData?.data) {
+      natalData = natalData.data; // Уровень 4
+    }
+  }
+
   const { planets, houses, aspects, ascendant, midheaven } = natalData;
-  const interpretation = chartData.data?.interpretation;
+  const interpretation = chartData.data?.interpretation || natalData?.interpretation;
 
   // Логирование для проверки структуры
   logger.info('Деструктуризация данных карты', {
@@ -213,6 +220,8 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     planetsCount: planets ? Object.keys(planets).length : 0,
     housesCount: houses ? Object.keys(houses).length : 0,
     aspectsCount: aspects ? aspects.length : 0,
+    usedDataPath: !chartData.data?.planets ?
+      (!chartData.data?.data?.planets ? 'level4' : 'level3') : 'level2',
   });
 
   // Вкладки
