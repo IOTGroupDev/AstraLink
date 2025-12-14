@@ -231,15 +231,27 @@ export class UserController {
     const client = this.supabaseService.createClientWithToken(token);
 
     // Build payload with validated data
+    // IMPORTANT: include only provided fields to avoid wiping existing data on partial updates
     const payload: any = {
       user_id: userId,
-      bio: updateData.bio ?? null,
-      preferences: updateData.preferences ?? {},
       updated_at: new Date().toISOString(),
     };
 
+    if (updateData.bio !== undefined) {
+      // bio может быть null (см. Transform в DTO) — это валидный кейс "очистить био"
+      payload.bio = updateData.bio ?? null;
+    }
+
+    if (updateData.preferences !== undefined) {
+      payload.preferences = updateData.preferences ?? {};
+    }
+
     if (updateData.gender) {
       payload.gender = updateData.gender;
+    }
+
+    if (updateData.city) {
+      payload.city = updateData.city;
     }
 
     if (typeof updateData.is_onboarded === 'boolean') {
