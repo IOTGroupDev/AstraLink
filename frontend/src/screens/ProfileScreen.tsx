@@ -228,22 +228,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const handleDeleteAccount = async () => {
     try {
       await userAPI.deleteAccount();
-      Alert.alert(
-        t('profile.deleteAccount.title'),
-        t('profile.deleteAccount.message'),
-        [
-          {
-            text: t('common.buttons.ok'),
-            onPress: () => {
-              tokenService.clearToken();
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-            },
-          },
-        ]
-      );
+
+      // Immediately close the modal
+      setShowDeleteModal(false);
+
+      // Clear auth state and token (logout handles token cleanup)
+      logout();
+
+      // Navigate to login screen immediately to prevent any API calls
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
     } catch (error: any) {
       logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(

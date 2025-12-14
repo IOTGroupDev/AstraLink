@@ -41,7 +41,7 @@ export const userAPI = {
       apiLogger.log('Отправка запроса на удаление аккаунта');
       const response = await api.delete('/user/account');
       apiLogger.log('Аккаунт успешно удален', response.data);
-      tokenService.clearToken();
+      // Token cleanup is handled by the caller (ProfileScreen)
       return response.data;
     } catch (error: any) {
       apiLogger.error('Ошибка удаления аккаунта', error);
