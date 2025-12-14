@@ -146,6 +146,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         summaryKeys: data?.data?.interpretation?.summary
           ? Object.keys(data.data.interpretation.summary)
           : [],
+        // Дополнительная информация о структуре
+        hasNestedData: !!data?.data?.data,
+        nestedDataKeys: data?.data?.data ? Object.keys(data.data.data) : [],
+        hasPlanets: !!data?.data?.planets,
+        hasNestedPlanets: !!data?.data?.data?.planets,
       });
       setChartData(data);
     } catch (error: any) {
@@ -193,8 +198,22 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
-  const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
+  // Данные могут быть либо в chartData.data.data (новая структура), либо в chartData.data (старая структура)
+  const natalData = chartData.data.data || chartData.data;
+  const { planets, houses, aspects, ascendant, midheaven } = natalData;
   const interpretation = chartData.data?.interpretation;
+
+  // Логирование для проверки структуры
+  logger.info('Деструктуризация данных карты', {
+    hasPlanets: !!planets,
+    hasHouses: !!houses,
+    hasAspects: !!aspects,
+    hasAscendant: !!ascendant,
+    hasMidheaven: !!midheaven,
+    planetsCount: planets ? Object.keys(planets).length : 0,
+    housesCount: houses ? Object.keys(houses).length : 0,
+    aspectsCount: aspects ? aspects.length : 0,
+  });
 
   // Вкладки
   const tabs: Array<{
