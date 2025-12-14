@@ -508,10 +508,14 @@ const UserDataLoaderScreen: React.FC = () => {
         const status = e?.response?.status;
 
         if (status === 401) {
-          authLogger.warn('Profile check: 401 Unauthorized - token missing or invalid');
+          authLogger.warn(
+            'Profile check: 401 Unauthorized - token missing or invalid'
+          );
           console.log('⚠️ Authentication error when checking profile');
         } else if (status === 404) {
-          authLogger.warn('Profile check: 404 Not Found - creating minimal profile');
+          authLogger.warn(
+            'Profile check: 404 Not Found - creating minimal profile'
+          );
           // Если профиля нет (404) — создаём минимальную запись, чтобы не срабатывать онбординг по отсутствию профиля
           try {
             await userAPI.updateProfile({} as any);

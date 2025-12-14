@@ -181,6 +181,12 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     }
   };
 
+  const animatedValueTextStyle = useAnimatedStyle(() => {
+    return {
+      marginTop: interpolate(labelAnimation.value, [0, 1], [0, 20]),
+    };
+  });
+
   return (
     <View style={styles.container}>
       <Animated.View style={animatedInputStyle}>
@@ -201,14 +207,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
             {placeholder} {required && '*'}
           </Animated.Text>
           {value && (
-            <Animated.Text
-              style={[
-                styles.inputText,
-                {
-                  marginTop: interpolate(labelAnimation.value, [0, 1], [0, 20]),
-                },
-              ]}
-            >
+            <Animated.Text style={[styles.inputText, animatedValueTextStyle]}>
               {formatDisplayValue()}
             </Animated.Text>
           )}

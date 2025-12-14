@@ -10,6 +10,7 @@ import {
   Min,
   Max,
   IsNumber,
+  IsArray,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -60,6 +61,17 @@ class PreferencesDto {
   @MaxLength(200)
   @IsOptional()
   location?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Interests (tags) for matching',
+    example: ['travel', 'music', 'yoga'],
+  })
+  @IsArray({ message: 'interests must be an array' })
+  @IsString({ each: true, message: 'each interest must be a string' })
+  @MaxLength(50, { each: true, message: 'each interest must be <= 50 chars' })
+  @IsOptional()
+  interests?: string[];
 }
 
 /**
@@ -92,6 +104,17 @@ export class UpdateExtendedProfileDto {
   })
   @IsOptional()
   gender?: 'male' | 'female' | 'other';
+
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description: 'City (free-form)',
+    example: 'Москва',
+  })
+  @Sanitize('strict')
+  @IsString({ message: 'city must be a string' })
+  @MaxLength(200, { message: 'city must not exceed 200 characters' })
+  @IsOptional()
+  city?: string;
 
   @ApiPropertyOptional({
     type: PreferencesDto,
