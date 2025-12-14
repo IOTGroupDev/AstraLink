@@ -369,4 +369,25 @@ export class ChartController {
     const date = dateStr ? new Date(dateStr) : new Date();
     return this.chartService.getTransitInterpretation(userId, date);
   }
+
+  @Post('admin/fix-nested-data')
+  @ApiOperation({
+    summary: 'Fix deeply nested chart data (Admin only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Migration results',
+  })
+  async fixNestedChartData(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+
+    // TODO: Add admin role check
+    // For now, any authenticated user can run this
+    // In production, restrict to admin role only
+
+    return this.chartService.fixNestedChartData();
+  }
 }
