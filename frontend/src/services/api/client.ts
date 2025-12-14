@@ -74,9 +74,31 @@ export const api = axios.create({
   },
 });
 
+// Список публичных эндпоинтов (не требуют авторизации)
+const PUBLIC_ENDPOINTS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/verify',
+  '/auth/magic-link',
+  '/auth/complete-signup',
+];
+
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
   const fullUrl = `${(config as any).baseURL ?? ''}${config.url ?? ''}`;
+
+  // Проверяем, публичный ли это эндпоинт
+  const isPublic = PUBLIC_ENDPOINTS.some(endpoint =>
+    config.url?.includes(endpoint)
+  );
+
+  // Для публичных эндпоинтов токен не нужен
+  if (isPublic) {
+    apiLogger.log('🌐 Public endpoint, no token required:', fullUrl);
+    return config;
+  }
+
+  // Для защищенных эндпоинтов требуем токен
   apiLogger.log('🔍 Получение токена для запроса:', fullUrl);
 
   try {
@@ -87,10 +109,15 @@ api.interceptors.request.use(async (config) => {
       (config.headers as any).Authorization = `Bearer ${token}`;
       apiLogger.log('🔐 Добавлен токен к запросу:', fullUrl);
     } else {
-      apiLogger.warn('⚠️ Нет токена для запроса:', fullUrl);
+      apiLogger.error('❌ No token for protected endpoint:', fullUrl);
+      // Отменяем запрос, если нет токена для защищенного эндпоинта
+      return Promise.reject(
+        new Error('Authentication required but no token available')
+      );
     }
   } catch (error) {
     apiLogger.error('❌ Ошибка получения токена:', error);
+    return Promise.reject(error);
   }
 
   return config;

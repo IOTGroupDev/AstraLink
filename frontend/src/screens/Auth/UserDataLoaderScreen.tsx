@@ -377,6 +377,7 @@ import {
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
+import { authLogger } from '../../services/logger';
 
 const UserDataLoaderScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -481,13 +482,21 @@ const UserDataLoaderScreen: React.FC = () => {
         if (ext?.is_onboarded === true) {
           setOnboardingCompletedFlag(true);
           await setAuthOnboardingCompleted(true);
+          console.log('✅ User already onboarded, redirecting to MainTabs');
           // ✅ Ранний выход: если в БД is_onboarded=true — сразу в MainTabs, без возврата на онбординг
           // @ts-ignore
           navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
           return;
         }
-      } catch {
-        // мягкая деградация — продолжаем без падения
+      } catch (e: any) {
+        // Различаем 401 и другие ошибки
+        const status = e?.response?.status;
+        if (status === 401) {
+          console.log('⚠️ Not authenticated, continuing with onboarding flow');
+        } else {
+          console.warn('⚠️ Profile sync failed:', e?.message);
+        }
+        // Продолжаем обычный flow (мягкая деградация)
       }
 
       setStatus('Проверка профиля...');
@@ -496,17 +505,23 @@ const UserDataLoaderScreen: React.FC = () => {
       try {
         profile = await userAPI.getProfile();
       } catch (e: any) {
-        authLogger.warn('Profile check warning:', e);
-        const status =
-          (e && e.response && e.response.status) || e?.response?.status;
-        // Если профиля нет (404) — создаём минимальную запись, чтобы не срабатывать онбординг по отсутствию профиля
-        if (status === 404) {
+        const status = e?.response?.status;
+
+        if (status === 401) {
+          authLogger.warn('Profile check: 401 Unauthorized - token missing or invalid');
+          console.log('⚠️ Authentication error when checking profile');
+        } else if (status === 404) {
+          authLogger.warn('Profile check: 404 Not Found - creating minimal profile');
+          // Если профиля нет (404) — создаём минимальную запись, чтобы не срабатывать онбординг по отсутствию профиля
           try {
             await userAPI.updateProfile({} as any);
             profile = await userAPI.getProfile();
+            console.log('✅ Minimal profile created successfully');
           } catch (provisionErr) {
             authLogger.warn('Profile auto-provision failed:', provisionErr);
           }
+        } else {
+          authLogger.warn('Profile check warning:', e);
         }
       }
 
