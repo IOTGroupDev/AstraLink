@@ -67,7 +67,5 @@ const initI18n = async () => {
 };
 
 // Инициализируем i18n при импорте модуля
-initI18n();
-
 export const i18nReady = initI18n();
 export default i18n;
