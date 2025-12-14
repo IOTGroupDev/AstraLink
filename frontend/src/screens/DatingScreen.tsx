@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingVertical: 16,
-    paddingTop: 60,
+    paddingTop: 20,
   },
   iconContainer: {
     marginBottom: 12,
