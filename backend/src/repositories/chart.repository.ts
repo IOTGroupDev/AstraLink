@@ -107,7 +107,8 @@ export class ChartRepository implements IChartRepository {
     try {
       // updateData should be the raw chart data (planets, houses, etc.)
       // or an object with { data: chartData } - we need to handle both cases
-      const chartData = updateData?.data !== undefined ? updateData.data : updateData;
+      const chartData =
+        updateData?.data !== undefined ? updateData.data : updateData;
 
       const updated = await this.prisma.chart.update({
         where: { id: chartId },

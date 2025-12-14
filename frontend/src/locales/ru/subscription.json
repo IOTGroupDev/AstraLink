@@ -1,4 +1,18 @@
 {
+  "title": "Планы подписки",
+  "subtitle": "Выберите план, который вам подходит",
+  "popular": "Самый популярный",
+  "current": "Текущий план",
+  "currentPlan": "Текущий план",
+  "currentPlanMessage": "Это ваш текущий план подписки.",
+  "choosePlan": "Выбрать план",
+  "chooseFree": "Выбрать бесплатный",
+  "purchasing": "Обработка...",
+  "confirmTitle": "Подтверждение подписки",
+  "confirmMessage": "Перейти на {{planName}}?",
+  "successTitle": "Успешно!",
+  "successMessage": "Ваша подписка успешно обновлена.",
+  "errorMessage": "Не удалось обновить подписку. Попробуйте еще раз.",
   "tiers": {
     "free": {
       "name": "Бесплатная",
@@ -36,6 +50,10 @@
     "trial": "Пробная",
     "daysLeft": "{{count}} дней осталось",
     "validUntil": "Действительна до {{date}}"
+  },
+  "period": {
+    "month": "месяц",
+    "year": "год"
   },
   "buttons": {
     "upgrade": "Улучшить",
