@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -29,25 +30,19 @@ interface SubscriptionCardProps {
 
 const SUBSCRIPTION_LEVELS = {
   free: {
-    name: 'Free',
     color: '#6B7280',
     gradient: ['#6B7280', '#4B5563'],
     icon: 'star-outline' as const,
-    features: ['Базовые функции', 'Лимитированный доступ'],
   },
-  premium: {
-    name: 'Premium',
+  basic: {
     color: '#8B5CF6',
     gradient: ['#8B5CF6', '#7C3AED'],
     icon: 'star' as const,
-    features: ['Полные натальные карты', 'Транзиты', 'Совместимость'],
   },
   max: {
-    name: 'MAX',
     color: '#F59E0B',
     gradient: ['#F59E0B', '#D97706', '#DC2626'],
     icon: 'diamond' as const,
-    features: ['Все функции', 'Приоритетная поддержка', 'Эксклюзивный контент'],
   },
 };
 
@@ -56,6 +51,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   onUpgrade,
   showUpgradeButton = true,
 }) => {
+  const { t, i18n } = useTranslation();
   const glowAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(1);
 
@@ -82,6 +78,13 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const levelConfig =
     SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
 
+  // Get translated tier name and features
+  const tierName = t(`subscription.tiers.${currentLevel}.name`);
+  const tierFeatures: string[] = t(
+    `subscription.tiers.${currentLevel}.features`,
+    { returnObjects: true }
+  ) as string[];
+
   const animatedGlowStyle = useAnimatedStyle(() => {
     return {
       opacity: glowAnim.value,
@@ -96,11 +99,18 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
   const formatExpiryDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+    return date.toLocaleDateString(
+      i18n.language === 'ru'
+        ? 'ru-RU'
+        : i18n.language === 'es'
+          ? 'es-ES'
+          : 'en-US',
+      {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }
+    );
   };
 
   // Support both paid expiration and active trial end date
@@ -155,7 +165,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   color="#fff"
                   style={styles.badgeIcon}
                 />
-                <Text style={styles.levelName}>{levelConfig.name}</Text>
+                <Text style={styles.levelName}>{tierName}</Text>
               </LinearGradient>
             </View>
 
@@ -172,7 +182,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   style={styles.upgradeGradient}
                 >
                   <Ionicons name="arrow-up" size={16} color="#fff" />
-                  <Text style={styles.upgradeText}>Улучшить</Text>
+                  <Text style={styles.upgradeText}>
+                    {t('subscription.buttons.upgrade')}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -181,25 +193,30 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           {/* Status */}
           <View style={styles.statusContainer}>
             {subscription?.tier === 'free' ? (
-              <Text style={styles.statusText}>Бесплатный аккаунт</Text>
+              <Text style={styles.statusText}>
+                {t('subscription.status.freeAccount')}
+              </Text>
             ) : (
               <>
                 {isExpired ? (
                   <View style={styles.warningContainer}>
                     <Ionicons name="warning" size={16} color="#F59E0B" />
-                    <Text style={styles.warningText}>Подписка истекла</Text>
+                    <Text style={styles.warningText}>
+                      {t('subscription.status.expired')}
+                    </Text>
                   </View>
                 ) : (
                   <>
                     <Text style={styles.statusText}>
-                      {isOnTrial ? 'Trial активен до ' : 'Активна до '}
-                      {endDateStr ? formatExpiryDate(endDateStr) : '—'}
+                      {t('subscription.status.validUntil', {
+                        date: endDateStr ? formatExpiryDate(endDateStr) : '—',
+                      })}
                     </Text>
                     {daysLeft <= 7 && endDateStr && (
                       <View style={styles.warningContainer}>
                         <Ionicons name="time" size={16} color="#F59E0B" />
                         <Text style={styles.warningText}>
-                          Осталось {daysLeft} дней
+                          {t('subscription.status.daysLeft', { count: daysLeft })}
                         </Text>
                       </View>
                     )}
@@ -211,7 +228,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
           {/* Features */}
           <View style={styles.featuresContainer}>
-            {levelConfig.features.map((feature, index) => (
+            {tierFeatures.map((feature, index) => (
               <View key={index} style={styles.featureItem}>
                 <View
                   style={[
@@ -238,7 +255,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   end={{ x: 1, y: 0 }}
                 />
               </View>
-              <Text style={styles.progressText}>{daysLeft} дней осталось</Text>
+              <Text style={styles.progressText}>
+                {t('subscription.status.daysLeft', { count: daysLeft })}
+              </Text>
             </View>
           )}
         </LinearGradient>
