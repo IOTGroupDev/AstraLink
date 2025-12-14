@@ -37,21 +37,29 @@ export default function App() {
         // Инициализируем Supabase (который инициализирует tokenService внутри)
         await initSupabaseAuth();
 
+        // Проверяем, авторизован ли пользователь перед загрузкой профиля
+        const { isAuthenticated } = useAuthStore.getState();
+
         // После восстановления сессии пробуем подтянуть флаг онбординга из БД
         // чтобы навигация не отправляла на онбординг при повторной авторизации
-        try {
-          const ext = await userExtendedProfileAPI.getUserProfile();
-          if (ext?.is_onboarded === true) {
-            await setOnboardingCompleted(true);
+        // ВАЖНО: делаем это ТОЛЬКО для авторизованных пользователей
+        if (isAuthenticated) {
+          try {
+            const ext = await userExtendedProfileAPI.getUserProfile();
+            if (ext?.is_onboarded === true) {
+              await setOnboardingCompleted(true);
+              console.log(
+                '✅ Onboarding flag synced from DB (is_onboarded=true)'
+              );
+            }
+          } catch (syncErr) {
             console.log(
-              '✅ Onboarding flag synced from DB (is_onboarded=true)'
+              'ℹ️ Onboarding flag sync skipped:',
+              syncErr?.message || syncErr
             );
           }
-        } catch (syncErr) {
-          console.log(
-            'ℹ️ Onboarding flag sync skipped:',
-            syncErr?.message || syncErr
-          );
+        } else {
+          console.log('ℹ️ User not authenticated, skipping profile sync');
         }
 
         console.log('✅ App initialization complete');

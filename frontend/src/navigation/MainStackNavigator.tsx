@@ -50,6 +50,11 @@ export default function MainStackNavigator() {
   // Это критично для кейса: в AsyncStorage есть токен, но /user/profile -> 401/404/Network Error.
   // После принудительного logout в interceptor нужно вывести пользователя из табов.
   useEffect(() => {
+    // Проверяем, на каком экране мы сейчас находимся
+    const currentState = navigation.getState();
+    const currentRoute =
+      currentState.routes[currentState.index]?.name || 'Unknown';
+
     const target =
       isAuthenticated && !onboardingCompleted
         ? 'UserDataLoader'
@@ -58,7 +63,12 @@ export default function MainStackNavigator() {
           : !isAuthenticated
             ? 'SignUp'
             : 'MainTabs';
-    navigation.reset({ index: 0, routes: [{ name: target }] });
+
+    // Делаем reset только если нужно перейти на другой экран
+    if (currentRoute !== target) {
+      console.log(`🔄 Navigation: ${currentRoute} → ${target}`);
+      navigation.reset({ index: 0, routes: [{ name: target }] });
+    }
   }, [isAuthenticated, onboardingCompleted, navigation]);
 
   return (
