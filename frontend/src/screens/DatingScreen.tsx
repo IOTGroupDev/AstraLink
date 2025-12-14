@@ -866,7 +866,7 @@ export default function DatingScreen() {
 
         <View style={styles.content}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
             <View style={styles.iconContainer}>
               <LinearGradient
                 colors={['#8B5CF6', '#A855F7']}
@@ -939,8 +939,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingTop: 20,
+    paddingBottom: 16,
   },
   iconContainer: {
     marginBottom: 12,
