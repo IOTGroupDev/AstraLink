@@ -97,7 +97,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [regeneratingChart, setRegeneratingChart] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
@@ -258,31 +257,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigation.navigate('Subscription');
   };
 
-  const handleRegenerateChart = async () => {
-    try {
-      setRegeneratingChart(true);
-      const result = await chartAPI.regenerateChartWithAI();
-
-      if (result.success) {
-        Alert.alert(t('profile.success.regenerated'), result.message, [
-          {
-            text: t('common.buttons.ok'),
-            onPress: () => fetchProfileData(), // Refresh chart data
-          },
-        ]);
-      } else {
-        Alert.alert(t('profile.limitation.title'), result.message);
-      }
-    } catch (error: any) {
-      logger.error('Ошибка регенерации карты', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        t('profile.errors.failedToRegenerate');
-      Alert.alert(t('common.errors.generic'), errorMessage);
-    } finally {
-      setRegeneratingChart(false);
-    }
+  const handleViewPersonalCode = () => {
+    navigation.navigate('PersonalCode' as never);
   };
 
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -428,29 +404,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
                 <TouchableOpacity
                   style={styles.regenerateButton}
-                  onPress={handleRegenerateChart}
+                  onPress={handleViewPersonalCode}
                   activeOpacity={0.8}
-                  disabled={regeneratingChart}
                 >
                   <LinearGradient
                     colors={['#8B5CF6', '#6D28D9']}
                     style={styles.buttonGradient}
                   >
-                    <Ionicons
-                      name={
-                        regeneratingChart ? 'hourglass-outline' : 'sparkles'
-                      }
-                      size={24}
-                      color="#fff"
-                    />
+                    <Ionicons name="code-outline" size={24} color="#fff" />
                     <Text style={styles.regenerateButtonText}>
-                      {regeneratingChart
-                        ? t('profile.natalChart.regenerating')
-                        : t('profile.natalChart.regenerate')}
+                      {t('profile.natalChart.viewPersonalCode', 'View Personal Code')}
                     </Text>
-                    {!regeneratingChart && (
-                      <Ionicons name="chevron-forward" size={24} color="#fff" />
-                    )}
+                    <Ionicons name="chevron-forward" size={24} color="#fff" />
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

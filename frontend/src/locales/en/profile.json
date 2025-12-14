@@ -7,8 +7,7 @@
   },
   "natalChart": {
     "viewChart": "View natal\nchart with interpretation",
-    "regenerate": "Regenerate with AI",
-    "regenerating": "Generating..."
+    "viewPersonalCode": "View Personal Code"
   },
   "settings": {
     "editProfile": "Edit Profile",
