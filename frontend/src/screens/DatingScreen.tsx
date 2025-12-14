@@ -864,21 +864,7 @@ export default function DatingScreen() {
         {/* Космический фон */}
         <CosmicBackground />
 
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-            <View style={styles.iconContainer}>
-              <LinearGradient
-                colors={['#8B5CF6', '#A855F7']}
-                style={styles.iconCircle}
-              >
-                <Ionicons name="heart" size={24} color="#fff" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.title}>{t('dating.title')}</Text>
-            <Text style={styles.subtitle}>{t('dating.subtitle')}</Text>
-          </View>
-
+        <View style={[styles.content, { paddingTop: insets.top }]}>
           {/* Content */}
           {loadingCards ? (
             <View style={styles.loadingContainer}>
@@ -937,32 +923,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  header: {
-    alignItems: 'center',
-    paddingBottom: 16,
-  },
-  iconContainer: {
-    marginBottom: 12,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -993,9 +953,10 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 100,
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 80,
   },
 });
