@@ -5,6 +5,7 @@
     "scheme": "astralink",
     "version": "1.0.0",
     "orientation": "portrait",
+    "main": "index.ts",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
