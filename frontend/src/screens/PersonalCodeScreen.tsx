@@ -7,10 +7,13 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { RootStackParamList } from '../types/navigation';
 import { CodePurpose, PersonalCodeResult } from '../types/personal-code';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -33,7 +36,12 @@ const PURPOSE_CONFIG: Array<{
   { key: 'energy', icon: '⚡', color: '#FBBF24' },
 ];
 
-const PersonalCodeScreen = () => {
+type PersonalCodeScreenProps = StackScreenProps<
+  RootStackParamList,
+  'PersonalCode'
+>;
+
+function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [selectedPurpose, setSelectedPurpose] = useState<CodePurpose>('luck');
@@ -76,21 +84,32 @@ const PersonalCodeScreen = () => {
   const selectedPurposeData = purposes.find((p) => p.key === selectedPurpose);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
         colors={['#0F172A', '#1E1B4B', '#312E81']}
         style={StyleSheet.absoluteFillObject}
       />
 
+      {/* Navigation Header */}
+      <View style={styles.navigationHeader}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {t('personalCode.header.title')}
+        </Text>
+        <View style={styles.backButton} />
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header */}
+        {/* Subtitle */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            {t('personalCode.header.title')}
-          </Text>
           <Text style={styles.headerSubtitle}>
             {t('personalCode.header.subtitle')}
           </Text>
@@ -433,31 +452,47 @@ const PersonalCodeScreen = () => {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  navigationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 16,
     paddingBottom: 40,
   },
   header: {
-    marginBottom: 32,
-    marginTop: 20,
+    marginBottom: 24,
+    marginTop: 16,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#F9FAFB',
   },
   headerSubtitle: {
     fontSize: 16,
     color: '#A78BFA',
+    textAlign: 'center',
   },
   section: {
     marginBottom: 24,
