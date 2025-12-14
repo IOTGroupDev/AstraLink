@@ -33,6 +33,7 @@ import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
 import { userAPI, chartAPI, userPhotosAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
+import { clearAllUserData } from '../services/cleanupService';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   useSafeAreaInsets,
@@ -220,7 +221,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       {
         text: t('profile.logout.confirm'),
         style: 'destructive',
-        onPress: () => logout(),
+        onPress: async () => await logout(),
       },
     ]);
   };
@@ -232,8 +233,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       // Immediately close the modal
       setShowDeleteModal(false);
 
-      // Clear auth state and token (logout handles token cleanup)
-      logout();
+      // Complete cleanup: clear all user data, tokens, settings, and Zustand stores
+      await clearAllUserData();
+
+      // Clear auth state
+      await logout();
 
       // Navigate to login screen immediately to prevent any API calls
       navigation.reset({
