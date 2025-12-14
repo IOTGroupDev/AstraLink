@@ -54,7 +54,11 @@ export default function MainStackNavigator() {
     const currentState = navigation.getState();
 
     // Защита: навигация может быть не готова на первом рендере
-    if (!currentState || !currentState.routes || currentState.routes.length === 0) {
+    if (
+      !currentState ||
+      !currentState.routes ||
+      currentState.routes.length === 0
+    ) {
       return;
     }
 

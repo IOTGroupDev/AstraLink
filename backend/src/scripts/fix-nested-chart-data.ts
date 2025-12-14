@@ -12,11 +12,7 @@ async function unwrapNestedData(data: any, maxDepth = 20): Promise<any> {
   let depth = 0;
 
   // Unwrap nested data levels until we find planets or reach max depth
-  while (
-    current?.data &&
-    !current.planets &&
-    depth < maxDepth
-  ) {
+  while (current?.data && !current.planets && depth < maxDepth) {
     current = current.data;
     depth++;
   }

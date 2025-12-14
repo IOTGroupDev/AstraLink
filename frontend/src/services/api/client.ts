@@ -88,7 +88,7 @@ api.interceptors.request.use(async (config) => {
   const fullUrl = `${(config as any).baseURL ?? ''}${config.url ?? ''}`;
 
   // Проверяем, публичный ли это эндпоинт
-  const isPublic = PUBLIC_ENDPOINTS.some(endpoint =>
+  const isPublic = PUBLIC_ENDPOINTS.some((endpoint) =>
     config.url?.includes(endpoint)
   );
 
