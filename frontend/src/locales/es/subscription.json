@@ -3,6 +3,16 @@
   "subtitle": "Elige el plan que funcione para ti",
   "popular": "Más Popular",
   "current": "Plan Actual",
+  "currentPlan": "Plan Actual",
+  "currentPlanMessage": "Este es tu plan de suscripción actual.",
+  "choosePlan": "Elegir Plan",
+  "chooseFree": "Elegir Gratis",
+  "purchasing": "Procesando...",
+  "confirmTitle": "Confirmar Suscripción",
+  "confirmMessage": "¿Actualizar a {{planName}}?",
+  "successTitle": "¡Éxito!",
+  "successMessage": "Tu suscripción se ha actualizado correctamente.",
+  "errorMessage": "No se pudo actualizar la suscripción. Inténtalo de nuevo.",
   "tiers": {
     "free": {
       "name": "Gratis",
