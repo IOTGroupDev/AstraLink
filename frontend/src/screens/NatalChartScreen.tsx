@@ -135,17 +135,20 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     try {
       setLoading(true);
       const data = await chartAPI.getNatalChartWithInterpretation();
-      logger.info('Загружены данные натальной карты', {
-        hasData: !!data?.data,
-        hasInterpretation: !!data?.data?.interpretation,
-        hasSummary: !!data?.data?.interpretation?.summary,
-        dataKeys: data?.data ? Object.keys(data.data) : [],
-        interpretationKeys: data?.data?.interpretation
-          ? Object.keys(data.data.interpretation)
-          : [],
-        summaryKeys: data?.data?.interpretation?.summary
-          ? Object.keys(data.data.interpretation.summary)
-          : [],
+      // Подробное логирование для отладки структуры
+      logger.info('Полная структура данных', {
+        level1Keys: data ? Object.keys(data) : [],
+        level2Keys: data?.data ? Object.keys(data.data) : [],
+        level3Keys: data?.data?.data ? Object.keys(data.data.data) : [],
+        level4Keys: data?.data?.data?.data ? Object.keys(data.data.data.data) : [],
+
+        // Где находятся planets?
+        hasPlanetsInL2: !!data?.data?.planets,
+        hasPlanetsInL3: !!data?.data?.data?.planets,
+        hasPlanetsInL4: !!data?.data?.data?.data?.planets,
+
+        // Проверка полного пути
+        fullDataStructure: JSON.stringify(data, null, 2).substring(0, 2000),
       });
       setChartData(data);
     } catch (error: any) {
@@ -193,8 +196,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   }
 
+  // Извлекаем данные из правильной структуры
   const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
   const interpretation = chartData.data?.interpretation;
+
+  // Логирование для проверки структуры
+  logger.info('Деструктуризация данных карты', {
+    hasPlanets: !!planets,
+    hasHouses: !!houses,
+    hasAspects: !!aspects,
+    hasAscendant: !!ascendant,
+    hasMidheaven: !!midheaven,
+    planetsCount: planets ? Object.keys(planets).length : 0,
+    housesCount: houses ? Object.keys(houses).length : 0,
+    aspectsCount: aspects ? aspects.length : 0,
+  });
 
   // Вкладки
   const tabs: Array<{
@@ -308,7 +324,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
                 <Text style={styles.bigThreeValue}>{sunSign}</Text>
                 <Text style={styles.bigThreeDegree}>
-                  {formatDegree(planets.sun?.degree || 0)}
+                  {formatDegree(planets?.sun?.degree || 0)}
                 </Text>
               </View>
 
@@ -319,7 +335,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
                 <Text style={styles.bigThreeValue}>{moonSign}</Text>
                 <Text style={styles.bigThreeDegree}>
-                  {formatDegree(planets.moon?.degree || 0)}
+                  {formatDegree(planets?.moon?.degree || 0)}
                 </Text>
               </View>
 
@@ -538,22 +554,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
-                {interpretation?.planets?.find(
-                  (p: any) => p.planet === name
-                ) && (
-                  <>
-                    <View style={styles.divider} />
-                    <View style={styles.interpretationSection}>
-                      <Text style={styles.interpretationText}>
-                        {
-                          interpretation.planets.find(
-                            (p: any) => p.planet === name
-                          ).interpretation
-                        }
-                      </Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const planetInterpretation = interpretation?.planets?.find(
+                    (p: any) => p.planet === name
+                  );
+                  return planetInterpretation ? (
+                    <>
+                      <View style={styles.divider} />
+                      <View style={styles.interpretationSection}>
+                        <Text style={styles.interpretationText}>
+                          {planetInterpretation.interpretation}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null;
+                })()}
               </View>
             </BlurView>
           );
@@ -625,20 +640,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </>
                 )}
 
-                {interpretation?.houses?.find((h: any) => h.house === num) && (
-                  <>
-                    <View style={styles.divider} />
-                    <View style={styles.interpretationSection}>
-                      <Text style={styles.interpretationText}>
-                        {
-                          interpretation.houses.find(
-                            (h: any) => h.house === num
-                          ).interpretation
-                        }
-                      </Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const houseInterpretation = interpretation?.houses?.find(
+                    (h: any) => h.house === num
+                  );
+                  return houseInterpretation ? (
+                    <>
+                      <View style={styles.divider} />
+                      <View style={styles.interpretationSection}>
+                        <Text style={styles.interpretationText}>
+                          {houseInterpretation.interpretation}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null;
+                })()}
               </View>
             </BlurView>
           );
@@ -774,28 +790,24 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
-                {interpretation?.aspects?.find(
-                  (a: any) =>
-                    a.planetA === planetA &&
-                    a.planetB === planetB &&
-                    a.aspect === aspectName
-                ) && (
-                  <>
-                    <View style={styles.divider} />
-                    <View style={styles.interpretationSection}>
-                      <Text style={styles.interpretationText}>
-                        {
-                          interpretation.aspects.find(
-                            (a: any) =>
-                              a.planetA === planetA &&
-                              a.planetB === planetB &&
-                              a.aspect === aspectName
-                          ).interpretation
-                        }
-                      </Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const aspectInterpretation = interpretation?.aspects?.find(
+                    (a: any) =>
+                      a.planetA === planetA &&
+                      a.planetB === planetB &&
+                      a.aspect === aspectName
+                  );
+                  return aspectInterpretation ? (
+                    <>
+                      <View style={styles.divider} />
+                      <View style={styles.interpretationSection}>
+                        <Text style={styles.interpretationText}>
+                          {aspectInterpretation.interpretation}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null;
+                })()}
               </View>
             </BlurView>
           );

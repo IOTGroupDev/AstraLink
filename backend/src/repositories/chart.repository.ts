@@ -103,11 +103,15 @@ export class ChartRepository implements IChartRepository {
   /**
    * Update existing chart
    */
-  async update(chartId: string, data: any): Promise<NatalChart> {
+  async update(chartId: string, updateData: any): Promise<NatalChart> {
     try {
+      // updateData should be the raw chart data (planets, houses, etc.)
+      // or an object with { data: chartData } - we need to handle both cases
+      const chartData = updateData?.data !== undefined ? updateData.data : updateData;
+
       const updated = await this.prisma.chart.update({
         where: { id: chartId },
-        data: { data },
+        data: { data: chartData },
       });
 
       return this.normalizeChartData(updated);

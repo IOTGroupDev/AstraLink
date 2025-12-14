@@ -373,4 +373,57 @@ export class ChartService {
       tier,
     );
   }
+
+  /**
+   * Fix deeply nested chart data
+   * Unwraps data.data.data... structure caused by double-wrapping bug
+   */
+  async fixNestedChartData(): Promise<{
+    fixed: number;
+    skipped: number;
+    total: number;
+  }> {
+    this.logger.log('Starting chart data unwrapping migration...');
+
+    const charts = await this.prisma.chart.findMany();
+    const total = charts.length;
+    let fixed = 0;
+    let skipped = 0;
+
+    for (const chart of charts) {
+      let current: any = chart.data;
+      let depth = 0;
+      const maxDepth = 20;
+
+      // Unwrap nested data levels until we find planets or reach max depth
+      while (current?.data && !current.planets && depth < maxDepth) {
+        current = current.data;
+        depth++;
+      }
+
+      if (depth > 0) {
+        this.logger.log(
+          `Unwrapping chart ${chart.id.substring(0, 8)}... from depth ${depth}`,
+        );
+
+        await this.prisma.chart.update({
+          where: { id: chart.id },
+          data: {
+            data: current,
+            updatedAt: new Date(),
+          },
+        });
+
+        fixed++;
+      } else {
+        skipped++;
+      }
+    }
+
+    this.logger.log(
+      `Chart data unwrapping completed: ${fixed} fixed, ${skipped} skipped, ${total} total`,
+    );
+
+    return { fixed, skipped, total };
+  }
 }

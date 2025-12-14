@@ -52,6 +52,12 @@ export default function MainStackNavigator() {
   useEffect(() => {
     // Проверяем, на каком экране мы сейчас находимся
     const currentState = navigation.getState();
+
+    // Защита: навигация может быть не готова на первом рендере
+    if (!currentState || !currentState.routes || currentState.routes.length === 0) {
+      return;
+    }
+
     const currentRoute =
       currentState.routes[currentState.index]?.name || 'Unknown';
 
