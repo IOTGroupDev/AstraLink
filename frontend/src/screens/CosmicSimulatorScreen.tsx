@@ -130,13 +130,6 @@ export default function CosmicSimulatorScreen() {
     pluto: 'Плутон',
   };
 
-  const aspectRu: Record<string, string> = {
-    conjunction: 'Соединение',
-    opposition: 'Оппозиция',
-    trine: 'Трин',
-    square: 'Квадрат',
-    sextile: 'Секстиль',
-  };
 
   useEffect(() => {
     loadNatalChart();
@@ -169,12 +162,11 @@ export default function CosmicSimulatorScreen() {
   // Найти релевантный урок для транзита
   const findRelevantLesson = (transit: TransitData): AstroLesson | null => {
     // Поиск урока по аспекту
+    const aspectTranslated = t('common.aspects.' + transit.aspect);
     const aspectLesson = ASTRO_LESSONS.find(
       (lesson) =>
         lesson.category === 'aspects' &&
-        lesson.title
-          .toLowerCase()
-          .includes(aspectRu[transit.aspect]?.toLowerCase() || '')
+        lesson.title.toLowerCase().includes(aspectTranslated?.toLowerCase() || '')
     );
 
     if (aspectLesson) return aspectLesson;
@@ -227,7 +219,40 @@ export default function CosmicSimulatorScreen() {
         await chartAPI.getTransitInterpretation(dateStr);
 
       // Сохраняем AI интерпретацию
-      setAiInterpretation(interpretationData.aiInterpretation);
+      let interpretationText = interpretationData.aiInterpretation;
+
+      // Если пришел JSON вместо текста, парсим и извлекаем текст
+      if (
+        typeof interpretationText === 'string' &&
+        (interpretationText.trim().startsWith('{') ||
+          interpretationText.trim().startsWith('['))
+      ) {
+        try {
+          const parsed = JSON.parse(interpretationText);
+          // Извлекаем текст из структуры с категориями
+          if (parsed.general) {
+            const sections = [];
+            if (parsed.general) sections.push(`📋 ${parsed.general}`);
+            if (parsed.love) sections.push(`\n💕 Любовь:\n${parsed.love}`);
+            if (parsed.career) sections.push(`\n💼 Карьера:\n${parsed.career}`);
+            if (parsed.health) sections.push(`\n🏥 Здоровье:\n${parsed.health}`);
+            if (parsed.finance) sections.push(`\n💰 Финансы:\n${parsed.finance}`);
+            if (parsed.advice) sections.push(`\n💡 Совет:\n${parsed.advice}`);
+            interpretationText = sections.join('\n');
+          } else if (parsed.interpretation) {
+            interpretationText = parsed.interpretation;
+          } else if (parsed.text) {
+            interpretationText = parsed.text;
+          } else {
+            interpretationText = Object.values(parsed).join('\n\n');
+          }
+        } catch (e) {
+          // Если не удалось парсить, оставляем как есть
+          logger.warn('Failed to parse AI interpretation JSON', e);
+        }
+      }
+
+      setAiInterpretation(interpretationText);
       setHasAIAccess(interpretationData.hasAIAccess);
       setSubscriptionTier(interpretationData.subscriptionTier);
 
@@ -894,7 +919,8 @@ export default function CosmicSimulatorScreen() {
                         >
                           <View style={styles.transitHeader}>
                             <Text style={styles.transitTitle}>
-                              {transit.planet} {aspectRu[transit.aspect]}{' '}
+                              {transit.planet}{' '}
+                              {t('common.aspects.' + transit.aspect)}{' '}
                               {transit.target}
                             </Text>
                             <View style={styles.transitOrbBadge}>
@@ -926,9 +952,7 @@ export default function CosmicSimulatorScreen() {
                               />
                               <Text style={styles.learnMoreText}>
                                 {t('cosmicSimulator.transits.learnMore', {
-                                  aspect:
-                                    t(`common.aspects.${transit.aspect}`) ||
-                                    aspectRu[transit.aspect],
+                                  aspect: t('common.aspects.' + transit.aspect),
                                 })}
                               </Text>
                             </TouchableOpacity>
@@ -1195,7 +1219,7 @@ export default function CosmicSimulatorScreen() {
                   <>
                     <Text style={styles.detailTitle}>
                       {selectedTransit.planet}{' '}
-                      {aspectRu[selectedTransit.aspect]}{' '}
+                      {t('common.aspects.' + selectedTransit.aspect)}{' '}
                       {selectedTransit.target}
                     </Text>
 

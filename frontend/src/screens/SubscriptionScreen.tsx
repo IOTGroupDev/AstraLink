@@ -66,9 +66,10 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     }
 
     // Confirm purchase
+    const displayName = t(`subscription.tiers.${tier}.name`, planName);
     Alert.alert(
       t('subscription.confirmTitle', 'Confirm Subscription'),
-      t('subscription.confirmMessage', `Upgrade to ${planName}?`),
+      t('subscription.confirmMessage', { planName: displayName }),
       [
         {
           text: t('common.buttons.cancel', 'Cancel'),
@@ -123,7 +124,9 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
+          <Text style={styles.loadingText}>
+            {t('common.loading.loading', 'Loading...')}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -272,7 +275,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginBottom: 24,
   },
   subtitle: {
@@ -282,12 +285,12 @@ const styles = StyleSheet.create({
   },
   planContainer: {
     position: 'relative',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   popularBadge: {
     position: 'absolute',
     top: -8,
-    right: 32,
+    right: 28,
     backgroundColor: '#8B5CF6',
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
   currentBadge: {
     position: 'absolute',
     top: -8,
-    left: 32,
+    left: 28,
     backgroundColor: '#10B981',
     paddingHorizontal: 12,
     paddingVertical: 4,

@@ -35,7 +35,7 @@ interface AuthState {
   setInitializing: (init: boolean) => void;
   setError: (error: string | null) => void;
   login: (user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   clearError: () => void;
 
@@ -91,8 +91,8 @@ export const useAuthStore = create<AuthState>()(
           error: null,
         }),
 
-      logout: () => {
-        tokenService.clearToken();
+      logout: async () => {
+        await tokenService.clearToken();
         set({
           user: null,
           isAuthenticated: false,

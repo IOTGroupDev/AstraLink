@@ -63,10 +63,16 @@
     "pluto": "Плутон"
   },
   "aspects": {
-    "conjunction": "соединение",
-    "opposition": "оппозиция",
-    "trine": "трин",
-    "square": "квадрат",
-    "sextile": "секстиль"
+    "conjunction": "Соединение",
+    "opposition": "Оппозиция",
+    "trine": "Трин",
+    "square": "Квадрат",
+    "sextile": "Секстиль",
+    "semi-sextile": "Полусекстиль",
+    "semi-square": "Полуквадрат",
+    "sesquiquadrate": "Полутораквадрат",
+    "quincunx": "Квинконс",
+    "quintile": "Квинтиль",
+    "biquintile": "Биквинтиль"
   }
 }

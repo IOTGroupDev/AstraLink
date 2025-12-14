@@ -33,6 +33,7 @@ import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
 import { userAPI, chartAPI, userPhotosAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
+import { clearAllUserData } from '../services/cleanupService';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   useSafeAreaInsets,
@@ -97,7 +98,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [regeneratingChart, setRegeneratingChart] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
@@ -221,7 +221,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       {
         text: t('profile.logout.confirm'),
         style: 'destructive',
-        onPress: () => logout(),
+        onPress: async () => await logout(),
       },
     ]);
   };
@@ -229,22 +229,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const handleDeleteAccount = async () => {
     try {
       await userAPI.deleteAccount();
-      Alert.alert(
-        t('profile.deleteAccount.title'),
-        t('profile.deleteAccount.message'),
-        [
-          {
-            text: t('common.buttons.ok'),
-            onPress: () => {
-              tokenService.clearToken();
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-            },
-          },
-        ]
-      );
+
+      // Immediately close the modal
+      setShowDeleteModal(false);
+
+      // Complete cleanup: clear all user data, tokens, settings, and Zustand stores
+      await clearAllUserData();
+
+      // Clear auth state
+      await logout();
+
+      // Navigate to login screen immediately to prevent any API calls
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
     } catch (error: any) {
       logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(
@@ -258,31 +257,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigation.navigate('Subscription');
   };
 
-  const handleRegenerateChart = async () => {
-    try {
-      setRegeneratingChart(true);
-      const result = await chartAPI.regenerateChartWithAI();
-
-      if (result.success) {
-        Alert.alert(t('profile.success.regenerated'), result.message, [
-          {
-            text: t('common.buttons.ok'),
-            onPress: () => fetchProfileData(), // Refresh chart data
-          },
-        ]);
-      } else {
-        Alert.alert(t('profile.limitation.title'), result.message);
-      }
-    } catch (error: any) {
-      logger.error('Ошибка регенерации карты', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        t('profile.errors.failedToRegenerate');
-      Alert.alert(t('common.errors.generic'), errorMessage);
-    } finally {
-      setRegeneratingChart(false);
-    }
+  const handleViewPersonalCode = () => {
+    navigation.navigate('PersonalCode' as never);
   };
 
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -428,29 +404,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
                 <TouchableOpacity
                   style={styles.regenerateButton}
-                  onPress={handleRegenerateChart}
+                  onPress={handleViewPersonalCode}
                   activeOpacity={0.8}
-                  disabled={regeneratingChart}
                 >
                   <LinearGradient
                     colors={['#8B5CF6', '#6D28D9']}
                     style={styles.buttonGradient}
                   >
-                    <Ionicons
-                      name={
-                        regeneratingChart ? 'hourglass-outline' : 'sparkles'
-                      }
-                      size={24}
-                      color="#fff"
-                    />
+                    <Ionicons name="code-outline" size={24} color="#fff" />
                     <Text style={styles.regenerateButtonText}>
-                      {regeneratingChart
-                        ? t('profile.natalChart.regenerating')
-                        : t('profile.natalChart.regenerate')}
+                      {t('profile.natalChart.viewPersonalCode', 'View Personal Code')}
                     </Text>
-                    {!regeneratingChart && (
-                      <Ionicons name="chevron-forward" size={24} color="#fff" />
-                    )}
+                    <Ionicons name="chevron-forward" size={24} color="#fff" />
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

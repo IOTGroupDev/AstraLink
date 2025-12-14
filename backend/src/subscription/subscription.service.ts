@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { AIService } from '../services/ai.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class SubscriptionService {
@@ -20,6 +21,7 @@ export class SubscriptionService {
     private prisma: PrismaService,
     private aiService: AIService,
     private horoscopeService: HoroscopeGeneratorService,
+    private redis: RedisService,
   ) {}
 
   /**
@@ -179,6 +181,10 @@ export class SubscriptionService {
       },
     });
 
+    // ✅ Очистка кэша подписки в Redis
+    const cacheKey = `subscription:${userId}`;
+    await this.redis.del(cacheKey);
+
     this.logger.log(`Trial activated for user ${userId}`);
 
     return {
@@ -237,6 +243,11 @@ export class SubscriptionService {
         isCancelled: false,
       },
     });
+
+    // ✅ Очистка кэша подписки в Redis
+    const cacheKey = `subscription:${userId}`;
+    await this.redis.del(cacheKey);
+    this.logger.debug(`Cleared subscription cache for user ${userId}`);
 
     if (transactionId) {
       // ✅ PRISMA: Создаем запись о платеже
@@ -336,6 +347,10 @@ export class SubscriptionService {
       data: { isCancelled: true },
     });
 
+    // ✅ Очистка кэша подписки в Redis
+    const cacheKey = `subscription:${userId}`;
+    await this.redis.del(cacheKey);
+
     this.logger.log(`Subscription cancelled for user ${userId}`);
 
     return {
@@ -357,6 +372,10 @@ export class SubscriptionService {
         isCancelled: false,
       },
     });
+
+    // ✅ Очистка кэша подписки в Redis
+    const cacheKey = `subscription:${userId}`;
+    await this.redis.del(cacheKey);
 
     this.logger.log(`User ${userId} downgraded to FREE`);
   }
