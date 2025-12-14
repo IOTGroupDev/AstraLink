@@ -162,7 +162,7 @@ export default function CosmicSimulatorScreen() {
   // Найти релевантный урок для транзита
   const findRelevantLesson = (transit: TransitData): AstroLesson | null => {
     // Поиск урока по аспекту
-    const aspectTranslated = t(`common.aspects.${transit.aspect}`);
+    const aspectTranslated = t('common.aspects.' + transit.aspect);
     const aspectLesson = ASTRO_LESSONS.find(
       (lesson) =>
         lesson.category === 'aspects' &&
@@ -887,7 +887,7 @@ export default function CosmicSimulatorScreen() {
                           <View style={styles.transitHeader}>
                             <Text style={styles.transitTitle}>
                               {transit.planet}{' '}
-                              {t(`common.aspects.${transit.aspect}`)}{' '}
+                              {t('common.aspects.' + transit.aspect)}{' '}
                               {transit.target}
                             </Text>
                             <View style={styles.transitOrbBadge}>
@@ -919,7 +919,7 @@ export default function CosmicSimulatorScreen() {
                               />
                               <Text style={styles.learnMoreText}>
                                 {t('cosmicSimulator.transits.learnMore', {
-                                  aspect: t(`common.aspects.${transit.aspect}`),
+                                  aspect: t('common.aspects.' + transit.aspect),
                                 })}
                               </Text>
                             </TouchableOpacity>
@@ -1186,7 +1186,7 @@ export default function CosmicSimulatorScreen() {
                   <>
                     <Text style={styles.detailTitle}>
                       {selectedTransit.planet}{' '}
-                      {t(`common.aspects.${selectedTransit.aspect}`)}{' '}
+                      {t('common.aspects.' + selectedTransit.aspect)}{' '}
                       {selectedTransit.target}
                     </Text>
 
