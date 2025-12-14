@@ -34,6 +34,7 @@ curl -X POST https://your-api.com/api/v1/chart/admin/fix-nested-data \
 ```
 
 **Response:**
+
 ```json
 {
   "fixed": 15,
@@ -61,6 +62,7 @@ curl -X POST https://your-api.com/api/v1/chart/admin/fix-nested-data \
 ## After Migration
 
 Once migration is complete:
+
 - New charts will be saved with correct structure (bug is fixed in code)
 - Old charts will have correct structure
 - Frontend will load data properly
@@ -68,6 +70,7 @@ Once migration is complete:
 ## Verification
 
 Check a chart manually:
+
 ```sql
 SELECT
   id,
@@ -79,6 +82,7 @@ LIMIT 5;
 ```
 
 Correct structure should show:
+
 - `data_type`: "object"
 - `has_planets`: "object" (not null)
 - `has_nested_data`: null (no nested data key)

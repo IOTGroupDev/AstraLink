@@ -140,7 +140,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         level1Keys: data ? Object.keys(data) : [],
         level2Keys: data?.data ? Object.keys(data.data) : [],
         level3Keys: data?.data?.data ? Object.keys(data.data.data) : [],
-        level4Keys: data?.data?.data?.data ? Object.keys(data.data.data.data) : [],
+        level4Keys: data?.data?.data?.data
+          ? Object.keys(data.data.data.data)
+          : [],
 
         // Где находятся planets?
         hasPlanetsInL2: !!data?.data?.planets,

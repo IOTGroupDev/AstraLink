@@ -413,7 +413,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   >
                     <Ionicons name="code-outline" size={24} color="#fff" />
                     <Text style={styles.regenerateButtonText}>
-                      {t('profile.natalChart.viewPersonalCode', 'View Personal Code')}
+                      {t(
+                        'profile.natalChart.viewPersonalCode',
+                        'View Personal Code'
+                      )}
                     </Text>
                     <Ionicons name="chevron-forward" size={24} color="#fff" />
                   </LinearGradient>
@@ -456,20 +459,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   />
                 </View>
               </View>
-
-              {/* Logout */}
-              <TouchableOpacity
-                style={styles.settingItem}
-                onPress={handleLogout}
-              >
-                <View style={styles.settingIcon}>
-                  <Ionicons name="log-out-outline" size={32} color="#fff" />
-                </View>
-                <Text style={styles.settingText}>
-                  {t('profile.settings.logout')}
-                </Text>
-                <Ionicons name="chevron-forward" size={32} color="#fff" />
-              </TouchableOpacity>
 
               {/* Delete Account */}
               <TouchableOpacity

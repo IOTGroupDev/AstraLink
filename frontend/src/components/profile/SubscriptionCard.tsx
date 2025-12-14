@@ -216,7 +216,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                       <View style={styles.warningContainer}>
                         <Ionicons name="time" size={16} color="#F59E0B" />
                         <Text style={styles.warningText}>
-                          {t('subscription.status.daysLeft', { count: daysLeft })}
+                          {t('subscription.status.daysLeft', {
+                            count: daysLeft,
+                          })}
                         </Text>
                       </View>
                     )}

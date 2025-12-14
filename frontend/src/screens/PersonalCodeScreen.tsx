@@ -98,9 +98,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
         >
           <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {t('personalCode.header.title')}
-        </Text>
+        <Text style={styles.headerTitle}>{t('personalCode.header.title')}</Text>
         <View style={styles.backButton} />
       </View>
 

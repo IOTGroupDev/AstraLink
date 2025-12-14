@@ -171,7 +171,9 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
             isTrial: false,
             isTrialActive: false,
             features: plan.features,
-            expiresAt: isCurrentPlan ? currentSubscription?.expiresAt : undefined,
+            expiresAt: isCurrentPlan
+              ? currentSubscription?.expiresAt
+              : undefined,
             trialEndsAt: isCurrentPlan
               ? currentSubscription?.trialEndsAt
               : undefined,
