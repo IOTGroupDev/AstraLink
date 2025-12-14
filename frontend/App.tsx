@@ -31,10 +31,29 @@ export default function App() {
       try {
         console.log('🚀 Starting app initialization...');
 
-        const { i18nReady } = await import('./src/i18n');
-        await i18nReady;
-        // Инициализируем Supabase (который инициализирует tokenService внутри)
-        await initSupabaseAuth();
+        // Add timeout to prevent indefinite hanging
+        const initTimeout = setTimeout(() => {
+          console.warn('⚠️ App initialization timeout - continuing anyway');
+          setBooted(true);
+        }, 10000); // 10 second timeout
+
+        try {
+          const { i18nReady } = await import('./src/i18n');
+          await i18nReady;
+          console.log('✅ i18n initialized');
+        } catch (i18nErr) {
+          console.error('❌ i18n initialization failed:', i18nErr);
+          // Continue anyway - app can work without i18n
+        }
+
+        try {
+          // Инициализируем Supabase (который инициализирует tokenService внутри)
+          await initSupabaseAuth();
+          console.log('✅ Supabase auth initialized');
+        } catch (supabaseErr) {
+          console.error('❌ Supabase initialization failed:', supabaseErr);
+          // Continue - user will be logged out but app should work
+        }
 
         // Проверяем, авторизован ли пользователь перед загрузкой профиля
         const { isAuthenticated } = useAuthStore.getState();
@@ -61,10 +80,13 @@ export default function App() {
           console.log('ℹ️ User not authenticated, skipping profile sync');
         }
 
+        clearTimeout(initTimeout);
         console.log('✅ App initialization complete');
       } catch (err) {
         console.error('❌ App initialization error:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
+        // Even if there's an error, boot the app after a delay
+        setTimeout(() => setBooted(true), 2000);
       } finally {
         setBooted(true);
       }
