@@ -7,8 +7,7 @@
   },
   "natalChart": {
     "viewChart": "Посмотреть натальную\nкарту с расшифровкой",
-    "regenerate": "Регенерировать с AI",
-    "regenerating": "Генерация..."
+    "viewPersonalCode": "Персональный код"
   },
   "settings": {
     "editProfile": "Редактировать профиль",

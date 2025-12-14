@@ -7,8 +7,7 @@
   },
   "natalChart": {
     "viewChart": "Ver carta natal\ncon interpretación",
-    "regenerate": "Regenerar con IA",
-    "regenerating": "Generando..."
+    "viewPersonalCode": "Código Personal"
   },
   "settings": {
     "editProfile": "Editar perfil",
