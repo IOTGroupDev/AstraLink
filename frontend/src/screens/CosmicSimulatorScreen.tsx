@@ -219,7 +219,40 @@ export default function CosmicSimulatorScreen() {
         await chartAPI.getTransitInterpretation(dateStr);
 
       // Сохраняем AI интерпретацию
-      setAiInterpretation(interpretationData.aiInterpretation);
+      let interpretationText = interpretationData.aiInterpretation;
+
+      // Если пришел JSON вместо текста, парсим и извлекаем текст
+      if (
+        typeof interpretationText === 'string' &&
+        (interpretationText.trim().startsWith('{') ||
+          interpretationText.trim().startsWith('['))
+      ) {
+        try {
+          const parsed = JSON.parse(interpretationText);
+          // Извлекаем текст из структуры с категориями
+          if (parsed.general) {
+            const sections = [];
+            if (parsed.general) sections.push(`📋 ${parsed.general}`);
+            if (parsed.love) sections.push(`\n💕 Любовь:\n${parsed.love}`);
+            if (parsed.career) sections.push(`\n💼 Карьера:\n${parsed.career}`);
+            if (parsed.health) sections.push(`\n🏥 Здоровье:\n${parsed.health}`);
+            if (parsed.finance) sections.push(`\n💰 Финансы:\n${parsed.finance}`);
+            if (parsed.advice) sections.push(`\n💡 Совет:\n${parsed.advice}`);
+            interpretationText = sections.join('\n');
+          } else if (parsed.interpretation) {
+            interpretationText = parsed.interpretation;
+          } else if (parsed.text) {
+            interpretationText = parsed.text;
+          } else {
+            interpretationText = Object.values(parsed).join('\n\n');
+          }
+        } catch (e) {
+          // Если не удалось парсить, оставляем как есть
+          logger.warn('Failed to parse AI interpretation JSON', e);
+        }
+      }
+
+      setAiInterpretation(interpretationText);
       setHasAIAccess(interpretationData.hasAIAccess);
       setSubscriptionTier(interpretationData.subscriptionTier);
 
