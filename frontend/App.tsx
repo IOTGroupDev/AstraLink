@@ -9,9 +9,6 @@ if (typeof globalThis.TextEncoder === 'undefined')
 if (typeof globalThis.TextDecoder === 'undefined')
   (globalThis as any).TextDecoder = TextDecoder;
 
-// Initialize i18n
-import i18n, { i18nReady } from './src/i18n';
-
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { ActivityIndicator, View, Text } from 'react-native';
@@ -34,6 +31,7 @@ export default function App() {
       try {
         console.log('🚀 Starting app initialization...');
 
+        const { i18nReady } = await import('./src/i18n');
         await i18nReady;
         // Инициализируем Supabase (который инициализирует tokenService внутри)
         await initSupabaseAuth();

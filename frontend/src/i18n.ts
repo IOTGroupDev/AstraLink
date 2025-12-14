@@ -34,9 +34,13 @@ const getDefaultLanguage = (): string => {
   const supportedLanguages = ['en', 'es', 'ru'];
 
   const raw =
-    (Localization as any).locale || (Localization as any).locales?.[0] || 'en';
+    (Localization as any).locale || (Localization as any).locales?.[0];
 
-  const deviceLanguage = String(raw).split(/[-_]/)[0].toLowerCase();
+  if (!raw || typeof raw !== 'string') {
+    return 'en';
+  }
+
+  const deviceLanguage = raw.split(/[-_]/)[0].toLowerCase();
 
   return supportedLanguages.includes(deviceLanguage) ? deviceLanguage : 'en';
 };
