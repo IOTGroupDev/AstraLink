@@ -1169,7 +1169,7 @@ import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width - 48;
-const CARD_HEIGHT = height * 0.75;
+const CARD_HEIGHT = height * 0.65;
 
 interface DatingCardProps {
   user: {
@@ -1491,15 +1491,15 @@ const styles = StyleSheet.create({
   },
   sideButtons: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    gap: 12,
+    top: 12,
+    right: 12,
+    gap: 10,
     zIndex: 10,
   },
   sideButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1522,7 +1522,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   infoBlur: {
-    padding: 20,
+    padding: 16,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   headerRow: {
@@ -1531,34 +1531,34 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   name: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
     color: '#fff',
   },
   zodiacSign: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   distanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   distanceText: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
   },
   bio: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#fff',
-    lineHeight: 20,
-    marginBottom: 16,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   compatibilitySection: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   compatibilityLabel: {
     fontSize: 15,
@@ -1591,8 +1591,8 @@ const styles = StyleSheet.create({
   detailsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 8,
   },
   detailItem: {
     flexDirection: 'row',

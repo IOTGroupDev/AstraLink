@@ -939,29 +939,29 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingTop: 60,
+    paddingVertical: 12,
+    paddingTop: 50,
   },
   iconContainer: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 2,
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '600',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.7)',
   },
   loadingContainer: {
@@ -997,6 +997,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingBottom: 100,
+    paddingTop: 20,
+    paddingBottom: 80,
   },
 });
