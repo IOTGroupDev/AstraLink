@@ -217,14 +217,42 @@ ${transitDescriptions}
 1. Объясняет влияние самых сильных транзитов
 2. Даёт практические рекомендации
 3. Указывает на возможности и вызовы дня
-4. Написана простым, понятным языком`;
+4. Написана простым, понятным языком
+
+ВАЖНО: Верните только текст интерпретации, БЕЗ JSON, БЕЗ структуры, только простой текст параграфами.`;
 
     try {
       const response = await this.aiService.generateText(prompt, {
         temperature: 0.7,
         maxTokens: 500,
       });
-      return response.trim();
+
+      const text = response.trim();
+
+      // Если AI вернул JSON вместо текста, извлекаем текст
+      if (text.startsWith('{') || text.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(text);
+          // Пытаемся извлечь текст из разных возможных ключей
+          const extractedText =
+            parsed.general ||
+            parsed.interpretation ||
+            parsed.text ||
+            parsed.content ||
+            Object.values(parsed).join('\n\n');
+
+          this.logger.warn(
+            `AI returned JSON instead of plain text. Extracted: ${extractedText.substring(0, 100)}...`,
+          );
+
+          return extractedText;
+        } catch (parseError) {
+          this.logger.warn('Failed to parse AI JSON response, returning as-is');
+          return text;
+        }
+      }
+
+      return text;
     } catch (error) {
       this.logger.error('AI generation failed:', error);
       throw error;
