@@ -89,7 +89,11 @@ export default function OnboardingSecondScreen() {
   return (
     <OnboardingLayout>
       <View style={styles.container}>
-        <OnboardingHeader title={t('onboarding.second.header')} onBack={handleBack} showStep />
+        <OnboardingHeader
+          title={t('onboarding.second.header')}
+          onBack={handleBack}
+          showStep
+        />
 
         <View style={styles.descriptionContainer}>
           <Text style={styles.description}>
@@ -112,7 +116,10 @@ export default function OnboardingSecondScreen() {
           />
         </View>
 
-        <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
+        <OnboardingButton
+          title={t('onboarding.button.next')}
+          onPress={handleNext}
+        />
       </View>
     </OnboardingLayout>
   );
@@ -123,7 +130,7 @@ const styles = StyleSheet.create({
   descriptionContainer: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
     marginTop: theme.spacing.xxxl * 1.875, // 60px (32 * 1.875)
-    marginBottom: theme.spacing.xxxl * 1.25, // 40px (32 * 1.25)
+    marginBottom: theme.spacing.sm,
   },
   description: {
     color: ONBOARDING_COLORS.textDim70,
@@ -134,7 +141,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: theme.spacing.xxxl * 2, // 64px
+    marginTop: theme.spacing.sm, // 64px
+    marginBottom: theme.spacing.xxxl * 5, // 40px (32 * 1.25)
   },
   picker: {
     width: 320,
