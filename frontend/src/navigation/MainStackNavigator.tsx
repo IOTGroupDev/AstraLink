@@ -1,8 +1,9 @@
 // src/navigation/MainStackNavigator.tsx - С правильной логикой навигации
 import React, { useEffect } from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, TransitionPresets, CardStyleInterpolators } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
+import { Easing } from 'react-native';
 
 import TabNavigator from './TabNavigator';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
@@ -24,6 +25,31 @@ import NatalChartScreen from '../screens/NatalChartScreen';
 import PersonalCodeScreen from '../screens/PersonalCodeScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+// Настройка плавных переходов
+const screenTransitionConfig = {
+  gestureEnabled: true,
+  gestureDirection: 'horizontal' as const,
+  transitionSpec: {
+    open: {
+      animation: 'spring',
+      config: {
+        stiffness: 300,
+        damping: 30,
+        mass: 1,
+      },
+    },
+    close: {
+      animation: 'spring',
+      config: {
+        stiffness: 300,
+        damping: 30,
+        mass: 1,
+      },
+    },
+  },
+  cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+};
 
 export default function MainStackNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -87,6 +113,7 @@ export default function MainStackNavigator() {
       screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: 'transparent' },
+        ...screenTransitionConfig,
       }}
     >
       {/* Auth utility screens - доступны всегда */}
