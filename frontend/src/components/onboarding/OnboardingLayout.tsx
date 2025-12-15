@@ -38,6 +38,7 @@
 import React, { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import CosmicBackground from '../shared/CosmicBackground';
 import { ONBOARDING_COLORS } from '../../constants/onboarding.constants';
 
@@ -57,6 +58,8 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
 }) => {
   return (
     <View style={styles.root}>
+      {/* Light status bar for dark background */}
+      <StatusBar style="light" />
       {/* Фон под контентом */}
       <CosmicBackground />
       <SafeAreaView style={styles.safeArea} edges={edges}>
