@@ -13,7 +13,8 @@
     "description": "Enter your date of birth — let's find out your zodiac sign!"
   },
   "third": {
-    "header": "Zodiac Sign"
+    "header": "Zodiac Sign",
+    "description": "Next, we'll complete the picture with your birth time and place data to build your full natal chart."
   },
   "fourth": {
     "header": "Additional Info",

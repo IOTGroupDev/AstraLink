@@ -237,23 +237,24 @@
 // });
 
 // src/screens/onboarding/OnboardingThirdScreen.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import { ZodiacConstellationSvg } from '../../components/svg/zodiac/zodiacSvgMap';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useZodiac } from '../../hooks/useZodiac';
+import { theme } from '../../styles/theme';
 import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
   ONBOARDING_LAYOUT,
   FRAME,
 } from '../../constants/onboarding.constants';
-import { logger } from '../../services/logger';
 
 type RootStackParamList = {
   Onboarding3: undefined;
@@ -267,22 +268,24 @@ type NavigationProp = NativeStackNavigationProp<
 
 export default function OnboardingThirdScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { t } = useTranslation();
   const birthDate = useOnboardingStore((s) => s.data.birthDate);
   const day = birthDate?.day ?? 1;
   const month = birthDate?.month ?? 1;
   const { zodiacSign, dateRange } = useZodiac(day, month);
 
-  logger.info('birthdate', birthDate);
-  logger.info('day', day);
-  logger.info('zodiac', zodiacSign);
+  const handleBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
-  const handleBack = () => navigation.goBack();
-  const handleNext = () => navigation.navigate('Onboarding4');
+  const handleNext = useCallback(() => {
+    navigation.navigate('Onboarding4');
+  }, [navigation]);
 
   return (
     <OnboardingLayout>
       <View style={styles.container}>
-        <OnboardingHeader title="Знак зодиака" onBack={handleBack} />
+        <OnboardingHeader title={t('onboarding.third.header')} onBack={handleBack} />
 
         <ScrollView
           style={styles.scrollView}
@@ -314,14 +317,13 @@ export default function OnboardingThirdScreen() {
             <Text style={styles.descriptionText}>
               {zodiacSign.shortDescription}
             </Text>
-            <Text style={[styles.descriptionText, { marginTop: 12 }]}>
-              Далее мы дополним картину данными о времени и месте рождения для
-              построения полной натальной карты.
+            <Text style={[styles.descriptionText, styles.additionalDescription]}>
+              {t('onboarding.third.description')}
             </Text>
           </View>
         </ScrollView>
 
-        <OnboardingButton title="ДАЛЕЕ" onPress={handleNext} />
+        <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
       </View>
     </OnboardingLayout>
   );
@@ -336,42 +338,45 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    paddingBottom: 140,
+    paddingBottom: theme.spacing.xxxl * 4.375, // 140px (32 * 4.375)
   },
   constellationContainer: {
     height: 330,
-    marginTop: 20,
-    marginBottom: 20,
+    marginTop: theme.spacing.lg, // 20px
+    marginBottom: theme.spacing.lg, // 20px
     justifyContent: 'center',
     alignItems: 'center',
   },
   pillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 30,
+    gap: theme.spacing.sm, // 10px (близко к 8px)
+    marginBottom: theme.spacing.xl * 1.25, // 30px (24 * 1.25)
   },
   pill: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: theme.spacing.lg - 2, // 18px (20 - 2)
+    paddingVertical: theme.spacing.sm, // 10px (близко к 8px)
+    borderRadius: theme.spacing.xl, // 24px
     borderWidth: 1,
     borderColor: ONBOARDING_COLORS.pillBorder,
     backgroundColor: ONBOARDING_COLORS.pillBg,
   },
   pillText: {
     color: ONBOARDING_COLORS.text,
-    fontSize: 12,
+    fontSize: theme.fontSizes.sm, // 12px
     fontFamily: 'Montserrat_500Medium',
     letterSpacing: 0.5,
   },
   descriptionBlock: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg, // 20px
   },
   descriptionText: {
     color: ONBOARDING_COLORS.text,
     opacity: 0.9,
     ...ONBOARDING_TYPOGRAPHY.body,
     textAlign: 'left',
+  },
+  additionalDescription: {
+    marginTop: theme.spacing.md, // 12px
   },
 });
