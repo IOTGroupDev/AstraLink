@@ -63,6 +63,20 @@ export default function OnboardingSecondScreen() {
     }
   }, []);
 
+  // Конвертация i18n языка в locale формат
+  const getLocale = useCallback(() => {
+    switch (i18n.language) {
+      case 'en':
+        return 'en-US';
+      case 'ru':
+        return 'ru-RU';
+      case 'es':
+        return 'es-ES';
+      default:
+        return 'en-US';
+    }
+  }, [i18n.language]);
+
   const handleNext = useCallback(() => {
     setBirthDateInStore({
       day: date.getDate(),
@@ -93,6 +107,7 @@ export default function OnboardingSecondScreen() {
             minimumDate={new Date(1920, 0, 1)}
             textColor={ONBOARDING_COLORS.white}
             themeVariant="dark"
+            locale={getLocale()}
             style={styles.picker}
           />
         </View>
