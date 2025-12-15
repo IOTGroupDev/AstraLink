@@ -8,7 +8,7 @@ import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import OnboardingFirstBackgroundSvg from '../../components/onboarding/OnboardingFirstBackgroundSvg';
 import OnboardingBadge from '../../components/onboarding/OnboardingBadge';
-import { theme } from '../../styles/theme';
+import { theme } from '../../styles';
 import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
@@ -62,7 +62,10 @@ export default function OnboardingFirstScreen() {
           <Text style={styles.subtitle}>{t('onboarding.first.subtitle')}</Text>
         </View>
 
-        <OnboardingButton title={t('onboarding.button.next')} onPress={handleContinue} />
+        <OnboardingButton
+          title={t('onboarding.button.next')}
+          onPress={handleContinue}
+        />
       </View>
     </OnboardingLayout>
   );
@@ -96,26 +99,26 @@ const styles = StyleSheet.create({
   // App name centered below the star
   appName: {
     position: 'absolute',
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: ONBOARDING_COLORS.white,
-    letterSpacing: 1,
-    bottom: 240,
+    letterSpacing: 1.25,
+    bottom: 180,
   },
   // Badge positioning as per original SVG design (viewBox 430x834)
   badgeLeft: {
     position: 'absolute',
     left: 37,
-    top: 18,
+    top: -40,
   },
   badgeRight: {
     position: 'absolute',
     right: 24,
-    top: 108,
+    top: 50,
   },
   badgeBottom: {
     position: 'absolute',
     left: 63,
-    bottom: 202,
+    bottom: 100,
   },
 });
