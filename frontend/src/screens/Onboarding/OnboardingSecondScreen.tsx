@@ -1,6 +1,6 @@
 // src/screens/onboarding/OnboardingSecondScreen.tsx
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -47,41 +47,35 @@ export default function OnboardingSecondScreen() {
   }, [storedBirthDate]);
 
   const [date, setDate] = useState<Date>(initialDate);
-  const [showPicker, setShowPicker] = useState(Platform.OS === 'android');
 
   // Синхронизация с initialDate при изменении
   useEffect(() => {
     setDate(initialDate);
   }, [initialDate]);
 
-  // На Android показываем picker автоматически при входе на экран
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      setShowPicker(true);
-    }
-  }, []);
+  // Форматирование даты с учетом локали для отображения
+  const formatDate = useCallback(
+    (dateToFormat: Date): string => {
+      const day = dateToFormat.getDate().toString().padStart(2, '0');
+      const month = (dateToFormat.getMonth() + 1).toString().padStart(2, '0');
+      const year = dateToFormat.getFullYear();
+
+      // Для en используем MM.DD.YYYY, для остальных DD.MM.YYYY
+      if (i18n.language === 'en') {
+        return `${month}.${day}.${year}`;
+      }
+      return `${day}.${month}.${year}`;
+    },
+    [i18n.language]
+  );
 
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
   const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowPicker(false);
-      if (event.type === 'dismissed') {
-        // Если пользователь закрыл picker на Android, открываем снова
-        setTimeout(() => setShowPicker(true), 100);
-        return;
-      }
-    }
-
     if (selectedDate) {
       setDate(selectedDate);
-
-      // На Android переотображаем picker после выбора
-      if (Platform.OS === 'android') {
-        setTimeout(() => setShowPicker(true), 100);
-      }
     }
   }, []);
 
@@ -105,12 +99,20 @@ export default function OnboardingSecondScreen() {
           </Text>
         </View>
 
-        <View style={styles.pickerContainer}>
-          {Platform.OS === 'ios' ? (
+        <View style={styles.contentContainer}>
+          {/* Большая кнопка с выбранной датой */}
+          <View style={styles.dateDisplayContainer}>
+            <View style={styles.dateDisplay}>
+              <Text style={styles.dateDisplayText}>{formatDate(date)}</Text>
+            </View>
+          </View>
+
+          {/* Inline DateTimePicker */}
+          <View style={styles.pickerContainer}>
             <DateTimePicker
               value={date}
               mode="date"
-              display="inline"
+              display={Platform.OS === 'ios' ? 'inline' : 'spinner'}
               onChange={handleDateChange}
               maximumDate={new Date()}
               minimumDate={new Date(1920, 0, 1)}
@@ -118,18 +120,7 @@ export default function OnboardingSecondScreen() {
               themeVariant="dark"
               style={styles.picker}
             />
-          ) : (
-            showPicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-                minimumDate={new Date(1920, 0, 1)}
-              />
-            )
-          )}
+          </View>
         </View>
 
         <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
@@ -150,15 +141,37 @@ const styles = StyleSheet.create({
     ...ONBOARDING_TYPOGRAPHY.h2,
     textAlign: 'center',
   },
-  pickerContainer: {
+  contentContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: theme.spacing.xxxl * 1.25, // 40px (32 * 1.25)
-    marginBottom: theme.spacing.xxxl, // 32px
+  },
+  dateDisplayContainer: {
+    marginTop: theme.spacing.lg, // 20px
+    marginBottom: theme.spacing.xl, // 24px
+  },
+  dateDisplay: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: theme.spacing.lg, // 20px
+    paddingVertical: theme.spacing.lg, // 20px
+    paddingHorizontal: theme.spacing.xxxl * 1.5, // 48px
+    minWidth: 260,
+    alignItems: 'center',
+  },
+  dateDisplayText: {
+    color: ONBOARDING_COLORS.white,
+    fontSize: theme.fontSizes.xxxl, // 28px
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  pickerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   picker: {
-    width: '100%',
+    width: 320,
     height: 200,
   },
 });
