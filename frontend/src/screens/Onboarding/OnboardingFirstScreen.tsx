@@ -39,6 +39,9 @@ export default function OnboardingFirstScreen() {
         <View style={styles.illustrationContainer}>
           <OnboardingFirstBackgroundSvg />
 
+          {/* App name centered below the star */}
+          <Text style={styles.appName}>AstraLink</Text>
+
           {/* Badges positioned absolutely as per original design */}
           <OnboardingBadge
             text={t('onboarding.first.badges.astrology')}
@@ -89,6 +92,15 @@ const styles = StyleSheet.create({
     color: ONBOARDING_COLORS.textDim,
     ...ONBOARDING_TYPOGRAPHY.body,
     textAlign: 'left',
+  },
+  // App name centered below the star
+  appName: {
+    position: 'absolute',
+    fontSize: 22,
+    fontWeight: '600',
+    color: ONBOARDING_COLORS.white,
+    letterSpacing: 1,
+    bottom: 240,
   },
   // Badge positioning as per original SVG design (viewBox 430x834)
   badgeLeft: {
