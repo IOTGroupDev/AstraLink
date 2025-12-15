@@ -1,13 +1,15 @@
 // src/screens/onboarding/OnboardingSecondScreen.tsx
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import { DatePicker } from '@quidone/react-native-wheel-picker';
 import { useOnboardingStore } from '../../stores/onboarding.store';
+import { theme } from '../../styles/theme';
 import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
@@ -51,6 +53,7 @@ function isoToStruct(iso: string): {
 
 export default function OnboardingSecondScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { t, i18n } = useTranslation();
   const storedBirthDate = useOnboardingStore((state) => state.data.birthDate);
   const setBirthDateInStore = useOnboardingStore((state) => state.setBirthDate);
 
@@ -73,22 +76,24 @@ export default function OnboardingSecondScreen() {
     setDateStr(initialDateStr);
   }, [initialDateStr]);
 
-  const handleBack = () => navigation.goBack();
+  const handleBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     // Конвертация только здесь — перед сохранением
     setBirthDateInStore(isoToStruct(dateStr));
     navigation.navigate('Onboarding3');
-  };
+  }, [dateStr, setBirthDateInStore, navigation]);
 
   return (
     <OnboardingLayout>
       <View style={styles.container}>
-        <OnboardingHeader title="Дата рождения" onBack={handleBack} showStep />
+        <OnboardingHeader title={t('onboarding.second.header')} onBack={handleBack} showStep />
 
         <View style={styles.descriptionContainer}>
           <Text style={styles.description}>
-            Введите дату рождения — узнаем, кто вы по гороскопу!
+            {t('onboarding.second.description')}
           </Text>
         </View>
 
@@ -101,11 +106,11 @@ export default function OnboardingSecondScreen() {
             contentContainerStyle={styles.content}
             itemHeight={40}
             visibleItemCount={5}
-            locale="ru"
+            locale={i18n.language}
           />
         </View>
 
-        <OnboardingButton title="ДАЛЕЕ" onPress={handleNext} />
+        <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
       </View>
     </OnboardingLayout>
   );
@@ -115,8 +120,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   descriptionContainer: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    marginTop: 60,
-    marginBottom: 40,
+    marginTop: theme.spacing.xxxl * 1.875, // 60px (32 * 1.875)
+    marginBottom: theme.spacing.xxxl * 1.25, // 40px (32 * 1.25)
   },
   description: {
     color: ONBOARDING_COLORS.textDim70,
@@ -128,11 +133,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexGrow: 0,
     flexShrink: 0,
-    marginTop: 100,
+    marginTop: theme.spacing.xxxl * 3.125, // 100px (32 * 3.125)
   },
   itemText: {
     color: ONBOARDING_COLORS.white,
-    fontSize: 24,
+    fontSize: theme.fontSizes.xxl, // 24px
   },
   overlayItem: {
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -141,6 +146,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)',
   },
   content: {
-    paddingHorizontal: 10,
+    paddingHorizontal: theme.spacing.md, // 12px (close to 10)
   },
 });
