@@ -242,7 +242,6 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
@@ -306,53 +305,6 @@ export default function OnboardingThirdScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.constellationContainer}>
-            {/* Background radial glow effect */}
-            <View style={styles.gradientWrapper}>
-              <LinearGradient
-                colors={[
-                  'rgba(255, 255, 255, 0.15)',
-                  'rgba(255, 255, 255, 0.08)',
-                  'rgba(255, 255, 255, 0.03)',
-                  'rgba(255, 255, 255, 0)',
-                ]}
-                start={{ x: 0.5, y: 0.5 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gradient}
-              />
-              <LinearGradient
-                colors={[
-                  'rgba(255, 255, 255, 0.15)',
-                  'rgba(255, 255, 255, 0.08)',
-                  'rgba(255, 255, 255, 0.03)',
-                  'rgba(255, 255, 255, 0)',
-                ]}
-                start={{ x: 0.5, y: 0.5 }}
-                end={{ x: 0, y: 0 }}
-                style={styles.gradient}
-              />
-              <LinearGradient
-                colors={[
-                  'rgba(255, 255, 255, 0.15)',
-                  'rgba(255, 255, 255, 0.08)',
-                  'rgba(255, 255, 255, 0.03)',
-                  'rgba(255, 255, 255, 0)',
-                ]}
-                start={{ x: 0.5, y: 0.5 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradient}
-              />
-              <LinearGradient
-                colors={[
-                  'rgba(255, 255, 255, 0.15)',
-                  'rgba(255, 255, 255, 0.08)',
-                  'rgba(255, 255, 255, 0.03)',
-                  'rgba(255, 255, 255, 0)',
-                ]}
-                start={{ x: 0.5, y: 0.5 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.gradient}
-              />
-            </View>
             <ZodiacConstellationSvg
               signKey={zodiacSign.key}
               width={FRAME.WIDTH}
@@ -406,19 +358,6 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg, // 20px
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
-  },
-  gradientWrapper: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradient: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
   },
   pillsRow: {
     flexDirection: 'row',
