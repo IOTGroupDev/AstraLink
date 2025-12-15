@@ -1,0 +1,22 @@
+{
+  "signs": {
+    "aries": "ARIES",
+    "taurus": "TAURUS",
+    "gemini": "GEMINI",
+    "cancer": "CANCER",
+    "leo": "LEO",
+    "virgo": "VIRGO",
+    "libra": "LIBRA",
+    "scorpio": "SCORPIO",
+    "sagittarius": "SAGITTARIUS",
+    "capricorn": "CAPRICORN",
+    "aquarius": "AQUARIUS",
+    "pisces": "PISCES"
+  },
+  "elements": {
+    "fire": "Fire",
+    "earth": "Earth",
+    "air": "Air",
+    "water": "Water"
+  }
+}

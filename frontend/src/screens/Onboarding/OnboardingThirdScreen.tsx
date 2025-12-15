@@ -303,13 +303,13 @@ export default function OnboardingThirdScreen() {
 
           <View style={styles.pillsRow}>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>{zodiacSign.nameRu}</Text>
+              <Text style={styles.pillText}>{t(`zodiac.signs.${zodiacSign.key}`)}</Text>
             </View>
             <View style={styles.pill}>
               <Text style={styles.pillText}>{dateRange}</Text>
             </View>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>{zodiacSign.elementRu}</Text>
+              <Text style={styles.pillText}>{t(`zodiac.elements.${zodiacSign.element}`)}</Text>
             </View>
           </View>
 
