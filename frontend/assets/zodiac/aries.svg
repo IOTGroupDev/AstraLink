@@ -1,214 +1,106 @@
 <svg width="186" height="333" viewBox="0 0 186 333" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Gradients for large stars with rays -->
-    <radialGradient id="starGlowLarge" cx="0.5" cy="0.5" r="0.5">
+    <!-- Gradient for bright main stars -->
+    <radialGradient id="starMain" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
-      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.9"/>
-      <stop offset="60%" stop-color="#CCCCCC" stop-opacity="0.4"/>
-      <stop offset="85%" stop-color="#666666" stop-opacity="0.1"/>
+      <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#DDDDDD" stop-opacity="0.5"/>
+      <stop offset="75%" stop-color="#888888" stop-opacity="0.15"/>
       <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
 
     <!-- Gradient for medium stars -->
-    <radialGradient id="starGlowMedium" cx="0.5" cy="0.5" r="0.5">
+    <radialGradient id="starMedium" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
-      <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.85"/>
       <stop offset="65%" stop-color="#AAAAAA" stop-opacity="0.3"/>
       <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
 
     <!-- Gradient for small stars -->
-    <radialGradient id="starGlowSmall" cx="0.5" cy="0.5" r="0.5">
+    <radialGradient id="starSmall" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
-      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.7"/>
-      <stop offset="80%" stop-color="#888888" stop-opacity="0.2"/>
+      <stop offset="40%" stop-color="#EEEEEE" stop-opacity="0.6"/>
       <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- Gradient for star rays -->
-    <linearGradient id="rayGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <!-- Gradient for rays -->
+    <linearGradient id="rayGrad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
-      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.6"/>
-      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="1"/>
-      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.5"/>
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <!-- Star at position 1: Large star with prominent rays (bottom middle) -->
-  <g transform="translate(158.263, 301.765)" opacity="0.95">
-    <!-- Outer glow -->
-    <circle r="22" fill="url(#starGlowLarge)" opacity="0.3"/>
-    <!-- Horizontal ray -->
-    <ellipse rx="35" ry="1.5" fill="url(#rayGradient)" opacity="0.8"/>
-    <!-- Vertical ray -->
-    <ellipse rx="1.5" ry="35" fill="url(#rayGradient)" opacity="0.8"/>
-    <!-- Diagonal ray 1 -->
-    <ellipse rx="28" ry="1.2" fill="url(#rayGradient)" opacity="0.7" transform="rotate(45)"/>
-    <!-- Diagonal ray 2 -->
-    <ellipse rx="28" ry="1.2" fill="url(#rayGradient)" opacity="0.7" transform="rotate(-45)"/>
-    <!-- Inner glow -->
-    <circle r="12" fill="url(#starGlowLarge)" opacity="0.9"/>
-    <!-- Core -->
-    <circle r="4" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 2: Large star with rays (middle) -->
-  <g transform="translate(75.359, 164.13)" opacity="0.95">
-    <!-- Outer glow -->
-    <circle r="24" fill="url(#starGlowLarge)" opacity="0.3"/>
-    <!-- Horizontal ray -->
-    <ellipse rx="38" ry="1.8" fill="url(#rayGradient)" opacity="0.85"/>
-    <!-- Vertical ray -->
-    <ellipse rx="1.8" ry="38" fill="url(#rayGradient)" opacity="0.85"/>
-    <!-- Diagonal ray 1 -->
-    <ellipse rx="32" ry="1.5" fill="url(#rayGradient)" opacity="0.75" transform="rotate(45)"/>
-    <!-- Diagonal ray 2 -->
-    <ellipse rx="32" ry="1.5" fill="url(#rayGradient)" opacity="0.75" transform="rotate(-45)"/>
-    <!-- Inner glow -->
-    <circle r="14" fill="url(#starGlowLarge)" opacity="0.9"/>
-    <!-- Core -->
-    <circle r="5" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 3: Medium star with rays (top middle) -->
-  <g transform="translate(80.378, 123.272)" opacity="0.9">
-    <!-- Outer glow -->
-    <circle r="16" fill="url(#starGlowMedium)" opacity="0.3"/>
-    <!-- Horizontal ray -->
-    <ellipse rx="24" ry="1.2" fill="url(#rayGradient)" opacity="0.7"/>
-    <!-- Vertical ray -->
-    <ellipse rx="1.2" ry="24" fill="url(#rayGradient)" opacity="0.7"/>
-    <!-- Diagonal ray 1 -->
-    <ellipse rx="20" ry="1" fill="url(#rayGradient)" opacity="0.6" transform="rotate(45)"/>
-    <!-- Diagonal ray 2 -->
-    <ellipse rx="20" ry="1" fill="url(#rayGradient)" opacity="0.6" transform="rotate(-45)"/>
-    <!-- Inner glow -->
-    <circle r="9" fill="url(#starGlowMedium)"/>
-    <!-- Core -->
-    <circle r="3" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 4: Large star with rays (top) -->
-  <g transform="translate(75.351, 28.409)" opacity="0.95">
-    <!-- Outer glow -->
-    <circle r="20" fill="url(#starGlowLarge)" opacity="0.3"/>
-    <!-- Horizontal ray -->
-    <ellipse rx="32" ry="1.5" fill="url(#rayGradient)" opacity="0.8"/>
-    <!-- Vertical ray -->
-    <ellipse rx="1.5" ry="32" fill="url(#rayGradient)" opacity="0.8"/>
-    <!-- Diagonal ray 1 -->
-    <ellipse rx="26" ry="1.2" fill="url(#rayGradient)" opacity="0.7" transform="rotate(45)"/>
-    <!-- Diagonal ray 2 -->
-    <ellipse rx="26" ry="1.2" fill="url(#rayGradient)" opacity="0.7" transform="rotate(-45)"/>
-    <!-- Inner glow -->
-    <circle r="11" fill="url(#starGlowLarge)" opacity="0.9"/>
-    <!-- Core -->
-    <circle r="4" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 5: Medium star (left bottom) -->
-  <g transform="translate(24.356, 236.811)" opacity="0.9">
-    <!-- Outer glow -->
-    <circle r="18" fill="url(#starGlowMedium)" opacity="0.3"/>
-    <!-- Horizontal ray -->
-    <ellipse rx="28" ry="1.3" fill="url(#rayGradient)" opacity="0.75"/>
-    <!-- Vertical ray -->
-    <ellipse rx="1.3" ry="28" fill="url(#rayGradient)" opacity="0.75"/>
-    <!-- Diagonal ray 1 -->
-    <ellipse rx="22" ry="1.1" fill="url(#rayGradient)" opacity="0.65" transform="rotate(45)"/>
-    <!-- Diagonal ray 2 -->
-    <ellipse rx="22" ry="1.1" fill="url(#rayGradient)" opacity="0.65" transform="rotate(-45)"/>
-    <!-- Inner glow -->
-    <circle r="10" fill="url(#starGlowMedium)"/>
-    <!-- Core -->
+  <!-- Main star 1: Hamal (α Arietis) - brightest, with rays -->
+  <g transform="translate(75.359, 164.13)">
+    <circle r="18" fill="url(#starMain)" opacity="0.25"/>
+    <!-- Shorter rays -->
+    <ellipse rx="20" ry="1" fill="url(#rayGrad)" opacity="0.7"/>
+    <ellipse rx="1" ry="20" fill="url(#rayGrad)" opacity="0.7"/>
+    <ellipse rx="16" ry="0.8" fill="url(#rayGrad)" opacity="0.6" transform="rotate(45)"/>
+    <ellipse rx="16" ry="0.8" fill="url(#rayGrad)" opacity="0.6" transform="rotate(-45)"/>
+    <circle r="10" fill="url(#starMain)" opacity="0.9"/>
     <circle r="3.5" fill="#FFFFFF"/>
   </g>
 
-  <!-- Star at position 6: Small star -->
-  <g transform="translate(105.097, 138.248)" opacity="0.85">
-    <circle r="12" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="7" fill="url(#starGlowSmall)"/>
-    <circle r="2.5" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 7: Small star -->
-  <g transform="translate(70.184, 43.201)" opacity="0.85">
-    <circle r="10" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="6" fill="url(#starGlowSmall)"/>
-    <circle r="2" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 8: Medium star -->
-  <g transform="translate(35.551, 66.775)" opacity="0.9">
-    <!-- Outer glow -->
-    <circle r="14" fill="url(#starGlowMedium)" opacity="0.3"/>
-    <!-- Horizontal ray -->
-    <ellipse rx="20" ry="1" fill="url(#rayGradient)" opacity="0.7"/>
-    <!-- Vertical ray -->
-    <ellipse rx="1" ry="20" fill="url(#rayGradient)" opacity="0.7"/>
-    <!-- Inner glow -->
-    <circle r="8" fill="url(#starGlowMedium)"/>
-    <!-- Core -->
+  <!-- Main star 2: Sheratan (β Arietis) - with rays -->
+  <g transform="translate(158.263, 301.765)">
+    <circle r="16" fill="url(#starMain)" opacity="0.25"/>
+    <ellipse rx="18" ry="0.9" fill="url(#rayGrad)" opacity="0.65"/>
+    <ellipse rx="0.9" ry="18" fill="url(#rayGrad)" opacity="0.65"/>
+    <ellipse rx="14" ry="0.7" fill="url(#rayGrad)" opacity="0.55" transform="rotate(45)"/>
+    <ellipse rx="14" ry="0.7" fill="url(#rayGrad)" opacity="0.55" transform="rotate(-45)"/>
+    <circle r="9" fill="url(#starMain)" opacity="0.9"/>
     <circle r="3" fill="#FFFFFF"/>
   </g>
 
-  <!-- Star at position 9: Small star -->
-  <g transform="translate(118.807, 101.235)" opacity="0.85">
-    <circle r="11" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="6.5" fill="url(#starGlowSmall)"/>
+  <!-- Main star 3: Mesarthim (γ Arietis) - with subtle rays -->
+  <g transform="translate(75.351, 28.409)">
+    <circle r="14" fill="url(#starMain)" opacity="0.25"/>
+    <ellipse rx="16" ry="0.8" fill="url(#rayGrad)" opacity="0.6"/>
+    <ellipse rx="0.8" ry="16" fill="url(#rayGrad)" opacity="0.6"/>
+    <circle r="8" fill="url(#starMain)" opacity="0.9"/>
+    <circle r="2.5" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Medium star 4: 41 Arietis -->
+  <g transform="translate(24.356, 236.811)">
+    <circle r="12" fill="url(#starMedium)" opacity="0.3"/>
+    <circle r="7" fill="url(#starMedium)"/>
     <circle r="2.2" fill="#FFFFFF"/>
   </g>
 
-  <!-- Star at position 10: Small star (top right) -->
-  <g transform="translate(42.565, 7.395)" opacity="0.85">
-    <circle r="10" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="6" fill="url(#starGlowSmall)"/>
+  <!-- Medium star 5 -->
+  <g transform="translate(80.378, 123.272)">
+    <circle r="10" fill="url(#starMedium)" opacity="0.3"/>
+    <circle r="6" fill="url(#starMedium)"/>
     <circle r="2" fill="#FFFFFF"/>
   </g>
 
-  <!-- Star at position 11: Small star (left) -->
-  <g transform="translate(15.196, 59.962)" opacity="0.85">
-    <circle r="10" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="6" fill="url(#starGlowSmall)"/>
-    <circle r="2" fill="#FFFFFF"/>
+  <!-- Small star 6 -->
+  <g transform="translate(42.565, 7.395)">
+    <circle r="8" fill="url(#starSmall)" opacity="0.4"/>
+    <circle r="4.5" fill="url(#starSmall)"/>
+    <circle r="1.5" fill="#FFFFFF"/>
   </g>
 
-  <!-- Star at position 12: Small star (left middle) -->
-  <g transform="translate(17.944, 46.107)" opacity="0.85">
-    <circle r="11" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="6.5" fill="url(#starGlowSmall)"/>
-    <circle r="2.2" fill="#FFFFFF"/>
-  </g>
-
-  <!-- Star at position 13: Small star (right middle) -->
-  <g transform="translate(113.055, 126.844)" opacity="0.85">
-    <circle r="10" fill="url(#starGlowSmall)" opacity="0.4"/>
-    <circle r="6" fill="url(#starGlowSmall)"/>
-    <circle r="2" fill="#FFFFFF"/>
+  <!-- Small star 7 -->
+  <g transform="translate(17.944, 46.107)">
+    <circle r="7" fill="url(#starSmall)" opacity="0.4"/>
+    <circle r="4" fill="url(#starSmall)"/>
+    <circle r="1.3" fill="#FFFFFF"/>
   </g>
 
   <!-- Connecting lines -->
-  <g opacity="0.9">
-    <path d="M 158.263 301.765 L 113.055 126.844 L 75.359 164.13 L 80.378 123.272 L 75.351 28.409 L 42.565 7.395"
-          stroke="#FFFFFF"
-          stroke-width="1.2"
-          fill="none"
-          opacity="0.85"/>
-    <path d="M 24.356 236.811 L 75.359 164.13"
-          stroke="#FFFFFF"
-          stroke-width="1.2"
-          fill="none"
-          opacity="0.85"/>
-    <path d="M 35.551 66.775 L 17.944 46.107"
-          stroke="#FFFFFF"
-          stroke-width="1.2"
-          fill="none"
-          opacity="0.85"/>
-    <path d="M 15.196 59.962 L 35.551 66.775 L 75.359 164.13 L 118.807 101.235"
-          stroke="#FFFFFF"
-          stroke-width="1.2"
-          fill="none"
-          opacity="0.85"/>
+  <g opacity="0.85" stroke="#FFFFFF" stroke-width="1" fill="none">
+    <path d="M 158.263 301.765 L 75.359 164.13"/>
+    <path d="M 75.359 164.13 L 80.378 123.272"/>
+    <path d="M 80.378 123.272 L 75.351 28.409"/>
+    <path d="M 75.351 28.409 L 42.565 7.395"/>
+    <path d="M 24.356 236.811 L 75.359 164.13"/>
+    <path d="M 17.944 46.107 L 75.351 28.409"/>
   </g>
 </svg>
