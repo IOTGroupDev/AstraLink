@@ -98,6 +98,8 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
           error: null,
+          onboardingCompleted: false,
+          biometricEnabled: false,
         });
       },
 

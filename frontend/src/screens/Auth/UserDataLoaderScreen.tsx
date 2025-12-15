@@ -477,16 +477,12 @@ const UserDataLoaderScreen: React.FC = () => {
       const userEmail = session.user.email || '';
 
       // Попробуем синхронизировать флаг онбординга из БД (user_profiles.is_onboarded)
+      let isAlreadyOnboarded = false;
       try {
         const ext = await userExtendedProfileAPI.getUserProfile();
         if (ext?.is_onboarded === true) {
-          setOnboardingCompletedFlag(true);
-          await setAuthOnboardingCompleted(true);
-          console.log('✅ User already onboarded, redirecting to MainTabs');
-          // ✅ Ранний выход: если в БД is_onboarded=true — сразу в MainTabs, без возврата на онбординг
-          // @ts-ignore
-          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-          return;
+          isAlreadyOnboarded = true;
+          console.log('✅ User is marked as onboarded in DB');
         }
       } catch (e: any) {
         // Различаем 401 и другие ошибки
@@ -534,6 +530,30 @@ const UserDataLoaderScreen: React.FC = () => {
         !!onboardingData?.birthDate &&
         !!onboardingData?.birthTime &&
         !!onboardingData?.birthPlace;
+
+      // Если пользователь уже прошел онбординг в БД, пропускаем все проверки и идем в MainTabs
+      if (isAlreadyOnboarded && profile && !needsOnboarding(profile)) {
+        setStatus('Пользователь уже прошел онбординг. Переход в приложение...');
+
+        setOnboardingCompletedFlag(true);
+        await setAuthOnboardingCompleted(true);
+
+        login({
+          id: userId,
+          email: userEmail,
+          name: profile.name || 'Пользователь',
+          birthDate: profile.birthDate
+            ? new Date(profile.birthDate).toISOString().split('T')[0]
+            : undefined,
+          birthTime: profile.birthTime || undefined,
+          birthPlace: profile.birthPlace || undefined,
+          role: 'user',
+        });
+
+        setStatus('Переход на главный экран...');
+        goMainTabs();
+        return;
+      }
 
       if (profile && !needsOnboarding(profile)) {
         setStatus('Профиль полный. Проверка карты и подписки...');
