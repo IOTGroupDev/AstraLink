@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { ONBOARDING_COLORS, ONBOARDING_TYPOGRAPHY } from '../../constants/onboarding.constants';
+import {
+  ONBOARDING_COLORS,
+  ONBOARDING_TYPOGRAPHY,
+} from '../../constants/onboarding.constants';
 import { theme } from '../../styles/theme';
 
 interface OnboardingBadgeProps {
@@ -8,7 +11,10 @@ interface OnboardingBadgeProps {
   style?: ViewStyle;
 }
 
-export const OnboardingBadge: React.FC<OnboardingBadgeProps> = ({ text, style }) => {
+export const OnboardingBadge: React.FC<OnboardingBadgeProps> = ({
+  text,
+  style,
+}) => {
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.text}>{text.toUpperCase()}</Text>

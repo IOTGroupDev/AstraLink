@@ -120,7 +120,9 @@ const BACKGROUND_SVG = `<svg width="430" height="834" viewBox="0 0 430 834" fill
 export const OnboardingFirstBackgroundSvg: React.FC<
   OnboardingFirstBackgroundSvgProps
 > = ({ width = 430, height = 834, style }) => {
-  return <SvgXml xml={BACKGROUND_SVG} width={width} height={height} style={style} />;
+  return (
+    <SvgXml xml={BACKGROUND_SVG} width={width} height={height} style={style} />
+  );
 };
 
 export default OnboardingFirstBackgroundSvg;

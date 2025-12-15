@@ -11,6 +11,7 @@
 **Проект:** AstraLink - React Native приложение для астрологии и знакомств
 
 **Стек:**
+
 - **Frontend:** React Native (Expo), TypeScript, Zustand, React Query, i18next
 - **Backend:** NestJS, Prisma, PostgreSQL, Redis, AI (Claude/OpenAI/DeepSeek)
 - **Особенности:** Тяжелые AI запросы (долгие), Redis кэширование
@@ -56,6 +57,7 @@
 ### **Выбранная Стратегия**
 
 Работаем **экран за экраном**:
+
 1. Пользователь называет экран
 2. Анализируем его по чек-листу
 3. **Постепенно создаем shared components** по мере необходимости
@@ -63,6 +65,7 @@
 5. Коммитим малыми порциями
 
 ### **Почему именно так?**
+
 - Сразу видим результат на реальном экране
 - Можем корректировать подход по ходу
 - Не создаем лишние компоненты "на будущее"
@@ -73,6 +76,7 @@
 ## ✅ ЧЕК-ЛИСТ ДЛЯ КАЖДОГО ЭКРАНА
 
 ### **1. Layout & SafeArea**
+
 ```typescript
 // Tab экраны
 <TabScreenLayout scrollable={true} edges={['top', 'left', 'right']}>
@@ -93,6 +97,7 @@
 - [ ] CosmicBackground добавлен (если нужен)
 
 ### **2. Стили**
+
 ```typescript
 // ✅ ВСЕГДА ТАК
 import { theme } from '@/styles/theme';
@@ -100,8 +105,8 @@ import { commonStyles } from '@/styles/commonStyles';
 
 const styles = StyleSheet.create({
   container: {
-    padding: theme.spacing.md,           // НЕ 16
-    backgroundColor: theme.colors.card,  // НЕ '#1E1E2E'
+    padding: theme.spacing.md, // НЕ 16
+    backgroundColor: theme.colors.card, // НЕ '#1E1E2E'
     borderRadius: theme.borderRadius.medium, // НЕ 12
   },
 });
@@ -115,12 +120,14 @@ const styles = StyleSheet.create({
 - [ ] Градиенты из `theme.gradients`
 
 ### **3. Компоненты**
+
 - [ ] Используются shared components (если есть)
 - [ ] Создаем новый shared component если паттерн повторяется > 2 раз
 - [ ] Props типизированы
 - [ ] Component разбит на подкомпоненты если > 200 строк
 
 ### **4. State Management**
+
 ```typescript
 // Zustand для app state
 const user = useAuthStore((s) => s.user);
@@ -138,6 +145,7 @@ const { data, isLoading, isError } = useQuery({
 - [ ] Loading/error/empty states обработаны
 
 ### **5. Performance**
+
 ```typescript
 // Мемоизация
 const value = useMemo(() => calculate(), [dep]);
@@ -159,6 +167,7 @@ const { data } = useQuery({
 - [ ] FlatList оптимизирован (если есть списки)
 
 ### **6. UX**
+
 ```typescript
 {isLoading && <SkeletonLoader />}
 {isError && <ErrorState error={error} onRetry={refetch} />}
@@ -172,6 +181,7 @@ const { data } = useQuery({
 - [ ] Animations для transitions
 
 ### **7. i18n**
+
 ```typescript
 const { t } = useTranslation();
 <Text>{t('horoscope.title')}</Text>
@@ -182,6 +192,7 @@ const { t } = useTranslation();
 - [ ] Переводы есть для en, ru, es
 
 ### **8. Code Quality**
+
 - [ ] 0 ESLint warnings
 - [ ] 0 TypeScript errors
 - [ ] Нет `console.log` (используй `logger`)
@@ -229,6 +240,7 @@ components/shared/ComponentName/
 ```
 
 **Приоритетные shared components:**
+
 1. **Button** - primary, secondary, outline, ghost
 2. **Card** - default, elevated, outlined
 3. **Input** - text, email, password с validation
@@ -243,26 +255,29 @@ components/shared/ComponentName/
 ## 🎨 THEME CONSTANTS
 
 ### **Locations:**
+
 - `/home/user/AstraLink/frontend/src/styles/theme.ts`
 - `/home/user/AstraLink/frontend/src/styles/commonStyles.ts`
 
 ### **Что есть в theme:**
+
 ```typescript
-theme.colors        // primary, secondary, background, card, text, etc.
-theme.spacing       // xs(4), sm(8), md(16), lg(24), xl(32), xxl(40)
-theme.fontSizes     // xs(12), sm(14), md(16), lg(18), xl(24), xxl(28), huge(32)
-theme.borderRadius  // small(8), medium(12), large(16), xlarge(24), full(9999)
-theme.shadows       // small, medium, large
-theme.gradients     // cosmic, fire, earth, air, water
+theme.colors; // primary, secondary, background, card, text, etc.
+theme.spacing; // xs(4), sm(8), md(16), lg(24), xl(32), xxl(40)
+theme.fontSizes; // xs(12), sm(14), md(16), lg(18), xl(24), xxl(28), huge(32)
+theme.borderRadius; // small(8), medium(12), large(16), xlarge(24), full(9999)
+theme.shadows; // small, medium, large
+theme.gradients; // cosmic, fire, earth, air, water
 ```
 
 ### **Что есть в commonStyles:**
+
 ```typescript
-commonStyles.card              // Базовая карточка
-commonStyles.button            // Базовая кнопка
-commonStyles.row               // Flex row
-commonStyles.column            // Flex column
-commonStyles.rowSpaceBetween   // Row с space-between
+commonStyles.card; // Базовая карточка
+commonStyles.button; // Базовая кнопка
+commonStyles.row; // Flex row
+commonStyles.column; // Flex column
+commonStyles.rowSpaceBetween; // Row с space-between
 // ... и другие
 ```
 
@@ -271,21 +286,23 @@ commonStyles.rowSpaceBetween   // Row с space-between
 ## ⚡ ОПТИМИЗАЦИЯ AI ЗАПРОСОВ
 
 ### **TTL Стратегия:**
+
 ```typescript
 // Horoscope predictions - 6 hours
-staleTime: 6 * 60 * 60 * 1000
+staleTime: 6 * 60 * 60 * 1000;
 
 // Chart interpretation - 24 hours
-staleTime: 24 * 60 * 60 * 1000
+staleTime: 24 * 60 * 60 * 1000;
 
 // Advisor recommendations - 1 hour
-staleTime: 1 * 60 * 60 * 1000
+staleTime: 1 * 60 * 60 * 1000;
 
 // Dating compatibility - 12 hours
-staleTime: 12 * 60 * 60 * 1000
+staleTime: 12 * 60 * 60 * 1000;
 ```
 
 ### **Prefetching Pattern:**
+
 ```typescript
 useEffect(() => {
   // Prefetch данные для следующих виджетов
@@ -297,6 +314,7 @@ useEffect(() => {
 ```
 
 ### **Debouncing для input:**
+
 ```typescript
 import { useDebouncedCallback } from 'use-debounce';
 
@@ -311,11 +329,13 @@ const debouncedSearch = useDebouncedCallback(
 ## 🔄 WORKFLOW ПРИ РАБОТЕ С ЭКРАНОМ
 
 ### **1. Получение задачи**
+
 ```
 Пользователь: "AuthEmailScreen"
 ```
 
 ### **2. Анализ текущего состояния**
+
 ```bash
 # Читаем файл экрана
 Read: /home/user/AstraLink/frontend/src/screens/Auth/AuthEmailScreen.tsx
@@ -325,8 +345,10 @@ Read: components/auth/*
 ```
 
 ### **3. Создание плана**
+
 ```markdown
 Используй TodoWrite для создания плана:
+
 - [ ] Analyze current implementation
 - [ ] Check layout wrapper usage
 - [ ] Migrate styles to theme/commonStyles
@@ -342,6 +364,7 @@ Read: components/auth/*
 ### **4. Рефакторинг по шагам**
 
 #### **4.1. Layout Wrapper**
+
 ```typescript
 // Было
 <SafeAreaView>
@@ -357,6 +380,7 @@ Read: components/auth/*
 ```
 
 #### **4.2. Styles Migration**
+
 ```typescript
 // Было
 const styles = StyleSheet.create({
@@ -376,6 +400,7 @@ const styles = StyleSheet.create({
 ```
 
 #### **4.3. Shared Components**
+
 ```typescript
 // Было
 <TouchableOpacity style={styles.button} onPress={handleSubmit}>
@@ -393,6 +418,7 @@ const styles = StyleSheet.create({
 ```
 
 #### **4.4. State & Performance**
+
 ```typescript
 // Было
 const [email, setEmail] = useState('');
@@ -415,6 +441,7 @@ const handleSubmit = useCallback(() => {
 ```
 
 #### **4.5. i18n**
+
 ```typescript
 // Было
 <Text>Enter your email</Text>
@@ -465,6 +492,7 @@ import { Button } from '@/components/shared/Button';
 ```
 
 ### **6. Тестирование**
+
 ```bash
 # Запустить приложение
 cd frontend && npm start
@@ -475,6 +503,7 @@ cd frontend && npm start
 ```
 
 ### **7. Коммит**
+
 ```bash
 # Малые атомарные коммиты
 git add .
@@ -491,6 +520,7 @@ git commit -m "feat(shared): add Button component"
 ```
 
 ### **8. Push**
+
 ```bash
 git push -u origin claude/refactor-app-architecture-a6pyi
 ```
@@ -522,32 +552,37 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 ### **Когда начинаешь новую сессию:**
 
 1. **Прочитай контекст:**
+
    ```
    Read: /home/user/AstraLink/REFACTORING_SESSION_GUIDE.md
    ```
 
 2. **Прочитай рабочий промпт:**
+
    ```
    Read: /home/user/AstraLink/CLAUDE_REFACTOR_PROMPT.md
    ```
 
 3. **Опционально - полное руководство:**
+
    ```
    Read: /home/user/AstraLink/REFACTORING_GUIDE.md
    ```
 
 4. **Получи задачу от пользователя:**
+
    ```
    Пользователь: "HoroscopeScreen"
    ```
 
 5. **Создай план с TodoWrite:**
+
    ```typescript
    TodoWrite([
-     { content: "Read current screen implementation", status: "in_progress" },
-     { content: "Analyze and create refactoring plan", status: "pending" },
+     { content: 'Read current screen implementation', status: 'in_progress' },
+     { content: 'Analyze and create refactoring plan', status: 'pending' },
      // ...
-   ])
+   ]);
    ```
 
 6. **Начинай работу** следуя чек-листу и workflow из этого документа
@@ -557,6 +592,7 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 ## 📊 ТЕКУЩИЙ ПРОГРЕСС
 
 ### **Созданные Shared Components:**
+
 <!-- Обновляй этот список по мере создания компонентов -->
 
 - [ ] Button
@@ -570,6 +606,7 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 - [ ] ErrorBoundary
 
 ### **Созданные Layout Wrappers:**
+
 <!-- Обновляй этот список -->
 
 - [x] TabScreenLayout (уже есть)
@@ -578,9 +615,11 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 - [ ] FullScreenLayout
 
 ### **Отрефакторенные экраны:**
+
 <!-- Обновляй этот список по мере завершения экранов -->
 
 **Auth Screens:**
+
 - [ ] AuthEmailScreen
 - [ ] SignUpScreen
 - [ ] OptCodeScreen
@@ -588,12 +627,14 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 - [ ] AuthCallbackScreen
 
 **Onboarding Screens:**
+
 - [ ] FirstOnboardingScreen
 - [ ] SecondOnboardingScreen
 - [ ] ThirdOnboardingScreen
 - [ ] FourthOnboardingScreen
 
 **Tab Screens:**
+
 - [ ] HoroscopeScreen
 - [ ] DatingScreen
 - [ ] ChatListScreen
@@ -601,6 +642,7 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 - [ ] AdvisorScreen
 
 **Feature Screens:**
+
 - [ ] CosmicSimulatorScreen
 - [ ] EditProfileScreen
 - [ ] PersonalCodeScreen
@@ -611,6 +653,7 @@ git commit -m "refactor(horoscope): migrate styles to theme constants"
 ## 🚨 ВАЖНЫЕ ЗАМЕТКИ
 
 ### **Git Branch:**
+
 ```bash
 # Всегда работаем в этой ветке
 claude/refactor-app-architecture-a6pyi
@@ -623,16 +666,19 @@ git checkout claude/refactor-app-architecture-a6pyi
 ```
 
 ### **Не ломать работающее:**
+
 - Рефакторинг НЕ должен менять функциональность
 - Только улучшаем структуру, стили, производительность
 - Тестируем после каждого изменения
 
 ### **Малые шаги:**
+
 - Один экран за раз
 - Малые атомарные коммиты
 - Проверяем git status перед коммитом
 
 ### **Shared Components:**
+
 - Создаем только когда РЕАЛЬНО нужны
 - Не создаем "на будущее"
 - Если паттерн повторяется > 2 раз → shared component

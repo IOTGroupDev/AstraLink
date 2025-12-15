@@ -13,6 +13,7 @@
 ## ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА ПРИ КАЖДОМ ИЗМЕНЕНИИ
 
 ### 1. **СТИЛИ - ТОЛЬКО ИЗ THEME**
+
 ```typescript
 // ✅ ВСЕГДА ТАК
 import { theme } from '@/styles/theme';
@@ -20,8 +21,8 @@ import { commonStyles } from '@/styles/commonStyles';
 
 const styles = StyleSheet.create({
   container: {
-    padding: theme.spacing.md,           // НЕ 16
-    backgroundColor: theme.colors.card,  // НЕ '#1E1E2E'
+    padding: theme.spacing.md, // НЕ 16
+    backgroundColor: theme.colors.card, // НЕ '#1E1E2E'
     borderRadius: theme.borderRadius.medium, // НЕ 12
   },
 });
@@ -37,11 +38,13 @@ const styles = StyleSheet.create({
 ```
 
 ### 2. **ПЕРЕИСПОЛЬЗОВАНИЕ КОМПОНЕНТОВ**
+
 - Перед созданием нового компонента - проверь `components/shared/`
 - Если UI паттерн повторяется > 2 раз → создать shared component
 - Используй композицию вместо дублирования
 
 ### 3. **LAYOUT WRAPPERS - ОБЯЗАТЕЛЬНЫ**
+
 ```typescript
 // Tab Screens
 <TabScreenLayout scrollable={true} edges={['top', 'left', 'right']}>
@@ -65,6 +68,7 @@ const styles = StyleSheet.create({
 ```
 
 ### 4. **PERFORMANCE - ВСЕГДА**
+
 ```typescript
 // AI запросы - ВСЕГДА кэшировать
 const { data, isLoading } = useQuery({
@@ -92,6 +96,7 @@ export const Widget = React.memo<WidgetProps>(({ data }) => {
 ```
 
 ### 5. **LOADING & ERROR STATES - ОБЯЗАТЕЛЬНЫ**
+
 ```typescript
 // Loading state
 {isLoading && <SkeletonLoader />}
@@ -117,6 +122,7 @@ export const Widget = React.memo<WidgetProps>(({ data }) => {
 ```
 
 ### 6. **ТИПИЗАЦИЯ - 100%**
+
 ```typescript
 // Props ВСЕГДА типизированы
 interface ScreenProps {
@@ -132,6 +138,7 @@ const response: HoroscopeResponse = await advisorAPI.getHoroscope();
 ```
 
 ### 7. **i18n - ВСЕ ТЕКСТЫ**
+
 ```typescript
 // ✅ ПРАВИЛЬНО
 const { t } = useTranslation();
@@ -142,6 +149,7 @@ const { t } = useTranslation();
 ```
 
 ### 8. **ЧИСТОТА КОДА**
+
 ```typescript
 // ❌ УДАЛИТЬ
 console.log('debug info');
@@ -165,26 +173,31 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 ```markdown
 ### Layout
+
 - [ ] Используется правильный Layout wrapper
 - [ ] SafeArea edges настроены корректно
 - [ ] CosmicBackground добавлен (если нужен)
 
 ### Стили
+
 - [ ] Все из theme.colors, theme.spacing, theme.fontSizes
 - [ ] Используются commonStyles где возможно
 - [ ] Нет hardcoded значений
 
 ### Компоненты
+
 - [ ] Shared components вместо кастомных
 - [ ] Props типизированы
 - [ ] Разбито на подкомпоненты если > 200 строк
 
 ### State & Data
+
 - [ ] Zustand/React Query для state
 - [ ] Селекторы для Zustand
 - [ ] Loading/error/empty states
 
 ### Performance
+
 - [ ] useMemo для вычислений
 - [ ] useCallback для handlers
 - [ ] React.memo для pure components
@@ -192,6 +205,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 - [ ] FlatList оптимизирован
 
 ### UX
+
 - [ ] Loading indicators
 - [ ] Error states с retry
 - [ ] Empty states
@@ -199,10 +213,12 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 - [ ] Animations
 
 ### i18n
+
 - [ ] Все тексты через t('key')
 - [ ] Переводы для en, ru, es
 
 ### Quality
+
 - [ ] 0 ESLint warnings
 - [ ] 0 TypeScript errors
 - [ ] Нет console.log
@@ -215,6 +231,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 ## ПРИОРИТЕТЫ ОПТИМИЗАЦИИ
 
 ### 🔴 **КРИТИЧНО** (AI Requests)
+
 ```typescript
 // Кэширование с правильным TTL
 - Horoscope: 6 hours
@@ -238,6 +255,7 @@ const debouncedSearch = useDebouncedCallback(
 ```
 
 ### 🟡 **ВАЖНО** (Component Performance)
+
 ```typescript
 // Мемоизация
 const memoizedValue = useMemo(() => expensiveCalc(), [dep]);
@@ -254,6 +272,7 @@ const MemoizedComponent = React.memo(Component);
 ```
 
 ### 🟢 **ЖЕЛАТЕЛЬНО** (Code Quality)
+
 ```typescript
 // Code splitting
 const LazyScreen = React.lazy(() => import('./Screen'));
@@ -288,12 +307,14 @@ git commit -m "feat(horoscope): add skeleton loader"
 ## КОГДА СОЗДАВАТЬ SHARED COMPONENT
 
 **Создавай shared component если:**
+
 1. UI паттерн повторяется > 2 раз
 2. Компонент используется в > 1 feature
 3. Компонент не зависит от конкретной feature логики
 4. Компонент можно параметризовать через props
 
 **Структура shared component:**
+
 ```
 components/shared/ComponentName/
 ├── ComponentName.tsx       # Implementation
@@ -345,6 +366,7 @@ const data: any = response;
 ## ПОЛЕЗНЫЕ SNIPPETS
 
 ### Loading State Pattern
+
 ```typescript
 const { data, isLoading, isError, error, refetch } = useQuery({
   queryKey: ['key', id],
@@ -359,6 +381,7 @@ return <Content data={data} />;
 ```
 
 ### Form Pattern
+
 ```typescript
 const [formData, setFormData] = useState<FormData>(initialData);
 const [errors, setErrors] = useState<FormErrors>({});
@@ -408,6 +431,7 @@ const handleSubmit = () => {
 ## ИТОГОВОЕ ПРАВИЛО
 
 > **Каждое изменение должно делать код:**
+>
 > 1. **Более единообразным** (theme, commonStyles, shared components)
 > 2. **Более производительным** (cache, memo, debounce)
 > 3. **Более понятным** (типизация, названия, структура)

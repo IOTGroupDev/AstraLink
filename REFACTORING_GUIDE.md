@@ -63,55 +63,69 @@
 ## ⚠️ Что нужно улучшить
 
 ### 1. **Единообразие Layout**
+
 **Проблема:** Не все страницы используют `TabScreenLayout`
 
 **Решение:**
+
 - Создать дополнительные layout wrapper'ы для разных типов экранов
 - Стандартизировать edges для SafeArea
 - Унифицировать padding/spacing
 
 ### 2. **Дублирование стилей**
+
 **Проблема:** В некоторых компонентах есть inline StyleSheet вместо использования `commonStyles`
 
 **Решение:**
+
 - Аудит всех компонентов
 - Миграция на `commonStyles` + `theme`
 - Создание дополнительных общих стилей
 
 ### 3. **Переиспользование компонентов**
+
 **Проблема:** Возможные дублирования UI элементов (кнопки, карточки, инпуты)
 
 **Решение:**
+
 - Создать библиотеку базовых UI компонентов
 - Извлечь общие паттерны в shared components
 
 ### 4. **Performance**
+
 **Проблема:** AI запросы долгие, нужна оптимизация
 
 **Решение:**
+
 - Aggressive caching в Redis (TTL стратегии)
 - Prefetching для предсказуемых запросов
 - Loading states с skeleton screens
 - Debouncing для input-based AI requests
 
 ### 5. **Error Boundaries**
+
 **Проблема:** Не обнаружено Error Boundary компонентов
 
 **Решение:**
+
 - Создать Error Boundary wrapper
 - Добавить fallback UI для ошибок
 
 ### 6. **Code Splitting**
+
 **Проблема:** Нет lazy loading для маршрутов
 
 **Решение:**
+
 - React.lazy() для экранов
 - Dynamic imports для тяжелых компонентов
 
 ### 7. **Testing**
+
 **Проблема:** Минимальное покрытие тестами
 
 **Решение:**
+
 - Unit тесты для utils/helpers
 - Component tests для shared components
 - Integration tests для critical flows
@@ -121,32 +135,38 @@
 ## 🏛 ПРИНЦИПЫ РЕФАКТОРИНГА
 
 ### **1. DRY (Don't Repeat Yourself)**
+
 - Каждый стиль определяется один раз в `theme.ts` или `commonStyles.ts`
 - Повторяющиеся UI паттерны → shared components
 - Повторяющаяся логика → utils/helpers/services
 
 ### **2. Single Responsibility**
+
 - Компонент делает одну вещь
 - Service выполняет одну роль
 - Hook инкапсулирует одну логику
 
 ### **3. Composition over Inheritance**
+
 - Используем композицию компонентов
 - Layout wrappers оборачивают content
 - HOC для cross-cutting concerns (auth, subscription)
 
 ### **4. Performance First**
+
 - Все AI запросы кэшируются
 - Селекторы для предотвращения re-renders
 - Мемоизация тяжелых вычислений
 - Lazy loading для больших компонентов
 
 ### **5. Type Safety**
+
 - Все Props типизированы
 - API responses типизированы
 - Store state типизирован
 
 ### **6. Consistency**
+
 - Единый code style (Prettier, ESLint)
 - Одинаковые naming conventions
 - Стандартизированная структура файлов
@@ -158,6 +178,7 @@
 ### **Компоненты**
 
 #### **Структура Компонента**
+
 ```typescript
 // 1. Imports (React, libraries, types, components, styles)
 import React from 'react';
@@ -195,6 +216,7 @@ const styles = StyleSheet.create({
 ```
 
 #### **Naming Conventions**
+
 - **Screens**: `[Feature]Screen.tsx` (HoroscopeScreen, DatingScreen)
 - **Components**: `[Name]Component.tsx` или `[Name]Widget.tsx`
 - **Layouts**: `[Name]Layout.tsx`
@@ -220,6 +242,7 @@ SafeAreaProvider (App root - ONCE)
 ### **Layout Wrappers**
 
 #### **1. TabScreenLayout** (для tab screens)
+
 ```typescript
 <TabScreenLayout
   scrollable={true}
@@ -231,6 +254,7 @@ SafeAreaProvider (App root - ONCE)
 ```
 
 **Используется для:**
+
 - HoroscopeScreen
 - DatingScreen
 - ChatListScreen
@@ -238,6 +262,7 @@ SafeAreaProvider (App root - ONCE)
 - AdvisorScreen
 
 **Включает:**
+
 - SafeAreaView (edges control)
 - CosmicBackground
 - ScrollView (optional)
@@ -245,6 +270,7 @@ SafeAreaProvider (App root - ONCE)
 - Bottom padding для tab bar (120px)
 
 #### **2. AuthLayout** (для auth screens)
+
 ```typescript
 <AuthLayout>
   <AuthHeader />
@@ -253,17 +279,20 @@ SafeAreaProvider (App root - ONCE)
 ```
 
 **Используется для:**
+
 - AuthEmailScreen
 - SignUpScreen
 - OptCodeScreen
 
 **Включает:**
+
 - SafeAreaView (все edges)
 - KeyboardAvoidingView
 - Центрирование контента
 - Cosmic background
 
 #### **3. ModalLayout** (для модальных окон)
+
 ```typescript
 <ModalLayout visible={isVisible} onClose={handleClose}>
   {/* Modal content */}
@@ -271,12 +300,14 @@ SafeAreaProvider (App root - ONCE)
 ```
 
 **Включает:**
+
 - SafeAreaView
 - Backdrop
 - Close button
 - Slide-up animation
 
 #### **4. FullScreenLayout** (для standalone screens)
+
 ```typescript
 <FullScreenLayout edges={['top', 'bottom', 'left', 'right']}>
   {/* Full screen content */}
@@ -284,6 +315,7 @@ SafeAreaProvider (App root - ONCE)
 ```
 
 **Используется для:**
+
 - WelcomeScreen
 - CosmicSimulatorScreen
 - Onboarding screens
@@ -325,6 +357,7 @@ SafeAreaProvider (App root - ONCE)
 ### **Создание Shared Components**
 
 #### **Структура директории**
+
 ```
 components/shared/
 ├── Button/
@@ -342,6 +375,7 @@ components/shared/
 ```
 
 #### **Пример: Button Component**
+
 ```typescript
 // Button.types.ts
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -546,6 +580,7 @@ export const commonStyles = StyleSheet.create({
 ### **Правило использования стилей**
 
 1. **Используй theme constants**
+
 ```typescript
 // ✅ Правильно
 const styles = StyleSheet.create({
@@ -567,6 +602,7 @@ const styles = StyleSheet.create({
 ```
 
 2. **Используй commonStyles для базовых паттернов**
+
 ```typescript
 // ✅ Правильно
 <View style={[commonStyles.card, commonStyles.rowSpaceBetween]}>
@@ -585,6 +621,7 @@ const styles = StyleSheet.create({
 ### **1. AI Запросы**
 
 #### **Caching Strategy**
+
 ```typescript
 // services/ai-cache.service.ts
 
@@ -610,6 +647,7 @@ export class AICacheService {
 ```
 
 #### **Prefetching Pattern**
+
 ```typescript
 // В HoroscopeScreen prefetch данные для других виджетов
 useEffect(() => {
@@ -628,6 +666,7 @@ useEffect(() => {
 ```
 
 #### **Debouncing для AI запросов**
+
 ```typescript
 // hooks/useAIQuery.ts
 import { useDebouncedCallback } from 'use-debounce';
@@ -644,6 +683,7 @@ export const useAIQuery = (queryFn: Function, delay = 500) => {
 ### **2. Component Optimization**
 
 #### **React.memo для чистых компонентов**
+
 ```typescript
 export const HoroscopeWidget = React.memo<HoroscopeWidgetProps>(
   ({ data }) => {
@@ -657,6 +697,7 @@ export const HoroscopeWidget = React.memo<HoroscopeWidgetProps>(
 ```
 
 #### **useMemo для тяжелых вычислений**
+
 ```typescript
 const planetPositions = useMemo(() => {
   return calculatePlanetPositions(birthDate, birthTime, location);
@@ -664,6 +705,7 @@ const planetPositions = useMemo(() => {
 ```
 
 #### **useCallback для event handlers**
+
 ```typescript
 const handlePress = useCallback(() => {
   navigation.navigate('Details', { id });
@@ -673,6 +715,7 @@ const handlePress = useCallback(() => {
 ### **3. List Optimization**
 
 #### **FlatList с оптимизацией**
+
 ```typescript
 <FlatList
   data={items}
@@ -740,12 +783,14 @@ const { useNavigation } = ReactNavigation;
 При рефакторинге каждой страницы проверяй:
 
 ### **1. Layout & SafeArea**
+
 - [ ] Используется правильный Layout wrapper (TabScreenLayout, AuthLayout, etc.)
 - [ ] SafeArea edges настроены корректно
 - [ ] Bottom padding для tab bar (если нужно)
 - [ ] CosmicBackground добавлен (если нужен фон)
 
 ### **2. Стили**
+
 - [ ] Все цвета из `theme.colors`
 - [ ] Все spacing из `theme.spacing`
 - [ ] Все typography из `theme.fontSizes`
@@ -754,18 +799,21 @@ const { useNavigation } = ReactNavigation;
 - [ ] Градиенты из `theme.gradients`
 
 ### **3. Компоненты**
+
 - [ ] Используются shared components вместо кастомных
 - [ ] Нет дублирования UI элементов
 - [ ] Props типизированы
 - [ ] Component разбит на подкомпоненты если > 200 строк
 
 ### **4. State Management**
+
 - [ ] Используется Zustand store или React Query
 - [ ] Нет локального state для серверных данных
 - [ ] Используются селекторы для Zustand
 - [ ] Loading/error states обработаны
 
 ### **5. Performance**
+
 - [ ] Тяжелые вычисления в useMemo
 - [ ] Event handlers в useCallback
 - [ ] Lists используют FlatList с оптимизацией
@@ -773,6 +821,7 @@ const { useNavigation } = ReactNavigation;
 - [ ] AI запросы кэшируются
 
 ### **6. UX**
+
 - [ ] Loading indicators для async операций
 - [ ] Error states с retry возможностью
 - [ ] Empty states для пустых списков
@@ -780,22 +829,26 @@ const { useNavigation } = ReactNavigation;
 - [ ] Animations для transitions
 
 ### **7. Accessibility**
+
 - [ ] accessibilityLabel для важных элементов
 - [ ] accessibilityRole указан
 - [ ] Достаточный contrast ratio для текста
 - [ ] Touch targets минимум 44x44
 
 ### **8. i18n**
+
 - [ ] Все тексты через `t('key')`
 - [ ] Нет hardcoded строк
 - [ ] Переводы есть для всех языков (en, ru, es)
 
 ### **9. Navigation**
+
 - [ ] Типизированные navigation params
 - [ ] Правильный navigation stack
 - [ ] Deep linking support (если нужен)
 
 ### **10. Code Quality**
+
 - [ ] ESLint warnings исправлены
 - [ ] TypeScript errors исправлены
 - [ ] Нет console.log (используй logger)
@@ -846,6 +899,7 @@ const { useNavigation } = ReactNavigation;
 - [ ] AuthCallbackScreen
 
 **Для каждого:**
+
 1. Миграция на AuthLayout
 2. Замена кастомных кнопок на shared Button
 3. Замена кастомных inputs на shared Input
@@ -861,6 +915,7 @@ const { useNavigation } = ReactNavigation;
 - [ ] FourthOnboardingScreen
 
 **Для каждого:**
+
 1. Миграция на FullScreenLayout
 2. Единообразие animations
 3. Миграция стилей
@@ -875,6 +930,7 @@ const { useNavigation } = ReactNavigation;
 - [ ] AdvisorScreen
 
 **Для каждого:**
+
 1. Проверка TabScreenLayout usage
 2. Миграция widgets на shared components
 3. Оптимизация AI запросов (caching, prefetching)
@@ -916,23 +972,27 @@ const { useNavigation } = ReactNavigation;
 ## 🎯 МЕТРИКИ УСПЕХА
 
 ### **Code Quality**
+
 - [ ] 0 ESLint warnings
 - [ ] 0 TypeScript errors
 - [ ] 100% использование theme constants
 - [ ] < 5% дублирования кода (SonarQube)
 
 ### **Performance**
+
 - [ ] AI response time < 2s (with cache)
 - [ ] Screen render time < 300ms
 - [ ] Bundle size reduction > 20%
 - [ ] Cache hit rate > 70% для AI запросов
 
 ### **Consistency**
+
 - [ ] 100% screens используют layout wrappers
 - [ ] 100% UI elements из shared components
 - [ ] 100% translations coverage
 
 ### **UX**
+
 - [ ] Loading states на всех async операциях
 - [ ] Error recovery на всех критичных flows
 - [ ] Animations на всех transitions
