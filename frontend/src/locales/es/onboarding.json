@@ -25,6 +25,7 @@
   },
   "button": {
     "next": "SIGUIENTE",
-    "finish": "FINALIZAR"
+    "finish": "FINALIZAR",
+    "confirm": "Listo"
   }
 }

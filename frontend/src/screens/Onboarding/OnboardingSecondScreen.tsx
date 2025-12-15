@@ -1,13 +1,13 @@
 // src/screens/onboarding/OnboardingSecondScreen.tsx
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
-import { DatePicker } from '@quidone/react-native-wheel-picker';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import { theme } from '../../styles/theme';
 import {
@@ -26,65 +26,76 @@ type NavigationProp = NativeStackNavigationProp<
   'Onboarding2'
 >;
 
-// ====== helpers: struct <-> ISO ======
-function structToIso({
-  day,
-  month,
-  year,
-}: {
-  day: number;
-  month: number;
-  year: number;
-}): string {
-  const d = String(day).padStart(2, '0');
-  const m = String(month).padStart(2, '0');
-  const y = String(year);
-  return `${y}-${m}-${d}`;
-}
-
-function isoToStruct(iso: string): {
-  day: number;
-  month: number;
-  year: number;
-} {
-  const [y, m, d] = iso.split('-').map(Number);
-  return { day: d, month: m, year: y };
-}
-
 export default function OnboardingSecondScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t, i18n } = useTranslation();
   const storedBirthDate = useOnboardingStore((state) => state.data.birthDate);
   const setBirthDateInStore = useOnboardingStore((state) => state.setBirthDate);
 
-  // Инициализация строки для DatePicker из стора (или текущей даты)
-  const initialDateStr = useMemo(() => {
-    if (storedBirthDate) return structToIso(storedBirthDate);
-    const now = new Date();
-    return structToIso({
-      day: now.getDate(),
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-    });
+  // Инициализация Date объекта из стора или дефолтная дата (20 лет назад)
+  const initialDate = useMemo(() => {
+    if (storedBirthDate) {
+      return new Date(
+        storedBirthDate.year,
+        storedBirthDate.month - 1,
+        storedBirthDate.day
+      );
+    }
+    const defaultDate = new Date();
+    defaultDate.setFullYear(defaultDate.getFullYear() - 20);
+    return defaultDate;
   }, [storedBirthDate]);
 
-  // ЕДИНЫЙ источник правды — только ISO-строка
-  const [dateStr, setDateStr] = useState<string>(initialDateStr);
+  const [date, setDate] = useState<Date>(initialDate);
+  const [showPicker, setShowPicker] = useState(false);
 
-  // Если стор обновится извне (маловероятно на онбординге), синхронизируем
+  // Синхронизация с initialDate при изменении
   useEffect(() => {
-    setDateStr(initialDateStr);
-  }, [initialDateStr]);
+    setDate(initialDate);
+  }, [initialDate]);
+
+  // Форматирование даты с учетом локали
+  const formatDate = useCallback(
+    (dateToFormat: Date): string => {
+      const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'ru-RU';
+      return dateToFormat.toLocaleDateString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    },
+    [i18n.language]
+  );
 
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
+  const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
+    // На Android picker закрывается автоматически
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      setShowPicker(false);
+    }
+  }, []);
+
   const handleNext = useCallback(() => {
-    // Конвертация только здесь — перед сохранением
-    setBirthDateInStore(isoToStruct(dateStr));
+    setBirthDateInStore({
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    });
     navigation.navigate('Onboarding3');
-  }, [dateStr, setBirthDateInStore, navigation]);
+  }, [date, setBirthDateInStore, navigation]);
 
   return (
     <OnboardingLayout>
@@ -97,18 +108,35 @@ export default function OnboardingSecondScreen() {
           </Text>
         </View>
 
-        <View style={styles.pickerContainer}>
-          <DatePicker
-            date={dateStr} // формат YYYY-MM-DD
-            onDateChanged={({ date }) => setDateStr(date)}
-            itemTextStyle={styles.itemText}
-            overlayItemStyle={styles.overlayItem}
-            contentContainerStyle={styles.content}
-            itemHeight={40}
-            visibleItemCount={5}
-            locale={i18n.language}
-          />
+        <View style={styles.dateDisplayContainer}>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => setShowPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dateText}>{formatDate(date)}</Text>
+          </TouchableOpacity>
         </View>
+
+        {showPicker && (
+          <>
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+              minimumDate={new Date(1920, 0, 1)}
+              textColor={ONBOARDING_COLORS.white}
+              themeVariant="dark"
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+                <Text style={styles.confirmButtonText}>{t('onboarding.button.confirm')}</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
 
         <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
       </View>
@@ -128,24 +156,38 @@ const styles = StyleSheet.create({
     ...ONBOARDING_TYPOGRAPHY.h2,
     textAlign: 'center',
   },
-  pickerContainer: {
+  dateDisplayContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    flexGrow: 0,
-    flexShrink: 0,
     marginTop: theme.spacing.xxxl * 3.125, // 100px (32 * 3.125)
+    marginBottom: theme.spacing.xxxl, // 32px
   },
-  itemText: {
+  dateButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: theme.spacing.md, // 12px
+    paddingVertical: theme.spacing.lg, // 20px
+    paddingHorizontal: theme.spacing.xxxl, // 32px
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  dateText: {
     color: ONBOARDING_COLORS.white,
     fontSize: theme.fontSizes.xxl, // 24px
+    fontWeight: '600',
   },
-  overlayItem: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  confirmButton: {
+    alignSelf: 'center',
+    backgroundColor: ONBOARDING_COLORS.primary,
+    borderRadius: theme.spacing.md, // 12px
+    paddingVertical: theme.spacing.md, // 12px
+    paddingHorizontal: theme.spacing.xxxl, // 32px
+    marginTop: theme.spacing.lg, // 20px
   },
-  content: {
-    paddingHorizontal: theme.spacing.md, // 12px (close to 10)
+  confirmButtonText: {
+    color: ONBOARDING_COLORS.white,
+    fontSize: theme.fontSizes.lg, // 18px
+    fontWeight: '600',
   },
 });
