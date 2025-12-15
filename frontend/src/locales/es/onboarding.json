@@ -1,7 +1,12 @@
 {
   "first": {
     "title": "Tu cosmos —\nen un toque",
-    "subtitle": "Análisis de carta natal, consejos de las estrellas y citas astrológicas: todo para comprender mejor a ti mismo y el mundo que te rodea."
+    "subtitle": "Análisis de carta natal, consejos de las estrellas y citas astrológicas: todo para comprender mejor a ti mismo y el mundo que te rodea.",
+    "badges": {
+      "constellation": "Constelación y Carta Natal",
+      "partner": "Carta Natal de Pareja",
+      "astrology": "3 de octubre"
+    }
   },
   "second": {
     "header": "Fecha de Nacimiento",
