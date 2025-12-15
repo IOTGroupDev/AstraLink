@@ -31,10 +31,10 @@
   <!-- Astronomical position: RA 02h 07m, Dec +23° 28' -->
   <g transform="translate(141, 159)">
     <circle r="18" fill="url(#starMain)" opacity="0.25"/>
-    <ellipse rx="20" ry="1" fill="url(#rayGrad)" opacity="0.7"/>
-    <ellipse rx="1" ry="20" fill="url(#rayGrad)" opacity="0.7"/>
-    <ellipse rx="16" ry="0.8" fill="url(#rayGrad)" opacity="0.6" transform="rotate(45)"/>
-    <ellipse rx="16" ry="0.8" fill="url(#rayGrad)" opacity="0.6" transform="rotate(-45)"/>
+    <ellipse rx="30" ry="1" fill="url(#rayGrad)" opacity="0.7"/>
+    <ellipse rx="1" ry="30" fill="url(#rayGrad)" opacity="0.7"/>
+    <ellipse rx="24" ry="0.8" fill="url(#rayGrad)" opacity="0.6" transform="rotate(45)"/>
+    <ellipse rx="24" ry="0.8" fill="url(#rayGrad)" opacity="0.6" transform="rotate(-45)"/>
     <circle r="10" fill="url(#starMain)" opacity="0.9"/>
     <circle r="3.5" fill="#FFFFFF"/>
   </g>
@@ -43,10 +43,10 @@
   <!-- Astronomical position: RA 01h 54m, Dec +20° 48' -->
   <g transform="translate(182, 270)">
     <circle r="14" fill="url(#starMain)" opacity="0.25"/>
-    <ellipse rx="16" ry="0.8" fill="url(#rayGrad)" opacity="0.65"/>
-    <ellipse rx="0.8" ry="16" fill="url(#rayGrad)" opacity="0.65"/>
-    <ellipse rx="13" ry="0.7" fill="url(#rayGrad)" opacity="0.55" transform="rotate(45)"/>
-    <ellipse rx="13" ry="0.7" fill="url(#rayGrad)" opacity="0.55" transform="rotate(-45)"/>
+    <ellipse rx="24" ry="0.8" fill="url(#rayGrad)" opacity="0.65"/>
+    <ellipse rx="0.8" ry="24" fill="url(#rayGrad)" opacity="0.65"/>
+    <ellipse rx="19.5" ry="0.7" fill="url(#rayGrad)" opacity="0.55" transform="rotate(45)"/>
+    <ellipse rx="19.5" ry="0.7" fill="url(#rayGrad)" opacity="0.55" transform="rotate(-45)"/>
     <circle r="8" fill="url(#starMain)" opacity="0.9"/>
     <circle r="2.5" fill="#FFFFFF"/>
   </g>
@@ -55,8 +55,8 @@
   <!-- Astronomical position: RA 01h 53m, Dec +19° 18' -->
   <g transform="translate(186, 333)">
     <circle r="12" fill="url(#starMedium)" opacity="0.25"/>
-    <ellipse rx="14" ry="0.7" fill="url(#rayGrad)" opacity="0.55"/>
-    <ellipse rx="0.7" ry="14" fill="url(#rayGrad)" opacity="0.55"/>
+    <ellipse rx="21" ry="0.7" fill="url(#rayGrad)" opacity="0.55"/>
+    <ellipse rx="0.7" ry="21" fill="url(#rayGrad)" opacity="0.55"/>
     <circle r="7" fill="url(#starMedium)" opacity="0.9"/>
     <circle r="2" fill="#FFFFFF"/>
   </g>
