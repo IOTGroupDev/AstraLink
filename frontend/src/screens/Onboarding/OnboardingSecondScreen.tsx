@@ -47,44 +47,41 @@ export default function OnboardingSecondScreen() {
   }, [storedBirthDate]);
 
   const [date, setDate] = useState<Date>(initialDate);
-  const [showPicker, setShowPicker] = useState(false);
+  const [showPicker, setShowPicker] = useState(Platform.OS === 'android');
 
   // Синхронизация с initialDate при изменении
   useEffect(() => {
     setDate(initialDate);
   }, [initialDate]);
 
-  // Форматирование даты с учетом локали
-  const formatDate = useCallback(
-    (dateToFormat: Date): string => {
-      const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'ru-RU';
-      return dateToFormat.toLocaleDateString(locale, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-    },
-    [i18n.language]
-  );
+  // На Android показываем picker автоматически при входе на экран
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      setShowPicker(true);
+    }
+  }, []);
 
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
   const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
-    // На Android picker закрывается автоматически
     if (Platform.OS === 'android') {
       setShowPicker(false);
+      if (event.type === 'dismissed') {
+        // Если пользователь закрыл picker на Android, открываем снова
+        setTimeout(() => setShowPicker(true), 100);
+        return;
+      }
     }
 
     if (selectedDate) {
       setDate(selectedDate);
-    }
-  }, []);
 
-  const handleConfirm = useCallback(() => {
-    if (Platform.OS === 'ios') {
-      setShowPicker(false);
+      // На Android переотображаем picker после выбора
+      if (Platform.OS === 'android') {
+        setTimeout(() => setShowPicker(true), 100);
+      }
     }
   }, []);
 
@@ -108,35 +105,32 @@ export default function OnboardingSecondScreen() {
           </Text>
         </View>
 
-        <View style={styles.dateDisplayContainer}>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowPicker(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.dateText}>{formatDate(date)}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {showPicker && (
-          <>
+        <View style={styles.pickerContainer}>
+          {Platform.OS === 'ios' ? (
             <DateTimePicker
               value={date}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="inline"
               onChange={handleDateChange}
               maximumDate={new Date()}
               minimumDate={new Date(1920, 0, 1)}
               textColor={ONBOARDING_COLORS.white}
               themeVariant="dark"
+              style={styles.picker}
             />
-            {Platform.OS === 'ios' && (
-              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-                <Text style={styles.confirmButtonText}>{t('onboarding.button.confirm')}</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
+          ) : (
+            showPicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+                minimumDate={new Date(1920, 0, 1)}
+              />
+            )
+          )}
+        </View>
 
         <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
       </View>
@@ -156,38 +150,15 @@ const styles = StyleSheet.create({
     ...ONBOARDING_TYPOGRAPHY.h2,
     textAlign: 'center',
   },
-  dateDisplayContainer: {
+  pickerContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: theme.spacing.xxxl * 3.125, // 100px (32 * 3.125)
+    marginTop: theme.spacing.xxxl * 1.25, // 40px (32 * 1.25)
     marginBottom: theme.spacing.xxxl, // 32px
   },
-  dateButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: theme.spacing.md, // 12px
-    paddingVertical: theme.spacing.lg, // 20px
-    paddingHorizontal: theme.spacing.xxxl, // 32px
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  dateText: {
-    color: ONBOARDING_COLORS.white,
-    fontSize: theme.fontSizes.xxl, // 24px
-    fontWeight: '600',
-  },
-  confirmButton: {
-    alignSelf: 'center',
-    backgroundColor: ONBOARDING_COLORS.primary,
-    borderRadius: theme.spacing.md, // 12px
-    paddingVertical: theme.spacing.md, // 12px
-    paddingHorizontal: theme.spacing.xxxl, // 32px
-    marginTop: theme.spacing.lg, // 20px
-  },
-  confirmButtonText: {
-    color: ONBOARDING_COLORS.white,
-    fontSize: theme.fontSizes.lg, // 18px
-    fontWeight: '600',
+  picker: {
+    width: '100%',
+    height: 200,
   },
 });
