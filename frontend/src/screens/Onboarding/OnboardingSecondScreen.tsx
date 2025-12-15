@@ -53,22 +53,6 @@ export default function OnboardingSecondScreen() {
     setDate(initialDate);
   }, [initialDate]);
 
-  // Форматирование даты с учетом локали для отображения
-  const formatDate = useCallback(
-    (dateToFormat: Date): string => {
-      const day = dateToFormat.getDate().toString().padStart(2, '0');
-      const month = (dateToFormat.getMonth() + 1).toString().padStart(2, '0');
-      const year = dateToFormat.getFullYear();
-
-      // Для en используем MM.DD.YYYY, для остальных DD.MM.YYYY
-      if (i18n.language === 'en') {
-        return `${month}.${day}.${year}`;
-      }
-      return `${day}.${month}.${year}`;
-    },
-    [i18n.language]
-  );
-
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
@@ -99,28 +83,18 @@ export default function OnboardingSecondScreen() {
           </Text>
         </View>
 
-        <View style={styles.contentContainer}>
-          {/* Большая кнопка с выбранной датой */}
-          <View style={styles.dateDisplayContainer}>
-            <View style={styles.dateDisplay}>
-              <Text style={styles.dateDisplayText}>{formatDate(date)}</Text>
-            </View>
-          </View>
-
-          {/* Inline DateTimePicker */}
-          <View style={styles.pickerContainer}>
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'spinner'}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-              minimumDate={new Date(1920, 0, 1)}
-              textColor={ONBOARDING_COLORS.white}
-              themeVariant="dark"
-              style={styles.picker}
-            />
-          </View>
+        <View style={styles.pickerContainer}>
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="spinner"
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+            minimumDate={new Date(1920, 0, 1)}
+            textColor={ONBOARDING_COLORS.white}
+            themeVariant="dark"
+            style={styles.picker}
+          />
         </View>
 
         <OnboardingButton title={t('onboarding.button.next')} onPress={handleNext} />
@@ -141,37 +115,14 @@ const styles = StyleSheet.create({
     ...ONBOARDING_TYPOGRAPHY.h2,
     textAlign: 'center',
   },
-  contentContainer: {
+  pickerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dateDisplayContainer: {
-    marginTop: theme.spacing.lg, // 20px
-    marginBottom: theme.spacing.xl, // 24px
-  },
-  dateDisplay: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: theme.spacing.lg, // 20px
-    paddingVertical: theme.spacing.lg, // 20px
-    paddingHorizontal: theme.spacing.xxxl * 1.5, // 48px
-    minWidth: 260,
-    alignItems: 'center',
-  },
-  dateDisplayText: {
-    color: ONBOARDING_COLORS.white,
-    fontSize: theme.fontSizes.xxxl, // 28px
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  pickerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: theme.spacing.xxxl * 2, // 64px
   },
   picker: {
     width: 320,
-    height: 200,
+    height: 216,
   },
 });
