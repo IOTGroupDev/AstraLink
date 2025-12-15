@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import OnboardingFirstBackgroundSvg from '../../components/onboarding/OnboardingFirstBackgroundSvg';
+import OnboardingBadge from '../../components/onboarding/OnboardingBadge';
 import { theme } from '../../styles/theme';
 import {
   ONBOARDING_COLORS,
@@ -37,6 +38,20 @@ export default function OnboardingFirstScreen() {
       <View style={styles.container}>
         <View style={styles.illustrationContainer}>
           <OnboardingFirstBackgroundSvg />
+
+          {/* Badges positioned absolutely as per original design */}
+          <OnboardingBadge
+            text={t('onboarding.first.badges.astrology')}
+            style={styles.badgeLeft}
+          />
+          <OnboardingBadge
+            text={t('onboarding.first.badges.constellation')}
+            style={styles.badgeRight}
+          />
+          <OnboardingBadge
+            text={t('onboarding.first.badges.partner')}
+            style={styles.badgeBottom}
+          />
         </View>
 
         <View style={styles.contentContainer}>
@@ -74,5 +89,21 @@ const styles = StyleSheet.create({
     color: ONBOARDING_COLORS.textDim,
     ...ONBOARDING_TYPOGRAPHY.body,
     textAlign: 'left',
+  },
+  // Badge positioning as per original SVG design (viewBox 430x834)
+  badgeLeft: {
+    position: 'absolute',
+    left: 37,
+    top: 18,
+  },
+  badgeRight: {
+    position: 'absolute',
+    right: 24,
+    top: 108,
+  },
+  badgeBottom: {
+    position: 'absolute',
+    left: 63,
+    bottom: 202,
   },
 });
