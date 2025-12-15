@@ -3,7 +3,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import CosmicBackground from '../shared/CosmicBackground';
 
 interface TabScreenLayoutProps {
@@ -39,7 +39,7 @@ export function TabScreenLayout({
       {/*/>*/}
       <CosmicBackground />
       <Animated.View
-        entering={FadeIn.duration(300)}
+        entering={FadeInDown.duration(400).springify().damping(15).stiffness(100)}
         style={styles.animatedContainer}
       >
         {content}

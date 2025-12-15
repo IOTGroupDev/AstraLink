@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
@@ -17,6 +17,11 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        // Плавная анимация переключения табов
+        tabBarHideOnKeyboard: true,
+        animation: 'shift',
+        lazy: false,
+        detachInactiveScreens: true,
         tabBarIcon: ({ focused, color, size }) => {
           // Только outline-иконки + opacity (активная 1.0, неактивная 0.5)
           const style = { opacity: focused ? 1 : 0.5 };
