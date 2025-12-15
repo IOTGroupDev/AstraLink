@@ -13,7 +13,8 @@
     "description": "Introduce tu fecha de nacimiento — ¡descubramos tu signo zodiacal!"
   },
   "third": {
-    "header": "Signo del Zodiaco"
+    "header": "Signo del Zodiaco",
+    "description": "A continuación, completaremos el cuadro con los datos de su hora y lugar de nacimiento para construir su carta natal completa."
   },
   "fourth": {
     "header": "Información Adicional",
