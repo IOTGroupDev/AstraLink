@@ -237,7 +237,7 @@
 // });
 
 // src/screens/onboarding/OnboardingThirdScreen.tsx
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -272,7 +272,19 @@ export default function OnboardingThirdScreen() {
   const birthDate = useOnboardingStore((s) => s.data.birthDate);
   const day = birthDate?.day ?? 1;
   const month = birthDate?.month ?? 1;
-  const { zodiacSign, dateRange } = useZodiac(day, month);
+  const { zodiacSign } = useZodiac(day, month);
+
+  // Локализованный диапазон дат
+  const localizedDateRange = useMemo(() => {
+    const startDay = String(zodiacSign.startDate.day).padStart(2, '0');
+    const endDay = String(zodiacSign.endDate.day).padStart(2, '0');
+    const startMonth = t(`zodiac.months.${zodiacSign.startDate.month}`);
+    const endMonth = t(`zodiac.months.${zodiacSign.endDate.month}`);
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+  }, [zodiacSign, t]);
+
+  // Локализованное описание
+  const localizedDescription = t(`zodiac.descriptions.${zodiacSign.key}`);
 
   const handleBack = useCallback(() => {
     navigation.goBack();
@@ -306,7 +318,7 @@ export default function OnboardingThirdScreen() {
               <Text style={styles.pillText}>{t(`zodiac.signs.${zodiacSign.key}`)}</Text>
             </View>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>{dateRange}</Text>
+              <Text style={styles.pillText}>{localizedDateRange}</Text>
             </View>
             <View style={styles.pill}>
               <Text style={styles.pillText}>{t(`zodiac.elements.${zodiacSign.element}`)}</Text>
@@ -315,7 +327,7 @@ export default function OnboardingThirdScreen() {
 
           <View style={styles.descriptionBlock}>
             <Text style={styles.descriptionText}>
-              {zodiacSign.shortDescription}
+              {localizedDescription}
             </Text>
             <Text style={[styles.descriptionText, styles.additionalDescription]}>
               {t('onboarding.third.description')}

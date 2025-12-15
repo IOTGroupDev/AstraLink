@@ -18,5 +18,33 @@
     "earth": "Earth",
     "air": "Air",
     "water": "Water"
+  },
+  "months": {
+    "1": "JAN",
+    "2": "FEB",
+    "3": "MAR",
+    "4": "APR",
+    "5": "MAY",
+    "6": "JUN",
+    "7": "JUL",
+    "8": "AUG",
+    "9": "SEP",
+    "10": "OCT",
+    "11": "NOV",
+    "12": "DEC"
+  },
+  "descriptions": {
+    "aries": "An energetic pioneer with an inexhaustible thirst for action. Those born under this sign possess willpower and courage to start anew.",
+    "taurus": "A reliable and practical sign that values stability and beauty. Taurus possess patience and the ability to create material well-being.",
+    "gemini": "A curious and communicative sign with a lively mind. Geminis adapt easily and possess the gift of eloquence.",
+    "cancer": "An emotional and caring sign with developed intuition. Cancers feel deeply and create comfort around themselves.",
+    "leo": "A bright and generous sign with natural magnetism. Leos inspire those around them and strive for self-expression.",
+    "virgo": "An analytical and perfecting sign with attention to detail. Virgos possess practicality and a desire for order.",
+    "libra": "A harmonious and diplomatic sign striving for balance. Libras possess a sense of justice and aesthetics.",
+    "scorpio": "An intense and transformative sign with powerful energy. Scorpios see the depth of things and possess inner strength.",
+    "sagittarius": "An optimistic seeker of truth with a broad outlook. Sagittarius strive for world knowledge and philosophical discoveries.",
+    "capricorn": "An ambitious and disciplined sign with long-term vision. Capricorns build solid foundations for success.",
+    "aquarius": "A progressive and independent sign with original thinking. Aquarians strive for innovation and humanitarian ideals.",
+    "pisces": "A sensitive and creative sign with a rich inner world. Pisces possess compassion and the ability for spiritual understanding."
   }
 }
