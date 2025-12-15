@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
-import OnboardingFirstMainSvg from '../../components/onboarding/OnboardingFirstMainSvg';
+import OnboardingFirstBackgroundSvg from '../../components/onboarding/OnboardingFirstBackgroundSvg';
 import { theme } from '../../styles/theme';
 import {
   ONBOARDING_COLORS,
@@ -36,7 +36,7 @@ export default function OnboardingFirstScreen() {
     <OnboardingLayout>
       <View style={styles.container}>
         <View style={styles.illustrationContainer}>
-          <OnboardingFirstMainSvg />
+          <OnboardingFirstBackgroundSvg />
         </View>
 
         <View style={styles.contentContainer}>
