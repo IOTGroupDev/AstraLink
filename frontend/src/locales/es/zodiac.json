@@ -18,5 +18,33 @@
     "earth": "Tierra",
     "air": "Aire",
     "water": "Agua"
+  },
+  "months": {
+    "1": "ENE",
+    "2": "FEB",
+    "3": "MAR",
+    "4": "ABR",
+    "5": "MAY",
+    "6": "JUN",
+    "7": "JUL",
+    "8": "AGO",
+    "9": "SEP",
+    "10": "OCT",
+    "11": "NOV",
+    "12": "DIC"
+  },
+  "descriptions": {
+    "aries": "Un pionero enérgico con una sed inagotable de acción. Los nacidos bajo este signo poseen fuerza de voluntad y valentía para empezar de nuevo.",
+    "taurus": "Un signo confiable y práctico que valora la estabilidad y la belleza. Los Tauro poseen paciencia y la capacidad de crear bienestar material.",
+    "gemini": "Un signo curioso y comunicativo con una mente vivaz. Los Géminis se adaptan fácilmente y poseen el don de la elocuencia.",
+    "cancer": "Un signo emocional y cariñoso con intuición desarrollada. Los Cáncer sienten profundamente y crean comodidad a su alrededor.",
+    "leo": "Un signo brillante y generoso con magnetismo natural. Los Leo inspiran a quienes los rodean y se esfuerzan por la autoexpresión.",
+    "virgo": "Un signo analítico y perfeccionista con atención al detalle. Los Virgo poseen practicidad y deseo de orden.",
+    "libra": "Un signo armonioso y diplomático que busca el equilibrio. Los Libra poseen un sentido de justicia y estética.",
+    "scorpio": "Un signo intenso y transformador con energía poderosa. Los Escorpio ven la profundidad de las cosas y poseen fuerza interior.",
+    "sagittarius": "Un buscador optimista de la verdad con una perspectiva amplia. Los Sagitario buscan el conocimiento mundial y los descubrimientos filosóficos.",
+    "capricorn": "Un signo ambicioso y disciplinado con visión a largo plazo. Los Capricornio construyen bases sólidas para el éxito.",
+    "aquarius": "Un signo progresista e independiente con pensamiento original. Los Acuario buscan la innovación y los ideales humanitarios.",
+    "pisces": "Un signo sensible y creativo con un rico mundo interior. Los Piscis poseen compasión y la capacidad de comprensión espiritual."
   }
 }
