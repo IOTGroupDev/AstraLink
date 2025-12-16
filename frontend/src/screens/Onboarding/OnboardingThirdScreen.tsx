@@ -238,7 +238,7 @@
 
 // src/screens/onboarding/OnboardingThirdScreen.tsx
 import React, { useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -255,6 +255,8 @@ import {
   ONBOARDING_LAYOUT,
   FRAME,
 } from '../../constants/onboarding.constants';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type RootStackParamList = {
   Onboarding3: undefined;
@@ -307,8 +309,8 @@ export default function OnboardingThirdScreen() {
           <View style={styles.constellationContainer}>
             <ZodiacConstellationSvg
               signKey={zodiacSign.key}
-              width={FRAME.WIDTH}
-              height={330}
+              width={SCREEN_WIDTH}
+              height={SCREEN_WIDTH}
               opacity={0.95}
             />
           </View>
@@ -353,11 +355,13 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxxl * 4.375, // 140px (32 * 4.375)
   },
   constellationContainer: {
-    height: 330,
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
     marginTop: theme.spacing.lg, // 20px
     marginBottom: theme.spacing.lg, // 20px
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center',
   },
   pillsRow: {
     flexDirection: 'row',
