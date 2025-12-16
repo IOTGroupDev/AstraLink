@@ -351,23 +351,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
     paddingBottom: theme.spacing.xxxl * 4.375, // 140px (32 * 4.375)
   },
   constellationContainer: {
     width: SCREEN_WIDTH,
     height: SCREEN_WIDTH,
-    marginTop: theme.spacing.lg, // 20px
-    marginBottom: theme.spacing.lg, // 20px
+    marginTop: 0,
+    marginBottom: theme.spacing.md, // 12px
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
   },
   pillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm, // 10px (близко к 8px)
     marginBottom: theme.spacing.xl * 1.25, // 30px (24 * 1.25)
+    paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
   },
   pill: {
     paddingHorizontal: theme.spacing.lg - 2, // 18px (20 - 2)
@@ -385,6 +384,7 @@ const styles = StyleSheet.create({
   },
   descriptionBlock: {
     marginBottom: theme.spacing.lg, // 20px
+    paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
   },
   descriptionText: {
     color: ONBOARDING_COLORS.text,
