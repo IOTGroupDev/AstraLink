@@ -27,7 +27,6 @@ import { HealthModule } from '@/health/health.module';
 import { DebugController } from '@/debug/debug.controller';
 import { CommonModule } from './common/common.module';
 import { QueueModule } from './queue/queue.module';
-import { GeoModule } from './modules/geo/geo.module';
 
 @Module({
   imports: [
@@ -78,7 +77,6 @@ import { GeoModule } from './modules/geo/geo.module';
     AdvisorModule,
     AIModule,
     HealthModule,
-    GeoModule,
   ],
   controllers: [AppController, DebugController],
   providers: [

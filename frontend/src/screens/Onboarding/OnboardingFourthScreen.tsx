@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -14,6 +15,7 @@ import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import AstralInput from '../../components/shared/AstralInput';
+import AstralCityInput from '../../components/shared/AstralCityInput';
 import AstralCheckbox from '../../components/shared/AstralCheckbox';
 import AstralTimePicker from '../../components/shared/AstralTimePicker';
 
@@ -23,6 +25,7 @@ import {
   ONBOARDING_TYPOGRAPHY,
   ONBOARDING_LAYOUT,
 } from '../../constants/onboarding.constants';
+import type { CityOption } from '../../services/api/geo.api';
 
 type RootStackParamList = {
   Onboarding4: undefined;
@@ -47,6 +50,7 @@ export default function OnboardingFourthScreen() {
   // local state
   const [name, setName] = useState(storedName ?? '');
   const [birthPlace, setBirthPlace] = useState(storedBirthPlace?.city ?? '');
+  const [selectedCity, setSelectedCity] = useState<CityOption | null>(null);
   const [selectedHour, setSelectedHour] = useState<number>(
     storedBirthTime?.hour ?? 12
   );
@@ -70,79 +74,109 @@ export default function OnboardingFourthScreen() {
       setBirthTimeInStore({ hour: selectedHour, minute: selectedMinute });
     }
 
-    setBirthPlaceInStore({
-      city: placeClean,
-      country: '',
-      latitude: 0,
-      longitude: 0,
-    });
+    // Use selected city data if available, otherwise use manual input
+    if (selectedCity) {
+      setBirthPlaceInStore({
+        city: selectedCity.city || placeClean,
+        country: selectedCity.country || '',
+        latitude: selectedCity.lat,
+        longitude: selectedCity.lon,
+      });
+    } else {
+      setBirthPlaceInStore({
+        city: placeClean,
+        country: '',
+        latitude: 0,
+        longitude: 0,
+      });
+    }
 
     navigation.navigate('SignUp');
+  };
+
+  const handleCitySelect = (city: CityOption) => {
+    setSelectedCity(city);
   };
 
   const isFormValid = Boolean(name.trim() && birthPlace.trim());
 
   return (
     <OnboardingLayout>
-      <View style={styles.container}>
-        <OnboardingHeader title="Регистрация" onBack={handleBack} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
+            <OnboardingHeader title="Регистрация" onBack={handleBack} />
 
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.description}>
-            Введите ваши имя, время{'\n'}и место рождения
-          </Text>
-        </View>
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.description}>
+                Введите ваши имя, время{'\n'}и место рождения
+              </Text>
+            </View>
 
-        <View style={styles.timeSection}>
-          <Text style={styles.timeTitle}>Ваше время рождения</Text>
+            <View style={styles.timeSection}>
+              <Text style={styles.timeTitle}>Ваше время рождения</Text>
 
-          <AstralCheckbox
-            checked={dontKnowTime}
-            onToggle={() => setDontKnowTime((v) => !v)}
-            label="не знаю точное время"
-          />
+              <AstralCheckbox
+                checked={dontKnowTime}
+                onToggle={() => setDontKnowTime((v) => !v)}
+                label="не знаю точное время"
+              />
 
-          {!dontKnowTime && (
-            <AstralTimePicker
-              selectedHour={selectedHour}
-              selectedMinute={selectedMinute}
-              onHourChange={setSelectedHour}
-              onMinuteChange={setSelectedMinute}
+              {!dontKnowTime && (
+                <AstralTimePicker
+                  selectedHour={selectedHour}
+                  selectedMinute={selectedMinute}
+                  onHourChange={setSelectedHour}
+                  onMinuteChange={setSelectedMinute}
+                />
+              )}
+            </View>
+
+            <View style={styles.form}>
+              <AstralInput
+                placeholder="Ваше имя"
+                value={name}
+                onChangeText={setName}
+                icon="person-outline"
+                required
+              />
+
+              <AstralCityInput
+                placeholder="Ваше место рождения"
+                value={birthPlace}
+                onChangeText={setBirthPlace}
+                onCitySelect={handleCitySelect}
+                icon="location-outline"
+                required
+              />
+            </View>
+
+            <OnboardingButton
+              title="ДАЛЕЕ"
+              onPress={handleContinue}
+              disabled={!isFormValid}
             />
-          )}
-        </View>
-
-        <View style={styles.form}>
-          <AstralInput
-            placeholder="Ваше имя"
-            value={name}
-            onChangeText={setName}
-            icon="person-outline"
-            required
-          />
-
-          <AstralInput
-            placeholder="Ваше место рождения"
-            value={birthPlace}
-            onChangeText={setBirthPlace}
-            icon="location-outline"
-            required
-          />
-        </View>
-
-        <OnboardingButton
-          title="ДАЛЕЕ"
-          onPress={handleContinue}
-          disabled={!isFormValid}
-        />
-      </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   container: {
     flex: 1,
