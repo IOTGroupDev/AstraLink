@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="180" height="247" viewBox="-30 -30 180 247" fill="none">
-    <defs>
+        <defs>
     <radialGradient id="starMain" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1" />
       <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.95" />
@@ -10,8 +10,8 @@
     <radialGradient id="starMedium" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1" />
       <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.85" />
-      <stop offset="65%" stop-color="#FFFFFF" stop-opacity="0.3" />
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+      <stop offset="65%" stop-color="#AAAAAA" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
     </radialGradient>
     <linearGradient id="rayGrad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0" />
@@ -21,31 +21,31 @@
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
     </linearGradient>
     <g id="star-main">
-      <circle r="18" fill="url(#starMain)" opacity="0.25" />
-      <ellipse rx="26" ry="1" fill="url(#rayGrad)" opacity="0.72" />
-      <ellipse rx="1" ry="26" fill="url(#rayGrad)" opacity="0.72" />
-      <ellipse rx="22" ry="0.85" fill="url(#rayGrad)" opacity="0.62" transform="rotate(45)" />
-      <ellipse rx="22" ry="0.85" fill="url(#rayGrad)" opacity="0.62" transform="rotate(-45)" />
-      <circle r="10" fill="url(#starMain)" opacity="0.9" />
-      <circle r="3.5" fill="#FFFFFF" />
+      <circle r="13" fill="url(#starMain)" opacity="0.25" />
+      <ellipse rx="19" ry="0.73" fill="url(#rayGrad)" opacity="0.72" />
+      <ellipse rx="0.73" ry="19" fill="url(#rayGrad)" opacity="0.72" />
+      <ellipse rx="16.08" ry="0.62" fill="url(#rayGrad)" opacity="0.62" transform="rotate(45)" />
+      <ellipse rx="16.08" ry="0.62" fill="url(#rayGrad)" opacity="0.62" transform="rotate(-45)" />
+      <circle r="7.22" fill="url(#starMain)" opacity="0.9" />
+      <circle r="2.53" fill="#FFFFFF" />
     </g>
     <g id="star-medium">
-      <circle r="14" fill="url(#starMain)" opacity="0.25" />
-      <ellipse rx="22" ry="0.9" fill="url(#rayGrad)" opacity="0.68" />
-      <ellipse rx="0.9" ry="22" fill="url(#rayGrad)" opacity="0.68" />
-      <ellipse rx="18" ry="0.75" fill="url(#rayGrad)" opacity="0.58" transform="rotate(45)" />
-      <ellipse rx="18" ry="0.75" fill="url(#rayGrad)" opacity="0.58" transform="rotate(-45)" />
-      <circle r="8" fill="url(#starMain)" opacity="0.9" />
-      <circle r="2.7" fill="#FFFFFF" />
+      <circle r="10" fill="url(#starMain)" opacity="0.25" />
+      <ellipse rx="15" ry="0.61" fill="url(#rayGrad)" opacity="0.68" />
+      <ellipse rx="0.61" ry="15" fill="url(#rayGrad)" opacity="0.68" />
+      <ellipse rx="12.27" ry="0.51" fill="url(#rayGrad)" opacity="0.58" transform="rotate(45)" />
+      <ellipse rx="12.27" ry="0.51" fill="url(#rayGrad)" opacity="0.58" transform="rotate(-45)" />
+      <circle r="5.71" fill="url(#starMain)" opacity="0.9" />
+      <circle r="1.93" fill="#FFFFFF" />
     </g>
     <g id="star-small">
-      <circle r="11" fill="url(#starMedium)" opacity="0.3" />
-      <ellipse rx="14" ry="0.6" fill="url(#rayGrad)" opacity="0.55" />
-      <ellipse rx="0.6" ry="14" fill="url(#rayGrad)" opacity="0.55" />
-      <ellipse rx="11" ry="0.5" fill="url(#rayGrad)" opacity="0.5" transform="rotate(45)" />
-      <ellipse rx="11" ry="0.5" fill="url(#rayGrad)" opacity="0.5" transform="rotate(-45)" />
-      <circle r="6.5" fill="url(#starMedium)" />
-      <circle r="2" fill="#FFFFFF" />
+      <circle r="7.5" fill="url(#starMedium)" opacity="0.3" />
+      <ellipse rx="10.5" ry="0.45" fill="url(#rayGrad)" opacity="0.55" />
+      <ellipse rx="0.45" ry="10.5" fill="url(#rayGrad)" opacity="0.55" />
+      <ellipse rx="8.25" ry="0.37" fill="url(#rayGrad)" opacity="0.5" transform="rotate(45)" />
+      <ellipse rx="8.25" ry="0.37" fill="url(#rayGrad)" opacity="0.5" transform="rotate(-45)" />
+      <circle r="4.43" fill="url(#starMedium)" opacity="0.9" />
+      <circle r="1.36" fill="#FFFFFF" />
     </g>
   </defs>
   <g opacity="0.9">
