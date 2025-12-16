@@ -81,6 +81,7 @@ const PUBLIC_ENDPOINTS = [
   '/auth/verify',
   '/auth/magic-link',
   '/auth/complete-signup',
+  '/geo/cities',
 ];
 
 // Request interceptor - add auth token
