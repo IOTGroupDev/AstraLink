@@ -27,7 +27,21 @@ export const clearAllUserData = async (): Promise<void> => {
 
     await AsyncStorage.multiRemove(zustandKeys);
 
-    // 3. Sign out from Supabase (clears session)
+    // 3. Clear all AsyncStorage keys (including any legacy keys)
+    const allKeys = await AsyncStorage.getAllKeys();
+    const keysToRemove = allKeys.filter(
+      (key) =>
+        key.startsWith('auth-') ||
+        key.startsWith('onboarding-') ||
+        key.startsWith('chart-') ||
+        key.startsWith('subscription-') ||
+        key.startsWith('al_')
+    );
+    if (keysToRemove.length > 0) {
+      await AsyncStorage.multiRemove(keysToRemove);
+    }
+
+    // 4. Sign out from Supabase (clears session)
     await supabase.auth.signOut();
 
     storageLogger.log('✅ Complete user data cleanup successful');

@@ -233,16 +233,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       // Immediately close the modal
       setShowDeleteModal(false);
 
+      // Clear auth state first (resets onboardingCompleted flag)
+      await logout();
+
       // Complete cleanup: clear all user data, tokens, settings, and Zustand stores
       await clearAllUserData();
-
-      // Clear auth state
-      await logout();
 
       // Navigate to login screen immediately to prevent any API calls
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Login' }],
+        routes: [{ name: 'SignUp' }],
       });
     } catch (error: any) {
       logger.error('Ошибка удаления аккаунта', error);
@@ -413,7 +413,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   >
                     <Ionicons name="code-outline" size={24} color="#fff" />
                     <Text style={styles.regenerateButtonText}>
-                      {t('profile.natalChart.viewPersonalCode', 'View Personal Code')}
+                      {t(
+                        'profile.natalChart.viewPersonalCode',
+                        'View Personal Code'
+                      )}
                     </Text>
                     <Ionicons name="chevron-forward" size={24} color="#fff" />
                   </LinearGradient>
@@ -456,20 +459,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   />
                 </View>
               </View>
-
-              {/* Logout */}
-              <TouchableOpacity
-                style={styles.settingItem}
-                onPress={handleLogout}
-              >
-                <View style={styles.settingIcon}>
-                  <Ionicons name="log-out-outline" size={32} color="#fff" />
-                </View>
-                <Text style={styles.settingText}>
-                  {t('profile.settings.logout')}
-                </Text>
-                <Ionicons name="chevron-forward" size={32} color="#fff" />
-              </TouchableOpacity>
 
               {/* Delete Account */}
               <TouchableOpacity

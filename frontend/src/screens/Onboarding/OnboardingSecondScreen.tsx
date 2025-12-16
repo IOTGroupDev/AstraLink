@@ -1,13 +1,15 @@
 // src/screens/onboarding/OnboardingSecondScreen.tsx
-import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
-import { DatePicker } from '@quidone/react-native-wheel-picker';
 import { useOnboardingStore } from '../../stores/onboarding.store';
+import { theme } from '../../styles/theme';
 import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
@@ -24,88 +26,100 @@ type NavigationProp = NativeStackNavigationProp<
   'Onboarding2'
 >;
 
-// ====== helpers: struct <-> ISO ======
-function structToIso({
-  day,
-  month,
-  year,
-}: {
-  day: number;
-  month: number;
-  year: number;
-}): string {
-  const d = String(day).padStart(2, '0');
-  const m = String(month).padStart(2, '0');
-  const y = String(year);
-  return `${y}-${m}-${d}`;
-}
-
-function isoToStruct(iso: string): {
-  day: number;
-  month: number;
-  year: number;
-} {
-  const [y, m, d] = iso.split('-').map(Number);
-  return { day: d, month: m, year: y };
-}
-
 export default function OnboardingSecondScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { t, i18n } = useTranslation();
   const storedBirthDate = useOnboardingStore((state) => state.data.birthDate);
   const setBirthDateInStore = useOnboardingStore((state) => state.setBirthDate);
 
-  // Инициализация строки для DatePicker из стора (или текущей даты)
-  const initialDateStr = useMemo(() => {
-    if (storedBirthDate) return structToIso(storedBirthDate);
-    const now = new Date();
-    return structToIso({
-      day: now.getDate(),
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-    });
+  // Инициализация Date объекта из стора или дефолтная дата (20 лет назад)
+  const initialDate = useMemo(() => {
+    if (storedBirthDate) {
+      return new Date(
+        storedBirthDate.year,
+        storedBirthDate.month - 1,
+        storedBirthDate.day
+      );
+    }
+    const defaultDate = new Date();
+    defaultDate.setFullYear(defaultDate.getFullYear() - 20);
+    return defaultDate;
   }, [storedBirthDate]);
 
-  // ЕДИНЫЙ источник правды — только ISO-строка
-  const [dateStr, setDateStr] = useState<string>(initialDateStr);
+  const [date, setDate] = useState<Date>(initialDate);
 
-  // Если стор обновится извне (маловероятно на онбординге), синхронизируем
+  // Синхронизация с initialDate при изменении
   useEffect(() => {
-    setDateStr(initialDateStr);
-  }, [initialDateStr]);
+    setDate(initialDate);
+  }, [initialDate]);
 
-  const handleBack = () => navigation.goBack();
+  const handleBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
-  const handleNext = () => {
-    // Конвертация только здесь — перед сохранением
-    setBirthDateInStore(isoToStruct(dateStr));
+  const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  }, []);
+
+  // Конвертация i18n языка в locale формат
+  const getLocale = useCallback(() => {
+    switch (i18n.language) {
+      case 'en':
+        return 'en-US';
+      case 'ru':
+        return 'ru-RU';
+      case 'es':
+        return 'es-ES';
+      default:
+        return 'en-US';
+    }
+  }, [i18n.language]);
+
+  const handleNext = useCallback(() => {
+    setBirthDateInStore({
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    });
     navigation.navigate('Onboarding3');
-  };
+  }, [date, setBirthDateInStore, navigation]);
 
   return (
     <OnboardingLayout>
       <View style={styles.container}>
-        <OnboardingHeader title="Дата рождения" onBack={handleBack} showStep />
+        <OnboardingHeader
+          title={t('onboarding.second.header')}
+          onBack={handleBack}
+          showStep
+        />
 
         <View style={styles.descriptionContainer}>
           <Text style={styles.description}>
-            Введите дату рождения — узнаем, кто вы по гороскопу!
+            {t('onboarding.second.description')}
           </Text>
         </View>
 
         <View style={styles.pickerContainer}>
-          <DatePicker
-            date={dateStr} // формат YYYY-MM-DD
-            onDateChanged={({ date }) => setDateStr(date)}
-            itemTextStyle={styles.itemText}
-            overlayItemStyle={styles.overlayItem}
-            contentContainerStyle={styles.content}
-            itemHeight={40}
-            visibleItemCount={5}
-            locale="ru"
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="spinner"
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+            minimumDate={new Date(1920, 0, 1)}
+            textColor={ONBOARDING_COLORS.white}
+            themeVariant="dark"
+            locale={getLocale()}
+            style={styles.picker}
           />
         </View>
 
-        <OnboardingButton title="ДАЛЕЕ" onPress={handleNext} />
+        <OnboardingButton
+          title={t('onboarding.button.next')}
+          onPress={handleNext}
+        />
       </View>
     </OnboardingLayout>
   );
@@ -115,8 +129,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   descriptionContainer: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    marginTop: 60,
-    marginBottom: 40,
+    marginTop: theme.spacing.xxxl * 1.875, // 60px (32 * 1.875)
+    marginBottom: theme.spacing.sm,
   },
   description: {
     color: ONBOARDING_COLORS.textDim70,
@@ -124,23 +138,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pickerContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexGrow: 0,
-    flexShrink: 0,
-    marginTop: 100,
+    marginTop: theme.spacing.sm, // 64px
+    marginBottom: theme.spacing.xxxl * 5, // 40px (32 * 1.25)
   },
-  itemText: {
-    color: ONBOARDING_COLORS.white,
-    fontSize: 24,
-  },
-  overlayItem: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  content: {
-    paddingHorizontal: 10,
+  picker: {
+    width: 320,
+    height: 216,
   },
 });

@@ -1,0 +1,32 @@
+{
+  "first": {
+    "title": "Tu cosmos —\nen un toque",
+    "subtitle": "Análisis de carta natal, consejos de las estrellas y citas astrológicas: todo para comprender mejor a ti mismo y el mundo que te rodea.",
+    "badges": {
+      "constellation": "Asesor",
+      "partner": "Carta Natal",
+      "astrology": "Salir"
+    }
+  },
+  "second": {
+    "header": "Fecha de Nacimiento",
+    "description": "Introduce tu fecha de nacimiento — ¡descubramos tu signo zodiacal!"
+  },
+  "third": {
+    "header": "Signo del Zodiaco",
+    "description": "A continuación, completaremos el cuadro con los datos de su hora y lugar de nacimiento para construir su carta natal completa."
+  },
+  "fourth": {
+    "header": "Información Adicional",
+    "timeTitle": "Tu hora de nacimiento",
+    "timePlaceholder": "Seleccionar hora",
+    "namePlaceholder": "Tu nombre",
+    "placePlaceholder": "Lugar de nacimiento",
+    "unknownTime": "No sé la hora exacta"
+  },
+  "button": {
+    "next": "SIGUIENTE",
+    "finish": "FINALIZAR",
+    "confirm": "Listo"
+  }
+}

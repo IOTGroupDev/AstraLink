@@ -1,0 +1,32 @@
+{
+  "first": {
+    "title": "Your cosmos —\nin one touch",
+    "subtitle": "Natal chart analysis, star advice, and astrological dating — everything to better understand yourself and the world around you.",
+    "badges": {
+      "constellation": "Advisor",
+      "partner": "Natal Chart",
+      "astrology": "Dating"
+    }
+  },
+  "second": {
+    "header": "Date of Birth",
+    "description": "Enter your date of birth — let's find out your zodiac sign!"
+  },
+  "third": {
+    "header": "Zodiac Sign",
+    "description": "Next, we'll complete the picture with your birth time and place data to build your full natal chart."
+  },
+  "fourth": {
+    "header": "Additional Info",
+    "timeTitle": "Your birth time",
+    "timePlaceholder": "Select time",
+    "namePlaceholder": "Your name",
+    "placePlaceholder": "Place of birth",
+    "unknownTime": "I don't know exact time"
+  },
+  "button": {
+    "next": "NEXT",
+    "finish": "FINISH",
+    "confirm": "Done"
+  }
+}

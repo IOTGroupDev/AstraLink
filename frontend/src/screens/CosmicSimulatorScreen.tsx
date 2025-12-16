@@ -130,7 +130,6 @@ export default function CosmicSimulatorScreen() {
     pluto: 'Плутон',
   };
 
-
   useEffect(() => {
     loadNatalChart();
     selectDailyLesson();
@@ -166,7 +165,9 @@ export default function CosmicSimulatorScreen() {
     const aspectLesson = ASTRO_LESSONS.find(
       (lesson) =>
         lesson.category === 'aspects' &&
-        lesson.title.toLowerCase().includes(aspectTranslated?.toLowerCase() || '')
+        lesson.title
+          .toLowerCase()
+          .includes(aspectTranslated?.toLowerCase() || '')
     );
 
     if (aspectLesson) return aspectLesson;
@@ -235,8 +236,10 @@ export default function CosmicSimulatorScreen() {
             if (parsed.general) sections.push(`📋 ${parsed.general}`);
             if (parsed.love) sections.push(`\n💕 Любовь:\n${parsed.love}`);
             if (parsed.career) sections.push(`\n💼 Карьера:\n${parsed.career}`);
-            if (parsed.health) sections.push(`\n🏥 Здоровье:\n${parsed.health}`);
-            if (parsed.finance) sections.push(`\n💰 Финансы:\n${parsed.finance}`);
+            if (parsed.health)
+              sections.push(`\n🏥 Здоровье:\n${parsed.health}`);
+            if (parsed.finance)
+              sections.push(`\n💰 Финансы:\n${parsed.finance}`);
             if (parsed.advice) sections.push(`\n💡 Совет:\n${parsed.advice}`);
             interpretationText = sections.join('\n');
           } else if (parsed.interpretation) {

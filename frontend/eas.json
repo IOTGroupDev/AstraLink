@@ -29,7 +29,7 @@
         "autoIncrement": "buildNumber"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.astralink.app"
+        "EXPO_PUBLIC_API_URL": "https://api.astralink.vip"
       }
     }
   },
