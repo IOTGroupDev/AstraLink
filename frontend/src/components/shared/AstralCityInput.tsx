@@ -35,33 +35,32 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const results = await geoApi.suggestCities({ q: query, lang: 'ru' });
-      setSuggestions(results);
-      setShowSuggestions(true);
-    } catch (error) {
-      console.error('Failed to fetch city suggestions:', error);
-      setSuggestions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
 
-    debounceTimeout.current = setTimeout(() => {
-      fetchSuggestions(value);
+    if (value.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    debounceTimeout.current = setTimeout(async () => {
+      console.log('🔍 Fetching cities for:', value);
+      setLoading(true);
+      try {
+        const results = await geoApi.suggestCities({ q: value, lang: 'ru' });
+        console.log('✅ Got city results:', results.length);
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch (error) {
+        console.error('❌ Failed to fetch city suggestions:', error);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setLoading(false);
+      }
     }, 300);
 
     return () => {
@@ -69,7 +68,7 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [value, fetchSuggestions]);
+  }, [value]);
 
   const handleSelectCity = useCallback(
     (city: CityOption) => {

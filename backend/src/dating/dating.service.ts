@@ -406,7 +406,7 @@ export class DatingService {
           const fallbackPhotoPaths = fallbackUserIds
             .map((uid: string) => photosById.get(uid))
             .filter(
-              (path): path is string => !!path && typeof path === 'string',
+              (path: any): path is string => !!path && typeof path === 'string',
             );
 
           const fallbackPhotoUrlsBatch =
