@@ -18,6 +18,8 @@ import { initSupabaseAuth } from './src/services/supabase';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { userExtendedProfileAPI } from './src/services/api';
 import { useAuthStore } from './src/stores/auth.store';
+import { enableScreens } from 'react-native-screens';
+enableScreens(true);
 
 const queryClient = new QueryClient();
 

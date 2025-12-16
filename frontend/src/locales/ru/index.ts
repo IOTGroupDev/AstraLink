@@ -11,6 +11,8 @@ import subscription from './subscription.json';
 import advisor from './advisor.json';
 import personalCode from './personalCode.json';
 import cosmicSimulator from './cosmicSimulator.json';
+import onboarding from './onboarding.json';
+import zodiac from './zodiac.json';
 
 export default {
   common,
@@ -26,4 +28,6 @@ export default {
   advisor,
   personalCode,
   cosmicSimulator,
+  onboarding,
+  zodiac,
 };

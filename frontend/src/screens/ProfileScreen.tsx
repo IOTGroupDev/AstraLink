@@ -233,16 +233,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       // Immediately close the modal
       setShowDeleteModal(false);
 
+      // Clear auth state first (resets onboardingCompleted flag)
+      await logout();
+
       // Complete cleanup: clear all user data, tokens, settings, and Zustand stores
       await clearAllUserData();
-
-      // Clear auth state
-      await logout();
 
       // Navigate to login screen immediately to prevent any API calls
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Login' }],
+        routes: [{ name: 'SignUp' }],
       });
     } catch (error: any) {
       logger.error('Ошибка удаления аккаунта', error);

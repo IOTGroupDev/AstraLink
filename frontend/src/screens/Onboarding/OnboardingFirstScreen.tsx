@@ -1,11 +1,14 @@
 // src/screens/onboarding/OnboardingFirstScreen.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
-import OnboardingFirstMainSvg from '../../components/onboarding/OnboardingFirstMainSvg';
+import OnboardingFirstBackgroundSvg from '../../components/onboarding/OnboardingFirstBackgroundSvg';
+import OnboardingBadge from '../../components/onboarding/OnboardingBadge';
+import { theme } from '../../styles';
 import {
   ONBOARDING_COLORS,
   ONBOARDING_TYPOGRAPHY,
@@ -24,27 +27,45 @@ type NavigationProp = NativeStackNavigationProp<
 
 export default function OnboardingFirstScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { t } = useTranslation();
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     navigation.navigate('Onboarding2');
-  };
+  }, [navigation]);
 
   return (
     <OnboardingLayout>
       <View style={styles.container}>
         <View style={styles.illustrationContainer}>
-          <OnboardingFirstMainSvg />
+          <OnboardingFirstBackgroundSvg />
+
+          {/* App name centered below the star */}
+          <Text style={styles.appName}>AstraLink</Text>
+
+          {/* Badges positioned absolutely as per original design */}
+          <OnboardingBadge
+            text={t('onboarding.first.badges.astrology')}
+            style={styles.badgeLeft}
+          />
+          <OnboardingBadge
+            text={t('onboarding.first.badges.constellation')}
+            style={styles.badgeRight}
+          />
+          <OnboardingBadge
+            text={t('onboarding.first.badges.partner')}
+            style={styles.badgeBottom}
+          />
         </View>
 
         <View style={styles.contentContainer}>
-          <Text style={styles.title}>Ваш космос —{'\n'}в одном касании</Text>
-          <Text style={styles.subtitle}>
-            Анализ натальной карты, советы звёзд и астрологические знакомства —
-            всё, чтобы лучше понять себя и мир вокруг.
-          </Text>
+          <Text style={styles.title}>{t('onboarding.first.title')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.first.subtitle')}</Text>
         </View>
 
-        <OnboardingButton title="ДАЛЕЕ" onPress={handleContinue} />
+        <OnboardingButton
+          title={t('onboarding.button.next')}
+          onPress={handleContinue}
+        />
       </View>
     </OnboardingLayout>
   );
@@ -58,12 +79,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 160,
+    marginTop: theme.spacing.xxxl * 5, // 160px (32 * 5)
   },
   contentContainer: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    marginBottom: 140,
-    gap: 10,
+    marginBottom: theme.spacing.xxxl * 4.375, // 140px (32 * 4.375)
+    gap: theme.spacing.md, // 12px instead of 10
   },
   title: {
     color: ONBOARDING_COLORS.text,
@@ -74,5 +95,30 @@ const styles = StyleSheet.create({
     color: ONBOARDING_COLORS.textDim,
     ...ONBOARDING_TYPOGRAPHY.body,
     textAlign: 'left',
+  },
+  // App name centered below the star
+  appName: {
+    position: 'absolute',
+    fontSize: 28,
+    fontWeight: '700',
+    color: ONBOARDING_COLORS.white,
+    letterSpacing: 1.25,
+    bottom: 180,
+  },
+  // Badge positioning as per original SVG design (viewBox 430x834)
+  badgeLeft: {
+    position: 'absolute',
+    left: 37,
+    top: -40,
+  },
+  badgeRight: {
+    position: 'absolute',
+    right: 24,
+    top: 50,
+  },
+  badgeBottom: {
+    position: 'absolute',
+    left: 63,
+    bottom: 100,
   },
 });
