@@ -466,7 +466,6 @@ const AuthEmailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 20,
   },
   keyboardView: {
     flex: 1,
