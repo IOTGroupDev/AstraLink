@@ -353,7 +353,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { AuthHeader } from '../../components/auth/AuthHeader';
+import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../stores/auth.store';
 import { useOnboardingStore } from '../../stores/onboarding.store';
@@ -450,10 +450,9 @@ const SignUpScreen = () => {
   return (
     <AuthLayout>
       <View style={styles.container}>
-        <AuthHeader
+        <OnboardingHeader
           title="Регистрация"
           onBack={() => navigation.goBack()}
-          disabled={loading}
         />
 
         <View style={styles.content}>
