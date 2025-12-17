@@ -3,7 +3,6 @@ import {
   View,
   TextInput,
   StyleSheet,
-  FlatList,
   Text,
   TouchableOpacity,
   ActivityIndicator,
@@ -81,22 +80,6 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
     [onChangeText, onCitySelect]
   );
 
-  const renderSuggestionItem = ({ item }: { item: CityOption }) => (
-    <TouchableOpacity
-      style={styles.suggestionItem}
-      onPress={() => handleSelectCity(item)}
-      activeOpacity={0.7}
-    >
-      <Ionicons
-        name="location-outline"
-        size={20}
-        color="rgba(255, 255, 255, 0.7)"
-        style={styles.suggestionIcon}
-      />
-      <Text style={styles.suggestionText}>{item.display}</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <View style={styles.wrapper}>
       <Animated.View
@@ -137,14 +120,22 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
           entering={FadeInDown.duration(300)}
           style={styles.suggestionsContainer}
         >
-          <FlatList
-            data={suggestions}
-            renderItem={renderSuggestionItem}
-            keyExtractor={(item) => item.id}
-            style={styles.suggestionsList}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-          />
+          {suggestions.map((city) => (
+            <TouchableOpacity
+              key={city.id}
+              style={styles.suggestionItem}
+              onPress={() => handleSelectCity(city)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="location-outline"
+                size={20}
+                color="rgba(255, 255, 255, 0.7)"
+                style={styles.suggestionIcon}
+              />
+              <Text style={styles.suggestionText}>{city.display}</Text>
+            </TouchableOpacity>
+          ))}
         </Animated.View>
       )}
     </View>
@@ -192,9 +183,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  suggestionsList: {
-    flex: 1,
   },
   suggestionItem: {
     flexDirection: 'row',
