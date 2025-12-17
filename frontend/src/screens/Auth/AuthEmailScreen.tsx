@@ -319,8 +319,9 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { AuthHeader } from '../../components/auth/AuthHeader';
+import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { AuthButton } from '../../components/auth/AuthButton';
 import AstralInput from '../../components/shared/AstralInput';
 import { authAPI } from '../../services/api';
@@ -332,6 +333,7 @@ import {
 
 const AuthEmailScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isEmailValid, setIsEmailValid] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -342,12 +344,12 @@ const AuthEmailScreen: React.FC = () => {
     return emailRegex.test(text);
   };
 
-  const handleNext = async () => {
+  const handleNext = React.useCallback(async () => {
     setErrorMessage('');
 
     if (!validateEmail(email)) {
       setIsEmailValid(false);
-      setErrorMessage('Введите корректный email');
+      setErrorMessage(t('auth.email.errors.invalid'));
       return;
     }
 
@@ -363,25 +365,25 @@ const AuthEmailScreen: React.FC = () => {
         shouldCreateUser: true,
       });
     } catch (error: any) {
-      let message = error.message || 'Не удалось отправить письмо';
+      let message = error.message || t('auth.email.errors.sendFailed');
 
       if (message.includes('rate limit')) {
-        message = 'Слишком много попыток. Подождите минуту';
+        message = t('auth.email.errors.rateLimit');
       } else if (message.includes('Invalid email')) {
-        message = 'Некорректный email адрес';
+        message = t('auth.email.errors.invalid');
       } else if (message.includes('Email not confirmed')) {
-        message = 'Email не подтвержден. Проверьте почту';
+        message = t('auth.email.errors.notConfirmed');
       }
 
       setErrorMessage(message);
 
       if (!message.includes('rate limit')) {
-        Alert.alert('Ошибка', message, [{ text: 'OK' }]);
+        Alert.alert(t('auth.email.errors.title'), message, [{ text: t('buttons.ok') }]);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, navigation, t]);
 
   return (
     <AuthLayout>
@@ -395,10 +397,9 @@ const AuthEmailScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeIn.duration(600)}>
-            <AuthHeader
-              title="Авторизация"
+            <OnboardingHeader
+              title={t('auth.email.title')}
               onBack={() => navigation.goBack()}
-              disabled={isLoading}
             />
           </Animated.View>
 
@@ -406,14 +407,14 @@ const AuthEmailScreen: React.FC = () => {
             entering={FadeInDown.duration(600).delay(200)}
             style={styles.subtitle}
           >
-            Введите ваш{'\n'}Email
+            {t('auth.email.subtitle')}
           </Animated.Text>
 
           <View style={styles.content}>
             <View style={styles.inputContainer}>
               <AstralInput
                 icon="mail-outline"
-                placeholder="Ваш email"
+                placeholder={t('auth.email.placeholder')}
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
@@ -441,7 +442,7 @@ const AuthEmailScreen: React.FC = () => {
               entering={FadeInDown.duration(600).delay(300)}
               style={styles.infoText}
             >
-              Мы отправим 6‑значный код на вашу почту
+              {t('auth.email.info')}
             </Animated.Text>
           </View>
 
@@ -450,7 +451,7 @@ const AuthEmailScreen: React.FC = () => {
             style={styles.buttonContainer}
           >
             <AuthButton
-              title="ДАЛЕЕ"
+              title={t('auth.email.button')}
               onPress={handleNext}
               disabled={!email}
               loading={isLoading}
