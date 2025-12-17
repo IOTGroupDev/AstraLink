@@ -171,23 +171,23 @@ const SignUpScreen = () => {
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.socialButton,
-                  loading && loadingProvider !== 'vk' && styles.disabledButton,
-                ]}
-                onPress={handleVKSignUp}
-                activeOpacity={0.8}
-                disabled={loading}
-              >
-                {loadingProvider === 'vk' ? (
-                  <ActivityIndicator color={AUTH_COLORS.border} size="small" />
-                ) : (
-                  <View style={styles.vkIcon}>
-                    <Text style={styles.vkText}>VK</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              {/*<TouchableOpacity*/}
+              {/*  style={[*/}
+              {/*    styles.socialButton,*/}
+              {/*    loading && loadingProvider !== 'vk' && styles.disabledButton,*/}
+              {/*  ]}*/}
+              {/*  onPress={handleVKSignUp}*/}
+              {/*  activeOpacity={0.8}*/}
+              {/*  disabled={loading}*/}
+              {/*>*/}
+              {/*  {loadingProvider === 'vk' ? (*/}
+              {/*    <ActivityIndicator color={AUTH_COLORS.border} size="small" />*/}
+              {/*  ) : (*/}
+              {/*    <View style={styles.vkIcon}>*/}
+              {/*      <Text style={styles.vkText}>VK</Text>*/}
+              {/*    </View>*/}
+              {/*  )}*/}
+              {/*</TouchableOpacity>*/}
             </View>
           </View>
 
