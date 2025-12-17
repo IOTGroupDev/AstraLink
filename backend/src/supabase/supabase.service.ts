@@ -242,6 +242,23 @@ export class SupabaseService implements OnModuleInit {
   }
 
   /**
+   * 🌐 Генерация OAuth ссылки для внешних провайдеров
+   */
+  async getOAuthSignInUrl(
+    provider: 'google' | 'apple',
+    redirectTo: string,
+  ): Promise<{ url: string | null; error: any }> {
+    const { data, error } = await this.supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+      },
+    });
+
+    return { url: data?.url ?? null, error };
+  }
+
+  /**
    * 📧 Отправка verification email
    * Отправляет письмо для подтверждения email при регистрации
    */

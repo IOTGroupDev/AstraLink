@@ -68,9 +68,9 @@ export interface CompleteSignupRequest {
 }
 
 /**
- * Google OAuth callback данные
+ * OAuth callback данные для внешних провайдеров
  */
-export interface GoogleCallbackRequest {
+export interface OAuthCallbackRequest {
   access_token: string;
   user: {
     id: string;
@@ -78,6 +78,16 @@ export interface GoogleCallbackRequest {
     name?: string;
   };
 }
+
+/**
+ * Google OAuth callback данные
+ */
+export type GoogleCallbackRequest = OAuthCallbackRequest;
+
+/**
+ * Apple OAuth callback данные
+ */
+export type AppleCallbackRequest = OAuthCallbackRequest;
 
 // ==================== Chart Types ====================
 
