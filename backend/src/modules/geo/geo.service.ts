@@ -124,21 +124,21 @@ export class GeoService {
       this.logger.log(`Found ${response.data.length} results`);
 
       const options = response.data
-        .map((place) => this.mapNominatimPlace(place))
-        .filter((option): option is Omit<CityOption, 'tzid'> =>
+        .map((place: any) => this.mapNominatimPlace(place))
+        .filter((option: any): option is Omit<CityOption, 'tzid'> =>
           Boolean(option),
         );
 
       // Enrich with timezone in parallel, with fallback to UTC
       const enriched = await Promise.all(
-        options.map(async (option) => ({
+        options.map(async (option: Omit<CityOption, 'tzid'>) => ({
           ...option,
           tzid: await this.lookupTimezone(option.lat, option.lon),
         })),
       );
 
       return enriched;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
         `Failed to fetch city suggestions: ${error.message}`,
         error.stack,
@@ -209,7 +209,7 @@ export class GeoService {
       if (typeof tzid === 'string' && tzid.length > 0) {
         return tzid;
       }
-    } catch (error) {
+    } catch (error: any) {
       // Swallow timezone lookup errors and fall back to UTC so suggestions still work
       this.logger.debug(
         `Timezone lookup failed for ${lat},${lon}: ${error.message}`,
