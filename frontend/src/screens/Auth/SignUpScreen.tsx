@@ -352,6 +352,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
@@ -370,6 +371,7 @@ import {
 
 const SignUpScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { login } = useAuthStore();
@@ -451,12 +453,12 @@ const SignUpScreen = () => {
     <AuthLayout>
       <View style={styles.container}>
         <OnboardingHeader
-          title="Регистрация"
+          title={t('auth.signUp.title')}
           onBack={() => navigation.goBack()}
         />
 
         <View style={styles.content}>
-          <Text style={styles.subtitle}>Выберите способ{'\n'}авторизации</Text>
+          <Text style={styles.subtitle}>{t('auth.signUp.subtitle')}</Text>
 
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
@@ -465,7 +467,7 @@ const SignUpScreen = () => {
               activeOpacity={0.8}
               disabled={loading}
             >
-              <Text style={styles.emailButtonText}>через почту</Text>
+              <Text style={styles.emailButtonText}>{t('auth.signUp.emailButton')}</Text>
             </TouchableOpacity>
 
             <View style={styles.socialButtons}>
@@ -535,9 +537,9 @@ const SignUpScreen = () => {
 
           {loading && (
             <Text style={styles.loadingText}>
-              {loadingProvider === 'google' && 'Авторизация через Google...'}
-              {loadingProvider === 'apple' && 'Авторизация через Apple...'}
-              {loadingProvider === 'vk' && 'Авторизация через VK...'}
+              {loadingProvider === 'google' && t('auth.signUp.loading.google')}
+              {loadingProvider === 'apple' && t('auth.signUp.loading.apple')}
+              {loadingProvider === 'vk' && t('auth.signUp.loading.vk')}
             </Text>
           )}
         </View>
