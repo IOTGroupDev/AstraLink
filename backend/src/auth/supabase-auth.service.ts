@@ -8,7 +8,11 @@ import {
 import { SupabaseService } from '../supabase/supabase.service';
 import { ChartService } from '../chart/chart.service';
 import { EphemerisService } from '../services/ephemeris.service';
-import type { SignupRequest, AuthResponse } from '../types';
+import type {
+  SignupRequest,
+  AuthResponse,
+  OAuthCallbackRequest,
+} from '../types';
 import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 
 @Injectable()
@@ -20,6 +24,32 @@ export class SupabaseAuthService {
     private chartService: ChartService,
     private ephemerisService: EphemerisService,
   ) {}
+
+  /**
+   * 🌐 Создание ссылки для OAuth авторизации
+   */
+  async getOAuthUrl(
+    provider: 'google' | 'apple',
+    redirectUri?: string,
+  ): Promise<{ url: string }> {
+    const redirectTo =
+      redirectUri ||
+      process.env.OAUTH_REDIRECT_URI ||
+      `${process.env.FRONTEND_URL ?? ''}/auth/callback`;
+
+    const { url, error } = await this.supabaseService.getOAuthSignInUrl(
+      provider,
+      redirectTo,
+    );
+
+    if (!url || error) {
+      this.logger.error(`❌ Ошибка генерации ${provider} OAuth ссылки`, error);
+      throw new BadRequestException('Не удалось создать OAuth ссылку');
+    }
+
+    this.logger.log(`🔗 ${provider} OAuth ссылка сгенерирована: ${url}`);
+    return { url };
+  }
 
   /**
    * 🔗 Отправка магической ссылки для входа
@@ -226,15 +256,25 @@ export class SupabaseAuthService {
   /**
    * 🔐 Google OAuth callback
    */
-  async handleGoogleCallback(data: {
-    access_token: string;
-    user: { id: string; email: string; name?: string };
-  }): Promise<AuthResponse> {
+  async handleGoogleCallback(
+    data: OAuthCallbackRequest,
+  ): Promise<AuthResponse> {
+    return this.processOAuthCallback('Google', data);
+  }
+
+  async handleAppleCallback(data: OAuthCallbackRequest): Promise<AuthResponse> {
+    return this.processOAuthCallback('Apple', data);
+  }
+
+  private async processOAuthCallback(
+    provider: 'Google' | 'Apple',
+    data: OAuthCallbackRequest,
+  ): Promise<AuthResponse> {
     try {
       const { user: userData } = data;
 
       this.logger.log(
-        '🔍 Обработка Google OAuth callback для:',
+        `🔍 Обработка ${provider} OAuth callback для:`,
         userData.email,
       );
 
@@ -314,7 +354,7 @@ export class SupabaseAuthService {
       // 3. Создаем подписку
       await this.createUserSubscription(userData.id);
 
-      this.logger.log('🎉 Google OAuth профиль создан успешно');
+      this.logger.log(`🎉 ${provider} OAuth профиль создан успешно`);
 
       return {
         user: {
@@ -330,11 +370,11 @@ export class SupabaseAuthService {
         access_token: data.access_token,
       };
     } catch (error) {
-      this.logger.error('❌ Google callback error:', error);
+      this.logger.error(`❌ ${provider} callback error:`, error);
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Ошибка обработки Google авторизации');
+      throw new BadRequestException(`Ошибка обработки ${provider} авторизации`);
     }
   }
 
