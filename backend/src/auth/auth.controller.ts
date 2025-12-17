@@ -17,7 +17,11 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { SupabaseAuthService } from './supabase-auth.service';
-import type { SignupRequest, AuthResponse } from '@/types';
+import type {
+  SignupRequest,
+  AuthResponse,
+  OAuthCallbackRequest,
+} from '@/types';
 import { Public } from '../common/decorators/public.decorator';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { MagicLinkRateLimitGuard } from './guards/magic-link-rate-limit.guard';
@@ -109,6 +113,40 @@ export class AuthController {
    * Обработка авторизации через Google
    */
   @Public()
+  @Get('google')
+  @ApiOperation({
+    summary: 'Инициация Google OAuth',
+    description: 'Возвращает ссылку для начала авторизации через Google',
+  })
+  @ApiResponse({ status: 200, description: 'Ссылка успешно сгенерирована' })
+  async getGoogleOAuthUrl(
+    @Query('redirectUri') redirectUri?: string,
+  ): Promise<{ url: string }> {
+    return this.supabaseAuthService.getOAuthUrl('google', redirectUri);
+  }
+
+  /**
+   * 🔗 Создание Apple OAuth ссылки
+   * Возвращает URL для начала авторизации через Apple
+   */
+  @Public()
+  @Get('apple')
+  @ApiOperation({
+    summary: 'Инициация Apple OAuth',
+    description: 'Возвращает ссылку для начала авторизации через Apple',
+  })
+  @ApiResponse({ status: 200, description: 'Ссылка успешно сгенерирована' })
+  async getAppleOAuthUrl(
+    @Query('redirectUri') redirectUri?: string,
+  ): Promise<{ url: string }> {
+    return this.supabaseAuthService.getOAuthUrl('apple', redirectUri);
+  }
+
+  /**
+   * 🔐 Google OAuth callback
+   * Обработка авторизации через Google
+   */
+  @Public()
   @Post('google-callback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -119,13 +157,29 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'OAuth успешно обработан' })
   @ApiResponse({ status: 400, description: 'Ошибка обработки OAuth' })
   async handleGoogleCallback(
-    @Body()
-    body: {
-      access_token: string;
-      user: { id: string; email: string; name?: string };
-    },
+    @Body() body: OAuthCallbackRequest,
   ): Promise<AuthResponse> {
     return this.supabaseAuthService.handleGoogleCallback(body);
+  }
+
+  /**
+   * 🍏 Apple OAuth callback
+   * Обработка авторизации через Apple
+   */
+  @Public()
+  @Post('apple-callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Обработка Apple OAuth callback',
+    description:
+      'Создает или авторизует пользователя после успешной OAuth авторизации через Apple',
+  })
+  @ApiResponse({ status: 200, description: 'OAuth успешно обработан' })
+  @ApiResponse({ status: 400, description: 'Ошибка обработки OAuth' })
+  async handleAppleCallback(
+    @Body() body: OAuthCallbackRequest,
+  ): Promise<AuthResponse> {
+    return this.supabaseAuthService.handleAppleCallback(body);
   }
 
   /**
