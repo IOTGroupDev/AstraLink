@@ -174,15 +174,13 @@ export default function OnboardingFourthScreen() {
               />
             </View>
           </ScrollView>
-
-          <View style={styles.buttonContainer}>
-            <OnboardingButton
-              title={t('onboarding.button.next')}
-              onPress={handleContinue}
-              disabled={!isFormValid}
-            />
-          </View>
         </KeyboardAvoidingView>
+
+        <OnboardingButton
+          title={t('onboarding.button.next')}
+          onPress={handleContinue}
+          disabled={!isFormValid}
+        />
       </View>
     </OnboardingLayout>
   );
@@ -202,11 +200,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
     paddingBottom: 16,
     gap: 16,
-  },
-  buttonContainer: {
-    paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    paddingBottom: 16,
-    paddingTop: 8,
   },
   descriptionContainer: {
     marginTop: 8,
