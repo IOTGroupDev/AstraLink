@@ -387,30 +387,29 @@ const AuthEmailScreen: React.FC = () => {
 
   return (
     <AuthLayout>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <View style={styles.container}>
+        <OnboardingHeader
+          title={t('auth.email.title')}
+          onBack={() => navigation.goBack()}
+        />
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
         >
-          <Animated.View entering={FadeIn.duration(600)}>
-            <OnboardingHeader
-              title={t('auth.email.title')}
-              onBack={() => navigation.goBack()}
-            />
-          </Animated.View>
-
-          <Animated.Text
-            entering={FadeInDown.duration(600).delay(200)}
-            style={styles.subtitle}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {t('auth.email.subtitle')}
-          </Animated.Text>
+            <Animated.Text
+              entering={FadeInDown.duration(600).delay(200)}
+              style={styles.subtitle}
+            >
+              {t('auth.email.subtitle')}
+            </Animated.Text>
 
-          <View style={styles.content}>
+            <View style={styles.content}>
             <View style={styles.inputContainer}>
               <AstralInput
                 icon="mail-outline"
@@ -459,11 +458,15 @@ const AuthEmailScreen: React.FC = () => {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+      </View>
     </AuthLayout>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   keyboardView: {
     flex: 1,
   },
