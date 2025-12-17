@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
+  ScrollView,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,22 +121,29 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
           entering={FadeInDown.duration(300)}
           style={styles.suggestionsContainer}
         >
-          {suggestions.map((city) => (
-            <TouchableOpacity
-              key={city.id}
-              style={styles.suggestionItem}
-              onPress={() => handleSelectCity(city)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name="location-outline"
-                size={20}
-                color="rgba(255, 255, 255, 0.7)"
-                style={styles.suggestionIcon}
-              />
-              <Text style={styles.suggestionText}>{city.display}</Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView
+            style={styles.suggestionsScrollView}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+          >
+            {suggestions.map((city) => (
+              <TouchableOpacity
+                key={city.id}
+                style={styles.suggestionItem}
+                onPress={() => handleSelectCity(city)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={20}
+                  color="rgba(255, 255, 255, 0.7)"
+                  style={styles.suggestionIcon}
+                />
+                <Text style={styles.suggestionText}>{city.display}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </Animated.View>
       )}
     </View>
@@ -179,10 +187,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 8,
-    maxHeight: 200,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  suggestionsScrollView: {
+    maxHeight: 200,
   },
   suggestionItem: {
     flexDirection: 'row',

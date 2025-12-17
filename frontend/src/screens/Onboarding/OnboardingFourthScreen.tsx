@@ -102,18 +102,19 @@ export default function OnboardingFourthScreen() {
 
   return (
     <OnboardingLayout>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.container}>
-            <OnboardingHeader title="Регистрация" onBack={handleBack} />
+      <View style={styles.container}>
+        <OnboardingHeader title="Регистрация" onBack={handleBack} />
 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.descriptionContainer}>
               <Text style={styles.description}>
                 Введите ваши имя, время{'\n'}и место рождения
@@ -157,29 +158,32 @@ export default function OnboardingFourthScreen() {
                 required
               />
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
 
-        <View style={styles.buttonContainer}>
-          <OnboardingButton
-            title="ДАЛЕЕ"
-            onPress={handleContinue}
-            disabled={!isFormValid}
-          />
-        </View>
-      </KeyboardAvoidingView>
+          <View style={styles.buttonContainer}>
+            <OnboardingButton
+              title="ДАЛЕЕ"
+              onPress={handleContinue}
+              disabled={!isFormValid}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   keyboardView: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  scrollView: {
+    flex: 1,
   },
-  container: {
+  scrollContent: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
     paddingBottom: 16,
     gap: 16,
