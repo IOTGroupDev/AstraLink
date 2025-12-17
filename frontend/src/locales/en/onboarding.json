@@ -17,12 +17,13 @@
     "description": "Next, we'll complete the picture with your birth time and place data to build your full natal chart."
   },
   "fourth": {
-    "header": "Additional Info",
+    "header": "Registration",
+    "description": "Enter your name, birth time\nand place of birth",
     "timeTitle": "Your birth time",
     "timePlaceholder": "Select time",
     "namePlaceholder": "Your name",
-    "placePlaceholder": "Place of birth",
-    "unknownTime": "I don't know exact time"
+    "placePlaceholder": "Your place of birth",
+    "unknownTime": "don't know exact time"
   },
   "button": {
     "next": "NEXT",
