@@ -17,12 +17,13 @@
     "description": "A continuación, completaremos el cuadro con los datos de su hora y lugar de nacimiento para construir su carta natal completa."
   },
   "fourth": {
-    "header": "Información Adicional",
+    "header": "Registro",
+    "description": "Ingresa tu nombre, hora\ny lugar de nacimiento",
     "timeTitle": "Tu hora de nacimiento",
     "timePlaceholder": "Seleccionar hora",
     "namePlaceholder": "Tu nombre",
-    "placePlaceholder": "Lugar de nacimiento",
-    "unknownTime": "No sé la hora exacta"
+    "placePlaceholder": "Tu lugar de nacimiento",
+    "unknownTime": "no sé la hora exacta"
   },
   "button": {
     "next": "SIGUIENTE",
