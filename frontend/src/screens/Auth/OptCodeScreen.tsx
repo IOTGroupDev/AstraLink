@@ -391,7 +391,7 @@ import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { AuthHeader } from '../../components/auth/AuthHeader';
+import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { supabase } from '../../services/supabase';
 import { authAPI } from '../../services/api';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -614,7 +614,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
         style={styles.wrapper}
         behavior={Platform.select({ ios: 'padding', android: 'height' })}
       >
-        <AuthHeader
+        <OnboardingHeader
           title={t('auth.otp.title')}
           onBack={() => navigation.goBack()}
         />
