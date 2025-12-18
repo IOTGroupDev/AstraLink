@@ -1,0 +1,20 @@
+{
+  "addConnectionModal": {
+    "title": "Добавить связь",
+    "subtitle": "Создайте новую астрологическую связь",
+    "placeholders": {
+      "name": "Имя",
+      "birthDate": "Дата рождения",
+      "birthTime": "Время рождения",
+      "birthPlace": "Место рождения"
+    },
+    "alerts": {
+      "errorTitle": "Ошибка",
+      "requiredFields": "Заполните обязательные поля",
+      "failed": "Не удалось добавить связь"
+    },
+    "buttons": {
+      "add": "Добавить связь"
+    }
+  }
+}
