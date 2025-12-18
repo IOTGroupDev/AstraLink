@@ -144,7 +144,8 @@ export const authAPI = {
       authLogger.log('📧 Отправка OTP через Supabase на:', email);
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: true },
+        // options.shouldCreateUser removed - user will be auto-created on verifyOtp
+        // This fixes "Database error saving new user" after redirect URLs were removed
       });
       if (error) throw error;
       authLogger.log('✅ OTP отправлен');
