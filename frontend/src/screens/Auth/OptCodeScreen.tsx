@@ -510,10 +510,18 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
             setResendIn(RESEND_SECONDS);
             lastSubmittedCode.current = null;
           } catch (reErr: any) {
-            setError(
-              reErr?.message ||
-                'Код истёк. Не удалось отправить новый код, попробуйте ещё раз.'
-            );
+            const reMsg = reErr?.message || 'Код истёк. Не удалось отправить новый код, попробуйте ещё раз.';
+
+            // Handle rate limit when auto-resending expired code
+            const isRateLimit =
+              reErr?.code === 'email_rate_limit_exceeded' ||
+              /rate limit/i.test(String(reMsg));
+
+            if (isRateLimit && typeof reErr?.retryAfterSec === 'number') {
+              setResendIn(reErr.retryAfterSec);
+            }
+
+            setError(reMsg);
           }
           return;
         }
@@ -549,7 +557,19 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       setResendIn(RESEND_SECONDS);
       lastSubmittedCode.current = null;
     } catch (e: any) {
-      setError(e?.message ?? 'Не удалось отправить код');
+      const msg = e?.message ?? 'Не удалось отправить код';
+
+      // Handle rate limit: sync timer with Supabase retryAfterSec
+      const isRateLimit =
+        e?.code === 'email_rate_limit_exceeded' ||
+        /rate limit/i.test(String(msg));
+
+      if (isRateLimit && typeof e?.retryAfterSec === 'number') {
+        // Set timer to the exact value from Supabase
+        setResendIn(e.retryAfterSec);
+      }
+
+      setError(msg);
     }
   };
 
