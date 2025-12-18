@@ -392,6 +392,7 @@ import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { AuthHeader } from '../../components/auth/AuthHeader';
 import { supabase } from '../../services/supabase';
+import { authAPI } from '../../services/api';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
@@ -524,6 +525,17 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Ensure user profile exists in public.users (workaround for missing DB trigger)
+      if (data.user) {
+        try {
+          await authAPI.ensureUserProfile(data.user.id, data.user.email || email);
+        } catch (ensureError) {
+          // Non-critical - continue even if this fails
+          console.log('Profile ensure skipped:', ensureError);
+        }
+      }
+
       navigation.replace('UserDataLoader');
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

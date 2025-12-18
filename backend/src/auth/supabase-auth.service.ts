@@ -471,6 +471,68 @@ export class SupabaseAuthService {
     }
   }
 
+  /**
+   * 🆕 Ensure user profile exists in public.users
+   * Called after OTP verification to create profile if missing
+   * This is a workaround for missing database trigger
+   */
+  async ensureUserProfile(
+    userId: string,
+    email: string,
+  ): Promise<{ success: boolean }> {
+    try {
+      this.logger.log('🔍 Checking if user profile exists:', userId);
+
+      // Check if profile exists
+      const { data: existingProfile } =
+        await this.supabaseService.getUserProfileAdmin(userId);
+
+      if (existingProfile) {
+        this.logger.log('✅ User profile already exists');
+        return { success: true };
+      }
+
+      this.logger.log('📝 Creating missing user profile');
+
+      // Create profile in public.users
+      const { error: profileError } = await this.supabaseService
+        .fromAdmin('users')
+        .insert({
+          id: userId,
+          email: email,
+          name: email.split('@')[0] || 'User',
+          birth_date: null,
+          birth_time: null,
+          birth_place: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (profileError) {
+        // Ignore duplicate key errors (profile was created by trigger or race condition)
+        if (profileError.code === '23505') {
+          this.logger.log('✅ Profile created by another process (race condition)');
+          return { success: true };
+        }
+        this.logger.error('❌ Error creating user profile:', profileError);
+        throw new BadRequestException('Failed to create user profile');
+      }
+
+      this.logger.log('✅ User profile created successfully');
+
+      // Create subscription for new user
+      await this.createUserSubscription(userId);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error('❌ ensureUserProfile error:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to ensure user profile');
+    }
+  }
+
   // ==================== Helper Methods ====================
 
   /**

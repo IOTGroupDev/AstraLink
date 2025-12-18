@@ -29,6 +29,7 @@ import { SignupRateLimitGuard } from './guards/signup-rate-limit.guard';
 import type { AuthenticatedRequest } from '@/types/auth';
 import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 import { SendMagicLinkDto } from '@/auth/dto/send-magic-link.dto';
+import { EnsureUserProfileDto } from '@/auth/dto/ensure-user-profile.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -232,6 +233,41 @@ export class AuthController {
       };
     } catch (error) {
       this.logger.error('Complete signup error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔧 Ensure user profile exists in public.users
+   * POST /auth/ensure-profile
+   *
+   * Workaround for missing database trigger on auth.users
+   * Creates public.users record if it doesn't exist after OTP verification
+   */
+  @Public()
+  @Post('ensure-profile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Ensure user profile exists',
+    description:
+      'Creates public.users profile if missing after OTP/OAuth authentication. Workaround for missing database trigger.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile ensured successfully',
+  })
+  async ensureUserProfile(@Body() dto: EnsureUserProfileDto) {
+    try {
+      this.logger.log(`Ensure profile request for user: ${dto.userId}`);
+
+      const result = await this.supabaseAuthService.ensureUserProfile(
+        dto.userId,
+        dto.email,
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error('Ensure profile error:', error);
       throw error;
     }
   }
