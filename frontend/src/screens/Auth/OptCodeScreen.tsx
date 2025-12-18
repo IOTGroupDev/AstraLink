@@ -619,62 +619,67 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           onBack={() => navigation.goBack()}
         />
 
-        <View style={styles.infoContainer}>
-          <Text style={styles.subtitle}>{t('auth.otp.subtitle')}</Text>
-          <Text style={styles.email}>{email}</Text>
-        </View>
-
-        <View style={styles.centerArea}>
-          <View style={styles.otpRow}>
-            {Array.from({ length: CODE_LENGTH }).map((_, i) => (
-              <TextInput
-                key={i}
-                ref={setInputRef(i)}
-                value={digits[i]}
-                onChangeText={(v) => onChangeDigit(i, v)}
-                onKeyPress={(e) => onKeyPress(i, e)}
-                keyboardType="number-pad"
-                maxLength={1}
-                textContentType={i === 0 ? 'oneTimeCode' : 'none'}
-                autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                selectionColor="white"
-                style={[styles.box, digits[i] ? styles.boxFilled : null]}
-                returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
-                autoFocus={i === 0}
-                onSubmitEditing={() => {
-                  if (i === CODE_LENGTH - 1) handleSubmit();
-                }}
-              />
-            ))}
+        <View style={styles.content}>
+          <View style={styles.infoContainer}>
+            <Text style={styles.subtitle}>{t('auth.otp.subtitle')}</Text>
+            <Text style={styles.email}>{email}</Text>
           </View>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
-        </View>
+          <View style={styles.centerArea}>
+            <View style={styles.otpRow}>
+              {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+                <TextInput
+                  key={i}
+                  ref={setInputRef(i)}
+                  value={digits[i]}
+                  onChangeText={(v) => onChangeDigit(i, v)}
+                  onKeyPress={(e) => onKeyPress(i, e)}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  textContentType={i === 0 ? 'oneTimeCode' : 'none'}
+                  autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                  selectionColor="white"
+                  style={[styles.box, digits[i] ? styles.boxFilled : null]}
+                  returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
+                  autoFocus={i === 0}
+                  onSubmitEditing={() => {
+                    if (i === CODE_LENGTH - 1) handleSubmit();
+                  }}
+                />
+              ))}
+            </View>
 
-        <View style={styles.resendRow}>
-          <Text style={styles.resendHint}>{t('auth.otp.resendHint')}</Text>
-          <Pressable disabled={resendIn > 0} onPress={handleResend}>
-            <Text
-              style={[styles.resendLink, resendIn > 0 && styles.resendDisabled]}
-            >
-              {resendIn > 0
-                ? t('auth.otp.resendTimer', { seconds: resendIn })
-                : t('auth.otp.resendButton')}
-            </Text>
+            {!!error && <Text style={styles.error}>{error}</Text>}
+          </View>
+
+          <View style={styles.resendRow}>
+            <Text style={styles.resendHint}>{t('auth.otp.resendHint')}</Text>
+            <Pressable disabled={resendIn > 0} onPress={handleResend}>
+              <Text
+                style={[
+                  styles.resendLink,
+                  resendIn > 0 && styles.resendDisabled,
+                ]}
+              >
+                {resendIn > 0
+                  ? t('auth.otp.resendTimer', { seconds: resendIn })
+                  : t('auth.otp.resendButton')}
+              </Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+            style={[styles.cta, !canSubmit && styles.ctaDisabled]}
+          >
+            {submitting ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.ctaText}>{t('auth.otp.submitButton')}</Text>
+            )}
           </Pressable>
         </View>
-
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-          style={[styles.cta, !canSubmit && styles.ctaDisabled]}
-        >
-          {submitting ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.ctaText}>{t('auth.otp.submitButton')}</Text>
-          )}
-        </Pressable>
       </KeyboardAvoidingView>
     </AuthLayout>
   );
@@ -682,6 +687,9 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
+  },
+  content: {
     flex: 1,
     paddingHorizontal: AUTH_LAYOUT.horizontalPadding,
     paddingBottom: 120,
@@ -733,8 +741,8 @@ const styles = StyleSheet.create({
   },
   cta: {
     position: 'absolute',
-    left: AUTH_LAYOUT.horizontalPadding,
-    right: AUTH_LAYOUT.horizontalPadding,
+    left: 0,
+    right: 0,
     bottom: 45,
     height: AUTH_LAYOUT.buttonHeight,
     backgroundColor: AUTH_COLORS.btnPrimary,
