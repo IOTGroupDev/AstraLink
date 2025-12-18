@@ -459,7 +459,20 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const onChangeDigit = (idx: number, val: string) => {
     setError(null);
-    const v = val.replace(/\D/g, '').slice(-1);
+    const cleaned = val.replace(/\D/g, '');
+
+    // Handle full code paste (iOS QuickType autofill)
+    if (idx === 0 && cleaned.length === CODE_LENGTH) {
+      setDigits(cleaned.split(''));
+      // Focus last input after paste
+      setTimeout(() => {
+        inputsRef.current[CODE_LENGTH - 1]?.focus();
+      }, 0);
+      return;
+    }
+
+    // Handle single digit input
+    const v = cleaned.slice(-1);
     setDigits((prev) => {
       const next = [...prev];
       next[idx] = v || '';
@@ -622,7 +635,8 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
                 onKeyPress={(e) => onKeyPress(i, e)}
                 keyboardType="number-pad"
                 maxLength={1}
-                textContentType="oneTimeCode"
+                textContentType={i === 0 ? 'oneTimeCode' : 'none'}
+                autoComplete={i === 0 ? 'one-time-code' : 'off'}
                 selectionColor="white"
                 style={[styles.box, digits[i] ? styles.boxFilled : null]}
                 returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
