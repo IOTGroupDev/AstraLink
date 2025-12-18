@@ -56,7 +56,11 @@ const AuthCallbackScreen: React.FC = () => {
             if (error) throw error;
             accessToken = storedToken;
           } else {
-            throw new Error('Токен или код авторизации не найдены в URL');
+            throw new Error(
+              t('auth.callback.noTokenOrCode', {
+                defaultValue: 'Authorization token or code not found in URL',
+              })
+            );
           }
         }
 
@@ -109,7 +113,11 @@ const AuthCallbackScreen: React.FC = () => {
       } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
-        throw new Error('Сессия не найдена');
+        throw new Error(
+          t('auth.callback.sessionNotFound', {
+            defaultValue: 'Session not found',
+          })
+        );
       }
 
       await tokenService.setToken(session.access_token);
@@ -120,7 +128,12 @@ const AuthCallbackScreen: React.FC = () => {
         routes: [{ name: 'UserDataLoader' }],
       });
     } catch (err: any) {
-      setError(err?.message || 'Ошибка авторизации');
+      setError(
+        err?.message ||
+          t('auth.callback.authorizationError', {
+            defaultValue: 'Authorization error',
+          })
+      );
       setTimeout(() => {
         // @ts-ignore
         navigation.navigate('SignUp');
