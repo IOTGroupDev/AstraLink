@@ -1,0 +1,20 @@
+{
+  "addConnectionModal": {
+    "title": "Add connection",
+    "subtitle": "Create a new astrological connection",
+    "placeholders": {
+      "name": "Name",
+      "birthDate": "Birth date",
+      "birthTime": "Birth time",
+      "birthPlace": "Birth place"
+    },
+    "alerts": {
+      "errorTitle": "Error",
+      "requiredFields": "Fill in the required fields",
+      "failed": "Failed to add connection"
+    },
+    "buttons": {
+      "add": "Add connection"
+    }
+  }
+}
