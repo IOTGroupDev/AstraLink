@@ -178,22 +178,25 @@ const ZodiacIcon: React.FC<ZodiacIconProps> = ({
     }, index * 100);
 
     // Пульсация каждой иконки
-    setTimeout(() => {
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.1, {
-            duration: 1000 + index * 100,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(1, {
-            duration: 1000 + index * 100,
-            easing: Easing.inOut(Easing.ease),
-          })
-        ),
-        -1,
-        false
-      );
-    }, 1000 + index * 100);
+    setTimeout(
+      () => {
+        scale.value = withRepeat(
+          withSequence(
+            withTiming(1.1, {
+              duration: 1000 + index * 100,
+              easing: Easing.inOut(Easing.ease),
+            }),
+            withTiming(1, {
+              duration: 1000 + index * 100,
+              easing: Easing.inOut(Easing.ease),
+            })
+          ),
+          -1,
+          false
+        );
+      },
+      1000 + index * 100
+    );
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({

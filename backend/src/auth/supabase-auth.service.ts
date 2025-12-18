@@ -511,7 +511,9 @@ export class SupabaseAuthService {
       if (profileError) {
         // Ignore duplicate key errors (profile was created by trigger or race condition)
         if (profileError.code === '23505') {
-          this.logger.log('✅ Profile created by another process (race condition)');
+          this.logger.log(
+            '✅ Profile created by another process (race condition)',
+          );
           return { success: true };
         }
         this.logger.error('❌ Error creating user profile:', profileError);
