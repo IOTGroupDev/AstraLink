@@ -357,7 +357,19 @@ const AuthEmailScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await authAPI.sendVerificationCode(email);
+      const res = await authAPI.sendVerificationCode(email);
+
+      // Если email уже существует, явно сообщаем пользователю (но всё равно ведём на ввод OTP)
+      if (res.flow === 'login') {
+        const title = 'Аккаунт уже существует';
+        const message =
+          res.message ||
+          'Пользователь с таким email уже есть. Мы отправили код для входа.';
+
+        setErrorMessage(message);
+        Alert.alert(title, message, [{ text: t('buttons.ok') }]);
+      }
+
       // @ts-ignore
       navigation.navigate('OptCode', {
         email,
@@ -365,10 +377,19 @@ const AuthEmailScreen: React.FC = () => {
         shouldCreateUser: true,
       });
     } catch (error: any) {
-      let message = error.message || t('auth.email.errors.sendFailed');
+      let message = error?.message || t('auth.email.errors.sendFailed');
 
-      if (message.includes('rate limit')) {
-        message = t('auth.email.errors.rateLimit');
+      // Supabase: "email rate limit exceeded" (we also set error.code/retryAfterSec in authAPI)
+      const isRateLimit =
+        error?.code === 'email_rate_limit_exceeded' ||
+        /rate limit/i.test(String(error?.message || '')) ||
+        String(message).includes('rate limit');
+
+      if (isRateLimit) {
+        const retryAfterSec = Number(error?.retryAfterSec) || 60;
+        message =
+          error?.message ||
+          `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`;
       } else if (message.includes('Invalid email')) {
         message = t('auth.email.errors.invalid');
       } else if (message.includes('Email not confirmed')) {
@@ -377,8 +398,11 @@ const AuthEmailScreen: React.FC = () => {
 
       setErrorMessage(message);
 
-      if (!message.includes('rate limit')) {
-        Alert.alert(t('auth.email.errors.title'), message, [{ text: t('buttons.ok') }]);
+      // Не спамим Alert'ом при rate limit — текста под инпутом достаточно
+      if (!isRateLimit) {
+        Alert.alert(t('auth.email.errors.title'), message, [
+          { text: t('buttons.ok') },
+        ]);
       }
     } finally {
       setIsLoading(false);
@@ -410,54 +434,54 @@ const AuthEmailScreen: React.FC = () => {
             </Animated.Text>
 
             <View style={styles.content}>
-            <View style={styles.inputContainer}>
-              <AstralInput
-                icon="mail-outline"
-                placeholder={t('auth.email.placeholder')}
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  setErrorMessage('');
-                  setIsEmailValid(true);
-                }}
-                keyboardType="email-address"
-                autoComplete="email"
-                textContentType="emailAddress"
-                editable={!isLoading}
-                autoCapitalize="none"
-              />
+              <View style={styles.inputContainer}>
+                <AstralInput
+                  icon="mail-outline"
+                  placeholder={t('auth.email.placeholder')}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setErrorMessage('');
+                    setIsEmailValid(true);
+                  }}
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  editable={!isLoading}
+                  autoCapitalize="none"
+                />
 
-              {errorMessage ? (
-                <Animated.Text
-                  entering={FadeInDown.duration(300)}
-                  style={styles.errorText}
-                >
-                  {errorMessage}
-                </Animated.Text>
-              ) : null}
+                {errorMessage ? (
+                  <Animated.Text
+                    entering={FadeInDown.duration(300)}
+                    style={styles.errorText}
+                  >
+                    {errorMessage}
+                  </Animated.Text>
+                ) : null}
+              </View>
+
+              <Animated.Text
+                entering={FadeInDown.duration(600).delay(300)}
+                style={styles.infoText}
+              >
+                {t('auth.email.info')}
+              </Animated.Text>
             </View>
 
-            <Animated.Text
-              entering={FadeInDown.duration(600).delay(300)}
-              style={styles.infoText}
+            <Animated.View
+              entering={FadeInDown.duration(600).delay(400)}
+              style={styles.buttonContainer}
             >
-              {t('auth.email.info')}
-            </Animated.Text>
-          </View>
-
-          <Animated.View
-            entering={FadeInDown.duration(600).delay(400)}
-            style={styles.buttonContainer}
-          >
-            <AuthButton
-              title={t('auth.email.button')}
-              onPress={handleNext}
-              disabled={!email}
-              loading={isLoading}
-            />
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <AuthButton
+                title={t('auth.email.button')}
+                onPress={handleNext}
+                disabled={!email}
+                loading={isLoading}
+              />
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </AuthLayout>
   );

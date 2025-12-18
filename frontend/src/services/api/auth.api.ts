@@ -1,6 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './client';
 import { supabase } from '../supabase';
 import { tokenService } from '../tokenService';
@@ -8,6 +9,94 @@ import { authLogger } from '../logger';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../../types';
 
 WebBrowser.maybeCompleteAuthSession();
+
+// Persisted backoff for Supabase email OTP rate limits.
+// We can't bypass server limits; this only prevents hammering /otp and makes UX messaging accurate across app restarts.
+type OtpRateLimitState = { lastAtMs: number; backoffSec: number };
+const OTP_RATE_LIMIT_STORAGE_KEY = 'al_otp_rate_limit_v1';
+
+const otpRateLimitState: OtpRateLimitState = {
+  lastAtMs: 0,
+  backoffSec: 60,
+};
+
+async function loadOtpRateLimitState(): Promise<OtpRateLimitState> {
+  // Web: try localStorage (if available)
+  if (Platform.OS === 'web') {
+    try {
+      // eslint-disable-next-line no-undef
+      const raw =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem(OTP_RATE_LIMIT_STORAGE_KEY)
+          : null;
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<OtpRateLimitState>;
+        if (
+          typeof parsed.lastAtMs === 'number' &&
+          typeof parsed.backoffSec === 'number'
+        ) {
+          return parsed as OtpRateLimitState;
+        }
+      }
+    } catch {}
+    return otpRateLimitState;
+  }
+
+  // Native: AsyncStorage
+  try {
+    const raw = await AsyncStorage.getItem(OTP_RATE_LIMIT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<OtpRateLimitState>;
+      if (
+        typeof parsed.lastAtMs === 'number' &&
+        typeof parsed.backoffSec === 'number'
+      ) {
+        return parsed as OtpRateLimitState;
+      }
+    }
+  } catch {}
+  return otpRateLimitState;
+}
+
+async function saveOtpRateLimitState(state: OtpRateLimitState): Promise<void> {
+  if (Platform.OS === 'web') {
+    try {
+      // eslint-disable-next-line no-undef
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          OTP_RATE_LIMIT_STORAGE_KEY,
+          JSON.stringify(state)
+        );
+      }
+    } catch {}
+    return;
+  }
+
+  try {
+    await AsyncStorage.setItem(
+      OTP_RATE_LIMIT_STORAGE_KEY,
+      JSON.stringify(state)
+    );
+  } catch {}
+}
+
+function computeNextOtpRetryAfterSec(
+  nowMs: number,
+  prev: OtpRateLimitState
+): OtpRateLimitState {
+  const next: OtpRateLimitState = { ...prev };
+
+  // If last rate-limit was long ago, reset backoff.
+  if (nowMs - next.lastAtMs > 15 * 60 * 1000) {
+    next.backoffSec = 60;
+  } else {
+    // Exponential backoff up to 1 hour.
+    next.backoffSec = Math.min(next.backoffSec * 2, 3600);
+  }
+
+  next.lastAtMs = nowMs;
+  return next;
+}
 
 // Redirect URI helper for OTP/Magic Link/OAuth
 function getRedirectUri(): string {
@@ -139,25 +228,136 @@ export const authAPI = {
   // Send numeric OTP (no redirect)
   sendVerificationCode: async (
     email: string
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    flow: 'signup' | 'login';
+  }> => {
     try {
-      authLogger.log('📧 Отправка OTP через Supabase на:', email);
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true, // Create user on OTP send (requires DB trigger)
-        },
-      });
-      if (error) throw error;
-      authLogger.log('✅ OTP отправлен');
-      return { success: true, message: 'Код отправлен на email' };
+      const normalizedEmail = String(email).trim().toLowerCase();
+
+      // Client-side throttle BEFORE hitting Supabase.
+      // Supabase has both "per last request" and "per hour" limits; this prevents accidental spam
+      // (double taps, rerenders, multiple screens calling resend) that can lock the project for a long time.
+      const nowMs = Date.now();
+      const stored = await loadOtpRateLimitState();
+      const waitMs = stored.lastAtMs + stored.backoffSec * 1000 - nowMs;
+
+      if (waitMs > 0) {
+        const retryAfterSec = Math.max(1, Math.ceil(waitMs / 1000));
+        const err: any = new Error(
+          `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`
+        );
+        err.code = 'email_rate_limit_exceeded';
+        err.retryAfterSec = retryAfterSec;
+        err.status = 429;
+
+        authLogger.warn('⏳ OTP client-side throttle hit:', {
+          email: normalizedEmail,
+          retryAfterSec,
+          backoffSec: stored.backoffSec,
+        });
+
+        throw err;
+      }
+
+      authLogger.log('📧 Отправка OTP через Supabase на:', normalizedEmail);
+
+      const sendOtp = async (shouldCreateUser: boolean) => {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: normalizedEmail,
+          options: {
+            // When true, Supabase attempts to create a new auth.user on OTP send.
+            // If the user already exists, some projects may surface a DB 23505 (users_email_key).
+            shouldCreateUser,
+          },
+        });
+        return error;
+      };
+
+      let flow: 'signup' | 'login' = 'signup';
+
+      // 1) Primary attempt: allow creating a user (signup flow)
+      let err = await sendOtp(true);
+
+      // 2) If user already exists, retry as "login" (no create) AND report it to UI
+      if (err) {
+        const msg = (err as any)?.message || '';
+        const isDuplicateEmail =
+          /users_email_key/i.test(msg) ||
+          /duplicate key value violates unique constraint/i.test(msg) ||
+          /(SQLSTATE\s*)?23505/i.test(msg);
+
+        if (isDuplicateEmail) {
+          flow = 'login';
+          authLogger.warn(
+            '⚠️ Пользователь уже существует (23505/users_email_key). Отправляем OTP как вход (shouldCreateUser=false).'
+          );
+          err = await sendOtp(false);
+        }
+      }
+
+      if (err) throw err;
+
+      // Mark successful send to enforce at least the base 60s window locally.
+      // This mirrors Supabase's default "last request" window and reduces hitting hourly quotas.
+      await saveOtpRateLimitState({ lastAtMs: Date.now(), backoffSec: 60 });
+
+      const message =
+        flow === 'signup'
+          ? 'Код отправлен на email'
+          : 'Пользователь с таким email уже есть. Мы отправили код для входа.';
+
+      authLogger.log('✅ OTP отправлен', { flow });
+
+      return { success: true, message, flow };
     } catch (error: any) {
-      authLogger.error('❌ Ошибка отправки OTP:', error);
-      if (error.message?.includes('rate limit'))
-        error.message = 'Слишком много попыток. Подождите минуту';
-      else if (error.message?.includes('Invalid email'))
+      const rawMsg = String(error?.message || '');
+
+      // Supabase can return: "email rate limit exceeded"
+      const isEmailRateLimit =
+        /email rate limit exceeded/i.test(rawMsg) || /rate limit/i.test(rawMsg);
+
+      if (isEmailRateLimit) {
+        const nowMs = Date.now();
+
+        // If Supabase doesn't provide Retry-After (usually it doesn't via supabase-js),
+        // we persist an exponential backoff to reflect that the server window can be > 60s
+        // and to keep it consistent across app reloads.
+        const stored = await loadOtpRateLimitState();
+        const nextState = computeNextOtpRetryAfterSec(nowMs, stored);
+
+        // keep in-memory in sync too
+        otpRateLimitState.lastAtMs = nextState.lastAtMs;
+        otpRateLimitState.backoffSec = nextState.backoffSec;
+
+        await saveOtpRateLimitState(nextState);
+
+        const retryAfterSec =
+          Number((error as any)?.retryAfterSec) || nextState.backoffSec;
+
+        // attach metadata for UI (screens can read it to disable button / show countdown)
+        (error as any).code =
+          (error as any)?.code || 'email_rate_limit_exceeded';
+        (error as any).retryAfterSec = retryAfterSec;
+
+        // Don't overpromise 60s; show the computed backoff.
+        error.message = `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`;
+      } else if (/invalid email/i.test(rawMsg)) {
         error.message = 'Некорректный email';
-      else error.message = error.message || 'Не удалось отправить код';
+      } else {
+        error.message = error.message || 'Не удалось отправить код';
+      }
+
+      // Логируем нормализованную ошибку + статус, чтобы было видно 429 и backoff
+      authLogger.error('❌ Ошибка отправки OTP:', {
+        message: String(error?.message || ''),
+        status: (error as any)?.status,
+        code: (error as any)?.code,
+        retryAfterSec: (error as any)?.retryAfterSec,
+        rawMessage: rawMsg,
+      });
+
       throw error;
     }
   },

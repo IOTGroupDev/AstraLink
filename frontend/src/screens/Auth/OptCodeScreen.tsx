@@ -392,6 +392,7 @@ import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { AuthHeader } from '../../components/auth/AuthHeader';
 import { supabase } from '../../services/supabase';
+import { authAPI } from '../../services/api';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
@@ -401,7 +402,11 @@ type Props = StackScreenProps<RootStackParamList, 'OptCode'>;
 const RESEND_SECONDS = 30;
 
 const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { email, codeLength = 6, shouldCreateUser = true } = route.params;
+  const {
+    email,
+    codeLength = 6,
+    shouldCreateUser: _shouldCreateUser = true,
+  } = route.params;
   const CODE_LENGTH = codeLength;
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
@@ -494,23 +499,16 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
         if (isExpired) {
           try {
-            const resend = await supabase.auth.signInWithOtp({
-              email: String(email).trim().toLowerCase(),
-              options: { shouldCreateUser },
-            });
-            if (resend.error) {
-              setError(
-                resend.error.message ||
-                  'Код истёк. Не удалось отправить новый код.'
-              );
-            } else {
-              setError(
-                'Код истёк. Мы отправили новый код на почту – введите его целиком.'
-              );
-              setDigits(Array(CODE_LENGTH).fill(''));
-              setResendIn(RESEND_SECONDS);
-              lastSubmittedCode.current = null;
-            }
+            await authAPI.sendVerificationCode(
+              String(email).trim().toLowerCase()
+            );
+
+            setError(
+              'Код истёк. Мы отправили новый код на почту – введите его целиком.'
+            );
+            setDigits(Array(CODE_LENGTH).fill(''));
+            setResendIn(RESEND_SECONDS);
+            lastSubmittedCode.current = null;
           } catch (reErr: any) {
             setError(
               reErr?.message ||
@@ -545,11 +543,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     if (resendIn > 0) return;
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser },
-      });
-      if (error) throw error;
+      await authAPI.sendVerificationCode(String(email).trim().toLowerCase());
 
       setDigits(Array(CODE_LENGTH).fill(''));
       setResendIn(RESEND_SECONDS);
