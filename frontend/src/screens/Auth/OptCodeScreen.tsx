@@ -376,7 +376,7 @@
 // export default OtpCodeScreen;
 
 // src/screens/auth/OptCodeScreen.tsx
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -387,6 +387,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
@@ -395,13 +396,18 @@ import { supabase } from '../../services/supabase';
 import { authAPI } from '../../services/api';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
-import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
+import {
+  AUTH_COLORS,
+  AUTH_TYPOGRAPHY,
+  AUTH_LAYOUT,
+} from '../../constants/auth.constants';
 
 type Props = StackScreenProps<RootStackParamList, 'OptCode'>;
 
 const RESEND_SECONDS = 30;
 
 const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { t } = useTranslation();
   const {
     email,
     codeLength = 6,
@@ -464,13 +470,16 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
-  const onKeyPress = (idx: number, e: any) => {
-    if (e.nativeEvent.key === 'Backspace' && !digits[idx] && idx > 0) {
-      inputsRef.current[idx - 1]?.focus();
-    }
-  };
+  const onKeyPress = useCallback(
+    (idx: number, e: any) => {
+      if (e.nativeEvent.key === 'Backspace' && !digits[idx] && idx > 0) {
+        inputsRef.current[idx - 1]?.focus();
+      }
+    },
+    [digits]
+  );
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     if (lastSubmittedCode.current === code) return;
     if (submitLock.current) return;
@@ -503,14 +512,13 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
               String(email).trim().toLowerCase()
             );
 
-            setError(
-              'Код истёк. Мы отправили новый код на почту – введите его целиком.'
-            );
+            setError(t('auth.otp.errors.expired'));
             setDigits(Array(CODE_LENGTH).fill(''));
             setResendIn(RESEND_SECONDS);
             lastSubmittedCode.current = null;
           } catch (reErr: any) {
-            const reMsg = reErr?.message || 'Код истёк. Не удалось отправить новый код, попробуйте ещё раз.';
+            const reMsg =
+              reErr?.message || t('auth.otp.errors.expiredResendFailed');
 
             // Handle rate limit when auto-resending expired code
             const isRateLimit =
@@ -534,10 +542,13 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       // Ensure user profile exists in public.users (workaround for missing DB trigger)
       if (data.user) {
         try {
-          await authAPI.ensureUserProfile(data.user.id, data.user.email || email);
+          await authAPI.ensureUserProfile(
+            data.user.id,
+            data.user.email || email
+          );
         } catch (ensureError) {
           // Non-critical - continue even if this fails
-          console.log('Profile ensure skipped:', ensureError);
+          // Silently skip
         }
       }
 
@@ -547,18 +558,18 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       const msg = err?.message ?? '';
 
       if (/rate limit/i.test(msg)) {
-        setError('Слишком много попыток. Подожди немного и попробуй снова.');
+        setError(t('auth.otp.errors.rateLimit'));
         lastSubmittedCode.current = null;
       } else {
-        setError(msg || 'Не удалось подтвердить код');
+        setError(msg || t('auth.otp.errors.verifyFailed'));
       }
     } finally {
       setSubmitting(false);
       submitLock.current = false;
     }
-  };
+  }, [canSubmit, code, email, navigation, t, CODE_LENGTH]);
 
-  const handleResend = async () => {
+  const handleResend = useCallback(async () => {
     if (resendIn > 0) return;
     setError(null);
     try {
@@ -568,7 +579,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       setResendIn(RESEND_SECONDS);
       lastSubmittedCode.current = null;
     } catch (e: any) {
-      const msg = e?.message ?? 'Не удалось отправить код';
+      const msg = e?.message ?? t('auth.otp.errors.resendFailed');
 
       // Handle rate limit: sync timer with Supabase retryAfterSec
       const isRateLimit =
@@ -582,7 +593,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
       setError(msg);
     }
-  };
+  }, [resendIn, email, CODE_LENGTH, t]);
 
   return (
     <AuthLayout>
@@ -590,10 +601,13 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
         style={styles.wrapper}
         behavior={Platform.select({ ios: 'padding', android: 'height' })}
       >
-        <AuthHeader title="Регистрация" onBack={() => navigation.goBack()} />
+        <AuthHeader
+          title={t('auth.otp.title')}
+          onBack={() => navigation.goBack()}
+        />
 
         <View style={styles.infoContainer}>
-          <Text style={styles.subtitle}>Отправили код{'\n'}на вашу почту</Text>
+          <Text style={styles.subtitle}>{t('auth.otp.subtitle')}</Text>
           <Text style={styles.email}>{email}</Text>
         </View>
 
@@ -624,14 +638,14 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
 
         <View style={styles.resendRow}>
-          <Text style={styles.resendHint}>Не пришёл код?</Text>
+          <Text style={styles.resendHint}>{t('auth.otp.resendHint')}</Text>
           <Pressable disabled={resendIn > 0} onPress={handleResend}>
             <Text
               style={[styles.resendLink, resendIn > 0 && styles.resendDisabled]}
             >
               {resendIn > 0
-                ? `Отправить снова через ${resendIn}с`
-                : 'Отправить снова'}
+                ? t('auth.otp.resendTimer', { seconds: resendIn })
+                : t('auth.otp.resendButton')}
             </Text>
           </Pressable>
         </View>
@@ -644,7 +658,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           {submitting ? (
             <ActivityIndicator />
           ) : (
-            <Text style={styles.ctaText}>далее</Text>
+            <Text style={styles.ctaText}>{t('auth.otp.submitButton')}</Text>
           )}
         </Pressable>
       </KeyboardAvoidingView>
@@ -655,7 +669,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: AUTH_LAYOUT.horizontalPadding,
     paddingBottom: 120,
   },
   infoContainer: {
@@ -705,12 +719,12 @@ const styles = StyleSheet.create({
   },
   cta: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    left: AUTH_LAYOUT.horizontalPadding,
+    right: AUTH_LAYOUT.horizontalPadding,
     bottom: 45,
-    height: 60,
+    height: AUTH_LAYOUT.buttonHeight,
     backgroundColor: AUTH_COLORS.btnPrimary,
-    borderRadius: 58,
+    borderRadius: AUTH_LAYOUT.buttonRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },
