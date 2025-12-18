@@ -269,11 +269,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
                   autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   selectionColor="white"
                   style={[styles.box, digits[i] ? styles.boxFilled : null]}
-                  returnKeyType="next"
                   autoFocus={i === 0}
-                  onSubmitEditing={() => {
-                    if (i === CODE_LENGTH - 1) handleSubmit();
-                  }}
                 />
               ))}
             </View>
