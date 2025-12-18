@@ -125,7 +125,9 @@ const SignUpScreen = () => {
               activeOpacity={0.8}
               disabled={loading}
             >
-              <Text style={styles.emailButtonText}>{t('auth.signUp.emailButton')}</Text>
+              <Text style={styles.emailButtonText}>
+                {t('auth.signUp.emailButton')}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.socialButtons}>

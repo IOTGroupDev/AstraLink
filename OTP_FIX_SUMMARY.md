@@ -11,17 +11,20 @@ ERROR ❌ [Auth] ❌ Ошибка отправки OTP: [AuthApiError: Database 
 ## Root Causes
 
 ### 1. shouldCreateUser with removed redirects
+
 In `frontend/src/services/api/auth.api.ts:147`, the OTP flow used:
+
 ```typescript
 const { error } = await supabase.auth.signInWithOtp({
   email,
-  options: { shouldCreateUser: true },  // ❌ This causes the error
+  options: { shouldCreateUser: true }, // ❌ This causes the error
 });
 ```
 
 When `shouldCreateUser: true` is set **without** `emailRedirectTo`, and redirect URLs are removed from Supabase, user creation fails.
 
 ### 2. Missing database trigger
+
 When a user is created in `auth.users` (either via OTP or OAuth), there was no automatic trigger to create a corresponding record in `public.users`. This caused database constraint violations.
 
 ## Solution
@@ -29,6 +32,7 @@ When a user is created in `auth.users` (either via OTP or OAuth), there was no a
 ### Part 1: Remove shouldCreateUser (frontend/src/services/api/auth.api.ts:145-149)
 
 **Before:**
+
 ```typescript
 const { error } = await supabase.auth.signInWithOtp({
   email,
@@ -37,6 +41,7 @@ const { error } = await supabase.auth.signInWithOtp({
 ```
 
 **After:**
+
 ```typescript
 const { error } = await supabase.auth.signInWithOtp({
   email,
@@ -46,6 +51,7 @@ const { error } = await supabase.auth.signInWithOtp({
 ```
 
 **Why this fixes it:**
+
 - User is NOT created when OTP is sent
 - User is automatically created by Supabase when OTP is verified with `verifyOtp()`
 - This is the correct flow for OTP authentication with email codes
@@ -72,6 +78,7 @@ CREATE TRIGGER on_auth_user_created
 ```
 
 **Why this is needed:**
+
 - When `verifyOtp()` creates a user in `auth.users`, the trigger automatically creates the corresponding `public.users` record
 - Prevents "foreign key constraint" errors
 - Works for OTP, OAuth (Google/Apple), and any other auth method
@@ -79,11 +86,13 @@ CREATE TRIGGER on_auth_user_created
 ## How OTP Flow Works Now
 
 ### Before Fix:
+
 1. User enters email
 2. `sendVerificationCode()` calls `signInWithOtp({ shouldCreateUser: true })` ❌ **FAILS HERE**
 3. User never receives OTP code
 
 ### After Fix:
+
 1. User enters email
 2. `sendVerificationCode()` calls `signInWithOtp()` without `shouldCreateUser` ✅
 3. OTP code is sent to user's email ✅
@@ -116,17 +125,20 @@ CREATE TRIGGER on_auth_user_created
 Choose one of the following methods:
 
 **Option A: Using the script**
+
 ```bash
 cd backend/migrations
 ./apply_fix_otp_user_creation.sh
 ```
 
 **Option B: Using psql**
+
 ```bash
 psql "$DIRECT_URL" -f backend/migrations/fix_otp_user_creation.sql
 ```
 
 **Option C: Using Supabase Dashboard**
+
 1. Open Supabase Dashboard → SQL Editor
 2. Copy contents of `backend/migrations/fix_otp_user_creation.sql`
 3. Paste and run

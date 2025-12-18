@@ -118,7 +118,10 @@ export default function OnboardingFourthScreen() {
   return (
     <OnboardingLayout>
       <View style={styles.container}>
-        <OnboardingHeader title={t('onboarding.fourth.header')} onBack={handleBack} />
+        <OnboardingHeader
+          title={t('onboarding.fourth.header')}
+          onBack={handleBack}
+        />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -137,7 +140,9 @@ export default function OnboardingFourthScreen() {
             </View>
 
             <View style={styles.timeSection}>
-              <Text style={styles.timeTitle}>{t('onboarding.fourth.timeTitle')}</Text>
+              <Text style={styles.timeTitle}>
+                {t('onboarding.fourth.timeTitle')}
+              </Text>
 
               <AstralCheckbox
                 checked={dontKnowTime}

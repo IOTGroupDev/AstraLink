@@ -1,26 +1,32 @@
 # Database Migration: Fix OTP User Creation
 
 ## Issue
+
 When users try to sign in with OTP (One-Time Password), they encounter the error:
+
 ```
 ERROR ❌ [Auth] ❌ Ошибка отправки OTP: [AuthApiError: Database error saving new user]
 ```
 
 ## Root Cause
+
 When `signInWithOtp` is called with `shouldCreateUser: true`, Supabase creates a user in the `auth.users` table, but there's no trigger to automatically create the corresponding record in the `public.users` table. This causes a database error because the application expects a record in `public.users` for every authenticated user.
 
 ## Solution
+
 This migration creates a database trigger that automatically creates a record in `public.users` whenever a new user is created in `auth.users`.
 
 ## How to Apply
 
 ### Option 1: Using the provided script
+
 ```bash
 cd backend/migrations
 ./apply_fix_otp_user_creation.sh
 ```
 
 ### Option 2: Using psql directly
+
 ```bash
 # Make sure you have your DATABASE_URL or DIRECT_URL set
 export DIRECT_URL="your-supabase-database-url"
@@ -28,6 +34,7 @@ psql "$DIRECT_URL" -f backend/migrations/fix_otp_user_creation.sql
 ```
 
 ### Option 3: Using Supabase Dashboard
+
 1. Go to your Supabase project dashboard
 2. Navigate to SQL Editor
 3. Copy the contents of `fix_otp_user_creation.sql`
@@ -35,6 +42,7 @@ psql "$DIRECT_URL" -f backend/migrations/fix_otp_user_creation.sql
 5. Click "Run"
 
 ### Option 4: Using Supabase CLI
+
 ```bash
 supabase db execute --file backend/migrations/fix_otp_user_creation.sql
 ```
