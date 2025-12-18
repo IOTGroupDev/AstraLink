@@ -269,7 +269,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
                   autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   selectionColor="white"
                   style={[styles.box, digits[i] ? styles.boxFilled : null]}
-                  returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
+                  returnKeyType="next"
                   autoFocus={i === 0}
                   onSubmitEditing={() => {
                     if (i === CODE_LENGTH - 1) handleSubmit();
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 45,
+    bottom: 0,
     height: AUTH_LAYOUT.buttonHeight,
     backgroundColor: AUTH_COLORS.btnPrimary,
     borderRadius: AUTH_LAYOUT.buttonRadius,
