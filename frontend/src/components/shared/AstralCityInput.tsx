@@ -34,10 +34,17 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const justSelected = useRef(false);
 
   useEffect(() => {
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
+    }
+
+    // Skip search if city was just selected
+    if (justSelected.current) {
+      justSelected.current = false;
+      return;
     }
 
     if (value.length < 2) {
@@ -47,15 +54,12 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
     }
 
     debounceTimeout.current = setTimeout(async () => {
-      console.log('🔍 Fetching cities for:', value);
       setLoading(true);
       try {
         const results = await geoApi.suggestCities({ q: value, lang: 'ru' });
-        console.log('✅ Got city results:', results.length);
         setSuggestions(results);
         setShowSuggestions(results.length > 0);
       } catch (error) {
-        console.error('❌ Failed to fetch city suggestions:', error);
         setSuggestions([]);
         setShowSuggestions(false);
       } finally {
@@ -72,6 +76,7 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
 
   const handleSelectCity = useCallback(
     (city: CityOption) => {
+      justSelected.current = true;
       onChangeText(city.display);
       setShowSuggestions(false);
       setSuggestions([]);

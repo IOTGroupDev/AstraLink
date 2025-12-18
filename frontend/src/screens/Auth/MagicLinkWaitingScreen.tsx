@@ -554,6 +554,7 @@ import CosmicBackground from '../../components/shared/CosmicBackground';
 import { supabase } from '../../services/supabase';
 import { tokenService } from '../../services/tokenService';
 import { authAPI } from '../../services/api';
+import { authLogger } from '../../services/logger';
 
 type RouteParams = { email?: string };
 
@@ -747,15 +748,8 @@ export default function MagicLinkWaitingScreen() {
     try {
       setResending(true);
 
-      // Для OTP emailRedirectTo не требуется
-      const { error: resendError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-        },
-      });
-
-      if (resendError) throw resendError;
+      // Используем общий хендлер (с ретраем без shouldCreateUser при 23505/users_email_key)
+      await authAPI.sendVerificationCode(String(email).trim().toLowerCase());
 
       authLogger.log('✅ OTP повторно отправлен');
     } catch (e: any) {

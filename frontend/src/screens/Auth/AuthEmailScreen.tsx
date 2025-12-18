@@ -319,8 +319,9 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { AuthHeader } from '../../components/auth/AuthHeader';
+import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { AuthButton } from '../../components/auth/AuthButton';
 import AstralInput from '../../components/shared/AstralInput';
 import { authAPI } from '../../services/api';
@@ -332,6 +333,7 @@ import {
 
 const AuthEmailScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isEmailValid, setIsEmailValid] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -342,12 +344,12 @@ const AuthEmailScreen: React.FC = () => {
     return emailRegex.test(text);
   };
 
-  const handleNext = async () => {
+  const handleNext = React.useCallback(async () => {
     setErrorMessage('');
 
     if (!validateEmail(email)) {
       setIsEmailValid(false);
-      setErrorMessage('Введите корректный email');
+      setErrorMessage(t('auth.email.errors.invalid'));
       return;
     }
 
@@ -355,7 +357,19 @@ const AuthEmailScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await authAPI.sendVerificationCode(email);
+      const res = await authAPI.sendVerificationCode(email);
+
+      // Если email уже существует, явно сообщаем пользователю (но всё равно ведём на ввод OTP)
+      if (res.flow === 'login') {
+        const title = 'Аккаунт уже существует';
+        const message =
+          res.message ||
+          'Пользователь с таким email уже есть. Мы отправили код для входа.';
+
+        setErrorMessage(message);
+        Alert.alert(title, message, [{ text: t('buttons.ok') }]);
+      }
+
       // @ts-ignore
       navigation.navigate('OptCode', {
         email,
@@ -363,106 +377,120 @@ const AuthEmailScreen: React.FC = () => {
         shouldCreateUser: true,
       });
     } catch (error: any) {
-      let message = error.message || 'Не удалось отправить письмо';
+      let message = error?.message || t('auth.email.errors.sendFailed');
 
-      if (message.includes('rate limit')) {
-        message = 'Слишком много попыток. Подождите минуту';
+      // Supabase: "email rate limit exceeded" (we also set error.code/retryAfterSec in authAPI)
+      const isRateLimit =
+        error?.code === 'email_rate_limit_exceeded' ||
+        /rate limit/i.test(String(error?.message || '')) ||
+        String(message).includes('rate limit');
+
+      if (isRateLimit) {
+        const retryAfterSec = Number(error?.retryAfterSec) || 60;
+        message =
+          error?.message ||
+          `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`;
       } else if (message.includes('Invalid email')) {
-        message = 'Некорректный email адрес';
+        message = t('auth.email.errors.invalid');
       } else if (message.includes('Email not confirmed')) {
-        message = 'Email не подтвержден. Проверьте почту';
+        message = t('auth.email.errors.notConfirmed');
       }
 
       setErrorMessage(message);
 
-      if (!message.includes('rate limit')) {
-        Alert.alert('Ошибка', message, [{ text: 'OK' }]);
+      // Не спамим Alert'ом при rate limit — текста под инпутом достаточно
+      if (!isRateLimit) {
+        Alert.alert(t('auth.email.errors.title'), message, [
+          { text: t('buttons.ok') },
+        ]);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, navigation, t]);
 
   return (
     <AuthLayout>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <View style={styles.container}>
+        <OnboardingHeader
+          title={t('auth.email.title')}
+          onBack={() => navigation.goBack()}
+        />
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
         >
-          <Animated.View entering={FadeIn.duration(600)}>
-            <AuthHeader
-              title="Авторизация"
-              onBack={() => navigation.goBack()}
-              disabled={isLoading}
-            />
-          </Animated.View>
-
-          <Animated.Text
-            entering={FadeInDown.duration(600).delay(200)}
-            style={styles.subtitle}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            Введите ваш{'\n'}Email
-          </Animated.Text>
+            <Animated.Text
+              entering={FadeInDown.duration(600).delay(200)}
+              style={styles.subtitle}
+            >
+              {t('auth.email.subtitle')}
+            </Animated.Text>
 
-          <View style={styles.content}>
-            <View style={styles.inputContainer}>
-              <AstralInput
-                icon="mail-outline"
-                placeholder="Ваш email"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  setErrorMessage('');
-                  setIsEmailValid(true);
-                }}
-                keyboardType="email-address"
-                autoComplete="email"
-                textContentType="emailAddress"
-                editable={!isLoading}
-                autoCapitalize="none"
-              />
+            <View style={styles.content}>
+              <View style={styles.inputContainer}>
+                <AstralInput
+                  icon="mail-outline"
+                  placeholder={t('auth.email.placeholder')}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setErrorMessage('');
+                    setIsEmailValid(true);
+                  }}
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  editable={!isLoading}
+                  autoCapitalize="none"
+                />
 
-              {errorMessage ? (
-                <Animated.Text
-                  entering={FadeInDown.duration(300)}
-                  style={styles.errorText}
-                >
-                  {errorMessage}
-                </Animated.Text>
-              ) : null}
+                {errorMessage ? (
+                  <Animated.Text
+                    entering={FadeInDown.duration(300)}
+                    style={styles.errorText}
+                  >
+                    {errorMessage}
+                  </Animated.Text>
+                ) : null}
+              </View>
+
+              <Animated.Text
+                entering={FadeInDown.duration(600).delay(300)}
+                style={styles.infoText}
+              >
+                {t('auth.email.info')}
+              </Animated.Text>
             </View>
 
-            <Animated.Text
-              entering={FadeInDown.duration(600).delay(300)}
-              style={styles.infoText}
+            <Animated.View
+              entering={FadeInDown.duration(600).delay(400)}
+              style={styles.buttonContainer}
             >
-              Мы отправим 6‑значный код на вашу почту
-            </Animated.Text>
-          </View>
-
-          <Animated.View
-            entering={FadeInDown.duration(600).delay(400)}
-            style={styles.buttonContainer}
-          >
-            <AuthButton
-              title="ДАЛЕЕ"
-              onPress={handleNext}
-              disabled={!email}
-              loading={isLoading}
-            />
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <AuthButton
+                title={t('auth.email.button')}
+                onPress={handleNext}
+                disabled={!email}
+                loading={isLoading}
+              />
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
     </AuthLayout>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   keyboardView: {
     flex: 1,
   },

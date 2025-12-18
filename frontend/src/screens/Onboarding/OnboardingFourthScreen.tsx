@@ -1,5 +1,5 @@
 // src/screens/onboarding/OnboardingFourthScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
@@ -38,6 +39,7 @@ type NavigationProp = NativeStackNavigationProp<
 
 export default function OnboardingFourthScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { t } = useTranslation();
 
   // store
   const storedName = useOnboardingStore((s) => s.data.name);
@@ -59,9 +61,11 @@ export default function OnboardingFourthScreen() {
   );
   const [dontKnowTime, setDontKnowTime] = useState<boolean>(!storedBirthTime);
 
-  const handleBack = () => navigation.goBack();
+  const handleBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     const nameClean = name.trim();
     const placeClean = birthPlace.trim();
     if (!nameClean || !placeClean) return;
@@ -92,18 +96,32 @@ export default function OnboardingFourthScreen() {
     }
 
     navigation.navigate('SignUp');
-  };
+  }, [
+    name,
+    birthPlace,
+    dontKnowTime,
+    selectedHour,
+    selectedMinute,
+    selectedCity,
+    setNameInStore,
+    setBirthTimeInStore,
+    setBirthPlaceInStore,
+    navigation,
+  ]);
 
-  const handleCitySelect = (city: CityOption) => {
+  const handleCitySelect = useCallback((city: CityOption) => {
     setSelectedCity(city);
-  };
+  }, []);
 
   const isFormValid = Boolean(name.trim() && birthPlace.trim());
 
   return (
     <OnboardingLayout>
       <View style={styles.container}>
-        <OnboardingHeader title="Регистрация" onBack={handleBack} />
+        <OnboardingHeader
+          title={t('onboarding.fourth.header')}
+          onBack={handleBack}
+        />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -117,17 +135,19 @@ export default function OnboardingFourthScreen() {
           >
             <View style={styles.descriptionContainer}>
               <Text style={styles.description}>
-                Введите ваши имя, время{'\n'}и место рождения
+                {t('onboarding.fourth.description')}
               </Text>
             </View>
 
             <View style={styles.timeSection}>
-              <Text style={styles.timeTitle}>Ваше время рождения</Text>
+              <Text style={styles.timeTitle}>
+                {t('onboarding.fourth.timeTitle')}
+              </Text>
 
               <AstralCheckbox
                 checked={dontKnowTime}
                 onToggle={() => setDontKnowTime((v) => !v)}
-                label="не знаю точное время"
+                label={t('onboarding.fourth.unknownTime')}
               />
 
               {!dontKnowTime && (
@@ -142,7 +162,7 @@ export default function OnboardingFourthScreen() {
 
             <View style={styles.form}>
               <AstralInput
-                placeholder="Ваше имя"
+                placeholder={t('onboarding.fourth.namePlaceholder')}
                 value={name}
                 onChangeText={setName}
                 icon="person-outline"
@@ -150,7 +170,7 @@ export default function OnboardingFourthScreen() {
               />
 
               <AstralCityInput
-                placeholder="Ваше место рождения"
+                placeholder={t('onboarding.fourth.placePlaceholder')}
                 value={birthPlace}
                 onChangeText={setBirthPlace}
                 onCitySelect={handleCitySelect}
@@ -159,15 +179,13 @@ export default function OnboardingFourthScreen() {
               />
             </View>
           </ScrollView>
-
-          <View style={styles.buttonContainer}>
-            <OnboardingButton
-              title="ДАЛЕЕ"
-              onPress={handleContinue}
-              disabled={!isFormValid}
-            />
-          </View>
         </KeyboardAvoidingView>
+
+        <OnboardingButton
+          title={t('onboarding.button.next')}
+          onPress={handleContinue}
+          disabled={!isFormValid}
+        />
       </View>
     </OnboardingLayout>
   );
@@ -187,11 +205,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
     paddingBottom: 16,
     gap: 16,
-  },
-  buttonContainer: {
-    paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    paddingBottom: 16,
-    paddingTop: 8,
   },
   descriptionContainer: {
     marginTop: 8,
