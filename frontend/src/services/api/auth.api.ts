@@ -603,4 +603,24 @@ export const authAPI = {
       throw error;
     }
   },
+
+  // Ensure user profile exists (workaround for missing DB trigger)
+  ensureUserProfile: async (
+    userId: string,
+    email: string
+  ): Promise<{ success: boolean }> => {
+    try {
+      authLogger.log('🔧 Ensuring user profile exists:', userId);
+      const response = await api.post('/auth/ensure-profile', {
+        userId,
+        email,
+      });
+      authLogger.log('✅ User profile ensured');
+      return response.data;
+    } catch (error: any) {
+      authLogger.error('❌ Ensure profile failed:', error);
+      // Don't throw - this is a non-critical operation
+      return { success: false };
+    }
+  },
 };

@@ -522,6 +522,17 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Ensure user profile exists in public.users (workaround for missing DB trigger)
+      if (data.user) {
+        try {
+          await authAPI.ensureUserProfile(data.user.id, data.user.email || email);
+        } catch (ensureError) {
+          // Non-critical - continue even if this fails
+          console.log('Profile ensure skipped:', ensureError);
+        }
+      }
+
       navigation.replace('UserDataLoader');
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
