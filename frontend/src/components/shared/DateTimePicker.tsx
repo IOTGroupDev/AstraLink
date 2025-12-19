@@ -5,8 +5,11 @@ import {
   TouchableOpacity,
   Platform,
   StyleSheet,
+  Modal,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -142,7 +145,9 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   });
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(Platform.OS === 'ios');
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
 
     if (selectedDate) {
       setDate(selectedDate);
@@ -200,7 +205,18 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
 
         <TouchableOpacity
           style={styles.inputWrapper}
-          onPress={() => setShowPicker(true)}
+          onPress={() => {
+            if (Platform.OS === 'android') {
+              DateTimePickerAndroid.open({
+                value: date,
+                mode,
+                is24Hour: true,
+                onChange: handleDateChange,
+              });
+            } else {
+              setShowPicker(true);
+            }
+          }}
           activeOpacity={0.7}
         >
           <Animated.Text style={animatedLabelStyle}>
@@ -217,14 +233,27 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
       {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode={mode}
-          is24Hour={true}
-          display="default"
-          onChange={handleDateChange}
-          locale="ru-RU"
-        />
+        <Modal transparent animationType="fade" visible={showPicker}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalContent}>
+              <DateTimePicker
+                value={date}
+                mode={mode}
+                is24Hour={true}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                locale="ru-RU"
+                textColor="#FFFFFF"
+              />
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowPicker(false)}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -256,6 +285,33 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginLeft: 20,
     fontWeight: '500',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    width: '90%',
+    maxWidth: 360,
+  },
+  modalButton: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

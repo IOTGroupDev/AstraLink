@@ -133,6 +133,7 @@ WHERE trigger_name = 'on_auth_user_created';
 ```
 
 **Ожидаемый результат:**
+
 ```
 trigger_name: on_auth_user_created
 event_object_schema: auth

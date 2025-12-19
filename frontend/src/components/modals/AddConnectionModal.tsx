@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 import AstralInput from '../shared/AstralInput';
 import AstralDateTimePicker from '../shared/DateTimePicker';
@@ -35,6 +36,7 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
   onClose,
   onAdd,
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     birthDate: '',
@@ -81,7 +83,10 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
 
   const handleAdd = async () => {
     if (!formData.name || !formData.birthDate) {
-      Alert.alert('Ошибка', 'Заполните обязательные поля');
+      Alert.alert(
+        t('connections.addConnectionModal.alerts.errorTitle'),
+        t('connections.addConnectionModal.alerts.requiredFields')
+      );
       return;
     }
 
@@ -94,7 +99,10 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
       setFormData({ name: '', birthDate: '', birthTime: '', birthPlace: '' });
       onClose();
     } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось добавить связь');
+      Alert.alert(
+        t('connections.addConnectionModal.alerts.errorTitle'),
+        t('connections.addConnectionModal.alerts.failed')
+      );
     } finally {
       setLoading(false);
     }
@@ -114,9 +122,11 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.title}>Добавить связь</Text>
+            <Text style={styles.title}>
+              {t('connections.addConnectionModal.title')}
+            </Text>
             <Text style={styles.subtitle}>
-              Создайте новую астрологическую связь
+              {t('connections.addConnectionModal.subtitle')}
             </Text>
           </View>
 
@@ -127,7 +137,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
             {/* Form */}
             <Animated.View entering={SlideInUp.delay(400)} style={styles.form}>
               <AstralInput
-                placeholder="Имя"
+                placeholder={t(
+                  'connections.addConnectionModal.placeholders.name'
+                )}
                 value={formData.name}
                 onChangeText={(text) =>
                   setFormData({ ...formData, name: text })
@@ -141,7 +153,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
               />
 
               <AstralDateTimePicker
-                placeholder="Дата рождения"
+                placeholder={t(
+                  'connections.addConnectionModal.placeholders.birthDate'
+                )}
                 value={formData.birthDate}
                 onChangeText={(text) =>
                   setFormData({ ...formData, birthDate: text })
@@ -153,7 +167,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
               />
 
               <AstralDateTimePicker
-                placeholder="Время рождения"
+                placeholder={t(
+                  'connections.addConnectionModal.placeholders.birthTime'
+                )}
                 value={formData.birthTime}
                 onChangeText={(text) =>
                   setFormData({ ...formData, birthTime: text })
@@ -165,7 +181,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
               />
 
               <AstralInput
-                placeholder="Место рождения"
+                placeholder={t(
+                  'connections.addConnectionModal.placeholders.birthPlace'
+                )}
                 value={formData.birthPlace}
                 onChangeText={(text) =>
                   setFormData({ ...formData, birthPlace: text })
@@ -203,7 +221,9 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({
                           color="#fff"
                           style={styles.buttonIcon}
                         />
-                        <Text style={styles.buttonText}>Добавить связь</Text>
+                        <Text style={styles.buttonText}>
+                          {t('connections.addConnectionModal.buttons.add')}
+                        </Text>
                       </>
                     )}
                   </LinearGradient>

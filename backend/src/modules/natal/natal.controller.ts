@@ -48,6 +48,14 @@ export class NatalController {
       createNatalChartDto.birthDate,
       createNatalChartDto.birthTime,
       createNatalChartDto.birthPlace,
+      createNatalChartDto.latitude !== undefined &&
+        createNatalChartDto.longitude !== undefined
+        ? {
+            latitude: createNatalChartDto.latitude,
+            longitude: createNatalChartDto.longitude,
+            timezone: createNatalChartDto.timezone,
+          }
+        : undefined,
     );
 
     return {

@@ -1,0 +1,20 @@
+{
+  "addConnectionModal": {
+    "title": "Agregar conexión",
+    "subtitle": "Crea una nueva conexión astrológica",
+    "placeholders": {
+      "name": "Nombre",
+      "birthDate": "Fecha de nacimiento",
+      "birthTime": "Hora de nacimiento",
+      "birthPlace": "Lugar de nacimiento"
+    },
+    "alerts": {
+      "errorTitle": "Error",
+      "requiredFields": "Completa los campos obligatorios",
+      "failed": "No se pudo agregar la conexión"
+    },
+    "buttons": {
+      "add": "Agregar conexión"
+    }
+  }
+}

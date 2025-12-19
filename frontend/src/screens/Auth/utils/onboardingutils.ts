@@ -3,12 +3,22 @@
  */
 
 interface UserProfile {
+  name?: string | null;
   birth_date?: string | null;
   birthDate?: string | null;
   birth_time?: string | null;
   birthTime?: string | null;
   birth_place?: string | null;
   birthPlace?: string | null;
+}
+
+interface ExtendedProfile {
+  bio?: string | null;
+  gender?: string | null;
+  city?: string | null;
+  preferences?: {
+    interests?: string[] | null;
+  } | null;
 }
 
 /**
@@ -255,4 +265,43 @@ export const getNextOnboardingScreen = (
   if (missing.includes('birth_place')) return 'OnboardingBirthPlace';
 
   return 'MainTabs'; // Все данные заполнены
+};
+
+/**
+ * Рассчитывает процент заполненности профиля пользователя
+ * @param profile - базовый профиль
+ * @param extendedProfile - расширенный профиль
+ * @returns процент заполненности (0-100)
+ */
+export const calculateProfileCompletion = (
+  profile: UserProfile | null | undefined,
+  extendedProfile?: ExtendedProfile | null
+): number => {
+  const fields = [
+    profile?.name,
+    profile?.birth_date ?? profile?.birthDate,
+    profile?.birth_time ?? profile?.birthTime,
+    profile?.birth_place ?? profile?.birthPlace,
+    extendedProfile?.gender,
+    extendedProfile?.city,
+    extendedProfile?.bio,
+    extendedProfile?.preferences?.interests?.length
+      ? extendedProfile.preferences.interests
+      : null,
+  ];
+
+  const total = fields.length;
+  if (total === 0) return 0;
+
+  const filled = fields.filter((value) => {
+    if (typeof value === 'string') {
+      return value.trim().length > 0;
+    }
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+    return !!value;
+  }).length;
+
+  return Math.round((filled / total) * 100);
 };

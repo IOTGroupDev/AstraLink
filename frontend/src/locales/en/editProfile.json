@@ -14,7 +14,9 @@
     "birthPlace": "Birth Place",
     "city": "City",
     "bio": "Bio",
-    "gender": "Gender"
+    "gender": "Gender",
+    "lookingFor": "Looking for",
+    "lookingForGender": "Looking for"
   },
   "placeholders": {
     "name": "Enter your name",
@@ -148,5 +150,11 @@
     "uploading": "Uploading...",
     "saving": "Saving...",
     "loading": "Loading..."
+  },
+  "unsaved": {
+    "title": "Unsaved changes",
+    "message": "You have unsaved changes. Save before leaving?",
+    "discard": "Discard",
+    "save": "Save"
   }
 }
