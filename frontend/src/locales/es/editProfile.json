@@ -150,5 +150,11 @@
     "uploading": "Subiendo...",
     "saving": "Guardando...",
     "loading": "Cargando..."
+  },
+  "unsaved": {
+    "title": "Cambios sin guardar",
+    "message": "Tienes cambios sin guardar. ¿Guardar antes de salir?",
+    "discard": "Descartar",
+    "save": "Guardar"
   }
 }
