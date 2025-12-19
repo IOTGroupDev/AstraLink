@@ -6,7 +6,9 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -142,7 +144,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   });
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(Platform.OS === 'ios');
+    setShowPicker(false);
 
     if (selectedDate) {
       setDate(selectedDate);
@@ -200,7 +202,18 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
 
         <TouchableOpacity
           style={styles.inputWrapper}
-          onPress={() => setShowPicker(true)}
+          onPress={() => {
+            if (Platform.OS === 'android') {
+              DateTimePickerAndroid.open({
+                value: date,
+                mode,
+                is24Hour: true,
+                onChange: handleDateChange,
+              });
+            } else {
+              setShowPicker(true);
+            }
+          }}
           activeOpacity={0.7}
         >
           <Animated.Text style={animatedLabelStyle}>
@@ -221,7 +234,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
           value={date}
           mode={mode}
           is24Hour={true}
-          display="default"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}
           locale="ru-RU"
         />
