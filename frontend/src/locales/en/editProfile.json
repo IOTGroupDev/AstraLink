@@ -150,5 +150,11 @@
     "uploading": "Uploading...",
     "saving": "Saving...",
     "loading": "Loading..."
+  },
+  "unsaved": {
+    "title": "Unsaved changes",
+    "message": "You have unsaved changes. Save before leaving?",
+    "discard": "Discard",
+    "save": "Save"
   }
 }
