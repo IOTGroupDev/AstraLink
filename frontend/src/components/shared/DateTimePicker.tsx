@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Platform,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import DateTimePicker, {
   DateTimePickerAndroid,
@@ -269,6 +270,33 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginLeft: 20,
     fontWeight: '500',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    width: '90%',
+    maxWidth: 360,
+  },
+  modalButton: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
