@@ -684,6 +684,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             })}
           </View>
         </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             {t('editProfile.fields.lookingForGender')}
