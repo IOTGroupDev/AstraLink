@@ -14,7 +14,8 @@
     "birthPlace": "Birth Place",
     "city": "City",
     "bio": "Bio",
-    "gender": "Gender"
+    "gender": "Gender",
+    "lookingFor": "Looking for"
   },
   "placeholders": {
     "name": "Enter your name",

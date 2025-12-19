@@ -145,7 +145,9 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   });
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(false);
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
 
     if (selectedDate) {
       setDate(selectedDate);
@@ -231,14 +233,27 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
       {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode={mode}
-          is24Hour={true}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-          locale="ru-RU"
-        />
+        <Modal transparent animationType="fade" visible={showPicker}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalContent}>
+              <DateTimePicker
+                value={date}
+                mode={mode}
+                is24Hour={true}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                locale="ru-RU"
+                textColor="#FFFFFF"
+              />
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowPicker(false)}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
