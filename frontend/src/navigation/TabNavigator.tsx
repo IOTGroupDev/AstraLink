@@ -84,8 +84,9 @@ export default function TabNavigator() {
           // Плавная анимация переключения табов
           tabBarHideOnKeyboard: true,
           animation: 'shift',
-          lazy: false,
+          lazy: true,
           detachInactiveScreens: true,
+          freezeOnBlur: true,
           tabBarIcon: ({ focused, color, size }) => {
             // Только outline-иконки + opacity (активная 1.0, неактивная 0.5)
             const style = { opacity: focused ? 1 : 0.5 };

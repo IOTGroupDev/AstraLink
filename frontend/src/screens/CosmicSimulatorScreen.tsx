@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { chartAPI } from '../services/api';
@@ -63,6 +64,7 @@ type SimulatorTab = 'transits' | 'planets' | 'timeline' | 'lessons';
 
 export default function CosmicSimulatorScreen() {
   const { t, i18n } = useTranslation();
+  const hasLoadedRef = useRef(false);
 
   // Константы (до всех хуков)
   const screenWidth = width;
@@ -129,18 +131,6 @@ export default function CosmicSimulatorScreen() {
     neptune: 'Нептун',
     pluto: 'Плутон',
   };
-
-  useEffect(() => {
-    loadNatalChart();
-    selectDailyLesson();
-    fadeAnim.value = withTiming(1, { duration: 800 });
-
-    // Инициализация значения датапикера
-    const y = currentDate.getFullYear();
-    const m = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-    const d = currentDate.getDate().toString().padStart(2, '0');
-    setDatePickerValue(`${y}-${m}-${d}`);
-  }, []);
 
   useEffect(() => {
     if (natalChart) {
@@ -210,6 +200,22 @@ export default function CosmicSimulatorScreen() {
       setLoading(false);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (hasLoadedRef.current) return;
+      hasLoadedRef.current = true;
+      loadNatalChart();
+      selectDailyLesson();
+      fadeAnim.value = withTiming(1, { duration: 800 });
+
+      // Инициализация значения датапикера
+      const y = currentDate.getFullYear();
+      const m = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+      const d = currentDate.getDate().toString().padStart(2, '0');
+      setDatePickerValue(`${y}-${m}-${d}`);
+    }, [currentDate, fadeAnim])
+  );
 
   const loadTransitsForDate = async (date: Date) => {
     setTransitsLoading(true);

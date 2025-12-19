@@ -1,5 +1,5 @@
 // src/screens/HoroscopeScreen.tsx - Refactored with data fetching
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
@@ -34,6 +34,7 @@ const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const hasLoadedRef = useRef(false);
 
   // State для данных
   const [chart, setChart] = useState<Chart | null>(null);
@@ -99,7 +100,7 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Загрузка основных данных
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -237,7 +238,7 @@ const HoroscopeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, navigation, t]);
 
   // Загрузка прогнозов
   const loadAllPredictions = async () => {
@@ -396,11 +397,13 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Загрузка данных при монтировании
-  useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated || authLoading || hasLoadedRef.current) return;
+      hasLoadedRef.current = true;
       loadData();
-    }
-  }, [isAuthenticated, authLoading]);
+    }, [isAuthenticated, authLoading, loadData])
+  );
 
   // Загрузка прогнозов после получения основных данных
   useEffect(() => {
