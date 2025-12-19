@@ -39,5 +39,12 @@
   },
   "defaults": {
     "userName": "Usuario"
+  },
+  "completionModal": {
+    "title": "Completa tu perfil",
+    "message": "Tu perfil está completo en {percent}%. Rellénalo al menos al 70% para desbloquear todas las funciones.",
+    "editProfile": "Editar perfil",
+    "later": "Más tarde",
+    "dontShow": "No mostrar de nuevo"
   }
 }
