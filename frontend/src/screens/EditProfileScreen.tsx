@@ -99,6 +99,12 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     birthPlace: '',
   });
   const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
+  const [lookingFor, setLookingFor] = useState<
+    'relationship' | 'friendship' | 'communication' | 'somethingNew' | ''
+  >('');
+  const [lookingForGender, setLookingForGender] = useState<
+    'male' | 'female' | 'other' | ''
+  >('');
 
   const animationValue = useSharedValue(1);
 
@@ -153,6 +159,8 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setCity(userProfile.city || '');
         setSelectedInterests(userProfile.preferences?.interests || []);
         setGender((userProfile.gender as any) || '');
+        setLookingFor(userProfile.preferences?.lookingFor || '');
+        setLookingForGender(userProfile.preferences?.lookingForGender || '');
       } catch (err) {
         logger.info('No extended profile yet');
       }
@@ -390,6 +398,12 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       };
       if (city?.trim()) extPayload.city = city.trim();
       if (gender) extPayload.gender = gender;
+      if (lookingFor) {
+        extPayload.preferences.lookingFor = lookingFor;
+      }
+      if (lookingForGender) {
+        extPayload.preferences.lookingForGender = lookingForGender;
+      }
       await userExtendedProfileAPI.updateUserProfile(extPayload);
 
       Alert.alert(
@@ -624,6 +638,84 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     ]}
                   >
                     {t(`editProfile.gender.${g.key}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+        {/* Looking For */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.fields.lookingFor')}
+          </Text>
+          <View style={styles.interestsGrid}>
+            {[
+              { key: 'relationship', icon: 'heart' as const },
+              { key: 'friendship', icon: 'people' as const },
+              { key: 'communication', icon: 'chatbubbles' as const },
+              { key: 'somethingNew', icon: 'sparkles' as const },
+            ].map((option) => {
+              const isSelected = lookingFor === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected,
+                  ]}
+                  onPress={() => setLookingFor(option.key as any)}
+                >
+                  <Ionicons
+                    name={option.icon as any}
+                    size={18}
+                    color={isSelected ? '#fff' : '#8B5CF6'}
+                  />
+                  <Text
+                    style={[
+                      styles.interestText,
+                      isSelected && styles.interestTextSelected,
+                    ]}
+                  >
+                    {t(`dating.lookingFor.${option.key}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.fields.lookingForGender')}
+          </Text>
+          <View style={styles.interestsGrid}>
+            {[
+              { key: 'female', icon: 'female' as const },
+              { key: 'male', icon: 'male' as const },
+              { key: 'other', icon: 'male-female' as const },
+            ].map((option) => {
+              const isSelected = lookingForGender === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected,
+                  ]}
+                  onPress={() => setLookingForGender(option.key as any)}
+                >
+                  <Ionicons
+                    name={option.icon as any}
+                    size={18}
+                    color={isSelected ? '#fff' : '#8B5CF6'}
+                  />
+                  <Text
+                    style={[
+                      styles.interestText,
+                      isSelected && styles.interestTextSelected,
+                    ]}
+                  >
+                    {t(`editProfile.gender.${option.key}`)}
                   </Text>
                 </TouchableOpacity>
               );
