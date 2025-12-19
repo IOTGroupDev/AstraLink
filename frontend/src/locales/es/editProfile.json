@@ -15,7 +15,8 @@
     "city": "Ciudad",
     "bio": "Biografía",
     "gender": "Género",
-    "lookingFor": "Busco"
+    "lookingFor": "Busco",
+    "lookingForGender": "Busco"
   },
   "placeholders": {
     "name": "Ingresa tu nombre",

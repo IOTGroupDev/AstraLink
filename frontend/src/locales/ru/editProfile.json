@@ -15,7 +15,8 @@
     "city": "Город",
     "bio": "Биография",
     "gender": "Пол",
-    "lookingFor": "Кого хочу найти"
+    "lookingFor": "Кого хочу найти",
+    "lookingForGender": "Кого ищем"
   },
   "placeholders": {
     "name": "Введите ваше имя",
