@@ -22,6 +22,7 @@ import {
   getExtendedHouseSign,
 } from '../../modules/shared/astro-text';
 import type { PlanetKey, Sign } from '../../modules/shared/astro-text/types';
+import { GeoService } from '../../modules/geo/geo.service';
 
 @Injectable()
 export class NatalChartService {
@@ -33,6 +34,7 @@ export class NatalChartService {
     private interpretationService: InterpretationService,
     private redis: RedisService,
     private chartRepository: ChartRepository,
+    private geoService: GeoService,
   ) {}
 
   /**
@@ -84,7 +86,7 @@ export class NatalChartService {
     }
 
     const dateStr = birthDate.toISOString().split('T')[0];
-    const location = this.getLocationCoordinates(birthPlace);
+    const location = await this.resolveBirthLocation(birthPlace);
 
     // Fingerprint for birth data
     const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
@@ -177,7 +179,7 @@ export class NatalChartService {
         const bp = userProfile?.birth_place as string;
 
         const dateStr = new Date(bd).toISOString().split('T')[0];
-        const location = this.getLocationCoordinates(bp);
+        const location = await this.resolveBirthLocation(bp);
 
         const newNatal = await this.ephemerisService.calculateNatalChart(
           dateStr,
@@ -352,7 +354,9 @@ export class NatalChartService {
     const birthDate = new Date(user.birth_date as string);
     const birthTime = user.birth_time as string;
 
-    const location = this.getLocationCoordinates(user.birth_place as string);
+    const location = await this.resolveBirthLocation(
+      user.birth_place as string,
+    );
 
     const dateStr = birthDate.toISOString().split('T')[0];
 
@@ -476,6 +480,53 @@ export class NatalChartService {
     };
 
     return locations[birthPlace] || locations['default'];
+  }
+
+  private async resolveBirthLocation(
+    birthPlace: string,
+  ): Promise<{ latitude: number; longitude: number; timezone: number }> {
+    try {
+      const [suggestion] = await this.geoService.suggestCities(
+        birthPlace,
+        'ru',
+      );
+      if (suggestion) {
+        return {
+          latitude: suggestion.lat,
+          longitude: suggestion.lon,
+          timezone: this.parseTimezoneOffset(suggestion.tzid, birthPlace),
+        };
+      }
+    } catch (_e) {
+      // fallback to local lookup
+    }
+
+    return this.getLocationCoordinates(birthPlace);
+  }
+
+  private parseTimezoneOffset(timezone?: string, birthPlace?: string): number {
+    if (!timezone) {
+      return this.getLocationCoordinates(birthPlace || 'default').timezone;
+    }
+
+    if (/^[+-]?\d+(\.\d+)?$/.test(timezone)) {
+      const value = Number(timezone);
+      if (!Number.isNaN(value) && Math.abs(value) <= 14) {
+        return value;
+      }
+    }
+
+    const match = timezone.match(/UTC\s*([+-]\d{1,2})(?::(\d{2}))?/i);
+    if (match) {
+      const hours = Number(match[1]);
+      const minutes = match[2] ? Number(match[2]) : 0;
+      if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+        const sign = hours >= 0 ? 1 : -1;
+        return hours + sign * (minutes / 60);
+      }
+    }
+
+    return this.getLocationCoordinates(birthPlace || 'default').timezone;
   }
 
   /**

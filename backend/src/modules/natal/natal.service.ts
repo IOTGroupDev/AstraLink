@@ -7,6 +7,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { EphemerisService } from '@/services/ephemeris.service';
 import { InterpretationService } from '@/services/interpretation.service';
+import { GeoService } from '@/modules/geo/geo.service';
 
 @Injectable()
 export class NatalService {
@@ -15,6 +16,7 @@ export class NatalService {
     private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
     private interpretationService: InterpretationService,
+    private geoService: GeoService,
   ) {}
 
   /**
@@ -25,6 +27,7 @@ export class NatalService {
     birthDateISO: string,
     birthTime: string,
     birthPlace: string,
+    birthLocation?: { latitude: number; longitude: number; timezone?: string },
   ) {
     // Проверяем существующую карту
     const existing = await this.prisma.chart.findFirst({
@@ -55,7 +58,7 @@ export class NatalService {
     }
 
     const dateStr = birthDate.toISOString().split('T')[0];
-    const location = this.getLocationCoordinates(birthPlace);
+    const location = await this.resolveBirthLocation(birthPlace, birthLocation);
 
     // Рассчитываем натальную карту через Swiss Ephemeris
     const natalChartData = await this.ephemerisService.calculateNatalChart(
@@ -202,10 +205,11 @@ export class NatalService {
 
     if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
       // Fallback данные для демонстрации
+      const fallbackLocation = await this.resolveBirthLocation('Москва');
       const fallbackChartData = await this.ephemerisService.calculateNatalChart(
         '1990-05-15',
         '14:30',
-        this.getLocationCoordinates('Москва'),
+        fallbackLocation,
       );
 
       return {
@@ -220,7 +224,7 @@ export class NatalService {
     // Рассчитываем натальную карту
     const birthDate = new Date(user.birth_date).toISOString().split('T')[0];
     const birthTime = user.birth_time;
-    const location = this.getLocationCoordinates(user.birth_place);
+    const location = await this.resolveBirthLocation(user.birth_place);
 
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       birthDate,
@@ -273,5 +277,70 @@ export class NatalService {
     };
 
     return locations[birthPlace] || locations['default'];
+  }
+
+  private async resolveBirthLocation(
+    birthPlace: string,
+    birthLocation?: { latitude: number; longitude: number; timezone?: string },
+  ): Promise<{ latitude: number; longitude: number; timezone: number }> {
+    if (birthLocation) {
+      if (
+        birthLocation.latitude < -90 ||
+        birthLocation.latitude > 90 ||
+        birthLocation.longitude < -180 ||
+        birthLocation.longitude > 180
+      ) {
+        throw new BadRequestException('Некорректные координаты места рождения');
+      }
+
+      return {
+        latitude: birthLocation.latitude,
+        longitude: birthLocation.longitude,
+        timezone: this.parseTimezoneOffset(birthLocation.timezone, birthPlace),
+      };
+    }
+
+    try {
+      const [suggestion] = await this.geoService.suggestCities(
+        birthPlace,
+        'ru',
+      );
+      if (suggestion) {
+        return {
+          latitude: suggestion.lat,
+          longitude: suggestion.lon,
+          timezone: this.parseTimezoneOffset(suggestion.tzid, birthPlace),
+        };
+      }
+    } catch (_e) {
+      // fallback to local lookup
+    }
+
+    return this.getLocationCoordinates(birthPlace);
+  }
+
+  private parseTimezoneOffset(timezone?: string, birthPlace?: string): number {
+    if (!timezone) {
+      return this.getLocationCoordinates(birthPlace || 'default').timezone;
+    }
+
+    if (/^[+-]?\d+(\.\d+)?$/.test(timezone)) {
+      const value = Number(timezone);
+      if (!Number.isNaN(value) && Math.abs(value) <= 14) {
+        return value;
+      }
+    }
+
+    const match = timezone.match(/UTC\s*([+-]\d{1,2})(?::(\d{2}))?/i);
+    if (match) {
+      const hours = Number(match[1]);
+      const minutes = match[2] ? Number(match[2]) : 0;
+      if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+        const sign = hours >= 0 ? 1 : -1;
+        return hours + sign * (minutes / 60);
+      }
+    }
+
+    return this.getLocationCoordinates(birthPlace || 'default').timezone;
   }
 }
