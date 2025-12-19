@@ -39,5 +39,12 @@
   },
   "defaults": {
     "userName": "User"
+  },
+  "completionModal": {
+    "title": "Complete your profile",
+    "message": "Your profile is {percent}% complete. Fill it in to at least 70% to unlock all features.",
+    "editProfile": "Edit profile",
+    "later": "Later",
+    "dontShow": "Don't show again"
   }
 }
