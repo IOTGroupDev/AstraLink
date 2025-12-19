@@ -13,6 +13,7 @@ import personalCode from './personalCode.json';
 import cosmicSimulator from './cosmicSimulator.json';
 import onboarding from './onboarding.json';
 import zodiac from './zodiac.json';
+import connections from './connections.json';
 
 export default {
   common,
@@ -30,4 +31,5 @@ export default {
   cosmicSimulator,
   onboarding,
   zodiac,
+  connections,
 };

@@ -378,15 +378,21 @@ import { useOnboardingStore } from '../../stores/onboarding.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
 import { authLogger } from '../../services/logger';
+import { useTranslation } from 'react-i18next';
 
 const UserDataLoaderScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const onboardingData = useOnboardingStore((s) => s.data);
   const setOnboardingCompletedFlag = useOnboardingStore((s) => s.setCompleted);
   const resetOnboarding = useOnboardingStore((s) => s.reset);
   const { login, setOnboardingCompleted: setAuthOnboardingCompleted } =
     useAuthStore();
-  const [status, setStatus] = useState<string>('Подготовка среды...');
+  const [status, setStatus] = useState<string>(
+    t('auth.userDataLoader.initializing', {
+      defaultValue: 'Preparing environment...',
+    })
+  );
 
   useEffect(() => {
     void run();
@@ -394,7 +400,11 @@ const UserDataLoaderScreen: React.FC = () => {
 
   const formatBirthDate = (): string => {
     if (!onboardingData.birthDate) {
-      throw new Error('Дата рождения не указана');
+      throw new Error(
+        t('auth.userDataLoader.birthDateMissing', {
+          defaultValue: 'Birth date is not specified',
+        })
+      );
     }
     const { year, month, day } = onboardingData.birthDate;
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -457,14 +467,22 @@ const UserDataLoaderScreen: React.FC = () => {
 
   const run = async () => {
     try {
-      setStatus('Получение сессии...');
+      setStatus(
+        t('auth.userDataLoader.fetchingSession', {
+          defaultValue: 'Fetching session...',
+        })
+      );
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session) {
-        setStatus('Сессия не найдена, переход к входу...');
+        setStatus(
+          t('auth.userDataLoader.sessionNotFound', {
+            defaultValue: 'Session not found, redirecting to login...',
+          })
+        );
         // @ts-ignore
         navigation.reset({
           index: 0,
@@ -495,7 +513,11 @@ const UserDataLoaderScreen: React.FC = () => {
         // Продолжаем обычный flow (мягкая деградация)
       }
 
-      setStatus('Проверка профиля...');
+      setStatus(
+        t('auth.userDataLoader.checkingProfile', {
+          defaultValue: 'Checking profile...',
+        })
+      );
 
       let profile: any = null;
       try {
@@ -533,7 +555,12 @@ const UserDataLoaderScreen: React.FC = () => {
 
       // Если пользователь уже прошел онбординг в БД, пропускаем все проверки и идем в MainTabs
       if (isAlreadyOnboarded && profile && !needsOnboarding(profile)) {
-        setStatus('Пользователь уже прошел онбординг. Переход в приложение...');
+        setStatus(
+          t('auth.userDataLoader.onboardingComplete', {
+            defaultValue:
+              'User already completed onboarding. Redirecting to app...',
+          })
+        );
 
         setOnboardingCompletedFlag(true);
         await setAuthOnboardingCompleted(true);
@@ -541,7 +568,9 @@ const UserDataLoaderScreen: React.FC = () => {
         login({
           id: userId,
           email: userEmail,
-          name: profile.name || 'Пользователь',
+          name:
+            profile.name ||
+            t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
           birthDate: profile.birthDate
             ? new Date(profile.birthDate).toISOString().split('T')[0]
             : undefined,
@@ -550,23 +579,38 @@ const UserDataLoaderScreen: React.FC = () => {
           role: 'user',
         });
 
-        setStatus('Переход на главный экран...');
+        setStatus(
+          t('auth.userDataLoader.goingToMain', {
+            defaultValue: 'Heading to main screen...',
+          })
+        );
         goMainTabs();
         return;
       }
 
       if (profile && !needsOnboarding(profile)) {
-        setStatus('Профиль полный. Проверка карты и подписки...');
+        setStatus(
+          t('auth.userDataLoader.profileComplete', {
+            defaultValue:
+              'Profile complete. Checking chart and subscription...',
+          })
+        );
 
         const verification = await verifyProvisioning(userId);
 
         if (!verification.chartOk || !verification.subscriptionOk) {
-          setStatus('Создание карты и подписки...');
+          setStatus(
+            t('auth.userDataLoader.creatingResources', {
+              defaultValue: 'Creating chart and subscription...',
+            })
+          );
 
           try {
             await authAPI.completeSignup({
               userId,
-              name: profile.name || 'Пользователь',
+              name:
+                profile.name ||
+                t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
               birthDate: profile.birthDate
                 ? new Date(profile.birthDate).toISOString().split('T')[0]
                 : '1990-01-01',
@@ -582,7 +626,11 @@ const UserDataLoaderScreen: React.FC = () => {
 
           for (let i = 0; i < maxAttempts; i++) {
             setStatus(
-              `Проверка подготовки (попытка ${i + 1}/${maxAttempts})...`
+              t('auth.userDataLoader.provisionCheck', {
+                attempt: i + 1,
+                maxAttempts,
+                defaultValue: `Checking preparation (attempt ${i + 1}/${maxAttempts})...`,
+              })
             );
             await new Promise((r) => setTimeout(r, 700));
 
@@ -595,7 +643,12 @@ const UserDataLoaderScreen: React.FC = () => {
           }
 
           if (!success) {
-            setStatus('Не удалось завершить подготовку. Попробуйте перезайти.');
+            setStatus(
+              t('auth.userDataLoader.preparationFailed', {
+                defaultValue:
+                  'Could not finish preparation. Please re-open the app.',
+              })
+            );
             return;
           }
         }
@@ -603,7 +656,9 @@ const UserDataLoaderScreen: React.FC = () => {
         login({
           id: userId,
           email: userEmail,
-          name: profile.name || 'Пользователь',
+          name:
+            profile.name ||
+            t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
           birthDate: profile.birthDate
             ? new Date(profile.birthDate).toISOString().split('T')[0]
             : undefined,
@@ -624,13 +679,21 @@ const UserDataLoaderScreen: React.FC = () => {
           // не блокируем поток
         }
 
-        setStatus('Переход на главный экран...');
+        setStatus(
+          t('auth.userDataLoader.goingToMain', {
+            defaultValue: 'Heading to main screen...',
+          })
+        );
         goMainTabs();
         return;
       }
 
       if (hasOnboardingData) {
-        setStatus('Завершение регистрации...');
+        setStatus(
+          t('auth.userDataLoader.finishingRegistration', {
+            defaultValue: 'Completing registration...',
+          })
+        );
 
         await authAPI.completeSignup({
           userId,
@@ -640,13 +703,23 @@ const UserDataLoaderScreen: React.FC = () => {
           birthPlace: onboardingData.birthPlace?.city || 'Moscow',
         });
 
-        setStatus('Проверка данных...');
+        setStatus(
+          t('auth.userDataLoader.validatingData', {
+            defaultValue: 'Validating data...',
+          })
+        );
         const maxAttempts = 1;
         let provisionOk = false;
         let dbProfile: any = null;
 
         for (let i = 0; i < maxAttempts; i++) {
-          setStatus(`Проверка подготовки (попытка ${i + 1}/${maxAttempts})...`);
+          setStatus(
+            t('auth.userDataLoader.provisionCheck', {
+              attempt: i + 1,
+              maxAttempts,
+              defaultValue: `Checking preparation (attempt ${i + 1}/${maxAttempts})...`,
+            })
+          );
           await new Promise((r) => setTimeout(r, 700));
 
           const res = await verifyProvisioning(userId);
@@ -659,14 +732,22 @@ const UserDataLoaderScreen: React.FC = () => {
         }
 
         if (!provisionOk) {
-          setStatus('Не удалось завершить регистрацию. Попробуйте перезайти.');
+          setStatus(
+            t('auth.userDataLoader.registrationFailed', {
+              defaultValue:
+                'Could not finish registration. Please re-open the app.',
+            })
+          );
           return;
         }
 
         login({
           id: userId,
           email: userEmail,
-          name: dbProfile?.name || onboardingData.name || 'Пользователь',
+          name:
+            dbProfile?.name ||
+            onboardingData.name ||
+            t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
           birthDate: dbProfile?.birthDate
             ? new Date(dbProfile.birthDate).toISOString().split('T')[0]
             : formatBirthDate(),
@@ -678,7 +759,11 @@ const UserDataLoaderScreen: React.FC = () => {
           role: 'user',
         });
 
-        setStatus('Завершение онбординга...');
+        setStatus(
+          t('auth.userDataLoader.finishingOnboarding', {
+            defaultValue: 'Finishing onboarding...',
+          })
+        );
         setOnboardingCompletedFlag(true);
         await setAuthOnboardingCompleted(true);
 
@@ -695,12 +780,20 @@ const UserDataLoaderScreen: React.FC = () => {
           resetOnboarding();
         } catch {}
 
-        setStatus('Переход на главный экран...');
+        setStatus(
+          t('auth.userDataLoader.goingToMain', {
+            defaultValue: 'Heading to main screen...',
+          })
+        );
         goMainTabs();
         return;
       }
 
-      setStatus('Переход к онбордингу...');
+      setStatus(
+        t('auth.userDataLoader.goingToOnboarding', {
+          defaultValue: 'Redirecting to onboarding...',
+        })
+      );
       // @ts-ignore
       navigation.reset({
         index: 0,
@@ -708,7 +801,11 @@ const UserDataLoaderScreen: React.FC = () => {
       });
     } catch (e: any) {
       authLogger.error('UserDataLoader error:', e);
-      setStatus('Произошла ошибка. Переход к входу...');
+      setStatus(
+        t('auth.userDataLoader.errorRedirect', {
+          defaultValue: 'An error occurred. Redirecting to login...',
+        })
+      );
 
       setTimeout(() => {
         // @ts-ignore
@@ -725,7 +822,9 @@ const UserDataLoaderScreen: React.FC = () => {
       <View style={styles.content}>
         <ActivityIndicator size="large" color={AUTH_COLORS.loaderPrimary} />
         <Text style={styles.text}>
-          {Platform.OS === 'web' ? 'Завершаем вход...' : 'Завершаем вход...'}
+          {t('auth.userDataLoader.completingSignIn', {
+            defaultValue: 'Finalizing sign-in...',
+          })}
         </Text>
         <Text style={styles.hint}>{status}</Text>
       </View>

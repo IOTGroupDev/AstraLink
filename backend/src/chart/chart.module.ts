@@ -6,6 +6,7 @@ import { SupabaseModule } from '../supabase/supabase.module';
 import { ServicesModule } from '../services/services.module';
 import { RepositoriesModule } from '../repositories';
 import { RedisModule } from '../redis/redis.module';
+import { GeoModule } from '@/modules/geo/geo.module';
 import {
   NatalChartService,
   TransitService,
@@ -24,6 +25,7 @@ import { PersonalCodeController } from '@/chart/services/personal-code.controlle
     RepositoriesModule,
     ServicesModule,
     RedisModule,
+    GeoModule,
   ],
   controllers: [ChartController, PersonalCodeController],
   providers: [

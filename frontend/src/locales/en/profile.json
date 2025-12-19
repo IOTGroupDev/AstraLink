@@ -39,5 +39,13 @@
   },
   "defaults": {
     "userName": "User"
+  },
+  "completionModal": {
+    "title": "Complete your profile",
+    "message": "Your profile is {percent}% complete. Fill it in to at least 70% to unlock all features.",
+    "caption": "Cosmic checklist",
+    "editProfile": "Edit profile",
+    "later": "Later",
+    "dontShow": "Don't show again"
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import Animated, { useSharedValue } from 'react-native-reanimated';
+import { CommonActions } from '@react-navigation/native';
 import {
   userAPI,
   userPhotosAPI,
@@ -91,6 +94,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -99,8 +103,16 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     birthPlace: '',
   });
   const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
+  const [lookingFor, setLookingFor] = useState<
+    'relationship' | 'friendship' | 'communication' | 'somethingNew' | ''
+  >('');
+  const [lookingForGender, setLookingForGender] = useState<
+    'male' | 'female' | 'other' | ''
+  >('');
 
   const animationValue = useSharedValue(1);
+  const initialSnapshotRef = useRef<string | null>(null);
+  const pendingNavActionRef = useRef<any>(null);
 
   // Create translated interests array
   const INTERESTS: Interest[] = React.useMemo(
@@ -116,18 +128,92 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     loadData();
   }, []);
 
+  const buildSnapshot = ({
+    formValues,
+    bioValue,
+    cityValue,
+    genderValue,
+    lookingForValue,
+    lookingForGenderValue,
+    interestsValue,
+  }: {
+    formValues: typeof formData;
+    bioValue: string;
+    cityValue: string;
+    genderValue: typeof gender;
+    lookingForValue: typeof lookingFor;
+    lookingForGenderValue: typeof lookingForGender;
+    interestsValue: string[];
+  }) =>
+    JSON.stringify({
+      formValues: {
+        name: formValues.name.trim(),
+        birthDate: formValues.birthDate.trim(),
+        birthTime: formValues.birthTime.trim(),
+        birthPlace: formValues.birthPlace.trim(),
+      },
+      bioValue: bioValue.trim(),
+      cityValue: cityValue.trim(),
+      genderValue,
+      lookingForValue,
+      lookingForGenderValue,
+      interestsValue: [...interestsValue].sort(),
+    });
+
+  const currentSnapshot = useMemo(
+    () =>
+      buildSnapshot({
+        formValues: formData,
+        bioValue: bio,
+        cityValue: city,
+        genderValue: gender,
+        lookingForValue: lookingFor,
+        lookingForGenderValue: lookingForGender,
+        interestsValue: selectedInterests,
+      }),
+    [
+      formData,
+      bio,
+      city,
+      gender,
+      lookingFor,
+      lookingForGender,
+      selectedInterests,
+    ]
+  );
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialSnapshotRef.current) return false;
+    return currentSnapshot !== initialSnapshotRef.current;
+  }, [currentSnapshot]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
+      if (saving || !hasUnsavedChanges) {
+        return;
+      }
+
+      event.preventDefault();
+      pendingNavActionRef.current = event.data.action;
+      setShowUnsavedModal(true);
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges, saving]);
+
   const loadData = async () => {
     try {
       setLoading(true);
       const profileData = await userAPI.getProfile();
       setProfile(profileData);
 
-      setFormData({
+      const nextFormData = {
         name: profileData.name || '',
         birthDate: profileData.birthDate || '',
         birthTime: profileData.birthTime || '',
         birthPlace: profileData.birthPlace || '',
-      });
+      };
+      setFormData(nextFormData);
 
       // Load photos - оборачиваем в try-catch
       try {
@@ -147,15 +233,39 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
 
       // Load profile data (bio, interests) - тоже оборачиваем
+      let nextBio = '';
+      let nextCity = '';
+      let nextSelectedInterests: string[] = [];
+      let nextGender: typeof gender = '';
+      let nextLookingFor: typeof lookingFor = '';
+      let nextLookingForGender: typeof lookingForGender = '';
       try {
         const userProfile = await userExtendedProfileAPI.getUserProfile();
-        setBio(userProfile.bio || '');
-        setCity(userProfile.city || '');
-        setSelectedInterests(userProfile.preferences?.interests || []);
-        setGender((userProfile.gender as any) || '');
+        nextBio = userProfile.bio || '';
+        nextCity = userProfile.city || '';
+        nextSelectedInterests = userProfile.preferences?.interests || [];
+        nextGender = (userProfile.gender as any) || '';
+        nextLookingFor = userProfile.preferences?.lookingFor || '';
+        nextLookingForGender = userProfile.preferences?.lookingForGender || '';
+        setBio(nextBio);
+        setCity(nextCity);
+        setSelectedInterests(nextSelectedInterests);
+        setGender(nextGender);
+        setLookingFor(nextLookingFor);
+        setLookingForGender(nextLookingForGender);
       } catch (err) {
         logger.info('No extended profile yet');
       }
+
+      initialSnapshotRef.current = buildSnapshot({
+        formValues: nextFormData,
+        bioValue: nextBio,
+        cityValue: nextCity,
+        genderValue: nextGender,
+        lookingForValue: nextLookingFor,
+        lookingForGenderValue: nextLookingForGender,
+        interestsValue: nextSelectedInterests,
+      });
     } catch (error) {
       logger.error('Error loading data', error);
       Alert.alert(
@@ -390,7 +500,15 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       };
       if (city?.trim()) extPayload.city = city.trim();
       if (gender) extPayload.gender = gender;
+      if (lookingFor) {
+        extPayload.preferences.lookingFor = lookingFor;
+      }
+      if (lookingForGender) {
+        extPayload.preferences.lookingForGender = lookingForGender;
+      }
       await userExtendedProfileAPI.updateUserProfile(extPayload);
+
+      initialSnapshotRef.current = currentSnapshot;
 
       Alert.alert(
         t('editProfile.alerts.profileSaved.title'),
@@ -406,6 +524,23 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleBackPress = () => {
+    if (!hasUnsavedChanges) {
+      navigation.goBack();
+      return;
+    }
+
+    pendingNavActionRef.current = CommonActions.goBack();
+    setShowUnsavedModal(true);
+  };
+
+  const handleDiscardChanges = () => {
+    setShowUnsavedModal(false);
+    const action = pendingNavActionRef.current || CommonActions.goBack();
+    pendingNavActionRef.current = null;
+    navigation.dispatch(action);
   };
 
   if (loading) {
@@ -428,10 +563,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.title}>{t('editProfile.title')}</Text>
@@ -630,6 +762,85 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             })}
           </View>
         </View>
+        {/* Looking For */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.fields.lookingFor')}
+          </Text>
+          <View style={styles.interestsGrid}>
+            {[
+              { key: 'relationship', icon: 'heart' as const },
+              { key: 'friendship', icon: 'people' as const },
+              { key: 'communication', icon: 'chatbubbles' as const },
+              { key: 'somethingNew', icon: 'sparkles' as const },
+            ].map((option) => {
+              const isSelected = lookingFor === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected,
+                  ]}
+                  onPress={() => setLookingFor(option.key as any)}
+                >
+                  <Ionicons
+                    name={option.icon as any}
+                    size={18}
+                    color={isSelected ? '#fff' : '#8B5CF6'}
+                  />
+                  <Text
+                    style={[
+                      styles.interestText,
+                      isSelected && styles.interestTextSelected,
+                    ]}
+                  >
+                    {t(`dating.lookingFor.${option.key}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('editProfile.fields.lookingForGender')}
+          </Text>
+          <View style={styles.interestsGrid}>
+            {[
+              { key: 'female', icon: 'female' as const },
+              { key: 'male', icon: 'male' as const },
+              { key: 'other', icon: 'male-female' as const },
+            ].map((option) => {
+              const isSelected = lookingForGender === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected,
+                  ]}
+                  onPress={() => setLookingForGender(option.key as any)}
+                >
+                  <Ionicons
+                    name={option.icon as any}
+                    size={18}
+                    color={isSelected ? '#fff' : '#8B5CF6'}
+                  />
+                  <Text
+                    style={[
+                      styles.interestText,
+                      isSelected && styles.interestTextSelected,
+                    ]}
+                  >
+                    {t(`editProfile.gender.${option.key}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
         {/* Bio */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
@@ -730,6 +941,42 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
+      <Modal transparent animationType="fade" visible={showUnsavedModal}>
+        <Pressable
+          style={styles.unsavedOverlay}
+          onPress={() => setShowUnsavedModal(false)}
+        >
+          <Pressable style={styles.unsavedModal} onPress={() => null}>
+            <Text style={styles.unsavedTitle}>
+              {t('editProfile.unsaved.title')}
+            </Text>
+            <Text style={styles.unsavedMessage}>
+              {t('editProfile.unsaved.message')}
+            </Text>
+            <View style={styles.unsavedActions}>
+              <TouchableOpacity
+                style={[styles.unsavedButton, styles.unsavedDiscardButton]}
+                onPress={handleDiscardChanges}
+              >
+                <Text style={styles.unsavedDiscardText}>
+                  {t('editProfile.unsaved.discard')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.unsavedButton, styles.unsavedSaveButton]}
+                onPress={() => {
+                  setShowUnsavedModal(false);
+                  handleSave();
+                }}
+              >
+                <Text style={styles.unsavedSaveText}>
+                  {t('editProfile.unsaved.save')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -965,6 +1212,60 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  unsavedOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  unsavedModal: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#1E1B2E',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+  },
+  unsavedTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  unsavedMessage: {
+    fontSize: 14,
+    color: '#D1D5DB',
+    marginBottom: 20,
+  },
+  unsavedActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  unsavedButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  unsavedDiscardButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+  },
+  unsavedSaveButton: {
+    backgroundColor: '#8B5CF6',
+  },
+  unsavedDiscardText: {
+    color: '#C4B5FD',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  unsavedSaveText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
