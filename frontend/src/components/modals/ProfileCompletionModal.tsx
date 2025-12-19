@@ -9,6 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
+import StarSVG from '@assets/lunar/star.svg';
+import LibraSVG from '@assets/zodiac/libra.svg';
 
 interface ProfileCompletionModalProps {
   visible: boolean;
@@ -33,6 +36,26 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     <Modal transparent animationType="fade" visible={visible}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.modal} onPress={() => null}>
+          <View style={styles.header}>
+            <LinearGradient
+              colors={['rgba(139, 92, 246, 0.35)', 'rgba(30, 27, 46, 0)']}
+              style={styles.headerGlow}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <View style={styles.headerRow}>
+              <StarSVG width={28} height={28} />
+              <View style={styles.headerCenter}>
+                <View style={styles.percentBadge}>
+                  <Text style={styles.percentText}>{completionPercent}%</Text>
+                </View>
+                <Text style={styles.headerCaption}>
+                  {t('profile.completionModal.caption')}
+                </Text>
+              </View>
+              <LibraSVG width={36} height={36} />
+            </View>
+          </View>
           <Text style={styles.title}>{t('profile.completionModal.title')}</Text>
           <Text style={styles.message}>
             {t('profile.completionModal.message', {
@@ -87,6 +110,44 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.4)',
+  },
+  header: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(18, 17, 33, 0.8)',
+  },
+  headerGlow: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  headerCenter: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  percentBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+  },
+  percentText: {
+    color: '#EDE9FE',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  headerCaption: {
+    color: '#C4B5FD',
+    fontSize: 12,
+    letterSpacing: 0.4,
   },
   title: {
     fontSize: 20,
