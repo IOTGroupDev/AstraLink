@@ -1,5 +1,5 @@
 // src/screens/HoroscopeScreen.tsx - Refactored with data fetching
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
@@ -20,13 +20,6 @@ import MainTransitWidget from '../components/horoscope/MainTransitWidget';
 import BiorhythmsWidget from '../components/horoscope/BiorhythmsWidget';
 import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
 import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecommendationWidget';
-import {
-  LargeWidgetSkeleton,
-  SmallCardsSkeleton,
-  HoroscopeWidgetSkeleton,
-  EnergyWidgetSkeleton,
-  BiorhythmsWidgetSkeleton,
-} from '../components/horoscope/HoroscopeSkeletons';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { Chart, TransitsResponse } from '../types/index';
@@ -41,7 +34,6 @@ const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const hasLoadedRef = useRef(false);
 
   // State для данных
   const [chart, setChart] = useState<Chart | null>(null);
@@ -107,7 +99,7 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Загрузка основных данных
-  const loadData = useCallback(async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
 
@@ -245,7 +237,7 @@ const HoroscopeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, navigation, t]);
+  };
 
   // Загрузка прогнозов
   const loadAllPredictions = async () => {
@@ -404,13 +396,11 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Загрузка данных при монтировании
-  useFocusEffect(
-    useCallback(() => {
-      if (!isAuthenticated || authLoading || hasLoadedRef.current) return;
-      hasLoadedRef.current = true;
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
       loadData();
-    }, [isAuthenticated, authLoading, loadData])
-  );
+    }
+  }, [isAuthenticated, authLoading]);
 
   // Загрузка прогнозов после получения основных данных
   useEffect(() => {
@@ -510,59 +500,47 @@ const HoroscopeScreen: React.FC = () => {
           {/* Основной контент */}
           <View style={styles.contentContainer}>
             {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
-            {loading ? (
-              <>
-                <LargeWidgetSkeleton />
-                <SmallCardsSkeleton />
-                <SmallCardsSkeleton />
-              </>
-            ) : (
-              <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
-            )}
+            <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
 
             {/* Рекомендация дня (нормализованные данные для виджета) */}
-            {loading ? (
-              <LargeWidgetSkeleton />
-            ) : (
-              natalPlanetsObj && transitPlanetsArr.length > 0 && (
-                <PlanetaryRecommendationWidget
-                  natalPlanets={natalPlanetsObj}
-                  transitPlanets={transitPlanetsArr}
-                />
-              )
+            {natalPlanetsObj && transitPlanetsArr.length > 0 && (
+              <PlanetaryRecommendationWidget
+                natalPlanets={natalPlanetsObj}
+                transitPlanets={transitPlanetsArr}
+                navigation={navigation}
+              />
             )}
 
             {/* Виджет энергии */}
-            {loading ? (
-              <EnergyWidgetSkeleton />
-            ) : (
+            {!loading && (
               <EnergyWidget energy={energyValue} message={energyMessage} />
             )}
 
             {/* Виджет главный транзит */}
-            {loading ? (
-              <LargeWidgetSkeleton />
-            ) : (
-              mainTransit && <MainTransitWidget transitData={mainTransit} />
+            {!loading && mainTransit && (
+              <MainTransitWidget transitData={mainTransit} />
             )}
 
             {/* Гороскоп виджет */}
-            {!predictions && loading ? (
-              <HoroscopeWidgetSkeleton />
-            ) : predictions ? (
-              <HoroscopeWidget predictions={predictions} />
-            ) : null}
+            {predictions && <HoroscopeWidget predictions={predictions} />}
 
             {/* Виджет Биоритмы */}
-            {!biorhythms && loading ? (
-              <BiorhythmsWidgetSkeleton />
-            ) : biorhythms ? (
+            {biorhythms && (
               <BiorhythmsWidget
                 physical={biorhythms.physical}
                 emotional={biorhythms.emotional}
                 intellectual={biorhythms.intellectual}
               />
-            ) : null}
+            )}
+
+            {/* Placeholder для будущих виджетов */}
+            {loading && (
+              <View style={styles.placeholder}>
+                <Text style={styles.placeholderText}>
+                  {t('horoscope.loading')}
+                </Text>
+              </View>
+            )}
             {/*<View>*/}
             {/*  <PersonalCodeScreen />*/}
             {/*</View>*/}

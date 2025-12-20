@@ -15,6 +15,7 @@ import Svg, {
   RadialGradient,
   Stop,
 } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
@@ -43,6 +44,7 @@ interface PlanetaryRecommendationWidgetProps {
   transitPlanets: PlanetPosition[] | string | any;
   onPress?: () => void;
   isLoading?: boolean;
+  navigation?: any;
 }
 
 // Функция для получения цвета планеты
@@ -252,146 +254,25 @@ const aspectRu: Record<string, string> = {
   trine: 'трин',
   opposition: 'оппозиция',
 };
-// Интерпретации для благоприятных аспектов
-const positiveInterpretations: Record<string, Record<string, string>> = {
-  sun: {
-    trine: 'Отличный день для самореализации и творчества. Ваша энергия на пике, используйте её для важных дел',
-    sextile: 'Благоприятное время для начинаний и общения. Окружающие готовы поддержать ваши инициативы',
-    conjunction: 'Мощный день для проявления лидерских качеств. Время действовать решительно и уверенно',
-  },
-  moon: {
-    trine: 'Ваша интуиция особенно сильна. Прислушайтесь к внутреннему голосу, доверяйте чувствам',
-    sextile: 'Гармония в отношениях и эмоциональный комфорт. Хорошо для семейных дел и заботы о близких',
-    conjunction: 'Эмоции обострены, но это помогает лучше понять себя. Занимайтесь тем, что приносит радость',
-  },
-  mercury: {
-    trine: 'Ясность мышления и лёгкость в общении. Идеально для переговоров, учебы и обмена информацией',
-    sextile: 'Хороший день для планирования и решения интеллектуальных задач. Ваши идеи будут услышаны',
-    conjunction: 'Обострённое восприятие и быстрота реакций. Время для важных решений и деловых контактов',
-  },
-  venus: {
-    trine: 'Гармония в любви и творчестве. Наслаждайтесь красотой, занимайтесь искусством, встречайтесь с любимыми',
-    sextile: 'Благоприятен для романтики и социальных связей. Хорошо для покупок и улучшения внешнего вида',
-    conjunction: 'Усиление привлекательности и обаяния. Время для любовных признаний и творческих проектов',
-  },
-  mars: {
-    trine: 'Энергия бьёт ключом. Направьте её на физическую активность, спорт или реализацию амбициозных целей',
-    sextile: 'Продуктивный день для активных действий. Смело беритесь за сложные задачи, силы на вашей стороне',
-    conjunction: 'Пик энергии и решимости. Отстаивайте свои интересы, но контролируйте агрессию',
-  },
-  jupiter: {
-    trine: 'День везения и расширения возможностей. Смотрите шире, рискуйте разумно, учитесь новому',
-    sextile: 'Благоприятен для роста и развития. Инвестируйте в образование, путешествия, духовный поиск',
-    conjunction: 'Возможности приходят сами. Будьте открыты новому опыту и щедры с окружающими',
-  },
-  saturn: {
-    trine: 'Структура и дисциплина дают результаты. Занимайтесь долгосрочным планированием и серьёзными делами',
-    sextile: 'Хорошо для работы над фундаментальными задачами. Терпение и усердие принесут успех',
-    conjunction: 'Время для серьёзных обязательств и ответственных решений. Закладывайте прочный фундамент',
-  },
-  uranus: {
-    trine: 'Благоприятны неожиданные изменения и инновации. Экспериментируйте, пробуйте новые подходы',
-    sextile: 'Творческие озарения и свежие идеи. Время для оригинальных решений и технологических проектов',
-    conjunction: 'Прорывные идеи и освобождение от старого. Будьте открыты переменам и уникальным возможностям',
-  },
-  neptune: {
-    trine: 'Обострённая интуиция и творческое вдохновение. Занимайтесь искусством, медитацией, духовными практиками',
-    sextile: 'Усиление воображения и сострадания. Помогайте другим, развивайте таланты, мечтайте',
-    conjunction: 'Растворение границ и мистические переживания. Доверяйте интуиции, но сохраняйте заземление',
-  },
-  pluto: {
-    trine: 'Глубокая трансформация протекает гармонично. Освобождайтесь от отжившего, обновляйтесь',
-    sextile: 'Возможность использовать скрытые ресурсы. Работайте с подсознанием, исследуйте глубины',
-    conjunction: 'Мощная энергия трансформации. Кардинальные перемены к лучшему, если не сопротивляться',
-  },
-};
-
-// Интерпретации для напряженных аспектов
-const negativeInterpretations: Record<string, Record<string, string>> = {
-  sun: {
-    square: 'Возможны конфликты с авторитетами. Избегайте эго-баталий, не настаивайте на своём любой ценой',
-    opposition: 'Напряжение между желаниями и обстоятельствами. Ищите компромиссы, не действуйте импульсивно',
-  },
-  moon: {
-    square: 'Эмоциональная нестабильность. Не принимайте важных решений, отложите сложные разговоры',
-    opposition: 'Внутренние противоречия и беспокойство. Позаботьтесь о себе, избегайте стрессовых ситуаций',
-  },
-  mercury: {
-    square: 'Возможны недопонимания и ошибки в общении. Перепроверяйте информацию, будьте внимательны к деталям',
-    opposition: 'Сложности с концентрацией и принятием решений. Не подписывайте важные документы, отложите переговоры',
-  },
-  venus: {
-    square: 'Дисгармония в отношениях и финансах. Избегайте крупных покупок и выяснения отношений',
-    opposition: 'Сложности в любви и самооценке. Не принимайте близко к сердцу критику, отложите романтические решения',
-  },
-  mars: {
-    square: 'Повышенная раздражительность и конфликтность. Избегайте споров, не предпринимайте рискованных действий',
-    opposition: 'Опасность импульсивности и несчастных случаев. Будьте осторожны, контролируйте гнев',
-  },
-  jupiter: {
-    square: 'Риск переоценить силы или возможности. Избегайте излишеств, азартных игр, необоснованного оптимизма',
-    opposition: 'Конфликт между амбициями и реальностью. Умерьте аппетиты, не раздувайте проблемы',
-  },
-  saturn: {
-    square: 'Ограничения и препятствия. Не форсируйте события, примите временные трудности как урок',
-    opposition: 'Давление обстоятельств и чувство тяжести. Отдохните от больших нагрузок, не берите новых обязательств',
-  },
-  uranus: {
-    square: 'Непредсказуемость и нервное напряжение. Избегайте резких перемен, не принимайте спонтанных решений',
-    opposition: 'Бунтарство и желание всё разрушить. Сдерживайте импульсивность, не рвите связи необдуманно',
-  },
-  neptune: {
-    square: 'Иллюзии и самообман. Не доверяйте слепо обещаниям, избегайте токсичных веществ и отношений',
-    opposition: 'Путаница и неясность. Отложите важные решения, проверяйте факты, не витайте в облаках',
-  },
-  pluto: {
-    square: 'Силовое давление и манипуляции. Не вступайте в борьбу за власть, избегайте одержимости',
-    opposition: 'Кризис и необходимость отпустить контроль. Не сопротивляйтесь неизбежным переменам',
-  },
-};
-
 function buildRecommendations(transits: TransitData[]) {
   const positive: string[] = [];
   const negative: string[] = [];
-
   for (const t of transits) {
-    const planetKey = t.target?.toLowerCase?.() || t.target;
+    const targetName =
+      planetRu[t.target?.toLowerCase?.() || t.target] || t.target;
+    const aspect = aspectRu[t.type] || t.type;
     const isPositive =
       t.type === 'trine' || t.type === 'sextile' || t.type === 'conjunction';
-
-    let line = '';
-
+    const line = isPositive
+      ? `${aspect} с ${targetName} — благоприятно действовать`
+      : `${aspect} с ${targetName} — избегайте импульсивности`;
     if (isPositive) {
-      // Получаем детальную интерпретацию для благоприятных аспектов
-      const planetInterp = positiveInterpretations[planetKey];
-      if (planetInterp && planetInterp[t.type]) {
-        line = planetInterp[t.type];
-      } else {
-        // Fallback на простую интерпретацию
-        const targetName = planetRu[planetKey] || t.target;
-        const aspect = aspectRu[t.type] || t.type;
-        line = `${aspect} с ${targetName} — благоприятное влияние для действий`;
-      }
-
       if (positive.length < 3) positive.push(line);
     } else {
-      // Получаем детальную интерпретацию для напряженных аспектов
-      const planetInterp = negativeInterpretations[planetKey];
-      if (planetInterp && planetInterp[t.type]) {
-        line = planetInterp[t.type];
-      } else {
-        // Fallback на простую интерпретацию
-        const targetName = planetRu[planetKey] || t.target;
-        const aspect = aspectRu[t.type] || t.type;
-        line = `${aspect} с ${targetName} — избегайте импульсивных решений`;
-      }
-
       if (negative.length < 3) negative.push(line);
     }
-
     if (positive.length >= 3 && negative.length >= 3) break;
   }
-
   return { positive, negative };
 }
 
@@ -657,9 +538,9 @@ const PlanetaryRecommendationWidget: React.FC<
       activeOpacity={0.9}
     >
       <LinearGradient
-        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-        start={{ x: 0, y: 0.44 }}
-        end={{ x: 0, y: 1 }}
+        colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
         <View style={styles.content}>
@@ -671,86 +552,37 @@ const PlanetaryRecommendationWidget: React.FC<
           {/* Карта */}
           <View style={styles.chartWrapper}>{renderAstrologyChart()}</View>
 
-          {/* Рекомендации: Что можно делать / Чего лучше избегать */}
-          {(positiveRecs.length > 0 || negativeRecs.length > 0) && (
-            <View style={styles.adviceContainer}>
-              {/* Что можно делать сегодня */}
-              {positiveRecs.length > 0 && (
-                <View style={styles.adviceCard}>
-                  <View style={styles.adviceTitleRow}>
-                    <View style={styles.adviceIconWrapper}>
-                      <Svg width={20} height={20} viewBox="0 0 20 20">
-                        <Circle cx="10" cy="10" r="9.75" fill="#10B981" />
-                        <Circle
-                          cx="10"
-                          cy="10"
-                          r="9.75"
-                          stroke="#fff"
-                          strokeWidth="0.5"
-                          fill="none"
-                        />
-                        {/* Галочка */}
-                        <G transform="translate(6, 7)">
-                          <Circle cx="2" cy="4" r="0.8" fill="#fff" />
-                          <Circle cx="3.5" cy="5.5" r="0.8" fill="#fff" />
-                          <Circle cx="7" cy="1.5" r="0.8" fill="#fff" />
-                        </G>
-                      </Svg>
-                    </View>
-                    <Text style={styles.adviceTitle}>
-                      Что можно делать сегодня
-                    </Text>
-                  </View>
-                  {positiveRecs.map((s, i) => (
-                    <Text key={`pos-${i}`} style={styles.adviceItem}>
-                      • {s}
-                    </Text>
-                  ))}
-                </View>
-              )}
-
-              {/* Чего лучше избегать сегодня */}
-              {negativeRecs.length > 0 && (
-                <View style={styles.adviceCard}>
-                  <View style={styles.adviceTitleRow}>
-                    <View style={styles.adviceIconWrapper}>
-                      <Svg width={20} height={20} viewBox="0 0 20 20">
-                        <Circle cx="10" cy="10" r="9.75" fill="#EF4444" />
-                        <Circle
-                          cx="10"
-                          cy="10"
-                          r="9.75"
-                          stroke="#fff"
-                          strokeWidth="0.5"
-                          fill="none"
-                        />
-                        {/* Крестик */}
-                        <G>
-                          <Circle cx="7" cy="7" r="0.9" fill="#fff" />
-                          <Circle cx="8.5" cy="8.5" r="0.9" fill="#fff" />
-                          <Circle cx="10" cy="10" r="0.9" fill="#fff" />
-                          <Circle cx="11.5" cy="11.5" r="0.9" fill="#fff" />
-                          <Circle cx="13" cy="13" r="0.9" fill="#fff" />
-                          <Circle cx="13" cy="7" r="0.9" fill="#fff" />
-                          <Circle cx="11.5" cy="8.5" r="0.9" fill="#fff" />
-                          <Circle cx="8.5" cy="11.5" r="0.9" fill="#fff" />
-                          <Circle cx="7" cy="13" r="0.9" fill="#fff" />
-                        </G>
-                      </Svg>
-                    </View>
-                    <Text style={styles.adviceTitle}>
-                      Чего лучше избегать сегодня
-                    </Text>
-                  </View>
-                  {negativeRecs.map((s, i) => (
-                    <Text key={`neg-${i}`} style={styles.adviceItem}>
-                      • {s}
-                    </Text>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
+          {/* Рекомендации: Плюсы / Что избегать */}
+          {/*{(positiveRecs.length > 0 || negativeRecs.length > 0) && (*/}
+          {/*  <View style={styles.adviceContainer}>*/}
+          {/*    <View style={styles.adviceRow}>*/}
+          {/*      <View style={styles.adviceCard}>*/}
+          {/*        <Text style={styles.adviceTitle}>Плюсы</Text>*/}
+          {/*        {positiveRecs.length === 0 ? (*/}
+          {/*          <Text style={styles.adviceItem}>—</Text>*/}
+          {/*        ) : (*/}
+          {/*          positiveRecs.map((s, i) => (*/}
+          {/*            <Text key={`pos-${i}`} style={styles.adviceItem}>*/}
+          {/*              • {s}*/}
+          {/*            </Text>*/}
+          {/*          ))*/}
+          {/*        )}*/}
+          {/*      </View>*/}
+          {/*      <View style={styles.adviceCard}>*/}
+          {/*        <Text style={styles.adviceTitle}>Что избегать</Text>*/}
+          {/*        {negativeRecs.length === 0 ? (*/}
+          {/*          <Text style={styles.adviceItem}>—</Text>*/}
+          {/*        ) : (*/}
+          {/*          negativeRecs.map((s, i) => (*/}
+          {/*            <Text key={`neg-${i}`} style={styles.adviceItem}>*/}
+          {/*              • {s}*/}
+          {/*            </Text>*/}
+          {/*          ))*/}
+          {/*        )}*/}
+          {/*      </View>*/}
+          {/*    </View>*/}
+          {/*  </View>*/}
+          {/*)}*/}
 
           {/* Статус */}
           <View style={styles.footer}>
@@ -847,36 +679,29 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     gap: 8,
   },
+  adviceRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   adviceCard: {
+    flex: 1,
     backgroundColor: 'rgba(10,10,10,0.35)',
     borderRadius: 10,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  adviceTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 8,
-  },
-  adviceIconWrapper: {
-    width: 20,
-    height: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   adviceTitle: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 14,
-    flex: 1,
+    marginBottom: 6,
   },
   adviceItem: {
-    fontSize: 11,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.85)',
     marginBottom: 4,
-    lineHeight: 14,
   },
   statusRow: {
     flexDirection: 'row',
