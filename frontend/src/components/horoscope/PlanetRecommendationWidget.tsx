@@ -550,37 +550,50 @@ const PlanetaryRecommendationWidget: React.FC<
           {/* Карта */}
           <View style={styles.chartWrapper}>{renderAstrologyChart()}</View>
 
-          {/* Рекомендации: Плюсы / Что избегать */}
-          {/*{(positiveRecs.length > 0 || negativeRecs.length > 0) && (*/}
-          {/*  <View style={styles.adviceContainer}>*/}
-          {/*    <View style={styles.adviceRow}>*/}
-          {/*      <View style={styles.adviceCard}>*/}
-          {/*        <Text style={styles.adviceTitle}>Плюсы</Text>*/}
-          {/*        {positiveRecs.length === 0 ? (*/}
-          {/*          <Text style={styles.adviceItem}>—</Text>*/}
-          {/*        ) : (*/}
-          {/*          positiveRecs.map((s, i) => (*/}
-          {/*            <Text key={`pos-${i}`} style={styles.adviceItem}>*/}
-          {/*              • {s}*/}
-          {/*            </Text>*/}
-          {/*          ))*/}
-          {/*        )}*/}
-          {/*      </View>*/}
-          {/*      <View style={styles.adviceCard}>*/}
-          {/*        <Text style={styles.adviceTitle}>Что избегать</Text>*/}
-          {/*        {negativeRecs.length === 0 ? (*/}
-          {/*          <Text style={styles.adviceItem}>—</Text>*/}
-          {/*        ) : (*/}
-          {/*          negativeRecs.map((s, i) => (*/}
-          {/*            <Text key={`neg-${i}`} style={styles.adviceItem}>*/}
-          {/*              • {s}*/}
-          {/*            </Text>*/}
-          {/*          ))*/}
-          {/*        )}*/}
-          {/*      </View>*/}
-          {/*    </View>*/}
-          {/*  </View>*/}
-          {/*)}*/}
+          {/* Рекомендации: Что можно делать / Чего лучше избегать */}
+          {(positiveRecs.length > 0 || negativeRecs.length > 0) && (
+            <View style={styles.adviceContainer}>
+              <View style={styles.adviceRow}>
+                {/* Что можно делать сегодня */}
+                <View style={styles.adviceCard}>
+                  <View style={styles.adviceTitleRow}>
+                    <Text style={styles.adviceTitleIcon}>✓</Text>
+                    <Text style={styles.adviceTitle}>
+                      Что можно{'\n'}делать сегодня
+                    </Text>
+                  </View>
+                  {positiveRecs.length === 0 ? (
+                    <Text style={styles.adviceItem}>—</Text>
+                  ) : (
+                    positiveRecs.map((s, i) => (
+                      <Text key={`pos-${i}`} style={styles.adviceItem}>
+                        • {s}
+                      </Text>
+                    ))
+                  )}
+                </View>
+
+                {/* Чего лучше избегать сегодня */}
+                <View style={styles.adviceCard}>
+                  <View style={styles.adviceTitleRow}>
+                    <Text style={styles.adviceTitleIconNegative}>✗</Text>
+                    <Text style={styles.adviceTitle}>
+                      Чего лучше{'\n'}избегать сегодня
+                    </Text>
+                  </View>
+                  {negativeRecs.length === 0 ? (
+                    <Text style={styles.adviceItem}>—</Text>
+                  ) : (
+                    negativeRecs.map((s, i) => (
+                      <Text key={`neg-${i}`} style={styles.adviceItem}>
+                        • {s}
+                      </Text>
+                    ))
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Статус */}
           <View style={styles.footer}>
@@ -690,16 +703,36 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
-  adviceTitle: {
-    fontSize: 13,
+  adviceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 8,
+  },
+  adviceTitleIcon: {
+    fontSize: 16,
     fontWeight: '700',
+    color: '#10B981',
+    marginTop: 2,
+  },
+  adviceTitleIconNegative: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#EF4444',
+    marginTop: 2,
+  },
+  adviceTitle: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 6,
+    lineHeight: 14,
+    flex: 1,
   },
   adviceItem: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.85)',
     marginBottom: 4,
+    lineHeight: 14,
   },
   statusRow: {
     flexDirection: 'row',
