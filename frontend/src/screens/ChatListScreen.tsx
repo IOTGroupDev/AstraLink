@@ -18,6 +18,7 @@ import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 import { logger } from '../services/logger';
+import { ChatListSkeleton } from '../components/chat/ChatListItemSkeleton';
 
 type ConversationItem = {
   otherUserId: string;
@@ -419,10 +420,7 @@ export default function ChatListScreen() {
 
       {/* Индикатор загрузки */}
       {loading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>{t('chatList.loading')}</Text>
-        </View>
+        <ChatListSkeleton count={8} />
       ) : (
         <>
           {/* Ошибка */}

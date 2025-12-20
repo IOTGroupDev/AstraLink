@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,6 +24,7 @@ import {
 } from '../services/zodiac.service';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import { logger } from '../services/logger';
+import { DatingCardSkeleton } from '../components/dating/DatingCardSkeleton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -350,9 +350,8 @@ export default function DatingScreen() {
 
           {/* Content */}
           {loadingCards ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#8B5CF6" />
-              <Text style={styles.loadingText}>{t('dating.loading')}</Text>
+            <View style={styles.cardContainer}>
+              <DatingCardSkeleton />
             </View>
           ) : !current ? (
             <View style={styles.emptyContainer}>
