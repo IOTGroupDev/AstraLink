@@ -18,7 +18,7 @@ export const DatingCardSkeleton: React.FC = () => {
     <View style={styles.container}>
       <BlurView intensity={10} tint="dark" style={styles.card}>
         <LinearGradient
-          colors={theme.gradients.skeleton}
+          colors={theme.gradients.lunar}
           start={{ x: 0, y: 0.44 }}
           end={{ x: 0, y: 1 }}
           style={styles.gradient}

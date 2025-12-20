@@ -58,7 +58,7 @@ export const ProfileSkeleton: React.FC = () => {
           />
           <BlurView intensity={10} tint="dark" style={styles.subscriptionCard}>
             <LinearGradient
-              colors={theme.gradients.skeleton}
+              colors={theme.gradients.lunar}
               start={{ x: 0, y: 0.44 }}
               end={{ x: 0, y: 1 }}
               style={styles.cardGradient}
@@ -88,7 +88,7 @@ export const ProfileSkeleton: React.FC = () => {
           />
           <BlurView intensity={10} tint="dark" style={styles.chartCard}>
             <LinearGradient
-              colors={theme.gradients.skeleton}
+              colors={theme.gradients.lunar}
               start={{ x: 0, y: 0.44 }}
               end={{ x: 0, y: 1 }}
               style={styles.cardGradient}
@@ -134,7 +134,7 @@ export const ProfileSkeleton: React.FC = () => {
           />
           <BlurView intensity={10} tint="dark" style={styles.settingsCard}>
             <LinearGradient
-              colors={theme.gradients.skeleton}
+              colors={theme.gradients.lunar}
               start={{ x: 0, y: 0.44 }}
               end={{ x: 0, y: 1 }}
               style={styles.settingsGradient}
