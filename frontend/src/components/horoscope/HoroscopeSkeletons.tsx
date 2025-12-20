@@ -12,7 +12,7 @@ export const LargeWidgetSkeleton: React.FC = () => {
   return (
     <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
       <LinearGradient
-        colors={theme.gradients.skeleton}
+        colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradient}
@@ -35,7 +35,7 @@ export const SmallCardsSkeleton: React.FC = () => {
   return (
     <View style={styles.row}>
       <LinearGradient
-        colors={theme.gradients.skeleton}
+        colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
         style={[styles.smallCard, { marginRight: 8 }]}
@@ -50,7 +50,7 @@ export const SmallCardsSkeleton: React.FC = () => {
       </LinearGradient>
 
       <LinearGradient
-        colors={theme.gradients.skeleton}
+        colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
         style={[styles.smallCard, { marginLeft: 8 }]}
@@ -74,7 +74,7 @@ export const HoroscopeWidgetSkeleton: React.FC = () => {
   return (
     <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
       <LinearGradient
-        colors={theme.gradients.skeleton}
+        colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradient}
@@ -104,7 +104,7 @@ export const EnergyWidgetSkeleton: React.FC = () => {
   return (
     <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
       <LinearGradient
-        colors={theme.gradients.skeleton}
+        colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradient}
@@ -140,7 +140,7 @@ export const BiorhythmsWidgetSkeleton: React.FC = () => {
   return (
     <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
       <LinearGradient
-        colors={theme.gradients.skeleton}
+        colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradient}
