@@ -507,6 +507,7 @@ const HoroscopeScreen: React.FC = () => {
               <PlanetaryRecommendationWidget
                 natalPlanets={natalPlanetsObj}
                 transitPlanets={transitPlanetsArr}
+                navigation={navigation}
               />
             )}
 

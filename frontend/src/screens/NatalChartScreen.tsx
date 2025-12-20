@@ -202,18 +202,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
   const interpretation = chartData.data?.interpretation;
 
-  // Логирование для проверки структуры
-  logger.info('Деструктуризация данных карты', {
-    hasPlanets: !!planets,
-    hasHouses: !!houses,
-    hasAspects: !!aspects,
-    hasAscendant: !!ascendant,
-    hasMidheaven: !!midheaven,
-    planetsCount: planets ? Object.keys(planets).length : 0,
-    housesCount: houses ? Object.keys(houses).length : 0,
-    aspectsCount: aspects ? aspects.length : 0,
-  });
-
   // Вкладки
   const tabs: Array<{
     id: 'overview' | 'planets' | 'houses' | 'aspects' | 'summary';

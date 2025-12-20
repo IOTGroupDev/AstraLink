@@ -152,9 +152,9 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
   if (isLoading) {
     return (
       <LinearGradient
-        colors={['rgba(35, 0, 45, 0.4)', 'rgba(89, 2, 114, 0.4)']}
-        start={{ x: 0.5, y: 1 }}
-        end={{ x: 0.5, y: 0 }}
+        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+        start={{ x: 0, y: 0.44 }}
+        end={{ x: 0, y: 1 }}
         style={styles.container}
       >
         <LinearGradient

@@ -306,9 +306,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['rgba(35, 0, 45, 0.4)', 'rgba(56, 8, 72, 0.4)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+        start={{ x: 0, y: 0.44 }}
+        end={{ x: 0, y: 1 }}
         style={styles.card}
       >
         <View style={styles.header}>
@@ -429,9 +429,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             onPress={(e) => e.stopPropagation()}
           >
             <LinearGradient
-              colors={['rgba(35, 0, 45, 0.98)', 'rgba(56, 8, 72, 0.98)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+              colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+              start={{ x: 0, y: 0.44 }}
+              end={{ x: 0, y: 1 }}
               style={styles.modalGradient}
             >
               <View style={styles.modalHeader}>

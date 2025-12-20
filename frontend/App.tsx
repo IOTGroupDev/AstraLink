@@ -2,6 +2,7 @@ import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import 'react-native-get-random-values';
+import './src/utils/disableConsole'; // Disable console in production
 
 import { TextEncoder, TextDecoder } from 'text-encoding';
 if (typeof globalThis.TextEncoder === 'undefined')
@@ -18,6 +19,7 @@ import { initSupabaseAuth } from './src/services/supabase';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { userExtendedProfileAPI } from './src/services/api';
 import { useAuthStore } from './src/stores/auth.store';
+import { logger } from './src/services/logger';
 import { enableScreens } from 'react-native-screens';
 enableScreens(true);
 
@@ -31,29 +33,29 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        console.log('🚀 Starting app initialization...');
+        logger.log('Starting app initialization...');
 
         // Add timeout to prevent indefinite hanging
         const initTimeout = setTimeout(() => {
-          console.warn('⚠️ App initialization timeout - continuing anyway');
+          logger.warn('App initialization timeout - continuing anyway');
           setBooted(true);
         }, 10000); // 10 second timeout
 
         try {
           const { i18nReady } = await import('./src/i18n');
           await i18nReady;
-          console.log('✅ i18n initialized');
+          logger.log('i18n initialized');
         } catch (i18nErr) {
-          console.error('❌ i18n initialization failed:', i18nErr);
+          logger.error('i18n initialization failed:', i18nErr);
           // Continue anyway - app can work without i18n
         }
 
         try {
           // Инициализируем Supabase (который инициализирует tokenService внутри)
           await initSupabaseAuth();
-          console.log('✅ Supabase auth initialized');
+          logger.log('Supabase auth initialized');
         } catch (supabaseErr) {
-          console.error('❌ Supabase initialization failed:', supabaseErr);
+          logger.error('Supabase initialization failed:', supabaseErr);
           // Continue - user will be logged out but app should work
         }
 
@@ -68,24 +70,22 @@ export default function App() {
             const ext = await userExtendedProfileAPI.getUserProfile();
             if (ext?.is_onboarded === true) {
               await setOnboardingCompleted(true);
-              console.log(
-                '✅ Onboarding flag synced from DB (is_onboarded=true)'
-              );
+              logger.log('Onboarding flag synced from DB (is_onboarded=true)');
             }
           } catch (syncErr) {
-            console.log(
-              'ℹ️ Onboarding flag sync skipped:',
+            logger.log(
+              'Onboarding flag sync skipped:',
               syncErr?.message || syncErr
             );
           }
         } else {
-          console.log('ℹ️ User not authenticated, skipping profile sync');
+          logger.log('User not authenticated, skipping profile sync');
         }
 
         clearTimeout(initTimeout);
-        console.log('✅ App initialization complete');
+        logger.log('App initialization complete');
       } catch (err) {
-        console.error('❌ App initialization error:', err);
+        logger.error('App initialization error:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
         // Even if there's an error, boot the app after a delay
         setTimeout(() => setBooted(true), 2000);

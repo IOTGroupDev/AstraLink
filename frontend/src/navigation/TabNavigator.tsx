@@ -20,6 +20,81 @@ import { calculateProfileCompletion } from '../screens/Auth/utils/onboardingutil
 const Tab = createBottomTabNavigator();
 const PROFILE_COMPLETION_HIDE_KEY = 'profile_completion_hide_popup';
 
+// Мемоизированный компонент иконки с бейджем для оптимизации производительности
+const TabBarIconWithBadge = React.memo(
+  ({
+    name,
+    size,
+    color,
+    opacity,
+  }: {
+    name: keyof typeof Ionicons.glyphMap;
+    size: number;
+    color: string;
+    opacity: number;
+  }) => {
+    const badgeSize = 16;
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={name} size={size} color={color} style={{ opacity }} />
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            right: -10,
+            minWidth: badgeSize,
+            height: badgeSize,
+            paddingHorizontal: 4,
+            borderRadius: badgeSize / 2,
+            backgroundColor: '#EF4444',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.9)',
+          }}
+        >
+          <Text
+            style={{
+              color: '#FFFFFF',
+              fontSize: 9,
+              fontWeight: '700',
+              lineHeight: 10,
+            }}
+          >
+            AI
+          </Text>
+        </View>
+      </View>
+    );
+  }
+);
+
+// Функция определения иконки по названию маршрута
+const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
+  switch (routeName) {
+    case 'Horoscope':
+      return 'planet-outline';
+    case 'CosmicSimulator':
+      return 'time-outline';
+    case 'Dating':
+      return 'heart-outline';
+    case 'Advisor':
+    case 'Messages':
+      return 'chatbubbles-outline';
+    case 'Profile':
+      return 'person-circle-outline';
+    default:
+      return 'ellipse-outline';
+  }
+};
+
 export default function TabNavigator() {
   const navigation = useNavigation<any>();
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -84,78 +159,32 @@ export default function TabNavigator() {
           // Плавная анимация переключения табов
           tabBarHideOnKeyboard: true,
           animation: 'shift',
-          lazy: false,
+          lazy: true,
           detachInactiveScreens: true,
+          freezeOnBlur: true,
           tabBarIcon: ({ focused, color, size }) => {
-            // Только outline-иконки + opacity (активная 1.0, неактивная 0.5)
-            const style = { opacity: focused ? 1 : 0.5 };
-            let name: keyof typeof Ionicons.glyphMap = 'ellipse-outline';
+            const opacity = focused ? 1 : 0.5;
+            const name = getIconName(route.name);
 
-            if (route.name === 'Horoscope') {
-              name = 'planet-outline';
-            } else if (route.name === 'CosmicSimulator') {
-              name = 'time-outline';
-            } else if (route.name === 'Dating') {
-              name = 'heart-outline';
-            } else if (route.name === 'Advisor') {
-              name = 'chatbubbles-outline';
-            } else if (route.name === 'Messages') {
-              name = 'chatbubbles-outline';
-            } else if (route.name === 'Profile') {
-              name = 'person-circle-outline';
-            }
-
-            // Добавляем красный бейдж "AI" для вкладки Советник (всегда отображается)
+            // Используем мемоизированный компонент с бейджем для вкладки Advisor
             if (route.name === 'Advisor') {
-              const badgeSize = 16;
               return (
-                <View
-                  style={{
-                    width: size,
-                    height: size,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Ionicons
-                    name={name}
-                    size={size}
-                    color={color}
-                    style={style}
-                  />
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -2,
-                      right: -10,
-                      minWidth: badgeSize,
-                      height: badgeSize,
-                      paddingHorizontal: 4,
-                      borderRadius: badgeSize / 2,
-                      backgroundColor: '#EF4444',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.9)',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: '#FFFFFF',
-                        fontSize: 9,
-                        fontWeight: '700',
-                        lineHeight: 10,
-                      }}
-                    >
-                      AI
-                    </Text>
-                  </View>
-                </View>
+                <TabBarIconWithBadge
+                  name={name}
+                  size={size}
+                  color={color}
+                  opacity={opacity}
+                />
               );
             }
 
             return (
-              <Ionicons name={name} size={size} color={color} style={style} />
+              <Ionicons
+                name={name}
+                size={size}
+                color={color}
+                style={{ opacity }}
+              />
             );
           },
           tabBarActiveTintColor: '#ffffff',

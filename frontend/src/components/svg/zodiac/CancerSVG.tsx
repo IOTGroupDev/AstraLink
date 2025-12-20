@@ -1,5 +1,5 @@
 import React from 'react';
-import CancerSVG from '@/assets/zodiac/cancer.svg';
+import CancerSVG from '../../../../assets/zodiac/cancer.svg';
 
 interface CancerSvgProps {
   width?: number;

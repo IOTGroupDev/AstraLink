@@ -15,6 +15,7 @@ import Svg, {
   RadialGradient,
   Stop,
 } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
@@ -43,6 +44,7 @@ interface PlanetaryRecommendationWidgetProps {
   transitPlanets: PlanetPosition[] | string | any;
   onPress?: () => void;
   isLoading?: boolean;
+  navigation?: any;
 }
 
 // Функция для получения цвета планеты
