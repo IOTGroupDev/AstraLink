@@ -557,7 +557,25 @@ const PlanetaryRecommendationWidget: React.FC<
                 {/* Что можно делать сегодня */}
                 <View style={styles.adviceCard}>
                   <View style={styles.adviceTitleRow}>
-                    <Text style={styles.adviceTitleIcon}>✓</Text>
+                    <View style={styles.adviceIconWrapper}>
+                      <Svg width={20} height={20} viewBox="0 0 20 20">
+                        <Circle cx="10" cy="10" r="9.75" fill="#10B981" />
+                        <Circle
+                          cx="10"
+                          cy="10"
+                          r="9.75"
+                          stroke="#fff"
+                          strokeWidth="0.5"
+                          fill="none"
+                        />
+                        {/* Галочка */}
+                        <G transform="translate(6, 7)">
+                          <Circle cx="2" cy="4" r="0.8" fill="#fff" />
+                          <Circle cx="3.5" cy="5.5" r="0.8" fill="#fff" />
+                          <Circle cx="7" cy="1.5" r="0.8" fill="#fff" />
+                        </G>
+                      </Svg>
+                    </View>
                     <Text style={styles.adviceTitle}>
                       Что можно{'\n'}делать сегодня
                     </Text>
@@ -576,7 +594,31 @@ const PlanetaryRecommendationWidget: React.FC<
                 {/* Чего лучше избегать сегодня */}
                 <View style={styles.adviceCard}>
                   <View style={styles.adviceTitleRow}>
-                    <Text style={styles.adviceTitleIconNegative}>✗</Text>
+                    <View style={styles.adviceIconWrapper}>
+                      <Svg width={20} height={20} viewBox="0 0 20 20">
+                        <Circle cx="10" cy="10" r="9.75" fill="#EF4444" />
+                        <Circle
+                          cx="10"
+                          cy="10"
+                          r="9.75"
+                          stroke="#fff"
+                          strokeWidth="0.5"
+                          fill="none"
+                        />
+                        {/* Крестик */}
+                        <G>
+                          <Circle cx="7" cy="7" r="0.9" fill="#fff" />
+                          <Circle cx="8.5" cy="8.5" r="0.9" fill="#fff" />
+                          <Circle cx="10" cy="10" r="0.9" fill="#fff" />
+                          <Circle cx="11.5" cy="11.5" r="0.9" fill="#fff" />
+                          <Circle cx="13" cy="13" r="0.9" fill="#fff" />
+                          <Circle cx="13" cy="7" r="0.9" fill="#fff" />
+                          <Circle cx="11.5" cy="8.5" r="0.9" fill="#fff" />
+                          <Circle cx="8.5" cy="11.5" r="0.9" fill="#fff" />
+                          <Circle cx="7" cy="13" r="0.9" fill="#fff" />
+                        </G>
+                      </Svg>
+                    </View>
                     <Text style={styles.adviceTitle}>
                       Чего лучше{'\n'}избегать сегодня
                     </Text>
@@ -706,20 +748,12 @@ const styles = StyleSheet.create({
   adviceTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 6,
+    gap: 8,
     marginBottom: 8,
   },
-  adviceTitleIcon: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#10B981',
-    marginTop: 2,
-  },
-  adviceTitleIconNegative: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#EF4444',
-    marginTop: 2,
+  adviceIconWrapper: {
+    width: 20,
+    height: 20,
   },
   adviceTitle: {
     fontSize: 11,
