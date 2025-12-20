@@ -500,15 +500,15 @@ const UserDataLoaderScreen: React.FC = () => {
         const ext = await userExtendedProfileAPI.getUserProfile();
         if (ext?.is_onboarded === true) {
           isAlreadyOnboarded = true;
-          console.log('✅ User is marked as onboarded in DB');
+          authLogger.log('User is marked as onboarded in DB');
         }
       } catch (e: any) {
         // Различаем 401 и другие ошибки
         const status = e?.response?.status;
         if (status === 401) {
-          console.log('⚠️ Not authenticated, continuing with onboarding flow');
+          authLogger.log('Not authenticated, continuing with onboarding flow');
         } else {
-          console.warn('⚠️ Profile sync failed:', e?.message);
+          authLogger.warn('Profile sync failed:', e?.message);
         }
         // Продолжаем обычный flow (мягкая деградация)
       }
@@ -529,7 +529,7 @@ const UserDataLoaderScreen: React.FC = () => {
           authLogger.warn(
             'Profile check: 401 Unauthorized - token missing or invalid'
           );
-          console.log('⚠️ Authentication error when checking profile');
+          authLogger.log('Authentication error when checking profile');
         } else if (status === 404) {
           authLogger.warn(
             'Profile check: 404 Not Found - creating minimal profile'
@@ -538,7 +538,7 @@ const UserDataLoaderScreen: React.FC = () => {
           try {
             await userAPI.updateProfile({} as any);
             profile = await userAPI.getProfile();
-            console.log('✅ Minimal profile created successfully');
+            authLogger.log('Minimal profile created successfully');
           } catch (provisionErr) {
             authLogger.warn('Profile auto-provision failed:', provisionErr);
           }
