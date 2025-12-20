@@ -8,7 +8,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { theme } from '@/styles/theme';
+import { theme } from '../../../styles/theme';
 
 interface SkeletonLoaderProps {
   /**

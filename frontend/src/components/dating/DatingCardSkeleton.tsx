@@ -2,8 +2,8 @@ import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SkeletonLoader } from '@/components/shared/SkeletonLoader';
-import { theme } from '@/styles/theme';
+import { SkeletonLoader } from '../shared/SkeletonLoader';
+import { theme } from '../../styles/theme';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width - 48;

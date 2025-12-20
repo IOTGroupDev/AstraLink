@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SkeletonLoader } from '../shared/SkeletonLoader';
-import { theme } from '@/styles/theme';
+import { theme } from '../../styles/theme';
 
 /**
  * Скелетон для большого виджета (LunarCalendar, MainTransit, etc.)
