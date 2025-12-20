@@ -29,8 +29,9 @@ class Logger {
   private prefix: string;
 
   constructor(options: LoggerOptions = {}) {
-    // Only enable logging in development mode
-    this.enabled = options.enabled ?? __DEV__;
+    // Logging disabled globally for performance
+    // To re-enable: logger.setEnabled(true) or use __enableConsole()
+    this.enabled = options.enabled ?? false;
     this.prefix = options.prefix ?? '';
   }
 

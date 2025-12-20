@@ -45,9 +45,9 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
   if (isLoading) {
     return (
       <LinearGradient
-        colors={['rgba(35, 0, 45, 0.4)', 'rgba(158,0,200,0.4)']}
-        start={{ x: 0.5, y: 1 }}
-        end={{ x: 0.5, y: 0 }}
+        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+        start={{ x: 0, y: 0.44 }}
+        end={{ x: 0, y: 1 }}
         style={styles.container}
       >
         <View style={styles.innerContainer}>
@@ -62,9 +62,9 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
 
   return (
     <LinearGradient
-      colors={['rgba(35, 0, 45, 0.4)', 'rgba(158,0,200,0.4)']}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
+      colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+      start={{ x: 0, y: 0.44 }}
+      end={{ x: 0, y: 1 }}
       style={styles.container}
     >
       <View style={styles.innerContainer}>

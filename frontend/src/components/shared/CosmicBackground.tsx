@@ -311,7 +311,7 @@ const MeteorComponent: React.FC<{ meteor: Meteor }> = React.memo(
 );
 
 const CosmicBackground: React.FC = () => {
-  const stars = useMemo(() => generateStars(70), []);
+  const stars = useMemo(() => generateStars(30), []);
   const meteors = useMemo(() => generateMeteors(), []);
 
   return (

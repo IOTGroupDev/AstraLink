@@ -60,6 +60,10 @@ export const theme = {
     water: ['#5F27CD', '#341F97'],
     success: ['#10B981', '#059669'],
     warning: ['#F59E0B', '#D97706'],
+    // Лунный градиент для карточек (как в LunarCalendarWidget)
+    lunar: ['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)'],
+    // Для skeleton loaders
+    skeleton: ['rgba(35, 0, 45, 0.6)', 'rgba(88, 1, 114, 0.6)'],
   },
 
   /**

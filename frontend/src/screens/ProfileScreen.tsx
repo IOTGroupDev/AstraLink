@@ -41,6 +41,7 @@ import {
 } from 'react-native-safe-area-context';
 import { logger } from '../services/logger';
 import LanguageSelector from '../components/settings/LanguageSelector';
+import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -271,10 +272,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaViewSAC
+        style={styles.container}
+        edges={['top', 'left', 'right']}
+      >
         <CosmicBackground />
-        <LoadingIndicator />
-      </View>
+        <ProfileSkeleton />
+      </SafeAreaViewSAC>
     );
   }
 

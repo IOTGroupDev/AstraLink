@@ -24,9 +24,9 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
       <View style={styles.container}>
         <BlurView intensity={10} style={styles.blurContainer}>
           <LinearGradient
-            colors={['rgba(35, 0, 46, 0.4)', 'rgba(89, 1, 114, 0.4)']}
-            start={{ x: 0.5, y: 1 }}
-            end={{ x: 0.5, y: 0 }}
+            colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+            start={{ x: 0, y: 0.44 }}
+            end={{ x: 0, y: 1 }}
             style={styles.gradient}
           >
             <LinearGradient
