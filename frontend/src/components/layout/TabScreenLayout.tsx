@@ -1,5 +1,5 @@
 // src/components/layout/TabScreenLayout.tsx
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -12,12 +12,15 @@ interface TabScreenLayoutProps {
   contentContainerStyle?: any;
 }
 
-export function TabScreenLayout({
+export const TabScreenLayout = React.memo(function TabScreenLayout({
   children,
   scrollable = true,
   edges = ['top', 'left', 'right'], // bottom исключён из-за TabBar
   contentContainerStyle,
 }: TabScreenLayoutProps) {
+  // Отслеживаем первый рендер для оптимизации анимации
+  const hasAnimated = useRef(false);
+
   const content = scrollable ? (
     <ScrollView
       style={styles.scrollView}
@@ -30,21 +33,24 @@ export function TabScreenLayout({
     <View style={[styles.content, contentContainerStyle]}>{children}</View>
   );
 
+  // Применяем анимацию только при первом рендере
+  const entering = !hasAnimated.current
+    ? FadeInDown.duration(400).springify().damping(15).stiffness(100)
+    : undefined;
+
+  if (!hasAnimated.current) {
+    hasAnimated.current = true;
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={edges}>
       <CosmicBackground />
-      <Animated.View
-        entering={FadeInDown.duration(400)
-          .springify()
-          .damping(15)
-          .stiffness(100)}
-        style={styles.animatedContainer}
-      >
+      <Animated.View entering={entering} style={styles.animatedContainer}>
         {content}
       </Animated.View>
     </SafeAreaView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
