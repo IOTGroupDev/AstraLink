@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { SkeletonLoader } from '@/components/shared/SkeletonLoader';
+import { SkeletonLoader } from '../shared/SkeletonLoader';
 
 /**
  * ChatListItemSkeleton - скелетон для элемента списка чатов

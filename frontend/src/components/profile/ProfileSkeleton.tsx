@@ -2,8 +2,8 @@ import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SkeletonLoader } from '@/components/shared/SkeletonLoader';
-import { theme } from '@/styles/theme';
+import { SkeletonLoader } from '../shared/SkeletonLoader';
+import { theme } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 

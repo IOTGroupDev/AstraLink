@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { theme } from '@/styles/theme';
-import { commonStyles } from '@/styles/commonStyles';
+import { theme } from '../../styles/theme';
+import { commonStyles } from '../../styles/commonStyles';
 
 interface LoadingIndicatorProps {
   size?: 'small' | 'large';
