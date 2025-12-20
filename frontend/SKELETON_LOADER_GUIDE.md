@@ -11,8 +11,8 @@ Skeleton loaders созданы для улучшения UX во время з�
 ### Градиенты
 
 ```typescript
-theme.gradients.lunar // Полноцветные карточки
-theme.gradients.skeleton // Для skeleton loaders (с прозрачностью)
+theme.gradients.lunar; // Полноцветные карточки
+theme.gradients.skeleton; // Для skeleton loaders (с прозрачностью)
 ```
 
 ### Компоненты
@@ -33,21 +33,25 @@ import { SkeletonLoader } from '@/components/shared/SkeletonLoader';
 ### Variants
 
 #### Card (по умолчанию)
+
 ```typescript
 <SkeletonLoader width="100%" height={120} />
 ```
 
 #### Text
+
 ```typescript
 <SkeletonLoader variant="text" width={180} height={20} />
 ```
 
 #### Circle
+
 ```typescript
 <SkeletonLoader variant="circle" height={80} />
 ```
 
 #### Rectangle
+
 ```typescript
 <SkeletonLoader variant="rect" width={100} height={36} />
 ```
@@ -56,9 +60,9 @@ import { SkeletonLoader } from '@/components/shared/SkeletonLoader';
 
 ```typescript
 interface SkeletonLoaderProps {
-  width?: number | string;  // Default: '100%'
-  height?: number;          // Default: 120
-  borderRadius?: number;    // Default: theme.borderRadius.large
+  width?: number | string; // Default: '100%'
+  height?: number; // Default: 120
+  borderRadius?: number; // Default: theme.borderRadius.large
   style?: ViewStyle;
   variant?: 'card' | 'text' | 'circle' | 'rect';
 }
@@ -360,6 +364,7 @@ const ComplexWidgetSkeleton = () => (
 ## 🎬 Анимация
 
 Скелетоны используют **пульсирующую анимацию** (fade in/out):
+
 - Duration: 1000ms in, 1000ms out
 - Opacity: 0.3 ↔ 1.0
 - Бесконечный цикл
@@ -417,16 +422,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 ## 📊 Приоритетные экраны для добавления скелетонов
 
 ### Phase 1 (Критично):
+
 - [x] ✅ HoroscopeScreen
 - [ ] DatingScreen
 - [ ] ChatListScreen
 
 ### Phase 2 (Важно):
+
 - [ ] ProfileScreen
 - [ ] EditProfileScreen
 - [ ] AdvisorScreen
 
 ### Phase 3 (Желательно):
+
 - [ ] ChatDialogScreen
 - [ ] NatalChartScreen
 - [ ] SubscriptionScreen

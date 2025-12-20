@@ -18,9 +18,19 @@ export const LargeWidgetSkeleton: React.FC = () => {
         style={styles.gradient}
       >
         <View style={styles.largeContent}>
-          <SkeletonLoader variant="text" width={180} height={24} style={styles.mb12} />
+          <SkeletonLoader
+            variant="text"
+            width={180}
+            height={24}
+            style={styles.mb12}
+          />
           <SkeletonLoader variant="circle" height={80} style={styles.mb16} />
-          <SkeletonLoader variant="text" width={140} height={20} style={styles.mb8} />
+          <SkeletonLoader
+            variant="text"
+            width={140}
+            height={20}
+            style={styles.mb8}
+          />
           <SkeletonLoader variant="text" width={120} height={16} />
         </View>
       </LinearGradient>
@@ -42,7 +52,12 @@ export const SmallCardsSkeleton: React.FC = () => {
       >
         <View style={styles.smallContent}>
           <View>
-            <SkeletonLoader variant="text" width={60} height={14} style={styles.mb8} />
+            <SkeletonLoader
+              variant="text"
+              width={60}
+              height={14}
+              style={styles.mb8}
+            />
             <SkeletonLoader variant="text" width={40} height={20} />
           </View>
           <SkeletonLoader variant="circle" height={48} />
@@ -57,7 +72,12 @@ export const SmallCardsSkeleton: React.FC = () => {
       >
         <View style={styles.smallContent}>
           <View>
-            <SkeletonLoader variant="text" width={60} height={14} style={styles.mb8} />
+            <SkeletonLoader
+              variant="text"
+              width={60}
+              height={14}
+              style={styles.mb8}
+            />
             <SkeletonLoader variant="text" width={40} height={20} />
           </View>
           <SkeletonLoader variant="circle" height={48} />
@@ -80,15 +100,45 @@ export const HoroscopeWidgetSkeleton: React.FC = () => {
         style={styles.gradient}
       >
         <View style={styles.largeContent}>
-          <SkeletonLoader variant="text" width={200} height={24} style={styles.mb16} />
-          <SkeletonLoader variant="text" width="100%" height={16} style={styles.mb8} />
-          <SkeletonLoader variant="text" width="95%" height={16} style={styles.mb8} />
-          <SkeletonLoader variant="text" width="90%" height={16} style={styles.mb16} />
+          <SkeletonLoader
+            variant="text"
+            width={200}
+            height={24}
+            style={styles.mb16}
+          />
+          <SkeletonLoader
+            variant="text"
+            width="100%"
+            height={16}
+            style={styles.mb8}
+          />
+          <SkeletonLoader
+            variant="text"
+            width="95%"
+            height={16}
+            style={styles.mb8}
+          />
+          <SkeletonLoader
+            variant="text"
+            width="90%"
+            height={16}
+            style={styles.mb16}
+          />
 
           {/* Кнопки */}
           <View style={styles.buttonRow}>
-            <SkeletonLoader variant="rect" width={100} height={36} style={{ marginRight: 8 }} />
-            <SkeletonLoader variant="rect" width={100} height={36} style={{ marginRight: 8 }} />
+            <SkeletonLoader
+              variant="rect"
+              width={100}
+              height={36}
+              style={{ marginRight: 8 }}
+            />
+            <SkeletonLoader
+              variant="rect"
+              width={100}
+              height={36}
+              style={{ marginRight: 8 }}
+            />
             <SkeletonLoader variant="rect" width={100} height={36} />
           </View>
         </View>
@@ -110,21 +160,41 @@ export const EnergyWidgetSkeleton: React.FC = () => {
         style={styles.gradient}
       >
         <View style={styles.largeContent}>
-          <SkeletonLoader variant="text" width={160} height={24} style={styles.mb16} />
+          <SkeletonLoader
+            variant="text"
+            width={160}
+            height={24}
+            style={styles.mb16}
+          />
 
           {/* Шкалы энергии */}
           <View style={styles.mb12}>
-            <SkeletonLoader variant="text" width={80} height={14} style={styles.mb8} />
+            <SkeletonLoader
+              variant="text"
+              width={80}
+              height={14}
+              style={styles.mb8}
+            />
             <SkeletonLoader variant="rect" width="100%" height={8} />
           </View>
 
           <View style={styles.mb12}>
-            <SkeletonLoader variant="text" width={80} height={14} style={styles.mb8} />
+            <SkeletonLoader
+              variant="text"
+              width={80}
+              height={14}
+              style={styles.mb8}
+            />
             <SkeletonLoader variant="rect" width="100%" height={8} />
           </View>
 
           <View style={styles.mb12}>
-            <SkeletonLoader variant="text" width={80} height={14} style={styles.mb8} />
+            <SkeletonLoader
+              variant="text"
+              width={80}
+              height={14}
+              style={styles.mb8}
+            />
             <SkeletonLoader variant="rect" width="100%" height={8} />
           </View>
         </View>
@@ -146,16 +216,39 @@ export const BiorhythmsWidgetSkeleton: React.FC = () => {
         style={styles.gradient}
       >
         <View style={styles.largeContent}>
-          <SkeletonLoader variant="text" width={140} height={24} style={styles.mb16} />
+          <SkeletonLoader
+            variant="text"
+            width={140}
+            height={24}
+            style={styles.mb16}
+          />
 
           {/* График */}
-          <SkeletonLoader variant="rect" width="100%" height={150} style={styles.mb16} />
+          <SkeletonLoader
+            variant="rect"
+            width="100%"
+            height={150}
+            style={styles.mb16}
+          />
 
           {/* Легенда */}
           <View style={styles.legendRow}>
-            <SkeletonLoader variant="circle" height={12} style={{ marginRight: 8 }} />
-            <SkeletonLoader variant="text" width={80} height={12} style={{ marginRight: 16 }} />
-            <SkeletonLoader variant="circle" height={12} style={{ marginRight: 8 }} />
+            <SkeletonLoader
+              variant="circle"
+              height={12}
+              style={{ marginRight: 8 }}
+            />
+            <SkeletonLoader
+              variant="text"
+              width={80}
+              height={12}
+              style={{ marginRight: 16 }}
+            />
+            <SkeletonLoader
+              variant="circle"
+              height={12}
+              style={{ marginRight: 8 }}
+            />
             <SkeletonLoader variant="text" width={80} height={12} />
           </View>
         </View>

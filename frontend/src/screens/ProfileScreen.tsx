@@ -272,7 +272,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaViewSAC style={styles.container} edges={['top', 'left', 'right']}>
+      <SafeAreaViewSAC
+        style={styles.container}
+        edges={['top', 'left', 'right']}
+      >
         <CosmicBackground />
         <ProfileSkeleton />
       </SafeAreaViewSAC>

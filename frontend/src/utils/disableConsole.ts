@@ -42,4 +42,3 @@ console.trace = () => {};
 
 // Global flag to indicate console has been disabled
 (global as any).__consoleDisabled = true;
-

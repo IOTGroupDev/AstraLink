@@ -34,11 +34,7 @@ export const ProfileSkeleton: React.FC = () => {
 
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
-          <SkeletonLoader
-            variant="circle"
-            height={120}
-            style={styles.mb16}
-          />
+          <SkeletonLoader variant="circle" height={120} style={styles.mb16} />
           <SkeletonLoader
             variant="text"
             width={180}

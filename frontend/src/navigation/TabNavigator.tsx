@@ -77,9 +77,7 @@ const TabBarIconWithBadge = React.memo(
 );
 
 // Функция определения иконки по названию маршрута
-const getIconName = (
-  routeName: string
-): keyof typeof Ionicons.glyphMap => {
+const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
   switch (routeName) {
     case 'Horoscope':
       return 'planet-outline';
