@@ -536,9 +536,9 @@ const PlanetaryRecommendationWidget: React.FC<
       activeOpacity={0.9}
     >
       <LinearGradient
-        colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+        start={{ x: 0, y: 0.44 }}
+        end={{ x: 0, y: 1 }}
         style={styles.gradient}
       >
         <View style={styles.content}>
