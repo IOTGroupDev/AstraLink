@@ -15,6 +15,7 @@ import Svg, {
   RadialGradient,
   Stop,
 } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
@@ -43,6 +44,7 @@ interface PlanetaryRecommendationWidgetProps {
   transitPlanets: PlanetPosition[] | string | any;
   onPress?: () => void;
   isLoading?: boolean;
+  navigation?: any;
 }
 
 // Функция для получения цвета планеты
@@ -276,7 +278,7 @@ function buildRecommendations(transits: TransitData[]) {
 
 const PlanetaryRecommendationWidget: React.FC<
   PlanetaryRecommendationWidgetProps
-> = ({ natalPlanets, transitPlanets, onPress, isLoading }) => {
+> = ({ natalPlanets, transitPlanets, onPress, isLoading, navigation }) => {
   // Валидация данных
   const hasValidNatalData = isValidPlanetData(natalPlanets);
   const hasValidTransitData = isValidTransitData(transitPlanets);
@@ -530,11 +532,7 @@ const PlanetaryRecommendationWidget: React.FC<
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
+    <View style={styles.container}>
       <LinearGradient
         colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
         start={{ x: 0, y: 0 }}
@@ -549,6 +547,26 @@ const PlanetaryRecommendationWidget: React.FC<
 
           {/* Карта */}
           <View style={styles.chartWrapper}>{renderAstrologyChart()}</View>
+
+          {/* Кнопка "Посмотреть натальную карту" */}
+          {navigation && (
+            <TouchableOpacity
+              style={styles.viewChartButton}
+              onPress={() => navigation.navigate('NatalChart' as never)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#701F86', '#701F86']}
+                style={styles.buttonGradient}
+              >
+                <Ionicons name="telescope" size={20} color="#fff" />
+                <Text style={styles.viewChartText}>
+                  Посмотреть натальную карту
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
 
           {/* Рекомендации: Плюсы / Что избегать */}
           {/*{(positiveRecs.length > 0 || negativeRecs.length > 0) && (*/}
@@ -623,7 +641,7 @@ const PlanetaryRecommendationWidget: React.FC<
           style={styles.border}
         />
       </LinearGradient>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -725,6 +743,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
     fontWeight: '500',
+  },
+  viewChartButton: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  viewChartText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
   },
 });
 
