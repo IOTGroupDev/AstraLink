@@ -553,8 +553,8 @@ const PlanetaryRecommendationWidget: React.FC<
           {/* Рекомендации: Что можно делать / Чего лучше избегать */}
           {(positiveRecs.length > 0 || negativeRecs.length > 0) && (
             <View style={styles.adviceContainer}>
-              <View style={styles.adviceRow}>
-                {/* Что можно делать сегодня */}
+              {/* Что можно делать сегодня */}
+              {positiveRecs.length > 0 && (
                 <View style={styles.adviceCard}>
                   <View style={styles.adviceTitleRow}>
                     <View style={styles.adviceIconWrapper}>
@@ -577,21 +577,19 @@ const PlanetaryRecommendationWidget: React.FC<
                       </Svg>
                     </View>
                     <Text style={styles.adviceTitle}>
-                      Что можно{'\n'}делать сегодня
+                      Что можно делать сегодня
                     </Text>
                   </View>
-                  {positiveRecs.length === 0 ? (
-                    <Text style={styles.adviceItem}>—</Text>
-                  ) : (
-                    positiveRecs.map((s, i) => (
-                      <Text key={`pos-${i}`} style={styles.adviceItem}>
-                        • {s}
-                      </Text>
-                    ))
-                  )}
+                  {positiveRecs.map((s, i) => (
+                    <Text key={`pos-${i}`} style={styles.adviceItem}>
+                      • {s}
+                    </Text>
+                  ))}
                 </View>
+              )}
 
-                {/* Чего лучше избегать сегодня */}
+              {/* Чего лучше избегать сегодня */}
+              {negativeRecs.length > 0 && (
                 <View style={styles.adviceCard}>
                   <View style={styles.adviceTitleRow}>
                     <View style={styles.adviceIconWrapper}>
@@ -620,20 +618,16 @@ const PlanetaryRecommendationWidget: React.FC<
                       </Svg>
                     </View>
                     <Text style={styles.adviceTitle}>
-                      Чего лучше{'\n'}избегать сегодня
+                      Чего лучше избегать сегодня
                     </Text>
                   </View>
-                  {negativeRecs.length === 0 ? (
-                    <Text style={styles.adviceItem}>—</Text>
-                  ) : (
-                    negativeRecs.map((s, i) => (
-                      <Text key={`neg-${i}`} style={styles.adviceItem}>
-                        • {s}
-                      </Text>
-                    ))
-                  )}
+                  {negativeRecs.map((s, i) => (
+                    <Text key={`neg-${i}`} style={styles.adviceItem}>
+                      • {s}
+                    </Text>
+                  ))}
                 </View>
-              </View>
+              )}
             </View>
           )}
 
@@ -732,18 +726,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     gap: 8,
   },
-  adviceRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   adviceCard: {
-    flex: 1,
     backgroundColor: 'rgba(10,10,10,0.35)',
     borderRadius: 10,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   adviceTitleRow: {
     flexDirection: 'row',
