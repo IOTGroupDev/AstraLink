@@ -25,6 +25,22 @@ export class SubscriptionService {
   ) {}
 
   /**
+   * Validate that a user exists in the database
+   */
+  private async validateUserExists(userId: string): Promise<void> {
+    const user = await this.prisma.public_users.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        `User with ID ${userId} does not exist. Cannot create subscription.`,
+      );
+    }
+  }
+
+  /**
    * Получить статус подписки пользователя
    */
   async getStatus(userId: string): Promise<SubscriptionStatusResponse> {
@@ -110,6 +126,9 @@ export class SubscriptionService {
     userId: string,
   ): Promise<SubscriptionStatusResponse> {
     this.logger.log(`Creating free subscription for user: ${userId}`);
+
+    // Validate user exists before creating subscription
+    await this.validateUserExists(userId);
 
     const now = new Date();
     const trialEndsAt = new Date(now);
@@ -224,6 +243,9 @@ export class SubscriptionService {
     tier: SubscriptionTier,
     transactionId?: string,
   ) {
+    // Validate user exists before creating subscription
+    await this.validateUserExists(userId);
+
     const now = new Date();
     const expiresAt = new Date(now);
     expiresAt.setMonth(expiresAt.getMonth() + 1);

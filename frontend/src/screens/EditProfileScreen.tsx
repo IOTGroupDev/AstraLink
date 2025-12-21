@@ -245,8 +245,18 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         nextCity = userProfile.city || '';
         nextSelectedInterests = userProfile.preferences?.interests || [];
         nextGender = (userProfile.gender as any) || '';
-        nextLookingFor = userProfile.preferences?.lookingFor || '';
-        nextLookingForGender = userProfile.preferences?.lookingForGender || '';
+
+        // ✅ New DB columns (preferred)
+        // ✅ Back-compat fallback to old jsonb preferences fields (if old data exists)
+        nextLookingFor =
+          (userProfile.looking_for as any) ||
+          (userProfile.preferences?.lookingFor as any) ||
+          '';
+        nextLookingForGender =
+          (userProfile.looking_for_gender as any) ||
+          (userProfile.preferences?.lookingForGender as any) ||
+          '';
+
         setBio(nextBio);
         setCity(nextCity);
         setSelectedInterests(nextSelectedInterests);
@@ -492,20 +502,20 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       await userAPI.updateProfile(formData);
 
       // Update extended profile (bio, city, gender, interests)
+      // ✅ looking_for / looking_for_gender are now real DB columns (public.user_profiles)
       const extPayload: any = {
         bio,
         preferences: {
           interests: selectedInterests,
         },
       };
+
       if (city?.trim()) extPayload.city = city.trim();
       if (gender) extPayload.gender = gender;
-      if (lookingFor) {
-        extPayload.preferences.lookingFor = lookingFor;
-      }
-      if (lookingForGender) {
-        extPayload.preferences.lookingForGender = lookingForGender;
-      }
+
+      if (lookingFor) extPayload.looking_for = lookingFor;
+      if (lookingForGender) extPayload.looking_for_gender = lookingForGender;
+
       await userExtendedProfileAPI.updateUserProfile(extPayload);
 
       initialSnapshotRef.current = currentSnapshot;

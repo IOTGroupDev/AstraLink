@@ -205,14 +205,23 @@ export class UserController {
     }
 
     // Возвращаем дефолтный профиль если не найден
+    const nowIso = new Date().toISOString();
     return (
       data || {
         user_id: userId,
         bio: null,
+        gender: null,
+        city: null,
+        latitude: null,
+        longitude: null,
+        zodiac_sign: null,
+        looking_for: null,
+        looking_for_gender: null,
         preferences: {},
+        last_active: nowIso,
         is_onboarded: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
       }
     );
   }
@@ -252,6 +261,14 @@ export class UserController {
 
     if (updateData.city) {
       payload.city = updateData.city;
+    }
+
+    if (updateData.looking_for !== undefined) {
+      payload.looking_for = updateData.looking_for ?? null;
+    }
+
+    if (updateData.looking_for_gender !== undefined) {
+      payload.looking_for_gender = updateData.looking_for_gender ?? null;
     }
 
     if (typeof updateData.is_onboarded === 'boolean') {

@@ -21,16 +21,6 @@ import { Sanitize } from '@/common/decorators/sanitize.decorator';
  */
 class PreferencesDto {
   @ApiPropertyOptional({
-    enum: ['male', 'female', 'any'],
-    description: 'Looking for gender preference',
-  })
-  @IsEnum(['male', 'female', 'any'], {
-    message: 'lookingFor must be male, female, or any',
-  })
-  @IsOptional()
-  lookingFor?: 'male' | 'female' | 'any';
-
-  @ApiPropertyOptional({
     minimum: 18,
     maximum: 100,
     description: 'Minimum age preference',
@@ -115,6 +105,41 @@ export class UpdateExtendedProfileDto {
   @MaxLength(200, { message: 'city must not exceed 200 characters' })
   @IsOptional()
   city?: string;
+
+  @ApiPropertyOptional({
+    enum: ['relationship', 'friendship', 'communication', 'somethingNew'],
+    description: 'What user is looking for (dating intent)',
+  })
+  @IsEnum(['relationship', 'friendship', 'communication', 'somethingNew'], {
+    message:
+      'looking_for must be relationship, friendship, communication, or somethingNew',
+  })
+  @Transform(({ value }) => {
+    if (value === '' || value === undefined) return undefined;
+    if (value === null) return null;
+    return String(value).trim();
+  })
+  @IsOptional()
+  looking_for?:
+    | 'relationship'
+    | 'friendship'
+    | 'communication'
+    | 'somethingNew';
+
+  @ApiPropertyOptional({
+    enum: ['male', 'female', 'other'],
+    description: 'Which gender user is looking for',
+  })
+  @IsEnum(['male', 'female', 'other'], {
+    message: 'looking_for_gender must be male, female, or other',
+  })
+  @Transform(({ value }) => {
+    if (value === '' || value === undefined) return undefined;
+    if (value === null) return null;
+    return String(value).trim();
+  })
+  @IsOptional()
+  looking_for_gender?: 'male' | 'female' | 'other';
 
   @ApiPropertyOptional({
     type: PreferencesDto,
