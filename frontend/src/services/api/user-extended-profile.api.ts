@@ -9,6 +9,11 @@ export const userExtendedProfileAPI = {
     latitude?: number;
     longitude?: number;
     zodiac_sign?: string;
+
+    // ✅ New DB columns
+    looking_for?: string | null;
+    looking_for_gender?: string | null;
+
     preferences: {
       interests?: string[];
       [key: string]: any;
@@ -26,6 +31,11 @@ export const userExtendedProfileAPI = {
     bio?: string;
     gender?: string;
     city?: string;
+
+    // ✅ New DB columns
+    looking_for?: string | null;
+    looking_for_gender?: string | null;
+
     preferences?: {
       interests?: string[];
       [key: string]: any;
