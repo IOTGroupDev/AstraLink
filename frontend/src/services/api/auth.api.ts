@@ -376,6 +376,13 @@ export const authAPI = {
       await tokenService.setToken(data.session.access_token);
       authLogger.log('✅ Код подтвержден');
 
+      // Ensure user profile exists in backend database
+      try {
+        await authAPI.ensureUserProfile(data.user!.id, data.user!.email!);
+      } catch (profileError) {
+        authLogger.warn('⚠️ Failed to ensure user profile:', profileError);
+      }
+
       return {
         access_token: data.session.access_token,
         user: {
@@ -438,6 +445,13 @@ export const authAPI = {
             'Не удалось получить пользователя после Apple sign in'
           );
 
+        // Ensure user profile exists in backend database
+        try {
+          await authAPI.ensureUserProfile(user.id, user.email || '');
+        } catch (profileError) {
+          authLogger.warn('⚠️ Failed to ensure user profile:', profileError);
+        }
+
         return {
           access_token: accessToken || '',
           user: {
@@ -487,6 +501,13 @@ export const authAPI = {
             throw new Error(
               'Не удалось получить пользователя после Apple OAuth'
             );
+
+          // Ensure user profile exists in backend database
+          try {
+            await authAPI.ensureUserProfile(user.id, user.email || '');
+          } catch (profileError) {
+            authLogger.warn('⚠️ Failed to ensure user profile:', profileError);
+          }
 
           return {
             access_token: (await tokenService.getToken()) || '',
@@ -548,6 +569,14 @@ export const authAPI = {
           );
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
+
+          // Ensure user profile exists in backend database
+          try {
+            await authAPI.ensureUserProfile(user.id, user.email || '');
+          } catch (profileError) {
+            authLogger.warn('⚠️ Failed to ensure user profile:', profileError);
+          }
+
           return {
             access_token: (await tokenService.getToken()) || '',
             user: {
