@@ -396,14 +396,16 @@ export class UserService {
     try {
       this.logger.log(`🗑️ Начинаем удаление аккаунта пользователя: ${userId}`);
 
-      // Проверяем существование пользователя
-      const user = await this.userRepository.findById(userId);
+      // Проверяем существование пользователя в Supabase Auth
+      const admin = this.supabaseService.getAdminClient();
+      const { data: authUser, error: checkAuthError } =
+        await admin.auth.admin.getUserById(userId);
 
-      if (!user) {
+      if (checkAuthError || !authUser?.user) {
         throw new NotFoundException(`Пользователь с ID ${userId} не найден`);
       }
 
-      this.logger.log(`✅ Пользователь найден: ${user.email}`);
+      this.logger.log(`✅ Пользователь найден в Auth: ${authUser.user.email}`);
 
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
       // Если хотя бы одна операция упадёт - всё откатится автоматически
