@@ -806,7 +806,6 @@ export default function ChatDialogScreen() {
             )}
             <View style={styles.headerTextContainer}>
               <Text style={styles.title}>{displayName || otherUserId}</Text>
-              <Text style={styles.subtitle}>{t('chat.header.online')}</Text>
             </View>
           </View>
           <View style={{ width: 40 }} />
@@ -950,11 +949,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },
-  subtitle: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    marginTop: 2,
   },
   loader: {
     flex: 1,

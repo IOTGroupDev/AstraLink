@@ -25,6 +25,59 @@ export class UserService {
     private prisma: PrismaService,
   ) {}
 
+  /**
+   * Normalize birthDate for API responses as YYYY-MM-DD (без времени).
+   * Важно: избегаем UTC-сдвига суток.
+   */
+  private formatBirthDate(value: unknown): string | null {
+    if (!value) return null;
+
+    // Если пришла строка вида "YYYY-MM-DD..." (включая ISO) — берём только дату
+    if (typeof value === 'string') {
+      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${mm}-${dd}`;
+      }
+
+      return null;
+    }
+
+    // Если Date — форматируем по локальным компонентам (без UTC)
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return null;
+      const y = value.getFullYear();
+      const mm = String(value.getMonth() + 1).padStart(2, '0');
+      const dd = String(value.getDate()).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+
+    // Fallback: поддерживаем только числовые timestamp-значения.
+    // Для объектов (и прочих типов) возвращаем null, чтобы не получить "[object Object]".
+    if (typeof value === 'number') {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+    if (typeof value === 'bigint') {
+      const d = new Date(Number(value));
+      if (Number.isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+    return null;
+  }
+
   async getProfile(userId: string) {
     // Используем централизованную fallback логику из репозитория
     const user = await this.userRepository.findById(userId);
@@ -34,7 +87,7 @@ export class UserService {
         id: user.id,
         email: user.email,
         name: user.name,
-        birthDate: user.birth_date,
+        birthDate: this.formatBirthDate(user.birth_date),
         birthTime: user.birth_time,
         birthPlace: user.birth_place,
         createdAt: user.created_at,
@@ -52,7 +105,7 @@ export class UserService {
           id: created.id,
           email: created.email,
           name: created.name,
-          birthDate: created.birth_date,
+          birthDate: this.formatBirthDate(created.birth_date),
           birthTime: created.birth_time,
           birthPlace: created.birth_place,
           createdAt: created.created_at,
@@ -220,9 +273,9 @@ export class UserService {
 
     // 6) Если есть все данные рождения — создаём/пересоздаём натальную карту
     try {
-      const birthDateISO = (profile?.birth_date ?? patch.birth_date) as
-        | string
-        | undefined;
+      const birthDateOnly = this.formatBirthDate(
+        profile?.birth_date ?? patch.birth_date,
+      );
       const birthTime = (profile?.birth_time ?? patch.birth_time) as
         | string
         | undefined;
@@ -230,7 +283,7 @@ export class UserService {
         | string
         | undefined;
 
-      const hasAll = !!birthDateISO && !!birthTime && !!birthPlace;
+      const hasAll = !!birthDateOnly && !!birthTime && !!birthPlace;
 
       if (hasAll) {
         // есть ли карты?
@@ -263,7 +316,7 @@ export class UserService {
 
           await this.chartService.createNatalChartWithInterpretation(
             userId,
-            new Date(birthDateISO).toISOString().split('T')[0],
+            birthDateOnly,
             birthTime,
             birthPlace,
           );
@@ -278,7 +331,7 @@ export class UserService {
       id: profile.id,
       email: profile.email,
       name: profile.name,
-      birthDate: profile.birth_date,
+      birthDate: this.formatBirthDate(profile.birth_date),
       birthTime: profile.birth_time,
       birthPlace: profile.birth_place,
       updatedAt: profile.updated_at || nowISO,
