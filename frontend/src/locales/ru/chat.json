@@ -1,6 +1,7 @@
 {
   "header": {
-    "online": "В сети"
+    "online": "В сети",
+    "offline": "Не в сети"
   },
   "input": {
     "placeholder": "Напишите сообщение...",

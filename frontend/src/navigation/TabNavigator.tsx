@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text } from 'react-native';
+import { Platform, View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -159,9 +159,21 @@ export default function TabNavigator() {
           // Плавная анимация переключения табов
           tabBarHideOnKeyboard: true,
           animation: 'shift',
-          lazy: true,
-          detachInactiveScreens: true,
-          freezeOnBlur: true,
+
+          // Прогрев/прелоад тяжёлых табов:
+          // На Android монтируем все табы сразу (lazy=false), чтобы при резких прыжках
+          // (вправо/через несколько) не ловить "пустой кадр" во время первого рендера.
+          // На iOS оставляем lazy для более быстрого старта.
+          lazy: Platform.OS === 'ios',
+          lazyPreloadDistance: Platform.OS === 'ios' ? 5 : 0,
+
+          // Android: иногда даёт "чёрный кадр" при быстром переключении табов,
+          // особенно если перескакивать через несколько "тяжёлых" экранов.
+          detachInactiveScreens: Platform.OS === 'ios',
+          freezeOnBlur: Platform.OS === 'ios',
+
+          // Фон контейнера сцен, чтобы при монтировании/переключении не было пустого (чёрного) кадра
+          sceneContainerStyle: { backgroundColor: '#0F172A' },
           tabBarIcon: ({ focused, color, size }) => {
             const opacity = focused ? 1 : 0.5;
             const name = getIconName(route.name);

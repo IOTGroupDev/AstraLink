@@ -31,6 +31,36 @@ interface DateTimePickerProps {
   animationValue: Animated.SharedValue<number>;
 }
 
+/**
+ * Парсит дату из строк:
+ * - YYYY-MM-DD
+ * - YYYY-MM-DDTHH:mm:ss...
+ * - YYYY-MM-DD HH:mm:ss...
+ *
+ * Возвращает Date в локальной таймзоне (без UTC-сдвига), чтобы не было ±1 дня.
+ */
+const parseDateStringToLocalDate = (input: string): Date | null => {
+  if (!input) return null;
+
+  const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day)
+  )
+    return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+
+  return new Date(year, month - 1, day);
+};
+
 const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   value,
   onChangeText,
@@ -47,14 +77,8 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   const [date, setDate] = useState(() => {
     if (value) {
       if (mode === 'date') {
-        const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (m) {
-          const year = parseInt(m[1], 10);
-          const month = parseInt(m[2], 10) - 1;
-          const day = parseInt(m[3], 10);
-          return new Date(year, month, day);
-        }
-        return new Date(value);
+        const parsed = parseDateStringToLocalDate(value);
+        return parsed || new Date(value);
       } else {
         const [hours, minutes] = value.split(':');
         const d = new Date();
@@ -69,17 +93,9 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     // Update date when value changes
     if (value) {
       if (mode === 'date') {
-        // Безопасный парсинг YYYY-MM-DD (без сдвига таймзоны)
-        const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (m) {
-          const year = parseInt(m[1], 10);
-          const month = parseInt(m[2], 10) - 1;
-          const day = parseInt(m[3], 10);
-          setDate(new Date(year, month, day));
-        } else {
-          // fallback
-          setDate(new Date(value));
-        }
+        // Безопасный парсинг даты (YYYY-MM-DD и ISO) без сдвига таймзоны
+        const parsed = parseDateStringToLocalDate(value);
+        setDate(parsed || new Date(value));
       } else {
         const [hours, minutes] = value.split(':');
         const newDate = new Date();
@@ -171,19 +187,21 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     if (!value) return '';
 
     if (mode === 'date') {
-      // Проверяем формат YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        const dateObj = new Date(value);
-        return dateObj.toLocaleDateString('ru-RU', {
+      // Поддерживаем как YYYY-MM-DD, так и ISO (YYYY-MM-DDTHH:mm:ss...)
+      const parsed = parseDateStringToLocalDate(value);
+      if (parsed) {
+        return parsed.toLocaleDateString('ru-RU', {
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
         });
       }
-      return value; // Возвращаем как есть если неправильный формат
-    } else {
+
+      // Если формат неожиданный — показываем как есть (лучше, чем пусто)
       return value;
     }
+
+    return value;
   };
 
   const animatedValueTextStyle = useAnimatedStyle(() => {
