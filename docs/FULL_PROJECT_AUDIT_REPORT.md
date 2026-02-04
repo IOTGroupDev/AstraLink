@@ -684,7 +684,7 @@ npm audit --production
 
 ### Детальные результаты
 
-Полный отчет: [`BACKEND_ARCHITECTURE_AUDIT.md`](./BACKEND_ARCHITECTURE_AUDIT.md)
+Полный отчет: [`BACKEND_ARCHITECTURE_AUDIT.md`](BACKEND_ARCHITECTURE_AUDIT.md)
 
 ### Краткая сводка
 
@@ -809,8 +809,8 @@ const location = this.locationService.getCoordinates(user.birthPlace);
 Полные отчеты:
 
 - [`FRONTEND_ARCHITECTURE_AUDIT.md`](./FRONTEND_ARCHITECTURE_AUDIT.md)
-- [`FRONTEND_SECURITY_AUDIT.md`](./FRONTEND_SECURITY_AUDIT.md)
-- [`FRONTEND_PERFORMANCE_UX_AUDIT.md`](./FRONTEND_PERFORMANCE_UX_AUDIT.md)
+- [`FRONTEND_SECURITY_AUDIT.md`](FRONTEND_SECURITY_AUDIT.md)
+- [`FRONTEND_PERFORMANCE_UX_AUDIT.md`](FRONTEND_PERFORMANCE_UX_AUDIT.md)
 
 ### Краткая сводка
 
@@ -985,7 +985,7 @@ export default function CosmicSimulatorScreen() {
 
 ### Детальные результаты
 
-Полный отчет: [`DEPENDENCIES_AUDIT.md`](./DEPENDENCIES_AUDIT.md)
+Полный отчет: [`DEPENDENCIES_AUDIT.md`](DEPENDENCIES_AUDIT.md)
 
 ### Краткая сводка
 

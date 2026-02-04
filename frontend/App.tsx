@@ -12,15 +12,17 @@ if (typeof globalThis.TextDecoder === 'undefined')
 
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View, Text, StatusBar } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
+import { NavigationTheme } from './src/navigation/navigationConfig';
 import { initSupabaseAuth } from './src/services/supabase';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { userExtendedProfileAPI } from './src/services/api';
 import { useAuthStore } from './src/stores/auth.store';
 import { logger } from './src/services/logger';
 import { enableScreens } from 'react-native-screens';
+
 enableScreens(true);
 
 const queryClient = new QueryClient();
@@ -104,8 +106,10 @@ export default function App() {
             alignItems: 'center',
             justifyContent: 'center',
             padding: 20,
+            backgroundColor: '#0F172A', // Единый фон
           }}
         >
+          <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
           <ActivityIndicator size="large" color="#8B5CF6" />
           <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
             Загрузка приложения...
@@ -129,8 +133,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
+        <NavigationContainer theme={NavigationTheme}>
           <MainStackNavigator />
         </NavigationContainer>
       </QueryClientProvider>
