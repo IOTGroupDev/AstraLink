@@ -64,18 +64,49 @@ export default function MainStackNavigator() {
       screenOptions={{
         headerShown: false,
 
-        // Нативная анимация, максимально iOS-like
+        // Оптимизация анимаций
         animation: 'slide_from_right',
-        gestureEnabled: true,
+        animationDuration: 200, // Быстрее стандартных 300ms
 
-        // Обычно помогает от артефактов на iOS
-        contentStyle: { backgroundColor: 'transparent' }, // если будет мигать — поставь твой базовый цвет
+        // Плавные жесты
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+        gestureDirection: 'horizontal',
+
+        // КРИТИЧНО: Единый цвет фона для всех экранов
+        contentStyle: {
+          backgroundColor: '#0F172A', // Тот же цвет, что и в табах
+        },
+
+        // Оптимизация производительности
+        freezeOnBlur: true,
+
+        // Убираем тени и эффекты
+        headerShadowVisible: false,
       }}
     >
-      <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
-      <Stack.Screen name="UserDataLoader" component={UserDataLoaderScreen} />
+      <Stack.Screen
+        name="AuthCallback"
+        component={AuthCallbackScreen}
+        options={{
+          animation: 'none', // Без анимации для технических экранов
+        }}
+      />
+      <Stack.Screen
+        name="UserDataLoader"
+        component={UserDataLoaderScreen}
+        options={{
+          animation: 'fade',
+        }}
+      />
 
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen
+        name="MainTabs"
+        component={TabNavigator}
+        options={{
+          animation: 'none', // Без анимации для перехода к табам
+        }}
+      />
 
       <Stack.Screen name="Onboarding1" component={OnboardingFirstScreen} />
       <Stack.Screen name="Onboarding2" component={OnboardingSecondScreen} />
@@ -88,7 +119,14 @@ export default function MainStackNavigator() {
 
       {isAuthenticated && (
         <>
-          <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+          <Stack.Screen
+            name="Subscription"
+            component={SubscriptionScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
           <Stack.Screen
             name="EditProfileScreen"
             component={EditProfileScreen}

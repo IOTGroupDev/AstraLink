@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -20,7 +20,7 @@ import { calculateProfileCompletion } from '../screens/Auth/utils/onboardingutil
 const Tab = createBottomTabNavigator();
 const PROFILE_COMPLETION_HIDE_KEY = 'profile_completion_hide_popup';
 
-// Мемоизированный компонент иконки с бейджем для оптимизации производительности
+// Мемоизированный компонент иконки с бейджем
 const TabBarIconWithBadge = React.memo(
   ({
     name,
@@ -95,6 +95,18 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
   }
 };
 
+// Мемоизированный компонент фона таббара
+const TabBarBackground = React.memo(() => (
+  <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill}>
+    <LinearGradient
+      colors={['rgba(167, 114, 181, 0.3)', 'rgba(26, 7, 31, 0.3)']}
+      style={{ flex: 1 }}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+    />
+  </BlurView>
+));
+
 export default function TabNavigator() {
   const navigation = useNavigation<any>();
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -152,100 +164,97 @@ export default function TabNavigator() {
     navigation.navigate('EditProfileScreen');
   };
 
+  // Мемоизация опций навигатора
+  const screenOptions = useMemo(
+    () => ({
+      tabBarHideOnKeyboard: true,
+
+      // КРИТИЧНО: Убираем анимацию переключения табов
+      animation: 'none' as const,
+
+      // Оптимизация для производительности
+      lazy: false, // Монтируем все табы сразу
+      lazyPreloadDistance: 0,
+
+      // ВАЖНО: Отключаем detach на обеих платформах для стабильности
+      detachInactiveScreens: false,
+      freezeOnBlur: false,
+
+      // Единый цвет фона для всех экранов
+      sceneContainerStyle: {
+        backgroundColor: '#0F172A',
+      },
+
+      tabBarActiveTintColor: '#ffffff',
+      tabBarInactiveTintColor: '#ffffff',
+      tabBarStyle: {
+        position: 'absolute' as const,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(139, 92, 246, 0.3)',
+        paddingBottom: 50,
+        paddingTop: 5,
+        height: 108,
+        backgroundColor: 'transparent',
+        bottom: -10,
+        elevation: 0, // Убираем тень на Android
+      },
+      tabBarBackground: () => <TabBarBackground />,
+      headerStyle: {
+        backgroundColor: 'transparent',
+        borderBottomWidth: 0,
+        elevation: 0,
+        shadowOpacity: 0,
+      },
+      headerTintColor: '#fff',
+      headerTitleStyle: {
+        fontWeight: 'bold' as const,
+        fontSize: 18,
+      },
+      headerBackground: () => null,
+    }),
+    []
+  );
+
+  // Мемоизация функции рендера иконки
+  const renderTabBarIcon = useMemo(
+    () =>
+      ({ route }: { route: { name: string } }) =>
+      ({
+        focused,
+        color,
+        size,
+      }: {
+        focused: boolean;
+        color: string;
+        size: number;
+      }) => {
+        const opacity = focused ? 1 : 0.5;
+        const name = getIconName(route.name);
+
+        if (route.name === 'Advisor') {
+          return (
+            <TabBarIconWithBadge
+              name={name}
+              size={size}
+              color={color}
+              opacity={opacity}
+            />
+          );
+        }
+
+        return (
+          <Ionicons name={name} size={size} color={color} style={{ opacity }} />
+        );
+      },
+    []
+  );
+
   return (
     <>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          // Плавная анимация переключения табов
-          tabBarHideOnKeyboard: true,
-          animation: 'shift',
-
-          // Прогрев/прелоад тяжёлых табов:
-          // На Android монтируем все табы сразу (lazy=false), чтобы при резких прыжках
-          // (вправо/через несколько) не ловить "пустой кадр" во время первого рендера.
-          // На iOS оставляем lazy для более быстрого старта.
-          lazy: Platform.OS === 'ios',
-          lazyPreloadDistance: Platform.OS === 'ios' ? 5 : 0,
-
-          // Android: иногда даёт "чёрный кадр" при быстром переключении табов,
-          // особенно если перескакивать через несколько "тяжёлых" экранов.
-          detachInactiveScreens: Platform.OS === 'ios',
-          freezeOnBlur: Platform.OS === 'ios',
-
-          // Фон контейнера сцен, чтобы при монтировании/переключении не было пустого (чёрного) кадра
-          sceneContainerStyle: { backgroundColor: '#0F172A' },
-          tabBarIcon: ({ focused, color, size }) => {
-            const opacity = focused ? 1 : 0.5;
-            const name = getIconName(route.name);
-
-            // Используем мемоизированный компонент с бейджем для вкладки Advisor
-            if (route.name === 'Advisor') {
-              return (
-                <TabBarIconWithBadge
-                  name={name}
-                  size={size}
-                  color={color}
-                  opacity={opacity}
-                />
-              );
-            }
-
-            return (
-              <Ionicons
-                name={name}
-                size={size}
-                color={color}
-                style={{ opacity }}
-              />
-            );
-          },
-          tabBarActiveTintColor: '#ffffff',
-          tabBarInactiveTintColor: '#ffffff',
-          tabBarStyle: {
-            position: 'absolute',
-            borderTopWidth: 1,
-            borderTopColor: 'rgba(139, 92, 246, 0.3)',
-            paddingBottom: 50,
-            paddingTop: 5,
-            height: 108,
-            backgroundColor: 'transparent', // важно для прозрачности
-            bottom: -10, // опустили таббар на 10
-          },
-          tabBarBackground: () => (
-            <BlurView
-              intensity={50}
-              tint="dark"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                overflow: 'hidden',
-              }}
-            >
-              <LinearGradient
-                colors={['rgba(167, 114, 181, 0.3)', 'rgba(26, 7, 31, 0.3)']}
-                style={{ flex: 1 }}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-              />
-            </BlurView>
-          ),
-          headerStyle: {
-            backgroundColor: 'transparent',
-            borderBottomWidth: 0,
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            fontSize: 18,
-          },
-          headerBackground: () => null,
+          ...screenOptions,
+          tabBarIcon: renderTabBarIcon({ route }),
         })}
       >
         <Tab.Screen
@@ -258,11 +267,6 @@ export default function TabNavigator() {
           component={CosmicSimulatorScreen}
           options={{ title: 'Симулятор', headerShown: false }}
         />
-        {/*<Tab.Screen*/}
-        {/*  name="WelcomeScreen"*/}
-        {/*  component={WelcomeScreen}*/}
-        {/*  options={{ title: 'test', headerShown: false }}*/}
-        {/*/>*/}
         <Tab.Screen
           name="Dating"
           component={DatingScreen}
@@ -283,11 +287,6 @@ export default function TabNavigator() {
           component={ProfileScreen}
           options={{ title: 'Профиль', headerShown: false }}
         />
-        {/*<Tab.Screen*/}
-        {/*  name="Clear"*/}
-        {/*  component={ClearScreen}*/}
-        {/*  options={{ title: 'Очистка', headerShown: false }}*/}
-        {/*/>*/}
       </Tab.Navigator>
       <ProfileCompletionModal
         visible={showCompletionModal}
