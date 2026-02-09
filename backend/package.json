@@ -68,7 +68,7 @@
     "swisseph": "^0.5.17",
     "tsconfig-paths": "^4.2.0",
     "winston": "^3.18.3",
-    "zod": "^3.23.8"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
