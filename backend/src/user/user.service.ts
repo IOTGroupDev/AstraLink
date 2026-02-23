@@ -7,7 +7,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
@@ -458,6 +458,32 @@ export class UserService {
 
       this.logger.log(`✅ Пользователь найден: ${user.email}`);
 
+      // Некоторые окружения могут быть “урезаны” (таблицы ещё не раскатаны миграциями).
+      // Важно: любые ошибки SQL внутри транзакции Postgres «убивают» транзакцию целиком,
+      // поэтому для опциональных таблиц сначала проверяем их наличие.
+      const tableExists = async (table: string): Promise<boolean> => {
+        const res = await this.prisma.$queryRaw<Array<{ exists: boolean }>>(
+          Prisma.sql`
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.tables
+              WHERE table_schema = 'public'
+                AND table_name = ${table}
+            ) AS "exists"
+          `,
+        );
+        return Boolean(res?.[0]?.exists);
+      };
+
+      const existingTables = {
+        user_profiles: await tableExists('user_profiles'),
+        user_photos: await tableExists('user_photos'),
+        payments: await tableExists('payments'),
+        feature_usage: await tableExists('feature_usage'),
+        user_blocks: await tableExists('user_blocks'),
+        user_reports: await tableExists('user_reports'),
+      };
+
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
       // Если хотя бы одна операция упадёт - всё откатится автоматически
       await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -488,6 +514,89 @@ export class UserService {
           where: { userId },
         });
         this.logger.log(`✅ Удалено подписок: ${subscriptionsDeleted.count}`);
+
+        // 4.1 Удаляем профили и прочие «дочерние» записи, которые могут держать FK на public.users
+        // Важно: в реальной БД constraint может называться исторически (например `public_profiles_user_id_fkey`)
+        // даже если таблица/модель была переименована.
+
+        if (existingTables.user_profiles) {
+          this.logger.log(
+            '🗑️ Удаление extended-профиля пользователя (user_profiles)...',
+          );
+          const userProfilesDeleted = await tx.userProfile.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(
+            `✅ Удалено extended-профилей (user_profiles): ${userProfilesDeleted.count}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица user_profiles не найдена — пропускаем');
+        }
+
+        if (existingTables.user_photos) {
+          this.logger.log(
+            '🗑️ Удаление фотографий пользователя (user_photos)...',
+          );
+          const photosDeleted = await tx.userPhoto.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(`✅ Удалено фотографий: ${photosDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица user_photos не найдена — пропускаем');
+        }
+
+        if (existingTables.payments) {
+          this.logger.log('🗑️ Удаление платежей пользователя (payments)...');
+          const paymentsDeleted = await tx.payment.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(`✅ Удалено платежей: ${paymentsDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица payments не найдена — пропускаем');
+        }
+
+        if (existingTables.feature_usage) {
+          this.logger.log(
+            '🗑️ Удаление usage-метрик пользователя (feature_usage)...',
+          );
+          const featureUsageDeleted = await tx.featureUsage.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(
+            `✅ Удалено записей usage: ${featureUsageDeleted.count}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица feature_usage не найдена — пропускаем');
+        }
+
+        // Блокировки/репорты могут ссылаться на пользователя с обеих сторон
+        if (existingTables.user_blocks) {
+          this.logger.log(
+            '🗑️ Удаление блокировок пользователя (user_blocks)...',
+          );
+          const blocksDeleted = await tx.userBlock.deleteMany({
+            where: {
+              OR: [{ userId }, { blockedUserId: userId }],
+            },
+          });
+          this.logger.log(`✅ Удалено блокировок: ${blocksDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица user_blocks не найдена — пропускаем');
+        }
+
+        if (existingTables.user_reports) {
+          this.logger.log(
+            '🗑️ Удаление репортов пользователя (user_reports)...',
+          );
+          const reportsDeleted = await tx.userReport.deleteMany({
+            where: {
+              OR: [{ reporterId: userId }, { reportedUserId: userId }],
+            },
+          });
+          this.logger.log(`✅ Удалено репортов: ${reportsDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица user_reports не найдена — пропускаем');
+        }
 
         // 5. Удаляем профиль пользователя из таблицы users
         this.logger.log('🗑️ Удаление профиля пользователя...');
