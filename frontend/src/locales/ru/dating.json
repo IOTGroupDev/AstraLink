@@ -45,5 +45,15 @@
   "defaults": {
     "userName": "Пользователь",
     "userBio": "Ищу свою половинку среди звезд ✨"
+  },
+  "cosmicChat": {
+    "compatibilityLabel": "{{percent}}% совместимость",
+    "suggestionsTitle": "💫 Начните знакомство:",
+    "inputPlaceholder": "Напишите первое сообщение...",
+    "suggestions": {
+      "greeting": "Привет! Вижу, ты {{zodiacSign}} ✨",
+      "compatibility": "Наша совместимость {{percent}}% – звёзды благоволят! 🌟",
+      "aboutMe": "Расскажи о себе, {{name}}"
+    }
   }
 }

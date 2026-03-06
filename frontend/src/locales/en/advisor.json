@@ -62,5 +62,19 @@
       "recommendations": "Recommendations for 8 life areas"
     },
     "getPremium": "Get Premium"
+  },
+  "aspectsWidget": {
+    "title": "Detailed analysis",
+    "badge": "{{count}} aspects",
+    "sections": {
+      "factors": "Key factors",
+      "aspects": "Transit aspects"
+    },
+    "orbLabel": "Orb:",
+    "type": {
+      "harmonious": "Harmonious",
+      "challenging": "Challenging"
+    },
+    "infoNote": "Tap an aspect to view detailed interpretation"
   }
 }

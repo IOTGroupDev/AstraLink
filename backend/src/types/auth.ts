@@ -60,7 +60,7 @@ export interface SendMagicLinkRequest {
  * Запрос на завершение регистрации для OAuth пользователей
  */
 export interface CompleteSignupRequest {
-  userId: string;
+  userId?: string;
   name?: string;
   birthDate: string; // YYYY-MM-DD
   birthTime?: string; // HH:MM

@@ -475,6 +475,24 @@ export class UserService {
         return Boolean(res?.[0]?.exists);
       };
 
+      const columnExists = async (
+        table: string,
+        column: string,
+      ): Promise<boolean> => {
+        const res = await this.prisma.$queryRaw<Array<{ exists: boolean }>>(
+          Prisma.sql`
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = ${table}
+                AND column_name = ${column}
+            ) AS "exists"
+          `,
+        );
+        return Boolean(res?.[0]?.exists);
+      };
+
       const existingTables = {
         user_profiles: await tableExists('user_profiles'),
         user_photos: await tableExists('user_photos'),
@@ -482,6 +500,23 @@ export class UserService {
         feature_usage: await tableExists('feature_usage'),
         user_blocks: await tableExists('user_blocks'),
         user_reports: await tableExists('user_reports'),
+        public_profiles: await tableExists('public_profiles'),
+        profiles: await tableExists('profiles'),
+      };
+
+      const profileColumns = {
+        public_profiles: existingTables.public_profiles
+          ? {
+              user_id: await columnExists('public_profiles', 'user_id'),
+              id: await columnExists('public_profiles', 'id'),
+            }
+          : { user_id: false, id: false },
+        profiles: existingTables.profiles
+          ? {
+              user_id: await columnExists('profiles', 'user_id'),
+              id: await columnExists('profiles', 'id'),
+            }
+          : { user_id: false, id: false },
       };
 
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
@@ -596,6 +631,43 @@ export class UserService {
           this.logger.log(`✅ Удалено репортов: ${reportsDeleted.count}`);
         } else {
           this.logger.warn('⚠️ Таблица user_reports не найдена — пропускаем');
+        }
+
+        // 4.2 Удаляем профили из таблиц, не описанных в Prisma (public_profiles / profiles)
+        if (existingTables.public_profiles) {
+          this.logger.log(
+            '🗑️ Удаление профиля пользователя (public_profiles)...',
+          );
+          if (profileColumns.public_profiles.user_id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.public_profiles WHERE user_id = ${userId}::uuid`,
+            );
+          } else if (profileColumns.public_profiles.id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.public_profiles WHERE id = ${userId}::uuid`,
+            );
+          } else {
+            this.logger.warn(
+              '⚠️ Таблица public_profiles без колонок user_id/id — пропускаем',
+            );
+          }
+        }
+
+        if (existingTables.profiles) {
+          this.logger.log('🗑️ Удаление профиля пользователя (profiles)...');
+          if (profileColumns.profiles.user_id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.profiles WHERE user_id = ${userId}::uuid`,
+            );
+          } else if (profileColumns.profiles.id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.profiles WHERE id = ${userId}::uuid`,
+            );
+          } else {
+            this.logger.warn(
+              '⚠️ Таблица profiles без колонок user_id/id — пропускаем',
+            );
+          }
         }
 
         // 5. Удаляем профиль пользователя из таблицы users

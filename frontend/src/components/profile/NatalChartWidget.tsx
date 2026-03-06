@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions, Text } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -8,7 +9,32 @@ interface NatalChartWidgetProps {
   chart: any;
 }
 
+const normalizeZodiacKey = (sign: string): string => {
+  const map: Record<string, string> = {
+    aries: 'aries',
+    taurus: 'taurus',
+    gemini: 'gemini',
+    cancer: 'cancer',
+    leo: 'leo',
+    virgo: 'virgo',
+    libra: 'libra',
+    scorpio: 'scorpio',
+    sagittarius: 'sagittarius',
+    capricorn: 'capricorn',
+    aquarius: 'aquarius',
+    pisces: 'pisces',
+  };
+
+  const raw = (sign || '').trim();
+  if (!raw) return '';
+
+  const lower = raw.toLowerCase();
+  return map[lower] ?? lower;
+};
+
 const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
+  const { t } = useTranslation();
+
   const centerX = width * 0.45;
   const centerY = 150;
   const outerRadius = 120;
@@ -30,20 +56,11 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
     'Pisces',
   ];
 
-  // Русские названия знаков
-  const zodiacSignsRus = {
-    Aries: 'Овен',
-    Taurus: 'Телец',
-    Gemini: 'Близнецы',
-    Cancer: 'Рак',
-    Leo: 'Лев',
-    Virgo: 'Дева',
-    Libra: 'Весы',
-    Scorpio: 'Скорпион',
-    Sagittarius: 'Стрелец',
-    Capricorn: 'Козерог',
-    Aquarius: 'Водолей',
-    Pisces: 'Рыбы',
+  const getZodiacLabel = (sign: string): string => {
+    const key = normalizeZodiacKey(sign);
+    if (!key) return sign;
+
+    return t(`common.zodiacSigns.${key}`, { defaultValue: sign });
   };
 
   // Цвета планет
@@ -77,7 +94,7 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
   if (!chart?.data?.planets) {
     return (
       <View style={styles.container}>
-        <Text style={styles.noDataText}>Данные карты загружаются...</Text>
+        <Text style={styles.noDataText}>{t('natalChart.widget.loading')}</Text>
       </View>
     );
   }
@@ -146,7 +163,7 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
               fill="rgba(139, 92, 246, 0.8)"
               fontWeight="bold"
             >
-              {zodiacSignsRus[sign]}
+              {getZodiacLabel(sign)}
             </SvgText>
           );
         })}

@@ -2,14 +2,14 @@ import { IsString, IsNotEmpty, IsOptional, Matches } from 'class-validator';
 import { Sanitize } from '@/common/decorators/sanitize.decorator';
 
 export class CompleteSignupDto {
-  @IsString()
-  @IsNotEmpty()
-  userId!: string;
-
   @Sanitize('strict') // No HTML in names
   @IsString()
-  @IsNotEmpty()
-  name!: string;
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  userId?: string;
 
   @IsString()
   @IsNotEmpty()

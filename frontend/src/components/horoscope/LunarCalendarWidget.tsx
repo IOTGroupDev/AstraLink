@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { MoonPhaseVisual } from './MoonPhaseVisual';
 import { chartAPI } from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,16 +11,40 @@ import { LunaSvg } from '../svg/moon-phase/Luna';
 import { StarSvg } from '../svg/moon-phase/Star';
 import { HouseSvg } from '../svg/moon-phase/House';
 import { CaseSvg } from '../svg/moon-phase/Case';
-import { getSignNameRu } from '../../helpers/planetCalculations';
 
 type LunarCalendarWidgetProps = {
   // Позволяет переопределить знак Луны извне (например, из текущих планет)
   sign?: string;
 };
 
+const normalizeZodiacKey = (sign: string): string => {
+  const map: Record<string, string> = {
+    aries: 'aries',
+    taurus: 'taurus',
+    gemini: 'gemini',
+    cancer: 'cancer',
+    leo: 'leo',
+    virgo: 'virgo',
+    libra: 'libra',
+    scorpio: 'scorpio',
+    sagittarius: 'sagittarius',
+    capricorn: 'capricorn',
+    aquarius: 'aquarius',
+    pisces: 'pisces',
+  };
+
+  const raw = (sign || '').trim();
+  if (!raw) return '';
+
+  const lower = raw.toLowerCase();
+  return map[lower] ?? lower;
+};
+
 export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
   sign,
 }) => {
+  const { t } = useTranslation();
+
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const {
@@ -65,9 +90,10 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
 
   // Нормализуем и локализуем знак Луны:
   const rawSign = (sign ?? moonPhase.sign ?? '') as string;
-  const normalizeTitle = (s: string) =>
-    s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
-  const displaySign = rawSign ? getSignNameRu(normalizeTitle(rawSign)) : '-';
+  const zodiacKey = normalizeZodiacKey(rawSign);
+  const displaySign = zodiacKey
+    ? t(`common.zodiacSigns.${zodiacKey}`, { defaultValue: rawSign })
+    : '-';
 
   return (
     <View style={styles.container}>
@@ -79,7 +105,9 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
           end={{ x: 0, y: 1 }}
           style={styles.gradient}
         >
-          <Text style={styles.title}>🌙 Лунный календарь</Text>
+          <Text style={styles.title}>
+            🌙 {t('horoscope.lunarCalendar.title')}
+          </Text>
 
           <View style={styles.moonRow}>
             <View style={styles.moonWrapper}>
@@ -89,7 +117,9 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
             <View style={styles.phaseInfo}>
               <Text style={styles.phaseName}>{moonPhase.phaseName}</Text>
               <Text style={styles.illumination}>
-                {moonPhase.illumination}% освещена
+                {t('horoscope.lunarCalendar.illuminated', {
+                  percent: moonPhase.illumination,
+                })}
               </Text>
             </View>
           </View>
@@ -107,7 +137,9 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
           >
             <View style={styles.cardContent}>
               <View style={styles.infoLeft}>
-                <Text style={styles.label}>Знак</Text>
+                <Text style={styles.label}>
+                  {t('horoscope.lunarCalendar.labels.sign')}
+                </Text>
                 <Text style={styles.value}>{displaySign}</Text>
               </View>
               <View style={styles.iconRight}>
@@ -124,7 +156,9 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
           >
             <View style={styles.cardContent}>
               <View style={styles.infoLeft}>
-                <Text style={styles.label}>Дом</Text>
+                <Text style={styles.label}>
+                  {t('horoscope.lunarCalendar.labels.house')}
+                </Text>
                 <Text style={styles.value}>{moonPhase.house || '-'}</Text>
               </View>
               <View style={styles.iconRight}>
@@ -146,7 +180,9 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
           >
             <View style={styles.cardContent}>
               <View style={styles.infoLeft}>
-                <Text style={styles.label}>Лунный{'\n'}день</Text>
+                <Text style={styles.label}>
+                  {t('horoscope.lunarCalendar.labels.lunarDay')}
+                </Text>
                 <Text style={styles.value}>{lunarDay.number}</Text>
               </View>
               <View style={styles.iconRight}>
@@ -163,13 +199,20 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
           >
             <View style={styles.cardContent}>
               <View style={styles.infoLeft}>
-                <Text style={styles.label}>День {lunarDay.number}</Text>
+                <Text style={styles.label}>
+                  {t('horoscope.lunarCalendar.dayNumber', {
+                    number: lunarDay.number,
+                  })}
+                </Text>
                 <Text
                   style={styles.adviceText}
                   numberOfLines={2}
                   ellipsizeMode="tail"
                 >
-                  {(lunarDay.recommendations?.[0] || 'Следуйте интуиции')
+                  {(
+                    lunarDay.recommendations?.[0] ||
+                    t('horoscope.lunarCalendar.adviceFallback')
+                  )
                     .replace(/\\n/g, '\n')
                     .replace(/<br\s*\/?>/gi, '\n')
                     .replace(/\r\n/g, '\n')}

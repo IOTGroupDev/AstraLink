@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
@@ -109,9 +110,24 @@ const TabBarBackground = React.memo(() => (
 
 export default function TabNavigator() {
   const navigation = useNavigation<any>();
+  const { t, i18n } = useTranslation();
+
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionPercent, setCompletionPercent] = useState(100);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  const tabLabels = useMemo(
+    () => ({
+      horoscope: t('common.tabs.horoscope'),
+      cosmicSimulator: t('common.tabs.cosmicSimulator'),
+      dating: t('common.tabs.dating'),
+      messages: t('common.tabs.messages'),
+      advisor: t('common.tabs.advisor'),
+      profile: t('common.tabs.profile'),
+    }),
+    // Важно: пересчитываем при смене языка, чтобы обновились лейблы табов
+    [i18n.language, t]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -212,7 +228,8 @@ export default function TabNavigator() {
       },
       headerBackground: () => null,
     }),
-    []
+    // Важно: screenOptions тоже зависит от языка, потому что навигация кеширует опции.
+    [i18n.language]
   );
 
   // Мемоизация функции рендера иконки
@@ -260,32 +277,56 @@ export default function TabNavigator() {
         <Tab.Screen
           name="Horoscope"
           component={HoroscopeScreen}
-          options={{ title: 'Гороскоп', headerShown: false }}
+          options={{
+            title: tabLabels.horoscope,
+            tabBarLabel: tabLabels.horoscope,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="CosmicSimulator"
           component={CosmicSimulatorScreen}
-          options={{ title: 'Симулятор', headerShown: false }}
+          options={{
+            title: tabLabels.cosmicSimulator,
+            tabBarLabel: tabLabels.cosmicSimulator,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Dating"
           component={DatingScreen}
-          options={{ title: 'Dating', headerShown: false }}
+          options={{
+            title: tabLabels.dating,
+            tabBarLabel: tabLabels.dating,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Messages"
           component={ChatListScreen}
-          options={{ title: 'Сообщения', headerShown: false }}
+          options={{
+            title: tabLabels.messages,
+            tabBarLabel: tabLabels.messages,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Advisor"
           component={AdvisorChatScreen}
-          options={{ title: 'Советник', headerShown: false }}
+          options={{
+            title: tabLabels.advisor,
+            tabBarLabel: tabLabels.advisor,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: 'Профиль', headerShown: false }}
+          options={{
+            title: tabLabels.profile,
+            tabBarLabel: tabLabels.profile,
+            headerShown: false,
+          }}
         />
       </Tab.Navigator>
       <ProfileCompletionModal

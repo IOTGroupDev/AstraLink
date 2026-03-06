@@ -29,5 +29,57 @@
     "day": "Hoy",
     "tomorrow": "Mañana",
     "week": "Esta semana"
+  },
+  "widget": {
+    "loading": "Cargando horóscopo...",
+    "categories": {
+      "general": "General",
+      "love": "Amor",
+      "career": "Carrera",
+      "health": "Salud",
+      "finance": "Finanzas",
+      "advice": "Consejo del día"
+    },
+    "luckyNumbers": "Números de la suerte",
+    "luckyColors": "Colores de la suerte"
+  },
+  "lunarCalendar": {
+    "title": "Calendario lunar",
+    "labels": {
+      "sign": "Signo",
+      "house": "Casa",
+      "lunarDay": "Día\nlunar"
+    },
+    "dayNumber": "Día {{number}}",
+    "adviceFallback": "Sigue tu intuición",
+    "illuminated": "{{percent}}% iluminada"
+  },
+  "energyWidget": {
+    "title": "Energía del día",
+    "loading": "Cargando energía...",
+    "levels": {
+      "high": "Alta",
+      "good": "Buena",
+      "medium": "Media",
+      "low": "Baja",
+      "veryLow": "Muy baja"
+    }
+  },
+  "biorhythmsWidget": {
+    "loading": "Cargando biorritmos...",
+    "description": "¡Hoy es un gran día para nuevos comienzos! ¡Tu energía está en su punto máximo!"
+  },
+  "mainTransitWidget": {
+    "title": "Tránsito principal",
+    "loading": "Cargando tránsito...",
+    "strength": "Fuerza: {{percent}}%"
+  },
+  "planetRecommendationWidget": {
+    "title": "Recomendación del día",
+    "loading": "Cargando recomendaciones...",
+    "activeTransits": "Tránsitos activos: {{count}}",
+    "analysis": "Análisis de tránsitos",
+    "recommendationPositive": "{{aspect}} con {{target}} — es buen momento para actuar",
+    "recommendationNegative": "{{aspect}} con {{target}} — evita la impulsividad"
   }
 }

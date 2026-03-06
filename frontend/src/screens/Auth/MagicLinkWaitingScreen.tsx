@@ -533,7 +533,7 @@
 //   ghostText: { fontSize: 14, opacity: 0.8, textDecorationLine: 'underline' },
 // });
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -541,190 +541,26 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
-  Platform,
   TextInput,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as AuthSession from 'expo-auth-session';
-import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import CosmicBackground from '../../components/shared/CosmicBackground';
-import { supabase } from '../../services/supabase';
-import { tokenService } from '../../services/tokenService';
 import { authAPI } from '../../services/api';
 import { authLogger } from '../../services/logger';
 
 type RouteParams = { email?: string };
 
-/**
- * ✅ Правильная функция для получения redirect URI
- * Работает как в Expo Go, так и в standalone приложении
- */
-function getRedirectUri(): string {
-  try {
-    const isExpoGo = Constants.appOwnership === 'expo';
-
-    // Для веба проверяем наличие window.location
-    if (
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined' &&
-      window.location
-    ) {
-      return `${window.location.origin}/auth/callback`;
-    }
-
-    // Для мобильных платформ используем AuthSession.makeRedirectUri
-    return AuthSession.makeRedirectUri({
-      useProxy: isExpoGo,
-      scheme: 'astralink',
-      path: 'auth/callback',
-    });
-  } catch (error) {
-    authLogger.error('❌ Ошибка получения redirect URI:', error);
-    // Fallback на стандартный URI
-    return 'astralink://auth/callback';
-  }
-}
-
 export default function MagicLinkWaitingScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const email = (route.params as RouteParams)?.email ?? '';
-  const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
-
-  // Слушаем изменение auth-состояния + BroadcastChannel для web
-  useEffect(() => {
-    // Mobile: слушаем auth state change
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.access_token) {
-          try {
-            setChecking(true);
-            authLogger.log('✅ Сессия получена через magic link (mobile)');
-
-            // Переходим на экран загрузки данных
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'UserDataLoader' }],
-            });
-          } catch (err) {
-            authLogger.error('❌ Ошибка после получения сессии:', err);
-          } finally {
-            setChecking(false);
-          }
-        }
-      }
-    );
-
-    // Web: слушаем BroadcastChannel + fallback на localStorage
-    if (Platform.OS === 'web') {
-      let bc: BroadcastChannel | null = null;
-
-      try {
-        // @ts-ignore
-        bc = new BroadcastChannel('supabase-auth');
-        bc.onmessage = async (event: MessageEvent) => {
-          try {
-            const msg: any = event?.data;
-            authLogger.log('📡 BroadcastChannel message received:', msg);
-            if (msg?.type === 'SIGNED_IN' && msg?.accessToken) {
-              authLogger.log(
-                '📡 BroadcastChannel: SIGNED_IN received, setting session'
-              );
-              const { error } = await supabase.auth.setSession({
-                access_token: msg.accessToken,
-                refresh_token: msg.refreshToken || '',
-              });
-              if (error) {
-                authLogger.error(
-                  '❌ setSession from BroadcastChannel failed:',
-                  error
-                );
-                return;
-              }
-              authLogger.log(
-                '✅ Session set from BroadcastChannel, navigating to UserDataLoader'
-              );
-              // Переходим на экран загрузки данных
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'UserDataLoader' }],
-              });
-            }
-          } catch (e) {
-            authLogger.error('BroadcastChannel handler error:', e);
-          }
-        };
-        authLogger.log('📡 BroadcastChannel listener set up successfully');
-      } catch (e) {
-        authLogger.warn(
-          'BroadcastChannel init failed, will rely on storage fallback:',
-          e
-        );
-      }
-
-      // Fallback: onstorage триггер с локальным токеном
-      const onStorage = async (e: StorageEvent) => {
-        try {
-          authLogger.log('🔔 Storage event received:', e.key, e.newValue);
-          if (e.key === 'al_token_broadcast' && e.newValue) {
-            authLogger.log('🔔 Storage fallback: broadcast flag received');
-            // Пытаемся установить сессию из сохраненного токена
-            const token = await tokenService.getToken();
-            authLogger.log(
-              '🔑 Token from storage:',
-              token ? 'found' : 'not found'
-            );
-            if (token) {
-              const { error } = await supabase.auth.setSession({
-                access_token: token,
-                refresh_token: '',
-              });
-              if (error) {
-                authLogger.error(
-                  '❌ setSession from storage fallback failed:',
-                  error
-                );
-                return;
-              }
-              authLogger.log(
-                '✅ Session set from storage fallback, navigating to UserDataLoader'
-              );
-              // Переходим на экран загрузки данных
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'UserDataLoader' }],
-              });
-            }
-          }
-        } catch (err) {
-          authLogger.error('storage fallback handler error:', err);
-        }
-      };
-      window.addEventListener('storage', onStorage);
-      authLogger.log('🔔 Storage event listener set up');
-
-      return () => {
-        sub.subscription?.unsubscribe?.();
-        window.removeEventListener('storage', onStorage);
-        if (bc) {
-          try {
-            bc.close();
-          } catch {}
-        }
-      };
-    }
-
-    return () => {
-      sub.subscription?.unsubscribe?.();
-    };
-  }, [navigation]);
 
   const onOpenMail = async () => {
     try {
@@ -775,12 +611,6 @@ export default function MagicLinkWaitingScreen() {
 
       // Проверяем OTP код — создаст session при успехе
       await authAPI.verifyCode(email, code.trim());
-
-      // Переходим на экран загрузки данных
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'UserDataLoader' }],
-      });
     } catch (e: any) {
       authLogger.error('❌ Ошибка подтверждения кода:', e);
       const msg =
@@ -901,20 +731,15 @@ export default function MagicLinkWaitingScreen() {
           <TouchableOpacity
             onPress={onOpenMail}
             style={styles.primaryButton}
-            disabled={checking}
             activeOpacity={0.8}
           >
-            {checking ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Открыть почту</Text>
-            )}
+            <Text style={styles.primaryButtonText}>Открыть почту</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={onResend}
             style={styles.secondaryButton}
-            disabled={resending || checking}
+            disabled={resending}
             activeOpacity={0.8}
           >
             {resending ? (
@@ -927,7 +752,6 @@ export default function MagicLinkWaitingScreen() {
           <TouchableOpacity
             onPress={onChangeEmail}
             style={styles.ghostButton}
-            disabled={checking}
             activeOpacity={0.7}
           >
             <Text style={styles.ghostButtonText}>Указать другой email</Text>

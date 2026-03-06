@@ -287,67 +287,7 @@ export class SubscriptionService {
 
     this.logger.log(`User ${userId} upgraded to ${tier}`);
 
-    // PREMIUM: пересчитать/перезаписать интерпретацию натальной карты через AI и прогреть гороскопы
-    try {
-      // 1) Находим последнюю карту пользователя (через Prisma)
-      const chartRec = await this.prisma.chart.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      // 2) Если есть AI — генерируем premium-интерпретацию и сохраняем в карту
-      if (chartRec && this.aiService.isAvailable()) {
-        const chartData = (chartRec.data as any) || {};
-        try {
-          const aiText = await this.aiService.generateChartInterpretation({
-            planets: chartData?.planets,
-            houses: chartData?.houses,
-            aspects: chartData?.aspects || [],
-            userProfile: undefined,
-          });
-
-          const updatedData = {
-            ...chartData,
-            interpretation: aiText,
-            interpretationVersion: 'ai-v1',
-            generatedBy: 'ai',
-          };
-
-          // ✅ PRISMA: Обновляем карту
-          await this.prisma.chart.update({
-            where: { id: chartRec.id },
-            data: { data: updatedData },
-          });
-        } catch (e) {
-          this.logger.warn(
-            `AI interpretation generation failed for ${userId}: ${
-              e instanceof Error ? e.message : String(e)
-            }`,
-          );
-        }
-      }
-
-      // 3) Прогреваем PREMIUM-гороскоп (day/tomorrow/week/month) в Redis-кэше
-      try {
-        await Promise.all(
-          (['day', 'tomorrow', 'week', 'month'] as const).map((p) =>
-            this.horoscopeService.generateHoroscope(userId, p, true),
-          ),
-        );
-      } catch (e) {
-        this.logger.warn(
-          `Horoscope prewarm failed for ${userId}: ${
-            e instanceof Error ? e.message : String(e)
-          }`,
-        );
-      }
-    } catch (e) {
-      this.logger.warn(
-        `Premium post-upgrade assets step failed for ${userId}: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
-    }
+    await this.refreshPremiumAssets(userId);
 
     return {
       success: true,
@@ -357,6 +297,81 @@ export class SubscriptionService {
         expiresAt: expiresAt.toISOString(),
       },
     };
+  }
+
+  /**
+   * Пост-апгрейд: сразу запросить AI-данные (интерпретация + гороскопы)
+   */
+  private async refreshPremiumAssets(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    if (!this.aiService.isAvailable()) {
+      this.logger.warn(`AI not available for premium refresh user=${userId}`);
+      return;
+    }
+
+    // Очистим кэш гороскопов, чтобы не вернуть старые FREE ответы
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+    } catch (e) {
+      this.logger.warn(
+        `Failed to clear horoscope cache for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+
+    // 1) AI-интерпретация натальной карты
+    try {
+      const chartRec = await this.prisma.chart.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (chartRec) {
+        const chartData = (chartRec.data as any) || {};
+        const aiText = await this.aiService.generateChartInterpretation({
+          planets: chartData?.planets,
+          houses: chartData?.houses,
+          aspects: chartData?.aspects || [],
+          userProfile: undefined,
+        });
+
+        const updatedData = {
+          ...chartData,
+          interpretation: aiText,
+          interpretationVersion: 'ai-v1',
+          generatedBy: 'ai',
+        };
+
+        await this.prisma.chart.update({
+          where: { id: chartRec.id },
+          data: { data: updatedData },
+        });
+      }
+    } catch (e) {
+      this.logger.warn(
+        `AI interpretation generation failed for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+
+    // 2) Прогрев PREMIUM-гороскопов
+    try {
+      await Promise.all(
+        (['day', 'tomorrow', 'week', 'month'] as const).map((p) =>
+          this.horoscopeService.generateHoroscope(userId, p, true, locale),
+        ),
+      );
+    } catch (e) {
+      this.logger.warn(
+        `Horoscope prewarm failed for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
   }
 
   /**

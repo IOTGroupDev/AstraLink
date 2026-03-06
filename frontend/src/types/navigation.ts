@@ -13,7 +13,6 @@ export type RootStackParamList = {
   AuthEmail: undefined;
   MagicLinkWaiting: { email: string };
   AuthCallback: undefined; // 👈 Добавлено
-  UserDataLoader: undefined; // 👈 для replace('UserDataLoader')
   OptCode: {
     email: string;
     codeLength?: number;

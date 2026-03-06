@@ -24,7 +24,14 @@
     "titleWithAccess": "Interpretación IA de tránsitos",
     "titleWithoutAccess": "Interpretación básica",
     "upgradeMessage": "Actualiza tu suscripción para análisis IA",
-    "upgradeButton": "Obtener Premium"
+    "upgradeButton": "Obtener Premium",
+    "sectionTitles": {
+      "love": "💕 Amor:",
+      "career": "💼 Carrera:",
+      "health": "🏥 Salud:",
+      "finance": "💰 Finanzas:",
+      "advice": "💡 Consejo:"
+    }
   },
   "transits": {
     "title": "Tránsitos activos",
@@ -35,6 +42,12 @@
   },
   "planets": {
     "title": "Planetas en tránsito"
+  },
+  "chartVisualization": {
+    "legend": {
+      "natal": "Natal",
+      "transit": "Tránsito"
+    }
   },
   "timeline": {
     "title": "Notas históricas",
@@ -65,7 +78,8 @@
       "type": "Tipo:",
       "harmonious": "Armonioso",
       "challenging": "Desafiante",
-      "neutral": "Neutral"
+      "neutral": "Neutral",
+      "fallbackLine": "Este es un aspecto entre un planeta en tránsito y un planeta natal."
     },
     "datePicker": {
       "title": "Seleccionar fecha",

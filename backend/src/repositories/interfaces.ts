@@ -13,6 +13,7 @@ export interface UserProfile {
   birth_date?: string | null;
   birth_time?: string | null;
   birth_place?: string | null;
+  onboarding_completed?: boolean | null;
   gender?: string | null;
   city?: string | null;
   interests?: string | string[] | null;

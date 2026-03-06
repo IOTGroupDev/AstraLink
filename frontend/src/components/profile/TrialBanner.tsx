@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../../services/logger';
 
 import { useSubscription } from '../../hooks/useSubscription';
@@ -56,6 +57,8 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
   compact = false,
 }) => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
+
   const { isTrialAvailable, isTrial, activateTrial, isActivatingTrial, tier } =
     useSubscription();
 
@@ -129,22 +132,33 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
   // Обработчик активации Trial
   const handleActivateTrial = async () => {
     Alert.alert(
-      '🎁 Активировать Trial?',
-      `${TRIAL_CONFIG.duration} дней Premium подписки бесплатно. Без автоматического продления.`,
+      t('subscription.trialBanner.confirm.title'),
+      t('subscription.trialBanner.confirm.message', {
+        days: TRIAL_CONFIG.duration,
+      }),
       [
-        { text: 'Отмена', style: 'cancel' },
         {
-          text: 'Активировать',
+          text: t('subscription.trialBanner.confirm.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('subscription.trialBanner.confirm.activate'),
           onPress: async () => {
             const result = await activateTrial();
+
             if (result.success) {
               Alert.alert(
-                '✨ Trial активирован!',
-                `Наслаждайтесь всеми функциями Premium ${TRIAL_CONFIG.duration} дней бесплатно`,
-                [{ text: 'Отлично!' }]
+                t('subscription.trialBanner.result.successTitle'),
+                t('subscription.trialBanner.result.successMessage', {
+                  days: TRIAL_CONFIG.duration,
+                }),
+                [{ text: t('subscription.trialBanner.result.successOk') }]
               );
             } else {
-              Alert.alert('Ошибка', 'Не удалось активировать Trial');
+              Alert.alert(
+                t('subscription.trialBanner.result.errorTitle'),
+                t('subscription.trialBanner.result.errorMessage')
+              );
             }
           },
         },
@@ -177,20 +191,24 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
   const getMessage = () => {
     if (dismissCount === 0) {
       return {
-        title: '🎁 Попробуйте Premium бесплатно!',
-        description: `${TRIAL_CONFIG.duration} дней полного доступа без оплаты`,
-      };
-    } else if (dismissCount === 1) {
-      return {
-        title: '✨ Не упустите возможность!',
-        description: 'AI-гороскопы, полная карта и многое другое',
-      };
-    } else {
-      return {
-        title: '🌟 Последнее напоминание',
-        description: 'Откройте все функции AstraLink',
+        title: t('subscription.trialBanner.messages.first.title'),
+        description: t('subscription.trialBanner.messages.first.description', {
+          days: TRIAL_CONFIG.duration,
+        }),
       };
     }
+
+    if (dismissCount === 1) {
+      return {
+        title: t('subscription.trialBanner.messages.second.title'),
+        description: t('subscription.trialBanner.messages.second.description'),
+      };
+    }
+
+    return {
+      title: t('subscription.trialBanner.messages.third.title'),
+      description: t('subscription.trialBanner.messages.third.description'),
+    };
   };
 
   const message = getMessage();
@@ -210,7 +228,11 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
           >
             <Ionicons name="gift" size={20} color="#fff" />
             <Text style={styles.compactText}>
-              {isActivatingTrial ? 'Активация...' : 'Trial 7 дней'}
+              {isActivatingTrial
+                ? t('subscription.trialBanner.compact.activating')
+                : t('subscription.trialBanner.compact.label', {
+                    days: TRIAL_CONFIG.duration,
+                  })}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -266,7 +288,9 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
             style={styles.learnMoreButton}
             onPress={handleLearnMore}
           >
-            <Text style={styles.learnMoreText}>Подробнее</Text>
+            <Text style={styles.learnMoreText}>
+              {t('subscription.trialBanner.learnMore')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -279,7 +303,9 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
           >
             <View style={styles.activateButtonContent}>
               <Text style={styles.activateText}>
-                {isActivatingTrial ? 'Активация...' : 'Активировать'}
+                {isActivatingTrial
+                  ? t('subscription.trialBanner.compact.activating')
+                  : t('subscription.trialBanner.activate')}
               </Text>
               {!isActivatingTrial && (
                 <Ionicons name="arrow-forward" size={18} color="#10B981" />

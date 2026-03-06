@@ -24,7 +24,14 @@
     "titleWithAccess": "AI Transit Interpretation",
     "titleWithoutAccess": "Basic interpretation",
     "upgradeMessage": "Upgrade subscription for AI analysis",
-    "upgradeButton": "Get Premium"
+    "upgradeButton": "Get Premium",
+    "sectionTitles": {
+      "love": "💕 Love:",
+      "career": "💼 Career:",
+      "health": "🏥 Health:",
+      "finance": "💰 Finance:",
+      "advice": "💡 Advice:"
+    }
   },
   "transits": {
     "title": "Active transits",
@@ -35,6 +42,12 @@
   },
   "planets": {
     "title": "Transit planets"
+  },
+  "chartVisualization": {
+    "legend": {
+      "natal": "Natal",
+      "transit": "Transit"
+    }
   },
   "timeline": {
     "title": "Historical notes",
@@ -65,7 +78,8 @@
       "type": "Type:",
       "harmonious": "Harmonious",
       "challenging": "Challenging",
-      "neutral": "Neutral"
+      "neutral": "Neutral",
+      "fallbackLine": "This is an aspect between a transit planet and a natal planet."
     },
     "datePicker": {
       "title": "Select date",

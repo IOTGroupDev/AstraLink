@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { chartAPI } from '../services/api';
+import { useSubscription } from '../hooks/useSubscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { logger } from '../services/logger';
@@ -120,6 +121,8 @@ const getHouseForLongitude = (
 
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
+  const { subscription } = useSubscription();
+  const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -169,6 +172,14 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     await loadChartData();
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    const nextTier = subscription?.tier;
+    if (prevTierRef.current && nextTier && prevTierRef.current !== nextTier) {
+      loadChartData();
+    }
+    prevTierRef.current = nextTier;
+  }, [subscription?.tier]);
 
   if (loading) {
     return (

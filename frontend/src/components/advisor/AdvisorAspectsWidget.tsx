@@ -1,9 +1,10 @@
 // src/components/advisor/AdvisorAspectsWidget.tsx
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 
 interface Aspect {
   planetA: string;
@@ -31,7 +32,28 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
   aspects,
   factors,
 }) => {
+  const { t } = useTranslation();
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
+
+  const getPlanetLabel = useCallback(
+    (planetKey: string): string => {
+      const key = String(planetKey || '')
+        .trim()
+        .toLowerCase();
+      return t(`common.planets.${key}`, { defaultValue: planetKey });
+    },
+    [t]
+  );
+
+  const getAspectLabel = useCallback(
+    (aspectKey: string): string => {
+      const key = String(aspectKey || '')
+        .trim()
+        .toLowerCase();
+      return t(`common.aspects.${key}`, { defaultValue: aspectKey });
+    },
+    [t]
+  );
 
   const getAspectColor = (type: string): string[] => {
     switch (type) {
@@ -67,33 +89,6 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
     }
   };
 
-  const getAspectNameRu = (type: string): string => {
-    const names: Record<string, string> = {
-      conjunction: 'Соединение',
-      sextile: 'Секстиль',
-      square: 'Квадрат',
-      trine: 'Трин',
-      opposition: 'Оппозиция',
-    };
-    return names[type] || type;
-  };
-
-  const getPlanetNameRu = (planet: string): string => {
-    const names: Record<string, string> = {
-      sun: 'Солнце',
-      moon: 'Луна',
-      mercury: 'Меркурий',
-      venus: 'Венера',
-      mars: 'Марс',
-      jupiter: 'Юпитер',
-      saturn: 'Сатурн',
-      uranus: 'Уран',
-      neptune: 'Нептун',
-      pluto: 'Плутон',
-    };
-    return names[planet] || planet;
-  };
-
   const getPlanetIcon = (planet: string): keyof typeof Ionicons.glyphMap => {
     const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
       sun: 'sunny',
@@ -125,16 +120,20 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="analytics" size={20} color="#8B5CF6" />
-          <Text style={styles.title}>Детальный анализ</Text>
+          <Text style={styles.title}>{t('advisor.aspectsWidget.title')}</Text>
         </View>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{aspects.length} аспектов</Text>
+          <Text style={styles.badgeText}>
+            {t('advisor.aspectsWidget.badge', { count: aspects.length })}
+          </Text>
         </View>
       </View>
 
       {/* Factors Summary */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ключевые факторы</Text>
+        <Text style={styles.sectionTitle}>
+          {t('advisor.aspectsWidget.sections.factors')}
+        </Text>
         <View style={styles.factorsList}>
           {topFactors.map((factor, index) => {
             const isPositive = factor.contribution > 0;
@@ -183,7 +182,9 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
 
       {/* Aspects Details */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Транзитные аспекты</Text>
+        <Text style={styles.sectionTitle}>
+          {t('advisor.aspectsWidget.sections.aspects')}
+        </Text>
         <View style={styles.aspectsList}>
           {sortedAspects.map((aspect, index) => {
             const isExpanded = expandedAspect === index;
@@ -222,7 +223,7 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
                             color="rgba(255,255,255,0.7)"
                           />
                           <Text style={styles.aspectTitle}>
-                            {getPlanetNameRu(aspect.planetA)}
+                            {getPlanetLabel(aspect.planetA)}
                           </Text>
                           <Ionicons
                             name="arrow-forward"
@@ -230,12 +231,13 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
                             color="rgba(255,255,255,0.5)"
                           />
                           <Text style={styles.aspectType}>
-                            {getAspectNameRu(aspect.type)}
+                            {getAspectLabel(aspect.type)}
                           </Text>
                         </View>
                         <View style={styles.aspectDetails}>
                           <Text style={styles.aspectDetailText}>
-                            Орб: {aspect.orb.toFixed(1)}°
+                            {t('advisor.aspectsWidget.orbLabel')}{' '}
+                            {aspect.orb.toFixed(1)}°
                           </Text>
                           <Text style={styles.aspectDetailSeparator}>•</Text>
                           <Text
@@ -246,7 +248,9 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
                               },
                             ]}
                           >
-                            {isPositive ? 'Гармоничный' : 'Напряженный'}
+                            {isPositive
+                              ? t('advisor.aspectsWidget.type.harmonious')
+                              : t('advisor.aspectsWidget.type.challenging')}
                           </Text>
                         </View>
                       </View>
@@ -296,7 +300,7 @@ const AdvisorAspectsWidget: React.FC<AdvisorAspectsWidgetProps> = ({
       <View style={styles.infoNote}>
         <Ionicons name="bulb-outline" size={14} color="rgba(255,255,255,0.5)" />
         <Text style={styles.infoNoteText}>
-          Нажмите на аспект для подробной интерпретации
+          {t('advisor.aspectsWidget.infoNote')}
         </Text>
       </View>
     </BlurView>

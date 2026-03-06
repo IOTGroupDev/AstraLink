@@ -62,5 +62,19 @@
       "recommendations": "Recomendaciones para 8 áreas de la vida"
     },
     "getPremium": "Obtener Premium"
+  },
+  "aspectsWidget": {
+    "title": "Análisis detallado",
+    "badge": "{{count}} aspectos",
+    "sections": {
+      "factors": "Factores clave",
+      "aspects": "Aspectos de tránsito"
+    },
+    "orbLabel": "Orbe:",
+    "type": {
+      "harmonious": "Armonioso",
+      "challenging": "Desafiante"
+    },
+    "infoNote": "Toca un aspecto para ver una interpretación detallada"
   }
 }

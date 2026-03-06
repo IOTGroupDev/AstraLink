@@ -47,5 +47,26 @@
     "editProfile": "Edit profile",
     "later": "Later",
     "dontShow": "Don't show again"
+  },
+  "deleteAccountModal": {
+    "warning": {
+      "title": "Delete account?",
+      "irreversible": "This action is irreversible!",
+      "deleteListTitle": "Will be permanently deleted:",
+      "items": {
+        "profile": "Profile and personal data",
+        "natalChart": "Natal chart",
+        "connections": "All connections and contacts",
+        "dating": "Dating data",
+        "subscriptions": "Subscription history",
+        "analytics": "Stats and achievements"
+      }
+    },
+    "confirm": {
+      "title": "Final warning",
+      "critical": "ALL DATA WILL BE DELETED\nFOREVER AND IRREVERSIBLY!",
+      "question": "Are you absolutely sure you want to delete your account?",
+      "deleteForever": "Delete forever"
+    }
   }
 }
