@@ -501,7 +501,7 @@ const HoroscopeScreen: React.FC = () => {
               <Text style={styles.headerTitle}>{t('horoscope.title')}</Text>
               <Text style={styles.headerSubtitle}>
                 {t('horoscope.subtitle', {
-                  name: user?.name ? `, ${user.name}` : '',
+                  name: user?.name ? `\n${user.name}` : '',
                 })}
               </Text>
               <Text style={styles.headerDate}>
@@ -613,9 +613,9 @@ const styles = StyleSheet.create({
   },
   // Заголовок
   headerContainer: {
-    marginHorizontal: 8,
+    marginHorizontal: 0,
     borderRadius: 16,
-    padding: 10,
+    padding: 20,
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1,

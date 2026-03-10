@@ -48,7 +48,7 @@
     "labels": {
       "sign": "Знак",
       "house": "Дом",
-      "lunarDay": "Лунный\nдень"
+      "lunarDay": "Лунный день"
     },
     "dayNumber": "День {{number}}",
     "adviceFallback": "Следуйте интуиции",
