@@ -441,6 +441,18 @@ export const authAPI = {
             'Не удалось получить пользователя после Apple sign in'
           );
 
+        try {
+          await authAPI.ensureUserProfile({
+            userId: user.id,
+            email: user.email || '',
+          });
+        } catch (ensureError: any) {
+          authLogger.warn(
+            '⚠️ ensure-profile failed (Apple iOS, non-blocking):',
+            ensureError
+          );
+        }
+
         return {
           access_token: accessToken || '',
           user: {
@@ -485,6 +497,18 @@ export const authAPI = {
             throw new Error(
               'Не удалось получить пользователя после Apple OAuth'
             );
+
+          try {
+            await authAPI.ensureUserProfile({
+              userId: user.id,
+              email: user.email || '',
+            });
+          } catch (ensureError: any) {
+            authLogger.warn(
+              '⚠️ ensure-profile failed (Apple OAuth, non-blocking):',
+              ensureError
+            );
+          }
 
           return {
             access_token: accessToken || '',
@@ -541,6 +565,19 @@ export const authAPI = {
           const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
+
+          try {
+            await authAPI.ensureUserProfile({
+              userId: user.id,
+              email: user.email || '',
+            });
+          } catch (ensureError: any) {
+            authLogger.warn(
+              '⚠️ ensure-profile failed (Google OAuth, non-blocking):',
+              ensureError
+            );
+          }
+
           return {
             access_token: accessToken || '',
             user: {

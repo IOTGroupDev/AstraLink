@@ -39,6 +39,16 @@ const normalizeProfile = (raw: any): AuthProfile => ({
   onboardingCompleted: !needsOnboarding(raw),
 });
 
+const profileFromSession = (session: Session): AuthProfile => ({
+  id: session.user.id,
+  email: session.user.email || '',
+  name: (session.user.user_metadata as any)?.name || undefined,
+  birthDate: undefined,
+  birthTime: undefined,
+  birthPlace: undefined,
+  onboardingCompleted: false,
+});
+
 const resolveState = (profile: AuthProfile | null) => {
   if (!profile) {
     setState('UNAUTHORIZED');
@@ -77,8 +87,9 @@ const bootstrap = async () => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed during boot', err);
-    setProfile(null);
-    setState('UNAUTHORIZED');
+    const fallbackProfile = profileFromSession(session);
+    setProfile(fallbackProfile);
+    setState('ONBOARDING');
   } finally {
     setLoading(false);
   }
@@ -101,8 +112,9 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed after auth event', err);
-    setProfile(null);
-    setState('UNAUTHORIZED');
+    const fallbackProfile = session ? profileFromSession(session) : null;
+    setProfile(fallbackProfile);
+    setState(fallbackProfile ? 'ONBOARDING' : 'UNAUTHORIZED');
   }
 };
 
