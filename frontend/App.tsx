@@ -12,7 +12,7 @@ if (typeof globalThis.TextDecoder === 'undefined')
 
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { StatusBar } from 'react-native';
+import { StatusBar, StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
 import { NavigationTheme } from './src/navigation/navigationConfig';
@@ -22,6 +22,7 @@ import { AuthEngine } from './src/services/authEngine';
 import SplashScreen from './src/screens/SplashScreen';
 import { logger } from './src/services/logger';
 import { enableScreens } from 'react-native-screens';
+import { TopStatusBarFade } from './src/components/shared/TopStatusBarFade';
 
 enableScreens(true);
 
@@ -64,10 +65,19 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <QueryClientProvider client={queryClient}>
-        <NavigationContainer theme={NavigationTheme}>
-          <MainStackNavigator />
-        </NavigationContainer>
+        <View style={styles.root}>
+          <NavigationContainer theme={NavigationTheme}>
+            <MainStackNavigator />
+          </NavigationContainer>
+          <TopStatusBarFade />
+        </View>
       </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
