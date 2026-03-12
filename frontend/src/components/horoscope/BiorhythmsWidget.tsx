@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import Svg, {
   Circle,
   Path,
@@ -149,6 +150,8 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
   intellectual,
   isLoading,
 }) => {
+  const { t } = useTranslation();
+
   if (isLoading) {
     return (
       <LinearGradient
@@ -164,9 +167,13 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
           style={styles.borderGradient}
         />
         <View style={styles.content}>
-          <Text style={styles.headerText}>⏳️ Биоритмы</Text>
+          <Text style={styles.headerText}>
+            ⏳️ {t('horoscope.biorhythms.title')}
+          </Text>
           <View style={{ paddingVertical: 8 }}>
-            <Text style={{ color: '#A78BFA' }}>Загрузка биоритмов...</Text>
+            <Text style={{ color: '#A78BFA' }}>
+              {t('horoscope.biorhythmsWidget.loading')}
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -191,13 +198,15 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
       {/* Контент */}
       <View style={styles.content}>
         {/* Заголовок */}
-        <Text style={styles.headerText}>⏳️ Биоритмы</Text>
+        <Text style={styles.headerText}>
+          ⏳️ {t('horoscope.biorhythms.title')}
+        </Text>
 
         {/* Список биоритмов */}
         <View style={styles.listContainer}>
           <BiorhythmItem
-            title="Физический"
-            description="Сегодня отличный день для новых начинаний! Ваша энергия на пике!"
+            title={t('horoscope.biorhythms.physical')}
+            description={t('horoscope.biorhythmsWidget.description')}
             value={physical}
             color="#E33931"
             backgroundColor="#FFC8C9"
@@ -205,8 +214,8 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
           />
 
           <BiorhythmItem
-            title="Эмоциональный"
-            description="Сегодня отличный день для новых начинаний! Ваша энергия на пике!"
+            title={t('horoscope.biorhythms.emotional')}
+            description={t('horoscope.biorhythmsWidget.description')}
             value={emotional}
             color="#0E9B45"
             backgroundColor="#C9FFD5"
@@ -214,8 +223,8 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
           />
 
           <BiorhythmItem
-            title="Интеллектуальный"
-            description="Сегодня отличный день для новых начинаний! Ваша энергия на пике!"
+            title={t('horoscope.biorhythms.intellectual')}
+            description={t('horoscope.biorhythmsWidget.description')}
             value={intellectual}
             color="#12A6DF"
             backgroundColor="#C8E0FF"

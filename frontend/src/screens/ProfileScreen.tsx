@@ -28,12 +28,11 @@ import CosmicBackground from '../components/shared/CosmicBackground';
 import ZodiacAvatar from '../components/profile/ZodiacAvatar';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
 import NatalChartWidget from '../components/profile/NatalChartWidget';
-import { useAuth } from '../hooks/useAuth';
 import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
 import { userAPI, chartAPI, userPhotosAPI } from '../services/api';
-import { tokenService } from '../services/tokenService';
 import { clearAllUserData } from '../services/cleanupService';
+import { AuthEngine } from '../services/authEngine';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   useSafeAreaInsets,
@@ -91,7 +90,7 @@ const ZODIAC_ELEMENTS = {
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
-  const { user: authUser } = useAuth();
+  const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [chart, setChart] = useState<Chart | null>(null);
@@ -112,7 +111,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     biometricEnabled,
     biometricType,
     setBiometricEnabled,
-    logout,
   } = useAuthStore();
 
   useEffect(() => {
@@ -152,12 +150,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         logger.warn('getProfile failed', st, data);
 
         if (st === 401) {
-          // нет/протух токен — выходим в логин
           Alert.alert(
             t('common.errors.sessionExpired'),
             t('common.errors.pleaseLoginAgain')
           );
-          logout?.(); // если есть из стора
+          await AuthEngine.signOut();
           return;
         }
 
@@ -222,7 +219,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       {
         text: t('profile.logout.confirm'),
         style: 'destructive',
-        onPress: async () => await logout(),
+        onPress: async () => await AuthEngine.signOut(),
       },
     ]);
   };
@@ -231,16 +228,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       await userAPI.deleteAccount();
 
-      // Immediately close the modal
       setShowDeleteModal(false);
 
-      // Clear auth state first (resets onboardingCompleted flag)
-      await logout();
-
-      // Complete cleanup: clear all user data, tokens, settings, and Zustand stores
       await clearAllUserData();
+      await AuthEngine.signOut();
 
-      // Navigate to login screen immediately to prevent any API calls
       navigation.reset({
         index: 0,
         routes: [{ name: 'SignUp' }],
@@ -300,7 +292,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const themePrimary = elementTheme.colors[0];
 
   return (
-    <SafeAreaViewSAC style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaViewSAC style={styles.container} edges={['left', 'right']}>
       <CosmicBackground />
 
       <ScrollView
@@ -308,6 +300,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           styles.scrollContent,
           {
             // ключевая строка: чтобы контент не перекрывался таббаром
+            paddingTop: insets.top,
             paddingBottom: Math.max(40, tabBarHeight + insets.bottom + 16),
           },
         ]}
@@ -355,7 +348,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
 
             <Text style={styles.userName}>
-              {profile.name || authUser?.name || t('profile.defaults.userName')}
+              {profile.name ||
+                authProfile?.name ||
+                t('profile.defaults.userName')}
             </Text>
 
             <View style={styles.zodiacInfo}>
@@ -486,6 +481,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
         </Animated.View>
       </ScrollView>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(15, 23, 42, 0.98)',
+          'rgba(15, 23, 42, 0.65)',
+          'rgba(15, 23, 42, 0)',
+        ]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[styles.topFade, { height: insets.top + 56 }]}
+      />
 
       {/* Delete Account Modal */}
       <DeleteAccountModal
@@ -493,7 +499,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteAccount}
         userName={
-          profile.name || authUser?.name || t('profile.defaults.userName')
+          profile.name || authProfile?.name || t('profile.defaults.userName')
         }
       />
     </SafeAreaViewSAC>
@@ -542,6 +548,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   content: {
     flex: 1,

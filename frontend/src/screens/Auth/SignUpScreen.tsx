@@ -14,12 +14,10 @@ import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
-import { useAuthStore } from '../../stores/auth.store';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import {
   withBiometricProtection,
   handleOAuthError,
-  needsOnboarding,
 } from '../../services/oauthHelper';
 import {
   AUTH_COLORS,
@@ -32,8 +30,7 @@ const SignUpScreen = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
-  const { login } = useAuthStore();
-  const { setCompleted } = useOnboardingStore();
+  const { reset } = useOnboardingStore();
 
   const handleEmailSignUp = () => {
     navigation.navigate('AuthEmail' as never);
@@ -43,18 +40,9 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('google');
-      const response = await withBiometricProtection(
-        () => authAPI.googleSignIn(),
-        'Google'
-      );
-      login(response.user);
-
-      if (needsOnboarding(response.user)) {
-        navigation.navigate('OnboardingName' as never);
-      } else {
-        setCompleted(true);
-        navigation.navigate('Main' as never);
-      }
+      await withBiometricProtection(() => authAPI.googleSignIn(), 'Google');
+      reset();
+      // Навигация будет управляться AuthEngine
     } catch (error: any) {
       handleOAuthError(error, 'Google');
     } finally {
@@ -67,21 +55,9 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('apple');
-      const response = await withBiometricProtection(
-        () => authAPI.appleSignIn(),
-        'Apple'
-      );
-
-      // Сохраняем пользователя в store
-      login(response.user);
-
-      // Проверяем, нужен ли онбординг
-      if (needsOnboarding(response.user)) {
-        navigation.navigate('OnboardingName' as never);
-      } else {
-        setCompleted(true);
-        navigation.navigate('Main' as never);
-      }
+      await withBiometricProtection(() => authAPI.appleSignIn(), 'Apple');
+      reset();
+      // Навигация будет управляться AuthEngine
     } catch (error: any) {
       handleOAuthError(error, 'Apple');
     } finally {

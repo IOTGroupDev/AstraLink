@@ -54,5 +54,55 @@
   "buttons": {
     "upgrade": "Mejorar",
     "choosePlan": "Elegir Plan"
+  },
+  "trialBanner": {
+    "confirm": {
+      "title": "🎁 ¿Activar Trial?",
+      "message": "{{days}} días de Premium gratis. Sin renovación automática.",
+      "cancel": "Cancelar",
+      "activate": "Activar"
+    },
+    "result": {
+      "successTitle": "✨ ¡Trial activado!",
+      "successMessage": "Disfruta de todas las funciones Premium gratis durante {{days}} días",
+      "successOk": "¡Genial!",
+      "errorTitle": "Error",
+      "errorMessage": "No se pudo activar el Trial"
+    },
+    "messages": {
+      "first": {
+        "title": "🎁 ¡Prueba Premium gratis!",
+        "description": "{{days}} días de acceso completo sin costo"
+      },
+      "second": {
+        "title": "✨ ¡No te lo pierdas!",
+        "description": "Horóscopos con IA, carta completa y mucho más"
+      },
+      "third": {
+        "title": "🌟 Último recordatorio",
+        "description": "Desbloquea todas las funciones de AstraLink"
+      }
+    },
+    "compact": {
+      "activating": "Activando...",
+      "label": "Trial {{days}} días"
+    },
+    "learnMore": "Más información",
+    "activate": "Activar"
+  },
+  "premiumFeature": {
+    "label": "Premium",
+    "defaultTitle": "Función Premium",
+    "defaultMessage": "Esta función está disponible con una suscripción Premium",
+    "unlock": "Desbloquear",
+    "yourSubscription": "Tu suscripción: {{tier}}",
+    "trialButton": {
+      "activating": "Activando...",
+      "label": "{{days}} días de Premium gratis"
+    },
+    "upgradeButton": {
+      "learnMore": "Más información",
+      "upgrade": "Mejorar suscripción"
+    }
   }
 }

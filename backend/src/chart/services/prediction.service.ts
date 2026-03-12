@@ -17,9 +17,19 @@ export class PredictionService {
   /**
    * Get astrological predictions
    */
-  async getPredictions(natalChart: any, period: string = 'day') {
+  async getPredictions(
+    natalChart: any,
+    period: string = 'day',
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     if (!natalChart) {
-      throw new NotFoundException('Natal chart not found');
+      throw new NotFoundException(
+        locale === 'en'
+          ? 'Natal chart not found'
+          : locale === 'es'
+            ? 'No se encontró la carta natal'
+            : 'Натальная карта не найдена',
+      );
     }
 
     // Calculate target date for prediction
@@ -42,6 +52,7 @@ export class PredictionService {
       natalChart,
       { planets: targetPlanets },
       period,
+      locale,
     );
 
     return {
@@ -61,6 +72,7 @@ export class PredictionService {
     natalChart: any,
     currentPlanets: any,
     period: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const predictions = {
       general: '',
@@ -72,7 +84,12 @@ export class PredictionService {
       luckyNumbers: [] as number[],
       luckyColors: [] as string[],
       energy: 50,
-      mood: 'Neutral',
+      mood:
+        locale === 'en'
+          ? 'Neutral'
+          : locale === 'es'
+            ? 'Neutral'
+            : 'Нейтральное',
       challenges: [] as string[],
       opportunities: [] as string[],
       generatedBy: 'ephemeris' as const,
@@ -84,12 +101,28 @@ export class PredictionService {
     // Determine period prefix
     const periodPrefix =
       period === 'tomorrow'
-        ? 'Завтра'
+        ? locale === 'en'
+          ? 'Tomorrow'
+          : locale === 'es'
+            ? 'Mañana'
+            : 'Завтра'
         : period === 'week'
-          ? 'На этой неделе'
+          ? locale === 'en'
+            ? 'This week'
+            : locale === 'es'
+              ? 'Esta semana'
+              : 'На этой неделе'
           : period === 'month'
-            ? 'В этом месяце'
-            : 'Сегодня';
+            ? locale === 'en'
+              ? 'This month'
+              : locale === 'es'
+                ? 'Este mes'
+                : 'В этом месяце'
+            : locale === 'en'
+              ? 'Today'
+              : locale === 'es'
+                ? 'Hoy'
+                : 'Сегодня';
 
     // Calculate energy based on aspects
     let energyScore = 50;
@@ -104,17 +137,44 @@ export class PredictionService {
       );
 
       if (sunAspect === 'conjunction' || sunAspect === 'trine') {
-        predictions.general = `${periodPrefix} благоприятный период для самореализации. Солнце усиливает вашу энергию и уверенность.`;
+        predictions.general =
+          locale === 'en'
+            ? `${periodPrefix} is favorable for self-realization. The Sun boosts your energy and confidence.`
+            : locale === 'es'
+              ? `${periodPrefix} es un período favorable para la autorrealización. El Sol fortalece tu energía y confianza.`
+              : `${periodPrefix} благоприятный период для самореализации. Солнце усиливает вашу энергию и уверенность.`;
         energyScore += 15;
         harmoniousCount++;
-        predictions.opportunities.push('Новые начинания и проекты');
+        predictions.opportunities.push(
+          locale === 'en'
+            ? 'New beginnings and projects'
+            : locale === 'es'
+              ? 'Nuevos comienzos y proyectos'
+              : 'Новые начинания и проекты',
+        );
       } else if (sunAspect === 'opposition' || sunAspect === 'square') {
-        predictions.general = `${periodPrefix} может потребовать от вас терпения. Возможны испытания, которые помогут вам вырасти.`;
+        predictions.general =
+          locale === 'en'
+            ? `${periodPrefix} may require patience. Challenges can help you grow.`
+            : locale === 'es'
+              ? `${periodPrefix} puede requerir paciencia. Los desafíos pueden ayudarte a crecer.`
+              : `${periodPrefix} может потребовать от вас терпения. Возможны испытания, которые помогут вам вырасти.`;
         energyScore -= 10;
         challengingCount++;
-        predictions.challenges.push('Конфликты с окружающими');
+        predictions.challenges.push(
+          locale === 'en'
+            ? 'Conflicts with others'
+            : locale === 'es'
+              ? 'Conflictos con los demás'
+              : 'Конфликты с окружающими',
+        );
       } else {
-        predictions.general = `${periodPrefix} энергия Солнца влияет на вашу активность и жизненную силу.`;
+        predictions.general =
+          locale === 'en'
+            ? `${periodPrefix} the Sun’s energy influences your activity and vitality.`
+            : locale === 'es'
+              ? `${periodPrefix} la energía del Sol influye en tu actividad y vitalidad.`
+              : `${periodPrefix} энергия Солнца влияет на вашу активность и жизненную силу.`;
       }
     }
 
@@ -126,16 +186,37 @@ export class PredictionService {
       );
 
       if (moonAspect === 'conjunction' || moonAspect === 'trine') {
-        predictions.health = `${periodPrefix} ваше эмоциональное состояние стабильно. Хорошее время для заботы о себе.`;
+        predictions.health =
+          locale === 'en'
+            ? `${periodPrefix} your emotional state is stable. A good time to care for yourself.`
+            : locale === 'es'
+              ? `${periodPrefix} tu estado emocional es estable. Buen momento para cuidarte.`
+              : `${periodPrefix} ваше эмоциональное состояние стабильно. Хорошее время для заботы о себе.`;
         energyScore += 10;
         harmoniousCount++;
       } else if (moonAspect === 'square') {
-        predictions.health = `${periodPrefix} будьте внимательны к своим эмоциям. Избегайте стрессовых ситуаций.`;
+        predictions.health =
+          locale === 'en'
+            ? `${periodPrefix} be mindful of your emotions. Avoid stressful situations.`
+            : locale === 'es'
+              ? `${periodPrefix} cuida tus emociones. Evita situaciones estresantes.`
+              : `${periodPrefix} будьте внимательны к своим эмоциям. Избегайте стрессовых ситуаций.`;
         energyScore -= 5;
         challengingCount++;
-        predictions.challenges.push('Эмоциональная нестабильность');
+        predictions.challenges.push(
+          locale === 'en'
+            ? 'Emotional instability'
+            : locale === 'es'
+              ? 'Inestabilidad emocional'
+              : 'Эмоциональная нестабильность',
+        );
       } else {
-        predictions.health = `${periodPrefix} Луна влияет на ваши эмоции и интуицию.`;
+        predictions.health =
+          locale === 'en'
+            ? `${periodPrefix} the Moon influences your emotions and intuition.`
+            : locale === 'es'
+              ? `${periodPrefix} la Luna influye en tus emociones e intuición.`
+              : `${periodPrefix} Луна влияет на ваши эмоции и интуицию.`;
       }
     }
 
@@ -147,16 +228,43 @@ export class PredictionService {
       );
 
       if (venusAspect === 'trine' || venusAspect === 'sextile') {
-        predictions.love = `${periodPrefix} Венера создает гармоничные аспекты. Отличное время для романтики и общения с близкими.`;
+        predictions.love =
+          locale === 'en'
+            ? `${periodPrefix} Venus forms harmonious aspects. A great time for romance and connection.`
+            : locale === 'es'
+              ? `${periodPrefix} Venus crea aspectos armoniosos. Excelente momento para el romance y la conexión.`
+              : `${periodPrefix} Венера создает гармоничные аспекты. Отличное время для романтики и общения с близкими.`;
         energyScore += 10;
         harmoniousCount++;
-        predictions.opportunities.push('Гармония в отношениях');
+        predictions.opportunities.push(
+          locale === 'en'
+            ? 'Harmony in relationships'
+            : locale === 'es'
+              ? 'Armonía en las relaciones'
+              : 'Гармония в отношениях',
+        );
       } else if (venusAspect === 'square' || venusAspect === 'opposition') {
-        predictions.love = `${periodPrefix} Венера в напряженном аспекте. Проявите терпение и понимание в отношениях.`;
+        predictions.love =
+          locale === 'en'
+            ? `${periodPrefix} Venus is in a tense aspect. Practice patience and understanding in relationships.`
+            : locale === 'es'
+              ? `${periodPrefix} Venus está en un aspecto tenso. Practica la paciencia y la comprensión en las relaciones.`
+              : `${periodPrefix} Венера в напряженном аспекте. Проявите терпение и понимание в отношениях.`;
         challengingCount++;
-        predictions.challenges.push('Недопонимание в отношениях');
+        predictions.challenges.push(
+          locale === 'en'
+            ? 'Misunderstandings in relationships'
+            : locale === 'es'
+              ? 'Malentendidos en las relaciones'
+              : 'Недопонимание в отношениях',
+        );
       } else {
-        predictions.love = `${periodPrefix} Венера влияет на вашу привлекательность и способность выражать чувства.`;
+        predictions.love =
+          locale === 'en'
+            ? `${periodPrefix} Venus influences your attractiveness and ability to express feelings.`
+            : locale === 'es'
+              ? `${periodPrefix} Venus influye en tu atractivo y capacidad de expresar sentimientos.`
+              : `${periodPrefix} Венера влияет на вашу привлекательность и способность выражать чувства.`;
       }
     }
 
@@ -168,17 +276,44 @@ export class PredictionService {
       );
 
       if (marsAspect === 'trine') {
-        predictions.career = `${periodPrefix} Марс придает вам энергию и решительность. Отличное время для карьерных достижений.`;
+        predictions.career =
+          locale === 'en'
+            ? `${periodPrefix} Mars gives you energy and determination. A great time for career achievements.`
+            : locale === 'es'
+              ? `${periodPrefix} Marte te aporta energía y determinación. Excelente momento para logros profesionales.`
+              : `${periodPrefix} Марс придает вам энергию и решительность. Отличное время для карьерных достижений.`;
         energyScore += 15;
         harmoniousCount++;
-        predictions.opportunities.push('Карьерный рост');
+        predictions.opportunities.push(
+          locale === 'en'
+            ? 'Career growth'
+            : locale === 'es'
+              ? 'Crecimiento profesional'
+              : 'Карьерный рост',
+        );
       } else if (marsAspect === 'square') {
-        predictions.career = `${periodPrefix} Марс создает напряжение. Избегайте конфликтов на работе и проявляйте терпение.`;
+        predictions.career =
+          locale === 'en'
+            ? `${periodPrefix} Mars creates tension. Avoid conflicts at work and be patient.`
+            : locale === 'es'
+              ? `${periodPrefix} Marte crea tensión. Evita conflictos en el trabajo y sé paciente.`
+              : `${periodPrefix} Марс создает напряжение. Избегайте конфликтов на работе и проявляйте терпение.`;
         energyScore -= 10;
         challengingCount++;
-        predictions.challenges.push('Препятствия в работе');
+        predictions.challenges.push(
+          locale === 'en'
+            ? 'Obstacles at work'
+            : locale === 'es'
+              ? 'Obstáculos en el trabajo'
+              : 'Препятствия в работе',
+        );
       } else {
-        predictions.career = `${periodPrefix} Марс влияет на вашу энергию и амбиции в профессиональной сфере.`;
+        predictions.career =
+          locale === 'en'
+            ? `${periodPrefix} Mars influences your energy and ambitions in your professional sphere.`
+            : locale === 'es'
+              ? `${periodPrefix} Marte influye en tu energía y ambiciones en el ámbito profesional.`
+              : `${periodPrefix} Марс влияет на вашу энергию и амбиции в профессиональной сфере.`;
       }
     }
 
@@ -190,12 +325,28 @@ export class PredictionService {
       );
 
       if (jupiterAspect === 'trine' || jupiterAspect === 'conjunction') {
-        predictions.finance = `${periodPrefix} Юпитер благоволит вашим финансам. Время для разумных инвестиций.`;
+        predictions.finance =
+          locale === 'en'
+            ? `${periodPrefix} Jupiter favors your finances. Time for reasonable investments.`
+            : locale === 'es'
+              ? `${periodPrefix} Júpiter favorece tus finanzas. Tiempo de inversiones razonables.`
+              : `${periodPrefix} Юпитер благоволит вашим финансам. Время для разумных инвестиций.`;
         energyScore += 10;
         harmoniousCount++;
-        predictions.opportunities.push('Финансовые возможности');
+        predictions.opportunities.push(
+          locale === 'en'
+            ? 'Financial opportunities'
+            : locale === 'es'
+              ? 'Oportunidades financieras'
+              : 'Финансовые возможности',
+        );
       } else {
-        predictions.finance = `${periodPrefix} финансовая ситуация стабильна. Придерживайтесь бюджета и избегайте рисков.`;
+        predictions.finance =
+          locale === 'en'
+            ? `${periodPrefix} your financial situation is stable. Stick to a budget and avoid risks.`
+            : locale === 'es'
+              ? `${periodPrefix} la situación financiera es estable. Mantén el presupuesto y evita riesgos.`
+              : `${periodPrefix} финансовая ситуация стабильна. Придерживайтесь бюджета и избегайте рисков.`;
       }
     }
 
@@ -206,9 +357,21 @@ export class PredictionService {
         natalPlanets.mercury.longitude,
       );
       if (mercuryAspect === 'square' || mercuryAspect === 'opposition') {
-        predictions.challenges.push('Сложности в коммуникации');
+        predictions.challenges.push(
+          locale === 'en'
+            ? 'Communication difficulties'
+            : locale === 'es'
+              ? 'Dificultades en la comunicación'
+              : 'Сложности в коммуникации',
+        );
       } else if (mercuryAspect === 'trine' || mercuryAspect === 'sextile') {
-        predictions.opportunities.push('Ясность мышления');
+        predictions.opportunities.push(
+          locale === 'en'
+            ? 'Clarity of thought'
+            : locale === 'es'
+              ? 'Claridad mental'
+              : 'Ясность мышления',
+        );
       }
     }
 
@@ -217,13 +380,33 @@ export class PredictionService {
 
     // Determine mood
     if (harmoniousCount > challengingCount + 2) {
-      predictions.mood = 'Радостное и вдохновленное';
+      predictions.mood =
+        locale === 'en'
+          ? 'Joyful and inspired'
+          : locale === 'es'
+            ? 'Alegre e inspirado'
+            : 'Радостное и вдохновленное';
     } else if (harmoniousCount > challengingCount) {
-      predictions.mood = 'Оптимистичное';
+      predictions.mood =
+        locale === 'en'
+          ? 'Optimistic'
+          : locale === 'es'
+            ? 'Optimista'
+            : 'Оптимистичное';
     } else if (challengingCount > harmoniousCount) {
-      predictions.mood = 'Сдержанное и осторожное';
+      predictions.mood =
+        locale === 'en'
+          ? 'Reserved and cautious'
+          : locale === 'es'
+            ? 'Reservado y prudente'
+            : 'Сдержанное и осторожное';
     } else {
-      predictions.mood = 'Нейтральное и сбалансированное';
+      predictions.mood =
+        locale === 'en'
+          ? 'Neutral and balanced'
+          : locale === 'es'
+            ? 'Neutral y equilibrado'
+            : 'Нейтральное и сбалансированное';
     }
 
     // Generate lucky numbers (based on planetary positions)
@@ -240,11 +423,13 @@ export class PredictionService {
     const moonSign = current.moon?.sign || 'Cancer';
 
     // Use centralized astro-text facade for sign colors
-    let sunPrimaryColor = 'Белый';
-    let moonPrimaryColor = 'Серый';
+    let sunPrimaryColor =
+      locale === 'en' ? 'White' : locale === 'es' ? 'Blanco' : 'Белый';
+    let moonPrimaryColor =
+      locale === 'en' ? 'Gray' : locale === 'es' ? 'Gris' : 'Серый';
     try {
-      const sunColors = getSignColors(sunSign, 'ru') || [];
-      const moonColors = getSignColors(moonSign, 'ru') || [];
+      const sunColors = getSignColors(sunSign, locale) || [];
+      const moonColors = getSignColors(moonSign, locale) || [];
       sunPrimaryColor = sunColors[0] || sunPrimaryColor;
       moonPrimaryColor = moonColors[0] || moonPrimaryColor;
     } catch {
@@ -258,16 +443,41 @@ export class PredictionService {
     // Generate advice
     if (period === 'day' || period === 'tomorrow') {
       if (predictions.energy > 75) {
-        predictions.advice = `${periodPrefix} доверяйте своей интуиции и действуйте решительно.`;
+        predictions.advice =
+          locale === 'en'
+            ? `${periodPrefix} trust your intuition and act decisively.`
+            : locale === 'es'
+              ? `${periodPrefix} confía en tu intuición y actúa con decisión.`
+              : `${periodPrefix} доверяйте своей интуиции и действуйте решительно.`;
       } else if (predictions.energy > 50) {
-        predictions.advice = `${periodPrefix} фокусируйтесь на важных делах и избегайте распыления энергии.`;
+        predictions.advice =
+          locale === 'en'
+            ? `${periodPrefix} focus on what matters and avoid scattering your energy.`
+            : locale === 'es'
+              ? `${periodPrefix} concéntrate en lo importante y evita dispersar tu energía.`
+              : `${periodPrefix} фокусируйтесь на важных делах и избегайте распыления энергии.`;
       } else {
-        predictions.advice = `${periodPrefix} практикуйте терпение и заботьтесь о своем внутреннем балансе.`;
+        predictions.advice =
+          locale === 'en'
+            ? `${periodPrefix} practice patience and care for your inner balance.`
+            : locale === 'es'
+              ? `${periodPrefix} practica la paciencia y cuida tu equilibrio interno.`
+              : `${periodPrefix} практикуйте терпение и заботьтесь о своем внутреннем балансе.`;
       }
     } else if (period === 'week') {
-      predictions.advice = `На этой неделе практикуйте благодарность и оставайтесь открытыми новому опыту.`;
+      predictions.advice =
+        locale === 'en'
+          ? 'This week practice gratitude and stay open to new experiences.'
+          : locale === 'es'
+            ? 'Esta semana practica la gratitud y mantente abierto a nuevas experiencias.'
+            : 'На этой неделе практикуйте благодарность и оставайтесь открытыми новому опыту.';
     } else if (period === 'month') {
-      predictions.advice = `В этом месяце сосредоточьтесь на долгосрочных целях и не забывайте отдыхать.`;
+      predictions.advice =
+        locale === 'en'
+          ? 'This month focus on long-term goals and remember to rest.'
+          : locale === 'es'
+            ? 'Este mes concéntrate en objetivos a largo plazo y no olvides descansar.'
+            : 'В этом месяце сосредоточьтесь на долгосрочных целях и не забывайте отдыхать.';
     }
 
     return predictions;

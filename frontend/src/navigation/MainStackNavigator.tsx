@@ -14,28 +14,32 @@ import OnboardingFourthScreen from '../screens/Onboarding/OnboardingFourthScreen
 import SignUpScreen from '../screens/Auth/SignUpScreen';
 import AuthEmailScreen from '../screens/Auth/AuthEmailScreen';
 import AuthCallbackScreen from '../screens/Auth/AuthCallbackScreen';
-import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
 import PersonalCodeScreen from '../screens/PersonalCodeScreen';
 
-import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
+import { useAuthState } from '../stores/auth.store';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function MainStackNavigator() {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const onboardingCompleted = useOnboardingCompleted();
-  const navigation = useNavigation<any>();
+const resolveRoute = (state: string) => {
+  switch (state) {
+    case 'AUTHORIZED':
+      return 'MainTabs';
+    case 'ONBOARDING':
+      return 'Onboarding1';
+    case 'UNAUTHORIZED':
+    default:
+      return 'SignUp';
+  }
+};
 
-  const getInitialRouteName = () => {
-    if (isAuthenticated && !onboardingCompleted) return 'UserDataLoader';
-    if (!onboardingCompleted) return 'Onboarding1';
-    if (!isAuthenticated) return 'SignUp';
-    return 'MainTabs';
-  };
+export default function MainStackNavigator() {
+  const authState = useAuthState();
+  const navigation = useNavigation<any>();
+  const target = resolveRoute(authState);
 
   useEffect(() => {
     const currentState = navigation.getState();
@@ -44,44 +48,25 @@ export default function MainStackNavigator() {
     const currentRoute =
       currentState.routes[currentState.index]?.name || 'Unknown';
 
-    const target =
-      isAuthenticated && !onboardingCompleted
-        ? 'UserDataLoader'
-        : !onboardingCompleted
-          ? 'Onboarding1'
-          : !isAuthenticated
-            ? 'SignUp'
-            : 'MainTabs';
-
     if (currentRoute !== target) {
       navigation.reset({ index: 0, routes: [{ name: target }] });
     }
-  }, [isAuthenticated, onboardingCompleted, navigation]);
+  }, [navigation, target]);
 
   return (
     <Stack.Navigator
-      initialRouteName={getInitialRouteName()}
+      initialRouteName={target}
       screenOptions={{
         headerShown: false,
-
-        // Оптимизация анимаций
         animation: 'slide_from_right',
-        animationDuration: 200, // Быстрее стандартных 300ms
-
-        // Плавные жесты
+        animationDuration: 200,
         gestureEnabled: true,
         fullScreenGestureEnabled: true,
         gestureDirection: 'horizontal',
-
-        // КРИТИЧНО: Единый цвет фона для всех экранов
         contentStyle: {
-          backgroundColor: '#0F172A', // Тот же цвет, что и в табах
+          backgroundColor: '#0F172A',
         },
-
-        // Оптимизация производительности
         freezeOnBlur: true,
-
-        // Убираем тени и эффекты
         headerShadowVisible: false,
       }}
     >
@@ -89,14 +74,7 @@ export default function MainStackNavigator() {
         name="AuthCallback"
         component={AuthCallbackScreen}
         options={{
-          animation: 'none', // Без анимации для технических экранов
-        }}
-      />
-      <Stack.Screen
-        name="UserDataLoader"
-        component={UserDataLoaderScreen}
-        options={{
-          animation: 'fade',
+          animation: 'none',
         }}
       />
 
@@ -104,7 +82,7 @@ export default function MainStackNavigator() {
         name="MainTabs"
         component={TabNavigator}
         options={{
-          animation: 'none', // Без анимации для перехода к табам
+          animation: 'none',
         }}
       />
 
@@ -117,7 +95,7 @@ export default function MainStackNavigator() {
       <Stack.Screen name="AuthEmail" component={AuthEmailScreen} />
       <Stack.Screen name="OptCode" component={OptCodeScreen} />
 
-      {isAuthenticated && (
+      {authState === 'AUTHORIZED' && (
         <>
           <Stack.Screen
             name="Subscription"

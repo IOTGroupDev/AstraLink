@@ -29,5 +29,57 @@
     "day": "Сегодня",
     "tomorrow": "Завтра",
     "week": "Эта неделя"
+  },
+  "widget": {
+    "loading": "Загрузка гороскопа...",
+    "categories": {
+      "general": "Общее",
+      "love": "Любовь",
+      "career": "Карьера",
+      "health": "Здоровье",
+      "finance": "Финансы",
+      "advice": "Совет дня"
+    },
+    "luckyNumbers": "Счастливые числа",
+    "luckyColors": "Счастливые цвета"
+  },
+  "lunarCalendar": {
+    "title": "Лунный календарь",
+    "labels": {
+      "sign": "Знак",
+      "house": "Дом",
+      "lunarDay": "Лунный день"
+    },
+    "dayNumber": "День {{number}}",
+    "adviceFallback": "Следуйте интуиции",
+    "illuminated": "{{percent}}% освещена"
+  },
+  "energyWidget": {
+    "title": "Энергия дня",
+    "loading": "Загрузка энергии...",
+    "levels": {
+      "high": "Высокая",
+      "good": "Хорошая",
+      "medium": "Средняя",
+      "low": "Низкая",
+      "veryLow": "Очень низкая"
+    }
+  },
+  "biorhythmsWidget": {
+    "loading": "Загрузка биоритмов...",
+    "description": "Сегодня отличный день для новых начинаний! Ваша энергия на пике!"
+  },
+  "mainTransitWidget": {
+    "title": "Главный транзит",
+    "loading": "Загрузка транзита...",
+    "strength": "Сила: {{percent}}%"
+  },
+  "planetRecommendationWidget": {
+    "title": "Рекомендация дня",
+    "loading": "Загрузка рекомендаций...",
+    "activeTransits": "Активных транзитов: {{count}}",
+    "analysis": "Анализ транзитов",
+    "recommendationPositive": "{{aspect}} с {{target}} — благоприятно действовать",
+    "recommendationNegative": "{{aspect}} с {{target}} — избегайте импульсивности"
   }
 }

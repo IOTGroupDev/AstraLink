@@ -3,7 +3,7 @@
     "name": "AstraLinkTest",
     "slug": "astralink",
     "scheme": "astralink",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
       "bundleIdentifier": "astralink.test",
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "buildNumber": "4",
+      "buildNumber": "15",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение",
         "ITSAppUsesNonExemptEncryption": false

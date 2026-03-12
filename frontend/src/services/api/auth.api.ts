@@ -4,7 +4,6 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './client';
 import { supabase } from '../supabase';
-import { tokenService } from '../tokenService';
 import { authLogger } from '../logger';
 import type { LoginRequest, SignupRequest, AuthResponse } from '../../types';
 
@@ -174,7 +173,6 @@ export const authAPI = {
       const { access_token, user } = response.data;
       if (!access_token) throw new Error('Токен не получен от Backend');
 
-      await tokenService.setToken(access_token);
       authLogger.log('✅ Успешный вход через Backend');
 
       return { access_token, user };
@@ -210,7 +208,6 @@ export const authAPI = {
       authLogger.log('✅ Успешная регистрация через Backend');
 
       const { user, access_token } = response.data;
-      await tokenService.setToken(access_token);
       return { access_token, user };
     } catch (error: any) {
       authLogger.log('❌ API signup failed:', error);
@@ -373,8 +370,19 @@ export const authAPI = {
       if (error) throw error;
       if (!data.session) throw new Error('Не удалось создать сессию');
 
-      await tokenService.setToken(data.session.access_token);
       authLogger.log('✅ Код подтвержден');
+
+      try {
+        await authAPI.ensureUserProfile({
+          userId: data.user!.id,
+          email: data.user!.email!,
+        });
+      } catch (ensureError: any) {
+        authLogger.warn(
+          '⚠️ ensure-profile failed (non-blocking):',
+          ensureError
+        );
+      }
 
       return {
         access_token: data.session.access_token,
@@ -425,18 +433,25 @@ export const authAPI = {
 
         const { data: s } = await supabase.auth.getSession();
         const accessToken = s.session?.access_token ?? null;
-        if (accessToken) {
-          await tokenService.setToken(accessToken);
-        }
 
-        const { data: userRes } = await supabase.auth.getUser(
-          (accessToken || undefined) as any
-        );
+        const { data: userRes } = await supabase.auth.getUser();
         const user = userRes?.user;
         if (!user)
           throw new Error(
             'Не удалось получить пользователя после Apple sign in'
           );
+
+        try {
+          await authAPI.ensureUserProfile({
+            userId: user.id,
+            email: user.email || '',
+          });
+        } catch (ensureError: any) {
+          authLogger.warn(
+            '⚠️ ensure-profile failed (Apple iOS, non-blocking):',
+            ensureError
+          );
+        }
 
         return {
           access_token: accessToken || '',
@@ -472,24 +487,31 @@ export const authAPI = {
               refresh_token: refreshToken,
             });
             if (setErr) throw setErr;
-            await tokenService.setToken(accessToken);
-          } else if (accessToken) {
-            await tokenService.setToken(accessToken);
-          } else {
+          } else if (!accessToken) {
             throw new Error('Токены не получены из Apple OAuth потока');
           }
 
-          const { data: userRes } = await supabase.auth.getUser(
-            ((await tokenService.getToken()) || undefined) as any
-          );
+          const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
           if (!user)
             throw new Error(
               'Не удалось получить пользователя после Apple OAuth'
             );
 
+          try {
+            await authAPI.ensureUserProfile({
+              userId: user.id,
+              email: user.email || '',
+            });
+          } catch (ensureError: any) {
+            authLogger.warn(
+              '⚠️ ensure-profile failed (Apple OAuth, non-blocking):',
+              ensureError
+            );
+          }
+
           return {
-            access_token: (await tokenService.getToken()) || '',
+            access_token: accessToken || '',
             user: {
               id: user.id,
               email: user.email || '',
@@ -536,20 +558,28 @@ export const authAPI = {
               refresh_token: refreshToken,
             });
             if (setErr) throw setErr;
-            await tokenService.setToken(accessToken);
-          } else if (accessToken) {
-            await tokenService.setToken(accessToken);
-          } else {
+          } else if (!accessToken) {
             throw new Error('Токены не получены из Google OAuth потока');
           }
 
-          const { data: userRes } = await supabase.auth.getUser(
-            ((await tokenService.getToken()) || undefined) as any
-          );
+          const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
+
+          try {
+            await authAPI.ensureUserProfile({
+              userId: user.id,
+              email: user.email || '',
+            });
+          } catch (ensureError: any) {
+            authLogger.warn(
+              '⚠️ ensure-profile failed (Google OAuth, non-blocking):',
+              ensureError
+            );
+          }
+
           return {
-            access_token: (await tokenService.getToken()) || '',
+            access_token: accessToken || '',
             user: {
               id: user.id,
               email: user.email!,
@@ -569,7 +599,7 @@ export const authAPI = {
   },
 
   completeSignup: async (data: {
-    userId: string;
+    userId?: string;
     name: string;
     birthDate: string;
     birthTime?: string;
@@ -591,36 +621,29 @@ export const authAPI = {
     }
   },
 
-  logout: async (): Promise<void> => {
+  ensureUserProfile: async (data: {
+    userId: string;
+    email: string;
+  }): Promise<void> => {
     try {
-      authLogger.log('👋 Выход из системы');
-      await supabase.auth.signOut();
-      tokenService.clearToken();
-      authLogger.log('✅ Выход выполнен');
+      await api.post('/auth/ensure-profile', {
+        userId: data.userId,
+        email: data.email,
+      });
     } catch (error: any) {
-      authLogger.error('❌ Logout failed:', error);
-      tokenService.clearToken();
+      authLogger.error('❌ ensure profile failed:', error);
       throw error;
     }
   },
 
-  // Ensure user profile exists (workaround for missing DB trigger)
-  ensureUserProfile: async (
-    userId: string,
-    email: string
-  ): Promise<{ success: boolean }> => {
+  logout: async (): Promise<void> => {
     try {
-      authLogger.log('🔧 Ensuring user profile exists:', userId);
-      const response = await api.post('/auth/ensure-profile', {
-        userId,
-        email,
-      });
-      authLogger.log('✅ User profile ensured');
-      return response.data;
+      authLogger.log('👋 Выход из системы');
+      await supabase.auth.signOut();
+      authLogger.log('✅ Выход выполнен');
     } catch (error: any) {
-      authLogger.error('❌ Ensure profile failed:', error);
-      // Don't throw - this is a non-critical operation
-      return { success: false };
+      authLogger.error('❌ Logout failed:', error);
+      throw error;
     }
   },
 };

@@ -9,6 +9,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { PersonalCodeResult } from '../../types/personal-code';
 import { chartAPI } from '../../services/api';
 import { logger } from '../../services/logger';
@@ -18,6 +19,8 @@ interface PersonalCodeWidgetProps {
 }
 
 const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
+  const { t } = useTranslation();
+
   const [todayCode, setTodayCode] = useState<PersonalCodeResult | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -54,8 +57,10 @@ const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
               <Text style={styles.icon}>🍀</Text>
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Код дня</Text>
-              <Text style={styles.subtitle}>Удача и везение</Text>
+              <Text style={styles.title}>{t('personalCode.widget.title')}</Text>
+              <Text style={styles.subtitle}>
+                {t('personalCode.widget.subtitle')}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#A78BFA" />
           </View>
@@ -68,7 +73,9 @@ const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
             <View style={styles.codeContainer}>
               <Text style={styles.code}>{todayCode.code}</Text>
               <View style={styles.energyRow}>
-                <Text style={styles.energyLabel}>Энергия:</Text>
+                <Text style={styles.energyLabel}>
+                  {t('personalCode.widget.energyLabel')}
+                </Text>
                 <View style={styles.energyBar}>
                   <View
                     style={[
@@ -90,7 +97,9 @@ const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
               onPress={loadDailyCode}
             >
               <Ionicons name="sparkles" size={16} color="#10B981" />
-              <Text style={styles.generateText}>Создать код</Text>
+              <Text style={styles.generateText}>
+                {t('personalCode.widget.create')}
+              </Text>
             </TouchableOpacity>
           )}
         </LinearGradient>

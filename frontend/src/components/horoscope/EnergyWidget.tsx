@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import Svg, {
   Circle,
   Defs,
@@ -21,16 +22,20 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
   message,
   isLoading,
 }) => {
+  const { t } = useTranslation();
+
   // Определение уровня энергии
-  const getEnergyLevel = (value: number): string => {
-    if (value >= 80) return 'Высокая';
-    if (value >= 60) return 'Хорошая';
-    if (value >= 40) return 'Средняя';
-    if (value >= 20) return 'Низкая';
-    return 'Очень низкая';
+  const getEnergyLevelKey = (value: number) => {
+    if (value >= 80) return 'high';
+    if (value >= 60) return 'good';
+    if (value >= 40) return 'medium';
+    if (value >= 20) return 'low';
+    return 'veryLow';
   };
 
-  const energyLevel = getEnergyLevel(energy);
+  const energyLevel = t(
+    `horoscope.energyWidget.levels.${getEnergyLevelKey(energy)}`
+  );
 
   // Параметры круга
   const size = 72;
@@ -51,9 +56,13 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
         style={styles.container}
       >
         <View style={styles.innerContainer}>
-          <Text style={styles.title}>⚡️ Энергия дня</Text>
+          <Text style={styles.title}>
+            ⚡️ {t('horoscope.energyWidget.title')}
+          </Text>
           <View style={{ paddingVertical: 8 }}>
-            <Text style={{ color: '#A78BFA' }}>Загрузка энергии...</Text>
+            <Text style={{ color: '#A78BFA' }}>
+              {t('horoscope.energyWidget.loading')}
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -68,7 +77,9 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
       style={styles.container}
     >
       <View style={styles.innerContainer}>
-        <Text style={styles.title}>⚡️ Энергия дня</Text>
+        <Text style={styles.title}>
+          ⚡️ {t('horoscope.energyWidget.title')}
+        </Text>
 
         {/* Основной контент */}
         <View style={styles.content}>

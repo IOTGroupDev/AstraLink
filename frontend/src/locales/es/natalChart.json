@@ -97,5 +97,8 @@
     "cardinal": "Cardinal",
     "fixed": "Fijo",
     "mutable": "Mutable"
+  },
+  "widget": {
+    "loading": "Cargando datos de la carta..."
   }
 }

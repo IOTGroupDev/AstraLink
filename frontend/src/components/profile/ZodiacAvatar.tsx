@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 interface ZodiacAvatarProps {
   zodiacSign: string;
@@ -23,19 +23,27 @@ const ZODIAC_SYMBOLS = {
   Pisces: '♓',
 };
 
-const ZODIAC_ICONS = {
-  Aries: 'flame',
-  Taurus: 'earth',
-  Gemini: 'git-branch',
-  Cancer: 'moon',
-  Leo: 'sunny',
-  Virgo: 'leaf',
-  Libra: 'balance',
-  Scorpio: 'water',
-  Sagittarius: 'arrow-up',
-  Capricorn: 'mountain',
-  Aquarius: 'water-outline',
-  Pisces: 'fish',
+const normalizeZodiacKey = (sign: string): string => {
+  const map: Record<string, string> = {
+    aries: 'aries',
+    taurus: 'taurus',
+    gemini: 'gemini',
+    cancer: 'cancer',
+    leo: 'leo',
+    virgo: 'virgo',
+    libra: 'libra',
+    scorpio: 'scorpio',
+    sagittarius: 'sagittarius',
+    capricorn: 'capricorn',
+    aquarius: 'aquarius',
+    pisces: 'pisces',
+  };
+
+  const raw = (sign || '').trim();
+  if (!raw) return '';
+
+  const lower = raw.toLowerCase();
+  return map[lower] ?? lower;
 };
 
 const ZodiacAvatar: React.FC<ZodiacAvatarProps> = ({
@@ -43,8 +51,14 @@ const ZodiacAvatar: React.FC<ZodiacAvatarProps> = ({
   size = 60,
   showText = false,
 }) => {
+  const { t } = useTranslation();
+
   const symbol = ZODIAC_SYMBOLS[zodiacSign] || '✨';
-  const iconName = ZODIAC_ICONS[zodiacSign] || 'star';
+
+  const zodiacKey = normalizeZodiacKey(zodiacSign);
+  const displayName = zodiacKey
+    ? t(`common.zodiacSigns.${zodiacKey}`, { defaultValue: zodiacSign })
+    : zodiacSign;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -52,16 +66,16 @@ const ZodiacAvatar: React.FC<ZodiacAvatarProps> = ({
       <Text style={[styles.symbol, { fontSize: size * 0.4 }]}>{symbol}</Text>
 
       {/* Alternative: Ionicon */}
-      {/* <Ionicons 
-        name={iconName} 
-        size={size * 0.5} 
-        color="#fff" 
+      {/* <Ionicons
+        name={iconName}
+        size={size * 0.5}
+        color="#fff"
         style={styles.icon}
       /> */}
 
       {showText && (
         <Text style={[styles.text, { fontSize: size * 0.15 }]}>
-          {zodiacSign}
+          {displayName}
         </Text>
       )}
     </View>

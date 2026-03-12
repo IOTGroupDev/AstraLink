@@ -15,6 +15,14 @@
   },
   "selectUpTo": "Selecciona hasta {{count}}",
   "in": "en",
+  "tabs": {
+    "horoscope": "Horóscopo",
+    "cosmicSimulator": "Simulador",
+    "dating": "Citas",
+    "messages": "Mensajes",
+    "advisor": "Asesor",
+    "profile": "Perfil"
+  },
   "errors": {
     "generic": "Error",
     "network": "Error de red. Inténtalo de nuevo.",

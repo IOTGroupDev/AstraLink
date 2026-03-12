@@ -181,20 +181,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Ensure user profile exists in public.users (workaround for missing DB trigger)
-      if (data.user) {
-        try {
-          await authAPI.ensureUserProfile(
-            data.user.id,
-            data.user.email || email
-          );
-        } catch (ensureError) {
-          // Non-critical - continue even if this fails
-          // Silently skip
-        }
-      }
-
-      navigation.replace('UserDataLoader');
+      // Navigation handled by AuthEngine state machine
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.message ?? '';

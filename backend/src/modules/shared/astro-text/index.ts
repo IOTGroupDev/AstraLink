@@ -183,7 +183,23 @@ function getPlanetName(planet: PlanetKey, locale: 'ru' | 'en' | 'es'): string {
     lilith: 'Lilith',
     chiron: 'Chiron',
   };
-  return (locale === 'en' ? en : ru)[planet] || planet;
+  const es: Record<PlanetKey, string> = {
+    sun: 'Sol',
+    moon: 'Luna',
+    mercury: 'Mercurio',
+    venus: 'Venus',
+    mars: 'Marte',
+    jupiter: 'Júpiter',
+    saturn: 'Saturno',
+    uranus: 'Urano',
+    neptune: 'Neptuno',
+    pluto: 'Plutón',
+    north_node: 'Nodo Norte',
+    south_node: 'Nodo Sur',
+    lilith: 'Lilith',
+    chiron: 'Quirón',
+  };
+  return (locale === 'en' ? en : locale === 'es' ? es : ru)[planet] || planet;
 }
 
 function getSignName(sign: Sign, locale: 'ru' | 'en' | 'es'): string {
@@ -215,7 +231,23 @@ function getSignName(sign: Sign, locale: 'ru' | 'en' | 'es'): string {
     Aquarius: 'Aquarius',
     Pisces: 'Pisces',
   };
-  return (locale === 'en' ? en : ru)[sign] || (sign as string);
+  const es: Record<Sign, string> = {
+    Aries: 'Aries',
+    Taurus: 'Tauro',
+    Gemini: 'Géminis',
+    Cancer: 'Cáncer',
+    Leo: 'Leo',
+    Virgo: 'Virgo',
+    Libra: 'Libra',
+    Scorpio: 'Escorpio',
+    Sagittarius: 'Sagitario',
+    Capricorn: 'Capricornio',
+    Aquarius: 'Acuario',
+    Pisces: 'Piscis',
+  };
+  return (
+    (locale === 'en' ? en : locale === 'es' ? es : ru)[sign] || (sign as string)
+  );
 }
 
 /**
@@ -370,6 +402,79 @@ const PLANET_TRAITS_EN: Record<PlanetKey, Trait> = {
   },
 };
 
+const PLANET_TRAITS_ES: Record<PlanetKey, Trait> = {
+  sun: {
+    keywords: ['autoexpresión', 'voluntad', 'identidad'],
+    strengths: ['Liderazgo', 'Confianza', 'Creatividad'],
+    challenges: ['Egocentrismo', 'Dominio'],
+  },
+  moon: {
+    keywords: ['emociones', 'intuición', 'hábitos'],
+    strengths: ['Empatía', 'Cuidado', 'Adaptabilidad'],
+    challenges: ['Cambios de humor', 'Sensibilidad'],
+  },
+  mercury: {
+    keywords: ['pensamiento', 'comunicación', 'aprendizaje'],
+    strengths: ['Análisis', 'Comunicación'],
+    challenges: ['Conclusiones apresuradas', 'Verborragia'],
+  },
+  venus: {
+    keywords: ['afectos', 'valores', 'estética'],
+    strengths: ['Diplomacia', 'Sensibilidad', 'Encanto'],
+    challenges: ['Indulgencia', 'Idealización'],
+  },
+  mars: {
+    keywords: ['acción', 'energía', 'impulso'],
+    strengths: ['Decisión', 'Valentía'],
+    challenges: ['Impulsividad', 'Agresividad'],
+  },
+  jupiter: {
+    keywords: ['crecimiento', 'sentido', 'suerte'],
+    strengths: ['Optimismo', 'Visión amplia'],
+    challenges: ['Riesgo excesivo', 'Exceso de confianza'],
+  },
+  saturn: {
+    keywords: ['estructura', 'límites', 'responsabilidad'],
+    strengths: ['Disciplina', 'Resistencia'],
+    challenges: ['Rigidez', 'Miedo al fracaso'],
+  },
+  uranus: {
+    keywords: ['libertad', 'innovación', 'rebelión'],
+    strengths: ['Originalidad', 'Independencia'],
+    challenges: ['Imprevisibilidad', 'Distanciamiento'],
+  },
+  neptune: {
+    keywords: ['imaginación', 'fe', 'disolución'],
+    strengths: ['Intuición', 'Inspiración'],
+    challenges: ['Ilusiones', 'Límites débiles'],
+  },
+  pluto: {
+    keywords: ['poder', 'crisis', 'transformación'],
+    strengths: ['Perspicacia', 'Regeneración'],
+    challenges: ['Control', 'Obsesión'],
+  },
+  north_node: {
+    keywords: ['crecimiento', 'dirección', 'propósito'],
+    strengths: ['Aspiración'],
+    challenges: ['Incertidumbre del camino'],
+  },
+  south_node: {
+    keywords: ['experiencia', 'inercia', 'pasado'],
+    strengths: ['Habilidades heredadas'],
+    challenges: ['Estancamiento en lo viejo'],
+  },
+  lilith: {
+    keywords: ['sombra', 'instinto', 'libertad'],
+    strengths: ['Autenticidad'],
+    challenges: ['Extremos', 'Rebeldía'],
+  },
+  chiron: {
+    keywords: ['herida', 'sanación', 'sabiduría'],
+    strengths: ['Empatía', 'Mentoría'],
+    challenges: ['Hipersensibilidad'],
+  },
+};
+
 const SIGN_TRAITS_RU: Record<Sign, Trait> = {
   Aries: {
     keywords: ['инициатива', 'прямота', 'скорость'],
@@ -496,6 +601,69 @@ const SIGN_TRAITS_EN: Record<Sign, Trait> = {
   },
 };
 
+const SIGN_TRAITS_ES: Record<Sign, Trait> = {
+  Aries: {
+    keywords: ['iniciativa', 'directo', 'rápido'],
+    strengths: ['Valentía', 'Emprendimiento'],
+    challenges: ['Prisa', 'Brusquedad'],
+  },
+  Taurus: {
+    keywords: ['estabilidad', 'práctico', 'valores'],
+    strengths: ['Fiabilidad', 'Paciencia'],
+    challenges: ['Terquedad', 'Inercia'],
+  },
+  Gemini: {
+    keywords: ['comunicación', 'flexible', 'mente'],
+    strengths: ['Aprendizaje', 'Conexión'],
+    challenges: ['Superficialidad', 'Dispersión'],
+  },
+  Cancer: {
+    keywords: ['cuidado', 'intuición', 'familia'],
+    strengths: ['Empatía', 'Protección'],
+    challenges: ['Sensibilidad', 'Dependencia'],
+  },
+  Leo: {
+    keywords: ['brillo', 'creatividad', 'escena'],
+    strengths: ['Carisma', 'Generosidad'],
+    challenges: ['Pomposidad', 'Orgullo'],
+  },
+  Virgo: {
+    keywords: ['detalles', 'servicio', 'análisis'],
+    strengths: ['Orden', 'Precisión'],
+    challenges: ['Crítica', 'Ansiedad'],
+  },
+  Libra: {
+    keywords: ['equilibrio', 'alianza', 'estética'],
+    strengths: ['Tacto', 'Diplomacia'],
+    challenges: ['Indecisión', 'Dependencia de opiniones'],
+  },
+  Scorpio: {
+    keywords: ['profundidad', 'poder', 'verdad'],
+    strengths: ['Perspicacia', 'Resiliencia'],
+    challenges: ['Suspicacia', 'Celos'],
+  },
+  Sagittarius: {
+    keywords: ['sentido', 'búsqueda', 'libertad'],
+    strengths: ['Optimismo', 'Honestidad'],
+    challenges: ['Exceso de franqueza', 'Inquietud'],
+  },
+  Capricorn: {
+    keywords: ['estructura', 'metas', 'deber'],
+    strengths: ['Responsabilidad', 'Estrategia'],
+    challenges: ['Rigidez', 'Frialdad'],
+  },
+  Aquarius: {
+    keywords: ['innovación', 'comunidad', 'independencia'],
+    strengths: ['Ideas', 'Objetividad'],
+    challenges: ['Distanciamiento', 'Terquedad'],
+  },
+  Pisces: {
+    keywords: ['empatía', 'imaginación', 'espiritualidad'],
+    strengths: ['Intuición', 'Compasión'],
+    challenges: ['Distracción', 'Idealización'],
+  },
+};
+
 // Helper to merge and deduplicate with cap
 function mergeTraits(a: string[] = [], b: string[] = [], cap = 6): string[] {
   const uniq = Array.from(new Set([...a, ...b].filter(Boolean)));
@@ -575,6 +743,9 @@ export function getPlanetInSignText(
   if (locale === 'en') {
     return `${getPlanetName(planet, 'en')} in ${getSignName(sign, 'en')} influences your life in a unique way.`;
   }
+  if (locale === 'es') {
+    return `${getPlanetName(planet, 'es')} en ${getSignName(sign, 'es')} influye en tu vida de manera única.`;
+  }
   return `${getPlanetName(planet, 'ru')} в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
 }
 
@@ -583,8 +754,18 @@ export function getKeywords(
   sign: Sign,
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
-  const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
-  const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
+  const P =
+    locale === 'en'
+      ? PLANET_TRAITS_EN
+      : locale === 'es'
+        ? PLANET_TRAITS_ES
+        : PLANET_TRAITS_RU;
+  const S =
+    locale === 'en'
+      ? SIGN_TRAITS_EN
+      : locale === 'es'
+        ? SIGN_TRAITS_ES
+        : SIGN_TRAITS_RU;
   const pk = (P[planet]?.keywords || []).slice(0, 3);
   const sk = (S[sign]?.keywords || []).slice(0, 3);
   return mergeTraits(pk, sk, 6);
@@ -595,8 +776,18 @@ export function getStrengths(
   sign: Sign,
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
-  const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
-  const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
+  const P =
+    locale === 'en'
+      ? PLANET_TRAITS_EN
+      : locale === 'es'
+        ? PLANET_TRAITS_ES
+        : PLANET_TRAITS_RU;
+  const S =
+    locale === 'en'
+      ? SIGN_TRAITS_EN
+      : locale === 'es'
+        ? SIGN_TRAITS_ES
+        : SIGN_TRAITS_RU;
   const ps = (P[planet]?.strengths || []).slice(0, 3);
   const ss = (S[sign]?.strengths || []).slice(0, 3);
   return mergeTraits(ps, ss, 6);
@@ -607,8 +798,18 @@ export function getChallenges(
   sign: Sign,
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
-  const P = locale === 'en' ? PLANET_TRAITS_EN : PLANET_TRAITS_RU;
-  const S = locale === 'en' ? SIGN_TRAITS_EN : SIGN_TRAITS_RU;
+  const P =
+    locale === 'en'
+      ? PLANET_TRAITS_EN
+      : locale === 'es'
+        ? PLANET_TRAITS_ES
+        : PLANET_TRAITS_RU;
+  const S =
+    locale === 'en'
+      ? SIGN_TRAITS_EN
+      : locale === 'es'
+        ? SIGN_TRAITS_ES
+        : SIGN_TRAITS_RU;
   const pc = (P[planet]?.challenges || []).slice(0, 3);
   const sc = (S[sign]?.challenges || []).slice(0, 3);
   return mergeTraits(pc, sc, 6);
@@ -621,9 +822,13 @@ export function getAscendantText(
   const d = dicts(locale);
   const found = d.ascendant[sign];
   if (found) return found;
-  return locale === 'en'
-    ? `Ascendant in ${getSignName(sign, 'en')} shapes your outward image.`
-    : `Асцендент в ${getSignName(sign, 'ru')} формирует ваш внешний образ.`;
+  if (locale === 'en') {
+    return `Ascendant in ${getSignName(sign, 'en')} shapes your outward image.`;
+  }
+  if (locale === 'es') {
+    return `Ascendente en ${getSignName(sign, 'es')} moldea tu imagen externa.`;
+  }
+  return `Асцендент в ${getSignName(sign, 'ru')} формирует ваш внешний образ.`;
 }
 
 export function getAscendantMeta(
@@ -641,6 +846,13 @@ export function getAscendantMeta(
         challenges: ['Excessive straightforwardness'],
       }
     );
+  }
+  if (locale === 'es') {
+    return {
+      keywords: ['atractivo', 'carismático', 'seguro'],
+      strengths: ['Encanto natural', 'Confianza en sí'],
+      challenges: ['Excesiva franqueza'],
+    };
   }
   const meta:
     | { keywords: string[]; strengths: string[]; challenges: string[] }
@@ -663,13 +875,21 @@ export function getHouseTheme(
   const d = dicts(locale);
   const theme = d.housesThemes[houseNum] as string | undefined;
   if (!theme) {
-    return locale === 'en'
-      ? `${houseNum} house in ${getSignName(sign, 'en')} influences an important life area.`
-      : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на важную жизненную сферу.`;
+    if (locale === 'en') {
+      return `${houseNum} house in ${getSignName(sign, 'en')} influences an important life area.`;
+    }
+    if (locale === 'es') {
+      return `${houseNum} casa en ${getSignName(sign, 'es')} influye en un área importante de la vida.`;
+    }
+    return `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на важную жизненную сферу.`;
   }
-  return locale === 'en'
-    ? `${houseNum} house in ${getSignName(sign, 'en')} affects ${theme}`
-    : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на сферу ${theme}`;
+  if (locale === 'en') {
+    return `${houseNum} house in ${getSignName(sign, 'en')} affects ${theme}`;
+  }
+  if (locale === 'es') {
+    return `${houseNum} casa en ${getSignName(sign, 'es')} afecta ${theme}`;
+  }
+  return `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на сферу ${theme}`;
 }
 
 export function getHouseLifeArea(
@@ -679,7 +899,11 @@ export function getHouseLifeArea(
   const d = dicts(locale);
   return (
     (d.housesAreas[houseNum] as string | undefined) ||
-    (locale === 'en' ? 'Life area' : 'Жизненная сфера')
+    (locale === 'en'
+      ? 'Life area'
+      : locale === 'es'
+        ? 'Área de vida'
+        : 'Жизненная сфера')
   );
 }
 
@@ -691,15 +915,23 @@ export function getHouseSignInterpretation(
   const d = dicts(locale);
   const byHouse = d.houseSignInterpretations[houseNum];
   if (!byHouse) {
-    return locale === 'en'
-      ? `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`
-      : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+    if (locale === 'en') {
+      return `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`;
+    }
+    if (locale === 'es') {
+      return `${houseNum} casa en ${getSignName(sign, 'es')} influye en tu vida de manera única.`;
+    }
+    return `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
   }
   const found = byHouse[sign];
   if (found) return found;
-  return locale === 'en'
-    ? `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`
-    : `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+  if (locale === 'en') {
+    return `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`;
+  }
+  if (locale === 'es') {
+    return `${houseNum} casa en ${getSignName(sign, 'es')} influye en tu vida de manera única.`;
+  }
+  return `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
 }
 
 export function getGeneralTemplates(
@@ -728,15 +960,25 @@ export function getLovePhrases(
         entry.positive,
         locale === 'en'
           ? 'creates a romantic atmosphere'
-          : 'поддерживает теплоту в отношениях',
+          : locale === 'es'
+            ? 'crea un ambiente romántico'
+            : 'поддерживает теплоту в отношениях',
       ),
       neutral: pick(
         entry.neutral,
-        locale === 'en' ? 'influences emotions' : 'влияет на эмоции',
+        locale === 'en'
+          ? 'influences emotions'
+          : locale === 'es'
+            ? 'influye en las emociones'
+            : 'влияет на эмоции',
       ),
       negative: pick(
         entry.negative,
-        locale === 'en' ? 'requires patience' : 'требует терпения',
+        locale === 'en'
+          ? 'requires patience'
+          : locale === 'es'
+            ? 'requiere paciencia'
+            : 'требует терпения',
       ),
     };
   }
@@ -744,9 +986,21 @@ export function getLovePhrases(
     positive:
       locale === 'en'
         ? 'creates a romantic atmosphere'
-        : 'поддерживает теплоту в отношениях',
-    neutral: locale === 'en' ? 'influences emotions' : 'влияет на эмоции',
-    negative: locale === 'en' ? 'requires patience' : 'требует терпения',
+        : locale === 'es'
+          ? 'crea un ambiente romántico'
+          : 'поддерживает теплоту в отношениях',
+    neutral:
+      locale === 'en'
+        ? 'influences emotions'
+        : locale === 'es'
+          ? 'influye en las emociones'
+          : 'влияет на эмоции',
+    negative:
+      locale === 'en'
+        ? 'requires patience'
+        : locale === 'es'
+          ? 'requiere paciencia'
+          : 'требует терпения',
   };
 }
 
@@ -766,24 +1020,63 @@ export function getCareerActions(
     return {
       jupiter: pick(
         entry.jupiter,
-        locale === 'en' ? 'is favorable for' : 'период благоприятен для',
+        locale === 'en'
+          ? 'is favorable for'
+          : locale === 'es'
+            ? 'es favorable para'
+            : 'период благоприятен для',
       ),
-      saturn: pick(entry.saturn, locale === 'en' ? 'requires' : 'понадобится'),
+      saturn: pick(
+        entry.saturn,
+        locale === 'en'
+          ? 'requires'
+          : locale === 'es'
+            ? 'requiere'
+            : 'понадобится',
+      ),
       mars: pick(
         entry.mars,
-        locale === 'en' ? 'brings energy for' : 'есть энергия для',
+        locale === 'en'
+          ? 'brings energy for'
+          : locale === 'es'
+            ? 'aporta energía para'
+            : 'есть энергия для',
       ),
       neutral: pick(
         entry.neutral,
-        locale === 'en' ? 'continue working on' : 'продолжайте работу над',
+        locale === 'en'
+          ? 'continue working on'
+          : locale === 'es'
+            ? 'continúa trabajando en'
+            : 'продолжайте работу над',
       ),
     };
   }
   return {
-    jupiter: locale === 'en' ? 'is favorable for' : 'период благоприятен для',
-    saturn: locale === 'en' ? 'requires' : 'понадобится',
-    mars: locale === 'en' ? 'brings energy for' : 'есть энергия для',
-    neutral: locale === 'en' ? 'continue working on' : 'продолжайте работу над',
+    jupiter:
+      locale === 'en'
+        ? 'is favorable for'
+        : locale === 'es'
+          ? 'es favorable para'
+          : 'период благоприятен для',
+    saturn:
+      locale === 'en'
+        ? 'requires'
+        : locale === 'es'
+          ? 'requiere'
+          : 'понадобится',
+    mars:
+      locale === 'en'
+        ? 'brings energy for'
+        : locale === 'es'
+          ? 'aporta energía para'
+          : 'есть энергия для',
+    neutral:
+      locale === 'en'
+        ? 'continue working on'
+        : locale === 'es'
+          ? 'continúa trabajando en'
+          : 'продолжайте работу над',
   };
 }
 
@@ -845,6 +1138,9 @@ export function getAspectInterpretation(
   if (locale === 'en') {
     return `${a} ${aspectName} ${b}, affecting your character and life path.`;
   }
+  if (locale === 'es') {
+    return `${a} ${aspectName} ${b}, influyendo en tu carácter y camino de vida.`;
+  }
   return `${a} ${aspectName} ${b}, что влияет на ваш характер и жизненный путь.`;
 }
 
@@ -900,21 +1196,47 @@ export function getPlanetHouseFocus(
     ];
 
     if (spec) {
-      return locale === 'en'
-        ? `${spec} Area: ${area}.`
-        : `${spec} Сфера: ${area}.`;
+      if (locale === 'en') {
+        return `${spec} Area: ${area}.`;
+      }
+      if (locale === 'es') {
+        return `${spec} Área: ${area}.`;
+      }
+      return `${spec} Сфера: ${area}.`;
     }
-    return locale === 'en'
-      ? `${getPlanetName(planet, 'en')} activates the area: ${area}.`
-      : `${getPlanetName(planet, 'ru')} активирует сферу: ${area}.`;
+    if (locale === 'en') {
+      return `${getPlanetName(planet, 'en')} activates the area: ${area}.`;
+    }
+    if (locale === 'es') {
+      return `${getPlanetName(planet, 'es')} activa el área: ${area}.`;
+    }
+    return `${getPlanetName(planet, 'ru')} активирует сферу: ${area}.`;
   } catch {
-    return locale === 'en'
-      ? `${getPlanetName(planet, 'en')} activates an important life area.`
-      : `${getPlanetName(planet, 'ru')} активирует важную жизненную сферу.`;
+    if (locale === 'en') {
+      return `${getPlanetName(planet, 'en')} activates an important life area.`;
+    }
+    if (locale === 'es') {
+      return `${getPlanetName(planet, 'es')} activa un área importante de la vida.`;
+    }
+    return `${getPlanetName(planet, 'ru')} активирует важную жизненную сферу.`;
   }
 }
 
 // Legacy RU helpers maintained for backward compatibility
+export function getPlanetNameLocalized(
+  planet: PlanetKey,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string {
+  return getPlanetName(planet, locale);
+}
+
+export function getSignNameLocalized(
+  sign: Sign,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string {
+  return getSignName(sign, locale);
+}
+
 export function getPlanetNameRu(planet: PlanetKey): string {
   return getPlanetName(planet, 'ru');
 }

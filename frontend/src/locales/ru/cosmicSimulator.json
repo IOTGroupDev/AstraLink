@@ -24,7 +24,14 @@
     "titleWithAccess": "AI Интерпретация транзитов",
     "titleWithoutAccess": "Базовая интерпретация",
     "upgradeMessage": "Обновите подписку для AI-анализа",
-    "upgradeButton": "Получить Premium"
+    "upgradeButton": "Получить Premium",
+    "sectionTitles": {
+      "love": "💕 Любовь:",
+      "career": "💼 Карьера:",
+      "health": "🏥 Здоровье:",
+      "finance": "💰 Финансы:",
+      "advice": "💡 Совет:"
+    }
   },
   "transits": {
     "title": "Активные транзиты",
@@ -35,6 +42,12 @@
   },
   "planets": {
     "title": "Транзитные планеты"
+  },
+  "chartVisualization": {
+    "legend": {
+      "natal": "Натальные",
+      "transit": "Транзитные"
+    }
   },
   "timeline": {
     "title": "Исторические заметки",
@@ -65,7 +78,8 @@
       "type": "Тип:",
       "harmonious": "Гармоничный",
       "challenging": "Напряжённый",
-      "neutral": "Нейтральный"
+      "neutral": "Нейтральный",
+      "fallbackLine": "Это аспект между транзитной и натальной планетой."
     },
     "datePicker": {
       "title": "Выбрать дату",

@@ -58,5 +58,55 @@
   "buttons": {
     "upgrade": "Улучшить",
     "choosePlan": "Выбрать план"
+  },
+  "trialBanner": {
+    "confirm": {
+      "title": "🎁 Активировать Trial?",
+      "message": "{{days}} дней Premium подписки бесплатно. Без автоматического продления.",
+      "cancel": "Отмена",
+      "activate": "Активировать"
+    },
+    "result": {
+      "successTitle": "✨ Trial активирован!",
+      "successMessage": "Наслаждайтесь всеми функциями Premium {{days}} дней бесплатно",
+      "successOk": "Отлично!",
+      "errorTitle": "Ошибка",
+      "errorMessage": "Не удалось активировать Trial"
+    },
+    "messages": {
+      "first": {
+        "title": "🎁 Попробуйте Premium бесплатно!",
+        "description": "{{days}} дней полного доступа без оплаты"
+      },
+      "second": {
+        "title": "✨ Не упустите возможность!",
+        "description": "AI-гороскопы, полная карта и многое другое"
+      },
+      "third": {
+        "title": "🌟 Последнее напоминание",
+        "description": "Откройте все функции AstraLink"
+      }
+    },
+    "compact": {
+      "activating": "Активация...",
+      "label": "Trial {{days}} дней"
+    },
+    "learnMore": "Подробнее",
+    "activate": "Активировать"
+  },
+  "premiumFeature": {
+    "label": "Premium",
+    "defaultTitle": "Премиум функция",
+    "defaultMessage": "Эта функция доступна с Premium подпиской",
+    "unlock": "Разблокировать",
+    "yourSubscription": "Ваша подписка: {{tier}}",
+    "trialButton": {
+      "activating": "Активация...",
+      "label": "{{days}} дней Premium бесплатно"
+    },
+    "upgradeButton": {
+      "learnMore": "Узнать больше",
+      "upgrade": "Улучшить подписку"
+    }
   }
 }

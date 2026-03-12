@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useTranslation } from 'react-i18next';
 import PlanetIcon from '../svg/planets/PlanetIcon';
 
 interface MainTransitWidgetProps {
@@ -19,6 +20,8 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
   transitData,
   isLoading,
 }) => {
+  const { t } = useTranslation();
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -36,9 +39,11 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
               style={styles.border}
             />
             <View style={styles.content}>
-              <Text style={styles.title}>🪐 Главный транзит</Text>
+              <Text style={styles.title}>
+                🪐 {t('horoscope.mainTransitWidget.title')}
+              </Text>
               <Text style={{ color: '#A78BFA', textAlign: 'center' }}>
-                Загрузка транзита...
+                {t('horoscope.mainTransitWidget.loading')}
               </Text>
             </View>
           </LinearGradient>
@@ -74,7 +79,9 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
 
           <View style={styles.content}>
             {/* Заголовок */}
-            <Text style={styles.title}>🪐 Главный транзит</Text>
+            <Text style={styles.title}>
+              🪐 {t('horoscope.mainTransitWidget.title')}
+            </Text>
 
             {/* Контейнер с иконкой и текстом */}
             <View style={styles.mainContent}>
@@ -94,7 +101,9 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
                   {transitData.description}
                 </Text>
                 <Text style={styles.transitStrength}>
-                  Сила: {strengthPercent}%
+                  {t('horoscope.mainTransitWidget.strength', {
+                    percent: strengthPercent,
+                  })}
                 </Text>
               </View>
             </View>

@@ -36,9 +36,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "${APPLE_ID}",
-        "ascAppId": "${ASC_APP_ID}",
-        "appleTeamId": "${APPLE_TEAM_ID}",
+        "appleId": "andreivya@icloud.com",
+        "ascAppId": "6756360445",
+        "appleTeamId": "6BNFTTA76P",
         "sku": "astralink-ios"
       }
     }

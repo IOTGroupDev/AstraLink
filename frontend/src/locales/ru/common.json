@@ -15,6 +15,14 @@
   },
   "selectUpTo": "Выберите до {{count}}",
   "in": "в",
+  "tabs": {
+    "horoscope": "Гороскоп",
+    "cosmicSimulator": "Симулятор",
+    "dating": "Знакомства",
+    "messages": "Сообщения",
+    "advisor": "Советник",
+    "profile": "Профиль"
+  },
   "errors": {
     "generic": "Ошибка",
     "network": "Ошибка сети. Попробуйте ещё раз.",

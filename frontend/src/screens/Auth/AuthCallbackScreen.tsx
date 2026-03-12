@@ -1,16 +1,13 @@
 // src/screens/auth/AuthCallbackScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import ZodiacLoadingAnimation from '../../components/shared/ZodiacLoadingAnimation';
 import { supabase } from '../../services/supabase';
-import { tokenService } from '../../services/tokenService';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
 
 const AuthCallbackScreen: React.FC = () => {
-  const navigation = useNavigation();
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -47,25 +44,11 @@ const AuthCallbackScreen: React.FC = () => {
           accessToken = s.session?.access_token || null;
           refreshToken = s.session?.refresh_token || null;
         } else {
-          const storedToken = await tokenService.getToken();
-          if (storedToken) {
-            const { error } = await supabase.auth.setSession({
-              access_token: storedToken,
-              refresh_token: '',
-            });
-            if (error) throw error;
-            accessToken = storedToken;
-          } else {
-            throw new Error(
-              t('auth.callback.noTokenOrCode', {
-                defaultValue: 'Authorization token or code not found in URL',
-              })
-            );
-          }
-        }
-
-        if (accessToken) {
-          await tokenService.setToken(accessToken);
+          throw new Error(
+            t('auth.callback.noTokenOrCode', {
+              defaultValue: 'Authorization token or code not found in URL',
+            })
+          );
         }
 
         try {
@@ -80,15 +63,6 @@ const AuthCallbackScreen: React.FC = () => {
           bc.close();
         } catch (bcError) {
           // Silent fail
-        } finally {
-          try {
-            if (accessToken) {
-              localStorage.setItem('al_token_value', accessToken);
-            }
-            localStorage.setItem('al_token_broadcast', String(Date.now()));
-          } catch (storageError) {
-            // Silent fail
-          }
         }
 
         try {
@@ -99,11 +73,6 @@ const AuthCallbackScreen: React.FC = () => {
           );
         } catch {}
 
-        // @ts-ignore
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'UserDataLoader' }],
-        });
         return;
       }
 
@@ -120,13 +89,7 @@ const AuthCallbackScreen: React.FC = () => {
         );
       }
 
-      await tokenService.setToken(session.access_token);
-
-      // @ts-ignore
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'UserDataLoader' }],
-      });
+      return;
     } catch (err: any) {
       setError(
         err?.message ||
@@ -135,8 +98,7 @@ const AuthCallbackScreen: React.FC = () => {
           })
       );
       setTimeout(() => {
-        // @ts-ignore
-        navigation.navigate('SignUp');
+        setError((prev) => prev);
       }, 3000);
     }
   };

@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -37,8 +38,39 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   visible,
   onClose,
   onConfirm,
-  userName = 'пользователь',
+  userName,
 }) => {
+  const { t } = useTranslation();
+
+  const displayUserName = userName || t('profile.defaults.userName');
+
+  const deleteItems = [
+    {
+      icon: 'person',
+      textKey: 'profile.deleteAccountModal.warning.items.profile',
+    },
+    {
+      icon: 'planet',
+      textKey: 'profile.deleteAccountModal.warning.items.natalChart',
+    },
+    {
+      icon: 'people',
+      textKey: 'profile.deleteAccountModal.warning.items.connections',
+    },
+    {
+      icon: 'heart',
+      textKey: 'profile.deleteAccountModal.warning.items.dating',
+    },
+    {
+      icon: 'card',
+      textKey: 'profile.deleteAccountModal.warning.items.subscriptions',
+    },
+    {
+      icon: 'analytics',
+      textKey: 'profile.deleteAccountModal.warning.items.analytics',
+    },
+  ] as const;
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [step, setStep] = useState<'warning' | 'confirm'>('warning');
 
@@ -134,8 +166,10 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                 </LinearGradient>
               </Animated.View>
 
-              <Text style={styles.title}>Удалить аккаунт?</Text>
-              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.title}>
+                {t('profile.deleteAccountModal.warning.title')}
+              </Text>
+              <Text style={styles.userName}>{displayUserName}</Text>
 
               <View style={styles.warningBox}>
                 <Ionicons
@@ -144,28 +178,24 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                   color="#FF6B6B"
                   style={styles.warningIcon}
                 />
-                <Text style={styles.warningText}>Это действие необратимо!</Text>
+                <Text style={styles.warningText}>
+                  {t('profile.deleteAccountModal.warning.irreversible')}
+                </Text>
               </View>
 
               <View style={styles.deleteList}>
                 <Text style={styles.deleteListTitle}>
-                  Будут безвозвратно удалены:
+                  {t('profile.deleteAccountModal.warning.deleteListTitle')}
                 </Text>
-                {[
-                  { icon: 'person', text: 'Профиль и личные данные' },
-                  { icon: 'planet', text: 'Натальная карта' },
-                  { icon: 'people', text: 'Все связи и контакты' },
-                  { icon: 'heart', text: 'Данные Dating' },
-                  { icon: 'card', text: 'История подписок' },
-                  { icon: 'analytics', text: 'Статистика и достижения' },
-                ].map((item, index) => (
+
+                {deleteItems.map((item, index) => (
                   <View key={index} style={styles.deleteItem}>
                     <Ionicons
                       name={item.icon as any}
                       size={16}
                       color="#FF6B6B"
                     />
-                    <Text style={styles.deleteItemText}>{item.text}</Text>
+                    <Text style={styles.deleteItemText}>{t(item.textKey)}</Text>
                   </View>
                 ))}
               </View>
@@ -185,7 +215,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                     style={styles.buttonGradient}
                   >
                     <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
-                    <Text style={styles.cancelButtonText}>Отмена</Text>
+                    <Text style={styles.cancelButtonText}>
+                      {t('common.buttons.cancel')}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -199,7 +231,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                     colors={['#FF6B6B', '#FF5252']}
                     style={styles.buttonGradient}
                   >
-                    <Text style={styles.proceedButtonText}>Продолжить</Text>
+                    <Text style={styles.proceedButtonText}>
+                      {t('common.buttons.next')}
+                    </Text>
                     <Ionicons name="arrow-forward" size={20} color="#fff" />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -221,7 +255,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                 </LinearGradient>
               </Animated.View>
 
-              <Text style={styles.title}>Последнее предупреждение</Text>
+              <Text style={styles.title}>
+                {t('profile.deleteAccountModal.confirm.title')}
+              </Text>
 
               <View style={[styles.warningBox, styles.criticalWarning]}>
                 <Ionicons
@@ -231,12 +267,12 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                   style={styles.warningIcon}
                 />
                 <Text style={[styles.warningText, styles.criticalWarningText]}>
-                  ВСЕ ДАННЫЕ БУДУТ УДАЛЕНЫ{'\n'}НАВСЕГДА И БЕЗВОЗВРАТНО!
+                  {t('profile.deleteAccountModal.confirm.critical')}
                 </Text>
               </View>
 
               <Text style={styles.confirmQuestion}>
-                Вы абсолютно уверены, что хотите удалить свой аккаунт?
+                {t('profile.deleteAccountModal.confirm.question')}
               </Text>
 
               <View style={styles.buttonsContainer}>
@@ -254,7 +290,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                     style={styles.buttonGradient}
                   >
                     <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
-                    <Text style={styles.cancelButtonText}>Назад</Text>
+                    <Text style={styles.cancelButtonText}>
+                      {t('common.buttons.back')}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -279,7 +317,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                         <>
                           <Ionicons name="trash" size={20} color="#fff" />
                           <Text style={styles.deleteButtonText}>
-                            Удалить навсегда
+                            {t(
+                              'profile.deleteAccountModal.confirm.deleteForever'
+                            )}
                           </Text>
                         </>
                       )}

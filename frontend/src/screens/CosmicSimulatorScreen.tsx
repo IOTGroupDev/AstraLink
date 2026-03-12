@@ -19,9 +19,11 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { chartAPI } from '../services/api';
+import { useSubscription } from '../hooks/useSubscription';
 import {
   ASTRO_LESSONS,
   getLessonsByCategory,
@@ -64,6 +66,9 @@ type SimulatorTab = 'transits' | 'planets' | 'timeline' | 'lessons';
 
 export default function CosmicSimulatorScreen() {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { subscription } = useSubscription();
+  const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const hasLoadedRef = useRef(false);
 
   // Константы (до всех хуков)
@@ -118,25 +123,36 @@ export default function CosmicSimulatorScreen() {
   endDate.setFullYear(endDate.getFullYear() + 5);
   const totalTimeSpan = endDate.getTime() - startDate.getTime();
 
-  // Маппинг планет
-  const planetRu: Record<string, string> = {
-    sun: 'Солнце',
-    moon: 'Луна',
-    mercury: 'Меркурий',
-    venus: 'Венера',
-    mars: 'Марс',
-    jupiter: 'Юпитер',
-    saturn: 'Сатурн',
-    uranus: 'Уран',
-    neptune: 'Нептун',
-    pluto: 'Плутон',
-  };
+  const getPlanetLabel = useCallback(
+    (planetKeyOrName: string): string => {
+      const key = String(planetKeyOrName || '')
+        .trim()
+        .toLowerCase();
+      return t(`common.planets.${key}`, { defaultValue: planetKeyOrName });
+    },
+    [t]
+  );
+
+  const getInterpretationLocale = useCallback((): 'ru' | 'en' | 'es' => {
+    const lang = String(i18n.language || 'en').toLowerCase();
+    if (lang === 'ru' || lang === 'en' || lang === 'es') return lang;
+    return 'en';
+  }, [i18n.language]);
 
   useEffect(() => {
     if (natalChart) {
       loadTransitsForDate(currentDate);
     }
   }, [currentDate, natalChart]);
+
+  useEffect(() => {
+    const nextTier = subscription?.tier;
+    if (prevTierRef.current && nextTier && prevTierRef.current !== nextTier) {
+      loadNatalChart();
+      loadTransitsForDate(currentDate);
+    }
+    prevTierRef.current = nextTier;
+  }, [subscription?.tier, currentDate]);
 
   // Выбрать урок дня
   const selectDailyLesson = () => {
@@ -238,15 +254,30 @@ export default function CosmicSimulatorScreen() {
           const parsed = JSON.parse(interpretationText);
           // Извлекаем текст из структуры с категориями
           if (parsed.general) {
-            const sections = [];
+            const sections: string[] = [];
             if (parsed.general) sections.push(`📋 ${parsed.general}`);
-            if (parsed.love) sections.push(`\n💕 Любовь:\n${parsed.love}`);
-            if (parsed.career) sections.push(`\n💼 Карьера:\n${parsed.career}`);
+
+            if (parsed.love)
+              sections.push(
+                `\n${t('cosmicSimulator.ai.sectionTitles.love')}\n${parsed.love}`
+              );
+            if (parsed.career)
+              sections.push(
+                `\n${t('cosmicSimulator.ai.sectionTitles.career')}\n${parsed.career}`
+              );
             if (parsed.health)
-              sections.push(`\n🏥 Здоровье:\n${parsed.health}`);
+              sections.push(
+                `\n${t('cosmicSimulator.ai.sectionTitles.health')}\n${parsed.health}`
+              );
             if (parsed.finance)
-              sections.push(`\n💰 Финансы:\n${parsed.finance}`);
-            if (parsed.advice) sections.push(`\n💡 Совет:\n${parsed.advice}`);
+              sections.push(
+                `\n${t('cosmicSimulator.ai.sectionTitles.finance')}\n${parsed.finance}`
+              );
+            if (parsed.advice)
+              sections.push(
+                `\n${t('cosmicSimulator.ai.sectionTitles.advice')}\n${parsed.advice}`
+              );
+
             interpretationText = sections.join('\n');
           } else if (parsed.interpretation) {
             interpretationText = parsed.interpretation;
@@ -286,14 +317,15 @@ export default function CosmicSimulatorScreen() {
             aspect.transitPlanet.charAt(0).toUpperCase() +
             aspect.transitPlanet.slice(1),
           aspect: aspect.aspect,
-          target: planetRu[aspect.natalPlanet] || aspect.natalPlanet,
+          // ВАЖНО: храним ключ натальной планеты (sun/moon/...), а не перевод
+          target: String(aspect.natalPlanet || '').toLowerCase(),
           orb: Math.round(aspect.orb * 10) / 10,
           date: date.toDateString(),
           description: getTransitDescription(
             aspect.transitPlanet.charAt(0).toUpperCase() +
               aspect.transitPlanet.slice(1),
             aspect.aspect,
-            aspect.natalPlanet
+            String(aspect.natalPlanet || '').toLowerCase()
           ),
           type: getAspectType(aspect.aspect),
           strength: aspect.strength,
@@ -420,13 +452,13 @@ export default function CosmicSimulatorScreen() {
             transits.push({
               planet: transitPlanet.name,
               aspect: aspect.aspect,
-              target: planetRu[natalPlanetKey] || natalPlanetKey,
+              target: String(natalPlanetKey || '').toLowerCase(),
               orb: Math.round(aspect.orb * 10) / 10,
               date: date.toDateString(),
               description: getTransitDescription(
                 transitPlanet.name,
                 aspect.aspect,
-                natalPlanetKey
+                String(natalPlanetKey || '').toLowerCase()
               ),
               type: getAspectType(aspect.aspect),
               strength: aspect.strength,
@@ -470,10 +502,14 @@ export default function CosmicSimulatorScreen() {
     aspect: string,
     target: string
   ): string => {
-    const aspectTranslated = t(`common.aspects.${aspect}`) || aspect;
-    const targetTranslated = planetRu[target] || target;
+    const aspectKey = String(aspect || '').toLowerCase();
+    const aspectTranslated = t(`common.aspects.${aspectKey}`) || aspect;
+
+    const planetTranslated = getPlanetLabel(planet);
+    const targetTranslated = getPlanetLabel(target);
+
     return t('cosmicSimulator.transits.description', {
-      planet,
+      planet: planetTranslated,
       aspect: aspectTranslated,
       target: targetTranslated,
     });
@@ -523,11 +559,8 @@ export default function CosmicSimulatorScreen() {
         type: 'aspect',
         aspect: transit.aspect,
         planetA: transit.planet.toLowerCase(),
-        planetB:
-          Object.keys(planetRu).find(
-            (key) => planetRu[key] === transit.target
-          ) || transit.target.toLowerCase(),
-        locale: 'ru',
+        planetB: String(transit.target || '').toLowerCase(),
+        locale: getInterpretationLocale(),
       });
 
       setDetailContent(details);
@@ -539,7 +572,7 @@ export default function CosmicSimulatorScreen() {
           transit.description,
           `${t('cosmicSimulator.modals.transitDetail.orb')} ${transit.orb}°`,
           `${t('cosmicSimulator.modals.transitDetail.strength')} ${Math.round((transit.strength || 0) * 100)}%`,
-          'Это аспект между транзитной и натальной планетой.',
+          t('cosmicSimulator.modals.transitDetail.fallbackLine'),
         ],
       });
     }
@@ -595,7 +628,11 @@ export default function CosmicSimulatorScreen() {
 
   if (loading) {
     return (
-      <TabScreenLayout>
+      <TabScreenLayout
+        scrollable={false}
+        edges={['left', 'right']}
+        contentContainerStyle={styles.layoutContent}
+      >
         <View style={styles.loadingContainer}>
           <Ionicons name="planet" size={64} color="#8B5CF6" />
           <Text style={styles.loadingText}>{t('cosmicSimulator.loading')}</Text>
@@ -605,11 +642,18 @@ export default function CosmicSimulatorScreen() {
   }
 
   return (
-    <TabScreenLayout>
+    <TabScreenLayout
+      scrollable={false}
+      edges={['left', 'right']}
+      contentContainerStyle={styles.layoutContent}
+    >
       <Animated.View style={[styles.container, animatedStyle]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 12 },
+          ]}
         >
           {/* Header */}
           <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
@@ -928,9 +972,9 @@ export default function CosmicSimulatorScreen() {
                         >
                           <View style={styles.transitHeader}>
                             <Text style={styles.transitTitle}>
-                              {transit.planet}{' '}
+                              {getPlanetLabel(transit.planet)}{' '}
                               {t('common.aspects.' + transit.aspect)}{' '}
-                              {transit.target}
+                              {getPlanetLabel(transit.target)}
                             </Text>
                             <View style={styles.transitOrbBadge}>
                               <Text style={styles.transitOrb}>
@@ -1001,7 +1045,9 @@ export default function CosmicSimulatorScreen() {
                 {transitPlanets.map((planet, index) => (
                   <View key={index} style={styles.planetItem}>
                     <View style={styles.planetInfo}>
-                      <Text style={styles.planetName}>{planet.name}</Text>
+                      <Text style={styles.planetName}>
+                        {getPlanetLabel(planet.name)}
+                      </Text>
                       {planet.isRetrograde && (
                         <View style={styles.retroBadge}>
                           <Text style={styles.retroText}>℞</Text>
@@ -1139,6 +1185,17 @@ export default function CosmicSimulatorScreen() {
             </View>
           )}
         </ScrollView>
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(15, 23, 42, 0.98)',
+            'rgba(15, 23, 42, 0.65)',
+            'rgba(15, 23, 42, 0)',
+          ]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[styles.topFade, { height: insets.top + 56 }]}
+        />
 
         {/* Note Modal */}
         <Modal
@@ -1227,9 +1284,9 @@ export default function CosmicSimulatorScreen() {
                 {selectedTransit && (
                   <>
                     <Text style={styles.detailTitle}>
-                      {selectedTransit.planet}{' '}
+                      {getPlanetLabel(selectedTransit.planet)}{' '}
                       {t('common.aspects.' + selectedTransit.aspect)}{' '}
-                      {selectedTransit.target}
+                      {getPlanetLabel(selectedTransit.target)}
                     </Text>
 
                     <View style={styles.detailMeta}>
@@ -1348,11 +1405,23 @@ export default function CosmicSimulatorScreen() {
 }
 
 const styles = StyleSheet.create({
+  layoutContent: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
   container: {
     flex: 1,
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   loadingContainer: {
     flex: 1,

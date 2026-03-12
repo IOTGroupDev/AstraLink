@@ -45,5 +45,15 @@
   "defaults": {
     "userName": "User",
     "userBio": "Looking for my soulmate among the stars ✨"
+  },
+  "cosmicChat": {
+    "compatibilityLabel": "{{percent}}% compatibility",
+    "suggestionsTitle": "💫 Start the conversation:",
+    "inputPlaceholder": "Write your first message...",
+    "suggestions": {
+      "greeting": "Hi! I see you're {{zodiacSign}} ✨",
+      "compatibility": "Our compatibility is {{percent}}% — the stars are on our side! 🌟",
+      "aboutMe": "Tell me about yourself, {{name}}"
+    }
   }
 }

@@ -61,5 +61,11 @@
   "usage": {
     "title": "Detailed instructions",
     "whenToUse": "When to use"
+  },
+  "widget": {
+    "title": "Code of the day",
+    "subtitle": "Luck and good fortune",
+    "energyLabel": "Energy:",
+    "create": "Create code"
   }
 }
