@@ -26,6 +26,8 @@
     "unknownTime": "no sé la hora exacta"
   },
   "button": {
+    "login": "Iniciar sesión",
+    "register": "Inscribirse",
     "next": "SIGUIENTE",
     "finish": "FINALIZAR",
     "confirm": "Listo"

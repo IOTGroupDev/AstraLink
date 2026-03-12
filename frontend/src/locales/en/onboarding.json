@@ -26,6 +26,8 @@
     "unknownTime": "don't know exact time"
   },
   "button": {
+    "login": "Login",
+    "register": "Sign up",
     "next": "NEXT",
     "finish": "FINISH",
     "confirm": "Done"

@@ -4,6 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingButton from '../../components/onboarding/OnboardingButton';
 import OnboardingFirstBackgroundSvg from '../../components/onboarding/OnboardingFirstBackgroundSvg';
@@ -18,6 +19,7 @@ import {
 type RootStackParamList = {
   Onboarding1: undefined;
   Onboarding2: undefined;
+  AuthEmail: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<
@@ -28,9 +30,14 @@ type NavigationProp = NativeStackNavigationProp<
 export default function OnboardingFirstScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
-  const handleContinue = useCallback(() => {
+  const handleRegister = useCallback(() => {
     navigation.navigate('Onboarding2');
+  }, [navigation]);
+
+  const handleLogin = useCallback(() => {
+    navigation.navigate('AuthEmail');
   }, [navigation]);
 
   return (
@@ -62,10 +69,26 @@ export default function OnboardingFirstScreen() {
           <Text style={styles.subtitle}>{t('onboarding.first.subtitle')}</Text>
         </View>
 
-        <OnboardingButton
-          title={t('onboarding.button.next')}
-          onPress={handleContinue}
-        />
+        <View
+          style={[
+            styles.actionsContainer,
+            { bottom: ONBOARDING_LAYOUT.buttonBottomOffset + insets.bottom },
+          ]}
+        >
+          <OnboardingButton
+            title={t('onboarding.button.register')}
+            onPress={handleRegister}
+            isFixed={false}
+            uppercase={true}
+          />
+          <OnboardingButton
+            title={t('onboarding.button.login')}
+            onPress={handleLogin}
+            isFixed={false}
+            variant="secondary"
+            uppercase={true}
+          />
+        </View>
       </View>
     </OnboardingLayout>
   );
@@ -83,8 +106,14 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: ONBOARDING_LAYOUT.horizontalPadding,
-    marginBottom: theme.spacing.xxxl * 4.375, // 140px (32 * 4.375)
+    marginBottom: theme.spacing.xxxl * 6.25, // 200px (32 * 6.25)
     gap: theme.spacing.md, // 12px instead of 10
+  },
+  actionsContainer: {
+    position: 'absolute',
+    left: ONBOARDING_LAYOUT.horizontalPadding,
+    right: ONBOARDING_LAYOUT.horizontalPadding,
+    gap: theme.spacing.sm,
   },
   title: {
     color: ONBOARDING_COLORS.text,
