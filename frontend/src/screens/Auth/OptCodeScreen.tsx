@@ -21,7 +21,6 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
-import { supabase } from '../../services/supabase';
 import { authAPI } from '../../services/api';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
@@ -133,20 +132,10 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
     try {
       try {
-        await supabase.auth.signOut();
-      } catch {}
-
-      const { data, error } = await supabase.auth.verifyOtp({
-        type: 'email',
-        email: String(email).trim().toLowerCase(),
-        token: code,
-      });
-
-      if (error) {
-        const msg = error?.message ?? '';
-        const codeName = (error?.code || '').toLowerCase();
-        const isExpired =
-          codeName === 'otp_expired' || /expired|invalid token/i.test(msg);
+        await authAPI.verifyCode(String(email).trim().toLowerCase(), code);
+      } catch (verifyErr: any) {
+        const msg = verifyErr?.message ?? '';
+        const isExpired = /код истек|expired/i.test(msg);
 
         if (isExpired) {
           try {
@@ -176,7 +165,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           return;
         }
 
-        throw error;
+        throw verifyErr;
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
