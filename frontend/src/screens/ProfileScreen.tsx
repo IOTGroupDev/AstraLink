@@ -292,7 +292,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const themePrimary = elementTheme.colors[0];
 
   return (
-    <SafeAreaViewSAC style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaViewSAC style={styles.container} edges={['left', 'right']}>
       <CosmicBackground />
 
       <ScrollView
@@ -300,6 +300,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           styles.scrollContent,
           {
             // ключевая строка: чтобы контент не перекрывался таббаром
+            paddingTop: insets.top,
             paddingBottom: Math.max(40, tabBarHeight + insets.bottom + 16),
           },
         ]}
@@ -480,6 +481,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
         </Animated.View>
       </ScrollView>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(15, 23, 42, 0.98)',
+          'rgba(15, 23, 42, 0.65)',
+          'rgba(15, 23, 42, 0)',
+        ]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[styles.topFade, { height: insets.top + 56 }]}
+      />
 
       {/* Delete Account Modal */}
       <DeleteAccountModal
@@ -536,6 +548,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   content: {
     flex: 1,

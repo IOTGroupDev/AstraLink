@@ -19,6 +19,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { chartAPI } from '../services/api';
@@ -65,6 +66,7 @@ type SimulatorTab = 'transits' | 'planets' | 'timeline' | 'lessons';
 
 export default function CosmicSimulatorScreen() {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const hasLoadedRef = useRef(false);
@@ -626,7 +628,11 @@ export default function CosmicSimulatorScreen() {
 
   if (loading) {
     return (
-      <TabScreenLayout>
+      <TabScreenLayout
+        scrollable={false}
+        edges={['left', 'right']}
+        contentContainerStyle={styles.layoutContent}
+      >
         <View style={styles.loadingContainer}>
           <Ionicons name="planet" size={64} color="#8B5CF6" />
           <Text style={styles.loadingText}>{t('cosmicSimulator.loading')}</Text>
@@ -636,11 +642,18 @@ export default function CosmicSimulatorScreen() {
   }
 
   return (
-    <TabScreenLayout>
+    <TabScreenLayout
+      scrollable={false}
+      edges={['left', 'right']}
+      contentContainerStyle={styles.layoutContent}
+    >
       <Animated.View style={[styles.container, animatedStyle]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 12 },
+          ]}
         >
           {/* Header */}
           <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
@@ -1172,6 +1185,17 @@ export default function CosmicSimulatorScreen() {
             </View>
           )}
         </ScrollView>
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(15, 23, 42, 0.98)',
+            'rgba(15, 23, 42, 0.65)',
+            'rgba(15, 23, 42, 0)',
+          ]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[styles.topFade, { height: insets.top + 56 }]}
+        />
 
         {/* Note Modal */}
         <Modal
@@ -1381,11 +1405,23 @@ export default function CosmicSimulatorScreen() {
 }
 
 const styles = StyleSheet.create({
+  layoutContent: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
   container: {
     flex: 1,
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   loadingContainer: {
     flex: 1,

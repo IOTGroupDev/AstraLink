@@ -265,76 +265,103 @@ export default function DatingScreen() {
   // Render
   // ===============================
   return (
-    <TabScreenLayout>
-      <GestureHandlerRootView style={styles.container}>
-        {/* Космический фон */}
-        <CosmicBackground />
+    <TabScreenLayout
+      scrollable={false}
+      edges={['left', 'right']}
+      contentContainerStyle={styles.layoutContent}
+    >
+      <View style={styles.screen}>
+        <GestureHandlerRootView style={styles.container}>
+          {/* Космический фон */}
+          <CosmicBackground />
 
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <LinearGradient
-                colors={['#8B5CF6', '#A855F7']}
-                style={styles.iconCircle}
-              >
-                <Ionicons name="heart" size={24} color="#fff" />
-              </LinearGradient>
+          <View style={styles.content}>
+            {/* Header */}
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+              <View style={styles.iconContainer}>
+                <LinearGradient
+                  colors={['#8B5CF6', '#A855F7']}
+                  style={styles.iconCircle}
+                >
+                  <Ionicons name="heart" size={24} color="#fff" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.title}>{t('dating.title')}</Text>
+              <Text style={styles.subtitle}>{t('dating.subtitle')}</Text>
             </View>
-            <Text style={styles.title}>{t('dating.title')}</Text>
-            <Text style={styles.subtitle}>{t('dating.subtitle')}</Text>
-          </View>
 
-          {/* Content */}
-          {loadingCards ? (
-            <View style={styles.cardContainer}>
-              <DatingCardSkeleton />
-            </View>
-          ) : !current ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
-              <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
-              <Text style={styles.emptyText}>{t('dating.empty.subtitle')}</Text>
-            </View>
-          ) : (
-            <View style={styles.cardContainer}>
-              <DatingCard
-                user={{
-                  id: current.userId,
-                  name: current.name,
-                  age: current.age,
-                  zodiacSign: current.zodiacSign,
-                  compatibility: getCompatibilityFromBadge(current.badge),
-                  bio: current.bio,
-                  interests: current.interests,
-                  distance: current.distance,
-                  photoUrl: current.photoUrl,
-                  height: current.height,
-                  lookingFor: current.lookingFor,
-                }}
-                onSwipe={handleSwipe}
-                onChat={handleChat}
-                isTop={true}
+            {/* Content */}
+            {loadingCards ? (
+              <View style={styles.cardContainer}>
+                <DatingCardSkeleton />
+              </View>
+            ) : !current ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
+                <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
+                <Text style={styles.emptyText}>
+                  {t('dating.empty.subtitle')}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.cardContainer}>
+                <DatingCard
+                  user={{
+                    id: current.userId,
+                    name: current.name,
+                    age: current.age,
+                    zodiacSign: current.zodiacSign,
+                    compatibility: getCompatibilityFromBadge(current.badge),
+                    bio: current.bio,
+                    interests: current.interests,
+                    distance: current.distance,
+                    photoUrl: current.photoUrl,
+                    height: current.height,
+                    lookingFor: current.lookingFor,
+                  }}
+                  onSwipe={handleSwipe}
+                  onChat={handleChat}
+                  isTop={true}
+                />
+              </View>
+            )}
+
+            {/* Модалка чата */}
+            {chatVisible && selectedUser && (
+              <CosmicChat
+                visible={chatVisible}
+                user={selectedUser}
+                onClose={handleCloseChat}
+                onSendMessage={handleSendMessage}
               />
-            </View>
-          )}
-
-          {/* Модалка чата */}
-          {chatVisible && selectedUser && (
-            <CosmicChat
-              visible={chatVisible}
-              user={selectedUser}
-              onClose={handleCloseChat}
-              onSendMessage={handleSendMessage}
-            />
-          )}
-        </View>
-      </GestureHandlerRootView>
+            )}
+          </View>
+        </GestureHandlerRootView>
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(13, 6, 24, 0.98)',
+            'rgba(13, 6, 24, 0.65)',
+            'rgba(13, 6, 24, 0)',
+          ]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[styles.topFade, { height: insets.top + 56 }]}
+        />
+      </View>
     </TabScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  layoutContent: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#0D0618',
@@ -345,7 +372,13 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingVertical: 12,
-    paddingTop: 20,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   iconContainer: {
     marginBottom: 8,

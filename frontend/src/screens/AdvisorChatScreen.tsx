@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSubscription } from '../hooks/useSubscription';
 import { advisorAPI } from '../services/api';
 import AdvisorAspectsWidget from '../components/advisor/AdvisorAspectsWidget';
@@ -62,6 +63,7 @@ const TOPIC_CONFIG: Array<{
 
 const AdvisorScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { isPremium } = useSubscription();
   const premium = useMemo(() => isPremium(), [isPremium]);
@@ -187,265 +189,306 @@ const AdvisorScreen: React.FC = () => {
   return (
     <>
       <StatusBar barStyle="light-content" />
-      <TabScreenLayout>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Header */}
-          <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
-            <View style={styles.headerIconContainer}>
-              <LinearGradient
-                colors={['#8B5CF6', '#6366F1']}
-                style={styles.headerIcon}
-              >
-                <Ionicons name="bulb" size={32} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.headerTitle}>{t('advisor.title')}</Text>
-            <Text style={styles.headerSubtitle}>{t('advisor.subtitle')}</Text>
-            <Text style={styles.headerDate}>
-              {t('advisor.analysisFor')}{' '}
-              {new Date(date).toLocaleDateString(
-                i18n.language === 'ru'
-                  ? 'ru-RU'
-                  : i18n.language === 'es'
-                    ? 'es-ES'
-                    : 'en-US',
-                { day: 'numeric', month: 'long', year: 'numeric' }
-              )}
-            </Text>
-          </BlurView>
-
-          {/* Content */}
-          <View style={styles.contentContainer}>
-            {/* Topic Selection */}
-            <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="grid" size={20} color="#8B5CF6" />
-                <Text style={styles.sectionTitle}>
-                  {t('advisor.selectTopic')}
-                </Text>
+      <TabScreenLayout
+        scrollable={false}
+        edges={['left', 'right']}
+        contentContainerStyle={styles.layoutContent}
+      >
+        <View style={styles.screen}>
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: insets.top + 12 },
+            ]}
+          >
+            {/* Header */}
+            <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
+              <View style={styles.headerIconContainer}>
+                <LinearGradient
+                  colors={['#8B5CF6', '#6366F1']}
+                  style={styles.headerIcon}
+                >
+                  <Ionicons name="bulb" size={32} color="#FFFFFF" />
+                </LinearGradient>
               </View>
-
-              <View style={styles.topicGrid}>
-                {topics.map((topic) => {
-                  const isActive = topic.key === selectedTopic;
-                  return (
-                    <TouchableOpacity
-                      key={topic.key}
-                      onPress={() => setSelectedTopic(topic.key)}
-                      style={[
-                        styles.topicCard,
-                        isActive && styles.topicCardActive,
-                      ]}
-                    >
-                      {isActive ? (
-                        <LinearGradient
-                          colors={topic.gradient}
-                          style={styles.topicCardGradient}
-                        >
-                          <Ionicons
-                            name={topic.icon}
-                            size={24}
-                            color="#FFFFFF"
-                          />
-                          <Text style={styles.topicLabel}>{topic.label}</Text>
-                        </LinearGradient>
-                      ) : (
-                        <View style={styles.topicCardInactive}>
-                          <Ionicons
-                            name={topic.icon}
-                            size={24}
-                            color="rgba(255,255,255,0.6)"
-                          />
-                          <Text style={styles.topicLabelInactive}>
-                            {topic.label}
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Topic Description */}
-              <View style={styles.topicDescription}>
-                <Ionicons
-                  name="information-circle"
-                  size={16}
-                  color="rgba(139, 92, 246, 0.8)"
-                />
-                <Text style={styles.topicDescriptionText}>
-                  {selectedTopicOption.description}
-                </Text>
-              </View>
+              <Text style={styles.headerTitle}>{t('advisor.title')}</Text>
+              <Text style={styles.headerSubtitle}>{t('advisor.subtitle')}</Text>
+              <Text style={styles.headerDate}>
+                {t('advisor.analysisFor')}{' '}
+                {new Date(date).toLocaleDateString(
+                  i18n.language === 'ru'
+                    ? 'ru-RU'
+                    : i18n.language === 'es'
+                      ? 'es-ES'
+                      : 'en-US',
+                  { day: 'numeric', month: 'long', year: 'numeric' }
+                )}
+              </Text>
             </BlurView>
 
-            {/* Date Input */}
-            <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="calendar" size={20} color="#8B5CF6" />
-                <Text style={styles.sectionTitle}>
-                  {t('advisor.dateAnalysis')}
-                </Text>
-              </View>
+            {/* Content */}
+            <View style={styles.contentContainer}>
+              {/* Topic Selection */}
+              <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="grid" size={20} color="#8B5CF6" />
+                  <Text style={styles.sectionTitle}>
+                    {t('advisor.selectTopic')}
+                  </Text>
+                </View>
 
-              <View style={styles.dateInputContainer}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={20}
-                  color="rgba(255,255,255,0.5)"
-                />
+                <View style={styles.topicGrid}>
+                  {topics.map((topic) => {
+                    const isActive = topic.key === selectedTopic;
+                    return (
+                      <TouchableOpacity
+                        key={topic.key}
+                        onPress={() => setSelectedTopic(topic.key)}
+                        style={[
+                          styles.topicCard,
+                          isActive && styles.topicCardActive,
+                        ]}
+                      >
+                        {isActive ? (
+                          <LinearGradient
+                            colors={topic.gradient}
+                            style={styles.topicCardGradient}
+                          >
+                            <Ionicons
+                              name={topic.icon}
+                              size={24}
+                              color="#FFFFFF"
+                            />
+                            <Text style={styles.topicLabel}>{topic.label}</Text>
+                          </LinearGradient>
+                        ) : (
+                          <View style={styles.topicCardInactive}>
+                            <Ionicons
+                              name={topic.icon}
+                              size={24}
+                              color="rgba(255,255,255,0.6)"
+                            />
+                            <Text style={styles.topicLabelInactive}>
+                              {topic.label}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Topic Description */}
+                <View style={styles.topicDescription}>
+                  <Ionicons
+                    name="information-circle"
+                    size={16}
+                    color="rgba(139, 92, 246, 0.8)"
+                  />
+                  <Text style={styles.topicDescriptionText}>
+                    {selectedTopicOption.description}
+                  </Text>
+                </View>
+              </BlurView>
+
+              {/* Date Input */}
+              <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="calendar" size={20} color="#8B5CF6" />
+                  <Text style={styles.sectionTitle}>
+                    {t('advisor.dateAnalysis')}
+                  </Text>
+                </View>
+
+                <View style={styles.dateInputContainer}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                  <TextInput
+                    value={date}
+                    onChangeText={setDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    style={styles.dateInput}
+                  />
+                </View>
+
+                {/* Quick Date Buttons */}
+                <View style={styles.quickDateButtons}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setDate(new Date().toISOString().slice(0, 10))
+                    }
+                    style={styles.quickDateButton}
+                  >
+                    <Text style={styles.quickDateButtonText}>
+                      {t('advisor.quickDates.today')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      setDate(tomorrow.toISOString().slice(0, 10));
+                    }}
+                    style={styles.quickDateButton}
+                  >
+                    <Text style={styles.quickDateButtonText}>
+                      {t('advisor.quickDates.tomorrow')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const nextWeek = new Date();
+                      nextWeek.setDate(nextWeek.getDate() + 7);
+                      setDate(nextWeek.toISOString().slice(0, 10));
+                    }}
+                    style={styles.quickDateButton}
+                  >
+                    <Text style={styles.quickDateButtonText}>
+                      {t('advisor.quickDates.nextWeek')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </BlurView>
+
+              {/* Custom Note (Optional) */}
+              <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="text" size={20} color="#8B5CF6" />
+                  <Text style={styles.sectionTitle}>
+                    {t('advisor.context')}{' '}
+                    <Text style={styles.optionalLabel}>
+                      {t('advisor.optional')}
+                    </Text>
+                  </Text>
+                </View>
+
                 <TextInput
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="YYYY-MM-DD"
+                  value={customNote}
+                  onChangeText={setCustomNote}
+                  placeholder={t('advisor.contextPlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.3)"
-                  style={styles.dateInput}
+                  style={styles.customNoteInput}
+                  multiline
+                  numberOfLines={3}
                 />
-              </View>
+              </BlurView>
 
-              {/* Quick Date Buttons */}
-              <View style={styles.quickDateButtons}>
-                <TouchableOpacity
-                  onPress={() => setDate(new Date().toISOString().slice(0, 10))}
-                  style={styles.quickDateButton}
-                >
-                  <Text style={styles.quickDateButtonText}>
-                    {t('advisor.quickDates.today')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    setDate(tomorrow.toISOString().slice(0, 10));
-                  }}
-                  style={styles.quickDateButton}
-                >
-                  <Text style={styles.quickDateButtonText}>
-                    {t('advisor.quickDates.tomorrow')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    const nextWeek = new Date();
-                    nextWeek.setDate(nextWeek.getDate() + 7);
-                    setDate(nextWeek.toISOString().slice(0, 10));
-                  }}
-                  style={styles.quickDateButton}
-                >
-                  <Text style={styles.quickDateButtonText}>
-                    {t('advisor.quickDates.nextWeek')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </BlurView>
-
-            {/* Custom Note (Optional) */}
-            <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="text" size={20} color="#8B5CF6" />
-                <Text style={styles.sectionTitle}>
-                  {t('advisor.context')}{' '}
-                  <Text style={styles.optionalLabel}>
-                    {t('advisor.optional')}
-                  </Text>
-                </Text>
-              </View>
-
-              <TextInput
-                value={customNote}
-                onChangeText={setCustomNote}
-                placeholder={t('advisor.contextPlaceholder')}
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                style={styles.customNoteInput}
-                multiline
-                numberOfLines={3}
-              />
-            </BlurView>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              onPress={submit}
-              disabled={loading}
-              style={styles.submitButtonContainer}
-            >
-              <LinearGradient
-                colors={
-                  loading
-                    ? ['rgba(139,92,246,0.5)', 'rgba(99,102,241,0.5)']
-                    : ['#8B5CF6', '#6366F1']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.submitButton}
+              {/* Submit Button */}
+              <TouchableOpacity
+                onPress={submit}
+                disabled={loading}
+                style={styles.submitButtonContainer}
               >
-                {loading ? (
-                  <>
-                    <ActivityIndicator color="#fff" />
-                    <Text style={styles.submitButtonText}>
-                      {t('advisor.submit.analyzing')}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-                    <Text style={styles.submitButtonText}>
-                      {t('advisor.submit.analyze')}
-                    </Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={
+                    loading
+                      ? ['rgba(139,92,246,0.5)', 'rgba(99,102,241,0.5)']
+                      : ['#8B5CF6', '#6366F1']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitButton}
+                >
+                  {loading ? (
+                    <>
+                      <ActivityIndicator color="#fff" />
+                      <Text style={styles.submitButtonText}>
+                        {t('advisor.submit.analyzing')}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                      <Text style={styles.submitButtonText}>
+                        {t('advisor.submit.analyze')}
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
-            {/* Results */}
-            {result && (
-              <View style={styles.resultsContainer}>
-                {/* Main Result Widget */}
-                <AdvisorResultWidget
-                  verdict={result.verdict}
-                  score={result.score}
-                  color={result.color}
-                  explanation={result.explanation}
-                  topic={selectedTopicOption.label}
-                  topicIcon={selectedTopicOption.icon}
-                />
-
-                {/* Recommendations Widget */}
-                {result.recommendations?.length > 0 && (
-                  <AdvisorRecommendationsWidget
-                    recommendations={result.recommendations}
+              {/* Results */}
+              {result && (
+                <View style={styles.resultsContainer}>
+                  {/* Main Result Widget */}
+                  <AdvisorResultWidget
                     verdict={result.verdict}
+                    score={result.score}
+                    color={result.color}
+                    explanation={result.explanation}
+                    topic={selectedTopicOption.label}
+                    topicIcon={selectedTopicOption.icon}
                   />
-                )}
 
-                {/* Best Time Windows Widget */}
-                {result.bestWindows?.length > 0 && (
-                  <BestWindowsWidget
-                    windows={result.bestWindows}
-                    verdict={result.verdict}
-                  />
-                )}
+                  {/* Recommendations Widget */}
+                  {result.recommendations?.length > 0 && (
+                    <AdvisorRecommendationsWidget
+                      recommendations={result.recommendations}
+                      verdict={result.verdict}
+                    />
+                  )}
 
-                {/* Aspects Widget */}
-                {result.aspects?.length > 0 && (
-                  <AdvisorAspectsWidget
-                    aspects={result.aspects}
-                    factors={result.factors}
-                  />
-                )}
-              </View>
-            )}
-          </View>
-        </ScrollView>
+                  {/* Best Time Windows Widget */}
+                  {result.bestWindows?.length > 0 && (
+                    <BestWindowsWidget
+                      windows={result.bestWindows}
+                      verdict={result.verdict}
+                    />
+                  )}
+
+                  {/* Aspects Widget */}
+                  {result.aspects?.length > 0 && (
+                    <AdvisorAspectsWidget
+                      aspects={result.aspects}
+                      factors={result.factors}
+                    />
+                  )}
+                </View>
+              )}
+            </View>
+          </ScrollView>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(15, 23, 42, 0.98)',
+              'rgba(15, 23, 42, 0.65)',
+              'rgba(15, 23, 42, 0)',
+            ]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={[styles.topFade, { height: insets.top + 56 }]}
+          />
+        </View>
       </TabScreenLayout>
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  layoutContent: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
+  screen: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   // Premium Gate
   premiumGate: {
     flex: 1,

@@ -48,7 +48,7 @@
     "labels": {
       "sign": "Sign",
       "house": "House",
-      "lunarDay": "Lunar\nday"
+      "lunarDay": "Lunar day"
     },
     "dayNumber": "Day {{number}}",
     "adviceFallback": "Follow your intuition",

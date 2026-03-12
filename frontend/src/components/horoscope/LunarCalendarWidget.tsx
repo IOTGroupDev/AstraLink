@@ -12,6 +12,12 @@ import { StarSvg } from '../svg/moon-phase/Star';
 import { HouseSvg } from '../svg/moon-phase/House';
 import { CaseSvg } from '../svg/moon-phase/Case';
 
+const SMALL_CARD_GRADIENT_COLORS = [
+  'rgba(138, 48, 186, 0.42)',
+  'rgba(69, 13, 92, 0.92)',
+  'rgba(35, 0, 45, 1)',
+] as const;
+
 type LunarCalendarWidgetProps = {
   // Позволяет переопределить знак Луны извне (например, из текущих планет)
   sign?: string;
@@ -73,9 +79,10 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
     return (
       <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
         <LinearGradient
-          colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-          start={{ x: 0, y: 0.44 }}
-          end={{ x: 0, y: 1 }}
+          colors={SMALL_CARD_GRADIENT_COLORS}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          locations={[0, 0.38, 1]}
           style={styles.gradient}
         >
           <ActivityIndicator size="small" color="rgba(191, 158, 207, 1)" />
@@ -100,9 +107,10 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
       {/* Большая карточка с фазой луны */}
       <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
         <LinearGradient
-          colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-          start={{ x: 0, y: 0.44 }}
-          end={{ x: 0, y: 1 }}
+          colors={SMALL_CARD_GRADIENT_COLORS}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          locations={[0, 0.38, 1]}
           style={styles.gradient}
         >
           <Text style={styles.title}>
@@ -130,9 +138,10 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
       {(sign || moonPhase.sign || moonPhase.house) && (
         <View style={styles.row}>
           <LinearGradient
-            colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-            start={{ x: 0, y: 0.44 }}
-            end={{ x: 0, y: 1 }}
+            colors={SMALL_CARD_GRADIENT_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            locations={[0, 0.38, 1]}
             style={[styles.smallCard, { marginRight: 8 }]}
           >
             <View style={styles.cardContent}>
@@ -140,18 +149,25 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                 <Text style={styles.label}>
                   {t('horoscope.lunarCalendar.labels.sign')}
                 </Text>
-                <Text style={styles.value}>{displaySign}</Text>
+                <Text
+                  style={[styles.value, styles.signValue]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {displaySign}
+                </Text>
               </View>
               <View style={styles.iconRight}>
-                <StarSvg width={48} height={48} />
+                <StarSvg width={38} height={38} style={styles.iconGlow} />
               </View>
             </View>
           </LinearGradient>
 
           <LinearGradient
-            colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-            start={{ x: 0, y: 0.44 }}
-            end={{ x: 0, y: 1 }}
+            colors={SMALL_CARD_GRADIENT_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            locations={[0, 0.38, 1]}
             style={[styles.smallCard, { marginLeft: 8 }]}
           >
             <View style={styles.cardContent}>
@@ -162,7 +178,7 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                 <Text style={styles.value}>{moonPhase.house || '-'}</Text>
               </View>
               <View style={styles.iconRight}>
-                <HouseSvg width={48} height={48} />
+                <HouseSvg width={38} height={38} style={styles.iconGlow} />
               </View>
             </View>
           </LinearGradient>
@@ -173,9 +189,10 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
       {lunarDay && (
         <View style={styles.row}>
           <LinearGradient
-            colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-            start={{ x: 0, y: 0.44 }}
-            end={{ x: 0, y: 1 }}
+            colors={SMALL_CARD_GRADIENT_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            locations={[0, 0.38, 1]}
             style={[styles.smallCard, { marginRight: 8 }]}
           >
             <View style={styles.cardContent}>
@@ -186,15 +203,16 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                 <Text style={styles.value}>{lunarDay.number}</Text>
               </View>
               <View style={styles.iconRight}>
-                <LunaSvg width={48} height={48} />
+                <LunaSvg width={38} height={38} style={styles.iconGlow} />
               </View>
             </View>
           </LinearGradient>
 
           <LinearGradient
-            colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-            start={{ x: 0, y: 0.44 }}
-            end={{ x: 0, y: 1 }}
+            colors={SMALL_CARD_GRADIENT_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            locations={[0, 0.38, 1]}
             style={[styles.smallCard, { marginLeft: 8 }]}
           >
             <View style={styles.cardContent}>
@@ -219,7 +237,7 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                 </Text>
               </View>
               <View style={styles.iconRight}>
-                <CaseSvg width={48} height={48} />
+                <CaseSvg width={38} height={38} style={styles.iconGlow} />
               </View>
             </View>
           </LinearGradient>
@@ -261,7 +279,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   phaseName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 4,
@@ -302,9 +320,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  signValue: {
+    fontSize: 15,
+  },
   iconRight: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconGlow: {
+    shadowColor: '#E9B8FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 14,
+    elevation: 10,
   },
   adviceText: {
     fontSize: 14,

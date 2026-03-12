@@ -10,8 +10,10 @@ import {
   Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 import EnergyWidget from '../components/horoscope/EnergyWidget';
@@ -33,6 +35,7 @@ import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
 
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { subscription } = useSubscription();
@@ -468,107 +471,151 @@ const HoroscopeScreen: React.FC = () => {
   return (
     <>
       <StatusBar barStyle="light-content" />
-      <TabScreenLayout>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="rgba(191, 158, 207, 1)"
-              colors={['rgba(191, 158, 207, 1)']}
-            />
-          }
-        >
-          {/* Заголовок с размытием */}
-          <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
-            <View style={styles.headerIconContainer}>
-              <HoroscopeSvg size={60} />
-            </View>
-            <Text style={styles.headerTitle}>{t('horoscope.title')}</Text>
-            <Text style={styles.headerSubtitle}>
-              {t('horoscope.subtitle', {
-                name: user?.name ? `, ${user.name}` : '',
-              })}
-            </Text>
-            <Text style={styles.headerDate}>
-              {t('horoscope.positionsOn', {
-                date: new Date().toLocaleDateString(
-                  i18n.language === 'ru'
-                    ? 'ru-RU'
-                    : i18n.language === 'es'
-                      ? 'es-ES'
-                      : 'en-US',
-                  {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  }
-                ),
-              })}
-            </Text>
-          </BlurView>
-
-          {/* Основной контент */}
-          <View style={styles.contentContainer}>
-            {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
-            <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
-
-            {/* Рекомендация дня (нормализованные данные для виджета) */}
-            {natalPlanetsObj && transitPlanetsArr.length > 0 && (
-              <PlanetaryRecommendationWidget
-                natalPlanets={natalPlanetsObj}
-                transitPlanets={transitPlanetsArr}
-                navigation={navigation}
+      <TabScreenLayout
+        scrollable={false}
+        edges={['left', 'right']}
+        contentContainerStyle={styles.layoutContent}
+      >
+        <View style={styles.screen}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: insets.top + 12 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="rgba(191, 158, 207, 1)"
+                colors={['rgba(191, 158, 207, 1)']}
               />
-            )}
-
-            {/* Виджет энергии */}
-            {!loading && (
-              <EnergyWidget energy={energyValue} message={energyMessage} />
-            )}
-
-            {/* Виджет главный транзит */}
-            {!loading && mainTransit && (
-              <MainTransitWidget transitData={mainTransit} />
-            )}
-
-            {/* Гороскоп виджет */}
-            {predictions && <HoroscopeWidget predictions={predictions} />}
-
-            {/* Виджет Биоритмы */}
-            {biorhythms && (
-              <BiorhythmsWidget
-                physical={biorhythms.physical}
-                emotional={biorhythms.emotional}
-                intellectual={biorhythms.intellectual}
-              />
-            )}
-
-            {/* Placeholder для будущих виджетов */}
-            {loading && (
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>
-                  {t('horoscope.loading')}
-                </Text>
+            }
+          >
+            {/* Заголовок с размытием */}
+            <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
+              <View style={styles.headerIconContainer}>
+                <HoroscopeSvg size={60} />
               </View>
-            )}
-            {/*<View>*/}
-            {/*  <PersonalCodeScreen />*/}
-            {/*</View>*/}
-          </View>
-        </ScrollView>
+              <Text style={styles.headerTitle}>{t('horoscope.title')}</Text>
+              <Text style={styles.headerSubtitle}>
+                {t('horoscope.subtitle', {
+                  name: user?.name ? `\n${user.name}` : '',
+                })}
+              </Text>
+              <Text style={styles.headerDate}>
+                {t('horoscope.positionsOn', {
+                  date: new Date().toLocaleDateString(
+                    i18n.language === 'ru'
+                      ? 'ru-RU'
+                      : i18n.language === 'es'
+                        ? 'es-ES'
+                        : 'en-US',
+                    {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }
+                  ),
+                })}
+              </Text>
+            </BlurView>
+
+            {/* Основной контент */}
+            <View style={styles.contentContainer}>
+              {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
+              <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
+
+              {/* Рекомендация дня (нормализованные данные для виджета) */}
+              {natalPlanetsObj && transitPlanetsArr.length > 0 && (
+                <PlanetaryRecommendationWidget
+                  natalPlanets={natalPlanetsObj}
+                  transitPlanets={transitPlanetsArr}
+                  navigation={navigation}
+                />
+              )}
+
+              {/* Виджет энергии */}
+              {!loading && (
+                <EnergyWidget energy={energyValue} message={energyMessage} />
+              )}
+
+              {/* Виджет главный транзит */}
+              {!loading && mainTransit && (
+                <MainTransitWidget transitData={mainTransit} />
+              )}
+
+              {/* Гороскоп виджет */}
+              {predictions && <HoroscopeWidget predictions={predictions} />}
+
+              {/* Виджет Биоритмы */}
+              {biorhythms && (
+                <BiorhythmsWidget
+                  physical={biorhythms.physical}
+                  emotional={biorhythms.emotional}
+                  intellectual={biorhythms.intellectual}
+                />
+              )}
+
+              {/* Placeholder для будущих виджетов */}
+              {loading && (
+                <View style={styles.placeholder}>
+                  <Text style={styles.placeholderText}>
+                    {t('horoscope.loading')}
+                  </Text>
+                </View>
+              )}
+              {/*<View>*/}
+              {/*  <PersonalCodeScreen />*/}
+              {/*</View>*/}
+            </View>
+          </ScrollView>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(15, 23, 42, 0.98)',
+              'rgba(15, 23, 42, 0.65)',
+              'rgba(15, 23, 42, 0)',
+            ]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={[styles.topFade, { height: insets.top + 56 }]}
+          />
+        </View>
       </TabScreenLayout>
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  layoutContent: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
+  screen: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 120,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   // Заголовок
   headerContainer: {
-    marginHorizontal: 8,
+    marginHorizontal: 0,
     borderRadius: 16,
-    padding: 10,
+    padding: 20,
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1,
