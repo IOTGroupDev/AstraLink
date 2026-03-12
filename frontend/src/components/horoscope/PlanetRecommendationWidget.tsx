@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import Svg, {
   Circle,
   G,
@@ -235,50 +236,95 @@ const calculateActiveTransits = (
   }
 };
 // Дополнительные утилиты для рекомендаций
-const planetRu: Record<string, string> = {
-  sun: 'Солнце',
-  moon: 'Луна',
-  mercury: 'Меркурий',
-  venus: 'Венера',
-  mars: 'Марс',
-  jupiter: 'Юпитер',
-  saturn: 'Сатурн',
-  uranus: 'Уран',
-  neptune: 'Нептун',
-  pluto: 'Плутон',
+const normalizePlanetKey = (name: string): string => {
+  const raw = (name || '').trim();
+  if (!raw) return '';
+
+  const lower = raw.toLowerCase();
+
+  // already keys
+  if (
+    [
+      'sun',
+      'moon',
+      'mercury',
+      'venus',
+      'mars',
+      'jupiter',
+      'saturn',
+      'uranus',
+      'neptune',
+      'pluto',
+    ].includes(lower)
+  ) {
+    return lower;
+  }
+
+  // Title-case variants
+  const title = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  const map: Record<string, string> = {
+    Sun: 'sun',
+    Moon: 'moon',
+    Mercury: 'mercury',
+    Venus: 'venus',
+    Mars: 'mars',
+    Jupiter: 'jupiter',
+    Saturn: 'saturn',
+    Uranus: 'uranus',
+    Neptune: 'neptune',
+    Pluto: 'pluto',
+  };
+
+  return map[title] ?? lower;
 };
-const aspectRu: Record<string, string> = {
-  conjunction: 'соединение',
-  sextile: 'секстиль',
-  square: 'квадрат',
-  trine: 'трин',
-  opposition: 'оппозиция',
-};
-function buildRecommendations(transits: TransitData[]) {
+
+function buildRecommendations(
+  transits: TransitData[],
+  t: (key: string, options?: any) => string
+) {
   const positive: string[] = [];
   const negative: string[] = [];
-  for (const t of transits) {
-    const targetName =
-      planetRu[t.target?.toLowerCase?.() || t.target] || t.target;
-    const aspect = aspectRu[t.type] || t.type;
+
+  for (const tr of transits) {
+    const targetKey = normalizePlanetKey(tr.target);
+    const targetName = targetKey
+      ? t(`common.planets.${targetKey}`, { defaultValue: tr.target })
+      : tr.target;
+
+    const aspectName = t(`common.aspects.${tr.type}`, {
+      defaultValue: tr.type,
+    });
+
     const isPositive =
-      t.type === 'trine' || t.type === 'sextile' || t.type === 'conjunction';
+      tr.type === 'trine' || tr.type === 'sextile' || tr.type === 'conjunction';
+
     const line = isPositive
-      ? `${aspect} с ${targetName} — благоприятно действовать`
-      : `${aspect} с ${targetName} — избегайте импульсивности`;
+      ? t('horoscope.planetRecommendationWidget.recommendationPositive', {
+          aspect: aspectName,
+          target: targetName,
+        })
+      : t('horoscope.planetRecommendationWidget.recommendationNegative', {
+          aspect: aspectName,
+          target: targetName,
+        });
+
     if (isPositive) {
       if (positive.length < 3) positive.push(line);
     } else {
       if (negative.length < 3) negative.push(line);
     }
+
     if (positive.length >= 3 && negative.length >= 3) break;
   }
+
   return { positive, negative };
 }
 
 const PlanetaryRecommendationWidget: React.FC<
   PlanetaryRecommendationWidgetProps
 > = ({ natalPlanets, transitPlanets, onPress, isLoading }) => {
+  const { t } = useTranslation();
+
   // Валидация данных
   const hasValidNatalData = isValidPlanetData(natalPlanets);
   const hasValidTransitData = isValidTransitData(transitPlanets);
@@ -337,10 +383,14 @@ const PlanetaryRecommendationWidget: React.FC<
         >
           <View style={styles.content}>
             <View style={styles.header}>
-              <Text style={styles.title}>🌙 Рекомендация дня</Text>
+              <Text style={styles.title}>
+                🌙 {t('horoscope.planetRecommendationWidget.title')}
+              </Text>
             </View>
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <Text style={{ color: '#A78BFA' }}>Загрузка рекомендаций...</Text>
+              <Text style={{ color: '#A78BFA' }}>
+                {t('horoscope.planetRecommendationWidget.loading')}
+              </Text>
             </View>
           </View>
           <LinearGradient
@@ -363,7 +413,7 @@ const PlanetaryRecommendationWidget: React.FC<
     return null;
   }
   const { positive: positiveRecs, negative: negativeRecs } =
-    buildRecommendations(activeTransits);
+    buildRecommendations(activeTransits, t);
 
   const renderAstrologyChart = () => {
     const centerX = 171;
@@ -546,7 +596,9 @@ const PlanetaryRecommendationWidget: React.FC<
         <View style={styles.content}>
           {/* Заголовок */}
           <View style={styles.header}>
-            <Text style={styles.title}>🌙 Рекомендация дня</Text>
+            <Text style={styles.title}>
+              🌙 {t('horoscope.planetRecommendationWidget.title')}
+            </Text>
           </View>
 
           {/* Карта */}
@@ -609,8 +661,10 @@ const PlanetaryRecommendationWidget: React.FC<
                 </View>
                 <Text style={styles.statusText}>
                   {activeTransits.length > 0
-                    ? `Активных транзитов: ${activeTransits.length}`
-                    : 'Анализ транзитов'}
+                    ? t('horoscope.planetRecommendationWidget.activeTransits', {
+                        count: activeTransits.length,
+                      })
+                    : t('horoscope.planetRecommendationWidget.analysis')}
                 </Text>
               </View>
             </View>

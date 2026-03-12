@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { tokenService } from '../services/tokenService';
-import { userAPI } from '../services/api';
+import { useMemo } from 'react';
+import { useAuthLoading, useAuthProfile } from '../stores/auth.store';
 
 type AuthUser = {
   id: string;
@@ -9,48 +8,17 @@ type AuthUser = {
 };
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const profile = useAuthProfile();
+  const isLoading = useAuthLoading();
 
-  useEffect(() => {
-    let mounted = true;
-
-    const applyProfile = async (token: string | null) => {
-      if (!mounted) return;
-      if (!token) {
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const profile = await userAPI.getProfile();
-        if (!mounted) return;
-        setUser({
-          id: profile.id,
-          email: profile.email,
-          name: profile.name,
-        });
-      } catch {
-        setUser(null);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
+  const user = useMemo<AuthUser | null>(() => {
+    if (!profile) return null;
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
     };
-
-    // Initial load (resolves expired token via tokenService)
-    tokenService.getToken().then((t) => applyProfile(t));
-
-    // React to token changes (login/logout/expired-cleared)
-    const unsubscribe = tokenService.subscribe((t) => {
-      setIsLoading(true);
-      void applyProfile(t);
-    });
-
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
-  }, []);
+  }, [profile]);
 
   return {
     user,

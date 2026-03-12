@@ -361,13 +361,11 @@ const AuthEmailScreen: React.FC = () => {
 
       // Если email уже существует, явно сообщаем пользователю (но всё равно ведём на ввод OTP)
       if (res.flow === 'login') {
-        const title = 'Аккаунт уже существует';
-        const message =
-          res.message ||
-          'Пользователь с таким email уже есть. Мы отправили код для входа.';
+        const title = t('auth.email.accountExists.title');
+        const message = t('auth.email.accountExists.message');
 
         setErrorMessage(message);
-        Alert.alert(title, message, [{ text: t('buttons.ok') }]);
+        Alert.alert(title, message, [{ text: t('common.buttons.ok') }]);
       }
 
       // @ts-ignore
@@ -387,9 +385,9 @@ const AuthEmailScreen: React.FC = () => {
 
       if (isRateLimit) {
         const retryAfterSec = Number(error?.retryAfterSec) || 60;
-        message =
-          error?.message ||
-          `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`;
+        message = t('auth.email.errors.rateLimitWait', {
+          seconds: retryAfterSec,
+        });
       } else if (message.includes('Invalid email')) {
         message = t('auth.email.errors.invalid');
       } else if (message.includes('Email not confirmed')) {
@@ -401,7 +399,7 @@ const AuthEmailScreen: React.FC = () => {
       // Не спамим Alert'ом при rate limit — текста под инпутом достаточно
       if (!isRateLimit) {
         Alert.alert(t('auth.email.errors.title'), message, [
-          { text: t('buttons.ok') },
+          { text: t('common.buttons.ok') },
         ]);
       }
     } finally {

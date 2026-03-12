@@ -13,6 +13,7 @@ import {
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
@@ -37,13 +38,23 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
   onClose,
   onSendMessage,
 }) => {
+  const { t } = useTranslation();
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
   const astroSuggestions = [
-    `Привет! Вижу, ты ${user.zodiacSign} ✨`,
-    `Наша совместимость ${user.compatibility}% – звёзды благоволят! 🌟`,
-    `Расскажи о себе, ${user.name}`,
+    t('dating.cosmicChat.suggestions.greeting', {
+      zodiacSign: user.zodiacSign,
+      defaultValue: `Hi! I see you're ${user.zodiacSign} ✨`,
+    }),
+    t('dating.cosmicChat.suggestions.compatibility', {
+      percent: user.compatibility,
+      defaultValue: `Our compatibility is ${user.compatibility}% — the stars are on our side! 🌟`,
+    }),
+    t('dating.cosmicChat.suggestions.aboutMe', {
+      name: user.name,
+      defaultValue: `Tell me about yourself, ${user.name}`,
+    }),
   ];
 
   const handleSend = async () => {
@@ -54,7 +65,7 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
       await onSendMessage(message.trim());
       setMessage('');
     } catch (error) {
-      logger.error('Ошибка отправки', error);
+      logger.error(t('dating.errors.failedToSendMessage'), error);
     } finally {
       setSending(false);
     }
@@ -94,7 +105,11 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{user.name}</Text>
                 <Text style={styles.userZodiac}>
-                  {user.zodiacSign} • {user.compatibility}% совместимость
+                  {user.zodiacSign} •{' '}
+                  {t('dating.cosmicChat.compatibilityLabel', {
+                    percent: user.compatibility,
+                    defaultValue: `${user.compatibility}% compatibility`,
+                  })}
                 </Text>
               </View>
               <View style={{ width: 40 }} />
@@ -106,7 +121,9 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
               style={styles.suggestionsContainer}
             >
               <Text style={styles.suggestionsTitle}>
-                💫 Начните знакомство:
+                {t('dating.cosmicChat.suggestionsTitle', {
+                  defaultValue: '💫 Start the conversation:',
+                })}
               </Text>
               {astroSuggestions.map((suggestion, index) => (
                 <TouchableOpacity
@@ -127,7 +144,9 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
                   style={styles.textInput}
                   value={message}
                   onChangeText={setMessage}
-                  placeholder="Напишите первое сообщение..."
+                  placeholder={t('dating.cosmicChat.inputPlaceholder', {
+                    defaultValue: 'Write your first message...',
+                  })}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   multiline
                   maxLength={500}

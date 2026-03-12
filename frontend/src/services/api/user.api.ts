@@ -1,5 +1,4 @@
 import { api } from './client';
-import { tokenService } from '../tokenService';
 import type {
   UserProfile,
   UpdateProfileRequest,

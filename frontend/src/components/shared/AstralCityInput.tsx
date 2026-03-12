@@ -33,6 +33,7 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
   const [suggestions, setSuggestions] = useState<CityOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const justSelected = useRef(false);
 
@@ -44,6 +45,13 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
     // Skip search if city was just selected
     if (justSelected.current) {
       justSelected.current = false;
+      return;
+    }
+
+    // Important: don't auto-open suggestions on initial render / programmatic value.
+    // Only suggest when user focuses the input.
+    if (!isFocused) {
+      setShowSuggestions(false);
       return;
     }
 
@@ -72,7 +80,22 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [value]);
+  }, [value, isFocused]);
+
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+    setShowSuggestions(false);
+    setSuggestions([]);
+
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+      debounceTimeout.current = null;
+    }
+  }, []);
 
   const handleSelectCity = useCallback(
     (city: CityOption) => {
@@ -80,6 +103,7 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
       onChangeText(city.display);
       setShowSuggestions(false);
       setSuggestions([]);
+      setIsFocused(false);
       Keyboard.dismiss();
       onCitySelect?.(city);
     },
@@ -105,6 +129,8 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
             placeholderTextColor="rgba(255, 255, 255, 0.5)"
             value={value}
             onChangeText={onChangeText}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             autoCapitalize="words"
             autoCorrect={false}
           />

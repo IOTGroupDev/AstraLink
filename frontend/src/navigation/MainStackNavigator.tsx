@@ -14,28 +14,32 @@ import OnboardingFourthScreen from '../screens/Onboarding/OnboardingFourthScreen
 import SignUpScreen from '../screens/Auth/SignUpScreen';
 import AuthEmailScreen from '../screens/Auth/AuthEmailScreen';
 import AuthCallbackScreen from '../screens/Auth/AuthCallbackScreen';
-import UserDataLoaderScreen from '../screens/Auth/UserDataLoaderScreen';
 import OptCodeScreen from '../screens/Auth/OptCodeScreen';
 import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
 import PersonalCodeScreen from '../screens/PersonalCodeScreen';
 
-import { useAuthStore, useOnboardingCompleted } from '../stores/auth.store';
+import { useAuthState } from '../stores/auth.store';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function MainStackNavigator() {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const onboardingCompleted = useOnboardingCompleted();
-  const navigation = useNavigation<any>();
+const resolveRoute = (state: string) => {
+  switch (state) {
+    case 'AUTHORIZED':
+      return 'MainTabs';
+    case 'ONBOARDING':
+      return 'Onboarding1';
+    case 'UNAUTHORIZED':
+    default:
+      return 'SignUp';
+  }
+};
 
-  const getInitialRouteName = () => {
-    if (isAuthenticated && !onboardingCompleted) return 'UserDataLoader';
-    if (!onboardingCompleted) return 'Onboarding1';
-    if (!isAuthenticated) return 'SignUp';
-    return 'MainTabs';
-  };
+export default function MainStackNavigator() {
+  const authState = useAuthState();
+  const navigation = useNavigation<any>();
+  const target = resolveRoute(authState);
 
   useEffect(() => {
     const currentState = navigation.getState();
@@ -44,38 +48,43 @@ export default function MainStackNavigator() {
     const currentRoute =
       currentState.routes[currentState.index]?.name || 'Unknown';
 
-    const target =
-      isAuthenticated && !onboardingCompleted
-        ? 'UserDataLoader'
-        : !onboardingCompleted
-          ? 'Onboarding1'
-          : !isAuthenticated
-            ? 'SignUp'
-            : 'MainTabs';
-
     if (currentRoute !== target) {
       navigation.reset({ index: 0, routes: [{ name: target }] });
     }
-  }, [isAuthenticated, onboardingCompleted, navigation]);
+  }, [navigation, target]);
 
   return (
     <Stack.Navigator
-      initialRouteName={getInitialRouteName()}
+      initialRouteName={target}
       screenOptions={{
         headerShown: false,
-
-        // Нативная анимация, максимально iOS-like
         animation: 'slide_from_right',
+        animationDuration: 200,
         gestureEnabled: true,
-
-        // Обычно помогает от артефактов на iOS
-        contentStyle: { backgroundColor: 'transparent' }, // если будет мигать — поставь твой базовый цвет
+        fullScreenGestureEnabled: true,
+        gestureDirection: 'horizontal',
+        contentStyle: {
+          backgroundColor: '#0F172A',
+        },
+        freezeOnBlur: true,
+        headerShadowVisible: false,
       }}
     >
-      <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
-      <Stack.Screen name="UserDataLoader" component={UserDataLoaderScreen} />
+      <Stack.Screen
+        name="AuthCallback"
+        component={AuthCallbackScreen}
+        options={{
+          animation: 'none',
+        }}
+      />
 
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen
+        name="MainTabs"
+        component={TabNavigator}
+        options={{
+          animation: 'none',
+        }}
+      />
 
       <Stack.Screen name="Onboarding1" component={OnboardingFirstScreen} />
       <Stack.Screen name="Onboarding2" component={OnboardingSecondScreen} />
@@ -86,9 +95,16 @@ export default function MainStackNavigator() {
       <Stack.Screen name="AuthEmail" component={AuthEmailScreen} />
       <Stack.Screen name="OptCode" component={OptCodeScreen} />
 
-      {isAuthenticated && (
+      {authState === 'AUTHORIZED' && (
         <>
-          <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+          <Stack.Screen
+            name="Subscription"
+            component={SubscriptionScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
           <Stack.Screen
             name="EditProfileScreen"
             component={EditProfileScreen}

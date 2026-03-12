@@ -47,5 +47,26 @@
     "editProfile": "Editar perfil",
     "later": "Más tarde",
     "dontShow": "No mostrar de nuevo"
+  },
+  "deleteAccountModal": {
+    "warning": {
+      "title": "¿Eliminar cuenta?",
+      "irreversible": "¡Esta acción es irreversible!",
+      "deleteListTitle": "Se eliminarán permanentemente:",
+      "items": {
+        "profile": "Perfil y datos personales",
+        "natalChart": "Carta natal",
+        "connections": "Todas las conexiones y contactos",
+        "dating": "Datos de Citas",
+        "subscriptions": "Historial de suscripciones",
+        "analytics": "Estadísticas y logros"
+      }
+    },
+    "confirm": {
+      "title": "Última advertencia",
+      "critical": "¡TODOS LOS DATOS SERÁN ELIMINADOS\nPARA SIEMPRE Y SIN POSIBILIDAD DE RECUPERACIÓN!",
+      "question": "¿Estás completamente seguro de que quieres eliminar tu cuenta?",
+      "deleteForever": "Eliminar para siempre"
+    }
   }
 }

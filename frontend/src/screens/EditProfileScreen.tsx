@@ -1,4 +1,10 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react';
 import {
   View,
   Text,
@@ -15,10 +21,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { CommonActions } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   userAPI,
   userPhotosAPI,
@@ -26,10 +32,12 @@ import {
 } from '../services/api';
 import { UserProfile } from '../types';
 import AstralInput from '../components/shared/AstralInput';
+import AstralCityInput from '../components/shared/AstralCityInput';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { logger } from '../services/logger';
+import type { CityOption } from '../services/api/geo.api';
 
 interface Photo {
   id: string;
@@ -84,6 +92,7 @@ const INTERESTS_CONFIG: Array<{
 
 const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -93,8 +102,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [gettingLocation, setGettingLocation] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+
+  const [, setSelectedBirthPlaceCity] = useState<CityOption | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -113,6 +123,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const animationValue = useSharedValue(1);
   const initialSnapshotRef = useRef<string | null>(null);
   const pendingNavActionRef = useRef<any>(null);
+
+  // Prevent "unsaved changes" prompt right after successful save -> goBack()
+  const skipUnsavedPromptRef = useRef(false);
 
   // Create translated interests array
   const INTERESTS: Interest[] = React.useMemo(
@@ -189,6 +202,12 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
+      if (skipUnsavedPromptRef.current) {
+        // one-shot skip (only for the navigation right after save)
+        skipUnsavedPromptRef.current = false;
+        return;
+      }
+
       if (saving || !hasUnsavedChanges) {
         return;
       }
@@ -200,6 +219,26 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     return unsubscribe;
   }, [navigation, hasUnsavedChanges, saving]);
+
+  const handleBirthPlaceChange = useCallback((text: string) => {
+    setSelectedBirthPlaceCity(null);
+    setFormData((prev) => ({ ...prev, birthPlace: text }));
+  }, []);
+
+  const handleBirthPlaceSelect = useCallback((selected: CityOption) => {
+    setSelectedBirthPlaceCity(selected);
+    // AstralCityInput уже вызовет onChangeText(display), тут дополнительно ничего не нужно.
+    // Но сохраняем selectedCity на будущее (если понадобится хранить координаты/таймзону).
+  }, []);
+
+  const handleCityChange = useCallback((text: string) => {
+    setCity(text);
+  }, []);
+
+  const handleCitySelect = useCallback((_selected: CityOption) => {
+    // Сейчас в extended-profile храним только строку `city`, поэтому тут достаточно setCity через onChangeText().
+    // Но оставляем хук на будущее (если понадобится сохранять координаты/таймзону).
+  }, []);
 
   const loadData = async () => {
     try {
@@ -410,66 +449,6 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const handleGetCurrentLocation = async () => {
-    try {
-      setGettingLocation(true);
-
-      // 1. Запросить разрешения
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          t('editProfile.alerts.locationPermission.title'),
-          t('editProfile.alerts.locationPermission.message')
-        );
-        return;
-      }
-
-      // 2. Получить текущие координаты
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      // 3. Обратное геокодирование (координаты -> адрес)
-      const [address] = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      if (address) {
-        // Формируем читаемый адрес
-        const parts = [];
-        if (address.city) parts.push(address.city);
-        if (address.region && address.region !== address.city) {
-          parts.push(address.region);
-        }
-        if (address.country) parts.push(address.country);
-
-        const locationString = parts.join(', ');
-        setCity(locationString);
-
-        Alert.alert(
-          t('editProfile.alerts.locationFound.title'),
-          t('editProfile.alerts.locationFound.message', {
-            location: locationString,
-          })
-        );
-      } else {
-        Alert.alert(
-          t('editProfile.alerts.locationNotFound.title'),
-          t('editProfile.alerts.locationNotFound.message')
-        );
-      }
-    } catch (error) {
-      logger.error('Geolocation error', error);
-      Alert.alert(
-        t('editProfile.alerts.locationError.title'),
-        t('editProfile.alerts.locationError.message')
-      );
-    } finally {
-      setGettingLocation(false);
-    }
-  };
-
   const toggleInterest = (interestId: string) => {
     setSelectedInterests((prev) =>
       prev.includes(interestId)
@@ -518,12 +497,43 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       await userExtendedProfileAPI.updateUserProfile(extPayload);
 
-      initialSnapshotRef.current = currentSnapshot;
+      // Normalize values (trim) to avoid snapshot mismatch after save
+      const savedFormData = {
+        ...formData,
+        name: formData.name.trim(),
+        birthDate: formData.birthDate.trim(),
+        birthTime: formData.birthTime.trim(),
+        birthPlace: formData.birthPlace.trim(),
+      };
+      const savedBio = bio.trim();
+      const savedCity = city.trim();
+
+      setFormData(savedFormData);
+      setBio(savedBio);
+      setCity(savedCity);
+
+      initialSnapshotRef.current = buildSnapshot({
+        formValues: savedFormData,
+        bioValue: savedBio,
+        cityValue: savedCity,
+        genderValue: gender,
+        lookingForValue: lookingFor,
+        lookingForGenderValue: lookingForGender,
+        interestsValue: selectedInterests,
+      });
 
       Alert.alert(
         t('editProfile.alerts.profileSaved.title'),
         t('editProfile.alerts.profileSaved.message'),
-        [{ text: t('common.buttons.ok'), onPress: () => navigation.goBack() }]
+        [
+          {
+            text: t('common.buttons.ok'),
+            onPress: () => {
+              skipUnsavedPromptRef.current = true;
+              navigation.goBack();
+            },
+          },
+        ]
       );
     } catch (error) {
       logger.error('Error saving profile', error);
@@ -566,11 +576,19 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     ? INTERESTS
     : INTERESTS.filter((i) => i.category === 'primary');
 
+  const isSaveDisabled = saving || !hasUnsavedChanges;
+
   return (
     <View style={styles.container}>
       <CosmicBackground />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          // Reserve space for sticky bottom save bar + safe-area
+          { paddingBottom: 140 + insets.bottom },
+        ]}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
@@ -695,40 +713,27 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={styles.inputLabel}>
               {t('editProfile.fields.birthPlace')}
             </Text>
-            <AstralInput
+
+            <AstralCityInput
               value={formData.birthPlace}
-              onChangeText={(text) =>
-                setFormData({ ...formData, birthPlace: text })
-              }
+              onChangeText={handleBirthPlaceChange}
+              onCitySelect={handleBirthPlaceSelect}
               placeholder={t('editProfile.placeholders.birthPlace')}
               icon="location-outline"
-              animationValue={animationValue}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <View style={styles.locationHeader}>
-              <Text style={styles.inputLabel}>
-                {t('editProfile.fields.city')}
-              </Text>
-              <TouchableOpacity
-                style={styles.locationButton}
-                onPress={handleGetCurrentLocation}
-                disabled={gettingLocation}
-              >
-                {gettingLocation ? (
-                  <ActivityIndicator size="small" color="#8B5CF6" />
-                ) : (
-                  <Ionicons name="locate" size={20} color="#8B5CF6" />
-                )}
-              </TouchableOpacity>
-            </View>
-            <AstralInput
+            <Text style={styles.inputLabel}>
+              {t('editProfile.fields.city')}
+            </Text>
+
+            <AstralCityInput
               value={city}
-              onChangeText={setCity}
+              onChangeText={handleCityChange}
+              onCitySelect={handleCitySelect}
               placeholder={t('editProfile.placeholders.city')}
               icon="home-outline"
-              animationValue={animationValue}
             />
           </View>
         </View>
@@ -927,15 +932,30 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             />
           </TouchableOpacity>
         </View>
+      </ScrollView>
 
-        {/* Save Button */}
+      {/* Sticky Save Bar */}
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            paddingBottom: Math.max(16, insets.bottom + 12),
+          },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          style={[
+            styles.saveButton,
+            isSaveDisabled && styles.saveButtonDisabled,
+          ]}
           onPress={handleSave}
-          disabled={saving}
+          disabled={isSaveDisabled}
+          activeOpacity={0.9}
         >
           <LinearGradient
-            colors={saving ? ['#666', '#555'] : ['#8B5CF6', '#7C3AED']}
+            colors={
+              isSaveDisabled ? ['#4B5563', '#374151'] : ['#8B5CF6', '#7C3AED']
+            }
             style={styles.saveButtonGradient}
           >
             {saving ? (
@@ -950,7 +970,8 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             )}
           </LinearGradient>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
+
       <Modal transparent animationType="fade" visible={showUnsavedModal}>
         <Pressable
           style={styles.unsavedOverlay}
@@ -997,7 +1018,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 16,
   },
   header: {
     flexDirection: 'row',
@@ -1122,22 +1143,6 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
     marginBottom: 8,
   },
-  locationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  locationButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   textAreaContainer: {
     position: 'relative',
   },
@@ -1201,12 +1206,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: 4,
   },
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.18)',
+  },
   saveButton: {
-    marginHorizontal: 20,
     borderRadius: 25,
     overflow: 'hidden',
-    marginTop: 20,
-    marginBottom: 40,
   },
   saveButtonDisabled: {
     opacity: 0.6,

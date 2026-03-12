@@ -28,22 +28,24 @@ export const datingAPI = {
         ? raw.items
         : [];
     // Нормализуем разные возможные ключи полей, чтобы UI получал ожидаемые данные
-    return list.map((it: any) => {
-      const photo =
-        it?.photoUrl ?? it?.primaryPhotoUrl ?? it?.avatarUrl ?? null;
-      return {
-        userId: it?.userId ?? it?.user_id ?? it?.id ?? '',
-        badge: (it?.badge ?? 'low') as 'high' | 'medium' | 'low',
-        photoUrl: photo,
-        avatarUrl: it?.avatarUrl ?? null,
-        name: it?.name ?? null,
-        age: typeof it?.age === 'number' ? it.age : (it?.age ?? null),
-        zodiacSign: it?.zodiacSign ?? it?.sign ?? null,
-        bio: it?.bio ?? null,
-        interests: Array.isArray(it?.interests) ? it.interests : null,
-        city: it?.city ?? null,
-      };
-    });
+    return list
+      .map((it: any) => {
+        const photo =
+          it?.photoUrl ?? it?.primaryPhotoUrl ?? it?.avatarUrl ?? null;
+        return {
+          userId: it?.userId ?? it?.user_id ?? it?.id ?? '',
+          badge: (it?.badge ?? 'low') as 'high' | 'medium' | 'low',
+          photoUrl: photo,
+          avatarUrl: it?.avatarUrl ?? null,
+          name: it?.name ?? null,
+          age: typeof it?.age === 'number' ? it.age : (it?.age ?? null),
+          zodiacSign: it?.zodiacSign ?? it?.sign ?? null,
+          bio: it?.bio ?? null,
+          interests: Array.isArray(it?.interests) ? it.interests : null,
+          city: it?.city ?? null,
+        };
+      })
+      .filter((c) => typeof c.userId === 'string' && c.userId.length > 0);
   },
 
   // Public profile for Dating card (backend aggregates users + user_profiles + charts + photos)

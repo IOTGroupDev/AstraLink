@@ -221,11 +221,17 @@ export class AuthController {
   @Public()
   @Post('complete-signup')
   @HttpCode(HttpStatus.OK)
-  async completeSignup(@Body() dto: CompleteSignupDto) {
+  async completeSignup(
+    @Body() dto: CompleteSignupDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     try {
-      this.logger.log(`Complete signup request for user: ${dto.userId}`);
+      const resolvedUserId = (req.user?.userId || req.user?.id) ?? dto.userId;
+      const userId = resolvedUserId;
 
-      const result = await this.supabaseAuthService.completeSignup(dto);
+      this.logger.log(`Complete signup request for user: ${userId}`);
+
+      const result = await this.supabaseAuthService.completeSignup(userId, dto);
 
       return {
         success: true,

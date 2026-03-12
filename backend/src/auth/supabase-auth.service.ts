@@ -378,12 +378,19 @@ export class SupabaseAuthService {
     }
   }
 
-  async completeSignup(dto: CompleteSignupDto): Promise<AuthResponse> {
+  async completeSignup(
+    userId: string,
+    dto: CompleteSignupDto,
+  ): Promise<AuthResponse> {
     try {
-      const { userId, name, birthDate, birthTime, birthPlace } = dto;
+      if (!userId) {
+        throw new BadRequestException('User ID is required');
+      }
+
+      const { name, birthDate, birthTime, birthPlace } = dto;
 
       this.logger.log('📝 Completing signup for user:', userId);
-      this.logger.log('📝 Completing signup for user:', dto);
+      this.logger.log('📝 Completing signup payload:', dto);
 
       // Валидация даты рождения
       const parsedBirthDate = new Date(birthDate);
@@ -406,6 +413,7 @@ export class SupabaseAuthService {
           birth_date: parsedBirthDate.toISOString(),
           birth_time: birthTime || '00:00',
           birth_place: birthPlace || 'Moscow',
+          onboarding_completed: true,
           updated_at: new Date().toISOString(),
         });
 

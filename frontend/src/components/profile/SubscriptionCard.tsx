@@ -1,12 +1,6 @@
 // frontend/src/components/SubscriptionCard.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -18,8 +12,6 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { Subscription } from '../../types/index';
-
-const { width } = Dimensions.get('window');
 
 interface SubscriptionCardProps {
   subscription: Subscription | null;
@@ -270,7 +262,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
+    width: '100%',
     marginBottom: 20,
   },
   card: {

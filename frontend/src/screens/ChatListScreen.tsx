@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { acquirePresence, subscribePresence } from '../services/presence';
 import { supabase } from '../services/supabase';
 import { logger } from '../services/logger';
 import { ChatListSkeleton } from '../components/chat/ChatListItemSkeleton';
@@ -39,6 +40,10 @@ export default function ChatListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [onlineIds, setOnlineIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
 
   const authAlertShown = React.useRef(false);
 
@@ -80,6 +85,30 @@ export default function ChatListScreen() {
       if (debouncedFetchRef.current) {
         clearTimeout(debouncedFetchRef.current);
       }
+    };
+  }, []);
+
+  /**
+   * Presence: онлайн-статусы пользователей (Supabase Realtime Presence)
+   * ВАЖНО: включаем presence только пока экран в фокусе, чтобы не влиять на анимации табов.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+
+      const release = acquirePresence(user.id);
+      return () => {
+        release();
+      };
+    }, [user?.id])
+  );
+
+  useEffect(() => {
+    const unsubscribe = subscribePresence((ids) => {
+      setOnlineIds(ids);
+    });
+    return () => {
+      unsubscribe();
     };
   }, []);
 
@@ -272,6 +301,7 @@ export default function ChatListScreen() {
         ? t('chatList.media')
         : (item.lastMessageText ?? '—');
       const dateLabel = formatDate(item.lastMessageAt);
+      const isOnline = onlineIds.has(item.otherUserId);
 
       return (
         <Pressable
@@ -306,9 +336,17 @@ export default function ChatListScreen() {
           </View>
 
           <View style={styles.rowCenter}>
-            <Text numberOfLines={1} style={styles.userId}>
-              {item.displayName ?? item.otherUserId}
-            </Text>
+            <View style={styles.nameRow}>
+              <View
+                style={[
+                  styles.statusDot,
+                  isOnline ? styles.statusDotOnline : styles.statusDotOffline,
+                ]}
+              />
+              <Text numberOfLines={1} style={styles.userId}>
+                {item.displayName ?? item.otherUserId}
+              </Text>
+            </View>
             <Text numberOfLines={1} style={styles.preview}>
               {preview}
             </Text>
@@ -322,7 +360,7 @@ export default function ChatListScreen() {
         </Pressable>
       );
     },
-    [formatDate, navigation, handleDeleteConversation, t]
+    [formatDate, navigation, handleDeleteConversation, onlineIds, t]
   );
 
   /**
@@ -581,7 +619,26 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusDotOnline: {
+    backgroundColor: '#22C55E',
+  },
+  statusDotOffline: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
   userId: {
+    flex: 1,
+    minWidth: 0,
     color: '#fff',
     fontSize: 17,
     fontWeight: '600',

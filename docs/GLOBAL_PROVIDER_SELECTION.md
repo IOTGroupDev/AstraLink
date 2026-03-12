@@ -325,9 +325,9 @@ npm run start:prod
 
 ## 📚 Related Documentation
 
-- [OpenAI Integration Improvements](./CHANGELOG_AI_INTEGRATION.md)
-- [Claude Feature Parity](./CLAUDE_IMPROVEMENTS.md)
-- [AI Integration Guide](./backend/AI_INTEGRATION.md)
+- [OpenAI Integration Improvements](CHANGELOG_AI_INTEGRATION.md)
+- [Claude Feature Parity](CLAUDE_IMPROVEMENTS.md)
+- [AI Integration Guide](../backend/AI_INTEGRATION.md)
 
 ---
 

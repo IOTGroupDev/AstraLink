@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Svg, {
   Circle,
   Line,
@@ -29,6 +30,8 @@ export const ChartVisualization: React.FC<ChartVisualizationProps> = ({
   showAspects = true,
   onPlanetPress,
 }) => {
+  const { t } = useTranslation();
+
   const center = size / 2;
   const natalRadius = size * 0.35;
   const transitRadius = size * 0.42;
@@ -285,12 +288,16 @@ export const ChartVisualization: React.FC<ChartVisualizationProps> = ({
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
-          <Text style={styles.legendText}>Натальные</Text>
+          <Text style={styles.legendText}>
+            {t('cosmicSimulator.chartVisualization.legend.natal')}
+          </Text>
         </View>
         {showTransits && (
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#6366F1' }]} />
-            <Text style={styles.legendText}>Транзитные</Text>
+            <Text style={styles.legendText}>
+              {t('cosmicSimulator.chartVisualization.legend.transit')}
+            </Text>
           </View>
         )}
       </View>

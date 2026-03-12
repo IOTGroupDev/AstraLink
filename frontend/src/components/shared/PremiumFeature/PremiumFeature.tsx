@@ -1,4 +1,4 @@
-// frontend/src/components/PremiumFeature.tsx
+/* frontend/src/components/PremiumFeature.tsx */
 import React from 'react';
 import {
   View,
@@ -18,6 +18,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../../../services/logger';
 
 import { useSubscription } from '../../../hooks/useSubscription';
@@ -69,13 +70,15 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
   feature,
   children,
   customMessage,
-  customTitle = 'Premium',
+  customTitle,
   showTrialButton = true,
   onUpgradePress,
   lockMode = 'hide',
   compactLock = false,
 }) => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
+
   const {
     hasFeature,
     tier,
@@ -84,6 +87,10 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
     isActivatingTrial,
     getMinimumTierForFeature,
   } = useSubscription();
+
+  const resolvedTitle =
+    customTitle ??
+    t('subscription.premiumFeature.label', { defaultValue: 'Premium' });
 
   // Анимации
   const glowAnim = useSharedValue(0);
@@ -189,7 +196,9 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
                     <Ionicons name="lock-closed" size={24} color="#fff" />
                   </LinearGradient>
                 </View>
-                <Text style={styles.compactLockText}>Premium</Text>
+                <Text style={styles.compactLockText}>
+                  {t('subscription.premiumFeature.label')}
+                </Text>
               </View>
             ) : (
               // Полный режим - с кнопками
@@ -204,7 +213,9 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
                 </View>
 
                 <Text style={styles.lockTitle}>
-                  {customTitle || suggestion?.featureName || 'Премиум функция'}
+                  {resolvedTitle ||
+                    suggestion?.featureName ||
+                    t('subscription.premiumFeature.defaultTitle')}
                 </Text>
 
                 {requiredTier && (
@@ -236,7 +247,9 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
                     style={styles.lockUpgradeGradient}
                   >
                     <Ionicons name="arrow-up" size={18} color="#fff" />
-                    <Text style={styles.lockUpgradeText}>Разблокировать</Text>
+                    <Text style={styles.lockUpgradeText}>
+                      {t('subscription.premiumFeature.unlock')}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -277,14 +290,16 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
 
         {/* Title */}
         <Text style={styles.title}>
-          {customTitle || suggestion?.featureName || 'Премиум функция'}
+          {resolvedTitle ||
+            suggestion?.featureName ||
+            t('subscription.premiumFeature.defaultTitle')}
         </Text>
 
         {/* Message */}
         <Text style={styles.message}>
           {customMessage ||
             suggestion?.benefit ||
-            'Эта функция доступна с Premium подпиской'}
+            t('subscription.premiumFeature.defaultMessage')}
         </Text>
 
         {/* Required Tier Badge */}
@@ -307,7 +322,9 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
 
         {/* Current Tier */}
         <Text style={styles.currentTier}>
-          Ваша подписка: {getTierName(tier)}
+          {t('subscription.premiumFeature.yourSubscription', {
+            tier: getTierName(tier),
+          })}
         </Text>
 
         {/* Trial Button (если доступен) */}
@@ -327,8 +344,10 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
               <Ionicons name="gift" size={20} color="#fff" />
               <Text style={styles.trialText}>
                 {isActivatingTrial
-                  ? 'Активация...'
-                  : '7 дней Premium бесплатно'}
+                  ? t('subscription.premiumFeature.trialButton.activating')
+                  : t('subscription.premiumFeature.trialButton.label', {
+                      days: 7,
+                    })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -348,7 +367,9 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
           >
             <Ionicons name="arrow-up" size={20} color="#fff" />
             <Text style={styles.upgradeText}>
-              {isTrialAvailable() ? 'Узнать больше' : 'Улучшить подписку'}
+              {isTrialAvailable()
+                ? t('subscription.premiumFeature.upgradeButton.learnMore')
+                : t('subscription.premiumFeature.upgradeButton.upgrade')}
             </Text>
           </LinearGradient>
         </TouchableOpacity>

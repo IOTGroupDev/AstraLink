@@ -11,6 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Platform } from 'react-native';
 import { storageLogger } from './logger';
+import i18n from '../i18n';
 
 type TokenListener = (token: string | null) => void;
 
@@ -145,9 +146,20 @@ class TokenService {
       if (!available) return false;
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: `Войти с помощью ${type || 'биометрии'}`,
-        fallbackLabel: 'Использовать пароль',
-        cancelLabel: 'Отмена',
+        promptMessage: i18n.t('auth.biometric.prompt', {
+          type:
+            type ||
+            i18n.t('auth.biometric.type.generic', {
+              defaultValue: 'biometrics',
+            }),
+          defaultValue: `Log in with ${type || 'biometrics'}`,
+        }),
+        fallbackLabel: i18n.t('auth.biometric.fallbackLabel', {
+          defaultValue: 'Use password',
+        }),
+        cancelLabel: i18n.t('common.buttons.cancel', {
+          defaultValue: 'Cancel',
+        }),
         disableDeviceFallback: false,
       });
 

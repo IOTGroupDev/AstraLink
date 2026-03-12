@@ -159,8 +159,13 @@ export class ChartService {
       houseNum?: number | string;
       aspect?: string;
     },
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<string[]> {
-    return this.natalChartService.getInterpretationDetails(userId, query);
+    return this.natalChartService.getInterpretationDetails(
+      userId,
+      query,
+      locale,
+    );
   }
 
   // ============================================================
@@ -174,6 +179,7 @@ export class ChartService {
   async getHoroscope(
     userId: string,
     period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     // Check user subscription (cached)
     const subscription = await this.getCachedSubscription(userId);
@@ -184,6 +190,7 @@ export class ChartService {
       userId,
       period,
       isPremium,
+      locale,
     );
   }
 
@@ -191,16 +198,31 @@ export class ChartService {
    * Get all horoscope types (for widget)
    * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
-  async getAllHoroscopes(userId: string) {
+  async getAllHoroscopes(userId: string, locale: 'ru' | 'en' | 'es' = 'ru') {
     // Check user subscription (cached)
     const subscription = await this.getCachedSubscription(userId);
     const isPremium = this.isPremiumSubscription(subscription);
 
     const [today, tomorrow, week, month] = await Promise.all([
-      this.horoscopeService.generateHoroscope(userId, 'day', isPremium),
-      this.horoscopeService.generateHoroscope(userId, 'tomorrow', isPremium),
-      this.horoscopeService.generateHoroscope(userId, 'week', isPremium),
-      this.horoscopeService.generateHoroscope(userId, 'month', isPremium),
+      this.horoscopeService.generateHoroscope(userId, 'day', isPremium, locale),
+      this.horoscopeService.generateHoroscope(
+        userId,
+        'tomorrow',
+        isPremium,
+        locale,
+      ),
+      this.horoscopeService.generateHoroscope(
+        userId,
+        'week',
+        isPremium,
+        locale,
+      ),
+      this.horoscopeService.generateHoroscope(
+        userId,
+        'month',
+        isPremium,
+        locale,
+      ),
     ]);
 
     return {
@@ -234,7 +256,11 @@ export class ChartService {
    * Get detailed transit interpretation with AI (subscription-aware)
    * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
-  async getTransitInterpretation(userId: string, date: Date) {
+  async getTransitInterpretation(
+    userId: string,
+    date: Date,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     // Get user's subscription (cached)
     const subscription = await this.getCachedSubscription(userId);
 
@@ -255,6 +281,7 @@ export class ChartService {
       natalChart,
       date,
       tier,
+      locale,
     );
   }
 
@@ -265,9 +292,13 @@ export class ChartService {
   /**
    * Get astrological predictions
    */
-  async getPredictions(userId: string, period: string = 'day') {
+  async getPredictions(
+    userId: string,
+    period: string = 'day',
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const natalChart = await this.natalChartService.getNatalChart(userId);
-    return this.predictionService.getPredictions(natalChart, period);
+    return this.predictionService.getPredictions(natalChart, period, locale);
   }
 
   // ============================================================

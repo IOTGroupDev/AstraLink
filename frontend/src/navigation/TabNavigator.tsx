@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
@@ -20,7 +21,7 @@ import { calculateProfileCompletion } from '../screens/Auth/utils/onboardingutil
 const Tab = createBottomTabNavigator();
 const PROFILE_COMPLETION_HIDE_KEY = 'profile_completion_hide_popup';
 
-// Мемоизированный компонент иконки с бейджем для оптимизации производительности
+// Мемоизированный компонент иконки с бейджем
 const TabBarIconWithBadge = React.memo(
   ({
     name,
@@ -95,11 +96,38 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
   }
 };
 
+// Мемоизированный компонент фона таббара
+const TabBarBackground = React.memo(() => (
+  <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill}>
+    <LinearGradient
+      colors={['rgba(167, 114, 181, 0.3)', 'rgba(26, 7, 31, 0.3)']}
+      style={{ flex: 1 }}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+    />
+  </BlurView>
+));
+
 export default function TabNavigator() {
   const navigation = useNavigation<any>();
+  const { t, i18n } = useTranslation();
+
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionPercent, setCompletionPercent] = useState(100);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  const tabLabels = useMemo(
+    () => ({
+      horoscope: t('common.tabs.horoscope'),
+      cosmicSimulator: t('common.tabs.cosmicSimulator'),
+      dating: t('common.tabs.dating'),
+      messages: t('common.tabs.messages'),
+      advisor: t('common.tabs.advisor'),
+      profile: t('common.tabs.profile'),
+    }),
+    // Важно: пересчитываем при смене языка, чтобы обновились лейблы табов
+    [i18n.language, t]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -152,130 +180,154 @@ export default function TabNavigator() {
     navigation.navigate('EditProfileScreen');
   };
 
+  // Мемоизация опций навигатора
+  const screenOptions = useMemo(
+    () => ({
+      tabBarHideOnKeyboard: true,
+
+      // КРИТИЧНО: Убираем анимацию переключения табов
+      animation: 'none' as const,
+
+      // Оптимизация для производительности
+      lazy: false, // Монтируем все табы сразу
+      lazyPreloadDistance: 0,
+
+      // ВАЖНО: Отключаем detach на обеих платформах для стабильности
+      detachInactiveScreens: false,
+      freezeOnBlur: false,
+
+      // Единый цвет фона для всех экранов
+      sceneContainerStyle: {
+        backgroundColor: '#0F172A',
+      },
+
+      tabBarActiveTintColor: '#ffffff',
+      tabBarInactiveTintColor: '#ffffff',
+      tabBarStyle: {
+        position: 'absolute' as const,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(139, 92, 246, 0.3)',
+        paddingBottom: 50,
+        paddingTop: 5,
+        height: 108,
+        backgroundColor: 'transparent',
+        bottom: -10,
+        elevation: 0, // Убираем тень на Android
+      },
+      tabBarBackground: () => <TabBarBackground />,
+      headerStyle: {
+        backgroundColor: 'transparent',
+        borderBottomWidth: 0,
+        elevation: 0,
+        shadowOpacity: 0,
+      },
+      headerTintColor: '#fff',
+      headerTitleStyle: {
+        fontWeight: 'bold' as const,
+        fontSize: 18,
+      },
+      headerBackground: () => null,
+    }),
+    // Важно: screenOptions тоже зависит от языка, потому что навигация кеширует опции.
+    [i18n.language]
+  );
+
+  // Мемоизация функции рендера иконки
+  const renderTabBarIcon = useMemo(
+    () =>
+      ({ route }: { route: { name: string } }) =>
+      ({
+        focused,
+        color,
+        size,
+      }: {
+        focused: boolean;
+        color: string;
+        size: number;
+      }) => {
+        const opacity = focused ? 1 : 0.5;
+        const name = getIconName(route.name);
+
+        if (route.name === 'Advisor') {
+          return (
+            <TabBarIconWithBadge
+              name={name}
+              size={size}
+              color={color}
+              opacity={opacity}
+            />
+          );
+        }
+
+        return (
+          <Ionicons name={name} size={size} color={color} style={{ opacity }} />
+        );
+      },
+    []
+  );
+
   return (
     <>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          // Плавная анимация переключения табов
-          tabBarHideOnKeyboard: true,
-          animation: 'shift',
-          lazy: true,
-          detachInactiveScreens: true,
-          freezeOnBlur: true,
-          tabBarIcon: ({ focused, color, size }) => {
-            const opacity = focused ? 1 : 0.5;
-            const name = getIconName(route.name);
-
-            // Используем мемоизированный компонент с бейджем для вкладки Advisor
-            if (route.name === 'Advisor') {
-              return (
-                <TabBarIconWithBadge
-                  name={name}
-                  size={size}
-                  color={color}
-                  opacity={opacity}
-                />
-              );
-            }
-
-            return (
-              <Ionicons
-                name={name}
-                size={size}
-                color={color}
-                style={{ opacity }}
-              />
-            );
-          },
-          tabBarActiveTintColor: '#ffffff',
-          tabBarInactiveTintColor: '#ffffff',
-          tabBarStyle: {
-            position: 'absolute',
-            borderTopWidth: 1,
-            borderTopColor: 'rgba(139, 92, 246, 0.3)',
-            paddingBottom: 50,
-            paddingTop: 5,
-            height: 108,
-            backgroundColor: 'transparent', // важно для прозрачности
-            bottom: -10, // опустили таббар на 10
-          },
-          tabBarBackground: () => (
-            <BlurView
-              intensity={50}
-              tint="dark"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                overflow: 'hidden',
-              }}
-            >
-              <LinearGradient
-                colors={['rgba(167, 114, 181, 0.3)', 'rgba(26, 7, 31, 0.3)']}
-                style={{ flex: 1 }}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-              />
-            </BlurView>
-          ),
-          headerStyle: {
-            backgroundColor: 'transparent',
-            borderBottomWidth: 0,
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            fontSize: 18,
-          },
-          headerBackground: () => null,
+          ...screenOptions,
+          tabBarIcon: renderTabBarIcon({ route }),
         })}
       >
         <Tab.Screen
           name="Horoscope"
           component={HoroscopeScreen}
-          options={{ title: 'Гороскоп', headerShown: false }}
+          options={{
+            title: tabLabels.horoscope,
+            tabBarLabel: tabLabels.horoscope,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="CosmicSimulator"
           component={CosmicSimulatorScreen}
-          options={{ title: 'Симулятор', headerShown: false }}
+          options={{
+            title: tabLabels.cosmicSimulator,
+            tabBarLabel: tabLabels.cosmicSimulator,
+            headerShown: false,
+          }}
         />
-        {/*<Tab.Screen*/}
-        {/*  name="WelcomeScreen"*/}
-        {/*  component={WelcomeScreen}*/}
-        {/*  options={{ title: 'test', headerShown: false }}*/}
-        {/*/>*/}
         <Tab.Screen
           name="Dating"
           component={DatingScreen}
-          options={{ title: 'Dating', headerShown: false }}
+          options={{
+            title: tabLabels.dating,
+            tabBarLabel: tabLabels.dating,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Messages"
           component={ChatListScreen}
-          options={{ title: 'Сообщения', headerShown: false }}
+          options={{
+            title: tabLabels.messages,
+            tabBarLabel: tabLabels.messages,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Advisor"
           component={AdvisorChatScreen}
-          options={{ title: 'Советник', headerShown: false }}
+          options={{
+            title: tabLabels.advisor,
+            tabBarLabel: tabLabels.advisor,
+            headerShown: false,
+          }}
         />
         <Tab.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: 'Профиль', headerShown: false }}
+          options={{
+            title: tabLabels.profile,
+            tabBarLabel: tabLabels.profile,
+            headerShown: false,
+          }}
         />
-        {/*<Tab.Screen*/}
-        {/*  name="Clear"*/}
-        {/*  component={ClearScreen}*/}
-        {/*  options={{ title: 'Очистка', headerShown: false }}*/}
-        {/*/>*/}
       </Tab.Navigator>
       <ProfileCompletionModal
         visible={showCompletionModal}

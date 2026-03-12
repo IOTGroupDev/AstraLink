@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
 import { chartAPI } from '../../services/api';
 import { logger } from '../../services/logger';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -57,21 +58,46 @@ type TabType = 'day' | 'tomorrow' | 'week';
 
 interface Category {
   id: string;
-  title: string;
+  titleKey: string;
   icon: keyof typeof svgIcons;
   dataKey: string;
   border?: boolean;
 }
 
 const categories: Category[] = [
-  { id: 'general', title: 'Общее', icon: 'star', dataKey: 'general' },
-  { id: 'love', title: 'Любовь', icon: 'heart', dataKey: 'love' },
-  { id: 'career', title: 'Карьера', icon: 'briefcase', dataKey: 'career' },
-  { id: 'health', title: 'Здоровье', icon: 'accessibility', dataKey: 'health' },
-  { id: 'finance', title: 'Финансы', icon: 'wallet', dataKey: 'finance' },
+  {
+    id: 'general',
+    titleKey: 'horoscope.widget.categories.general',
+    icon: 'star',
+    dataKey: 'general',
+  },
+  {
+    id: 'love',
+    titleKey: 'horoscope.widget.categories.love',
+    icon: 'heart',
+    dataKey: 'love',
+  },
+  {
+    id: 'career',
+    titleKey: 'horoscope.widget.categories.career',
+    icon: 'briefcase',
+    dataKey: 'career',
+  },
+  {
+    id: 'health',
+    titleKey: 'horoscope.widget.categories.health',
+    icon: 'accessibility',
+    dataKey: 'health',
+  },
+  {
+    id: 'finance',
+    titleKey: 'horoscope.widget.categories.finance',
+    icon: 'wallet',
+    dataKey: 'finance',
+  },
   {
     id: 'advice',
-    title: 'Совет дня',
+    titleKey: 'horoscope.widget.categories.advice',
     icon: 'checkmark',
     dataKey: 'advice',
     border: true,
@@ -79,15 +105,17 @@ const categories: Category[] = [
 ];
 
 const tabs = [
-  { id: 'day' as TabType, label: 'Сегодня' },
-  { id: 'tomorrow' as TabType, label: 'Завтра' },
-  { id: 'week' as TabType, label: 'Эта неделя' },
+  { id: 'day' as TabType, labelKey: 'horoscope.periods.day' },
+  { id: 'tomorrow' as TabType, labelKey: 'horoscope.periods.tomorrow' },
+  { id: 'week' as TabType, labelKey: 'horoscope.periods.week' },
 ];
 
 const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   predictions: initialPredictions,
   isLoading: initialLoading,
 }) => {
+  const { t } = useTranslation();
+
   const [activeTab, setActiveTab] = useState<TabType>('day');
   const [allHoroscopes, setAllHoroscopes] = useState<any>(null);
   const [loading, setLoading] = useState(initialLoading || false);
@@ -297,7 +325,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
           colors={['rgba(139, 92, 246, 0.1)', 'rgba(236, 72, 153, 0.1)']}
           style={styles.loadingCard}
         >
-          <Text style={styles.loadingText}>Загрузка гороскопа...</Text>
+          <Text style={styles.loadingText}>
+            {t('horoscope.widget.loading')}
+          </Text>
         </LinearGradient>
       </View>
     );
@@ -312,7 +342,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
         style={styles.card}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>✨ Гороскоп</Text>
+          <Text style={styles.title}>✨ {t('horoscope.title')}</Text>
         </View>
 
         <ScrollView
@@ -333,7 +363,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                   activeTab === tab.id && styles.tabTextActive,
                 ]}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </Text>
             </Pressable>
           ))}
@@ -357,7 +387,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                     height={24}
                     style={category.border ? styles.categoryActive : null}
                   />
-                  <Text style={styles.categoryTitle}>{category.title}</Text>
+                  <Text style={styles.categoryTitle}>
+                    {t(category.titleKey)}
+                  </Text>
                 </View>
 
                 <Text style={styles.categoryContent} numberOfLines={4}>
@@ -371,7 +403,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             currentHoroscope.luckyNumbers.length > 0 && (
               <View style={styles.categoryCard}>
                 <View style={styles.categoryHeader}>
-                  <Text style={styles.categoryTitle}>Счастливые числа</Text>
+                  <Text style={styles.categoryTitle}>
+                    {t('horoscope.widget.luckyNumbers')}
+                  </Text>
                 </View>
 
                 <View style={styles.luckyNumbersContainer}>
@@ -389,7 +423,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
           {luckyColorsArray.length > 0 && (
             <View style={styles.categoryCard}>
               <View style={styles.categoryHeader}>
-                <Text style={styles.categoryTitle}>Счастливые цвета</Text>
+                <Text style={styles.categoryTitle}>
+                  {t('horoscope.widget.luckyColors')}
+                </Text>
               </View>
 
               <View style={styles.luckyColorsContainer}>
@@ -443,7 +479,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                       height={28}
                     />
                     <Text style={styles.modalTitle}>
-                      {selectedCategory.title}
+                      {t(selectedCategory.titleKey)}
                     </Text>
                   </View>
                 )}

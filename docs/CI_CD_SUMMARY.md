@@ -502,7 +502,7 @@ Merge to Main
 
 - 📖 [CI/CD Setup Guide](CI_CD_SETUP.md)
 - ⚡ [Quick Start (15 min)](. github/QUICK_START_CI_CD.md)
-- 📁 [Files Overview](.github/CI_CD_FILES_OVERVIEW.md)
+- 📁 [Files Overview](../.github/CI_CD_FILES_OVERVIEW.md)
 - 🔍 [Audit Report](AUDIT_REPORT.md)
 - 🛡️ [Critical Fixes](CRITICAL_FIXES_CHECKLIST.md)
 - ⚡ [Quick Wins](QUICK_WINS.md)

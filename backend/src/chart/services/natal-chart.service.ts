@@ -427,6 +427,7 @@ export class NatalChartService {
       houseNum?: number | string;
       aspect?: string;
     },
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<string[]> {
     const { type, planet, sign, houseNum, aspect } = query;
 
@@ -434,23 +435,36 @@ export class NatalChartService {
       const extended = getExtendedPlanetInSign(
         planet as PlanetKey,
         sign as Sign,
+        locale,
       );
       return extended || [];
     }
 
     if (type === 'ascendant' && sign) {
-      const extended = getExtendedAscendant(sign as Sign);
+      const extended = getExtendedAscendant(sign as Sign, locale);
       return extended || [];
     }
 
     if (type === 'house' && houseNum && sign) {
       const num =
         typeof houseNum === 'string' ? parseInt(houseNum, 10) : houseNum;
-      const extended = getExtendedHouseSign(num, sign as Sign);
+      const extended = getExtendedHouseSign(num, sign as Sign, locale);
       return extended || [];
     }
 
     if (type === 'aspect' && aspect) {
+      if (locale === 'en') {
+        return [
+          `Aspect ${aspect} shows a special interaction of planets.`,
+          'More about aspects is available in the extended analysis.',
+        ];
+      }
+      if (locale === 'es') {
+        return [
+          `El aspecto ${aspect} muestra una interacción especial de planetas.`,
+          'Más sobre los aspectos está disponible en el análisis ampliado.',
+        ];
+      }
       return [
         `Аспект ${aspect} показывает особое взаимодействие планет.`,
         'Подробнее об аспектах доступно в расширенном анализе.',

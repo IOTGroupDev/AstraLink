@@ -62,5 +62,19 @@
       "recommendations": "Рекомендации для 8 сфер жизни"
     },
     "getPremium": "Получить Premium"
+  },
+  "aspectsWidget": {
+    "title": "Детальный анализ",
+    "badge": "{{count}} аспектов",
+    "sections": {
+      "factors": "Ключевые факторы",
+      "aspects": "Транзитные аспекты"
+    },
+    "orbLabel": "Орб:",
+    "type": {
+      "harmonious": "Гармоничный",
+      "challenging": "Напряжённый"
+    },
+    "infoNote": "Нажмите на аспект для подробной интерпретации"
   }
 }

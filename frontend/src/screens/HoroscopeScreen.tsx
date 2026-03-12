@@ -1,5 +1,5 @@
 // src/screens/HoroscopeScreen.tsx - Refactored with data fetching
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -22,6 +22,7 @@ import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
 import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecommendationWidget';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useSubscription } from '../hooks/useSubscription';
 import { Chart, TransitsResponse } from '../types/index';
 import { chartLogger } from '../services/logger';
 import NatalChartWheel from '../intgr/NatalChartWheel';
@@ -34,6 +35,8 @@ const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { subscription } = useSubscription();
+  const prevTierRef = useRef<string | undefined>(subscription?.tier);
 
   // State для данных
   const [chart, setChart] = useState<Chart | null>(null);
@@ -401,6 +404,15 @@ const HoroscopeScreen: React.FC = () => {
       loadData();
     }
   }, [isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    const nextTier = subscription?.tier;
+    if (prevTierRef.current && nextTier && prevTierRef.current !== nextTier) {
+      loadData();
+      loadAllPredictions();
+    }
+    prevTierRef.current = nextTier;
+  }, [subscription?.tier]);
 
   // Загрузка прогнозов после получения основных данных
   useEffect(() => {

@@ -115,29 +115,43 @@ export class ChartController {
     description: 'Период: day, tomorrow, week, month',
     required: false,
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Гороскоп на выбранный период' })
   async getHoroscope(
     @Request() req: AuthenticatedRequest,
     @Query('period') period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getHoroscope(userId, period);
+    return this.chartService.getHoroscope(userId, period, locale);
   }
 
   @Get('horoscope/all')
   @ApiOperation({
     summary: 'Получить все гороскопы (день, завтра, неделя, месяц)',
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Все гороскопы' })
-  async getAllHoroscopes(@Request() req: AuthenticatedRequest) {
+  async getAllHoroscopes(
+    @Request() req: AuthenticatedRequest,
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getAllHoroscopes(userId);
+    return this.chartService.getAllHoroscopes(userId, locale);
   }
 
   @Get('current')
@@ -223,10 +237,16 @@ export class ChartController {
       'Дата в формате YYYY-MM-DD (опционально, по умолчанию сегодня)',
     required: false,
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Фаза луны' })
   async getMoonPhase(
     @Request() req: AuthenticatedRequest,
     @Query('date') dateStr?: string,
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
 
@@ -246,7 +266,7 @@ export class ChartController {
       );
     }
 
-    return this.lunarService.getMoonPhase(date, natalChart);
+    return this.lunarService.getMoonPhase(date, natalChart, locale);
   }
 
   @Get('lunar-day')
@@ -256,10 +276,18 @@ export class ChartController {
     description: 'Дата в формате YYYY-MM-DD (опционально)',
     required: false,
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Лунный день' })
-  async getLunarDay(@Query('date') dateStr?: string) {
+  async getLunarDay(
+    @Query('date') dateStr?: string,
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const date = dateStr ? new Date(dateStr) : new Date();
-    return this.lunarService.getLunarDay(date);
+    return this.lunarService.getLunarDay(date, locale);
   }
 
   @Get('lunar-calendar')
@@ -274,11 +302,17 @@ export class ChartController {
     description: 'Месяц (0-11)',
     required: false,
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Лунный календарь на месяц' })
   async getLunarCalendar(
     @Request() req: AuthenticatedRequest,
     @Query('year') yearStr?: string,
     @Query('month') monthStr?: string,
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
 
@@ -299,7 +333,12 @@ export class ChartController {
       );
     }
 
-    return this.lunarService.getMonthlyCalendar(year, month, natalChart);
+    return this.lunarService.getMonthlyCalendar(
+      year,
+      month,
+      natalChart,
+      locale,
+    );
   }
 
   @Get('interpretation/details')
@@ -340,7 +379,11 @@ export class ChartController {
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getInterpretationDetails(userId, query);
+    return this.chartService.getInterpretationDetails(
+      userId,
+      query,
+      query.locale ?? 'ru',
+    );
   }
 
   @Get('transits/interpretation')
@@ -353,6 +396,11 @@ export class ChartController {
     description: 'Дата для анализа транзитов (YYYY-MM-DD)',
     required: false,
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({
     status: 200,
     description: 'Интерпретация транзитов с учётом подписки',
@@ -360,6 +408,7 @@ export class ChartController {
   async getTransitInterpretation(
     @Request() req: AuthenticatedRequest,
     @Query('date') dateStr?: string,
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
@@ -367,7 +416,7 @@ export class ChartController {
     }
 
     const date = dateStr ? new Date(dateStr) : new Date();
-    return this.chartService.getTransitInterpretation(userId, date);
+    return this.chartService.getTransitInterpretation(userId, date, locale);
   }
 
   @Post('admin/fix-nested-data')

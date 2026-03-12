@@ -1,6 +1,7 @@
 {
   "header": {
-    "online": "Online"
+    "online": "Online",
+    "offline": "Offline"
   },
   "input": {
     "placeholder": "Write a message...",

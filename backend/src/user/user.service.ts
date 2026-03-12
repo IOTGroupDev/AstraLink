@@ -7,7 +7,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
@@ -25,6 +25,59 @@ export class UserService {
     private prisma: PrismaService,
   ) {}
 
+  /**
+   * Normalize birthDate for API responses as YYYY-MM-DD (без времени).
+   * Важно: избегаем UTC-сдвига суток.
+   */
+  private formatBirthDate(value: unknown): string | null {
+    if (!value) return null;
+
+    // Если пришла строка вида "YYYY-MM-DD..." (включая ISO) — берём только дату
+    if (typeof value === 'string') {
+      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${mm}-${dd}`;
+      }
+
+      return null;
+    }
+
+    // Если Date — форматируем по локальным компонентам (без UTC)
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return null;
+      const y = value.getFullYear();
+      const mm = String(value.getMonth() + 1).padStart(2, '0');
+      const dd = String(value.getDate()).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+
+    // Fallback: поддерживаем только числовые timestamp-значения.
+    // Для объектов (и прочих типов) возвращаем null, чтобы не получить "[object Object]".
+    if (typeof value === 'number') {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+    if (typeof value === 'bigint') {
+      const d = new Date(Number(value));
+      if (Number.isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+    return null;
+  }
+
   async getProfile(userId: string) {
     // Используем централизованную fallback логику из репозитория
     const user = await this.userRepository.findById(userId);
@@ -34,7 +87,7 @@ export class UserService {
         id: user.id,
         email: user.email,
         name: user.name,
-        birthDate: user.birth_date,
+        birthDate: this.formatBirthDate(user.birth_date),
         birthTime: user.birth_time,
         birthPlace: user.birth_place,
         createdAt: user.created_at,
@@ -52,7 +105,7 @@ export class UserService {
           id: created.id,
           email: created.email,
           name: created.name,
-          birthDate: created.birth_date,
+          birthDate: this.formatBirthDate(created.birth_date),
           birthTime: created.birth_time,
           birthPlace: created.birth_place,
           createdAt: created.created_at,
@@ -220,9 +273,9 @@ export class UserService {
 
     // 6) Если есть все данные рождения — создаём/пересоздаём натальную карту
     try {
-      const birthDateISO = (profile?.birth_date ?? patch.birth_date) as
-        | string
-        | undefined;
+      const birthDateOnly = this.formatBirthDate(
+        profile?.birth_date ?? patch.birth_date,
+      );
       const birthTime = (profile?.birth_time ?? patch.birth_time) as
         | string
         | undefined;
@@ -230,7 +283,7 @@ export class UserService {
         | string
         | undefined;
 
-      const hasAll = !!birthDateISO && !!birthTime && !!birthPlace;
+      const hasAll = !!birthDateOnly && !!birthTime && !!birthPlace;
 
       if (hasAll) {
         // есть ли карты?
@@ -263,7 +316,7 @@ export class UserService {
 
           await this.chartService.createNatalChartWithInterpretation(
             userId,
-            new Date(birthDateISO).toISOString().split('T')[0],
+            birthDateOnly,
             birthTime,
             birthPlace,
           );
@@ -278,7 +331,7 @@ export class UserService {
       id: profile.id,
       email: profile.email,
       name: profile.name,
-      birthDate: profile.birth_date,
+      birthDate: this.formatBirthDate(profile.birth_date),
       birthTime: profile.birth_time,
       birthPlace: profile.birth_place,
       updatedAt: profile.updated_at || nowISO,
@@ -405,6 +458,67 @@ export class UserService {
 
       this.logger.log(`✅ Пользователь найден: ${user.email}`);
 
+      // Некоторые окружения могут быть “урезаны” (таблицы ещё не раскатаны миграциями).
+      // Важно: любые ошибки SQL внутри транзакции Postgres «убивают» транзакцию целиком,
+      // поэтому для опциональных таблиц сначала проверяем их наличие.
+      const tableExists = async (table: string): Promise<boolean> => {
+        const res = await this.prisma.$queryRaw<Array<{ exists: boolean }>>(
+          Prisma.sql`
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.tables
+              WHERE table_schema = 'public'
+                AND table_name = ${table}
+            ) AS "exists"
+          `,
+        );
+        return Boolean(res?.[0]?.exists);
+      };
+
+      const columnExists = async (
+        table: string,
+        column: string,
+      ): Promise<boolean> => {
+        const res = await this.prisma.$queryRaw<Array<{ exists: boolean }>>(
+          Prisma.sql`
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = ${table}
+                AND column_name = ${column}
+            ) AS "exists"
+          `,
+        );
+        return Boolean(res?.[0]?.exists);
+      };
+
+      const existingTables = {
+        user_profiles: await tableExists('user_profiles'),
+        user_photos: await tableExists('user_photos'),
+        payments: await tableExists('payments'),
+        feature_usage: await tableExists('feature_usage'),
+        user_blocks: await tableExists('user_blocks'),
+        user_reports: await tableExists('user_reports'),
+        public_profiles: await tableExists('public_profiles'),
+        profiles: await tableExists('profiles'),
+      };
+
+      const profileColumns = {
+        public_profiles: existingTables.public_profiles
+          ? {
+              user_id: await columnExists('public_profiles', 'user_id'),
+              id: await columnExists('public_profiles', 'id'),
+            }
+          : { user_id: false, id: false },
+        profiles: existingTables.profiles
+          ? {
+              user_id: await columnExists('profiles', 'user_id'),
+              id: await columnExists('profiles', 'id'),
+            }
+          : { user_id: false, id: false },
+      };
+
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
       // Если хотя бы одна операция упадёт - всё откатится автоматически
       await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -435,6 +549,126 @@ export class UserService {
           where: { userId },
         });
         this.logger.log(`✅ Удалено подписок: ${subscriptionsDeleted.count}`);
+
+        // 4.1 Удаляем профили и прочие «дочерние» записи, которые могут держать FK на public.users
+        // Важно: в реальной БД constraint может называться исторически (например `public_profiles_user_id_fkey`)
+        // даже если таблица/модель была переименована.
+
+        if (existingTables.user_profiles) {
+          this.logger.log(
+            '🗑️ Удаление extended-профиля пользователя (user_profiles)...',
+          );
+          const userProfilesDeleted = await tx.userProfile.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(
+            `✅ Удалено extended-профилей (user_profiles): ${userProfilesDeleted.count}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица user_profiles не найдена — пропускаем');
+        }
+
+        if (existingTables.user_photos) {
+          this.logger.log(
+            '🗑️ Удаление фотографий пользователя (user_photos)...',
+          );
+          const photosDeleted = await tx.userPhoto.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(`✅ Удалено фотографий: ${photosDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица user_photos не найдена — пропускаем');
+        }
+
+        if (existingTables.payments) {
+          this.logger.log('🗑️ Удаление платежей пользователя (payments)...');
+          const paymentsDeleted = await tx.payment.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(`✅ Удалено платежей: ${paymentsDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица payments не найдена — пропускаем');
+        }
+
+        if (existingTables.feature_usage) {
+          this.logger.log(
+            '🗑️ Удаление usage-метрик пользователя (feature_usage)...',
+          );
+          const featureUsageDeleted = await tx.featureUsage.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(
+            `✅ Удалено записей usage: ${featureUsageDeleted.count}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица feature_usage не найдена — пропускаем');
+        }
+
+        // Блокировки/репорты могут ссылаться на пользователя с обеих сторон
+        if (existingTables.user_blocks) {
+          this.logger.log(
+            '🗑️ Удаление блокировок пользователя (user_blocks)...',
+          );
+          const blocksDeleted = await tx.userBlock.deleteMany({
+            where: {
+              OR: [{ userId }, { blockedUserId: userId }],
+            },
+          });
+          this.logger.log(`✅ Удалено блокировок: ${blocksDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица user_blocks не найдена — пропускаем');
+        }
+
+        if (existingTables.user_reports) {
+          this.logger.log(
+            '🗑️ Удаление репортов пользователя (user_reports)...',
+          );
+          const reportsDeleted = await tx.userReport.deleteMany({
+            where: {
+              OR: [{ reporterId: userId }, { reportedUserId: userId }],
+            },
+          });
+          this.logger.log(`✅ Удалено репортов: ${reportsDeleted.count}`);
+        } else {
+          this.logger.warn('⚠️ Таблица user_reports не найдена — пропускаем');
+        }
+
+        // 4.2 Удаляем профили из таблиц, не описанных в Prisma (public_profiles / profiles)
+        if (existingTables.public_profiles) {
+          this.logger.log(
+            '🗑️ Удаление профиля пользователя (public_profiles)...',
+          );
+          if (profileColumns.public_profiles.user_id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.public_profiles WHERE user_id = ${userId}::uuid`,
+            );
+          } else if (profileColumns.public_profiles.id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.public_profiles WHERE id = ${userId}::uuid`,
+            );
+          } else {
+            this.logger.warn(
+              '⚠️ Таблица public_profiles без колонок user_id/id — пропускаем',
+            );
+          }
+        }
+
+        if (existingTables.profiles) {
+          this.logger.log('🗑️ Удаление профиля пользователя (profiles)...');
+          if (profileColumns.profiles.user_id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.profiles WHERE user_id = ${userId}::uuid`,
+            );
+          } else if (profileColumns.profiles.id) {
+            await tx.$executeRaw(
+              Prisma.sql`DELETE FROM public.profiles WHERE id = ${userId}::uuid`,
+            );
+          } else {
+            this.logger.warn(
+              '⚠️ Таблица profiles без колонок user_id/id — пропускаем',
+            );
+          }
+        }
 
         // 5. Удаляем профиль пользователя из таблицы users
         this.logger.log('🗑️ Удаление профиля пользователя...');
