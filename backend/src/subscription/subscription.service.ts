@@ -221,13 +221,14 @@ export class SubscriptionService {
     tier: SubscriptionTier,
     paymentMethod: 'apple' | 'google' | 'mock' = 'mock',
     transactionId?: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     if (tier === SubscriptionTier.FREE) {
       throw new BadRequestException('Нельзя "улучшить" до Free');
     }
 
     if (paymentMethod === 'mock') {
-      return this.processMockPayment(userId, tier, transactionId);
+      return this.processMockPayment(userId, tier, transactionId, locale);
     }
 
     throw new BadRequestException(
@@ -242,6 +243,7 @@ export class SubscriptionService {
     userId: string,
     tier: SubscriptionTier,
     transactionId?: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     // Validate user exists before creating subscription
     await this.validateUserExists(userId);
@@ -287,7 +289,7 @@ export class SubscriptionService {
 
     this.logger.log(`User ${userId} upgraded to ${tier}`);
 
-    await this.refreshPremiumAssets(userId);
+    await this.refreshPremiumAssets(userId, locale);
 
     return {
       success: true,
@@ -336,6 +338,7 @@ export class SubscriptionService {
           houses: chartData?.houses,
           aspects: chartData?.aspects || [],
           userProfile: undefined,
+          locale,
         });
 
         const updatedData = {

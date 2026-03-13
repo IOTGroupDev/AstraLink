@@ -4,6 +4,7 @@
  */
 
 export type AIProvider = 'claude' | 'openai' | 'deepseek' | 'none';
+export type AILocale = 'ru' | 'en' | 'es';
 
 export interface AIGenerationContext {
   sunSign: string;
@@ -14,6 +15,7 @@ export interface AIGenerationContext {
   aspects: any[];
   transits: any[];
   period: string;
+  locale?: AILocale;
   userProfile?: {
     name?: string;
     birthDate?: string;

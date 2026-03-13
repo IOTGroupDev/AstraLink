@@ -40,7 +40,9 @@ export default function OnboardingButton({
         styles.button,
         isSecondary && styles.buttonSecondary,
         isFixed && styles.buttonFixed,
-        isFixed && { bottom: ONBOARDING_LAYOUT.buttonBottomOffset * S + insets.bottom },
+        isFixed && {
+          bottom: ONBOARDING_LAYOUT.buttonBottomOffset * S + insets.bottom,
+        },
         {
           height: ONBOARDING_LAYOUT.buttonHeight * S,
           borderRadius: ONBOARDING_LAYOUT.buttonBorderRadius * S,

@@ -36,7 +36,8 @@
     "loading": "Загрузка...",
     "pleaseWait": "Пожалуйста, подождите",
     "loadingApp": "Загрузка приложения...",
-    "processing": "Обработка..."
+    "processing": "Обработка...",
+    "calculatingChart": "Рассчитываем карту..."
   },
   "zodiacSigns": {
     "aries": "Овен",

@@ -53,7 +53,11 @@ export class DeepSeekProvider extends BaseAIProvider {
   /**
    * Generate text with DeepSeek (with retry logic)
    */
-  async generate(prompt: string, retries = 3): Promise<string> {
+  async generate(
+    prompt: string,
+    retries = 3,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<string> {
     if (!this.client) {
       throw new Error('DeepSeek not initialized');
     }
@@ -69,7 +73,7 @@ export class DeepSeekProvider extends BaseAIProvider {
           messages: [
             {
               role: 'system',
-              content: this.getSystemPrompt(),
+              content: this.getSystemPrompt(locale),
             },
             {
               role: 'user',
@@ -116,7 +120,10 @@ export class DeepSeekProvider extends BaseAIProvider {
   /**
    * Stream text generation with DeepSeek
    */
-  async *stream(prompt: string): AsyncGenerator<string, void, unknown> {
+  async *stream(
+    prompt: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): AsyncGenerator<string, void, unknown> {
     if (!this.client) {
       throw new Error('DeepSeek not initialized');
     }
@@ -129,7 +136,7 @@ export class DeepSeekProvider extends BaseAIProvider {
         messages: [
           {
             role: 'system',
-            content: this.getSystemPrompt(),
+            content: this.getSystemPrompt(locale),
           },
           {
             role: 'user',

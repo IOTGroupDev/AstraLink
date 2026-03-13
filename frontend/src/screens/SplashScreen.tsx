@@ -1,11 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 const SplashScreen = () => {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color="#8B5CF6" />
-      <Text style={styles.text}>Загрузка приложения...</Text>
+      <Text style={styles.text}>{t('common.loading.loadingApp')}</Text>
     </View>
   );
 };
