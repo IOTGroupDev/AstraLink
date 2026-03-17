@@ -12,6 +12,7 @@
   "confirmMessage": "Upgrade to {{planName}}?",
   "successTitle": "Success!",
   "successMessage": "Your subscription has been upgraded successfully.",
+  "aiRefreshing": "Updating AI horoscope and interpretation...",
   "errorMessage": "Failed to upgrade subscription. Please try again.",
   "tiers": {
     "free": {

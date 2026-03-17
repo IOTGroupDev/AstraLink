@@ -133,7 +133,7 @@ export class HoroscopeGeneratorService {
     isPremium: boolean = false,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<HoroscopePrediction> {
-    const shouldUseAi = isPremium && period === 'day';
+    const shouldUseAi = isPremium;
     this.logger.log(
       `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}, ai: ${shouldUseAi}`,
     );
@@ -317,7 +317,7 @@ export class HoroscopeGeneratorService {
     // Ежесуточный лимит одного AI-запроса для гороскопов (на пользователя)
     try {
       const dayKey = utcDayKey(); // по текущей UTC-дате
-      const quotaKey = `ai:horoscope:quota:${userId}:${dayKey}`;
+      const quotaKey = `ai:horoscope:quota:${userId}:${dayKey}:${period}`;
       const used = await this.redis.incr(quotaKey);
       if (used != null) {
         if (used === 1) {

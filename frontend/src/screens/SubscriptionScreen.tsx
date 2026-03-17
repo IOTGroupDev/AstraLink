@@ -31,6 +31,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     React.useState<Subscription | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
+  const [aiRefreshing, setAiRefreshing] = React.useState(false);
 
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     const lang = String(i18n.language || 'en').toLowerCase();
@@ -90,17 +91,11 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
               if (result.success) {
-                try {
-                  await chartAPI.regenerateChartWithAI();
-                } catch {
-                  // ignore AI refresh errors
-                }
-
-                try {
-                  await chartAPI.getHoroscope('day', getApiLocale());
-                } catch {
-                  // ignore horoscope prewarm errors
-                }
+                setAiRefreshing(true);
+                void Promise.allSettled([
+                  chartAPI.regenerateChartWithAI(),
+                  chartAPI.getAllHoroscopes(getApiLocale()),
+                ]).finally(() => setAiRefreshing(false));
 
                 queryClient.invalidateQueries({ queryKey: ['subscription'] });
 
@@ -260,6 +255,18 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
             </View>
           );
         })}
+
+        {aiRefreshing && (
+          <View style={styles.aiRefreshBanner}>
+            <Ionicons name="sparkles" size={18} color="#F59E0B" />
+            <Text style={styles.aiRefreshText}>
+              {t(
+                'subscription.aiRefreshing',
+                'Updating AI horoscope and interpretation...'
+              )}
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -388,6 +395,25 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#9CA3AF',
     fontSize: 16,
+  },
+  aiRefreshBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    marginHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  aiRefreshText: {
+    color: '#F9FAFB',
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
   },
 });
 
