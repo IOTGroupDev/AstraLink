@@ -179,7 +179,7 @@ export class HoroscopeGeneratorService {
           .toISOString()
           .split('T')[0];
       })();
-      const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}`;
+      const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}:${isPremium ? 'premium' : 'free'}`;
       const ttlSec = (() => {
         const now = new Date();
         const nd = new Date(targetDate);
