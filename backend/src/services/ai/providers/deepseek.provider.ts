@@ -81,7 +81,7 @@ export class DeepSeekProvider extends BaseAIProvider {
             },
           ],
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 3000,
           response_format: { type: 'json_object' }, // JSON mode
         } as any); // response_format supported but types outdated
 

@@ -275,6 +275,17 @@ export class SubscriptionService {
     await this.redis.del(cacheKey);
     this.logger.debug(`Cleared subscription cache for user ${userId}`);
 
+    // ✅ Очистка кэша гороскопов сразу после апгрейда
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+    } catch (e) {
+      this.logger.warn(
+        `Failed to clear horoscope cache after upgrade for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+
     if (transactionId) {
       // ✅ PRISMA: Создаем запись о платеже
       await this.prisma.payment.create({
