@@ -20,6 +20,7 @@ import {
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { AuthenticatedRequest } from '@/types/auth';
 import { SubscriptionTier } from '@/types';
+import { getHeaderValue } from '@/common/utils/request-headers.util';
 
 interface GenerateCodeDto {
   purpose: CodePurpose;
@@ -62,8 +63,7 @@ export class PersonalCodeController {
     }
 
     const localeHeader =
-      (req.headers?.['x-locale'] as string | undefined) ||
-      (req.headers?.['accept-language'] as string | undefined);
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
     const locale = localeHeader?.toLowerCase().startsWith('es')
       ? 'es'
       : localeHeader?.toLowerCase().startsWith('en')

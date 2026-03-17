@@ -18,6 +18,7 @@ import {
 import { Response } from 'express';
 import { AIService } from '../services/ai.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
+import { getHeaderValue } from '../common/utils/request-headers.util';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SubscriptionGuard } from '@/common/guards/subscription.guard';
 import { RequiresSubscription } from '@/common/decorators/requires-subscription.decorator';
@@ -113,8 +114,7 @@ export class AIController {
     }
 
     const localeHeader =
-      (req.headers?.['x-locale'] as string | undefined) ||
-      (req.headers?.['accept-language'] as string | undefined);
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
     const locale = localeHeader?.toLowerCase().startsWith('es')
       ? 'es'
       : localeHeader?.toLowerCase().startsWith('en')
@@ -154,8 +154,7 @@ export class AIController {
     }
 
     const localeHeader =
-      (req.headers?.['x-locale'] as string | undefined) ||
-      (req.headers?.['accept-language'] as string | undefined);
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
     const locale = localeHeader?.toLowerCase().startsWith('es')
       ? 'es'
       : localeHeader?.toLowerCase().startsWith('en')
@@ -224,8 +223,7 @@ export class AIController {
     }
 
     const localeHeader =
-      (req.headers?.['x-locale'] as string | undefined) ||
-      (req.headers?.['accept-language'] as string | undefined);
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
     const locale = localeHeader?.toLowerCase().startsWith('es')
       ? 'es'
       : localeHeader?.toLowerCase().startsWith('en')
