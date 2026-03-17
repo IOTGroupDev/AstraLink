@@ -133,8 +133,9 @@ export class HoroscopeGeneratorService {
     isPremium: boolean = false,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<HoroscopePrediction> {
+    const shouldUseAi = isPremium && period === 'day';
     this.logger.log(
-      `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}`,
+      `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}, ai: ${shouldUseAi}`,
     );
 
     // Ищем натальную карту через Supabase
@@ -178,7 +179,7 @@ export class HoroscopeGeneratorService {
           .toISOString()
           .split('T')[0];
       })();
-      const cacheKey = `horoscope:${userId}:${period}:${dateKey}`;
+      const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}`;
       const ttlSec = (() => {
         const now = new Date();
         const nd = new Date(targetDate);
@@ -254,7 +255,7 @@ export class HoroscopeGeneratorService {
       }
 
       let result: HoroscopePrediction;
-      if (isPremium) {
+      if (shouldUseAi) {
         result = await this.generatePremiumHoroscope(
           chartData,
           transits,
@@ -398,6 +399,7 @@ export class HoroscopeGeneratorService {
         aspects: chartData.aspects || [],
         transits: transitAspects,
         period,
+        locale,
       };
 
       const aiPredictions = await this.aiService.generateHoroscope(aiContext);

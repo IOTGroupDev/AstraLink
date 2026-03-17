@@ -36,7 +36,8 @@
     "loading": "Cargando...",
     "pleaseWait": "Por favor espera",
     "loadingApp": "Cargando aplicación...",
-    "processing": "Procesando..."
+    "processing": "Procesando...",
+    "calculatingChart": "Calculando carta..."
   },
   "zodiacSigns": {
     "aries": "Aries",

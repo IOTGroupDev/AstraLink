@@ -36,6 +36,12 @@
     "meditation": "Meditation",
     "nature": "Nature"
   },
+  "card": {
+    "distanceAway": "{{distance}} km away",
+    "compatibilityLabel": "Compatibility",
+    "profession": "Astrologer",
+    "heightCm": "{{height}} cm"
+  },
   "lookingFor": {
     "relationship": "Serious relationship",
     "friendship": "Friendship",

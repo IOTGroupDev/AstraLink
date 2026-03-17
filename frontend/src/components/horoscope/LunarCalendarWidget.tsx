@@ -49,7 +49,11 @@ const normalizeZodiacKey = (sign: string): string => {
 export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
   sign,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
+    const lang = String(i18n.language || 'en').toLowerCase();
+    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+  }, [i18n.language]);
 
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
@@ -58,8 +62,8 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['moonPhase'],
-    queryFn: () => chartAPI.getMoonPhase(),
+    queryKey: ['moonPhase', i18n.language],
+    queryFn: () => chartAPI.getMoonPhase(undefined, getApiLocale()),
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
     retry: 2,
@@ -67,8 +71,8 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
   });
 
   const { data: lunarDay } = useQuery({
-    queryKey: ['lunarDay'],
-    queryFn: () => chartAPI.getLunarDay(),
+    queryKey: ['lunarDay', i18n.language],
+    queryFn: () => chartAPI.getLunarDay(undefined, getApiLocale()),
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
     retry: 2,

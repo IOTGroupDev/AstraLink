@@ -61,6 +61,15 @@ export class PersonalCodeController {
       throw new BadRequestException('Пользователь не авторизован');
     }
 
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      (req.headers?.['accept-language'] as string | undefined);
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
     // Get user's subscription tier
     const subscription = await this.getSubscriptionTier(userId);
 
@@ -69,6 +78,7 @@ export class PersonalCodeController {
       dto.purpose,
       dto.digitCount || 4,
       subscription,
+      locale,
     );
   }
 

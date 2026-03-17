@@ -284,10 +284,14 @@ ${transitDescriptions}
 ВАЖНО: Верните только текст интерпретации, БЕЗ JSON, БЕЗ структуры, только простой текст параграфами.`;
 
     try {
-      const response = await this.aiService.generateText(prompt, {
-        temperature: 0.7,
-        maxTokens: 500,
-      });
+      const response = await this.aiService.generateText(
+        prompt,
+        {
+          temperature: 0.7,
+          maxTokens: 500,
+        },
+        locale,
+      );
 
       const text = response.trim();
 

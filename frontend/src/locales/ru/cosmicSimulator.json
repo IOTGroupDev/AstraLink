@@ -65,6 +65,26 @@
       "practical": "Практика"
     }
   },
+  "lessonCard": {
+    "difficulty": {
+      "beginner": "Начальный",
+      "intermediate": "Средний",
+      "advanced": "Продвинутый"
+    },
+    "readTime": "Время чтения: {{seconds}}с",
+    "readTimeShort": "{{seconds}}с",
+    "completedTag": "Пройдено",
+    "keyPointsTitle": "Ключевые моменты:",
+    "exampleTitle": "Пример:",
+    "completeDone": "Завершено",
+    "completeQuiz": "Пройти квиз",
+    "completeMark": "Отметить как пройденное",
+    "quiz": {
+      "title": "Проверьте себя",
+      "successTitle": "Отлично!",
+      "successSubtitle": "Урок успешно завершён"
+    }
+  },
   "modals": {
     "addNote": {
       "title": "Добавить заметку",

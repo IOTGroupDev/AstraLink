@@ -65,6 +65,26 @@
       "practical": "Práctica"
     }
   },
+  "lessonCard": {
+    "difficulty": {
+      "beginner": "Principiante",
+      "intermediate": "Intermedio",
+      "advanced": "Avanzado"
+    },
+    "readTime": "Tiempo de lectura: {{seconds}}s",
+    "readTimeShort": "{{seconds}}s",
+    "completedTag": "Completado",
+    "keyPointsTitle": "Puntos clave:",
+    "exampleTitle": "Ejemplo:",
+    "completeDone": "Completado",
+    "completeQuiz": "Hacer quiz",
+    "completeMark": "Marcar como completado",
+    "quiz": {
+      "title": "Compruébate",
+      "successTitle": "¡Genial!",
+      "successSubtitle": "Lección completada con éxito"
+    }
+  },
   "modals": {
     "addNote": {
       "title": "Agregar nota",

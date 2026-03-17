@@ -114,7 +114,11 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   predictions: initialPredictions,
   isLoading: initialLoading,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
+    const lang = String(i18n.language || 'en').toLowerCase();
+    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+  }, [i18n.language]);
 
   const [activeTab, setActiveTab] = useState<TabType>('day');
   const [allHoroscopes, setAllHoroscopes] = useState<any>(null);
@@ -138,13 +142,20 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     }
   }, [initialPredictions]);
 
+  useEffect(() => {
+    if (!initialPredictions) {
+      loadAllHoroscopes();
+    }
+  }, [i18n.language]);
+
   const loadAllHoroscopes = async () => {
     try {
       setLoading(true);
+      const locale = getApiLocale();
       const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
-        chartAPI.getHoroscope('day'),
-        chartAPI.getHoroscope('tomorrow'),
-        chartAPI.getHoroscope('week'),
+        chartAPI.getHoroscope('day', locale),
+        chartAPI.getHoroscope('tomorrow', locale),
+        chartAPI.getHoroscope('week', locale),
       ]);
 
       const extractPredictions = (response: any) => {

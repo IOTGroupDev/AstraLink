@@ -547,7 +547,10 @@ export class NatalChartService {
    * Regenerate chart interpretation with AI
    * Used for manual regeneration by users (with rate limiting)
    */
-  async regenerateInterpretation(userId: string): Promise<void> {
+  async regenerateInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<void> {
     const chart = await this.chartRepository.findByUserId(userId);
 
     if (!chart) {
@@ -561,6 +564,7 @@ export class NatalChartService {
       await this.interpretationService.generateNatalChartInterpretation(
         userId,
         chartData,
+        locale,
       );
 
     // Update chart with interpretation and version

@@ -50,7 +50,11 @@ export class ClaudeProvider extends BaseAIProvider {
   /**
    * Generate text with Claude (with retry logic)
    */
-  async generate(prompt: string, retries = 3): Promise<string> {
+  async generate(
+    prompt: string,
+    retries = 3,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<string> {
     if (!this.client) {
       throw new Error('Claude not initialized');
     }
@@ -65,7 +69,7 @@ export class ClaudeProvider extends BaseAIProvider {
           model: this.model,
           max_tokens: 2000,
           temperature: 0.7,
-          system: this.getSystemPrompt(),
+          system: this.getSystemPrompt(locale),
           messages: [
             {
               role: 'user',
@@ -111,7 +115,10 @@ export class ClaudeProvider extends BaseAIProvider {
   /**
    * Stream text generation with Claude
    */
-  async *stream(prompt: string): AsyncGenerator<string, void, unknown> {
+  async *stream(
+    prompt: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): AsyncGenerator<string, void, unknown> {
     if (!this.client) {
       throw new Error('Claude not initialized');
     }
@@ -123,7 +130,7 @@ export class ClaudeProvider extends BaseAIProvider {
         model: this.model,
         max_tokens: 2000,
         temperature: 0.7,
-        system: this.getSystemPrompt(),
+        system: this.getSystemPrompt(locale),
         messages: [
           {
             role: 'user',

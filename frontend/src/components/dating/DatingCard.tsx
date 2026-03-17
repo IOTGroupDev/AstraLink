@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ImageBackground,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -50,9 +51,41 @@ const DatingCard: React.FC<DatingCardProps> = ({
   onChat,
   isTop,
 }) => {
+  const { t } = useTranslation();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
+
+  const getZodiacLabel = (sign: string): string => {
+    const raw = String(sign || '').trim();
+    if (!raw) return sign;
+
+    const map: Record<string, string> = {
+      aries: 'aries',
+      taurus: 'taurus',
+      gemini: 'gemini',
+      cancer: 'cancer',
+      leo: 'leo',
+      virgo: 'virgo',
+      libra: 'libra',
+      scorpio: 'scorpio',
+      sagittarius: 'sagittarius',
+      capricorn: 'capricorn',
+      aquarius: 'aquarius',
+      pisces: 'pisces',
+    };
+
+    const key = map[raw.toLowerCase()] ?? raw.toLowerCase();
+    return t(`common.zodiacSigns.${key}`, { defaultValue: sign });
+  };
+
+  const getInterestLabel = (interest: string): string => {
+    const key = String(interest || '')
+      .trim()
+      .toLowerCase();
+    if (!key) return interest;
+    return t(`dating.interests.${key}`, { defaultValue: interest });
+  };
 
   const gestureHandler = Gesture.Pan()
     .onUpdate((event) => {
@@ -111,13 +144,18 @@ const DatingCard: React.FC<DatingCardProps> = ({
         </View>
 
         {/* Знак зодиака */}
-        <Text style={styles.zodiacSign}>{user.zodiacSign}</Text>
+        <Text style={styles.zodiacSign}>{getZodiacLabel(user.zodiacSign)}</Text>
 
         {/* Расстояние */}
         {user.distance != null && (
           <View style={styles.distanceRow}>
             <Ionicons name="location" size={14} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.distanceText}>{user.distance} км от вас</Text>
+            <Text style={styles.distanceText}>
+              {t('dating.card.distanceAway', {
+                distance: user.distance,
+                defaultValue: `${user.distance} km away`,
+              })}
+            </Text>
           </View>
         )}
 
@@ -128,7 +166,9 @@ const DatingCard: React.FC<DatingCardProps> = ({
 
         {/* Совместимость */}
         <View style={styles.compatibilitySection}>
-          <Text style={styles.compatibilityLabel}>Совместимость</Text>
+          <Text style={styles.compatibilityLabel}>
+            {t('dating.card.compatibilityLabel')}
+          </Text>
           <View style={styles.compatibilityBarContainer}>
             <View style={styles.compatibilityBar}>
               <View
@@ -160,7 +200,7 @@ const DatingCard: React.FC<DatingCardProps> = ({
               size={16}
               color="rgba(255,255,255,0.9)"
             />
-            <Text style={styles.detailText}>Астролог</Text>
+            <Text style={styles.detailText}>{t('dating.card.profession')}</Text>
           </View>
           {user.height && (
             <View style={styles.detailItem}>
@@ -169,7 +209,12 @@ const DatingCard: React.FC<DatingCardProps> = ({
                 size={16}
                 color="rgba(255,255,255,0.9)"
               />
-              <Text style={styles.detailText}>{user.height} см</Text>
+              <Text style={styles.detailText}>
+                {t('dating.card.heightCm', {
+                  height: user.height,
+                  defaultValue: `${user.height} cm`,
+                })}
+              </Text>
             </View>
           )}
           {user.lookingFor && (
@@ -189,7 +234,9 @@ const DatingCard: React.FC<DatingCardProps> = ({
           <View style={styles.interestsContainer}>
             {user.interests.slice(0, 4).map((interest, index) => (
               <View key={index} style={styles.interestTag}>
-                <Text style={styles.interestText}>{interest}</Text>
+                <Text style={styles.interestText}>
+                  {getInterestLabel(interest)}
+                </Text>
               </View>
             ))}
           </View>

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import NatalChartWheel from './NatalChartWheel';
 import PlanetList from './PlanetList';
 import type { ChartData } from './astrology.types';
@@ -25,6 +26,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({
   loading = false,
   onRefresh,
 }) => {
+  const { t } = useTranslation();
   const [showAspects, setShowAspects] = useState(true);
   const [view, setView] = useState<'chart' | 'data' | 'both'>('both');
 
@@ -32,7 +34,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
-        <Text style={styles.loadingText}>Calculating chart...</Text>
+        <Text style={styles.loadingText}>
+          {t('common.loading.calculatingChart')}
+        </Text>
       </View>
     );
   }

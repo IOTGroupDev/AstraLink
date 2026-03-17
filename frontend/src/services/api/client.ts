@@ -80,6 +80,7 @@ const PUBLIC_ENDPOINTS = [
   '/auth/signup',
   '/auth/verify',
   '/auth/magic-link',
+  '/auth/send-magic-link',
   '/auth/complete-signup',
   '/auth/ensure-profile',
   '/geo/cities',

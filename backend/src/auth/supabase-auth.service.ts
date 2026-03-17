@@ -390,7 +390,7 @@ export class SupabaseAuthService {
       const { name, birthDate, birthTime, birthPlace } = dto;
 
       this.logger.log('📝 Completing signup for user:', userId);
-      this.logger.log('📝 Completing signup payload:', dto);
+      this.logger.log(`📝 Completing signup payload: ${JSON.stringify(dto)}`);
 
       // Валидация даты рождения
       const parsedBirthDate = new Date(birthDate);
@@ -399,8 +399,93 @@ export class SupabaseAuthService {
       }
 
       // 1. Проверяем существование пользователя
-      const { data: existingProfile, error: checkError } =
+      let { data: existingProfile, error: checkError } =
         await this.supabaseService.getUserProfileAdmin(userId);
+
+      let authEmail: string | null = null;
+
+      if (checkError || !existingProfile) {
+        // Попытка восстановить профиль через auth.users
+        try {
+          const admin = this.supabaseService.getAdminClient();
+          const { data: authData, error: authErr } =
+            await admin.auth.admin.getUserById(userId);
+          if (!authErr) {
+            authEmail = authData?.user?.email ?? null;
+          }
+        } catch (authLookupErr) {
+          this.logger.warn(
+            '⚠️ Failed to lookup auth user for missing profile',
+            authLookupErr,
+          );
+        }
+
+        if (authEmail) {
+          await this.ensureUserProfile(userId, authEmail);
+          const retry = await this.supabaseService.getUserProfileAdmin(userId);
+          existingProfile = retry.data ?? null;
+          checkError = retry.error;
+        }
+      }
+
+      if (checkError || !existingProfile) {
+        // Финальный fallback: создать/апсертить профиль вручную
+        if (authEmail) {
+          const { error: upsertErr } = await this.supabaseService
+            .fromAdmin('users')
+            .upsert(
+              {
+                id: userId,
+                email: authEmail,
+                name: name || authEmail.split('@')[0] || 'User',
+                birth_date: null,
+                birth_time: null,
+                birth_place: null,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'id' },
+            );
+
+          if (!upsertErr) {
+            const retry =
+              await this.supabaseService.getUserProfileAdmin(userId);
+            existingProfile = retry.data ?? null;
+            checkError = retry.error;
+          } else if (upsertErr?.code === '23505' && authEmail) {
+            this.logger.warn(
+              '⚠️ Duplicate email detected, removing stale profile by email',
+            );
+            await this.supabaseService
+              .fromAdmin('users')
+              .delete()
+              .eq('email', authEmail);
+
+            const { error: insertErr } = await this.supabaseService
+              .fromAdmin('users')
+              .insert({
+                id: userId,
+                email: authEmail,
+                name: name || authEmail.split('@')[0] || 'User',
+                birth_date: null,
+                birth_time: null,
+                birth_place: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+
+            if (!insertErr) {
+              const retry =
+                await this.supabaseService.getUserProfileAdmin(userId);
+              existingProfile = retry.data ?? null;
+              checkError = retry.error;
+            } else {
+              this.logger.warn('⚠️ Manual profile insert failed:', insertErr);
+            }
+          } else {
+            this.logger.warn('⚠️ Manual profile upsert failed:', upsertErr);
+          }
+        }
+      }
 
       if (checkError || !existingProfile) {
         throw new BadRequestException('Пользователь не найден');
@@ -413,7 +498,6 @@ export class SupabaseAuthService {
           birth_date: parsedBirthDate.toISOString(),
           birth_time: birthTime || '00:00',
           birth_place: birthPlace || 'Moscow',
-          onboarding_completed: true,
           updated_at: new Date().toISOString(),
         });
 

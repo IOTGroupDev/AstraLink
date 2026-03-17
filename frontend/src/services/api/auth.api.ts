@@ -258,43 +258,23 @@ export const authAPI = {
         throw err;
       }
 
-      authLogger.log('📧 Отправка OTP через Supabase на:', normalizedEmail);
+      authLogger.log(
+        '📧 Отправка OTP через Backend → Supabase на:',
+        normalizedEmail
+      );
+      authLogger.log('➡️ POST /auth/send-magic-link', {
+        email: normalizedEmail,
+      });
 
-      const sendOtp = async (shouldCreateUser: boolean) => {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: normalizedEmail,
-          options: {
-            // When true, Supabase attempts to create a new auth.user on OTP send.
-            // If the user already exists, some projects may surface a DB 23505 (users_email_key).
-            shouldCreateUser,
-          },
-        });
-        return error;
-      };
+      const response = await api.post('/auth/send-magic-link', {
+        email: normalizedEmail,
+      });
 
-      let flow: 'signup' | 'login' = 'signup';
-
-      // 1) Primary attempt: allow creating a user (signup flow)
-      let err = await sendOtp(true);
-
-      // 2) If user already exists, retry as "login" (no create) AND report it to UI
-      if (err) {
-        const msg = (err as any)?.message || '';
-        const isDuplicateEmail =
-          /users_email_key/i.test(msg) ||
-          /duplicate key value violates unique constraint/i.test(msg) ||
-          /(SQLSTATE\s*)?23505/i.test(msg);
-
-        if (isDuplicateEmail) {
-          flow = 'login';
-          authLogger.warn(
-            '⚠️ Пользователь уже существует (23505/users_email_key). Отправляем OTP как вход (shouldCreateUser=false).'
-          );
-          err = await sendOtp(false);
-        }
+      if (!response?.data?.success) {
+        throw new Error(response?.data?.message || 'Не удалось отправить код');
       }
 
-      if (err) throw err;
+      const flow: 'signup' | 'login' = 'signup';
 
       // Mark successful send to enforce at least the base 60s window locally.
       // This mirrors Supabase's default "last request" window and reduces hitting hourly quotas.

@@ -49,10 +49,13 @@ export const chartAPI = {
   },
 
   getHoroscope: async (
-    period: 'day' | 'tomorrow' | 'week' | 'month' = 'day'
+    period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
+    locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<any> => {
     try {
-      const response = await api.get(`/chart/horoscope?period=${period}`);
+      const response = await api.get(
+        `/chart/horoscope?period=${period}&locale=${locale}`
+      );
       return response.data;
     } catch (error) {
       chartLogger.error(`Ошибка загрузки гороскопа на ${period}`, error);
@@ -60,7 +63,9 @@ export const chartAPI = {
     }
   },
 
-  getAllHoroscopes: async (): Promise<{
+  getAllHoroscopes: async (
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<{
     today: any;
     tomorrow: any;
     week: any;
@@ -68,7 +73,7 @@ export const chartAPI = {
     isPremium: boolean;
   }> => {
     try {
-      const response = await api.get('/chart/horoscope/all');
+      const response = await api.get(`/chart/horoscope/all?locale=${locale}`);
       return response.data;
     } catch (error) {
       chartLogger.error('Ошибка загрузки всех гороскопов', error);
@@ -86,9 +91,14 @@ export const chartAPI = {
     return response.data;
   },
 
-  getMoonPhase: async (date?: string): Promise<MoonPhase> => {
+  getMoonPhase: async (
+    date?: string,
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<MoonPhase> => {
     try {
-      const url = date ? `/chart/moon-phase?date=${date}` : '/chart/moon-phase';
+      const url = date
+        ? `/chart/moon-phase?date=${date}&locale=${locale}`
+        : `/chart/moon-phase?locale=${locale}`;
       const response = await api.get(url);
       return response.data;
     } catch (error) {
@@ -97,9 +107,14 @@ export const chartAPI = {
     }
   },
 
-  getLunarDay: async (date?: string): Promise<LunarDay> => {
+  getLunarDay: async (
+    date?: string,
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<LunarDay> => {
     try {
-      const url = date ? `/chart/lunar-day?date=${date}` : '/chart/lunar-day';
+      const url = date
+        ? `/chart/lunar-day?date=${date}&locale=${locale}`
+        : `/chart/lunar-day?locale=${locale}`;
       const response = await api.get(url);
       return response.data;
     } catch (error) {
@@ -110,14 +125,15 @@ export const chartAPI = {
 
   getLunarCalendar: async (
     year?: number,
-    month?: number
+    month?: number,
+    locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<LunarCalendarDay[]> => {
     try {
       const now = new Date();
       const targetYear = year ?? now.getFullYear();
       const targetMonth = month ?? now.getMonth();
       const response = await api.get(
-        `/chart/lunar-calendar?year=${targetYear}&month=${targetMonth}`
+        `/chart/lunar-calendar?year=${targetYear}&month=${targetMonth}&locale=${locale}`
       );
       return response.data;
     } catch (error) {
@@ -182,7 +198,8 @@ export const chartAPI = {
    * PREMIUM/MAX: AI-enhanced personalized interpretation
    */
   getTransitInterpretation: async (
-    date?: string
+    date?: string,
+    locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<{
     date: string;
     transitPlanets: Record<string, any>;
@@ -202,8 +219,8 @@ export const chartAPI = {
     message: string;
   }> => {
     const url = date
-      ? `/chart/transits/interpretation?date=${date}`
-      : '/chart/transits/interpretation';
+      ? `/chart/transits/interpretation?date=${date}&locale=${locale}`
+      : `/chart/transits/interpretation?locale=${locale}`;
     const response = await api.get(url);
     return response.data;
   },

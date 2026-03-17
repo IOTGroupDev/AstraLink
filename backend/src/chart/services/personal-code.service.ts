@@ -127,6 +127,7 @@ export class PersonalCodeService {
     purpose: CodePurpose,
     digitCount: number = 4,
     subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<PersonalCodeResult> {
     // Validate
     if (digitCount < 3 || digitCount > 9) {
@@ -195,6 +196,7 @@ export class PersonalCodeService {
       numerology,
       { planets, houses, aspects }, // Pass extracted data
       subscriptionTier,
+      locale,
     );
 
     return {
@@ -494,6 +496,7 @@ export class PersonalCodeService {
     numerology: PersonalCodeResult['numerology'],
     chartData: { planets: any; houses: any[]; aspects: any[] },
     tier: SubscriptionTier,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<PersonalCodeResult['interpretation']> {
     const isPremium = hasAIAccess(tier);
 
@@ -516,6 +519,7 @@ export class PersonalCodeService {
           purpose,
           numerology,
           chartData,
+          locale,
         );
 
         return {
@@ -555,19 +559,47 @@ export class PersonalCodeService {
     purpose: CodePurpose,
     numerology: PersonalCodeResult['numerology'],
     chartData: any,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<string> {
-    const purposeTranslations = {
-      luck: 'удачи и везения',
-      health: 'здоровья и витальности',
-      wealth: 'финансового успеха и богатства',
-      love: 'любви и гармоничных отношений',
-      career: 'карьерного успеха',
-      creativity: 'творчества и самовыражения',
-      protection: 'защиты и безопасности',
-      intuition: 'интуиции и духовного роста',
-      harmony: 'гармонии и баланса',
-      energy: 'энергии и жизненной силы',
-    };
+    const purposeTranslations =
+      locale === 'en'
+        ? {
+            luck: 'luck and good fortune',
+            health: 'health and vitality',
+            wealth: 'financial success and abundance',
+            love: 'love and harmonious relationships',
+            career: 'career success',
+            creativity: 'creativity and self-expression',
+            protection: 'protection and safety',
+            intuition: 'intuition and spiritual growth',
+            harmony: 'harmony and balance',
+            energy: 'energy and life force',
+          }
+        : locale === 'es'
+          ? {
+              luck: 'suerte y buena fortuna',
+              health: 'salud y vitalidad',
+              wealth: 'éxito financiero y abundancia',
+              love: 'amor y relaciones armoniosas',
+              career: 'éxito profesional',
+              creativity: 'creatividad y autoexpresión',
+              protection: 'protección y seguridad',
+              intuition: 'intuición y crecimiento espiritual',
+              harmony: 'armonía y equilibrio',
+              energy: 'energía y fuerza vital',
+            }
+          : {
+              luck: 'удачи и везения',
+              health: 'здоровья и витальности',
+              wealth: 'финансового успеха и богатства',
+              love: 'любви и гармоничных отношений',
+              career: 'карьерного успеха',
+              creativity: 'творчества и самовыражения',
+              protection: 'защиты и безопасности',
+              intuition: 'интуиции и духовного роста',
+              harmony: 'гармонии и баланса',
+              energy: 'энергии и жизненной силы',
+            };
 
     const breakdownText = codeData.breakdown
       .map(
@@ -576,7 +608,64 @@ export class PersonalCodeService {
       )
       .join('\n');
 
-    const prompt = `Ты профессиональный астролог и нумеролог. Проанализируй персональный числовой код для ${purposeTranslations[purpose]}.
+    const sunSign = chartData.planets?.sun?.sign || 'неизвестно';
+    const moonSign = chartData.planets?.moon?.sign || 'неизвестно';
+    const ascSign = chartData.houses?.[0]?.sign || 'неизвестно';
+
+    const prompt =
+      locale === 'en'
+        ? `You are a professional astrologer and numerologist. Analyze the personal numeric code for ${purposeTranslations[purpose]}.
+
+CODE: ${codeData.code}
+
+ASTROLOGICAL BASIS:
+${breakdownText}
+
+NUMEROLOGY:
+- Sum of digits: ${numerology.totalSum}
+- Final number: ${numerology.reducedNumber}${numerology.masterNumber ? ` (Master number: ${numerology.masterNumber})` : ''}
+- Meaning: ${numerology.meaning}
+
+NATAL CHART:
+- Sun: ${sunSign}
+- Moon: ${moonSign}
+- Ascendant: ${ascSign}
+
+Create a detailed interpretation (200-250 words):
+1. Explain how this code works for ${purposeTranslations[purpose]}
+2. Which astrological and numerological principles stand behind it
+3. How each digit contributes
+4. What energies are activated when using the code
+5. The uniqueness of this code for this person
+
+Write clearly, inspiringly, and practically.`
+        : locale === 'es'
+          ? `Eres un astrólogo y numerólogo profesional. Analiza el código numérico personal para ${purposeTranslations[purpose]}.
+
+CÓDIGO: ${codeData.code}
+
+BASE ASTROLÓGICA:
+${breakdownText}
+
+NUMEROLOGÍA:
+- Suma de dígitos: ${numerology.totalSum}
+- Número final: ${numerology.reducedNumber}${numerology.masterNumber ? ` (Número maestro: ${numerology.masterNumber})` : ''}
+- Significado: ${numerology.meaning}
+
+CARTA NATAL:
+- Sol: ${sunSign}
+- Luna: ${moonSign}
+- Ascendente: ${ascSign}
+
+Crea una interpretación detallada (200-250 palabras):
+1. Explica cómo funciona este código para ${purposeTranslations[purpose]}
+2. Qué principios astrológicos y numerológicos hay detrás
+3. Cómo contribuye cada dígito
+4. Qué energías se activan al usar el código
+5. La singularidad de este código para esta persona
+
+Escribe de forma clara, inspiradora y práctica.`
+          : `Ты профессиональный астролог и нумеролог. Проанализируй персональный числовой код для ${purposeTranslations[purpose]}.
 
 КОД: ${codeData.code}
 
@@ -589,9 +678,9 @@ ${breakdownText}
 - Значение: ${numerology.meaning}
 
 НАТАЛЬНАЯ КАРТА:
-- Солнце: ${chartData.planets?.sun?.sign || 'неизвестно'}
-- Луна: ${chartData.planets?.moon?.sign || 'неизвестно'}
-- Асцендент: ${chartData.houses?.[0]?.sign || 'неизвестно'}
+- Солнце: ${sunSign}
+- Луна: ${moonSign}
+- Асцендент: ${ascSign}
 
 Создай детальную интерпретацию (200-250 слов):
 1. Объясни, как этот код работает для ${purposeTranslations[purpose]}
@@ -602,10 +691,14 @@ ${breakdownText}
 
 Пиши понятно, вдохновляюще и практично.`;
 
-    const response = await this.aiService.generateText(prompt, {
-      temperature: 0.8,
-      maxTokens: 600,
-    });
+    const response = await this.aiService.generateText(
+      prompt,
+      {
+        temperature: 0.8,
+        maxTokens: 600,
+      },
+      locale,
+    );
 
     return response.trim();
   }
