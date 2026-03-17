@@ -20,6 +20,7 @@ import type { CreateNatalChartRequest, TransitRequest } from '@/types';
 import { Public } from '@/common/decorators/public.decorator';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { LunarService } from '@/services/lunar.service';
+import { getHeaderValue } from '@/common/utils/request-headers.util';
 import type { AuthenticatedRequest } from '@/types/auth';
 
 @ApiTags('Chart')
@@ -105,8 +106,7 @@ export class ChartController {
     }
 
     const localeHeader =
-      (req.headers?.['x-locale'] as string | undefined) ||
-      (req.headers?.['accept-language'] as string | undefined);
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
     const locale = localeHeader?.toLowerCase().startsWith('es')
       ? 'es'
       : localeHeader?.toLowerCase().startsWith('en')
