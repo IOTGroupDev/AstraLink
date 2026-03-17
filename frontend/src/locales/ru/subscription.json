@@ -12,6 +12,7 @@
   "confirmMessage": "Перейти на {{planName}}?",
   "successTitle": "Успешно!",
   "successMessage": "Ваша подписка успешно обновлена.",
+  "aiRefreshing": "Обновляем AI-гороскоп и интерпретацию...",
   "errorMessage": "Не удалось обновить подписку. Попробуйте еще раз.",
   "tiers": {
     "free": {

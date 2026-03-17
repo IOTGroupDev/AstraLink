@@ -291,7 +291,7 @@ export class SubscriptionService {
 
     this.logger.log(`User ${userId} upgraded to ${tier}`);
 
-    await this.refreshPremiumAssets(userId, locale);
+    this.schedulePremiumRefresh(userId, locale);
 
     return {
       success: true,
@@ -363,7 +363,7 @@ export class SubscriptionService {
       );
     }
 
-    // 2) Прогрев PREMIUM-гороскопов
+    // 2) Прогрев PREMIUM-гороскопов (AI для всех периодов)
     try {
       await Promise.all(
         (['day', 'tomorrow', 'week', 'month'] as const).map((p) =>
@@ -377,6 +377,22 @@ export class SubscriptionService {
         }`,
       );
     }
+  }
+
+  private schedulePremiumRefresh(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    // Run in background to avoid blocking upgrade response
+    setImmediate(() => {
+      this.refreshPremiumAssets(userId, locale).catch((e) => {
+        this.logger.warn(
+          `Premium refresh failed for ${userId}: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      });
+    });
   }
 
   /**
