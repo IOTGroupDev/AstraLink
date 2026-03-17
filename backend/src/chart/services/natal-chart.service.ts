@@ -227,7 +227,11 @@ export class NatalChartService {
     }
 
     // 2) If interpretation is missing or version is outdated — regenerate for v3
-    if (!chartData.interpretation || chartData.interpretationVersion !== 'v3') {
+    if (
+      !chartData.interpretation ||
+      (chartData.interpretationVersion !== 'v3' &&
+        chartData.interpretationVersion !== 'ai-v1')
+    ) {
       this.logger.log(
         `Regenerating interpretation for user ${userId} (version: ${chartData.interpretationVersion || 'none'})`,
       );
