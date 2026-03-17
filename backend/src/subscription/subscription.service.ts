@@ -204,6 +204,8 @@ export class SubscriptionService {
     const cacheKey = `subscription:${userId}`;
     await this.redis.del(cacheKey);
 
+    await this.refreshPremiumAssets(userId);
+
     this.logger.log(`Trial activated for user ${userId}`);
 
     return {

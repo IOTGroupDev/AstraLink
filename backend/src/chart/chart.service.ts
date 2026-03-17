@@ -76,11 +76,19 @@ export class ChartService {
    * Проверить, является ли подписка premium
    */
   private isPremiumSubscription(subscription: any): boolean {
-    return (
-      subscription?.tier !== 'free' &&
-      subscription?.expiresAt != null &&
-      new Date(subscription.expiresAt) > new Date()
-    );
+    if (!subscription || subscription?.tier === 'free') return false;
+
+    const now = new Date();
+
+    if (subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > now) {
+      return true;
+    }
+
+    if (subscription?.expiresAt && new Date(subscription.expiresAt) > now) {
+      return true;
+    }
+
+    return false;
   }
 
   // ============================================================
