@@ -65,6 +65,26 @@
       "practical": "Practice"
     }
   },
+  "lessonCard": {
+    "difficulty": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "readTime": "Read time: {{seconds}}s",
+    "readTimeShort": "{{seconds}}s",
+    "completedTag": "Completed",
+    "keyPointsTitle": "Key points:",
+    "exampleTitle": "Example:",
+    "completeDone": "Completed",
+    "completeQuiz": "Take quiz",
+    "completeMark": "Mark as completed",
+    "quiz": {
+      "title": "Check yourself",
+      "successTitle": "Great!",
+      "successSubtitle": "Lesson completed successfully"
+    }
+  },
   "modals": {
     "addNote": {
       "title": "Add note",

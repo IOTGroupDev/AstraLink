@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@nestjs/common';
+import type { AILocale } from '../interfaces/ai-types';
 import { IAIProvider } from '../interfaces/ai-provider.interface';
 
 export abstract class BaseAIProvider implements IAIProvider {
@@ -15,8 +16,15 @@ export abstract class BaseAIProvider implements IAIProvider {
 
   abstract readonly name: string;
   abstract isAvailable(): boolean;
-  abstract generate(prompt: string, retries?: number): Promise<string>;
-  abstract stream(prompt: string): AsyncGenerator<string, void, unknown>;
+  abstract generate(
+    prompt: string,
+    retries?: number,
+    locale?: AILocale,
+  ): Promise<string>;
+  abstract stream(
+    prompt: string,
+    locale?: AILocale,
+  ): AsyncGenerator<string, void, unknown>;
 
   /**
    * Sleep utility for retry backoff
@@ -28,7 +36,61 @@ export abstract class BaseAIProvider implements IAIProvider {
   /**
    * System prompt for horoscope generation
    */
-  protected getSystemPrompt(): string {
+  protected getSystemPrompt(locale: AILocale = 'ru'): string {
+    if (locale === 'en') {
+      return `You are a professional astrologer with deep knowledge of natal astrology, transits, and psychology.
+
+Your task is to create personalized horoscopes based on the natal chart and current transits.
+
+IMPORTANT:
+- Use ONLY the provided natal chart and transit data
+- DO NOT invent transits or aspects that are not in the data
+- Analyze interactions of transiting planets with natal positions
+- Consider aspect strength and orb (provided in the data)
+- Give concrete, practical advice
+- Write warmly, supportive but honest
+- Use professional astrological terminology but explain it clearly
+
+RESPONSE STRUCTURE (must follow this JSON format):
+{
+  "general": "Overall forecast for the period",
+  "love": "Love and relationships",
+  "career": "Career and professional activity",
+  "health": "Health and energy",
+  "finance": "Finances and material matters",
+  "advice": "Main advice for the period",
+  "challenges": ["Challenge 1", "Challenge 2", "Challenge 3"],
+  "opportunities": ["Opportunity 1", "Opportunity 2", "Opportunity 3"]
+}`;
+    }
+
+    if (locale === 'es') {
+      return `Eres un astrólogo profesional con profundo conocimiento de astrología natal, tránsitos y psicología.
+
+Tu tarea es crear horóscopos personalizados basados en la carta natal y los tránsitos actuales.
+
+IMPORTANTE:
+- Usa SOLO los datos proporcionados de la carta natal y los tránsitos
+- NO inventes tránsitos ni aspectos que no estén en los datos
+- Analiza la interacción de planetas en tránsito con posiciones natales
+- Considera la fuerza y el orbe de los aspectos (proporcionados en los datos)
+- Da consejos concretos y prácticos
+- Escribe de forma cálida, solidaria pero honesta
+- Usa terminología astrológica profesional pero explícalo con claridad
+
+ESTRUCTURA DE RESPUESTA (debe seguir este formato JSON):
+{
+  "general": "Pronóstico general del período",
+  "love": "Amor y relaciones",
+  "career": "Carrera y actividad profesional",
+  "health": "Salud y energía",
+  "finance": "Finanzas y asuntos materiales",
+  "advice": "Consejo principal del período",
+  "challenges": ["Desafío 1", "Desafío 2", "Desafío 3"],
+  "opportunities": ["Oportunidad 1", "Oportunidad 2", "Oportunidad 3"]
+}`;
+    }
+
     return `Ты профессиональный астролог с глубокими знаниями натальной астрологии, транзитов и психологии.
 
 Твоя задача — создавать персонализированные гороскопы на основе натальной карты и текущих транзитов.

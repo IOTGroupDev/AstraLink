@@ -37,6 +37,10 @@ const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
+    const lang = String(i18n.language || 'en').toLowerCase();
+    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+  }, [i18n.language]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
@@ -249,11 +253,12 @@ const HoroscopeScreen: React.FC = () => {
   const loadAllPredictions = async () => {
     try {
       chartLogger.log('Загружаю прогнозы');
+      const locale = getApiLocale();
 
       const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
-        chartAPI.getHoroscope('day'),
-        chartAPI.getHoroscope('tomorrow'),
-        chartAPI.getHoroscope('week'),
+        chartAPI.getHoroscope('day', locale),
+        chartAPI.getHoroscope('tomorrow', locale),
+        chartAPI.getHoroscope('week', locale),
       ]);
 
       chartLogger.log('Получены прогнозы', {
@@ -424,6 +429,13 @@ const HoroscopeScreen: React.FC = () => {
       loadAllPredictions();
     }
   }, [currentPlanets, chart]);
+
+  useEffect(() => {
+    if (currentPlanets && chart) {
+      chartLogger.log('Перезагружаю прогнозы из-за смены языка');
+      loadAllPredictions();
+    }
+  }, [i18n.language, currentPlanets, chart]);
 
   // Формирование данных для виджетов
   const energyValue =

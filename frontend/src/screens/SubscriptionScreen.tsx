@@ -13,8 +13,9 @@ import { Subscription, SUBSCRIPTION_PLANS } from '../types';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
-import { userAPI } from '../services/api';
+import { chartAPI, userAPI } from '../services/api';
 import { subscriptionAPI } from '../services/api/subscription.api';
 import { SubscriptionTier } from '../types/subscription';
 
@@ -24,11 +25,17 @@ type SubscriptionScreenProps = StackScreenProps<
 >;
 
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
   const [currentSubscription, setCurrentSubscription] =
     React.useState<Subscription | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
+
+  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
+    const lang = String(i18n.language || 'en').toLowerCase();
+    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+  }, [i18n.language]);
 
   React.useEffect(() => {
     fetchSubscription();
@@ -83,6 +90,20 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
               if (result.success) {
+                try {
+                  await chartAPI.regenerateChartWithAI();
+                } catch {
+                  // ignore AI refresh errors
+                }
+
+                try {
+                  await chartAPI.getHoroscope('day', getApiLocale());
+                } catch {
+                  // ignore horoscope prewarm errors
+                }
+
+                queryClient.invalidateQueries({ queryKey: ['subscription'] });
+
                 Alert.alert(
                   t('subscription.successTitle', 'Success!'),
                   t(

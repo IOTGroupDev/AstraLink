@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 // Types for planetary data
 interface PlanetPosition {
@@ -86,6 +87,7 @@ const SwissEphemerisChart: React.FC<SwissEphemerisChartProps> = ({
   birthData,
   onCalculated,
 }) => {
+  const { t } = useTranslation();
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -224,7 +226,9 @@ const SwissEphemerisChart: React.FC<SwissEphemerisChartProps> = ({
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#6366f1" />
-        <Text style={styles.loadingText}>Calculating chart...</Text>
+        <Text style={styles.loadingText}>
+          {t('common.loading.calculatingChart')}
+        </Text>
       </View>
     );
   }

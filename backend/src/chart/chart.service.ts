@@ -76,11 +76,19 @@ export class ChartService {
    * Проверить, является ли подписка premium
    */
   private isPremiumSubscription(subscription: any): boolean {
-    return (
-      subscription?.tier !== 'free' &&
-      subscription?.expiresAt != null &&
-      new Date(subscription.expiresAt) > new Date()
-    );
+    if (!subscription || subscription?.tier === 'free') return false;
+
+    const now = new Date();
+
+    if (subscription?.trialEndsAt && new Date(subscription.trialEndsAt) > now) {
+      return true;
+    }
+
+    if (subscription?.expiresAt && new Date(subscription.expiresAt) > now) {
+      return true;
+    }
+
+    return false;
   }
 
   // ============================================================
@@ -325,11 +333,14 @@ export class ChartService {
   // AI REGENERATION WITH RATE LIMITING
   // ============================================================
 
-  /**
+  /**от
    * Regenerate chart interpretation with AI
    * Rate limited: 1 generation per 24 hours
    */
-  async regenerateChartWithAI(userId: string): Promise<{
+  async regenerateChartWithAI(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<{
     success: boolean;
     message: string;
     canRegenerateAt?: string;
@@ -371,7 +382,7 @@ export class ChartService {
       }
 
       // 3. Regenerate interpretation with AI
-      await this.natalChartService.regenerateInterpretation(userId);
+      await this.natalChartService.regenerateInterpretation(userId, locale);
 
       // 4. Update ai_generated_at timestamp using Prisma
       await this.prisma.chart.updateMany({
@@ -401,12 +412,14 @@ export class ChartService {
     purpose: CodePurpose,
     digitCount: number,
     tier: SubscriptionTier,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     return this.personalCodeService.generatePersonalCode(
       userId,
       purpose,
       digitCount,
       tier,
+      locale,
     );
   }
 

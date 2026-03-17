@@ -25,9 +25,9 @@ import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { chartAPI } from '../services/api';
 import { useSubscription } from '../hooks/useSubscription';
 import {
-  ASTRO_LESSONS,
-  getLessonsByCategory,
-} from '../services/lessons-database';
+  getLessonsByLocale,
+  getLessonsByCategoryLocalized,
+} from '../services/lessons-database.localized';
 import { AstroLesson } from '../types/lessons';
 import { LessonCard } from '../components/lessons/LessonCard';
 import { ChartVisualization } from '../components/simulator/Chartvisualization';
@@ -146,6 +146,12 @@ export default function CosmicSimulatorScreen() {
   }, [currentDate, natalChart]);
 
   useEffect(() => {
+    if (natalChart) {
+      loadTransitsForDate(currentDate);
+    }
+  }, [i18n.language, natalChart, currentDate]);
+
+  useEffect(() => {
     const nextTier = subscription?.tier;
     if (prevTierRef.current && nextTier && prevTierRef.current !== nextTier) {
       loadNatalChart();
@@ -154,21 +160,26 @@ export default function CosmicSimulatorScreen() {
     prevTierRef.current = nextTier;
   }, [subscription?.tier, currentDate]);
 
+  const lessons = React.useMemo(() => {
+    return getLessonsByLocale(getInterpretationLocale());
+  }, [getInterpretationLocale]);
+
   // Выбрать урок дня
   const selectDailyLesson = () => {
+    if (!lessons.length) return;
     const dayOfYear = Math.floor(
       (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    const lessonIndex = dayOfYear % ASTRO_LESSONS.length;
-    setDailyLesson(ASTRO_LESSONS[lessonIndex]);
+    const lessonIndex = dayOfYear % lessons.length;
+    setDailyLesson(lessons[lessonIndex]);
   };
 
   // Найти релевантный урок для транзита
   const findRelevantLesson = (transit: TransitData): AstroLesson | null => {
     // Поиск урока по аспекту
     const aspectTranslated = t('common.aspects.' + transit.aspect);
-    const aspectLesson = ASTRO_LESSONS.find(
+    const aspectLesson = lessons.find(
       (lesson) =>
         lesson.category === 'aspects' &&
         lesson.title
@@ -179,7 +190,7 @@ export default function CosmicSimulatorScreen() {
     if (aspectLesson) return aspectLesson;
 
     // Поиск урока по планете
-    const planetLesson = ASTRO_LESSONS.find(
+    const planetLesson = lessons.find(
       (lesson) =>
         lesson.category === 'planets' &&
         lesson.title.toLowerCase().includes(transit.planet.toLowerCase())
@@ -238,8 +249,10 @@ export default function CosmicSimulatorScreen() {
     try {
       // Загружаем AI интерпретацию транзитов (с проверкой подписки на backend)
       const dateStr = date.toISOString().split('T')[0];
-      const interpretationData =
-        await chartAPI.getTransitInterpretation(dateStr);
+      const interpretationData = await chartAPI.getTransitInterpretation(
+        dateStr,
+        getInterpretationLocale()
+      );
 
       // Сохраняем AI интерпретацию
       let interpretationText = interpretationData.aiInterpretation;
@@ -1123,7 +1136,7 @@ export default function CosmicSimulatorScreen() {
                   <Text style={styles.lessonsSubtitle}>
                     {t('cosmicSimulator.lessons.subtitle', {
                       completed: completedLessons.size,
-                      total: ASTRO_LESSONS.length,
+                      total: lessons.length,
                     })}
                   </Text>
                 </View>
@@ -1137,14 +1150,14 @@ export default function CosmicSimulatorScreen() {
                     style={[
                       styles.progressFill,
                       {
-                        width: `${(completedLessons.size / ASTRO_LESSONS.length) * 100}%`,
+                        width: `${(completedLessons.size / Math.max(lessons.length, 1)) * 100}%`,
                       },
                     ]}
                   />
                 </View>
                 <Text style={styles.progressText}>
                   {Math.round(
-                    (completedLessons.size / ASTRO_LESSONS.length) * 100
+                    (completedLessons.size / Math.max(lessons.length, 1)) * 100
                   )}
                   %
                 </Text>
@@ -1160,7 +1173,10 @@ export default function CosmicSimulatorScreen() {
                   'practical',
                 ] as const
               ).map((category) => {
-                const categoryLessons = getLessonsByCategory(category);
+                const categoryLessons = getLessonsByCategoryLocalized(
+                  getInterpretationLocale(),
+                  category
+                );
 
                 return (
                   <View key={category} style={styles.lessonCategory}>

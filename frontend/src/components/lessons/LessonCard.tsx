@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Animated,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { AstroLesson, QuizOption } from '../../types/lessons';
+import { useTranslation } from 'react-i18next';
+import { AstroLesson } from '../../types/lessons';
 
 interface LessonCardProps {
   lesson: AstroLesson;
@@ -35,6 +28,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   isBookmarked = false,
   compact = false,
 }) => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -54,11 +48,11 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   const getDifficultyLabel = () => {
     switch (lesson.difficulty) {
       case 'beginner':
-        return 'Начальный';
+        return t('cosmicSimulator.lessonCard.difficulty.beginner');
       case 'intermediate':
-        return 'Средний';
+        return t('cosmicSimulator.lessonCard.difficulty.intermediate');
       case 'advanced':
-        return 'Продвинутый';
+        return t('cosmicSimulator.lessonCard.difficulty.advanced');
     }
   };
 
@@ -106,7 +100,9 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               {lesson.subtitle}
             </Text>
             <Text style={styles.compactReadTime}>
-              {lesson.readTime}с чтения
+              {t('cosmicSimulator.lessonCard.readTime', {
+                seconds: lesson.readTime,
+              })}
             </Text>
           </View>
           {isCompleted && (
@@ -161,7 +157,11 @@ export const LessonCard: React.FC<LessonCardProps> = ({
             <View style={styles.meta}>
               <View style={styles.metaItem}>
                 <Ionicons name="time" size={14} color="rgba(255,255,255,0.5)" />
-                <Text style={styles.metaText}>{lesson.readTime}с</Text>
+                <Text style={styles.metaText}>
+                  {t('cosmicSimulator.lessonCard.readTimeShort', {
+                    seconds: lesson.readTime,
+                  })}
+                </Text>
               </View>
 
               <View
@@ -183,7 +183,9 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               {isCompleted && (
                 <View style={styles.completedTag}>
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={styles.completedText}>Пройдено</Text>
+                  <Text style={styles.completedText}>
+                    {t('cosmicSimulator.lessonCard.completedTag')}
+                  </Text>
                 </View>
               )}
             </View>
@@ -205,7 +207,9 @@ export const LessonCard: React.FC<LessonCardProps> = ({
             {/* Key Points */}
             {lesson.keyPoints && lesson.keyPoints.length > 0 && (
               <View style={styles.keyPointsContainer}>
-                <Text style={styles.sectionTitle}>Ключевые моменты:</Text>
+                <Text style={styles.sectionTitle}>
+                  {t('cosmicSimulator.lessonCard.keyPointsTitle')}
+                </Text>
                 {lesson.keyPoints.map((point, index) => (
                   <View key={index} style={styles.keyPoint}>
                     <Text style={styles.bullet}>•</Text>
@@ -220,7 +224,9 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               <View style={styles.exampleContainer}>
                 <View style={styles.exampleHeader}>
                   <Ionicons name="bulb" size={16} color="#FBBF24" />
-                  <Text style={styles.exampleTitle}>Пример:</Text>
+                  <Text style={styles.exampleTitle}>
+                    {t('cosmicSimulator.lessonCard.exampleTitle')}
+                  </Text>
                 </View>
                 <Text style={styles.exampleText}>{lesson.example}</Text>
               </View>
@@ -277,10 +283,10 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                   />
                   <Text style={styles.completeButtonText}>
                     {isCompleted
-                      ? 'Завершено'
+                      ? t('cosmicSimulator.lessonCard.completeDone')
                       : lesson.quiz
-                        ? 'Пройти квиз'
-                        : 'Отметить как пройденное'}
+                        ? t('cosmicSimulator.lessonCard.completeQuiz')
+                        : t('cosmicSimulator.lessonCard.completeMark')}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -308,7 +314,9 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               </TouchableOpacity>
 
               {/* Quiz Content */}
-              <Text style={styles.quizTitle}>Проверьте себя</Text>
+              <Text style={styles.quizTitle}>
+                {t('cosmicSimulator.lessonCard.quiz.title')}
+              </Text>
               <Text style={styles.quizQuestion}>{lesson.quiz.question}</Text>
 
               {lesson.quiz.hint && selectedAnswer === null && (
@@ -362,9 +370,11 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               {quizCompleted && (
                 <View style={styles.successContainer}>
                   <Ionicons name="trophy" size={48} color="#FBBF24" />
-                  <Text style={styles.successText}>Отлично!</Text>
+                  <Text style={styles.successText}>
+                    {t('cosmicSimulator.lessonCard.quiz.successTitle')}
+                  </Text>
                   <Text style={styles.successSubtext}>
-                    Урок успешно завершён
+                    {t('cosmicSimulator.lessonCard.quiz.successSubtitle')}
                   </Text>
                 </View>
               )}

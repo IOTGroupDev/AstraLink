@@ -103,7 +103,17 @@ export class ChartController {
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.regenerateChartWithAI(userId);
+
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      (req.headers?.['accept-language'] as string | undefined);
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
+    return this.chartService.regenerateChartWithAI(userId, locale);
   }
 
   @Get('horoscope')

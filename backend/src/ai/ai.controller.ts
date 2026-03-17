@@ -112,11 +112,22 @@ export class AIController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      (req.headers?.['accept-language'] as string | undefined);
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
     // Generate horoscope via HoroscopeGeneratorService
     // which will check subscription and use AI if premium
     const horoscope = await this.horoscopeService.generateHoroscope(
       userId,
       dto.period || 'day',
+      undefined,
+      locale,
     );
 
     return horoscope;
@@ -142,6 +153,15 @@ export class AIController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      (req.headers?.['accept-language'] as string | undefined);
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
     // Validate provider if specified
     if (dto.provider && !this.aiService.isProviderAvailable(dto.provider)) {
       return {
@@ -157,6 +177,7 @@ export class AIController {
         userId,
         dto.period || 'day',
         true, // isPremium - assuming user has access since this endpoint requires subscription
+        locale,
       );
 
       return {
@@ -202,6 +223,15 @@ export class AIController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      (req.headers?.['accept-language'] as string | undefined);
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
     // Validate provider if specified
     if (dto.provider && !this.aiService.isProviderAvailable(dto.provider)) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -241,6 +271,7 @@ export class AIController {
         userId,
         dto.period || 'day',
         true,
+        locale,
       );
 
       // Send result as stream chunks

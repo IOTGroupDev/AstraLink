@@ -186,11 +186,21 @@ export class SubscriptionController {
         ? pmRaw
         : 'mock';
 
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      req.headers?.['accept-language'];
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
     return this.subscriptionService.upgrade(
       this.getUserId(req),
       tierStr as SubscriptionTier,
       paymentMethod,
       upgradeData?.transactionId,
+      locale,
     );
   }
 
