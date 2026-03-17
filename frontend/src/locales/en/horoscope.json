@@ -3,6 +3,7 @@
   "subtitle": "The cosmos for you{{name}}",
   "positionsOn": "Positions on {{date}}",
   "loading": "Loading data...",
+  "syncing": "Updating horoscope and interpretation...",
   "energy": {
     "veryHigh": "Today is a great day for activity!",
     "high": "Good energy for achieving goals",
@@ -32,6 +33,7 @@
   },
   "widget": {
     "loading": "Loading horoscope...",
+    "syncing": "Updating horoscope and interpretation...",
     "categories": {
       "general": "General",
       "love": "Love",

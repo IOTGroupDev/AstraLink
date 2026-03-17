@@ -518,14 +518,21 @@ export const authAPI = {
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: redirectUri, skipBrowserRedirect: false },
+        options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: true, // RN: prevent SDK from opening its own browser
+          queryParams: { prompt: 'select_account' },
+        },
       });
       if (error) throw error;
 
       if (data.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          redirectUri
+          redirectUri,
+          {
+            preferEphemeralSession: true,
+          }
         );
         if (result.type === 'success' && result.url) {
           const { accessToken, refreshToken } = extractFromRedirectUrl(

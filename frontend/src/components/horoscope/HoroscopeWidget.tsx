@@ -298,20 +298,6 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     return currentHoroscope[dataKey] || '';
   };
 
-  const truncateText = (text: string, lines: number = 3) => {
-    if (!text) return '';
-    const words = text.split(' ');
-    const maxChars = lines * 40;
-    let result = '';
-    for (const word of words) {
-      if ((result + word).length > maxChars) {
-        return result.trim() + '...';
-      }
-      result += word + ' ';
-    }
-    return result.trim();
-  };
-
   const handleCategoryPress = (category: Category) => {
     const content = getCategoryContent(category.dataKey);
     if (content) {
@@ -404,7 +390,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                 </View>
 
                 <Text style={styles.categoryContent} numberOfLines={4}>
-                  {truncateText(content, 3)}
+                  {content}
                 </Text>
               </Pressable>
             );
@@ -694,7 +680,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalScroll: {
-    maxHeight: 500,
     padding: 20,
   },
   modalText: {

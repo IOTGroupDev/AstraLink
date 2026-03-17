@@ -3,6 +3,7 @@
   "subtitle": "El cosmos para ti{{name}}",
   "positionsOn": "Posiciones en {{date}}",
   "loading": "Cargando datos...",
+  "syncing": "Actualizando el horóscopo y la interpretación...",
   "energy": {
     "veryHigh": "¡Hoy es un gran día para la actividad!",
     "high": "Buena energía para lograr objetivos",
