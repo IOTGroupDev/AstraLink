@@ -8,10 +8,11 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
@@ -42,8 +43,9 @@ const HoroscopeScreen: React.FC = () => {
     return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
   }, [i18n.language]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { subscription } = useSubscription();
+  const { subscription, refetch: refetchSubscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
+  const syncingRef = useRef(false);
 
   // State для данных
   const [chart, setChart] = useState<Chart | null>(null);
@@ -52,6 +54,7 @@ const HoroscopeScreen: React.FC = () => {
   const [predictions, setPredictions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [biorhythms, setBiorhythms] = useState<{
     physical: number;
     emotional: number;
@@ -413,14 +416,37 @@ const HoroscopeScreen: React.FC = () => {
     }
   }, [isAuthenticated, authLoading]);
 
+  const refreshForSubscriptionChange = React.useCallback(async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      await refetchSubscription();
+      await loadData();
+      await loadAllPredictions();
+    } catch (error) {
+      chartLogger.warn('Ошибка обновления после смены подписки', error);
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  }, [refetchSubscription]);
+
   useEffect(() => {
     const nextTier = subscription?.tier;
     if (prevTierRef.current && nextTier && prevTierRef.current !== nextTier) {
-      loadData();
-      loadAllPredictions();
+      refreshForSubscriptionChange();
     }
     prevTierRef.current = nextTier;
-  }, [subscription?.tier]);
+  }, [subscription?.tier, refreshForSubscriptionChange]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isAuthenticated || authLoading) return undefined;
+      refreshForSubscriptionChange();
+      return undefined;
+    }, [isAuthenticated, authLoading, refreshForSubscriptionChange])
+  );
 
   // Загрузка прогнозов после получения основных данных
   useEffect(() => {
@@ -536,6 +562,17 @@ const HoroscopeScreen: React.FC = () => {
 
             {/* Основной контент */}
             <View style={styles.contentContainer}>
+              {syncing && (
+                <View style={styles.syncBanner}>
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <Text style={styles.syncText}>
+                    {t(
+                      'horoscope.syncing',
+                      'Updating horoscope and interpretation...'
+                    )}
+                  </Text>
+                </View>
+              )}
               {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
               <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
 
@@ -675,6 +712,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
+  },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  syncText: {
+    color: '#F9FAFB',
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
   },
 });
 
