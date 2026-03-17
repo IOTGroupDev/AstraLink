@@ -430,12 +430,12 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Overall forecast (3-4 sentences with deep analysis)",
-  "love": "Love and relationships (3-4 sentences with concrete recommendations)",
-  "career": "Career and business (3-4 sentences with practical advice)",
-  "health": "Health and energy (2-3 sentences)",
-  "finance": "Finance and material matters (3-4 sentences with investment advice)",
-  "advice": "Main advice (2-3 sentences)",
+  "general": "Overall forecast (6-8 sentences with deep analysis)",
+  "love": "Love and relationships (5-7 sentences with concrete recommendations)",
+  "career": "Career and business (5-7 sentences with practical advice)",
+  "health": "Health and energy (4-6 sentences)",
+  "finance": "Finance and material matters (5-7 sentences with investment advice)",
+  "advice": "Main advice (4-6 sentences)",
   "challenges": ["detailed challenge 1", "detailed challenge 2", "detailed challenge 3"],
   "opportunities": ["specific opportunity 1", "specific opportunity 2", "specific opportunity 3"]
 }
@@ -447,7 +447,7 @@ Content requirements:
 - Provide realistic, actionable advice
 - Keep a positive but honest tone
 - Frame challenges as growth opportunities
-- Each section must be unique and substantive`
+- Each section must be unique, extended, and substantive`
       : locale === 'es'
         ? `Crea un horóscopo PREMIUM personalizado ${periodText} para una persona con la siguiente carta natal:
 
@@ -467,12 +467,12 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Pronóstico general (3-4 frases con análisis profundo)",
-  "love": "Amor y relaciones (3-4 frases con recomendaciones concretas)",
-  "career": "Carrera y negocios (3-4 frases con consejos prácticos)",
-  "health": "Salud y energía (2-3 frases)",
-  "finance": "Finanzas y lo material (3-4 frases con consejos de inversión)",
-  "advice": "Consejo principal (2-3 frases)",
+  "general": "Pronóstico general (6-8 frases con análisis profundo)",
+  "love": "Amor y relaciones (5-7 frases con recomendaciones concretas)",
+  "career": "Carrera y negocios (5-7 frases con consejos prácticos)",
+  "health": "Salud y energía (4-6 frases)",
+  "finance": "Finanzas y lo material (5-7 frases con consejos de inversión)",
+  "advice": "Consejo principal (4-6 frases)",
   "challenges": ["desafío detallado 1", "desafío detallado 2", "desafío detallado 3"],
   "opportunities": ["oportunidad concreta 1", "oportunidad concreta 2", "oportunidad concreta 3"]
 }
@@ -484,7 +484,7 @@ Requisitos de contenido:
 - Da consejos realistas y aplicables
 - Mantén un tono positivo pero honesto
 - Formula los desafíos como oportunidades de crecimiento
-- Cada sección debe ser única y sustancial`
+- Cada sección debe ser única, extensa y sustancial`
         : `Создайте персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
 
 НАТАЛЬНАЯ КАРТА:
@@ -502,12 +502,12 @@ ${transitDescription}
 
 Формат JSON:
 {
-  "general": "Общий прогноз (3-4 предложения с глубоким анализом)",
-  "love": "Любовь и отношения (3-4 предложения с конкретными рекомендациями)",
-  "career": "Карьера и бизнес (3-4 предложения с практичными советами)",
-  "health": "Здоровье и энергия (2-3 предложения)",
-  "finance": "Финансы и материальное (3-4 предложения с инвестиционными советами)",
-  "advice": "Главный совет (2-3 предложения)",
+  "general": "Общий прогноз (6-8 предложений с глубоким анализом)",
+  "love": "Любовь и отношения (5-7 предложений с конкретными рекомендациями)",
+  "career": "Карьера и бизнес (5-7 предложений с практичными советами)",
+  "health": "Здоровье и энергия (4-6 предложений)",
+  "finance": "Финансы и материальное (5-7 предложений с инвестиционными советами)",
+  "advice": "Главный совет (4-6 предложений)",
   "challenges": ["детальный вызов 1", "детальный вызов 2", "детальный вызов 3"],
   "opportunities": ["конкретная возможность 1", "конкретная возможность 2", "конкретная возможность 3"]
 }
@@ -519,7 +519,7 @@ ${transitDescription}
 - Давайте реалистичные, применимые советы
 - Сохраняйте позитивный но честный тон
 - Вызовы формулируйте как возможности для роста
-- Каждый раздел должен быть уникальным и содержательным`;
+- Каждый раздел должен быть уникальным, расширенным и содержательным`;
   }
 
   /**
