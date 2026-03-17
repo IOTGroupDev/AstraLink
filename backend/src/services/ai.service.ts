@@ -613,7 +613,7 @@ ${aspectsDesc}
     locale: AILocale = 'ru',
   ): HoroscopeResponse {
     try {
-      const cleaned = response.trim();
+      const cleaned = this.stripCodeFences(response).trim();
       const parsed = JSON.parse(cleaned);
 
       // Validate required fields
@@ -640,10 +640,8 @@ ${aspectsDesc}
 
       // Fallback to regex extraction if JSON parsing fails
       try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0]);
-        }
+        const extracted = this.extractJsonObject(response);
+        if (extracted) return JSON.parse(extracted);
       } catch (regexError) {
         this.logger.error('Regex extraction also failed:', regexError);
       }
@@ -745,6 +743,55 @@ ${aspectsDesc}
     if (adviceMatch) sections.advice = adviceMatch[0].trim();
 
     return sections;
+  }
+
+  private stripCodeFences(input: string): string {
+    const trimmed = input.trim();
+    if (!trimmed.startsWith('```')) return trimmed;
+    return trimmed
+      .replace(/^```[a-zA-Z]*\n?/, '')
+      .replace(/```$/, '')
+      .trim();
+  }
+
+  private extractJsonObject(input: string): string | null {
+    const text = this.stripCodeFences(input);
+    const start = text.indexOf('{');
+    if (start === -1) return null;
+
+    let depth = 0;
+    let inString = false;
+    let escaping = false;
+
+    for (let i = start; i < text.length; i += 1) {
+      const ch = text[i];
+      if (inString) {
+        if (escaping) {
+          escaping = false;
+        } else if (ch === '\\') {
+          escaping = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+
+      if (ch === '{') {
+        depth += 1;
+      } else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          return text.slice(start, i + 1);
+        }
+      }
+    }
+
+    return null;
   }
 
   /**
