@@ -33,6 +33,7 @@ export interface SignupRequest {
 export interface AuthResponse {
   user: UserData;
   access_token: string;
+  refresh_token?: string;
 }
 
 /**

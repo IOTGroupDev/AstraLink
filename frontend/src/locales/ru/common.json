@@ -69,7 +69,9 @@
     "saturn": "Сатурн",
     "uranus": "Уран",
     "neptune": "Нептун",
-    "pluto": "Плутон"
+    "pluto": "Плутон",
+    "lilith": "Лилит",
+    "south_node": "Южный узел"
   },
   "aspects": {
     "conjunction": "Соединение",

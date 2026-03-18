@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,6 +29,7 @@ import type { AuthenticatedRequest } from '@/types/auth';
 @UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class ChartController {
+  private readonly logger = new Logger(ChartController.name);
   constructor(
     private readonly chartService: ChartService,
     private readonly lunarService: LunarService,
@@ -427,6 +429,46 @@ export class ChartController {
 
     const date = dateStr ? new Date(dateStr) : new Date();
     return this.chartService.getTransitInterpretation(userId, date, locale);
+  }
+
+  @Get('transits/main-interpretation')
+  @ApiOperation({
+    summary: 'Получить AI-интерпретацию главного транзита (PREMIUM/MAX)',
+  })
+  @ApiQuery({
+    name: 'date',
+    description: 'Дата для анализа транзитов (YYYY-MM-DD)',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'AI-интерпретация главного транзита',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Требуется платная подписка',
+  })
+  async getMainTransitInterpretation(
+    @Request() req: AuthenticatedRequest,
+    @Query('date') dateStr?: string,
+    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      this.logger.warn('Main transit interpretation: missing userId');
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+
+    const date = dateStr ? new Date(dateStr) : new Date();
+    this.logger.log(
+      `Main transit interpretation request user=${userId} date=${date.toISOString()} locale=${locale}`,
+    );
+    return this.chartService.getMainTransitInterpretation(userId, date, locale);
   }
 
   @Post('admin/fix-nested-data')

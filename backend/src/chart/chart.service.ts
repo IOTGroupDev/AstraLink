@@ -3,7 +3,7 @@
  * Delegates to microservices: NatalChart, Transit, Prediction, Biorhythm
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { EphemerisService } from '../services/ephemeris.service';
@@ -18,6 +18,7 @@ import {
   PersonalCodeService,
 } from '@/chart/services/personal-code.service';
 import { SubscriptionTier } from '@/types';
+import { hasAIAccess } from '@/types/subscription';
 
 @Injectable()
 export class ChartService {
@@ -273,8 +274,10 @@ export class ChartService {
     const subscription = await this.getCachedSubscription(userId);
 
     // Determine subscription tier (default to FREE)
-    const tier = (subscription?.tier ||
-      SubscriptionTier.FREE) as SubscriptionTier;
+    const rawTier = (subscription?.tier || SubscriptionTier.FREE) as
+      | SubscriptionTier
+      | 'basic';
+    const tier = rawTier === 'basic' ? SubscriptionTier.PREMIUM : rawTier;
 
     this.logger.debug(
       `Transit interpretation for user ${userId}, tier: ${tier}, subscription: ${JSON.stringify(subscription)}`,
@@ -285,6 +288,43 @@ export class ChartService {
 
     // Get transit interpretation from service
     return this.transitService.getTransitInterpretation(
+      userId,
+      natalChart,
+      date,
+      tier,
+      locale,
+    );
+  }
+
+  /**
+   * Get AI interpretation for the strongest transit (PREMIUM/MAX only)
+   * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
+   */
+  async getMainTransitInterpretation(
+    userId: string,
+    date: Date,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    const subscription = await this.getCachedSubscription(userId);
+    const rawTier = (subscription?.tier || SubscriptionTier.FREE) as
+      | SubscriptionTier
+      | 'basic';
+    const tier = rawTier === 'basic' ? SubscriptionTier.PREMIUM : rawTier;
+
+    this.logger.log(
+      `Main transit interpretation user=${userId} tier=${String(rawTier)} normalized=${tier} locale=${locale}`,
+    );
+
+    if (!hasAIAccess(tier)) {
+      this.logger.warn(
+        `Main transit interpretation blocked: no AI access (tier=${tier})`,
+      );
+      throw new ForbiddenException('Требуется платная подписка');
+    }
+
+    const natalChart = await this.natalChartService.getNatalChart(userId);
+
+    return this.transitService.getMainTransitInterpretation(
       userId,
       natalChart,
       date,

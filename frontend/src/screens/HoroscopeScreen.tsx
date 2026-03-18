@@ -9,6 +9,8 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,7 +45,11 @@ const HoroscopeScreen: React.FC = () => {
     return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
   }, [i18n.language]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { subscription, refetch: refetchSubscription } = useSubscription();
+  const {
+    subscription,
+    refetch: refetchSubscription,
+    hasFeature,
+  } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const syncingRef = useRef(false);
 
@@ -60,6 +66,10 @@ const HoroscopeScreen: React.FC = () => {
     emotional: number;
     intellectual: number;
   } | null>(null);
+  const [transitModalVisible, setTransitModalVisible] = useState(false);
+  const [transitModalLoading, setTransitModalLoading] = useState(false);
+  const [transitModalText, setTransitModalText] = useState('');
+  const predictionsAttemptedRef = useRef(false);
 
   // Клиентский расчёт биоритмов (fallback), если сервер вернул плоские 50/50/50
   const computeClientBiorhythms = (
@@ -257,12 +267,19 @@ const HoroscopeScreen: React.FC = () => {
     try {
       chartLogger.log('Загружаю прогнозы');
       const locale = getApiLocale();
+      if (!isAuthenticated) return;
 
-      const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
+      const results = await Promise.allSettled([
         chartAPI.getHoroscope('day', locale),
         chartAPI.getHoroscope('tomorrow', locale),
         chartAPI.getHoroscope('week', locale),
       ]);
+      const dayResponse =
+        results[0].status === 'fulfilled' ? results[0].value : null;
+      const tomorrowResponse =
+        results[1].status === 'fulfilled' ? results[1].value : null;
+      const weekResponse =
+        results[2].status === 'fulfilled' ? results[2].value : null;
 
       chartLogger.log('Получены прогнозы', {
         day: dayResponse,
@@ -291,9 +308,11 @@ const HoroscopeScreen: React.FC = () => {
       };
 
       const newPredictions = {
-        day: extractPredictions(dayResponse),
-        tomorrow: extractPredictions(tomorrowResponse),
-        week: extractPredictions(weekResponse),
+        day: dayResponse ? extractPredictions(dayResponse) : null,
+        tomorrow: tomorrowResponse
+          ? extractPredictions(tomorrowResponse)
+          : null,
+        week: weekResponse ? extractPredictions(weekResponse) : null,
       };
 
       chartLogger.log('Устанавливаю прогнозы', newPredictions);
@@ -303,8 +322,13 @@ const HoroscopeScreen: React.FC = () => {
         keys: Object.keys(newPredictions.day || {}),
       });
       setPredictions(newPredictions);
+      predictionsAttemptedRef.current = true;
     } catch (error) {
       chartLogger.error('Ошибка загрузки прогнозов', error);
+      if (!predictionsAttemptedRef.current) {
+        predictionsAttemptedRef.current = true;
+        return;
+      }
       Alert.alert(
         t('common.errors.generic'),
         t('horoscope.errors.failedToLoad'),
@@ -375,14 +399,19 @@ const HoroscopeScreen: React.FC = () => {
           : strongest
       );
 
-      const planetA =
-        t(`common.planets.${strongestAspect.planetA}`) ||
-        strongestAspect.planetA;
-      const planetB =
-        t(`common.planets.${strongestAspect.planetB}`) ||
-        strongestAspect.planetB;
-      const aspectName =
-        t(`common.aspects.${strongestAspect.aspect}`) || strongestAspect.aspect;
+      const planetAKey = String(strongestAspect.planetA || '').toLowerCase();
+      const planetBKey = String(strongestAspect.planetB || '').toLowerCase();
+      const aspectKey = String(strongestAspect.aspect || '').toLowerCase();
+
+      const planetA = t(`common.planets.${planetAKey}`, {
+        defaultValue: strongestAspect.planetA,
+      });
+      const planetB = t(`common.planets.${planetBKey}`, {
+        defaultValue: strongestAspect.planetB,
+      });
+      const aspectName = t(`common.aspects.${aspectKey}`, {
+        defaultValue: strongestAspect.aspect,
+      });
 
       return {
         name: `${planetA} - ${aspectName} - ${planetB}`,
@@ -468,6 +497,40 @@ const HoroscopeScreen: React.FC = () => {
     (predictions?.day?.energy as number | undefined) ?? getCurrentEnergy();
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
+  const hasAIAccess =
+    hasFeature('detailedTransits') || subscription?.tier === 'premium';
+
+  const openMainTransitDetails = async () => {
+    if (!hasAIAccess) {
+      Alert.alert(
+        t('horoscope.mainTransitWidget.premiumOnlyTitle'),
+        t('horoscope.mainTransitWidget.premiumOnlyMessage')
+      );
+      return;
+    }
+
+    setTransitModalVisible(true);
+    setTransitModalLoading(true);
+    setTransitModalText('');
+    try {
+      const locale = getApiLocale();
+      const response = await chartAPI.getMainTransitInterpretation(locale);
+      setTransitModalText(
+        response?.interpretation ||
+          response?.aiInterpretation ||
+          t('horoscope.mainTransitWidget.detailsError')
+      );
+    } catch (_error) {
+      setTransitModalText(t('horoscope.mainTransitWidget.detailsError'));
+    } finally {
+      setTransitModalLoading(false);
+    }
+  };
+
+  const closeTransitModal = () => {
+    setTransitModalVisible(false);
+    setTransitModalText('');
+  };
 
   // Нормализация данных для PlanetaryRecommendationWidget
   const natalPlanetsObj = React.useMemo(() => {
@@ -592,7 +655,10 @@ const HoroscopeScreen: React.FC = () => {
 
               {/* Виджет главный транзит */}
               {!loading && mainTransit && (
-                <MainTransitWidget transitData={mainTransit} />
+                <MainTransitWidget
+                  transitData={mainTransit}
+                  onPress={openMainTransitDetails}
+                />
               )}
 
               {/* Гороскоп виджет */}
@@ -633,6 +699,53 @@ const HoroscopeScreen: React.FC = () => {
           />
         </View>
       </TabScreenLayout>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={transitModalVisible}
+        onRequestClose={closeTransitModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeTransitModal}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <LinearGradient
+              colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+              start={{ x: 0, y: 0.44 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.modalGradient}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {t('horoscope.mainTransitWidget.detailsTitle')}
+                </Text>
+                <Pressable onPress={closeTransitModal}>
+                  <Text style={styles.modalClose}>×</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={true}
+              >
+                {transitModalLoading ? (
+                  <View style={styles.modalLoading}>
+                    <ActivityIndicator size="small" color="#F59E0B" />
+                    <Text style={styles.modalLoadingText}>
+                      {t('horoscope.mainTransitWidget.detailsLoading')}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.modalText}>{transitModalText}</Text>
+                )}
+              </ScrollView>
+            </LinearGradient>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 };
@@ -729,6 +842,69 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '80%',
+    height: '80%',
+    minHeight: 260,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  modalGradient: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 164, 255, 0.3)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(237, 164, 255, 0.2)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalClose: {
+    fontSize: 28,
+    color: '#FFFFFF',
+    lineHeight: 28,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: 20,
+    paddingBottom: 28,
+    flexGrow: 1,
+  },
+  modalText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#FFFFFF',
+  },
+  modalLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modalLoadingText: {
+    color: '#F9FAFB',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

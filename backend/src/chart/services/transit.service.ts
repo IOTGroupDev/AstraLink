@@ -165,6 +165,121 @@ export class TransitService {
   }
 
   /**
+   * Get AI interpretation for the strongest transit (PREMIUM/MAX only)
+   */
+  async getMainTransitInterpretation(
+    userId: string,
+    natalChart: any,
+    date: Date,
+    subscriptionTier: SubscriptionTier,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    this.logger.log(
+      `Main transit AI: user=${userId} tier=${subscriptionTier} date=${date.toISOString()} locale=${locale}`,
+    );
+    const julianDay = this.ephemerisService.dateToJulianDay(date);
+    const transitPlanets =
+      await this.ephemerisService.calculatePlanets(julianDay);
+    const natalPlanets = natalChart?.data?.planets || natalChart?.planets || {};
+
+    const transitAspects = this.calculateTransitAspects(
+      transitPlanets,
+      natalPlanets,
+    );
+    const sortedAspects = transitAspects.sort(
+      (a, b) => b.strength - a.strength,
+    );
+    const mainAspect = sortedAspects[0] || null;
+
+    if (!mainAspect) {
+      this.logger.warn(
+        `Main transit AI: no aspects found user=${userId} date=${date.toISOString()}`,
+      );
+      return {
+        date: date.toISOString(),
+        aspect: null,
+        interpretation:
+          locale === 'en'
+            ? 'No significant transits found for this date.'
+            : locale === 'es'
+              ? 'No se encontraron tránsitos significativos para esta fecha.'
+              : 'Значимые транзиты на эту дату не найдены.',
+        subscriptionTier,
+        hasAIAccess: hasAIAccess(subscriptionTier),
+      };
+    }
+
+    let allowAI = hasAIAccess(subscriptionTier);
+    if (allowAI) {
+      try {
+        const dayKey = utcDayKey();
+        const quotaKey = `ai:time_machine:quota:${userId}:${dayKey}`;
+        const limit =
+          subscriptionTier === SubscriptionTier.PREMIUM
+            ? LIMITS.TIME_MACHINE.PREMIUM_DAILY
+            : LIMITS.TIME_MACHINE.MAX_DAILY;
+
+        const used = await this.redis.incr(quotaKey);
+        if (used != null) {
+          if (used === 1) {
+            await this.redis.expire(quotaKey, secondsUntilEndOfUTCDate());
+          }
+          if (used > limit) {
+            this.logger.warn(
+              `Time Machine daily limit reached user=${userId} used=${used}/${limit} tier=${subscriptionTier}`,
+            );
+            allowAI = false;
+          }
+        }
+      } catch (e) {
+        this.logger.warn(
+          `Time Machine limiter failed (fallback to best-effort): ${(e as Error)?.message || String(e)}`,
+        );
+      }
+    }
+
+    let interpretation = '';
+    if (allowAI) {
+      try {
+        interpretation = await this.generateAITransitInterpretation(
+          [mainAspect],
+          natalChart,
+          date,
+          locale,
+        );
+      } catch (error) {
+        this.logger.error('Failed to generate main transit AI:', error);
+      }
+    }
+
+    if (!interpretation) {
+      this.logger.warn(
+        `Main transit AI: fallback to rule-based user=${userId} allowAI=${allowAI}`,
+      );
+      interpretation = this.getRuleBasedInterpretation([mainAspect], locale);
+    }
+
+    return {
+      date: date.toISOString(),
+      aspect: mainAspect,
+      interpretation,
+      subscriptionTier,
+      hasAIAccess: hasAIAccess(subscriptionTier),
+      message: allowAI
+        ? locale === 'en'
+          ? 'AI main transit interpretation (PREMIUM/MAX)'
+          : locale === 'es'
+            ? 'Interpretación principal con IA (PREMIUM/MAX)'
+            : 'AI-интерпретация главного транзита (PREMIUM/MAX)'
+        : locale === 'en'
+          ? 'Basic main transit interpretation (limit reached)'
+          : locale === 'es'
+            ? 'Interpretación básica del tránsito principal (límite alcanzado)'
+            : 'Базовая интерпретация главного транзита (лимит достигнут)',
+    };
+  }
+
+  /**
    * Calculate aspects between transit and natal planets
    */
   private calculateTransitAspects(

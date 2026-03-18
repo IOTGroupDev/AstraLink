@@ -225,6 +225,22 @@ export const chartAPI = {
     return response.data;
   },
 
+  getMainTransitInterpretation: async (
+    locale: 'ru' | 'en' | 'es' = 'ru',
+    date?: string
+  ): Promise<{
+    date: string;
+    interpretation: string;
+    aspect?: any;
+  }> => {
+    const qs = new URLSearchParams();
+    if (date) qs.set('date', date);
+    if (locale) qs.set('locale', locale);
+    const url = `/chart/transits/main-interpretation?${qs.toString()}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
   /**
    * Generate personal numerical code
    */

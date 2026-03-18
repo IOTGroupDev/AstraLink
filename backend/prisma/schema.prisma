@@ -521,6 +521,7 @@ model public_users {
   birth_date     DateTime?
   birth_time     String?
   birth_place    String?
+  onboarding_completed Boolean      @default(false)
   role           String        @default("user")
   created_at     DateTime      @default(now())
   updated_at     DateTime      @default(now())

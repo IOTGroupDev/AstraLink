@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useTranslation } from 'react-i18next';
@@ -14,11 +14,13 @@ interface MainTransitWidgetProps {
     description: string;
   } | null;
   isLoading?: boolean;
+  onPress?: () => void;
 }
 
 const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
   transitData,
   isLoading,
+  onPress,
 }) => {
   const { t } = useTranslation();
 
@@ -62,7 +64,7 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
     : 99;
 
   return (
-    <View style={styles.container}>
+    <Pressable style={styles.container} onPress={onPress} disabled={!onPress}>
       <BlurView intensity={10} style={styles.blurContainer}>
         <LinearGradient
           colors={['rgba(35, 0, 46, 0.4)', 'rgba(89, 1, 114, 0.4)']}
@@ -105,12 +107,17 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
                     percent: strengthPercent,
                   })}
                 </Text>
+                {!!onPress && (
+                  <Text style={styles.transitHint}>
+                    {t('horoscope.mainTransitWidget.openDetails')}
+                  </Text>
+                )}
               </View>
             </View>
           </View>
         </LinearGradient>
       </BlurView>
-    </View>
+    </Pressable>
   );
 };
 
@@ -199,6 +206,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     letterSpacing: 0,
     lineHeight: 15.85,
+  },
+  transitHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(237, 164, 255, 0.9)',
+    marginTop: 6,
   },
 });
 

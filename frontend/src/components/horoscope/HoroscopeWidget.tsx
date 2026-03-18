@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -128,6 +128,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     null
   );
   const [selectedContent, setSelectedContent] = useState('');
+  const modalOpenedAtRef = useRef(0);
 
   useEffect(() => {
     if (initialPredictions) {
@@ -303,11 +304,13 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     if (content) {
       setSelectedCategory(category);
       setSelectedContent(content);
+      modalOpenedAtRef.current = Date.now();
       setModalVisible(true);
     }
   };
 
   const closeModal = () => {
+    if (Date.now() - modalOpenedAtRef.current < 250) return;
     setModalVisible(false);
     setTimeout(() => {
       setSelectedCategory(null);
@@ -389,7 +392,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                   </Text>
                 </View>
 
-                <Text style={styles.categoryContent} numberOfLines={4}>
+                <Text style={styles.categoryContent} numberOfLines={7}>
                   {content}
                 </Text>
               </Pressable>
@@ -648,7 +651,8 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 500,
-    maxHeight: '80%',
+    height: '80%',
+    minHeight: 260,
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -687,6 +691,7 @@ const styles = StyleSheet.create({
   modalScrollContent: {
     padding: 20,
     paddingBottom: 28,
+    flexGrow: 1,
   },
   modalText: {
     fontSize: 16,

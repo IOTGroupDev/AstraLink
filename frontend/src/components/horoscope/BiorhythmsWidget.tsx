@@ -1,5 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Modal,
+  ScrollView,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import Svg, {
@@ -107,6 +114,7 @@ interface BiorhythmItemProps {
   color: string;
   backgroundColor: string;
   glowColor: string;
+  onPress?: () => void;
 }
 
 const BiorhythmItem: React.FC<BiorhythmItemProps> = ({
@@ -116,9 +124,10 @@ const BiorhythmItem: React.FC<BiorhythmItemProps> = ({
   color,
   backgroundColor,
   glowColor,
+  onPress,
 }) => {
   return (
-    <View style={styles.itemContainer}>
+    <Pressable style={styles.itemContainer} onPress={onPress}>
       {/* Круговая диаграмма */}
       <View style={styles.circleContainer}>
         <CircularProgress
@@ -138,9 +147,11 @@ const BiorhythmItem: React.FC<BiorhythmItemProps> = ({
       {/* Текстовая информация */}
       <View style={styles.textContainer}>
         <Text style={styles.titleText}>{title}</Text>
-        <Text style={styles.descriptionText}>{description}</Text>
+        <Text style={styles.descriptionText} numberOfLines={3}>
+          {description}
+        </Text>
       </View>
-    </View>
+    </Pressable>
   );
 };
 
@@ -151,6 +162,21 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalText, setModalText] = useState('');
+
+  const openModal = (title: string, text: string) => {
+    setModalTitle(title);
+    setModalText(text);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalTitle('');
+    setModalText('');
+  };
 
   if (isLoading) {
     return (
@@ -206,32 +232,79 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
         <View style={styles.listContainer}>
           <BiorhythmItem
             title={t('horoscope.biorhythms.physical')}
-            description={t('horoscope.biorhythmsWidget.description')}
+            description={t('horoscope.biorhythmsWidget.physicalDescription')}
             value={physical}
             color="#E33931"
             backgroundColor="#FFC8C9"
             glowColor="#FF8B8D"
+            onPress={() =>
+              openModal(
+                t('horoscope.biorhythms.physical'),
+                t('horoscope.biorhythmsWidget.physicalDescription')
+              )
+            }
           />
 
           <BiorhythmItem
             title={t('horoscope.biorhythms.emotional')}
-            description={t('horoscope.biorhythmsWidget.description')}
+            description={t('horoscope.biorhythmsWidget.emotionalDescription')}
             value={emotional}
             color="#0E9B45"
             backgroundColor="#C9FFD5"
             glowColor="#72FF9A"
+            onPress={() =>
+              openModal(
+                t('horoscope.biorhythms.emotional'),
+                t('horoscope.biorhythmsWidget.emotionalDescription')
+              )
+            }
           />
 
           <BiorhythmItem
             title={t('horoscope.biorhythms.intellectual')}
-            description={t('horoscope.biorhythmsWidget.description')}
+            description={t(
+              'horoscope.biorhythmsWidget.intellectualDescription'
+            )}
             value={intellectual}
             color="#12A6DF"
             backgroundColor="#C8E0FF"
             glowColor="#6AC4FF"
+            onPress={() =>
+              openModal(
+                t('horoscope.biorhythms.intellectual'),
+                t('horoscope.biorhythmsWidget.intellectualDescription')
+              )
+            }
           />
         </View>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{modalTitle}</Text>
+              <Pressable onPress={closeModal}>
+                <Text style={styles.modalClose}>×</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              <Text style={styles.modalText}>{modalText}</Text>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -313,6 +386,53 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     letterSpacing: 0,
     lineHeight: 15.847,
+    flexShrink: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 500,
+    height: '70%',
+    minHeight: 240,
+    borderRadius: 16,
+    backgroundColor: '#140018',
+    paddingBottom: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalClose: {
+    fontSize: 26,
+    color: '#FFFFFF',
+    lineHeight: 26,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  modalText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#FFFFFF',
   },
 });
 

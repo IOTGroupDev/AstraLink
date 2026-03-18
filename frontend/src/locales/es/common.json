@@ -69,7 +69,9 @@
     "saturn": "Saturno",
     "uranus": "Urano",
     "neptune": "Neptuno",
-    "pluto": "Plutón"
+    "pluto": "Plutón",
+    "lilith": "Lilith",
+    "south_node": "Nodo sur"
   },
   "aspects": {
     "conjunction": "Conjunción",
