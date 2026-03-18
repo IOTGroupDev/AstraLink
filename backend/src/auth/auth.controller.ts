@@ -228,10 +228,21 @@ export class AuthController {
     try {
       const resolvedUserId = (req.user?.userId || req.user?.id) ?? dto.userId;
       const userId = resolvedUserId;
+      const rawAuth =
+        (req.headers as any)?.authorization ??
+        (req.headers as any)?.Authorization;
+      const accessToken =
+        typeof rawAuth === 'string'
+          ? rawAuth.replace(/^Bearer\s+/i, '').trim()
+          : undefined;
 
       this.logger.log(`Complete signup request for user: ${userId}`);
 
-      const result = await this.supabaseAuthService.completeSignup(userId, dto);
+      const result = await this.supabaseAuthService.completeSignup(
+        userId,
+        dto,
+        accessToken,
+      );
 
       return {
         success: true,

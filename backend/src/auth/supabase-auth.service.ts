@@ -381,6 +381,7 @@ export class SupabaseAuthService {
   async completeSignup(
     userId: string,
     dto: CompleteSignupDto,
+    accessToken?: string,
   ): Promise<AuthResponse> {
     try {
       if (!userId) {
@@ -418,6 +419,21 @@ export class SupabaseAuthService {
             '⚠️ Failed to lookup auth user for missing profile',
             authLookupErr,
           );
+        }
+
+        if (!authEmail && accessToken) {
+          try {
+            const { data: tokenUser, error: tokenErr } =
+              await this.supabaseService.getUser(accessToken);
+            if (!tokenErr) {
+              authEmail = tokenUser?.user?.email ?? null;
+            }
+          } catch (tokenLookupErr) {
+            this.logger.warn(
+              '⚠️ Failed to lookup auth user by access token',
+              tokenLookupErr,
+            );
+          }
         }
 
         if (authEmail) {
