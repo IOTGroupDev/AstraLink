@@ -39,6 +39,7 @@ export type SignupRequest = z.infer<typeof SignupRequestSchema>;
 export const AuthResponseSchema = z.object({
   user: UserSchema,
   access_token: z.string(),
+  refresh_token: z.string().optional(),
 });
 
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;

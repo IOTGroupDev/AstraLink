@@ -170,12 +170,23 @@ export const authAPI = {
         password: data.password,
       });
 
-      const { access_token, user } = response.data;
+      const { access_token, refresh_token, user } = response.data;
       if (!access_token) throw new Error('Токен не получен от Backend');
+
+      if (refresh_token) {
+        try {
+          await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+        } catch (setErr) {
+          authLogger.warn('⚠️ Failed to set Supabase session:', setErr);
+        }
+      }
 
       authLogger.log('✅ Успешный вход через Backend');
 
-      return { access_token, user };
+      return { access_token, refresh_token, user };
     } catch (error: any) {
       authLogger.log('❌ API login failed:', error);
       const errorMessage = error.response?.data?.message || error.message;
@@ -447,14 +458,20 @@ export const authAPI = {
       // Android and others: use web OAuth flow
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
-        options: { redirectTo: redirectUri, skipBrowserRedirect: false },
+        options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: true, // RN: prevent SDK from opening its own browser
+        },
       });
       if (error) throw error;
 
       if (data.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          redirectUri
+          redirectUri,
+          {
+            preferEphemeralSession: true,
+          }
         );
         if (result.type === 'success' && result.url) {
           const { accessToken, refreshToken } = extractFromRedirectUrl(

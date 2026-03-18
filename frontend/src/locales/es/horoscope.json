@@ -42,7 +42,8 @@
       "advice": "Consejo del día"
     },
     "luckyNumbers": "Números de la suerte",
-    "luckyColors": "Colores de la suerte"
+    "luckyColors": "Colores de la suerte",
+    "noDetails": "Aún no hay detalles disponibles."
   },
   "lunarCalendar": {
     "title": "Calendario lunar",
@@ -68,12 +69,20 @@
   },
   "biorhythmsWidget": {
     "loading": "Cargando biorritmos...",
-    "description": "¡Hoy es un gran día para nuevos comienzos! ¡Tu energía está en su punto máximo!"
+    "physicalDescription": "El ritmo físico refleja resistencia y vitalidad. Si está alto, planifica actividades; si está bajo, baja la intensidad.",
+    "emotionalDescription": "El ritmo emocional influye en el ánimo y la sensibilidad. Alto: mejor comunicación; bajo: más calma y autocuidado.",
+    "intellectualDescription": "El ritmo intelectual afecta concentración y aprendizaje. Alto: análisis y estudio; bajo: tareas rutinarias."
   },
   "mainTransitWidget": {
     "title": "Tránsito principal",
     "loading": "Cargando tránsito...",
-    "strength": "Fuerza: {{percent}}%"
+    "strength": "Fuerza: {{percent}}%",
+    "openDetails": "Toca para ver análisis IA",
+    "detailsTitle": "Tránsito principal — análisis IA",
+    "detailsLoading": "Generando descripción con IA...",
+    "detailsError": "No se pudo cargar la descripción IA. Inténtalo de nuevo.",
+    "premiumOnlyTitle": "Se requiere Premium",
+    "premiumOnlyMessage": "Actualiza tu suscripción para ver el análisis IA."
   },
   "planetRecommendationWidget": {
     "title": "Recomendación del día",

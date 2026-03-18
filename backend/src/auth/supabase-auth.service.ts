@@ -117,6 +117,7 @@ export class SupabaseAuthService {
           updatedAt: userProfile?.updated_at || data.user.updated_at,
         },
         access_token: data.session?.access_token || '',
+        refresh_token: data.session?.refresh_token || undefined,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {

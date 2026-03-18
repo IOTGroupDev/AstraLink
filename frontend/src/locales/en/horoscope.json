@@ -43,7 +43,8 @@
       "advice": "Tip of the day"
     },
     "luckyNumbers": "Lucky numbers",
-    "luckyColors": "Lucky colors"
+    "luckyColors": "Lucky colors",
+    "noDetails": "No details available yet."
   },
   "lunarCalendar": {
     "title": "Lunar calendar",
@@ -69,12 +70,20 @@
   },
   "biorhythmsWidget": {
     "loading": "Loading biorhythms...",
-    "description": "Today is a great day for new beginnings! Your energy is at its peak!"
+    "physicalDescription": "Physical rhythm reflects stamina and vitality. When it’s high, plan active tasks; when low, reduce intensity and recover.",
+    "emotionalDescription": "Emotional rhythm affects mood and sensitivity. High values favor communication; low values suggest gentleness and rest.",
+    "intellectualDescription": "Intellectual rhythm impacts focus and learning. High values are ideal for analysis, low values for routine tasks."
   },
   "mainTransitWidget": {
     "title": "Main transit",
     "loading": "Loading transit...",
-    "strength": "Strength: {{percent}}%"
+    "strength": "Strength: {{percent}}%",
+    "openDetails": "Tap for AI details",
+    "detailsTitle": "Main transit — AI analysis",
+    "detailsLoading": "Generating AI description...",
+    "detailsError": "Could not load AI description. Try again.",
+    "premiumOnlyTitle": "Premium required",
+    "premiumOnlyMessage": "Upgrade your subscription to view the AI analysis."
   },
   "planetRecommendationWidget": {
     "title": "Recommendation of the day",
