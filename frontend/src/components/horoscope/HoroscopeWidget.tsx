@@ -490,7 +490,8 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
               <ScrollView
                 style={styles.modalScroll}
-                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={true}
               >
                 <Text style={styles.modalText}>{selectedContent}</Text>
               </ScrollView>
@@ -652,6 +653,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   modalGradient: {
+    flex: 1,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(237, 164, 255, 0.3)',
@@ -680,7 +682,11 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
     padding: 20,
+    paddingBottom: 28,
   },
   modalText: {
     fontSize: 16,
