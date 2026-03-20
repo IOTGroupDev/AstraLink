@@ -89,7 +89,26 @@
     "loading": "Cargando recomendaciones...",
     "activeTransits": "Tránsitos activos: {{count}}",
     "analysis": "Análisis de tránsitos",
-    "recommendationPositive": "{{aspect}} con {{target}} — es buen momento para actuar",
-    "recommendationNegative": "{{aspect}} con {{target}} — evita la impulsividad"
+    "positiveTitle": "Lo favorable de hoy",
+    "negativeTitle": "Qué evitar",
+    "emptyItem": "—",
+    "summaryTitle": "Resumen del día",
+    "summaryCanDo": "Conviene hacer: {{text}}",
+    "summaryAvoid": "Mejor evitar: {{text}}",
+    "summaryCanDoFallback": "avanzar con calma y claridad.",
+    "summaryAvoidFallback": "decisiones impulsivas y sobrecargas.",
+    "recommendationPositiveVariants": [
+      "{{planet}} {{aspect}} {{target}} — buen momento para crecer y actuar.",
+      "{{planet}} {{aspect}} {{target}} — energía favorable para avanzar.",
+      "{{planet}} {{aspect}} {{target}} — apoyo para decisiones claras."
+    ],
+    "recommendationNegativeVariants": [
+      "{{planet}} {{aspect}} {{target}} — evita prisas y reacciones impulsivas.",
+      "{{planet}} {{aspect}} {{target}} — cuidado con conflictos y presión.",
+      "{{planet}} {{aspect}} {{target}} — mantén el equilibrio y no exageres."
+    ],
+    "recommendationPositive": "{{planet}} {{aspect}} {{target}} — es buen momento para actuar",
+    "recommendationNegative": "{{planet}} {{aspect}} {{target}} — evita la impulsividad",
+    "recommendationDetail": "Fuerza {{strength}}%, orbe {{orb}}°."
   }
 }

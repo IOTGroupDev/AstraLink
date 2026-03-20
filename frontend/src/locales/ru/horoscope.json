@@ -89,7 +89,26 @@
     "loading": "Загрузка рекомендаций...",
     "activeTransits": "Активных транзитов: {{count}}",
     "analysis": "Анализ транзитов",
-    "recommendationPositive": "{{aspect}} с {{target}} — благоприятно действовать",
-    "recommendationNegative": "{{aspect}} с {{target}} — избегайте импульсивности"
+    "positiveTitle": "Что благоприятно сегодня",
+    "negativeTitle": "Что лучше избегать",
+    "emptyItem": "—",
+    "summaryTitle": "Резюме дня",
+    "summaryCanDo": "Можно делать: {{text}}",
+    "summaryAvoid": "Не стоит: {{text}}",
+    "summaryCanDoFallback": "поддерживать инициативу, двигаться плавно и последовательно.",
+    "summaryAvoidFallback": "спешки, перегрузок и резких решений.",
+    "recommendationPositiveVariants": [
+      "{{planet}} {{aspect}} {{target}} — время для роста и инициативы.",
+      "{{planet}} {{aspect}} {{target}} — благоприятно для продвижения и смелых шагов.",
+      "{{planet}} {{aspect}} {{target}} — поддержка для действий и ясности."
+    ],
+    "recommendationNegativeVariants": [
+      "{{planet}} {{aspect}} {{target}} — избегайте спешки и импульсивных решений.",
+      "{{planet}} {{aspect}} {{target}} — будьте осторожны с конфликтами и давлением.",
+      "{{planet}} {{aspect}} {{target}} — сохраняйте баланс, не перегибайте."
+    ],
+    "recommendationPositive": "{{planet}} {{aspect}} {{target}} — благоприятно действовать",
+    "recommendationNegative": "{{planet}} {{aspect}} {{target}} — избегайте импульсивности",
+    "recommendationDetail": "Сила {{strength}}%, орб {{orb}}°."
   }
 }

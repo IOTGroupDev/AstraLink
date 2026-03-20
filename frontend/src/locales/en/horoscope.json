@@ -90,7 +90,26 @@
     "loading": "Loading recommendations...",
     "activeTransits": "Active transits: {{count}}",
     "analysis": "Transit analysis",
-    "recommendationPositive": "{{aspect}} with {{target}} — good time to act",
-    "recommendationNegative": "{{aspect}} with {{target}} — avoid impulsiveness"
+    "positiveTitle": "What’s good today",
+    "negativeTitle": "What to avoid",
+    "emptyItem": "—",
+    "summaryTitle": "Daily summary",
+    "summaryCanDo": "Good to do: {{text}}",
+    "summaryAvoid": "Better to avoid: {{text}}",
+    "summaryCanDoFallback": "keep steady progress and act with clarity.",
+    "summaryAvoidFallback": "rush decisions and unnecessary overload.",
+    "recommendationPositiveVariants": [
+      "{{planet}} {{aspect}} {{target}} — focus on growth and initiative.",
+      "{{planet}} {{aspect}} {{target}} — great for progress and bold steps.",
+      "{{planet}} {{aspect}} {{target}} — supportive energy for action and clarity."
+    ],
+    "recommendationNegativeVariants": [
+      "{{planet}} {{aspect}} {{target}} — avoid rushing and impulsive choices.",
+      "{{planet}} {{aspect}} {{target}} — be careful with conflicts and pressure.",
+      "{{planet}} {{aspect}} {{target}} — keep balance, don’t overreact."
+    ],
+    "recommendationPositive": "{{planet}} {{aspect}} {{target}} — good time to act",
+    "recommendationNegative": "{{planet}} {{aspect}} {{target}} — avoid impulsiveness",
+    "recommendationDetail": "Strength {{strength}}%, orb {{orb}}°."
   }
 }
