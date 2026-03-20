@@ -945,14 +945,26 @@ export function getGeneralTemplates(
 export function getLovePhrases(
   frame: PeriodFrame,
   locale: 'ru' | 'en' | 'es' = 'ru',
+  seed?: string,
 ): { positive: string; neutral: string; negative: string } {
   const d = dicts(locale);
   const entry = d.lovePhrases[frame] as
     | { positive: string[]; neutral: string[]; negative: string[] }
     | undefined;
 
-  const pick = (arr: string[] | undefined, fallback: string) =>
-    Array.isArray(arr) && arr.length ? arr[0] : fallback;
+  const hash = (value: string) => {
+    let h = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      h = (h * 31 + value.charCodeAt(i)) >>> 0;
+    }
+    return h;
+  };
+  const pick = (arr: string[] | undefined, fallback: string, key: string) => {
+    if (!Array.isArray(arr) || !arr.length) return fallback;
+    if (!seed) return arr[0];
+    const idx = hash(`${seed}:${key}`) % arr.length;
+    return arr[idx];
+  };
 
   if (entry) {
     return {
@@ -963,6 +975,7 @@ export function getLovePhrases(
           : locale === 'es'
             ? 'crea un ambiente romántico'
             : 'поддерживает теплоту в отношениях',
+        'positive',
       ),
       neutral: pick(
         entry.neutral,
@@ -971,6 +984,7 @@ export function getLovePhrases(
           : locale === 'es'
             ? 'influye en las emociones'
             : 'влияет на эмоции',
+        'neutral',
       ),
       negative: pick(
         entry.negative,
@@ -979,6 +993,7 @@ export function getLovePhrases(
           : locale === 'es'
             ? 'requiere paciencia'
             : 'требует терпения',
+        'negative',
       ),
     };
   }
@@ -1007,14 +1022,26 @@ export function getLovePhrases(
 export function getCareerActions(
   frame: PeriodFrame,
   locale: 'ru' | 'en' | 'es' = 'ru',
+  seed?: string,
 ): { jupiter: string; saturn: string; mars: string; neutral: string } {
   const d = dicts(locale);
   const entry = d.careerActions[frame] as
     | { jupiter: string[]; saturn: string[]; mars: string[]; neutral: string[] }
     | undefined;
 
-  const pick = (arr: string[] | undefined, fallback: string) =>
-    Array.isArray(arr) && arr.length ? arr[0] : fallback;
+  const hash = (value: string) => {
+    let h = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      h = (h * 31 + value.charCodeAt(i)) >>> 0;
+    }
+    return h;
+  };
+  const pick = (arr: string[] | undefined, fallback: string, key: string) => {
+    if (!Array.isArray(arr) || !arr.length) return fallback;
+    if (!seed) return arr[0];
+    const idx = hash(`${seed}:${key}`) % arr.length;
+    return arr[idx];
+  };
 
   if (entry) {
     return {
@@ -1025,6 +1052,7 @@ export function getCareerActions(
           : locale === 'es'
             ? 'es favorable para'
             : 'период благоприятен для',
+        'jupiter',
       ),
       saturn: pick(
         entry.saturn,
@@ -1033,6 +1061,7 @@ export function getCareerActions(
           : locale === 'es'
             ? 'requiere'
             : 'понадобится',
+        'saturn',
       ),
       mars: pick(
         entry.mars,
@@ -1041,6 +1070,7 @@ export function getCareerActions(
           : locale === 'es'
             ? 'aporta energía para'
             : 'есть энергия для',
+        'mars',
       ),
       neutral: pick(
         entry.neutral,
@@ -1049,6 +1079,7 @@ export function getCareerActions(
           : locale === 'es'
             ? 'continúa trabajando en'
             : 'продолжайте работу над',
+        'neutral',
       ),
     };
   }

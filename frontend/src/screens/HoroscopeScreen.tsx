@@ -24,6 +24,7 @@ import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import MainTransitWidget from '../components/horoscope/MainTransitWidget';
 import BiorhythmsWidget from '../components/horoscope/BiorhythmsWidget';
 import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
+import { HoroscopeWidgetSkeleton } from '../components/horoscope/HoroscopeSkeletons';
 import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecommendationWidget';
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -70,6 +71,10 @@ const HoroscopeScreen: React.FC = () => {
   const [transitModalLoading, setTransitModalLoading] = useState(false);
   const [transitModalText, setTransitModalText] = useState('');
   const predictionsAttemptedRef = useRef(false);
+  const predictionsLoadingRef = useRef(false);
+  const predictionsLocaleRef = useRef<string | null>(null);
+  const dataLoadingRef = useRef(false);
+  const hasLoadedOnceRef = useRef(false);
 
   // Клиентский расчёт биоритмов (fallback), если сервер вернул плоские 50/50/50
   const computeClientBiorhythms = (
@@ -122,7 +127,9 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Загрузка основных данных
-  const loadData = async () => {
+  const loadData = async (forcePredictions = false) => {
+    if (dataLoadingRef.current) return;
+    dataLoadingRef.current = true;
     try {
       setLoading(true);
 
@@ -137,6 +144,7 @@ const HoroscopeScreen: React.FC = () => {
       try {
         chartLogger.log('Загружаю данные для HoroscopeScreen');
 
+        const predictionsPromise = loadAllPredictions(forcePredictions);
         const [chartData, transitsData, planetsData] = await Promise.all([
           chartAPI.getNatalChart(),
           chartAPI.getTransits(
@@ -147,6 +155,9 @@ const HoroscopeScreen: React.FC = () => {
           ),
           chartAPI.getCurrentPlanets(),
         ]);
+        if (forcePredictions) {
+          await predictionsPromise;
+        }
 
         chartLogger.log('Получены данные карты', chartData);
         chartLogger.log('Получены транзиты', transitsData);
@@ -259,15 +270,27 @@ const HoroscopeScreen: React.FC = () => {
       chartLogger.error('Общая ошибка в loadData', error);
     } finally {
       setLoading(false);
+      dataLoadingRef.current = false;
+      hasLoadedOnceRef.current = true;
     }
   };
 
   // Загрузка прогнозов
-  const loadAllPredictions = async () => {
+  const loadAllPredictions = async (force = false) => {
     try {
       chartLogger.log('Загружаю прогнозы');
       const locale = getApiLocale();
       if (!isAuthenticated) return;
+      if (!force) {
+        if (
+          predictionsLoadingRef.current ||
+          (predictionsLocaleRef.current === locale && predictions)
+        ) {
+          return;
+        }
+      }
+      if (predictionsLoadingRef.current) return;
+      predictionsLoadingRef.current = true;
 
       const results = await Promise.allSettled([
         chartAPI.getHoroscope('day', locale),
@@ -323,6 +346,7 @@ const HoroscopeScreen: React.FC = () => {
       });
       setPredictions(newPredictions);
       predictionsAttemptedRef.current = true;
+      predictionsLocaleRef.current = locale;
     } catch (error) {
       chartLogger.error('Ошибка загрузки прогнозов', error);
       if (!predictionsAttemptedRef.current) {
@@ -334,14 +358,15 @@ const HoroscopeScreen: React.FC = () => {
         t('horoscope.errors.failedToLoad'),
         [{ text: t('common.buttons.ok') }]
       );
+    } finally {
+      predictionsLoadingRef.current = false;
     }
   };
 
   // Обработчик обновления (pull to refresh)
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
-    await loadAllPredictions();
+    await loadData(true);
     setRefreshing(false);
   };
 
@@ -386,6 +411,30 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Получение главного транзита
+  const normalizePlanetKey = (raw?: string): string => {
+    if (!raw) return '';
+    const cleaned = String(raw).trim().toLowerCase();
+    if (!cleaned) return '';
+    let key = cleaned.replace(/[\s\-]+/g, '_');
+    key = key.replace(/[^\w]/g, '');
+    if (key === 'southnode') return 'south_node';
+    return key;
+  };
+
+  const normalizeAspectKey = (raw?: string): string => {
+    if (!raw) return '';
+    const cleaned = String(raw).trim().toLowerCase();
+    if (!cleaned) return '';
+    let key = cleaned.replace(/[\s_]+/g, '-');
+    key = key.replace(/[^a-z0-9-]/g, '');
+    key = key.replace(/-+/g, '-');
+    if (key === 'sesqui-quadrate') return 'sesquiquadrate';
+    if (key === 'bi-quintile') return 'biquintile';
+    if (key === 'semi-sextile') return 'semi-sextile';
+    if (key === 'semi-square') return 'semi-square';
+    return key;
+  };
+
   const getMainTransit = () => {
     if (
       chart &&
@@ -399,18 +448,24 @@ const HoroscopeScreen: React.FC = () => {
           : strongest
       );
 
-      const planetAKey = String(strongestAspect.planetA || '').toLowerCase();
-      const planetBKey = String(strongestAspect.planetB || '').toLowerCase();
-      const aspectKey = String(strongestAspect.aspect || '').toLowerCase();
+      const rawPlanetA =
+        strongestAspect.planetA || strongestAspect.planet1 || '';
+      const rawPlanetB =
+        strongestAspect.planetB || strongestAspect.planet2 || '';
+      const rawAspect = strongestAspect.aspect || strongestAspect.type || '';
+
+      const planetAKey = normalizePlanetKey(rawPlanetA);
+      const planetBKey = normalizePlanetKey(rawPlanetB);
+      const aspectKey = normalizeAspectKey(rawAspect);
 
       const planetA = t(`common.planets.${planetAKey}`, {
-        defaultValue: strongestAspect.planetA,
+        defaultValue: rawPlanetA,
       });
       const planetB = t(`common.planets.${planetBKey}`, {
-        defaultValue: strongestAspect.planetB,
+        defaultValue: rawPlanetB,
       });
       const aspectName = t(`common.aspects.${aspectKey}`, {
-        defaultValue: strongestAspect.aspect,
+        defaultValue: rawAspect,
       });
 
       return {
@@ -451,8 +506,7 @@ const HoroscopeScreen: React.FC = () => {
     setSyncing(true);
     try {
       await refetchSubscription();
-      await loadData();
-      await loadAllPredictions();
+      await loadData(true);
     } catch (error) {
       chartLogger.warn('Ошибка обновления после смены подписки', error);
     } finally {
@@ -472,25 +526,19 @@ const HoroscopeScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       if (!isAuthenticated || authLoading) return undefined;
+      if (!hasLoadedOnceRef.current) return undefined;
       refreshForSubscriptionChange();
       return undefined;
     }, [isAuthenticated, authLoading, refreshForSubscriptionChange])
   );
 
-  // Загрузка прогнозов после получения основных данных
   useEffect(() => {
-    if (currentPlanets && chart) {
-      chartLogger.log('Вызываю loadAllPredictions');
-      loadAllPredictions();
-    }
-  }, [currentPlanets, chart]);
-
-  useEffect(() => {
-    if (currentPlanets && chart) {
-      chartLogger.log('Перезагружаю прогнозы из-за смены языка');
-      loadAllPredictions();
-    }
-  }, [i18n.language, currentPlanets, chart]);
+    if (!hasLoadedOnceRef.current) return;
+    chartLogger.log('Перезагружаю прогнозы из-за смены языка');
+    predictionsLocaleRef.current = null;
+    setPredictions(null);
+    loadAllPredictions(true);
+  }, [i18n.language]);
 
   // Формирование данных для виджетов
   const energyValue =
@@ -662,7 +710,11 @@ const HoroscopeScreen: React.FC = () => {
               )}
 
               {/* Гороскоп виджет */}
-              {predictions && <HoroscopeWidget predictions={predictions} />}
+              {predictions ? (
+                <HoroscopeWidget predictions={predictions} />
+              ) : (
+                <HoroscopeWidgetSkeleton />
+              )}
 
               {/* Виджет Биоритмы */}
               {biorhythms && (

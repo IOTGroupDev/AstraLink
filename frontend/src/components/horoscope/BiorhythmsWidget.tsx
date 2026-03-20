@@ -351,6 +351,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   percentContainer: {
     position: 'absolute',

@@ -652,7 +652,14 @@ export class HoroscopeGeneratorService {
     if (dominantTransit) {
       txt = this.appendTransitWindow(txt, dominantTransit, timeFrame, locale);
     }
-    return txt;
+    return this.appendFreeDetail(txt, 'general', locale, [
+      timeFrame,
+      sunSign,
+      dominantTransit?.transitPlanet || '-',
+      dominantTransit?.aspect || '-',
+      dominantTransit?.natalPlanet || '-',
+      dominantTransit?.house || 0,
+    ]);
   }
 
   /**
@@ -671,9 +678,19 @@ export class HoroscopeGeneratorService {
     );
 
     try {
+      const phraseSeed = [
+        timeFrame,
+        sunSign,
+        dominantTransit?.transitPlanet || '-',
+        dominantTransit?.aspect || '-',
+        dominantTransit?.natalPlanet || '-',
+        dominantTransit?.house || 0,
+        dominantTransit?.isRetrograde ? 1 : 0,
+      ].join('|');
       const phrases = getLovePhrases(
         timeFrame as import('../modules/shared/types').PeriodFrame,
         locale,
+        phraseSeed,
       ) as Record<string, string>;
 
       if (venusAspects.length > 0) {
@@ -690,7 +707,7 @@ export class HoroscopeGeneratorService {
               ? `${timeFrame} Venus ${phrases.negative}. Practica la paciencia en las relaciones.`
               : `${timeFrame} Венера ${phrases.negative}. Проявите терпение в отношениях.`;
 
-        // Добавим фокус по дому (если известен)
+        let text = base;
         if (dominantTransit?.house) {
           try {
             const focus = getPlanetHouseFocus(
@@ -698,21 +715,30 @@ export class HoroscopeGeneratorService {
               dominantTransit.house,
               locale,
             );
-            return `${base} ${focus}`;
+            text = `${base} ${focus}`;
           } catch {
-            return base;
+            // ignore
           }
         }
-        return base;
+
+        return this.appendFreeDetail(text, 'love', locale, [
+          timeFrame,
+          sunSign,
+          moonSign,
+          dominantTransit?.transitPlanet || 'venus',
+          dominantTransit?.aspect || '-',
+          dominantTransit?.house || 0,
+        ]);
       }
 
-      // Нет явных Венерианских транзитов — нейтральный тон + опциональный фокус дома
       const neutralText =
         locale === 'en'
           ? `${timeFrame} energy ${phrases.neutral}. Value existing relationships.`
           : locale === 'es'
             ? `${timeFrame} la energía ${phrases.neutral}. Valora las relaciones existentes.`
             : `${timeFrame} энергии ${phrases.neutral}. Цените существующие отношения.`;
+
+      let text = neutralText;
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
@@ -720,40 +746,66 @@ export class HoroscopeGeneratorService {
             dominantTransit.house,
             locale,
           );
-          return `${neutralText} ${focus}`;
+          text = `${neutralText} ${focus}`;
         } catch {
-          return neutralText;
+          // ignore
         }
       }
-      return neutralText;
+
+      return this.appendFreeDetail(text, 'love', locale, [
+        timeFrame,
+        sunSign,
+        moonSign,
+        dominantTransit?.transitPlanet || 'venus',
+        dominantTransit?.aspect || '-',
+        dominantTransit?.house || 0,
+      ]);
     } catch {
       if (venusAspects.length > 0) {
         const aspect = venusAspects[0];
         if (['trine', 'sextile', 'conjunction'].includes(aspect.aspect)) {
-          if (locale === 'en') {
-            return `${timeFrame} Venus creates a romantic atmosphere. Good time for romance and connection.`;
-          }
-          if (locale === 'es') {
-            return `${timeFrame} Venus crea un ambiente romántico. Buen momento para el romance y la conexión.`;
-          }
-          return `${timeFrame} Венера создает романтическую атмосферу. Хорошее время для романтики и общения с близкими.`;
-        } else {
-          if (locale === 'en') {
-            return `${timeFrame} Venus creates tension. Practice patience in relationships.`;
-          }
-          if (locale === 'es') {
-            return `${timeFrame} Venus crea tensión. Practica la paciencia en las relaciones.`;
-          }
-          return `${timeFrame} Венера создает напряжение. Проявите терпение в отношениях.`;
+          const base =
+            locale === 'en'
+              ? `${timeFrame} Venus creates a romantic atmosphere. Good time for romance and connection.`
+              : locale === 'es'
+                ? `${timeFrame} Venus crea un ambiente romántico. Buen momento para el romance y la conexión.`
+                : `${timeFrame} Венера создает романтическую атмосферу. Хорошее время для романтики и общения с близкими.`;
+          return this.appendFreeDetail(base, 'love', locale, [
+            timeFrame,
+            sunSign,
+            moonSign,
+            'venus',
+            aspect.aspect,
+          ]);
         }
+        const base =
+          locale === 'en'
+            ? `${timeFrame} Venus creates tension. Practice patience in relationships.`
+            : locale === 'es'
+              ? `${timeFrame} Venus crea tensión. Practica la paciencia en las relaciones.`
+              : `${timeFrame} Венера создает напряжение. Проявите терпение в отношениях.`;
+        return this.appendFreeDetail(base, 'love', locale, [
+          timeFrame,
+          sunSign,
+          moonSign,
+          'venus',
+          aspect.aspect,
+        ]);
       }
-      if (locale === 'en') {
-        return `${timeFrame} energy influences your emotions. Value existing relationships.`;
-      }
-      if (locale === 'es') {
-        return `${timeFrame} la energía influye en tus emociones. Valora las relaciones existentes.`;
-      }
-      return `${timeFrame} энергии влияет на ваши эмоции. Цените существующие отношения.`;
+
+      const base =
+        locale === 'en'
+          ? `${timeFrame} energy influences your emotions. Value existing relationships.`
+          : locale === 'es'
+            ? `${timeFrame} la energía influye en tus emociones. Valora las relaciones existentes.`
+            : `${timeFrame} энергии влияет на ваши эмоции. Цените существующие отношения.`;
+      return this.appendFreeDetail(base, 'love', locale, [
+        timeFrame,
+        sunSign,
+        moonSign,
+        'venus',
+        '-',
+      ]);
     }
   }
 
@@ -778,30 +830,70 @@ export class HoroscopeGeneratorService {
     );
 
     try {
+      const actionSeed = [
+        timeFrame,
+        sunSign,
+        dominantTransit?.transitPlanet || '-',
+        dominantTransit?.aspect || '-',
+        dominantTransit?.natalPlanet || '-',
+        dominantTransit?.house || 0,
+        dominantTransit?.isRetrograde ? 1 : 0,
+      ].join('|');
       const actions = getCareerActions(
         timeFrame as import('../modules/shared/types').PeriodFrame,
         locale,
+        actionSeed,
       ) as Record<string, string>;
 
       if (jupiterAspects.length > 0) {
         if (locale === 'en') {
-          return `${timeFrame} Jupiter ${actions.jupiter} career initiatives. Time for bold decisions.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Jupiter ${actions.jupiter} career initiatives. Time for bold decisions.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'jupiter'],
+          );
         }
         if (locale === 'es') {
-          return `${timeFrame} Júpiter ${actions.jupiter} iniciativas profesionales. Tiempo de decisiones audaces.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Júpiter ${actions.jupiter} iniciativas profesionales. Tiempo de decisiones audaces.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'jupiter'],
+          );
         }
-        return `${timeFrame} Юпитер ${actions.jupiter} карьерных инициатив. Время для смелых решений.`;
+        return this.appendFreeDetail(
+          `${timeFrame} Юпитер ${actions.jupiter} карьерных инициатив. Время для смелых решений.`,
+          'career',
+          locale,
+          [timeFrame, sunSign, 'jupiter'],
+        );
       }
 
       if (marsAspects.length > 0) {
         if (['trine', 'sextile'].includes(marsAspects[0].aspect)) {
           if (locale === 'en') {
-            return `${timeFrame} Mars ${actions.mars} active work moves. Use your energy constructively.`;
+            return this.appendFreeDetail(
+              `${timeFrame} Mars ${actions.mars} active work moves. Use your energy constructively.`,
+              'career',
+              locale,
+              [timeFrame, sunSign, 'mars'],
+            );
           }
           if (locale === 'es') {
-            return `${timeFrame} Marte ${actions.mars} acciones activas en el trabajo. Usa tu energía de forma constructiva.`;
+            return this.appendFreeDetail(
+              `${timeFrame} Marte ${actions.mars} acciones activas en el trabajo. Usa tu energía de forma constructiva.`,
+              'career',
+              locale,
+              [timeFrame, sunSign, 'mars'],
+            );
           }
-          return `${timeFrame} Марс ${actions.mars} активных действий в работе. Используйте свою энергию конструктивно.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Марс ${actions.mars} активных действий в работе. Используйте свою энергию конструктивно.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'mars'],
+          );
         }
       }
 
@@ -819,12 +911,25 @@ export class HoroscopeGeneratorService {
               dominantTransit.house,
               locale,
             );
-            return `${base} ${focus}`;
+            return this.appendFreeDetail(`${base} ${focus}`, 'career', locale, [
+              timeFrame,
+              sunSign,
+              'saturn',
+              dominantTransit?.house || 0,
+            ]);
           } catch {
-            return `${base}`;
+            return this.appendFreeDetail(`${base}`, 'career', locale, [
+              timeFrame,
+              sunSign,
+              'saturn',
+            ]);
           }
         }
-        return base;
+        return this.appendFreeDetail(base, 'career', locale, [
+          timeFrame,
+          sunSign,
+          'saturn',
+        ]);
       }
 
       const neutralText =
@@ -840,50 +945,123 @@ export class HoroscopeGeneratorService {
             dominantTransit.house,
             locale,
           );
-          return `${neutralText} ${focus}`;
+          return this.appendFreeDetail(
+            `${neutralText} ${focus}`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'neutral', dominantTransit?.house || 0],
+          );
         } catch {
-          return neutralText;
+          return this.appendFreeDetail(neutralText, 'career', locale, [
+            timeFrame,
+            sunSign,
+            'neutral',
+          ]);
         }
       }
-      return neutralText;
+      return this.appendFreeDetail(neutralText, 'career', locale, [
+        timeFrame,
+        sunSign,
+        'neutral',
+      ]);
     } catch {
       if (jupiterAspects.length > 0) {
         if (locale === 'en') {
-          return `${timeFrame} Jupiter is favorable for career initiatives. Time for bold decisions.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Jupiter is favorable for career initiatives. Time for bold decisions.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'jupiter'],
+          );
         }
         if (locale === 'es') {
-          return `${timeFrame} Júpiter favorece iniciativas profesionales. Tiempo de decisiones audaces.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Júpiter favorece iniciativas profesionales. Tiempo de decisiones audaces.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'jupiter'],
+          );
         }
-        return `${timeFrame} Юпитер благоприятен для карьерных инициатив. Время для смелых решений.`;
+        return this.appendFreeDetail(
+          `${timeFrame} Юпитер благоприятен для карьерных инициатив. Время для смелых решений.`,
+          'career',
+          locale,
+          [timeFrame, sunSign, 'jupiter'],
+        );
       }
       if (
         marsAspects.length > 0 &&
         ['trine', 'sextile'].includes(marsAspects[0].aspect)
       ) {
         if (locale === 'en') {
-          return `${timeFrame} Mars adds energy for active work actions. Use it constructively.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Mars adds energy for active work actions. Use it constructively.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'mars'],
+          );
         }
         if (locale === 'es') {
-          return `${timeFrame} Marte aporta energía para acciones activas en el trabajo. Úsala de forma constructiva.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Marte aporta energía para acciones activas en el trabajo. Úsala de forma constructiva.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'mars'],
+          );
         }
-        return `${timeFrame} Марс добавляет энергии для активных действий в работе. Используйте её конструктивно.`;
+        return this.appendFreeDetail(
+          `${timeFrame} Марс добавляет энергии для активных действий в работе. Используйте её конструктивно.`,
+          'career',
+          locale,
+          [timeFrame, sunSign, 'mars'],
+        );
       }
       if (saturnAspects.length > 0) {
         if (locale === 'en') {
-          return `${timeFrame} Saturn requires discipline and responsibility. Focus on long-term goals.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Saturn requires discipline and responsibility. Focus on long-term goals.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'saturn'],
+          );
         }
         if (locale === 'es') {
-          return `${timeFrame} Saturno requiere disciplina y responsabilidad. Enfócate en objetivos a largo plazo.`;
+          return this.appendFreeDetail(
+            `${timeFrame} Saturno requiere disciplina y responsabilidad. Enfócate en objetivos a largo plazo.`,
+            'career',
+            locale,
+            [timeFrame, sunSign, 'saturn'],
+          );
         }
-        return `${timeFrame} Сатурн требует дисциплины и ответственности. Сосредоточьтесь на долгосрочных целях.`;
+        return this.appendFreeDetail(
+          `${timeFrame} Сатурн требует дисциплины и ответственности. Сосредоточьтесь на долгосрочных целях.`,
+          'career',
+          locale,
+          [timeFrame, sunSign, 'saturn'],
+        );
       }
       if (locale === 'en') {
-        return `${timeFrame} continue working on current projects. Consistency matters.`;
+        return this.appendFreeDetail(
+          `${timeFrame} continue working on current projects. Consistency matters.`,
+          'career',
+          locale,
+          [timeFrame, sunSign, 'neutral'],
+        );
       }
       if (locale === 'es') {
-        return `${timeFrame} continúa trabajando en los proyectos actuales. La constancia importa.`;
+        return this.appendFreeDetail(
+          `${timeFrame} continúa trabajando en los proyectos actuales. La constancia importa.`,
+          'career',
+          locale,
+          [timeFrame, sunSign, 'neutral'],
+        );
       }
-      return `${timeFrame} продолжайте работу над текущими проектами. Последовательность важна.`;
+      return this.appendFreeDetail(
+        `${timeFrame} продолжайте работу над текущими проектами. Последовательность важна.`,
+        'career',
+        locale,
+        [timeFrame, sunSign, 'neutral'],
+      );
     }
   }
 
@@ -900,14 +1078,43 @@ export class HoroscopeGeneratorService {
     const marsAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'mars',
     );
+    const pickFrom = (pool: string[]) => {
+      if (!pool.length) return '';
+      const idx =
+        Math.abs(
+          hashSignature([
+            timeFrame,
+            sunSign,
+            dominantTransit?.transitPlanet || '-',
+            dominantTransit?.aspect || '-',
+            dominantTransit?.natalPlanet || '-',
+            dominantTransit?.house || 0,
+            dominantTransit?.isRetrograde ? 1 : 0,
+            'health',
+          ]),
+        ) % pool.length;
+      return pool[idx];
+    };
 
     if (marsAspects.length > 0 && marsAspects[0].aspect === 'square') {
       const base =
         locale === 'en'
-          ? `${timeFrame} be mindful of your health. Avoid overexertion and rest.`
+          ? pickFrom([
+              `${timeFrame} be mindful of your health. Avoid overexertion and rest.`,
+              `${timeFrame} keep a gentle pace. Recovery and sleep are important.`,
+              `${timeFrame} protect your energy. Slow down and avoid overload.`,
+            ])
           : locale === 'es'
-            ? `${timeFrame} cuida tu salud. Evita el sobreesfuerzo y descansa.`
-            : `${timeFrame} будьте внимательны к здоровью. Избегайте перегрузок и отдыхайте.`;
+            ? pickFrom([
+                `${timeFrame} cuida tu salud. Evita el sobreesfuerzo y descansa.`,
+                `${timeFrame} baja el ritmo. El descanso será clave.`,
+                `${timeFrame} protege tu energía y evita cargas excesivas.`,
+              ])
+            : pickFrom([
+                `${timeFrame} будьте внимательны к здоровью. Избегайте перегрузок и отдыхайте.`,
+                `${timeFrame} снизьте темп — восстановление и сон важны.`,
+                `${timeFrame} берегите энергию и не берите лишнего.`,
+              ]);
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
@@ -915,20 +1122,45 @@ export class HoroscopeGeneratorService {
             dominantTransit.house,
             locale,
           );
-          return `${base} ${focus}`;
+          return this.appendFreeDetail(`${base} ${focus}`, 'health', locale, [
+            timeFrame,
+            sunSign,
+            'mars',
+            dominantTransit?.house || 0,
+          ]);
         } catch {
-          return base;
+          return this.appendFreeDetail(base, 'health', locale, [
+            timeFrame,
+            sunSign,
+            'mars',
+          ]);
         }
       }
-      return base;
+      return this.appendFreeDetail(base, 'health', locale, [
+        timeFrame,
+        sunSign,
+        'mars',
+      ]);
     }
 
     const ok =
       locale === 'en'
-        ? `${timeFrame} your energy is in a good place. Maintain an active lifestyle.`
+        ? pickFrom([
+            `${timeFrame} your energy is in a good place. Maintain an active lifestyle.`,
+            `${timeFrame} stamina is stable. Light activity will boost balance.`,
+            `${timeFrame} your body responds well to consistent routines.`,
+          ])
         : locale === 'es'
-          ? `${timeFrame} tu energía está en buen nivel. Mantén un estilo de vida activo.`
-          : `${timeFrame} ваша энергия на хорошем уровне. Поддерживайте активный образ жизни.`;
+          ? pickFrom([
+              `${timeFrame} tu energía está en buen nivel. Mantén un estilo de vida activo.`,
+              `${timeFrame} tu vitalidad es estable. La actividad ligera ayuda.`,
+              `${timeFrame} el cuerpo responde bien a la constancia.`,
+            ])
+          : pickFrom([
+              `${timeFrame} ваша энергия на хорошем уровне. Поддерживайте активный образ жизни.`,
+              `${timeFrame} тонус стабильный — легкая активность будет полезна.`,
+              `${timeFrame} организм хорошо отвечает на рутинные практики.`,
+            ]);
     if (dominantTransit?.house) {
       try {
         const focus = getPlanetHouseFocus(
@@ -936,12 +1168,25 @@ export class HoroscopeGeneratorService {
           dominantTransit.house,
           locale,
         );
-        return `${ok} ${focus}`;
+        return this.appendFreeDetail(`${ok} ${focus}`, 'health', locale, [
+          timeFrame,
+          sunSign,
+          'mars',
+          dominantTransit?.house || 0,
+        ]);
       } catch {
-        return ok;
+        return this.appendFreeDetail(ok, 'health', locale, [
+          timeFrame,
+          sunSign,
+          'mars',
+        ]);
       }
     }
-    return ok;
+    return this.appendFreeDetail(ok, 'health', locale, [
+      timeFrame,
+      sunSign,
+      'mars',
+    ]);
   }
 
   /**
@@ -957,6 +1202,23 @@ export class HoroscopeGeneratorService {
     const jupiterAspects = transitAspects.filter(
       (a) => a.transitPlanet === 'jupiter',
     );
+    const pickFrom = (pool: string[]) => {
+      if (!pool.length) return '';
+      const idx =
+        Math.abs(
+          hashSignature([
+            timeFrame,
+            sunSign,
+            dominantTransit?.transitPlanet || '-',
+            dominantTransit?.aspect || '-',
+            dominantTransit?.natalPlanet || '-',
+            dominantTransit?.house || 0,
+            dominantTransit?.isRetrograde ? 1 : 0,
+            'finance',
+          ]),
+        ) % pool.length;
+      return pool[idx];
+    };
 
     if (
       jupiterAspects.length > 0 &&
@@ -964,10 +1226,22 @@ export class HoroscopeGeneratorService {
     ) {
       const base =
         locale === 'en'
-          ? `${timeFrame} Jupiter favors finances. Consider new opportunities.`
+          ? pickFrom([
+              `${timeFrame} Jupiter favors finances. Consider new opportunities.`,
+              `${timeFrame} financial doors open—evaluate options carefully.`,
+              `${timeFrame} a positive money flow is possible. Act wisely.`,
+            ])
           : locale === 'es'
-            ? `${timeFrame} Júpiter favorece las finanzas. Considera nuevas oportunidades.`
-            : `${timeFrame} Юпитер благоприятствует финансам. Рассмотрите новые возможности.`;
+            ? pickFrom([
+                `${timeFrame} Júpiter favorece las finanzas. Considera nuevas oportunidades.`,
+                `${timeFrame} se abren opciones financieras; evalúa con calma.`,
+                `${timeFrame} puede haber buen flujo de dinero. Actúa con prudencia.`,
+              ])
+            : pickFrom([
+                `${timeFrame} Юпитер благоприятствует финансам. Рассмотрите новые возможности.`,
+                `${timeFrame} открываются финансовые варианты — оценивайте аккуратно.`,
+                `${timeFrame} возможен хороший денежный поток. Действуйте осмотрительно.`,
+              ]);
       if (dominantTransit?.house) {
         try {
           const focus = getPlanetHouseFocus(
@@ -975,20 +1249,45 @@ export class HoroscopeGeneratorService {
             dominantTransit.house,
             locale,
           );
-          return `${base} ${focus}`;
+          return this.appendFreeDetail(`${base} ${focus}`, 'finance', locale, [
+            timeFrame,
+            sunSign,
+            'jupiter',
+            dominantTransit?.house || 0,
+          ]);
         } catch {
-          return base;
+          return this.appendFreeDetail(base, 'finance', locale, [
+            timeFrame,
+            sunSign,
+            'jupiter',
+          ]);
         }
       }
-      return base;
+      return this.appendFreeDetail(base, 'finance', locale, [
+        timeFrame,
+        sunSign,
+        'jupiter',
+      ]);
     }
 
     const neutralText =
       locale === 'en'
-        ? `${timeFrame} financial situation is stable. Stick to a budget.`
+        ? pickFrom([
+            `${timeFrame} financial situation is stable. Stick to a budget.`,
+            `${timeFrame} keep expenses in check and plan ahead.`,
+            `${timeFrame} steady finances—prioritize essentials.`,
+          ])
         : locale === 'es'
-          ? `${timeFrame} la situación financiera es estable. Mantén el presupuesto.`
-          : `${timeFrame} финансовая ситуация стабильна. Придерживайтесь бюджета.`;
+          ? pickFrom([
+              `${timeFrame} la situación financiera es estable. Mantén el presupuesto.`,
+              `${timeFrame} controla gastos y planifica con antelación.`,
+              `${timeFrame} finanzas estables—prioriza lo esencial.`,
+            ])
+          : pickFrom([
+              `${timeFrame} финансовая ситуация стабильна. Придерживайтесь бюджета.`,
+              `${timeFrame} держите расходы под контролем и планируйте заранее.`,
+              `${timeFrame} финансы ровные — приоритет базовым вещам.`,
+            ]);
     if (dominantTransit?.house) {
       try {
         const focus = getPlanetHouseFocus(
@@ -996,12 +1295,25 @@ export class HoroscopeGeneratorService {
           dominantTransit.house,
           locale,
         );
-        return `${neutralText} ${focus}`;
+        return this.appendFreeDetail(
+          `${neutralText} ${focus}`,
+          'finance',
+          locale,
+          [timeFrame, sunSign, 'neutral', dominantTransit?.house || 0],
+        );
       } catch {
-        return neutralText;
+        return this.appendFreeDetail(neutralText, 'finance', locale, [
+          timeFrame,
+          sunSign,
+          'neutral',
+        ]);
       }
     }
-    return neutralText;
+    return this.appendFreeDetail(neutralText, 'finance', locale, [
+      timeFrame,
+      sunSign,
+      'neutral',
+    ]);
   }
 
   /**
@@ -1074,6 +1386,131 @@ export class HoroscopeGeneratorService {
     if (score > 0.5) return 'positive';
     if (score < -0.5) return 'challenging';
     return 'neutral';
+  }
+
+  private appendFreeDetail(
+    base: string,
+    category: 'general' | 'love' | 'career' | 'health' | 'finance',
+    locale: 'ru' | 'en' | 'es',
+    seed: Array<string | number>,
+  ): string {
+    const pools: Record<typeof locale, Record<typeof category, string[]>> = {
+      ru: {
+        general: [
+          'Сохраняйте ясный фокус и выбирайте приоритеты.',
+          'Небольшие шаги дадут устойчивый результат.',
+          'Действуйте последовательно и опирайтесь на интуицию.',
+          'Избегайте суеты — качество важнее скорости.',
+        ],
+        love: [
+          'Теплый диалог укрепит связь и снизит напряжение.',
+          'Мягкость в словах поможет избежать лишних конфликтов.',
+          'Сейчас важны внимательность и бережность к чувствам.',
+          'Не спешите с выводами — ясность придет постепенно.',
+        ],
+        career: [
+          'Ставьте реалистичные цели и фиксируйте прогресс.',
+          'Опирайтесь на структуру — это ускорит движение.',
+          'Сосредоточьтесь на одном ключевом шаге.',
+          'Планомерная работа даст наилучший эффект.',
+        ],
+        health: [
+          'Сон, вода и режим — ваша опора сегодня.',
+          'Легкая активность поможет держать баланс.',
+          'Слушайте тело и не перегружайте себя.',
+          'Восстановление сейчас важнее интенсивности.',
+        ],
+        finance: [
+          'Проверьте расходы и держите бюджет под контролем.',
+          'Лучше избегать импульсивных покупок.',
+          'Небольшая экономия даст ощущение стабильности.',
+          'Планируйте траты заранее — это снизит тревожность.',
+        ],
+      },
+      en: {
+        general: [
+          'Keep your focus and choose clear priorities.',
+          'Small steps will bring steady results.',
+          'Act consistently and trust your intuition.',
+          'Avoid rushing—quality beats speed.',
+        ],
+        love: [
+          'Warm dialogue will strengthen the connection.',
+          'Gentle words help prevent unnecessary friction.',
+          'Attention and care matter most right now.',
+          'Don’t rush conclusions—clarity comes with time.',
+        ],
+        career: [
+          'Set realistic goals and track progress.',
+          'Structure will accelerate movement.',
+          'Focus on one key move at a time.',
+          'Steady work delivers the best outcome.',
+        ],
+        health: [
+          'Sleep, hydration, and routine are your anchor.',
+          'Light activity helps keep balance.',
+          'Listen to your body and avoid overload.',
+          'Recovery matters more than intensity.',
+        ],
+        finance: [
+          'Review spending and keep a clear budget.',
+          'Avoid impulsive purchases for now.',
+          'Small savings build a sense of stability.',
+          'Plan expenses ahead to reduce stress.',
+        ],
+      },
+      es: {
+        general: [
+          'Mantén el foco y elige prioridades claras.',
+          'Pasos pequeños dan resultados estables.',
+          'Actúa con constancia y confía en la intuición.',
+          'Evita la prisa—la calidad vale más.',
+        ],
+        love: [
+          'El diálogo cálido fortalecerá el vínculo.',
+          'Palabras suaves evitan fricciones innecesarias.',
+          'La atención y el cuidado son clave ahora.',
+          'No apresures conclusiones—la claridad llega con tiempo.',
+        ],
+        career: [
+          'Define metas realistas y mide avances.',
+          'La estructura acelera el progreso.',
+          'Enfócate en un paso clave a la vez.',
+          'El trabajo constante trae mejores resultados.',
+        ],
+        health: [
+          'Sueño, agua y rutina son tu apoyo.',
+          'Actividad ligera ayuda a mantener equilibrio.',
+          'Escucha tu cuerpo y evita sobrecargas.',
+          'La recuperación importa más que la intensidad.',
+        ],
+        finance: [
+          'Revisa gastos y mantén un presupuesto claro.',
+          'Evita compras impulsivas por ahora.',
+          'Pequeños ahorros dan estabilidad.',
+          'Planifica gastos para reducir estrés.',
+        ],
+      },
+    };
+
+    const pool = pools[locale]?.[category] || [];
+    if (!pool.length) return base;
+    const idx1 = Math.abs(hashSignature([...seed, category])) % pool.length;
+    const idx2 =
+      pool.length > 1
+        ? Math.abs(hashSignature([...seed, category, 'b'])) % pool.length
+        : idx1;
+    const idx3 =
+      pool.length > 2
+        ? Math.abs(hashSignature([...seed, category, 'c'])) % pool.length
+        : idx1;
+    const first = pool[idx1];
+    const second = pool[idx2] && idx2 !== idx1 ? pool[idx2] : '';
+    const third =
+      pool[idx3] && idx3 !== idx1 && idx3 !== idx2 ? pool[idx3] : '';
+    const extra = [first, second, third].filter(Boolean).join(' ');
+    if (!extra) return base;
+    return `${base} ${extra}`;
   }
 
   /**
