@@ -430,18 +430,19 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Overall forecast (6-8 sentences with deep analysis)",
-  "love": "Love and relationships (5-7 sentences with concrete recommendations)",
-  "career": "Career and business (5-7 sentences with practical advice)",
-  "health": "Health and energy (4-6 sentences)",
-  "finance": "Finance and material matters (5-7 sentences with investment advice)",
-  "advice": "Main advice (4-6 sentences)",
+  "general": "Overall forecast (4-5 sentences with deep analysis)",
+  "love": "Love and relationships (3-4 sentences with concrete recommendations)",
+  "career": "Career and business (3-4 sentences with practical advice)",
+  "health": "Health and energy (3-4 sentences)",
+  "finance": "Finance and material matters (3-4 sentences with investment advice)",
+  "advice": "Main advice (3-4 sentences)",
   "challenges": ["detailed challenge 1", "detailed challenge 2", "detailed challenge 3"],
   "opportunities": ["specific opportunity 1", "specific opportunity 2", "specific opportunity 3"]
 }
 
 Content requirements:
 - This is PREMIUM analysis — be as detailed and personalized as possible
+- Keep it concise while substantive (target ~500-800 words total)
 - Consider interactions between transits and natal planets
 - Be concrete and practical
 - Provide realistic, actionable advice
@@ -467,18 +468,19 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Pronóstico general (6-8 frases con análisis profundo)",
-  "love": "Amor y relaciones (5-7 frases con recomendaciones concretas)",
-  "career": "Carrera y negocios (5-7 frases con consejos prácticos)",
-  "health": "Salud y energía (4-6 frases)",
-  "finance": "Finanzas y lo material (5-7 frases con consejos de inversión)",
-  "advice": "Consejo principal (4-6 frases)",
+  "general": "Pronóstico general (4-5 frases con análisis profundo)",
+  "love": "Amor y relaciones (3-4 frases con recomendaciones concretas)",
+  "career": "Carrera y negocios (3-4 frases con consejos prácticos)",
+  "health": "Salud y energía (3-4 frases)",
+  "finance": "Finanzas y lo material (3-4 frases con consejos de inversión)",
+  "advice": "Consejo principal (3-4 frases)",
   "challenges": ["desafío detallado 1", "desafío detallado 2", "desafío detallado 3"],
   "opportunities": ["oportunidad concreta 1", "oportunidad concreta 2", "oportunidad concreta 3"]
 }
 
 Requisitos de contenido:
 - Esto es análisis PREMIUM: sé lo más detallado y personalizado posible
+- Sé conciso pero sustancial (objetivo ~500-800 palabras)
 - Considera la interacción de los tránsitos con las posiciones natales
 - Sé concreto y práctico
 - Da consejos realistas y aplicables
@@ -502,18 +504,19 @@ ${transitDescription}
 
 Формат JSON:
 {
-  "general": "Общий прогноз (6-8 предложений с глубоким анализом)",
-  "love": "Любовь и отношения (5-7 предложений с конкретными рекомендациями)",
-  "career": "Карьера и бизнес (5-7 предложений с практичными советами)",
-  "health": "Здоровье и энергия (4-6 предложений)",
-  "finance": "Финансы и материальное (5-7 предложений с инвестиционными советами)",
-  "advice": "Главный совет (4-6 предложений)",
+  "general": "Общий прогноз (4-5 предложений с глубоким анализом)",
+  "love": "Любовь и отношения (3-4 предложения с конкретными рекомендациями)",
+  "career": "Карьера и бизнес (3-4 предложения с практичными советами)",
+  "health": "Здоровье и энергия (3-4 предложения)",
+  "finance": "Финансы и материальное (3-4 предложения с инвестиционными советами)",
+  "advice": "Главный совет (3-4 предложения)",
   "challenges": ["детальный вызов 1", "детальный вызов 2", "детальный вызов 3"],
   "opportunities": ["конкретная возможность 1", "конкретная возможность 2", "конкретная возможность 3"]
 }
 
 Требования к контенту:
 - Это PREMIUM анализ - будьте максимально детальны и персонализированы
+- Будьте лаконичны, но содержательны (ориентир ~500-800 слов)
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны и практичны
 - Давайте реалистичные, применимые советы

@@ -10,6 +10,8 @@ export interface UserPreferences {
   };
   location?: string;
   gender?: string;
+  looking_for?: string;
+  looking_for_gender?: string;
   [key: string]: unknown;
 }
 
