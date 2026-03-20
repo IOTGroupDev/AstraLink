@@ -81,12 +81,20 @@ export class DeepSeekProvider extends BaseAIProvider {
             },
           ],
           temperature: 0.7,
-          max_tokens: 3000,
+          max_tokens: 1200,
           response_format: { type: 'json_object' }, // JSON mode
         } as any); // response_format supported but types outdated
 
         const duration = Date.now() - startTime;
-        const content = completion.choices[0]?.message?.content || '';
+        const choices = completion?.choices;
+        if (!Array.isArray(choices) || choices.length === 0) {
+          this.logger.warn('DeepSeek returned empty choices', {
+            hasCompletion: !!completion,
+            keys: completion ? Object.keys(completion) : [],
+          });
+          throw new Error('DeepSeek returned no choices');
+        }
+        const content = choices[0]?.message?.content || '';
 
         // Track usage and costs
         this.logUsage(completion, duration, attempt + 1);
@@ -144,7 +152,7 @@ export class DeepSeekProvider extends BaseAIProvider {
           },
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 1200,
         stream: true,
       } as any); // stream mode supported but types outdated
 

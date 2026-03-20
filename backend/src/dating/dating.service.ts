@@ -6,7 +6,7 @@ import { EphemerisService } from '../services/ephemeris.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../redis/redis.service';
 import type { DatingMatchResponse } from '../types';
-import { parseInterests } from '../utils/preferences.utils';
+import { parseInterests, parsePreferences } from '../utils/preferences.utils';
 import type {
   CandidateBadge,
   CandidateRow,
@@ -87,6 +87,38 @@ export class DatingService {
     if ((a === 'air' && b === 'earth') || (a === 'earth' && b === 'air'))
       return -4;
     return 0;
+  }
+
+  private normalizeGender(raw?: string | null): string | null {
+    if (!raw) return null;
+    const v = String(raw).trim().toLowerCase();
+    if (!v) return null;
+    if (['male', 'm', 'man', 'masculine'].includes(v)) return 'male';
+    if (['female', 'f', 'woman', 'feminine'].includes(v)) return 'female';
+    if (['other', 'nonbinary', 'non-binary', 'nb'].includes(v)) return 'other';
+    return v;
+  }
+
+  private isGenderAllowed(
+    seekerGender: string | null,
+    seekerLookingForGender: string | null,
+    candidateGender: string | null,
+    candidateLookingForGender: string | null,
+  ): boolean {
+    const seeker = this.normalizeGender(seekerGender);
+    const seekerPref = this.normalizeGender(seekerLookingForGender);
+    const candidate = this.normalizeGender(candidateGender);
+    const candidatePref = this.normalizeGender(candidateLookingForGender);
+
+    const matchesPref = (pref: string | null, target: string | null) => {
+      if (!pref || pref === 'any') return true;
+      if (!target) return true;
+      return pref === target;
+    };
+
+    return (
+      matchesPref(seekerPref, candidate) && matchesPref(candidatePref, seeker)
+    );
   }
 
   private isHarmoniousAspect(type: string): boolean {
@@ -628,16 +660,73 @@ export class DatingService {
       return [];
     }
 
+    // Self profile for gender preferences
+    const selfProfile = await this.prisma.userProfile.findUnique({
+      where: { user_id: userId },
+    });
+    const selfPrefs = parsePreferences(
+      (selfProfile?.preferences as any) ?? null,
+    );
+    const selfGender =
+      (selfProfile?.gender as string | null) ?? selfPrefs.gender ?? null;
+    const selfLookingForGender =
+      (selfProfile?.looking_for_gender as string | null) ??
+      selfPrefs.looking_for_gender ??
+      null;
+
+    // If user explicitly set a gender preference, filter via DB first
+    const seekersPrefNormalized = this.normalizeGender(selfLookingForGender);
+
     const candidates = await this.prisma.chart.findMany({
-      where: { NOT: { userId } },
+      where: {
+        NOT: { userId },
+        ...(seekersPrefNormalized
+          ? {
+              users: {
+                profile: {
+                  gender: seekersPrefNormalized as any,
+                },
+              },
+            }
+          : {}),
+      },
       include: {
-        users: true,
+        users: {
+          include: {
+            profile: true,
+          },
+        },
       },
       take: 200,
     });
 
     // ✅ ОПТИМИЗАЦИЯ: Фильтрация ПЕРЕД расчётом совместимости
     const filteredCandidates = candidates.filter((c: any) => {
+      // Фильтр по гендеру (учитываем взаимные предпочтения)
+      try {
+        const cProfile = c.users?.profile || c.profile;
+        const cPrefs = parsePreferences(cProfile?.preferences ?? null);
+        const candidateGender =
+          (cProfile?.gender as string | null) ?? cPrefs.gender ?? null;
+        const candidateLookingForGender =
+          (cProfile?.looking_for_gender as string | null) ??
+          cPrefs.looking_for_gender ??
+          null;
+
+        if (
+          !this.isGenderAllowed(
+            selfGender,
+            selfLookingForGender,
+            candidateGender,
+            candidateLookingForGender,
+          )
+        ) {
+          return false;
+        }
+      } catch {
+        // ignore
+      }
+
       // Фильтр по городу
       if (filters?.city) {
         const city = filters.city.trim().toLowerCase();
