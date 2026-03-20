@@ -662,7 +662,7 @@ export class DatingService {
 
     // Self profile for gender preferences
     const selfProfile = await this.prisma.userProfile.findUnique({
-      where: { user_id: userId },
+      where: { userId },
     });
     const selfPrefs = parsePreferences(
       (selfProfile?.preferences as any) ?? null,
@@ -670,8 +670,9 @@ export class DatingService {
     const selfGender =
       (selfProfile?.gender as string | null) ?? selfPrefs.gender ?? null;
     const selfLookingForGender =
-      (selfProfile?.looking_for_gender as string | null) ??
+      ((selfProfile as any)?.lookingForGender as string | null) ??
       selfPrefs.looking_for_gender ??
+      (selfPrefs.lookingForGender as string | undefined) ??
       null;
 
     // If user explicitly set a gender preference, filter via DB first
