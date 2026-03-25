@@ -90,6 +90,34 @@
       }
     }
   },
+  "resultWidget": {
+    "verdict": {
+      "good": "Excellent",
+      "neutral": "Moderate",
+      "challenging": "Difficult"
+    },
+    "outOf": "out of 100",
+    "energyLabel": "Favorable energy level"
+  },
+  "recommendationsWidget": {
+    "title": {
+      "good": "Recommendations",
+      "neutral": "What to watch",
+      "challenging": "Important cautions"
+    },
+    "sections": {
+      "primary": "Primary",
+      "additional": "Additional"
+    },
+    "summaryNote": "Follow the recommendations to get the best result."
+  },
+  "bestWindowsWidget": {
+    "title": "Best time windows",
+    "topBadge": "Top-{{count}}",
+    "subtitle": "The most favorable hours for the selected topic",
+    "bestTime": "Best time",
+    "timelineLabel": "Day timeline"
+  },
   "premium": {
     "title": "Astro Advisor Premium",
     "subtitle": "Personal recommendations based on transits to your natal chart",
