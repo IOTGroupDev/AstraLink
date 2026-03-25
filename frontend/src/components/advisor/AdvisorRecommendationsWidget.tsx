@@ -205,23 +205,29 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerGradient: {
-    padding: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 14,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
+    lineHeight: 24,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   countBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -230,6 +236,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 2,
   },
   countText: {
     color: '#FFFFFF',
