@@ -4,7 +4,6 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SkeletonLoader } from '../shared/SkeletonLoader';
 import { theme } from '../../styles/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 /**
@@ -13,14 +12,13 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
  */
 export const ProfileSkeleton: React.FC = () => {
   const tabBarHeight = useBottomTabBarHeight();
-  const insets = useSafeAreaInsets();
 
   return (
     <ScrollView
       contentContainerStyle={[
         styles.scrollContent,
         {
-          paddingBottom: Math.max(40, tabBarHeight + insets.bottom + 16),
+          paddingBottom: Math.max(56, tabBarHeight + 28),
         },
       ]}
       contentInsetAdjustmentBehavior="automatic"

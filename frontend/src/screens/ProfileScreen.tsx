@@ -41,6 +41,7 @@ import {
 import { logger } from '../services/logger';
 import LanguageSelector from '../components/settings/LanguageSelector';
 import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
+import { BottomTabFade } from '../components/shared/BottomTabFade';
 
 const { width, height } = Dimensions.get('window');
 
@@ -278,6 +279,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       >
         <CosmicBackground />
         <ProfileSkeleton />
+        <BottomTabFade />
       </SafeAreaViewSAC>
     );
   }
@@ -289,6 +291,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <Text style={styles.errorText}>
           {t('profile.errors.profileNotFound')}
         </Text>
+        <BottomTabFade />
       </View>
     );
   }
@@ -309,7 +312,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {
             // ключевая строка: чтобы контент не перекрывался таббаром
             paddingTop: insets.top,
-            paddingBottom: Math.max(40, tabBarHeight + insets.bottom + 16),
+            paddingBottom: Math.max(56, tabBarHeight + 28),
           },
         ]}
         // помогает на iOS корректно отрабатывать safe area
@@ -529,6 +532,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         end={{ x: 0.5, y: 1 }}
         style={[styles.topFade, { height: insets.top + 56 }]}
       />
+      <BottomTabFade />
 
       {/* Delete Account Modal */}
       <DeleteAccountModal

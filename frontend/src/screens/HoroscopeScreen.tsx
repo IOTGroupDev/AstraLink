@@ -17,6 +17,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
@@ -38,6 +39,7 @@ import { getLessonsByLocale } from '../services/lessons-database.localized';
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
   const lessonsLocale = React.useMemo((): 'ru' | 'en' | 'es' => {
     const locale = String(i18n.language || 'en').toLowerCase();
@@ -641,7 +643,10 @@ const HoroscopeScreen: React.FC = () => {
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingTop: insets.top + 12 },
+              {
+                paddingTop: insets.top + 12,
+                paddingBottom: Math.max(56, tabBarHeight + 28),
+              },
             ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -893,7 +898,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 120,
   },
   topFade: {
     position: 'absolute',

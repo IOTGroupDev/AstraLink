@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
@@ -67,6 +68,7 @@ type SimulatorTab = 'transits' | 'planets' | 'timeline' | 'lessons';
 export default function CosmicSimulatorScreen({ navigation }: any) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const hasLoadedRef = useRef(false);
@@ -660,7 +662,10 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: insets.top + 12 },
+            {
+              paddingTop: insets.top + 12,
+              paddingBottom: Math.max(56, tabBarHeight + 28),
+            },
           ]}
         >
           {/* Header */}
@@ -1362,7 +1367,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 0,
   },
   topFade: {
     position: 'absolute',

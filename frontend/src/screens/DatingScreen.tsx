@@ -75,7 +75,7 @@ export default function DatingScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const cardBottomPadding = Math.max(20, tabBarHeight + insets.bottom + 8);
+  const cardBottomPadding = Math.max(20, tabBarHeight + 12);
   const availableCardHeight = Math.max(
     0,
     cardAreaHeight - CARD_TOP_PADDING - cardBottomPadding

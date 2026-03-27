@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import Svg, {
@@ -427,6 +428,7 @@ const PlanetaryRecommendationWidget: React.FC<
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
+          <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.title}>
@@ -668,6 +670,7 @@ const PlanetaryRecommendationWidget: React.FC<
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
+          <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
           <View style={styles.content}>
             {/* Заголовок */}
             <View style={styles.header}>
@@ -852,6 +855,10 @@ const styles = StyleSheet.create({
   },
   gradient: {
     position: 'relative',
+  },
+  blurLayer: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
   },
   border: {
     position: 'absolute',

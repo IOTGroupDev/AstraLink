@@ -7,6 +7,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import Svg, {
@@ -186,6 +187,7 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
         end={{ x: 0, y: 1 }}
         style={styles.container}
       >
+        <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
         <LinearGradient
           colors={['rgba(237, 164, 255, 0.1)', 'rgba(241, 197, 255, 0.1)']}
           start={{ x: 0.5, y: 1 }}
@@ -213,6 +215,7 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
       end={{ x: 0.5, y: 0 }}
       style={styles.container}
     >
+      <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
       {/* Обводка с градиентом */}
       <LinearGradient
         colors={['rgba(237, 164, 255, 0.1)', 'rgba(241, 197, 255, 0.1)']}
@@ -314,6 +317,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  blurLayer: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
   },
   borderGradient: {
     position: 'absolute',

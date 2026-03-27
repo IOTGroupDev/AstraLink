@@ -2,38 +2,52 @@
 import React, { useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import CosmicBackground from '../shared/CosmicBackground';
+import { BottomTabFade } from '../shared/BottomTabFade';
 
 interface TabScreenLayoutProps {
   children: React.ReactNode;
   scrollable?: boolean;
-  edges?: ('top' | 'bottom' | 'left' | 'right')[]; // Гибкость для SafeArea
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
   contentContainerStyle?: any;
 }
 
 export const TabScreenLayout = React.memo(function TabScreenLayout({
   children,
   scrollable = true,
-  edges = ['top', 'left', 'right'], // bottom исключён из-за TabBar
+  edges = ['top', 'left', 'right'],
   contentContainerStyle,
 }: TabScreenLayoutProps) {
-  // Отслеживаем первый рендер для оптимизации анимации
+  const tabBarHeight = useBottomTabBarHeight();
+  const bottomSpacing = Math.max(56, tabBarHeight + 28);
   const hasAnimated = useRef(false);
 
   const content = scrollable ? (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: bottomSpacing },
+        contentContainerStyle,
+      ]}
       showsVerticalScrollIndicator={false}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.content, contentContainerStyle]}>{children}</View>
+    <View
+      style={[
+        styles.content,
+        { paddingBottom: bottomSpacing },
+        contentContainerStyle,
+      ]}
+    >
+      {children}
+    </View>
   );
 
-  // Применяем анимацию только при первом рендере
   const entering = !hasAnimated.current
     ? FadeInDown.duration(400).springify().damping(15).stiffness(100)
     : undefined;
@@ -48,6 +62,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
       <Animated.View entering={entering} style={styles.animatedContainer}>
         {content}
       </Animated.View>
+      <BottomTabFade />
     </SafeAreaView>
   );
 });
@@ -65,11 +80,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingBottom: 120, // Отступ от TabBar
   },
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 120,
   },
 });
