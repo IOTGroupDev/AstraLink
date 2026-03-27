@@ -25,6 +25,12 @@ import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
 
+const RECOMMENDATION_CARD_GRADIENT_COLORS = [
+  'rgba(138, 48, 186, 0.42)',
+  'rgba(69, 13, 92, 0.92)',
+  'rgba(35, 0, 45, 1)',
+] as const;
+
 // Типы для планет
 interface PlanetPosition {
   name: string;
@@ -423,9 +429,10 @@ const PlanetaryRecommendationWidget: React.FC<
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
+          colors={RECOMMENDATION_CARD_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          locations={[0, 0.38, 1]}
           style={styles.gradient}
         >
           <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
@@ -665,9 +672,10 @@ const PlanetaryRecommendationWidget: React.FC<
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
+          colors={RECOMMENDATION_CARD_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          locations={[0, 0.38, 1]}
           style={styles.gradient}
         >
           <BlurView intensity={14} tint="dark" style={styles.blurLayer} />

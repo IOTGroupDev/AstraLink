@@ -44,7 +44,7 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
               <Text style={styles.title}>
                 🪐 {t('horoscope.mainTransitWidget.title')}
               </Text>
-              <Text style={{ color: '#A78BFA', textAlign: 'center' }}>
+              <Text style={styles.loadingText}>
                 {t('horoscope.mainTransitWidget.loading')}
               </Text>
             </View>
@@ -58,7 +58,6 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
     return null;
   }
 
-  // Форматируем силу в проценты
   const strengthPercent = transitData.strength
     ? Math.round(transitData.strength * 100)
     : 99;
@@ -80,38 +79,35 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
           />
 
           <View style={styles.content}>
-            {/* Заголовок */}
             <Text style={styles.title}>
               🪐 {t('horoscope.mainTransitWidget.title')}
             </Text>
 
-            {/* Контейнер с иконкой и текстом */}
             <View style={styles.mainContent}>
-              {/* Иконка планеты */}
-              <View style={styles.iconContainer}>
-                <View style={styles.iconFrame}>
-                  <PlanetIcon
-                    name={transitData.targetPlanet || transitData.name}
-                    size={62}
-                  />
-                </View>
-              </View>
+              <Text style={styles.transitName}>{transitData.description}</Text>
 
-              {/* Текстовая информация */}
-              <View style={styles.textContainer}>
-                <Text style={styles.transitName}>
-                  {transitData.description}
-                </Text>
-                <Text style={styles.transitStrength}>
-                  {t('horoscope.mainTransitWidget.strength', {
-                    percent: strengthPercent,
-                  })}
-                </Text>
-                {!!onPress && (
-                  <Text style={styles.transitHint}>
-                    {t('horoscope.mainTransitWidget.openDetails')}
+              <View style={styles.detailsRow}>
+                <View style={styles.iconContainer}>
+                  <View style={styles.iconFrame}>
+                    <PlanetIcon
+                      name={transitData.targetPlanet || transitData.name}
+                      size={62}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.metaContainer}>
+                  <Text style={styles.transitStrength}>
+                    {t('horoscope.mainTransitWidget.strength', {
+                      percent: strengthPercent,
+                    })}
                   </Text>
-                )}
+                  {!!onPress && (
+                    <Text style={styles.transitHint}>
+                      {t('horoscope.mainTransitWidget.openDetails')}
+                    </Text>
+                  )}
+                </View>
               </View>
             </View>
           </View>
@@ -150,12 +146,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 20,
     letterSpacing: 0,
     lineHeight: 19.5,
   },
+  loadingText: {
+    color: '#A78BFA',
+    textAlign: 'center',
+  },
   mainContent: {
+    gap: 16,
+  },
+  detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 24,
@@ -172,23 +175,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  circle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questionMark: {
-    fontSize: 34.44,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    lineHeight: 42,
-  },
-  textContainer: {
+  metaContainer: {
     flex: 1,
     justifyContent: 'center',
     gap: 4,
@@ -199,6 +186,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0,
     lineHeight: 19.5,
+    textAlign: 'left',
   },
   transitStrength: {
     fontSize: 13,

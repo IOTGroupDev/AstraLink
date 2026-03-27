@@ -645,7 +645,7 @@ const HoroscopeScreen: React.FC = () => {
               styles.scrollContent,
               {
                 paddingTop: insets.top + 12,
-                paddingBottom: Math.max(56, tabBarHeight + 28),
+                paddingBottom: Math.max(72, tabBarHeight + 44),
               },
             ]}
             showsVerticalScrollIndicator={false}
@@ -979,15 +979,16 @@ const styles = StyleSheet.create({
   learningCard: {
     borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.28)',
   },
   learningBlur: {
     borderRadius: 20,
     overflow: 'hidden',
   },
   learningGradient: {
+    borderRadius: 20,
     padding: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.28)',
   },
   learningHeader: {
     flexDirection: 'row',

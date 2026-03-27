@@ -512,7 +512,6 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 12,
-    padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(237, 164, 255, 0.1)',
     overflow: 'hidden',
@@ -529,6 +528,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
     marginBottom: 20,
   },
   title: {
@@ -542,7 +543,7 @@ const styles = StyleSheet.create({
   },
   tabsContent: {
     gap: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 20,
   },
   tab: {
     paddingHorizontal: 20,
@@ -564,6 +565,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     gap: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   categoryCard: {
     backgroundColor: 'rgba(10, 10, 10, 0.35)',
