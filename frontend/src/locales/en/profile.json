@@ -6,7 +6,9 @@
     "settings": "Settings"
   },
   "natalChart": {
-    "viewChart": "View natal\nchart with interpretation",
+    "viewSimulator": "Cosmic Simulator",
+    "viewLearning": "Learning",
+    "viewChart": "Natal chart interpretation",
     "viewPersonalCode": "View Personal Code"
   },
   "settings": {

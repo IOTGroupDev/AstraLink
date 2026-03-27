@@ -254,6 +254,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigation.navigate('PersonalCode' as never);
   };
 
+  const handleOpenCosmicSimulator = () => {
+    navigation.navigate('CosmicSimulator' as never);
+  };
+
+  const handleOpenLearning = () => {
+    navigation.navigate('Learning' as never, { source: 'profile' });
+  };
+
   const animatedContainerStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
   }));
@@ -384,42 +392,71 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <View style={styles.chartCard}>
                 <NatalChartWidget chart={chart} />
 
-                <TouchableOpacity
-                  style={styles.viewChartButton}
-                  onPress={() => navigation.navigate('NatalChart' as never)}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#701F86', '#701F86']}
-                    style={styles.buttonGradient}
+                <View style={styles.natalActionsGrid}>
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={() => navigation.navigate('NatalChart' as never)}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="telescope" size={32} color="#fff" />
-                    <Text style={styles.viewChartText}>
-                      {t('profile.natalChart.viewChart')}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={32} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={['#701F86', '#5B1670']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="telescope" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewChart')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.regenerateButton}
-                  onPress={handleViewPersonalCode}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#8B5CF6', '#6D28D9']}
-                    style={styles.buttonGradient}
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleViewPersonalCode}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="code-outline" size={24} color="#fff" />
-                    <Text style={styles.regenerateButtonText}>
-                      {t(
-                        'profile.natalChart.viewPersonalCode',
-                        'View Personal Code'
-                      )}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={24} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={['#8B5CF6', '#6D28D9']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="code-outline" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewPersonalCode')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleOpenCosmicSimulator}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={['#4C1D95', '#312E81']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="planet-outline" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewSimulator')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleOpenLearning}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={['#1D4ED8', '#4338CA']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="school-outline" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewLearning')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -732,36 +769,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(112, 31, 134, 0.3)',
   },
-  viewChartButton: {
-    marginTop: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 18,
-  },
-  viewChartText: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 19.5,
-  },
-  regenerateButton: {
+  natalActionsGrid: {
     marginTop: 12,
-    borderRadius: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  natalActionCard: {
+    flexBasis: '48%',
+    maxWidth: '48%',
+    borderRadius: 14,
     overflow: 'hidden',
   },
-  regenerateButtonText: {
+  natalActionGradient: {
+    minHeight: 116,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  natalActionText: {
     flex: 1,
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 18,
   },
   settingsCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',

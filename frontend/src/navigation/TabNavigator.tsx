@@ -6,7 +6,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 import HoroscopeScreen from '../screens/HoroscopeScreen';
 import { BlurView } from 'expo-blur';
@@ -82,8 +81,6 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
   switch (routeName) {
     case 'Horoscope':
       return 'planet-outline';
-    case 'CosmicSimulator':
-      return 'time-outline';
     case 'Dating':
       return 'heart-outline';
     case 'Advisor':
@@ -119,7 +116,6 @@ export default function TabNavigator() {
   const tabLabels = useMemo(
     () => ({
       horoscope: t('common.tabs.horoscope'),
-      cosmicSimulator: t('common.tabs.cosmicSimulator'),
       dating: t('common.tabs.dating'),
       messages: t('common.tabs.messages'),
       advisor: t('common.tabs.advisor'),
@@ -280,15 +276,6 @@ export default function TabNavigator() {
           options={{
             title: tabLabels.horoscope,
             tabBarLabel: tabLabels.horoscope,
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="CosmicSimulator"
-          component={CosmicSimulatorScreen}
-          options={{
-            title: tabLabels.cosmicSimulator,
-            tabBarLabel: tabLabels.cosmicSimulator,
             headerShown: false,
           }}
         />

@@ -11,9 +11,11 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  TouchableOpacity,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,16 +33,18 @@ import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { Chart, TransitsResponse } from '../types/index';
 import { chartLogger } from '../services/logger';
-import NatalChartWheel from '../intgr/NatalChartWheel';
-import NatalChartScreenImplementation from '../intgr/NatalChartScreenImplementation';
-import ChartScreenExample from '../intgr/ChartScreenExample';
-import PersonalCodeScreen from './PersonalCodeScreen';
-import PersonalCodeWidget from '../components/horoscope/PersonalCodeWidget';
+import { getLessonsByLocale } from '../services/lessons-database.localized';
 
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const lessonsLocale = React.useMemo((): 'ru' | 'en' | 'es' => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+    return locale === 'ru' || locale === 'en' || locale === 'es'
+      ? locale
+      : 'en';
+  }, [i18n.language]);
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     const lang = String(i18n.language || 'en').toLowerCase();
     return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
@@ -448,11 +452,9 @@ const HoroscopeScreen: React.FC = () => {
           : strongest
       );
 
-      const rawPlanetA =
-        strongestAspect.planetA || strongestAspect.planet1 || '';
-      const rawPlanetB =
-        strongestAspect.planetB || strongestAspect.planet2 || '';
-      const rawAspect = strongestAspect.aspect || strongestAspect.type || '';
+      const rawPlanetA = strongestAspect.planetA || '';
+      const rawPlanetB = strongestAspect.planetB || '';
+      const rawAspect = strongestAspect.aspect || '';
 
       const planetAKey = normalizePlanetKey(rawPlanetA);
       const planetBKey = normalizePlanetKey(rawPlanetB);
@@ -545,8 +547,18 @@ const HoroscopeScreen: React.FC = () => {
     (predictions?.day?.energy as number | undefined) ?? getCurrentEnergy();
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
-  const hasAIAccess =
-    hasFeature('detailedTransits') || subscription?.tier === 'premium';
+  const hasAIAccess = hasFeature('detailedTransits');
+  const dailyLearningLesson = React.useMemo(() => {
+    const lessons = getLessonsByLocale(lessonsLocale);
+    if (!lessons.length) return null;
+
+    const startOfYear = new Date(new Date().getFullYear(), 0, 0).getTime();
+    const dayOfYear = Math.floor(
+      (Date.now() - startOfYear) / (1000 * 60 * 60 * 24)
+    );
+
+    return lessons[dayOfYear % lessons.length] ?? null;
+  }, [lessonsLocale]);
 
   const openMainTransitDetails = async () => {
     if (!hasAIAccess) {
@@ -565,7 +577,6 @@ const HoroscopeScreen: React.FC = () => {
       const response = await chartAPI.getMainTransitInterpretation(locale);
       setTransitModalText(
         response?.interpretation ||
-          response?.aiInterpretation ||
           t('horoscope.mainTransitWidget.detailsError')
       );
     } catch (_error) {
@@ -710,6 +721,72 @@ const HoroscopeScreen: React.FC = () => {
               )}
 
               {/* Гороскоп виджет */}
+              {dailyLearningLesson && (
+                <TouchableOpacity
+                  style={styles.learningCard}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    (navigation as any).navigate('Learning', {
+                      source: 'horoscope',
+                      lessonId: dailyLearningLesson.id,
+                    })
+                  }
+                >
+                  <BlurView
+                    intensity={20}
+                    tint="dark"
+                    style={styles.learningBlur}
+                  >
+                    <LinearGradient
+                      colors={[
+                        'rgba(139, 92, 246, 0.24)',
+                        'rgba(99, 102, 241, 0.12)',
+                      ]}
+                      style={styles.learningGradient}
+                    >
+                      <View style={styles.learningHeader}>
+                        <View style={styles.learningIconWrap}>
+                          <Text style={styles.learningEmoji}>
+                            {dailyLearningLesson.emoji}
+                          </Text>
+                        </View>
+                        <View style={styles.learningHeaderText}>
+                          <Text style={styles.learningLabel}>
+                            {t('horoscope.learningCard.label')}
+                          </Text>
+                          <Text style={styles.learningTitle}>
+                            {t('horoscope.learningCard.title')}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color="#C4B5FD"
+                        />
+                      </View>
+
+                      <Text style={styles.learningLessonTitle}>
+                        {dailyLearningLesson.title}
+                      </Text>
+                      <Text style={styles.learningLessonText} numberOfLines={3}>
+                        {dailyLearningLesson.shortText}
+                      </Text>
+
+                      <View style={styles.learningFooter}>
+                        <Text style={styles.learningCta}>
+                          {t('horoscope.learningCard.button')}
+                        </Text>
+                        <Ionicons
+                          name="arrow-forward"
+                          size={14}
+                          color="#DDD6FE"
+                        />
+                      </View>
+                    </LinearGradient>
+                  </BlurView>
+                </TouchableOpacity>
+              )}
+
               {predictions ? (
                 <HoroscopeWidget predictions={predictions} />
               ) : (
@@ -894,6 +971,74 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  learningCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  learningBlur: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  learningGradient: {
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.28)',
+  },
+  learningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  learningIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  learningEmoji: {
+    fontSize: 22,
+  },
+  learningHeaderText: {
+    flex: 1,
+  },
+  learningLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#C4B5FD',
+  },
+  learningTitle: {
+    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  learningLessonTitle: {
+    marginTop: 14,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  learningLessonText: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    color: 'rgba(255,255,255,0.74)',
+  },
+  learningFooter: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  learningCta: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DDD6FE',
   },
   modalOverlay: {
     flex: 1,

@@ -6,7 +6,9 @@
     "settings": "Configuración"
   },
   "natalChart": {
-    "viewChart": "Ver carta natal\ncon interpretación",
+    "viewSimulator": "Simulador cósmico",
+    "viewLearning": "Aprendizaje",
+    "viewChart": "Interpretación de carta natal",
     "viewPersonalCode": "Código Personal"
   },
   "settings": {
