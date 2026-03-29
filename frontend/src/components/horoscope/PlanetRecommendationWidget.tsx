@@ -26,9 +26,9 @@ import { logger } from '../../services/logger';
 const { width } = Dimensions.get('window');
 
 const RECOMMENDATION_CARD_GRADIENT_COLORS = [
-  'rgba(138, 48, 186, 0.42)',
-  'rgba(69, 13, 92, 0.92)',
-  'rgba(35, 0, 45, 1)',
+  'rgba(92, 40, 140, 0.28)',
+  'rgba(48, 16, 76, 0.94)',
+  'rgba(24, 6, 40, 1)',
 ] as const;
 
 // Типы для планет
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 12,
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(168, 85, 247, 0.16)',
     pointerEvents: 'none',
   },
   content: {

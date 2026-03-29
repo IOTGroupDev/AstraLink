@@ -37,6 +37,7 @@ import AdvisorRecommendationsWidget from '../components/advisor/AdvisorRecommend
 import AdvisorResultWidget from '../components/advisor/AdvisorResultWidget';
 import BestWindowsWidget from '../components/advisor/BestWindowsWidget';
 import DateWheelPicker from '../components/shared/DateWheelPicker';
+import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import { logger } from '../services/logger';
 import {
   buildAdvisorEvaluatePayload,
@@ -110,6 +111,19 @@ const DEFAULT_REVEAL_STATE: SessionRevealState = {
 
 const AdvisorScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const advisorHeaderDescription = React.useMemo(() => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+
+    if (locale.startsWith('ru')) {
+      return 'Астросовет на день';
+    }
+
+    if (locale.startsWith('es')) {
+      return 'Consejo del dia';
+    }
+
+    return 'Advice for the day';
+  }, [i18n.language]);
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
@@ -600,22 +614,11 @@ const AdvisorScreen: React.FC = () => {
               },
             ]}
           >
-            <BlurView intensity={18} tint="dark" style={styles.headerContainer}>
-              <View style={styles.headerBadge}>
-                <LinearGradient
-                  colors={['#22D3EE', '#6366F1']}
-                  style={styles.headerIcon}
-                >
-                  <Ionicons name="sparkles" size={22} color="#FFFFFF" />
-                </LinearGradient>
-                <View style={styles.headerCopy}>
-                  <Text style={styles.headerTitle}>{t('advisor.title')}</Text>
-                  <Text style={styles.headerSubtitle}>
-                    {t('advisor.chat.headerSubtitle')}
-                  </Text>
-                </View>
-              </View>
-            </BlurView>
+            <CompactScreenHeader
+              title="Astro advisor"
+              description={advisorHeaderDescription}
+              icon={<Ionicons name="sparkles" size={22} color="#FFFFFF" />}
+            />
 
             <View style={styles.transcript}>
               {sessions.map((session) => {
@@ -1191,40 +1194,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     gap: 18,
-  },
-  headerContainer: {
-    borderRadius: 24,
-    padding: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  headerIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    color: 'rgba(226, 232, 240, 0.75)',
-    fontSize: 14,
-    lineHeight: 20,
   },
   transcript: {
     gap: 14,

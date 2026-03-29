@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tabsContent: {
-    gap: 10,
+    gap: 15,
     paddingHorizontal: 20,
   },
   tab: {

@@ -42,6 +42,7 @@ import { logger } from '../services/logger';
 import LanguageSelector from '../components/settings/LanguageSelector';
 import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
 import { BottomTabFade } from '../components/shared/BottomTabFade';
+import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 
 const { width, height } = Dimensions.get('window');
 
@@ -90,7 +91,7 @@ const ZODIAC_ELEMENTS = {
 };
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -101,6 +102,34 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
+  const profileHeaderTitle = React.useMemo(() => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+
+    if (locale.startsWith('ru')) {
+      return 'Мой профиль';
+    }
+
+    if (locale.startsWith('es')) {
+      return 'Mi perfil';
+    }
+
+    return 'My profile';
+  }, [i18n.language]);
+  const profileHeaderSubtitle = React.useMemo(() => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+
+    if (locale.startsWith('ru')) {
+      return 'Профиль и карта';
+    }
+
+    if (locale.startsWith('es')) {
+      return 'Perfil y carta';
+    }
+
+    return t('profile.headerSubtitle', {
+      defaultValue: 'Profile and chart',
+    });
+  }, [i18n.language, t]);
 
   // Animations
   const fadeAnim = useSharedValue(0);
@@ -311,19 +340,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           styles.scrollContent,
           {
             // ключевая строка: чтобы контент не перекрывался таббаром
-            paddingTop: insets.top,
+            paddingTop: insets.top + 12,
             paddingBottom: Math.max(56, tabBarHeight + 28),
           },
         ]}
         // помогает на iOS корректно отрабатывать safe area
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, animatedContainerStyle]}>
           {/* Header with Blur */}
-          <View style={styles.headerCard}>
-            <Text style={styles.title}>{t('profile.title')}</Text>
-          </View>
+          <CompactScreenHeader
+            style={styles.headerCard}
+            title={profileHeaderTitle}
+            description={profileHeaderSubtitle}
+            icon={
+              <Ionicons
+                name="person-circle-outline"
+                size={24}
+                color="#FFFFFF"
+              />
+            }
+          />
 
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
@@ -599,21 +637,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingTop: 0,
   },
   headerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
-    lineHeight: 39,
+    marginBottom: 28,
   },
   avatarSection: {
     alignItems: 'center',

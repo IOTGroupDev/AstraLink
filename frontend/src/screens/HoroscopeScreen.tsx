@@ -24,6 +24,7 @@ import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 import EnergyWidget from '../components/horoscope/EnergyWidget';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
+import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import MainTransitWidget from '../components/horoscope/MainTransitWidget';
 import BiorhythmsWidget from '../components/horoscope/BiorhythmsWidget';
 import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
@@ -50,6 +51,19 @@ const HoroscopeScreen: React.FC = () => {
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     const lang = String(i18n.language || 'en').toLowerCase();
     return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+  }, [i18n.language]);
+  const horoscopeHeaderDescription = React.useMemo(() => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+
+    if (locale === 'ru') {
+      return 'Ежедневный обзор';
+    }
+
+    if (locale === 'es') {
+      return 'Resumen diario';
+    }
+
+    return 'Daily overview';
   }, [i18n.language]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const {
@@ -659,11 +673,13 @@ const HoroscopeScreen: React.FC = () => {
             }
           >
             {/* Заголовок с размытием */}
+            <CompactScreenHeader
+              style={styles.compactHeader}
+              title={t('horoscope.title')}
+              description={horoscopeHeaderDescription}
+              icon={<HoroscopeSvg size={26} color="#FFFFFF" />}
+            />
             <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
-              <View style={styles.headerIconContainer}>
-                <HoroscopeSvg size={60} />
-              </View>
-              <Text style={styles.headerTitle}>{t('horoscope.title')}</Text>
               <Text style={styles.headerSubtitle}>
                 {t('horoscope.subtitle', {
                   name: user?.name ? `\n${user.name}` : '',
@@ -907,6 +923,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   // Заголовок
+  compactHeader: {
+    marginBottom: 12,
+  },
   headerContainer: {
     marginHorizontal: 0,
     borderRadius: 16,
@@ -915,20 +934,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  headerIconContainer: {
-    width: 60,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 10,
-    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 20,

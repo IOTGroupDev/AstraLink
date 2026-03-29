@@ -20,6 +20,7 @@ import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAllZodiacSigns } from '../services/zodiac.service';
 import CosmicBackground from '../components/shared/CosmicBackground';
+import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import { logger } from '../services/logger';
 import { DatingCardSkeleton } from '../components/dating/DatingCardSkeleton';
 
@@ -283,22 +284,12 @@ export default function DatingScreen() {
 
           <View style={styles.content}>
             {/* Header */}
-            <View
-              style={[
-                styles.header,
-                { paddingTop: insets.top + 14, paddingBottom: 24 },
-              ]}
-            >
-              <View style={styles.iconContainer}>
-                <LinearGradient
-                  colors={['#8B5CF6', '#A855F7']}
-                  style={styles.iconCircle}
-                >
-                  <Ionicons name="heart" size={20} color="#fff" />
-                </LinearGradient>
-              </View>
-              <Text style={styles.title}>{t('dating.title')}</Text>
-              <Text style={styles.subtitle}>{t('dating.subtitle')}</Text>
+            <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+              <CompactScreenHeader
+                title={t('dating.title')}
+                description={t('dating.subtitle')}
+                icon={<Ionicons name="heart" size={20} color="#FFFFFF" />}
+              />
             </View>
 
             {/* Content */}
@@ -408,8 +399,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
-    paddingBottom: 6,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   topFade: {
     position: 'absolute',
@@ -417,28 +408,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-  },
-  iconContainer: {
-    marginBottom: 6,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 1,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
   },
   loadingContainer: {
     flex: 1,
