@@ -464,6 +464,59 @@ export class HoroscopeGeneratorService {
 
       const aiPredictions = await this.aiService.generateHoroscope(aiContext);
 
+      const fallbackPredictions = this.generateRuleBasedPredictions(
+        sunSign,
+        moonSign,
+        this.getDominantTransit(transitAspects, 'general'),
+        transitAspects,
+        period,
+        targetDate,
+        chartData,
+        locale,
+      );
+
+      const isValidText = (v: any) =>
+        typeof v === 'string' && v.trim().length >= 20;
+
+      const mergedPredictions = {
+        general: isValidText(aiPredictions.general)
+          ? aiPredictions.general
+          : fallbackPredictions.general,
+        love: isValidText(aiPredictions.love)
+          ? aiPredictions.love
+          : fallbackPredictions.love,
+        career: isValidText(aiPredictions.career)
+          ? aiPredictions.career
+          : fallbackPredictions.career,
+        health: isValidText(aiPredictions.health)
+          ? aiPredictions.health
+          : fallbackPredictions.health,
+        finance: isValidText(aiPredictions.finance)
+          ? aiPredictions.finance
+          : fallbackPredictions.finance,
+        advice: isValidText(aiPredictions.advice)
+          ? aiPredictions.advice
+          : fallbackPredictions.advice,
+        challenges: Array.isArray(aiPredictions.challenges)
+          ? aiPredictions.challenges
+          : [],
+        opportunities: Array.isArray(aiPredictions.opportunities)
+          ? aiPredictions.opportunities
+          : [],
+      };
+
+      const aiComplete =
+        isValidText(aiPredictions.general) &&
+        isValidText(aiPredictions.love) &&
+        isValidText(aiPredictions.career) &&
+        isValidText(aiPredictions.health) &&
+        isValidText(aiPredictions.finance) &&
+        isValidText(aiPredictions.advice) &&
+        Array.isArray(aiPredictions.challenges) &&
+        aiPredictions.challenges.length > 0 &&
+        Array.isArray(aiPredictions.opportunities) &&
+        aiPredictions.opportunities.length > 0;
+
       const energy = this.calculateEnergy(transitAspects);
       const mood = this.determineMood(energy, transitAspects, locale);
       const luckyNumbers = this.generateLuckyNumbers(chartData, targetDate);
@@ -479,19 +532,19 @@ export class HoroscopeGeneratorService {
       const result: HoroscopePrediction = {
         period: period as 'day' | 'tomorrow' | 'week' | 'month',
         date: targetDate.toISOString(),
-        general: aiPredictions.general,
-        love: aiPredictions.love,
-        career: aiPredictions.career,
-        health: aiPredictions.health,
-        finance: aiPredictions.finance,
-        advice: aiPredictions.advice,
+        general: mergedPredictions.general,
+        love: mergedPredictions.love,
+        career: mergedPredictions.career,
+        health: mergedPredictions.health,
+        finance: mergedPredictions.finance,
+        advice: mergedPredictions.advice,
         luckyNumbers,
         luckyColors,
         energy,
         mood,
-        challenges: aiPredictions.challenges || [],
-        opportunities: aiPredictions.opportunities || [],
-        generatedBy: 'ai',
+        challenges: mergedPredictions.challenges,
+        opportunities: mergedPredictions.opportunities,
+        generatedBy: aiComplete ? 'ai' : 'mixed',
         lunarPhase,
       };
       return result;

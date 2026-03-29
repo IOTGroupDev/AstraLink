@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores';
@@ -31,6 +31,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const isFocused = useIsFocused();
   const { t } = useTranslation();
 
   const {
@@ -136,7 +137,7 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
       <View style={styles.content}>
         <Text style={styles.title}>{t('auth.login.title')}</Text>
 

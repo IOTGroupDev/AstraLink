@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Dimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { datingAPI, chatAPI } from '../services/api';
@@ -69,6 +69,7 @@ export default function DatingScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
   // ===============================
   // Helpers
@@ -273,7 +274,7 @@ export default function DatingScreen() {
       <View style={styles.screen}>
         <GestureHandlerRootView style={styles.container}>
           {/* Космический фон */}
-          <CosmicBackground />
+          <CosmicBackground active={isFocused} />
 
           <View style={styles.content}>
             {/* Header */}

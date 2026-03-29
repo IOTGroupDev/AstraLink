@@ -73,6 +73,10 @@ const HoroscopeScreen: React.FC = () => {
   const predictionsAttemptedRef = useRef(false);
   const predictionsLoadingRef = useRef(false);
   const predictionsLocaleRef = useRef<string | null>(null);
+  const predictionsRetryRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const predictionsRetryCountRef = useRef(0);
   const dataLoadingRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
 
@@ -312,7 +316,13 @@ const HoroscopeScreen: React.FC = () => {
 
       const extractPredictions = (response: any) => {
         if (response.predictions && typeof response.predictions === 'object') {
-          return response.predictions;
+          return {
+            ...response.predictions,
+            generatedBy:
+              response.predictions.generatedBy ||
+              response.generatedBy ||
+              'interpreter',
+          };
         }
         return {
           general: response.general || '',
@@ -327,6 +337,7 @@ const HoroscopeScreen: React.FC = () => {
           mood: response.mood || '',
           challenges: response.challenges || [],
           opportunities: response.opportunities || [],
+          generatedBy: response.generatedBy || 'interpreter',
         };
       };
 
@@ -347,6 +358,32 @@ const HoroscopeScreen: React.FC = () => {
       setPredictions(newPredictions);
       predictionsAttemptedRef.current = true;
       predictionsLocaleRef.current = locale;
+
+      const aiAllowed = hasFeature('aiHoroscope');
+      const needsAi =
+        aiAllowed &&
+        (newPredictions.day?.generatedBy !== 'ai' ||
+          newPredictions.tomorrow?.generatedBy !== 'ai' ||
+          newPredictions.week?.generatedBy !== 'ai');
+
+      if (needsAi) {
+        if (predictionsRetryCountRef.current < 2) {
+          const delayMs = predictionsRetryCountRef.current === 0 ? 5000 : 10000;
+          predictionsRetryCountRef.current += 1;
+          if (predictionsRetryRef.current) {
+            clearTimeout(predictionsRetryRef.current);
+          }
+          predictionsRetryRef.current = setTimeout(() => {
+            loadAllPredictions(true);
+          }, delayMs);
+        }
+      } else {
+        predictionsRetryCountRef.current = 0;
+        if (predictionsRetryRef.current) {
+          clearTimeout(predictionsRetryRef.current);
+          predictionsRetryRef.current = null;
+        }
+      }
     } catch (error) {
       chartLogger.error('Ошибка загрузки прогнозов', error);
       if (!predictionsAttemptedRef.current) {
@@ -505,6 +542,11 @@ const HoroscopeScreen: React.FC = () => {
     syncingRef.current = true;
     setSyncing(true);
     try {
+      predictionsRetryCountRef.current = 0;
+      if (predictionsRetryRef.current) {
+        clearTimeout(predictionsRetryRef.current);
+        predictionsRetryRef.current = null;
+      }
       await refetchSubscription();
       await loadData(true);
     } catch (error) {
@@ -535,10 +577,23 @@ const HoroscopeScreen: React.FC = () => {
   useEffect(() => {
     if (!hasLoadedOnceRef.current) return;
     chartLogger.log('Перезагружаю прогнозы из-за смены языка');
+    predictionsRetryCountRef.current = 0;
+    if (predictionsRetryRef.current) {
+      clearTimeout(predictionsRetryRef.current);
+      predictionsRetryRef.current = null;
+    }
     predictionsLocaleRef.current = null;
     setPredictions(null);
     loadAllPredictions(true);
   }, [i18n.language]);
+
+  useEffect(() => {
+    return () => {
+      if (predictionsRetryRef.current) {
+        clearTimeout(predictionsRetryRef.current);
+      }
+    };
+  }, []);
 
   // Формирование данных для виджетов
   const energyValue =

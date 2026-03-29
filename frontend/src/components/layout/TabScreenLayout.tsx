@@ -4,6 +4,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import CosmicBackground from '../shared/CosmicBackground';
+import { useIsFocused } from '@react-navigation/native';
 
 interface TabScreenLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
 }: TabScreenLayoutProps) {
   // Отслеживаем первый рендер для оптимизации анимации
   const hasAnimated = useRef(false);
+  const isFocused = useIsFocused();
 
   const content = scrollable ? (
     <ScrollView
@@ -44,7 +46,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
 
   return (
     <SafeAreaView style={styles.container} edges={edges}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
       <Animated.View entering={entering} style={styles.animatedContainer}>
         {content}
       </Animated.View>

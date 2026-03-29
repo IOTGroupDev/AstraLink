@@ -13,7 +13,7 @@ import {
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
@@ -89,6 +89,7 @@ const ZODIAC_ELEMENTS = {
 };
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const isFocused = useIsFocused();
   const { t } = useTranslation();
   const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -268,7 +269,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         style={styles.container}
         edges={['top', 'left', 'right']}
       >
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <ProfileSkeleton />
       </SafeAreaViewSAC>
     );
@@ -277,7 +278,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <Text style={styles.errorText}>
           {t('profile.errors.profileNotFound')}
         </Text>
@@ -293,7 +294,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaViewSAC style={styles.container} edges={['left', 'right']}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
 
       <ScrollView
         contentContainerStyle={[
