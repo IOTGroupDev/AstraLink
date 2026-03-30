@@ -10,7 +10,6 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { LessonCard } from '../components/lessons/LessonCard';
@@ -21,6 +20,7 @@ import {
   getLessonsByLocale,
 } from '../services/lessons-database.localized';
 import type { LessonCategory } from '../types/lessons';
+import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { useLearningStore } from '../stores';
 
 const CATEGORY_ORDER: LessonCategory[] = [
@@ -79,7 +79,7 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const locale = getLessonsLocale(i18n.language);
 
   const {

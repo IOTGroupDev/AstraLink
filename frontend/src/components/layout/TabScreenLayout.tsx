@@ -2,11 +2,11 @@
 import React, { useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import CosmicBackground from '../shared/CosmicBackground';
 import { BottomTabFade } from '../shared/BottomTabFade';
 import { useIsFocused } from '@react-navigation/native';
+import { useOptionalBottomTabBarHeight } from '../../hooks/useOptionalBottomTabBarHeight';
 
 interface TabScreenLayoutProps {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
   edges = ['top', 'left', 'right'],
   contentContainerStyle,
 }: TabScreenLayoutProps) {
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const bottomSpacing = Math.max(56, tabBarHeight + 28);
   const hasAnimated = useRef(false);
   const isFocused = useIsFocused();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useOptionalBottomTabBarHeight } from '../../hooks/useOptionalBottomTabBarHeight';
 
 type BottomTabFadeProps = {
   fadeHeight?: number;
@@ -19,7 +19,7 @@ export const BottomTabFade: React.FC<BottomTabFadeProps> = ({
   fadeHeight,
   colors = DEFAULT_COLORS,
 }) => {
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
 
   return (
     <LinearGradient

@@ -14,10 +14,10 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { acquirePresence, subscribePresence } from '../services/presence';
 import { supabase } from '../services/supabase';
 import { logger } from '../services/logger';
@@ -39,7 +39,7 @@ export default function ChatListScreen() {
   const navigation = useNavigation<any>();
   const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
 
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
