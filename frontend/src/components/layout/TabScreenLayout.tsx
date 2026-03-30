@@ -6,6 +6,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import CosmicBackground from '../shared/CosmicBackground';
 import { BottomTabFade } from '../shared/BottomTabFade';
+import { useIsFocused } from '@react-navigation/native';
 
 interface TabScreenLayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
   const tabBarHeight = useBottomTabBarHeight();
   const bottomSpacing = Math.max(56, tabBarHeight + 28);
   const hasAnimated = useRef(false);
+  const isFocused = useIsFocused();
 
   const content = scrollable ? (
     <ScrollView
@@ -58,7 +60,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
 
   return (
     <SafeAreaView style={styles.container} edges={edges}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
       <Animated.View entering={entering} style={styles.animatedContainer}>
         {content}
       </Animated.View>

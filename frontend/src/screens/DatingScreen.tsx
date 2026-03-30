@@ -9,8 +9,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { datingAPI, chatAPI } from '../services/api';
@@ -85,6 +85,7 @@ export default function DatingScreen() {
     availableCardHeight > 0
       ? Math.min(MAX_CARD_HEIGHT, availableCardHeight)
       : undefined;
+  const isFocused = useIsFocused();
 
   const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low') =>
     b === 'high' ? 85 : b === 'medium' ? 65 : 45;
@@ -195,7 +196,8 @@ export default function DatingScreen() {
     (async () => {
       setLoadingCards(true);
       try {
-        let data: ApiCandidate[] = (await datingAPI.getCandidates?.(20)) || [];
+        const data: ApiCandidate[] =
+          (await datingAPI.getCandidates?.(20)) || [];
         logger.info('[Dating] candidates raw count', data.length);
 
         // Если совпадений нет — оставляем пусто, UI покажет заглушку (empty-state)
@@ -280,7 +282,7 @@ export default function DatingScreen() {
       <View style={styles.screen}>
         <GestureHandlerRootView style={styles.container}>
           {/* Космический фон */}
-          <CosmicBackground />
+          <CosmicBackground active={isFocused} />
 
           <View style={styles.content}>
             {/* Header */}

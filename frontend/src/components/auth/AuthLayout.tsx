@@ -4,6 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CosmicBackground from '../shared/CosmicBackground';
 import { AUTH_COLORS } from '../../constants/auth.constants';
+import { useIsFocused } from '@react-navigation/native';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -14,9 +15,10 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
   children,
   edges = ['top', 'bottom'],
 }) => {
+  const isFocused = useIsFocused();
   return (
     <View style={styles.root}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
       <SafeAreaView style={styles.safeArea} edges={edges}>
         {children}
       </SafeAreaView>

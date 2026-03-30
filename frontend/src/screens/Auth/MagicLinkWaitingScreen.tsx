@@ -543,7 +543,11 @@ import {
   Linking,
   TextInput,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useIsFocused,
+} from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
@@ -556,6 +560,7 @@ type RouteParams = { email?: string };
 export default function MagicLinkWaitingScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const isFocused = useIsFocused();
   const email = (route.params as RouteParams)?.email ?? '';
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -624,7 +629,7 @@ export default function MagicLinkWaitingScreen() {
 
   return (
     <View style={styles.container}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
 
       <View style={styles.content}>
         {/* Иконка письма */}

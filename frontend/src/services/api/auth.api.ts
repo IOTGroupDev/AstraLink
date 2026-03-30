@@ -361,6 +361,15 @@ export const authAPI = {
       if (error) throw error;
       if (!data.session) throw new Error('Не удалось создать сессию');
 
+      try {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      } catch (setErr) {
+        authLogger.warn('⚠️ Failed to set Supabase session after OTP:', setErr);
+      }
+
       authLogger.log('✅ Код подтвержден');
 
       try {

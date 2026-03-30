@@ -83,6 +83,11 @@ export interface HoroscopePrediction {
 @Injectable()
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
+  private readonly aiSoftTimeoutMs = 12000;
+  private readonly inflightPremium = new Map<
+    string,
+    Promise<HoroscopePrediction>
+  >();
 
   constructor(
     private ephemerisService: EphemerisService,
@@ -255,18 +260,71 @@ export class HoroscopeGeneratorService {
       }
 
       let result: HoroscopePrediction;
+      let shouldCache = true;
+
       if (shouldUseAi) {
-        result = await this.generatePremiumHoroscope(
-          chartData,
-          transits,
-          transitAspects,
-          period,
-          targetDate,
-          cacheKey,
-          ttlSec,
-          userId,
-          locale,
+        const pendingKey = `${cacheKey}:pending`;
+        const pending = await this.redis.get<string>(pendingKey);
+        if (pending) {
+          this.logger.warn(
+            `AI generation pending for ${cacheKey}, returning interpreter fallback`,
+          );
+          return this.buildInterpreterFallback(
+            chartData,
+            transits,
+            transitAspects,
+            period,
+            targetDate,
+            locale,
+          );
+        }
+
+        let aiPromise = this.inflightPremium.get(cacheKey);
+        if (!aiPromise) {
+          aiPromise = this.generatePremiumHoroscope(
+            chartData,
+            transits,
+            transitAspects,
+            period,
+            targetDate,
+            cacheKey,
+            ttlSec,
+            userId,
+            locale,
+          );
+          this.inflightPremium.set(cacheKey, aiPromise);
+          await this.redis.set(pendingKey, '1', 60);
+        }
+
+        const awaited = await this.awaitWithTimeout(
+          aiPromise,
+          this.aiSoftTimeoutMs,
         );
+        if (awaited.timedOut) {
+          shouldCache = false;
+          this.logger.warn(
+            `AI generation timeout (${this.aiSoftTimeoutMs}ms) for ${cacheKey}`,
+          );
+          aiPromise
+            .then((aiResult) => this.redis.set(cacheKey, aiResult, ttlSec))
+            .finally(() => {
+              this.inflightPremium.delete(cacheKey);
+              this.redis.del(pendingKey).catch(() => undefined);
+            });
+
+          return this.buildInterpreterFallback(
+            chartData,
+            transits,
+            transitAspects,
+            period,
+            targetDate,
+            locale,
+          );
+        }
+
+        result = awaited.value as HoroscopePrediction;
+        this.inflightPremium.delete(cacheKey);
+        await this.redis.del(pendingKey);
       } else {
         result = this.generateFreeHoroscope(
           chartData,
@@ -279,8 +337,10 @@ export class HoroscopeGeneratorService {
           locale,
         );
       }
-      // cache result until end of period bucket
-      await this.redis.set(cacheKey, result, ttlSec);
+
+      if (shouldCache) {
+        await this.redis.set(cacheKey, result, ttlSec);
+      }
       return result;
     } catch (error) {
       const errorMessage =
@@ -404,6 +464,59 @@ export class HoroscopeGeneratorService {
 
       const aiPredictions = await this.aiService.generateHoroscope(aiContext);
 
+      const fallbackPredictions = this.generateRuleBasedPredictions(
+        sunSign,
+        moonSign,
+        this.getDominantTransit(transitAspects, 'general'),
+        transitAspects,
+        period,
+        targetDate,
+        chartData,
+        locale,
+      );
+
+      const isValidText = (v: any) =>
+        typeof v === 'string' && v.trim().length >= 20;
+
+      const mergedPredictions = {
+        general: isValidText(aiPredictions.general)
+          ? aiPredictions.general
+          : fallbackPredictions.general,
+        love: isValidText(aiPredictions.love)
+          ? aiPredictions.love
+          : fallbackPredictions.love,
+        career: isValidText(aiPredictions.career)
+          ? aiPredictions.career
+          : fallbackPredictions.career,
+        health: isValidText(aiPredictions.health)
+          ? aiPredictions.health
+          : fallbackPredictions.health,
+        finance: isValidText(aiPredictions.finance)
+          ? aiPredictions.finance
+          : fallbackPredictions.finance,
+        advice: isValidText(aiPredictions.advice)
+          ? aiPredictions.advice
+          : fallbackPredictions.advice,
+        challenges: Array.isArray(aiPredictions.challenges)
+          ? aiPredictions.challenges
+          : [],
+        opportunities: Array.isArray(aiPredictions.opportunities)
+          ? aiPredictions.opportunities
+          : [],
+      };
+
+      const aiComplete =
+        isValidText(aiPredictions.general) &&
+        isValidText(aiPredictions.love) &&
+        isValidText(aiPredictions.career) &&
+        isValidText(aiPredictions.health) &&
+        isValidText(aiPredictions.finance) &&
+        isValidText(aiPredictions.advice) &&
+        Array.isArray(aiPredictions.challenges) &&
+        aiPredictions.challenges.length > 0 &&
+        Array.isArray(aiPredictions.opportunities) &&
+        aiPredictions.opportunities.length > 0;
+
       const energy = this.calculateEnergy(transitAspects);
       const mood = this.determineMood(energy, transitAspects, locale);
       const luckyNumbers = this.generateLuckyNumbers(chartData, targetDate);
@@ -419,19 +532,19 @@ export class HoroscopeGeneratorService {
       const result: HoroscopePrediction = {
         period: period as 'day' | 'tomorrow' | 'week' | 'month',
         date: targetDate.toISOString(),
-        general: aiPredictions.general,
-        love: aiPredictions.love,
-        career: aiPredictions.career,
-        health: aiPredictions.health,
-        finance: aiPredictions.finance,
-        advice: aiPredictions.advice,
+        general: mergedPredictions.general,
+        love: mergedPredictions.love,
+        career: mergedPredictions.career,
+        health: mergedPredictions.health,
+        finance: mergedPredictions.finance,
+        advice: mergedPredictions.advice,
         luckyNumbers,
         luckyColors,
         energy,
         mood,
-        challenges: aiPredictions.challenges || [],
-        opportunities: aiPredictions.opportunities || [],
-        generatedBy: 'ai',
+        challenges: mergedPredictions.challenges,
+        opportunities: mergedPredictions.opportunities,
+        generatedBy: aiComplete ? 'ai' : 'mixed',
         lunarPhase,
       };
       return result;
@@ -439,49 +552,79 @@ export class HoroscopeGeneratorService {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
       this.logger.log('Fallback to interpreter (FREE rules) with real data');
       // Fallback на интерпретатор с реальными расчетами (без generic-моков)
-      const dominantTransit = this.getDominantTransit(
-        transitAspects,
-        'general',
-      );
-      const energy = this.calculateEnergy(transitAspects);
-      const mood = this.determineMood(energy, transitAspects, locale);
-      const predictions = this.generateRuleBasedPredictions(
-        chartData.planets?.sun?.sign || 'Aries',
-        chartData.planets?.moon?.sign || 'Cancer',
-        dominantTransit,
+      return this.buildInterpreterFallback(
+        chartData,
+        transits,
         transitAspects,
         period,
         targetDate,
-        chartData,
         locale,
       );
-      // Calculate lunar phase for the target date
-      const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
-
-      const result: HoroscopePrediction = {
-        period: period as 'day' | 'tomorrow' | 'week' | 'month',
-        date: targetDate.toISOString(),
-        general: predictions.general,
-        love: predictions.love,
-        career: predictions.career,
-        health: predictions.health,
-        finance: predictions.finance,
-        advice: predictions.advice,
-        luckyNumbers: this.generateLuckyNumbers(chartData, targetDate),
-        luckyColors: this.generateLuckyColors(
-          chartData.planets?.sun?.sign || 'Aries',
-          dominantTransit,
-          locale,
-        ),
-        energy,
-        mood,
-        challenges: [],
-        opportunities: [],
-        generatedBy: 'interpreter',
-        lunarPhase,
-      };
-      return result;
     }
+  }
+
+  private buildInterpreterFallback(
+    chartData: ChartData,
+    transits: TransitData,
+    transitAspects: TransitAspect[],
+    period: string,
+    targetDate: Date,
+    locale: 'ru' | 'en' | 'es',
+  ): HoroscopePrediction {
+    const dominantTransit = this.getDominantTransit(transitAspects, 'general');
+    const energy = this.calculateEnergy(transitAspects);
+    const mood = this.determineMood(energy, transitAspects, locale);
+    const predictions = this.generateRuleBasedPredictions(
+      chartData.planets?.sun?.sign || 'Aries',
+      chartData.planets?.moon?.sign || 'Cancer',
+      dominantTransit,
+      transitAspects,
+      period,
+      targetDate,
+      chartData,
+      locale,
+    );
+    const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
+
+    return {
+      period: period as 'day' | 'tomorrow' | 'week' | 'month',
+      date: targetDate.toISOString(),
+      general: predictions.general,
+      love: predictions.love,
+      career: predictions.career,
+      health: predictions.health,
+      finance: predictions.finance,
+      advice: predictions.advice,
+      luckyNumbers: this.generateLuckyNumbers(chartData, targetDate),
+      luckyColors: this.generateLuckyColors(
+        chartData.planets?.sun?.sign || 'Aries',
+        dominantTransit,
+        locale,
+      ),
+      energy,
+      mood,
+      challenges: [],
+      opportunities: [],
+      generatedBy: 'interpreter',
+      lunarPhase,
+    };
+  }
+
+  private async awaitWithTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+  ): Promise<{ timedOut: boolean; value?: T }> {
+    let timer: NodeJS.Timeout | null = null;
+    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolve) => {
+      timer = setTimeout(() => resolve({ timedOut: true }), timeoutMs);
+    });
+    const result = (await Promise.race([
+      promise.then((value) => ({ timedOut: false, value })),
+      timeoutPromise,
+    ])) as { timedOut: boolean; value?: T };
+
+    if (timer) clearTimeout(timer);
+    return result;
   }
 
   /**

@@ -7,13 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   Image,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
@@ -23,7 +22,6 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
-import LoadingIndicator from '../components/shared/LoadingIndicator';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import ZodiacAvatar from '../components/profile/ZodiacAvatar';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
@@ -43,8 +41,6 @@ import LanguageSelector from '../components/settings/LanguageSelector';
 import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
 import { BottomTabFade } from '../components/shared/BottomTabFade';
 import CompactScreenHeader from '../components/shared/CompactScreenHeader';
-
-const { width, height } = Dimensions.get('window');
 
 interface ProfileScreenProps {
   navigation: any;
@@ -92,13 +88,13 @@ const ZODIAC_ELEMENTS = {
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
+  const isFocused = useIsFocused();
   const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [chart, setChart] = useState<Chart | null>(null);
   const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
@@ -135,13 +131,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const fadeAnim = useSharedValue(0);
   const glowAnim = useSharedValue(0);
   const orbAnim = useSharedValue(0);
-
-  const {
-    biometricAvailable,
-    biometricEnabled,
-    biometricType,
-    setBiometricEnabled,
-  } = useAuthStore();
 
   useEffect(() => {
     fadeAnim.value = withTiming(1, { duration: 800 });
@@ -243,17 +232,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert(t('profile.logout.title'), t('profile.logout.message'), [
-      { text: t('common.buttons.cancel'), style: 'cancel' },
-      {
-        text: t('profile.logout.confirm'),
-        style: 'destructive',
-        onPress: async () => await AuthEngine.signOut(),
-      },
-    ]);
-  };
-
   const handleDeleteAccount = async () => {
     try {
       await userAPI.deleteAccount();
@@ -306,7 +284,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         style={styles.container}
         edges={['top', 'left', 'right']}
       >
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <ProfileSkeleton />
         <BottomTabFade />
       </SafeAreaViewSAC>
@@ -316,7 +294,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <Text style={styles.errorText}>
           {t('profile.errors.profileNotFound')}
         </Text>
@@ -333,7 +311,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaViewSAC style={styles.container} edges={['left', 'right']}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
 
       <ScrollView
         contentContainerStyle={[

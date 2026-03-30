@@ -71,22 +71,30 @@ const generateMeteors = (): Meteor[] => {
   ];
 };
 
-const StarComponent: React.FC<{ star: Star }> = React.memo(({ star }) => {
+const StarComponent: React.FC<{
+  star: Star;
+  lowPower: boolean;
+  active: boolean;
+}> = React.memo(({ star, lowPower, active }) => {
   const opacity = useSharedValue(star.baseOpacity);
 
   useEffect(() => {
+    if (!active) {
+      opacity.value = star.baseOpacity;
+      return;
+    }
     opacity.value = withDelay(
       star.delay,
       withRepeat(
         withTiming(star.baseOpacity * 0.4, {
-          duration: star.duration,
+          duration: star.duration * (lowPower ? 2.5 : 1),
           easing: Easing.inOut(Easing.ease),
         }),
         -1,
         true
       )
     );
-  }, []);
+  }, [active, lowPower, star.baseOpacity, star.delay, star.duration]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -96,6 +104,7 @@ const StarComponent: React.FC<{ star: Star }> = React.memo(({ star }) => {
     <Animated.View
       style={[
         styles.star,
+        lowPower ? styles.starLowPower : null,
         {
           left: star.x,
           top: star.y,
@@ -110,19 +119,26 @@ const StarComponent: React.FC<{ star: Star }> = React.memo(({ star }) => {
 });
 
 // Динамический градиент 1
-const AnimatedGradient1: React.FC = React.memo(() => {
+const AnimatedGradient1: React.FC<{
+  lowPower: boolean;
+  active: boolean;
+}> = React.memo(({ lowPower, active }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
+    if (!active) {
+      progress.value = 0;
+      return;
+    }
     progress.value = withRepeat(
       withTiming(1, {
-        duration: 12000,
+        duration: 12000 * (lowPower ? 2.5 : 1),
         easing: Easing.inOut(Easing.ease),
       }),
       -1,
       true
     );
-  }, []);
+  }, [active, lowPower]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0, 0.5, 1], [0.8, 0.4, 0.8]);
@@ -147,22 +163,29 @@ const AnimatedGradient1: React.FC = React.memo(() => {
 });
 
 // Динамический градиент 2
-const AnimatedGradient2: React.FC = React.memo(() => {
+const AnimatedGradient2: React.FC<{
+  lowPower: boolean;
+  active: boolean;
+}> = React.memo(({ lowPower, active }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
+    if (!active) {
+      progress.value = 0;
+      return;
+    }
     progress.value = withDelay(
       4000,
       withRepeat(
         withTiming(1, {
-          duration: 16000,
+          duration: 16000 * (lowPower ? 2.5 : 1),
           easing: Easing.inOut(Easing.ease),
         }),
         -1,
         true
       )
     );
-  }, []);
+  }, [active, lowPower]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0, 0.5, 1], [0.4, 0.7, 0.4]);
@@ -188,22 +211,29 @@ const AnimatedGradient2: React.FC = React.memo(() => {
 });
 
 // Динамический градиент 3
-const AnimatedGradient3: React.FC = React.memo(() => {
+const AnimatedGradient3: React.FC<{
+  lowPower: boolean;
+  active: boolean;
+}> = React.memo(({ lowPower, active }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
+    if (!active) {
+      progress.value = 0;
+      return;
+    }
     progress.value = withDelay(
       8000,
       withRepeat(
         withTiming(1, {
-          duration: 14000,
+          duration: 14000 * (lowPower ? 2.5 : 1),
           easing: Easing.inOut(Easing.ease),
         }),
         -1,
         true
       )
     );
-  }, []);
+  }, [active, lowPower]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0, 0.5, 1], [0.3, 0.6, 0.3]);
@@ -228,91 +258,121 @@ const AnimatedGradient3: React.FC = React.memo(() => {
 });
 
 // Компактный метеор
-const MeteorComponent: React.FC<{ meteor: Meteor }> = React.memo(
-  ({ meteor }) => {
-    const progress = useSharedValue(0);
+const MeteorComponent: React.FC<{
+  meteor: Meteor;
+  lowPower: boolean;
+  active: boolean;
+}> = React.memo(({ meteor, lowPower, active }) => {
+  const progress = useSharedValue(0);
 
-    useEffect(() => {
-      const animate = () => {
-        progress.value = 0;
-        progress.value = withDelay(
-          meteor.delay,
-          withSequence(
-            withTiming(1, {
-              duration: meteor.duration,
-              easing: Easing.out(Easing.cubic),
-            }),
-            withDelay(
-              Math.random() * 12000 + 10000,
-              withTiming(0, { duration: 0 })
-            )
+  useEffect(() => {
+    if (lowPower || !active) {
+      progress.value = 0;
+      return;
+    }
+    const animate = () => {
+      progress.value = 0;
+      progress.value = withDelay(
+        meteor.delay,
+        withSequence(
+          withTiming(1, {
+            duration: meteor.duration,
+            easing: Easing.out(Easing.cubic),
+          }),
+          withDelay(
+            Math.random() * 12000 + 10000,
+            withTiming(0, { duration: 0 })
           )
-        );
-      };
-
-      animate();
-      const interval = setInterval(animate, 25000);
-      return () => clearInterval(interval);
-    }, []);
-
-    const animatedStyle = useAnimatedStyle(() => {
-      const distance = SCREEN_WIDTH * 1.3;
-      const translateX = interpolate(
-        progress.value,
-        [0, 1],
-        [
-          meteor.startX,
-          meteor.startX + distance * Math.cos((meteor.angle * Math.PI) / 180),
-        ]
+        )
       );
-      const translateY = interpolate(
-        progress.value,
-        [0, 1],
-        [
-          meteor.startY,
-          meteor.startY + distance * Math.sin((meteor.angle * Math.PI) / 180),
-        ]
-      );
+    };
 
-      const opacity = interpolate(
-        progress.value,
-        [0, 0.08, 0.3, 0.85, 1],
-        [0, 1, 1, 0.4, 0]
-      );
+    animate();
+    const interval = setInterval(animate, lowPower ? 45000 : 25000);
+    return () => clearInterval(interval);
+  }, [active, lowPower, meteor.delay, meteor.duration]);
 
-      return {
-        transform: [
-          { translateX },
-          { translateY },
-          { rotate: `${meteor.angle}deg` },
-        ],
-        opacity,
-      };
-    });
-
-    return (
-      <Animated.View style={[styles.meteorContainer, animatedStyle]}>
-        <View style={styles.meteorHead} />
-        <LinearGradient
-          colors={[
-            'rgba(255, 255, 255, 0.95)',
-            'rgba(200, 220, 255, 0.7)',
-            'rgba(150, 180, 255, 0.4)',
-            'rgba(100, 150, 255, 0.15)',
-            'rgba(100, 150, 255, 0)',
-          ]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={[styles.meteorTail, { width: meteor.length }]}
-        />
-      </Animated.View>
+  const animatedStyle = useAnimatedStyle(() => {
+    const distance = SCREEN_WIDTH * 1.3;
+    const translateX = interpolate(
+      progress.value,
+      [0, 1],
+      [
+        meteor.startX,
+        meteor.startX + distance * Math.cos((meteor.angle * Math.PI) / 180),
+      ]
     );
-  }
-);
+    const translateY = interpolate(
+      progress.value,
+      [0, 1],
+      [
+        meteor.startY,
+        meteor.startY + distance * Math.sin((meteor.angle * Math.PI) / 180),
+      ]
+    );
 
-const CosmicBackground: React.FC = () => {
-  const stars = useMemo(() => generateStars(30), []);
-  const meteors = useMemo(() => generateMeteors(), []);
+    const opacity = interpolate(
+      progress.value,
+      [0, 0.08, 0.3, 0.85, 1],
+      [0, 1, 1, 0.4, 0]
+    );
+
+    return {
+      transform: [
+        { translateX },
+        { translateY },
+        { rotate: `${meteor.angle}deg` },
+      ],
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.meteorContainer, animatedStyle]}>
+      <View style={styles.meteorHead} />
+      <LinearGradient
+        colors={[
+          'rgba(255, 255, 255, 0.95)',
+          'rgba(200, 220, 255, 0.7)',
+          'rgba(150, 180, 255, 0.4)',
+          'rgba(100, 150, 255, 0.15)',
+          'rgba(100, 150, 255, 0)',
+        ]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={[styles.meteorTail, { width: meteor.length }]}
+      />
+    </Animated.View>
+  );
+});
+
+const CosmicBackground: React.FC<{ lowPower?: boolean; active?: boolean }> = ({
+  lowPower,
+  active,
+}) => {
+  const isLowPower = lowPower ?? !__DEV__;
+  const isActive = active ?? true;
+  const stars = useMemo(
+    () => generateStars(isLowPower ? 12 : 30),
+    [isLowPower]
+  );
+  const meteors = useMemo(() => {
+    if (!isActive) return [];
+    if (isLowPower) {
+      return [
+        {
+          id: 1,
+          startX: Math.random() * SCREEN_WIDTH * 0.4,
+          startY: Math.random() * SCREEN_HEIGHT * 0.3,
+          delay: 8000,
+          duration: 1100,
+          angle: 32 + Math.random() * 10,
+          length: 45 + Math.random() * 15,
+        },
+      ];
+    }
+    return generateMeteors();
+  }, [isLowPower, isActive]);
 
   return (
     <View style={styles.container}>
@@ -331,21 +391,31 @@ const CosmicBackground: React.FC = () => {
       />
 
       {/* Динамические градиенты */}
-      <AnimatedGradient1 />
-      <AnimatedGradient2 />
-      <AnimatedGradient3 />
+      <AnimatedGradient1 lowPower={isLowPower} active={isActive} />
+      <AnimatedGradient2 lowPower={isLowPower} active={isActive} />
+      <AnimatedGradient3 lowPower={isLowPower} active={isActive} />
 
       {/* Метеоры */}
       <View style={styles.meteorsContainer}>
         {meteors.map((meteor) => (
-          <MeteorComponent key={meteor.id} meteor={meteor} />
+          <MeteorComponent
+            key={meteor.id}
+            meteor={meteor}
+            lowPower={isLowPower}
+            active={isActive}
+          />
         ))}
       </View>
 
       {/* Звезды */}
       <View style={styles.starsContainer}>
         {stars.map((star) => (
-          <StarComponent key={star.id} star={star} />
+          <StarComponent
+            key={star.id}
+            star={star}
+            lowPower={isLowPower}
+            active={isActive}
+          />
         ))}
       </View>
     </View>
@@ -377,6 +447,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 2,
+  },
+  starLowPower: {
+    shadowOpacity: 0,
+    shadowRadius: 0,
   },
   meteorsContainer: {
     ...StyleSheet.absoluteFillObject,
