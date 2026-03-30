@@ -70,7 +70,7 @@ export interface HoroscopePrediction {
   mood: string;
   challenges: string[];
   opportunities: string[];
-  generatedBy: 'ai' | 'interpreter';
+  generatedBy: 'ai' | 'interpreter' | 'mixed';
   lunarPhase?: {
     phase: string;
     emoji: string;
