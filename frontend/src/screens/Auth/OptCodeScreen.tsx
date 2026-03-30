@@ -22,6 +22,8 @@ import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
+import { AuthEngine } from '../../services/authEngine';
+import { useAuthStore } from '../../stores/auth.store';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import {
@@ -170,7 +172,19 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Navigation handled by AuthEngine state machine
+      // Ensure profile is loaded and route based on existing data
+      try {
+        await AuthEngine.refreshProfile();
+      } catch {
+        // ignore: we'll fallback to onboarding below
+      }
+
+      const nextState = useAuthStore.getState().authState;
+      if (nextState === 'AUTHORIZED') {
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      } else if (nextState === 'ONBOARDING') {
+        navigation.reset({ index: 0, routes: [{ name: 'Onboarding1' }] });
+      }
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.message ?? '';

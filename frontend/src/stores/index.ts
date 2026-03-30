@@ -34,6 +34,13 @@ export {
   useChartAspects,
 } from './chart.store';
 
+// Learning store
+export {
+  useLearningStore,
+  useCompletedLessonIds,
+  useBookmarkedLessonIds,
+} from './learning.store';
+
 // Re-export types
 export type { User } from './auth.store';
 export type {

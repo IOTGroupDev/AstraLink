@@ -7,15 +7,27 @@ import { theme } from '../../styles/theme';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width - 48;
-const CARD_HEIGHT = height * 0.65;
+const DEFAULT_CARD_HEIGHT = height * 0.65;
+const MIN_CARD_HEIGHT = 400;
+const MAX_CARD_HEIGHT = 640;
 
-/**
- * DatingCardSkeleton - скелетон для карточки знакомства
- * Соответствует структуре DatingCard
- */
-export const DatingCardSkeleton: React.FC = () => {
+type DatingCardSkeletonProps = {
+  cardHeight?: number;
+};
+
+export const DatingCardSkeleton: React.FC<DatingCardSkeletonProps> = ({
+  cardHeight,
+}) => {
+  const resolvedCardHeight =
+    cardHeight != null
+      ? Math.min(MAX_CARD_HEIGHT, Math.max(0, cardHeight))
+      : Math.max(
+          MIN_CARD_HEIGHT,
+          Math.min(MAX_CARD_HEIGHT, DEFAULT_CARD_HEIGHT)
+        );
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: resolvedCardHeight }]}>
       <BlurView intensity={10} tint="dark" style={styles.card}>
         <LinearGradient
           colors={theme.gradients.lunar}
@@ -23,7 +35,6 @@ export const DatingCardSkeleton: React.FC = () => {
           end={{ x: 0, y: 1 }}
           style={styles.gradient}
         >
-          {/* Область фото/placeholder */}
           <View style={styles.photoPlaceholder}>
             <SkeletonLoader
               variant="circle"
@@ -32,41 +43,27 @@ export const DatingCardSkeleton: React.FC = () => {
             />
           </View>
 
-          {/* Кнопки справа */}
           <View style={styles.sideButtons}>
             <SkeletonLoader variant="circle" height={44} style={styles.mb10} />
             <SkeletonLoader variant="circle" height={44} style={styles.mb10} />
             <SkeletonLoader variant="circle" height={44} />
           </View>
 
-          {/* Информация внизу */}
           <View style={styles.infoContainer}>
             <BlurView intensity={20} tint="dark" style={styles.infoBlur}>
-              {/* Имя и возраст */}
               <SkeletonLoader
                 variant="text"
                 width={180}
-                height={26}
+                height={24}
                 style={styles.mb8}
               />
 
-              {/* Знак зодиака */}
-              <SkeletonLoader
-                variant="text"
-                width={120}
-                height={16}
-                style={styles.mb8}
-              />
+              <View style={styles.metaRow}>
+                <SkeletonLoader variant="text" width={96} height={16} />
+                <SkeletonLoader variant="text" width={14} height={16} />
+                <SkeletonLoader variant="text" width={120} height={14} />
+              </View>
 
-              {/* Расстояние */}
-              <SkeletonLoader
-                variant="text"
-                width={100}
-                height={14}
-                style={styles.mb12}
-              />
-
-              {/* Био */}
               <SkeletonLoader
                 variant="text"
                 width="100%"
@@ -86,7 +83,6 @@ export const DatingCardSkeleton: React.FC = () => {
                 style={styles.mb12}
               />
 
-              {/* Совместимость */}
               <SkeletonLoader
                 variant="text"
                 width={120}
@@ -103,14 +99,12 @@ export const DatingCardSkeleton: React.FC = () => {
                 <SkeletonLoader variant="text" width={45} height={16} />
               </View>
 
-              {/* Детали */}
               <View style={styles.detailsRow}>
                 <SkeletonLoader variant="text" width={80} height={14} />
                 <SkeletonLoader variant="text" width={70} height={14} />
                 <SkeletonLoader variant="text" width={90} height={14} />
               </View>
 
-              {/* Интересы/теги */}
               <View style={styles.interestsRow}>
                 <SkeletonLoader variant="rect" width={80} height={28} />
                 <SkeletonLoader variant="rect" width={90} height={28} />
@@ -128,7 +122,6 @@ export const DatingCardSkeleton: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     width: CARD_WIDTH,
-    height: CARD_HEIGHT,
     alignSelf: 'center',
   },
   card: {
@@ -167,6 +160,12 @@ const styles = StyleSheet.create({
   mb12: {
     marginBottom: 12,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   infoContainer: {
     position: 'absolute',
     bottom: 0,
@@ -177,7 +176,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   infoBlur: {
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   compatibilityRow: {
@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   interestsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
     marginTop: 4,
   },
 });

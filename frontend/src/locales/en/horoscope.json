@@ -85,6 +85,11 @@
     "premiumOnlyTitle": "Premium required",
     "premiumOnlyMessage": "Upgrade your subscription to view the AI analysis."
   },
+  "learningCard": {
+    "title": "Learning",
+    "label": "Lesson of the day",
+    "button": "Open learning"
+  },
   "planetRecommendationWidget": {
     "title": "Recommendation of the day",
     "loading": "Loading recommendations...",

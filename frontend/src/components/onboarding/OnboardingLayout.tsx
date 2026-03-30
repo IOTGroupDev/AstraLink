@@ -41,6 +41,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import CosmicBackground from '../shared/CosmicBackground';
 import { ONBOARDING_COLORS } from '../../constants/onboarding.constants';
+import { useIsFocused } from '@react-navigation/native';
 
 interface OnboardingLayoutProps {
   children: ReactNode;
@@ -56,12 +57,13 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   children,
   edges = ['top', 'left', 'right'],
 }) => {
+  const isFocused = useIsFocused();
   return (
     <View style={styles.root}>
       {/* Light status bar for dark background */}
       <StatusBar style="light" />
       {/* Фон под контентом */}
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
       <SafeAreaView style={styles.safeArea} edges={edges}>
         {children}
       </SafeAreaView>

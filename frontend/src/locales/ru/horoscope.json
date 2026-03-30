@@ -84,6 +84,11 @@
     "premiumOnlyTitle": "Нужна подписка",
     "premiumOnlyMessage": "Оформите подписку, чтобы видеть AI-анализ."
   },
+  "learningCard": {
+    "title": "Обучение",
+    "label": "Урок дня",
+    "button": "Открыть обучение"
+  },
   "planetRecommendationWidget": {
     "title": "Рекомендация дня",
     "loading": "Загрузка рекомендаций...",

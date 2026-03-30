@@ -6,7 +6,9 @@
     "settings": "Настройки"
   },
   "natalChart": {
-    "viewChart": "Посмотреть натальную\nкарту с расшифровкой",
+    "viewSimulator": "Космический симулятор",
+    "viewLearning": "Обучение",
+    "viewChart": "Расшифровка натальной карты",
     "viewPersonalCode": "Персональный код"
   },
   "settings": {

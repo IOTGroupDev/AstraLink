@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 // src/types/navigation.ts
+import type { LessonCategory } from './lessons';
+
 export type RootStackParamList = {
   // Onboarding
   Onboarding1: undefined;
@@ -23,6 +25,14 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Subscription: undefined;
   EditProfileScreen: undefined;
+  CosmicSimulator: undefined;
+  Learning:
+    | {
+        category?: LessonCategory;
+        lessonId?: string;
+        source?: 'horoscope' | 'profile' | 'lesson_task';
+      }
+    | undefined;
 
   // Chat
   ChatList: undefined;

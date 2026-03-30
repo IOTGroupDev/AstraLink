@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,9 @@ import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width - 48;
-const CARD_HEIGHT = height * 0.65;
+const DEFAULT_CARD_HEIGHT = height * 0.65;
+const MIN_CARD_HEIGHT = 400;
+const MAX_CARD_HEIGHT = 640;
 
 interface DatingCardProps {
   user: {
@@ -40,6 +42,7 @@ interface DatingCardProps {
     height?: number;
     lookingFor?: string;
   };
+  cardHeight?: number;
   onSwipe: (direction: 'left' | 'right') => void;
   onChat: () => void;
   isTop: boolean;
@@ -47,14 +50,22 @@ interface DatingCardProps {
 
 const DatingCard: React.FC<DatingCardProps> = ({
   user,
+  cardHeight,
   onSwipe,
   onChat,
-  isTop,
+  isTop: _isTop,
 }) => {
   const { t } = useTranslation();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
+  const resolvedCardHeight =
+    cardHeight != null
+      ? Math.min(MAX_CARD_HEIGHT, Math.max(0, cardHeight))
+      : Math.max(
+          MIN_CARD_HEIGHT,
+          Math.min(MAX_CARD_HEIGHT, DEFAULT_CARD_HEIGHT)
+        );
 
   const getZodiacLabel = (sign: string): string => {
     const raw = String(sign || '').trim();
@@ -86,6 +97,14 @@ const DatingCard: React.FC<DatingCardProps> = ({
     if (!key) return interest;
     return t(`dating.interests.${key}`, { defaultValue: interest });
   };
+
+  const distanceLabel =
+    user.distance != null
+      ? t('dating.card.distanceAway', {
+          distance: user.distance,
+          defaultValue: `${user.distance} km away`,
+        })
+      : null;
 
   const gestureHandler = Gesture.Pan()
     .onUpdate((event) => {
@@ -136,35 +155,37 @@ const DatingCard: React.FC<DatingCardProps> = ({
   const renderInfo = () => (
     <View style={styles.infoContainer}>
       <BlurView intensity={20} tint="dark" style={styles.infoBlur}>
-        {/* Имя и возраст */}
         <View style={styles.headerRow}>
           <Text style={styles.name}>
             {user.name}, {user.age}
           </Text>
         </View>
 
-        {/* Знак зодиака */}
-        <Text style={styles.zodiacSign}>{getZodiacLabel(user.zodiacSign)}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.zodiacSign} numberOfLines={1}>
+            {getZodiacLabel(user.zodiacSign)}
+          </Text>
+          {distanceLabel ? (
+            <>
+              <Text style={styles.metaDivider}>{'\u00B7'}</Text>
+              <View style={styles.distanceRow}>
+                <Ionicons
+                  name="location"
+                  size={14}
+                  color="rgba(255,255,255,0.7)"
+                />
+                <Text style={styles.distanceText} numberOfLines={1}>
+                  {distanceLabel}
+                </Text>
+              </View>
+            </>
+          ) : null}
+        </View>
 
-        {/* Расстояние */}
-        {user.distance != null && (
-          <View style={styles.distanceRow}>
-            <Ionicons name="location" size={14} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.distanceText}>
-              {t('dating.card.distanceAway', {
-                distance: user.distance,
-                defaultValue: `${user.distance} km away`,
-              })}
-            </Text>
-          </View>
-        )}
-
-        {/* Био */}
         <Text style={styles.bio} numberOfLines={3}>
           {user.bio}
         </Text>
 
-        {/* Совместимость */}
         <View style={styles.compatibilitySection}>
           <Text style={styles.compatibilityLabel}>
             {t('dating.card.compatibilityLabel')}
@@ -192,7 +213,6 @@ const DatingCard: React.FC<DatingCardProps> = ({
           </View>
         </View>
 
-        {/* Дополнительная информация */}
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
             <Ionicons
@@ -229,7 +249,6 @@ const DatingCard: React.FC<DatingCardProps> = ({
           )}
         </View>
 
-        {/* Интересы/теги */}
         {user.interests && user.interests.length > 0 && (
           <View style={styles.interestsContainer}>
             {user.interests.slice(0, 4).map((interest, index) => (
@@ -246,23 +265,26 @@ const DatingCard: React.FC<DatingCardProps> = ({
   );
 
   return (
-    <Animated.View style={[styles.container, animatedCardStyle]}>
+    <Animated.View
+      style={[
+        styles.container,
+        { height: resolvedCardHeight },
+        animatedCardStyle,
+      ]}
+    >
       <GestureDetector gesture={gestureHandler}>
         <View style={styles.card}>
-          {/* Фото или градиент placeholder */}
           {user.photoUrl ? (
             <ImageBackground
               source={{ uri: user.photoUrl }}
               style={styles.photoBackground}
               imageStyle={styles.photoImage}
             >
-              {/* Градиент снизу */}
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
                 style={styles.gradientOverlay}
               />
 
-              {/* Кнопки справа */}
               <View style={styles.sideButtons}>
                 <TouchableOpacity
                   style={[styles.sideButton, styles.closeButton]}
@@ -293,7 +315,6 @@ const DatingCard: React.FC<DatingCardProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Информация внизу */}
               {renderInfo()}
             </ImageBackground>
           ) : (
@@ -301,7 +322,6 @@ const DatingCard: React.FC<DatingCardProps> = ({
               colors={['#8B5CF6', '#6F1F87', '#4C0E6B']}
               style={styles.photoBackground}
             >
-              {/* Иконка placeholder */}
               <View style={styles.placeholderIcon}>
                 <Ionicons
                   name="person"
@@ -310,13 +330,11 @@ const DatingCard: React.FC<DatingCardProps> = ({
                 />
               </View>
 
-              {/* Градиент снизу */}
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
                 style={styles.gradientOverlay}
               />
 
-              {/* Кнопки справа */}
               <View style={styles.sideButtons}>
                 <TouchableOpacity
                   style={[styles.sideButton, styles.closeButton]}
@@ -347,7 +365,6 @@ const DatingCard: React.FC<DatingCardProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Информация внизу */}
               {renderInfo()}
             </LinearGradient>
           )}
@@ -361,7 +378,6 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     width: CARD_WIDTH,
-    height: CARD_HEIGHT,
     alignSelf: 'center',
   },
   card: {
@@ -423,43 +439,57 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   infoBlur: {
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   name: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: '#fff',
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    minWidth: 0,
+  },
   zodiacSign: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 6,
+    flexShrink: 1,
+  },
+  metaDivider: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.45)',
+    marginHorizontal: 8,
   },
   distanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 8,
+    flexShrink: 1,
+    minWidth: 0,
   },
   distanceText: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
+    flexShrink: 1,
   },
   bio: {
     fontSize: 14,
     color: '#fff',
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   compatibilitySection: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   compatibilityLabel: {
     fontSize: 15,
@@ -493,7 +523,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   detailItem: {
     flexDirection: 'row',
@@ -507,7 +537,7 @@ const styles = StyleSheet.create({
   interestsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   interestTag: {
     paddingHorizontal: 12,

@@ -11,6 +11,7 @@ interface LessonCardProps {
   isCompleted?: boolean;
   onComplete?: (lessonId: string, quizScore?: number) => void;
   onBookmark?: (lessonId: string) => void;
+  onTaskPress?: (lesson: AstroLesson) => void;
   isBookmarked?: boolean;
   compact?: boolean;
 }
@@ -25,6 +26,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   isCompleted = false,
   onComplete,
   onBookmark,
+  onTaskPress,
   isBookmarked = false,
   compact = false,
 }) => {
@@ -48,11 +50,11 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   const getDifficultyLabel = () => {
     switch (lesson.difficulty) {
       case 'beginner':
-        return t('cosmicSimulator.lessonCard.difficulty.beginner');
+        return t('learning.lessonCard.difficulty.beginner');
       case 'intermediate':
-        return t('cosmicSimulator.lessonCard.difficulty.intermediate');
+        return t('learning.lessonCard.difficulty.intermediate');
       case 'advanced':
-        return t('cosmicSimulator.lessonCard.difficulty.advanced');
+        return t('learning.lessonCard.difficulty.advanced');
     }
   };
 
@@ -100,7 +102,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               {lesson.subtitle}
             </Text>
             <Text style={styles.compactReadTime}>
-              {t('cosmicSimulator.lessonCard.readTime', {
+              {t('learning.lessonCard.readTime', {
                 seconds: lesson.readTime,
               })}
             </Text>
@@ -158,7 +160,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
               <View style={styles.metaItem}>
                 <Ionicons name="time" size={14} color="rgba(255,255,255,0.5)" />
                 <Text style={styles.metaText}>
-                  {t('cosmicSimulator.lessonCard.readTimeShort', {
+                  {t('learning.lessonCard.readTimeShort', {
                     seconds: lesson.readTime,
                   })}
                 </Text>
@@ -184,7 +186,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                 <View style={styles.completedTag}>
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                   <Text style={styles.completedText}>
-                    {t('cosmicSimulator.lessonCard.completedTag')}
+                    {t('learning.lessonCard.completedTag')}
                   </Text>
                 </View>
               )}
@@ -208,7 +210,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
             {lesson.keyPoints && lesson.keyPoints.length > 0 && (
               <View style={styles.keyPointsContainer}>
                 <Text style={styles.sectionTitle}>
-                  {t('cosmicSimulator.lessonCard.keyPointsTitle')}
+                  {t('learning.lessonCard.keyPointsTitle')}
                 </Text>
                 {lesson.keyPoints.map((point, index) => (
                   <View key={index} style={styles.keyPoint}>
@@ -225,7 +227,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                 <View style={styles.exampleHeader}>
                   <Ionicons name="bulb" size={16} color="#FBBF24" />
                   <Text style={styles.exampleTitle}>
-                    {t('cosmicSimulator.lessonCard.exampleTitle')}
+                    {t('learning.lessonCard.exampleTitle')}
                   </Text>
                 </View>
                 <Text style={styles.exampleText}>{lesson.example}</Text>
@@ -249,7 +251,10 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                 <Text style={styles.taskDescription}>
                   {lesson.task.description}
                 </Text>
-                <TouchableOpacity style={styles.taskButton}>
+                <TouchableOpacity
+                  style={styles.taskButton}
+                  onPress={() => onTaskPress?.(lesson)}
+                >
                   <LinearGradient
                     colors={lesson.gradient}
                     style={styles.taskButtonGradient}
@@ -283,10 +288,10 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                   />
                   <Text style={styles.completeButtonText}>
                     {isCompleted
-                      ? t('cosmicSimulator.lessonCard.completeDone')
+                      ? t('learning.lessonCard.completeDone')
                       : lesson.quiz
-                        ? t('cosmicSimulator.lessonCard.completeQuiz')
-                        : t('cosmicSimulator.lessonCard.completeMark')}
+                        ? t('learning.lessonCard.completeQuiz')
+                        : t('learning.lessonCard.completeMark')}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -315,7 +320,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
 
               {/* Quiz Content */}
               <Text style={styles.quizTitle}>
-                {t('cosmicSimulator.lessonCard.quiz.title')}
+                {t('learning.lessonCard.quiz.title')}
               </Text>
               <Text style={styles.quizQuestion}>{lesson.quiz.question}</Text>
 
@@ -371,10 +376,10 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                 <View style={styles.successContainer}>
                   <Ionicons name="trophy" size={48} color="#FBBF24" />
                   <Text style={styles.successText}>
-                    {t('cosmicSimulator.lessonCard.quiz.successTitle')}
+                    {t('learning.lessonCard.quiz.successTitle')}
                   </Text>
                   <Text style={styles.successSubtext}>
-                    {t('cosmicSimulator.lessonCard.quiz.successSubtitle')}
+                    {t('learning.lessonCard.quiz.successSubtitle')}
                   </Text>
                 </View>
               )}

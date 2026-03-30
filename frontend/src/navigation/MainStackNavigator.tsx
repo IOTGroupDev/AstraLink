@@ -19,6 +19,8 @@ import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
 import PersonalCodeScreen from '../screens/PersonalCodeScreen';
+import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
+import LearningScreen from '../screens/LearningScreen';
 
 import { useAuthState } from '../stores/auth.store';
 
@@ -61,7 +63,10 @@ export default function MainStackNavigator() {
         animation: 'slide_from_right',
         animationDuration: 200,
         gestureEnabled: true,
-        fullScreenGestureEnabled: true,
+        fullScreenGestureEnabled: false,
+        gestureResponseDistance: {
+          start: 24,
+        },
         gestureDirection: 'horizontal',
         contentStyle: {
           backgroundColor: '#0F172A',
@@ -109,6 +114,11 @@ export default function MainStackNavigator() {
             name="EditProfileScreen"
             component={EditProfileScreen}
           />
+          <Stack.Screen
+            name="CosmicSimulator"
+            component={CosmicSimulatorScreen}
+          />
+          <Stack.Screen name="Learning" component={LearningScreen} />
           <Stack.Screen name="ChatDialog" component={ChatDialogScreen} />
           <Stack.Screen name="ChatList" component={ChatListScreen} />
           <Stack.Screen name="NatalChart" component={NatalChartScreen} />

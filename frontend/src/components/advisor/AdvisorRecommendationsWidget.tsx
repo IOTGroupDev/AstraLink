@@ -4,6 +4,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 
 interface Recommendation {
   text: string;
@@ -19,6 +20,7 @@ interface AdvisorRecommendationsWidgetProps {
 const AdvisorRecommendationsWidget: React.FC<
   AdvisorRecommendationsWidgetProps
 > = ({ recommendations, verdict }) => {
+  const { t } = useTranslation();
   type VerdictConfig = {
     icon: keyof typeof Ionicons.glyphMap;
     title: string;
@@ -30,25 +32,25 @@ const AdvisorRecommendationsWidget: React.FC<
       case 'good':
         return {
           icon: 'bulb',
-          title: 'Рекомендации',
+          title: t('advisor.recommendationsWidget.title.good'),
           gradient: ['#10B981', '#059669'],
         };
       case 'neutral':
         return {
           icon: 'warning',
-          title: 'На что обратить внимание',
+          title: t('advisor.recommendationsWidget.title.neutral'),
           gradient: ['#F59E0B', '#D97706'],
         };
       case 'challenging':
         return {
           icon: 'alert-circle',
-          title: 'Важные предостережения',
+          title: t('advisor.recommendationsWidget.title.challenging'),
           gradient: ['#EF4444', '#DC2626'],
         };
       default:
         return {
           icon: 'warning',
-          title: 'На что обратить внимание',
+          title: t('advisor.recommendationsWidget.title.neutral'),
           gradient: ['#F59E0B', '#D97706'],
         };
     }
@@ -120,7 +122,9 @@ const AdvisorRecommendationsWidget: React.FC<
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="star" size={16} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>Главное</Text>
+            <Text style={styles.sectionTitle}>
+              {t('advisor.recommendationsWidget.sections.primary')}
+            </Text>
           </View>
           <View style={styles.recommendationsList}>
             {highPriorityRecs.map((rec, index) => {
@@ -154,7 +158,9 @@ const AdvisorRecommendationsWidget: React.FC<
           {highPriorityRecs.length > 0 && (
             <View style={styles.sectionHeader}>
               <Ionicons name="list" size={16} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.sectionTitle}>Дополнительно</Text>
+              <Text style={styles.sectionTitle}>
+                {t('advisor.recommendationsWidget.sections.additional')}
+              </Text>
             </View>
           )}
           <View style={styles.recommendationsList}>
@@ -190,7 +196,7 @@ const AdvisorRecommendationsWidget: React.FC<
           color="rgba(255,255,255,0.5)"
         />
         <Text style={styles.summaryNoteText}>
-          Следуйте рекомендациям для достижения лучшего результата
+          {t('advisor.recommendationsWidget.summaryNote')}
         </Text>
       </View>
     </BlurView>
@@ -205,23 +211,29 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerGradient: {
-    padding: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 14,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
+    lineHeight: 24,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   countBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -230,6 +242,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 2,
   },
   countText: {
     color: '#FFFFFF',

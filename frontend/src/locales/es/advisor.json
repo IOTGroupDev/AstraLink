@@ -53,6 +53,71 @@
   "errors": {
     "requestFailed": "Error en la solicitud. Inténtalo más tarde."
   },
+  "chat": {
+    "headerSubtitle": "Un asesor guiado que se siente como una conversación.",
+    "intro": "Elige un tema y te guiaré paso a paso por la consulta.",
+    "topicHelp": "Primero elige el área de tu vida que quieres evaluar.",
+    "selectedTopic": "Tema",
+    "selectedDate": "Fecha",
+    "datePrompt": "Elige la fecha que quieres analizar.",
+    "dateAcknowledgement": "Perfecto. Me enfocaré en {{date}}.",
+    "promptRequest": "Ahora describe tu situación o pregunta. Usaré ese texto como contexto para la lectura.",
+    "inputTitle": "Tu consulta",
+    "promptPlaceholder": "Escribe sobre qué quieres consejo...",
+    "yourMessage": "Tu mensaje",
+    "send": "Enviar",
+    "loading": "Preparando tu consejo...",
+    "newRequest": "Nueva consulta",
+    "startOver": "Empezar de nuevo",
+    "customDate": "Fecha personalizada",
+    "confirmDate": "Confirmar fecha",
+    "topicAcknowledgements": {
+      "contract": "Entendido. Me enfocaré en contratos, documentos y compromisos formales.",
+      "meeting": "Perfecto. Revisaré la energía para reuniones y conversaciones.",
+      "negotiation": "Anotado. Evaluaré el momento para negociaciones y conversaciones delicadas.",
+      "date": "Entendido. Me enfocaré en la química romántica y el tono emocional.",
+      "travel": "De acuerdo. Revisaré qué tan favorable es el día para viajar y moverte.",
+      "purchase": "Entendido. Me enfocaré en compras, riesgos y timing práctico.",
+      "health": "Anotado. Veré el día desde la perspectiva de salud y bienestar.",
+      "custom": "Entendido. Haré una lectura más amplia para esta consulta."
+    },
+    "summary": {
+      "label": "Consulta anterior",
+      "verdicts": {
+        "good": "Favorable",
+        "neutral": "Mixto",
+        "challenging": "Desafiante"
+      }
+    }
+  },
+  "resultWidget": {
+    "verdict": {
+      "good": "Excelente",
+      "neutral": "Moderado",
+      "challenging": "Difícil"
+    },
+    "outOf": "de 100",
+    "energyLabel": "Nivel de favorabilidad"
+  },
+  "recommendationsWidget": {
+    "title": {
+      "good": "Recomendaciones",
+      "neutral": "Qué tener en cuenta",
+      "challenging": "Precauciones importantes"
+    },
+    "sections": {
+      "primary": "Principal",
+      "additional": "Adicional"
+    },
+    "summaryNote": "Sigue las recomendaciones para lograr el mejor resultado."
+  },
+  "bestWindowsWidget": {
+    "title": "Mejores franjas horarias",
+    "topBadge": "Top-{{count}}",
+    "subtitle": "Las horas más favorables para el tema elegido",
+    "bestTime": "Mejor momento",
+    "timelineLabel": "Línea del día"
+  },
   "premium": {
     "title": "Asesor Astral Premium",
     "subtitle": "Recomendaciones personales basadas en tránsitos a tu carta natal",

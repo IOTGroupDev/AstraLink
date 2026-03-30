@@ -110,7 +110,11 @@ export class AIService {
     );
 
     const locale = context.locale ?? 'ru';
-    const prompt = this.buildHoroscopePrompt(context, locale);
+    const prompt = this.buildHoroscopePrompt(
+      context,
+      locale,
+      this.primaryProvider,
+    );
     let response: string;
 
     try {
@@ -141,7 +145,12 @@ export class AIService {
           const provider = this.providers.get(fallbackProvider);
           if (!provider) continue;
 
-          response = await provider.generate(prompt, undefined, locale);
+          const fallbackPrompt = this.buildHoroscopePrompt(
+            context,
+            locale,
+            fallbackProvider,
+          );
+          response = await provider.generate(fallbackPrompt, undefined, locale);
           return this.parseAIResponse(response, locale);
         } catch (fallbackError) {
           this.logger.error(
@@ -231,7 +240,11 @@ export class AIService {
     );
 
     const locale = context.locale ?? 'ru';
-    const prompt = this.buildHoroscopePrompt(context, locale);
+    const prompt = this.buildHoroscopePrompt(
+      context,
+      locale,
+      this.primaryProvider,
+    );
 
     try {
       const provider = this.providers.get(this.primaryProvider);
@@ -259,7 +272,12 @@ export class AIService {
 
         const provider = this.providers.get(fallbackProvider);
         if (provider) {
-          yield* provider.stream(prompt, locale);
+          const fallbackPrompt = this.buildHoroscopePrompt(
+            context,
+            locale,
+            fallbackProvider,
+          );
+          yield* provider.stream(fallbackPrompt, locale);
         } else {
           throw error;
         }
@@ -290,7 +308,7 @@ export class AIService {
     );
 
     const locale = context.locale ?? 'ru';
-    const prompt = this.buildHoroscopePrompt(context, locale);
+    const prompt = this.buildHoroscopePrompt(context, locale, targetProvider);
 
     const provider = this.providers.get(targetProvider);
     if (!provider) {
@@ -321,7 +339,7 @@ export class AIService {
     );
 
     const locale = context.locale ?? 'ru';
-    const prompt = this.buildHoroscopePrompt(context, locale);
+    const prompt = this.buildHoroscopePrompt(context, locale, targetProvider);
 
     const provider = this.providers.get(targetProvider);
     if (!provider) {
@@ -386,6 +404,7 @@ export class AIService {
   private buildHoroscopePrompt(
     context: AIGenerationContext,
     locale: AILocale = 'ru',
+    provider?: AIProvider,
   ): string {
     const periodText =
       locale === 'en'
@@ -410,9 +429,50 @@ export class AIService {
             }[context.period] || 'на сегодня';
 
     const transitDescription = this.formatTransits(context.transits, locale);
+    const isDeepSeek = provider === 'deepseek';
 
-    return locale === 'en'
-      ? `Create a personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
+    if (locale === 'en') {
+      return isDeepSeek
+        ? `Create a deeply personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
+
+NATAL CHART:
+- Sun: ${context.sunSign}
+- Moon: ${context.moonSign}
+- Ascendant: ${context.ascendant}
+- Key aspects: ${this.formatAspects(context.aspects, locale)}
+
+CURRENT TRANSITS:
+${transitDescription}
+
+PERIOD: ${context.period}
+
+CRITICALLY IMPORTANT: Respond with ONLY a valid JSON object and no extra text.
+LANGUAGE: English only.
+
+JSON format:
+{
+  "general": "Overall forecast (6-8 sentences, rich and specific)",
+  "love": "Love and relationships (5-6 sentences with concrete recommendations)",
+  "career": "Career and business (5-6 sentences with practical advice)",
+  "health": "Health and energy (5-6 sentences)",
+  "finance": "Finance and material matters (5-6 sentences with grounded guidance)",
+  "advice": "Main advice (4-5 sentences)",
+  "challenges": ["detailed challenge 1-2 sentences", "detailed challenge 1-2 sentences", "detailed challenge 1-2 sentences", "detailed challenge 1-2 sentences"],
+  "opportunities": ["specific opportunity 1-2 sentences", "specific opportunity 1-2 sentences", "specific opportunity 1-2 sentences", "specific opportunity 1-2 sentences"]
+}
+
+Style and content requirements:
+- This is PREMIUM analysis — be as detailed and personalized as possible
+- Write warm, human, empathetic prose (avoid robotic phrasing)
+- Vary sentence length; avoid repetitive structures and clichés
+- Use light imagery where it helps clarity (not purple prose)
+- Consider interactions between transits and natal placements
+- Be concrete, practical, and realistic
+- Keep a positive but honest tone
+- Frame challenges as growth opportunities
+- Each section must be unique, extended, and substantive
+- Target ~800-1100 words total`
+        : `Create a personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
 
 NATAL CHART:
 - Sun: ${context.sunSign}
@@ -448,9 +508,51 @@ Content requirements:
 - Provide realistic, actionable advice
 - Keep a positive but honest tone
 - Frame challenges as growth opportunities
-- Each section must be unique, extended, and substantive`
-      : locale === 'es'
-        ? `Crea un horóscopo PREMIUM personalizado ${periodText} para una persona con la siguiente carta natal:
+- Each section must be unique, extended, and substantive`;
+    }
+
+    if (locale === 'es') {
+      return isDeepSeek
+        ? `Crea un horóscopo PREMIUM muy personalizado ${periodText} para una persona con la siguiente carta natal:
+
+CARTA NATAL:
+- Sol: ${context.sunSign}
+- Luna: ${context.moonSign}
+- Ascendente: ${context.ascendant}
+- Aspectos clave: ${this.formatAspects(context.aspects, locale)}
+
+TRÁNSITOS ACTUALES:
+${transitDescription}
+
+PERÍODO: ${context.period}
+
+CRÍTICAMENTE IMPORTANTE: Responde SOLO con un objeto JSON válido y sin texto adicional.
+IDIOMA: Español solamente.
+
+Formato JSON:
+{
+  "general": "Pronóstico general (6-8 frases, rico y específico)",
+  "love": "Amor y relaciones (5-6 frases con recomendaciones concretas)",
+  "career": "Carrera y negocios (5-6 frases con consejos prácticos)",
+  "health": "Salud y energía (5-6 frases)",
+  "finance": "Finanzas y lo material (5-6 frases con guía realista)",
+  "advice": "Consejo principal (4-5 frases)",
+  "challenges": ["desafío detallado 1-2 frases", "desafío detallado 1-2 frases", "desafío detallado 1-2 frases", "desafío detallado 1-2 frases"],
+  "opportunities": ["oportunidad concreta 1-2 frases", "oportunidad concreta 1-2 frases", "oportunidad concreta 1-2 frases", "oportunidad concreta 1-2 frases"]
+}
+
+Requisitos de estilo y contenido:
+- Esto es análisis PREMIUM: sé lo más detallado y personalizado posible
+- Escribe de forma cálida, humana y empática (evita frases robóticas)
+- Varía la longitud de las frases; evita repeticiones y clichés
+- Usa imágenes ligeras solo cuando ayuden a la claridad
+- Considera la interacción de los tránsitos con posiciones natales
+- Sé concreto, práctico y realista
+- Mantén un tono positivo pero honesto
+- Formula los desafíos como oportunidades de crecimiento
+- Cada sección debe ser única, extensa y sustancial
+- Objetivo ~800-1100 palabras`
+        : `Crea un horóscopo PREMIUM personalizado ${periodText} para una persona con la siguiente carta natal:
 
 CARTA NATAL:
 - Sol: ${context.sunSign}
@@ -486,8 +588,49 @@ Requisitos de contenido:
 - Da consejos realistas y aplicables
 - Mantén un tono positivo pero honesto
 - Formula los desafíos como oportunidades de crecimiento
-- Cada sección debe ser única, extensa y sustancial`
-        : `Создайте персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
+- Cada sección debe ser única, extensa y sustancial`;
+    }
+
+    return isDeepSeek
+      ? `Создайте максимально персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
+
+НАТАЛЬНАЯ КАРТА:
+- Солнце: ${context.sunSign}
+- Луна: ${context.moonSign}
+- Асцендент: ${context.ascendant}
+- Ключевые аспекты: ${this.formatAspects(context.aspects, locale)}
+
+ТЕКУЩИЕ ТРАНЗИТЫ:
+${transitDescription}
+
+ПЕРИОД: ${context.period}
+
+КРИТИЧЕСКИ ВАЖНО: Ответьте ТОЛЬКО валидным JSON объектом без дополнительного текста.
+
+Формат JSON:
+{
+  "general": "Общий прогноз (6-8 предложений, подробно и конкретно)",
+  "love": "Любовь и отношения (5-6 предложений с конкретными рекомендациями)",
+  "career": "Карьера и бизнес (5-6 предложений с практичными советами)",
+  "health": "Здоровье и энергия (5-6 предложений)",
+  "finance": "Финансы и материальное (5-6 предложений с приземленными советами)",
+  "advice": "Главный совет (4-5 предложений)",
+  "challenges": ["детальный вызов 1-2 предложения", "детальный вызов 1-2 предложения", "детальный вызов 1-2 предложения", "детальный вызов 1-2 предложения"],
+  "opportunities": ["конкретная возможность 1-2 предложения", "конкретная возможность 1-2 предложения", "конкретная возможность 1-2 предложения", "конкретная возможность 1-2 предложения"]
+}
+
+Требования к стилю и контенту:
+- Это PREMIUM анализ - будьте максимально детальны и персонализированы
+- Пишите тепло, по‑человечески, эмпатично (без «роботности»)
+- Разнообразьте длину фраз, избегайте повторов и клише
+- Легкие образные сравнения допустимы, если помогают ясности
+- Учитывайте взаимодействие транзитов с натальными планетами
+- Будьте конкретны, практичны и реалистичны
+- Сохраняйте позитивный, но честный тон
+- Вызовы формулируйте как возможности для роста
+- Каждый раздел должен быть уникальным, расширенным и содержательным
+- Ориентир ~800-1100 слов`
+      : `Создайте персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
 
 НАТАЛЬНАЯ КАРТА:
 - Солнце: ${context.sunSign}

@@ -81,7 +81,7 @@ export class DeepSeekProvider extends BaseAIProvider {
             },
           ],
           temperature: 0.7,
-          max_tokens: 1200,
+          max_tokens: 1500,
           response_format: { type: 'json_object' }, // JSON mode
         } as any); // response_format supported but types outdated
 
@@ -152,7 +152,7 @@ export class DeepSeekProvider extends BaseAIProvider {
           },
         ],
         temperature: 0.7,
-        max_tokens: 1200,
+        max_tokens: 1500,
         stream: true,
       } as any); // stream mode supported but types outdated
 

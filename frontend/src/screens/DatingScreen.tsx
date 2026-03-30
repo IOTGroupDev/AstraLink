@@ -1,9 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Dimensions, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { datingAPI, chatAPI } from '../services/api';
@@ -11,16 +18,14 @@ import CosmicChat from '../components/dating/CosmicChat';
 import DatingCard from '../components/dating/DatingCard';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  getAllZodiacSigns,
-  type ZodiacSign,
-  type ElementType,
-} from '../services/zodiac.service';
+import { getAllZodiacSigns } from '../services/zodiac.service';
 import CosmicBackground from '../components/shared/CosmicBackground';
+import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import { logger } from '../services/logger';
 import { DatingCardSkeleton } from '../components/dating/DatingCardSkeleton';
 
-const { width, height } = Dimensions.get('window');
+const CARD_TOP_PADDING = 4;
+const MAX_CARD_HEIGHT = 640;
 
 // API типы
 type ApiCandidate = {
@@ -63,29 +68,24 @@ export default function DatingScreen() {
     compatibility: number;
   } | null>(null);
   const [loadingCards, setLoadingCards] = useState<boolean>(true);
+  const [cardAreaHeight, setCardAreaHeight] = useState(0);
 
   const current = candidates[currentIndex] || null;
 
   const { user, isLoading: authLoading } = useAuth();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-
-  // ===============================
-  // Helpers
-  // ===============================
-  const getBadgeLabel = (b?: 'high' | 'medium' | 'low') =>
-    b === 'high'
-      ? t('dating.compatibility.high')
-      : b === 'medium'
-        ? t('dating.compatibility.medium')
-        : t('dating.compatibility.low');
-
-  const getBadgeBg = (b?: 'high' | 'medium' | 'low') =>
-    b === 'high'
-      ? 'rgba(16,185,129,0.25)'
-      : b === 'medium'
-        ? 'rgba(245,158,11,0.25)'
-        : 'rgba(239,68,68,0.25)';
+  const tabBarHeight = useBottomTabBarHeight();
+  const cardBottomPadding = Math.max(20, tabBarHeight + 12);
+  const availableCardHeight = Math.max(
+    0,
+    cardAreaHeight - CARD_TOP_PADDING - cardBottomPadding
+  );
+  const measuredCardHeight =
+    availableCardHeight > 0
+      ? Math.min(MAX_CARD_HEIGHT, availableCardHeight)
+      : undefined;
+  const isFocused = useIsFocused();
 
   const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low') =>
     b === 'high' ? 85 : b === 'medium' ? 65 : 45;
@@ -180,6 +180,13 @@ export default function DatingScreen() {
     setSelectedUser(null);
   }, []);
 
+  const handleCardAreaLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = event.nativeEvent.layout.height;
+    setCardAreaHeight((prev) =>
+      Math.abs(prev - nextHeight) > 1 ? nextHeight : prev
+    );
+  }, []);
+
   // ===============================
   // Загрузка кандидатов
   // ===============================
@@ -189,7 +196,8 @@ export default function DatingScreen() {
     (async () => {
       setLoadingCards(true);
       try {
-        let data: ApiCandidate[] = (await datingAPI.getCandidates?.(20)) || [];
+        const data: ApiCandidate[] =
+          (await datingAPI.getCandidates?.(20)) || [];
         logger.info('[Dating] candidates raw count', data.length);
 
         // Если совпадений нет — оставляем пусто, UI покажет заглушку (empty-state)
@@ -236,8 +244,9 @@ export default function DatingScreen() {
               c.interests ||
               randomInterests.slice(0, Math.floor(Math.random() * 3) + 2),
             distance: Math.floor(Math.random() * 50) + 1,
+            city: c.city ?? undefined,
             photos: c.photoUrl ? [c.photoUrl] : [],
-            photoUrl: c.photoUrl || c.avatarUrl || null,
+            photoUrl: c.photoUrl || c.avatarUrl || undefined,
             height: Math.floor(Math.random() * 25) + 160, // 160-185 см
             lookingFor:
               lookingForOptions[
@@ -273,30 +282,42 @@ export default function DatingScreen() {
       <View style={styles.screen}>
         <GestureHandlerRootView style={styles.container}>
           {/* Космический фон */}
-          <CosmicBackground />
+          <CosmicBackground active={isFocused} />
 
           <View style={styles.content}>
             {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-              <View style={styles.iconContainer}>
-                <LinearGradient
-                  colors={['#8B5CF6', '#A855F7']}
-                  style={styles.iconCircle}
-                >
-                  <Ionicons name="heart" size={24} color="#fff" />
-                </LinearGradient>
-              </View>
-              <Text style={styles.title}>{t('dating.title')}</Text>
-              <Text style={styles.subtitle}>{t('dating.subtitle')}</Text>
+            <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+              <CompactScreenHeader
+                title={t('dating.title')}
+                description={t('dating.subtitle')}
+                icon={<Ionicons name="heart" size={20} color="#FFFFFF" />}
+              />
             </View>
 
             {/* Content */}
             {loadingCards ? (
-              <View style={styles.cardContainer}>
-                <DatingCardSkeleton />
+              <View
+                style={[
+                  styles.cardContainer,
+                  {
+                    paddingTop: CARD_TOP_PADDING,
+                    paddingBottom: cardBottomPadding,
+                  },
+                ]}
+                onLayout={handleCardAreaLayout}
+              >
+                <DatingCardSkeleton cardHeight={measuredCardHeight} />
               </View>
             ) : !current ? (
-              <View style={styles.emptyContainer}>
+              <View
+                style={[
+                  styles.emptyContainer,
+                  {
+                    paddingBottom: cardBottomPadding,
+                    paddingTop: CARD_TOP_PADDING,
+                  },
+                ]}
+              >
                 <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
                 <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
                 <Text style={styles.emptyText}>
@@ -304,7 +325,16 @@ export default function DatingScreen() {
                 </Text>
               </View>
             ) : (
-              <View style={styles.cardContainer}>
+              <View
+                style={[
+                  styles.cardContainer,
+                  {
+                    paddingTop: CARD_TOP_PADDING,
+                    paddingBottom: cardBottomPadding,
+                  },
+                ]}
+                onLayout={handleCardAreaLayout}
+              >
                 <DatingCard
                   user={{
                     id: current.userId,
@@ -319,6 +349,7 @@ export default function DatingScreen() {
                     height: current.height,
                     lookingFor: current.lookingFor,
                   }}
+                  cardHeight={measuredCardHeight}
                   onSwipe={handleSwipe}
                   onChat={handleChat}
                   isTop={true}
@@ -370,8 +401,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   topFade: {
     position: 'absolute',
@@ -379,28 +410,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-  },
-  iconContainer: {
-    marginBottom: 8,
-  },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
   },
   loadingContainer: {
     flex: 1,
@@ -432,10 +441,8 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 80,
   },
 });

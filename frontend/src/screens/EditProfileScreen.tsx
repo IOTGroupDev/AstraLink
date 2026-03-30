@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import Animated, { useSharedValue } from 'react-native-reanimated';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   userAPI,
@@ -91,6 +91,7 @@ const INTERESTS_CONFIG: Array<{
 ];
 
 const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const isFocused = useIsFocused();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -566,7 +567,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <LoadingIndicator />
       </View>
     );
@@ -580,7 +581,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
 
       <ScrollView
         contentContainerStyle={[

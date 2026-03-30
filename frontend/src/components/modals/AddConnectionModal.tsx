@@ -1,26 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  interpolate,
-  Easing,
   FadeIn,
   SlideInUp,
+  useSharedValue,
+  withDelay,
+  withSpring,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
 
 import AstralInput from '../shared/AstralInput';
 import AstralDateTimePicker from '../shared/DateTimePicker';

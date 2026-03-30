@@ -2,14 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import Svg, {
-  Circle,
-  Defs,
-  RadialGradient,
-  Stop,
-  G,
-  Text as SvgText,
-} from 'react-native-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop, G } from 'react-native-svg';
+
+const ENERGY_CARD_GRADIENT_COLORS = [
+  'rgba(138, 48, 186, 0.42)',
+  'rgba(69, 13, 92, 0.92)',
+  'rgba(35, 0, 45, 1)',
+] as const;
 
 interface EnergyWidgetProps {
   energy: number; // 0-100
@@ -50,9 +49,10 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
   if (isLoading) {
     return (
       <LinearGradient
-        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-        start={{ x: 0, y: 0.44 }}
-        end={{ x: 0, y: 1 }}
+        colors={ENERGY_CARD_GRADIENT_COLORS}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        locations={[0, 0.38, 1]}
         style={styles.container}
       >
         <View style={styles.innerContainer}>
@@ -71,9 +71,10 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
 
   return (
     <LinearGradient
-      colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-      start={{ x: 0, y: 0.44 }}
-      end={{ x: 0, y: 1 }}
+      colors={ENERGY_CARD_GRADIENT_COLORS}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      locations={[0, 0.38, 1]}
       style={styles.container}
     >
       <View style={styles.innerContainer}>
@@ -144,17 +145,13 @@ const EnergyWidget: React.FC<EnergyWidgetProps> = ({
               </G>
 
               {/* Процент в центре */}
-              <SvgText
-                x={center - 10}
-                y={center + 4}
-                fontSize="13"
-                fontWeight="700"
-                fill="white"
-                textAnchor="middle"
-              >
-                {energy}%
-              </SvgText>
             </Svg>
+            <View pointerEvents="none" style={styles.energyValueOverlay}>
+              <View style={styles.energyValueRow}>
+                <Text style={styles.energyValueText}>{energy}</Text>
+                <Text style={styles.energyValuePercent}>%</Text>
+              </View>
+            </View>
           </View>
 
           {/* Правая часть: Текстовое содержимое */}
@@ -208,6 +205,32 @@ const styles = StyleSheet.create({
   },
   circleSvg: {
     position: 'absolute',
+  },
+  energyValueOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  energyValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  energyValueText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 16,
+  },
+  energyValuePercent: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 16,
+    marginLeft: -1,
   },
   textContainer: {
     flex: 1,

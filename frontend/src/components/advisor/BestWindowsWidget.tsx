@@ -4,6 +4,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 
 interface TimeWindow {
   startISO: string;
@@ -20,6 +21,7 @@ const BestWindowsWidget: React.FC<BestWindowsWidgetProps> = ({
   windows,
   verdict,
 }) => {
+  const { t, i18n } = useTranslation();
   // Возвращаем строго кортеж из двух цветов (для типов expo-linear-gradient)
   const getScoreColor = (score: number): readonly [string, string] => {
     if (score >= 70) return ['#10B981', '#059669'] as const;
@@ -31,7 +33,13 @@ const BestWindowsWidget: React.FC<BestWindowsWidgetProps> = ({
     if (value == null) return '--:--';
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '--:--';
-    return date.toLocaleTimeString('ru-RU', {
+    const locale =
+      i18n.language === 'ru'
+        ? 'ru-RU'
+        : i18n.language === 'es'
+          ? 'es-ES'
+          : 'en-US';
+    return date.toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -45,16 +53,22 @@ const BestWindowsWidget: React.FC<BestWindowsWidgetProps> = ({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="time" size={20} color="#8B5CF6" />
-          <Text style={styles.title}>Лучшие временные окна</Text>
+          <Text style={styles.title}>
+            {t('advisor.bestWindowsWidget.title')}
+          </Text>
         </View>
         <View style={styles.badge}>
           <Ionicons name="star" size={14} color="#F59E0B" />
-          <Text style={styles.badgeText}>Топ-{topWindows.length}</Text>
+          <Text style={styles.badgeText}>
+            {t('advisor.bestWindowsWidget.topBadge', {
+              count: topWindows.length,
+            })}
+          </Text>
         </View>
       </View>
 
       <Text style={styles.subtitle}>
-        Наиболее благоприятные часы для выбранной темы
+        {t('advisor.bestWindowsWidget.subtitle')}
       </Text>
 
       <View style={styles.windowsList}>
@@ -90,7 +104,9 @@ const BestWindowsWidget: React.FC<BestWindowsWidgetProps> = ({
                   {isTop && (
                     <View style={styles.bestBadge}>
                       <Ionicons name="trophy" size={12} color="#F59E0B" />
-                      <Text style={styles.bestBadgeText}>Лучшее время</Text>
+                      <Text style={styles.bestBadgeText}>
+                        {t('advisor.bestWindowsWidget.bestTime')}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -111,7 +127,9 @@ const BestWindowsWidget: React.FC<BestWindowsWidgetProps> = ({
 
       {/* Timeline visualization */}
       <View style={styles.timeline}>
-        <Text style={styles.timelineLabel}>График дня</Text>
+        <Text style={styles.timelineLabel}>
+          {t('advisor.bestWindowsWidget.timelineLabel')}
+        </Text>
         <View style={styles.timelineBar}>
           {safeWindows.slice(0, 24).map((window, index) => {
             const scoreColors = getScoreColor(window.score);

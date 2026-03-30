@@ -1,12 +1,15 @@
 {
   "title": "My cosmic\nprofile",
+  "headerSubtitle": "Your chart, subscription, and cosmic settings.",
   "sections": {
     "subscription": "Subscription",
     "natalChart": "Natal Chart",
     "settings": "Settings"
   },
   "natalChart": {
-    "viewChart": "View natal\nchart with interpretation",
+    "viewSimulator": "Cosmic Simulator",
+    "viewLearning": "Learning",
+    "viewChart": "Natal chart interpretation",
     "viewPersonalCode": "View Personal Code"
   },
   "settings": {

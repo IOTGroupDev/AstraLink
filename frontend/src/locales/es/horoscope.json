@@ -84,6 +84,11 @@
     "premiumOnlyTitle": "Se requiere Premium",
     "premiumOnlyMessage": "Actualiza tu suscripción para ver el análisis IA."
   },
+  "learningCard": {
+    "title": "Aprendizaje",
+    "label": "Lección del día",
+    "button": "Abrir aprendizaje"
+  },
   "planetRecommendationWidget": {
     "title": "Recomendación del día",
     "loading": "Cargando recomendaciones...",

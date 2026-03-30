@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import Svg, {
@@ -23,6 +24,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
+
+const RECOMMENDATION_CARD_GRADIENT_COLORS = [
+  'rgba(92, 40, 140, 0.28)',
+  'rgba(48, 16, 76, 0.94)',
+  'rgba(24, 6, 40, 1)',
+] as const;
 
 // Типы для планет
 interface PlanetPosition {
@@ -422,11 +429,13 @@ const PlanetaryRecommendationWidget: React.FC<
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
+          colors={RECOMMENDATION_CARD_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          locations={[0, 0.38, 1]}
           style={styles.gradient}
         >
+          <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.title}>
@@ -663,11 +672,13 @@ const PlanetaryRecommendationWidget: React.FC<
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={['rgba(139, 92, 246, 0.4)', 'rgba(168, 85, 247, 0.2)']}
+          colors={RECOMMENDATION_CARD_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          locations={[0, 0.38, 1]}
           style={styles.gradient}
         >
+          <BlurView intensity={14} tint="dark" style={styles.blurLayer} />
           <View style={styles.content}>
             {/* Заголовок */}
             <View style={styles.header}>
@@ -853,6 +864,10 @@ const styles = StyleSheet.create({
   gradient: {
     position: 'relative',
   },
+  blurLayer: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
+  },
   border: {
     position: 'absolute',
     top: 0,
@@ -861,7 +876,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 12,
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(168, 85, 247, 0.16)',
     pointerEvents: 'none',
   },
   content: {

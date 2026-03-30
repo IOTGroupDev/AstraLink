@@ -1,0 +1,47 @@
+{
+  "title": "Learning",
+  "subtitle": "Daily astrology lessons and practice tied to your natal chart.",
+  "featured": {
+    "title": "Selected lesson"
+  },
+  "progress": {
+    "summary": "{{completed}} of {{total}} lessons completed"
+  },
+  "dailyLesson": {
+    "label": "Lesson of the day",
+    "button": "Open lesson"
+  },
+  "filters": {
+    "all": "All lessons"
+  },
+  "categories": {
+    "basics": "Basics",
+    "planets": "Planets",
+    "signs": "Signs",
+    "houses": "Houses",
+    "aspects": "Aspects",
+    "transits": "Transits",
+    "practical": "Practice",
+    "lunar": "Lunar cycles"
+  },
+  "lessonCard": {
+    "difficulty": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "readTime": "Read time: {{seconds}}s",
+    "readTimeShort": "{{seconds}}s",
+    "completedTag": "Completed",
+    "keyPointsTitle": "Key points:",
+    "exampleTitle": "Example:",
+    "completeDone": "Completed",
+    "completeQuiz": "Take quiz",
+    "completeMark": "Mark as completed",
+    "quiz": {
+      "title": "Check yourself",
+      "successTitle": "Great!",
+      "successSubtitle": "Lesson completed successfully"
+    }
+  }
+}

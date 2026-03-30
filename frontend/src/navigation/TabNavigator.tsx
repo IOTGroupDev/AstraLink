@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 import HoroscopeScreen from '../screens/HoroscopeScreen';
 import { BlurView } from 'expo-blur';
@@ -20,8 +20,9 @@ import { calculateProfileCompletion } from '../screens/Auth/utils/onboardingutil
 
 const Tab = createBottomTabNavigator();
 const PROFILE_COMPLETION_HIDE_KEY = 'profile_completion_hide_popup';
+const ISLAND_SIDE_MARGIN = 16;
+const TAB_BAR_BASE_HEIGHT = 64;
 
-// Мемоизированный компонент иконки с бейджем
 const TabBarIconWithBadge = React.memo(
   ({
     name,
@@ -35,55 +36,24 @@ const TabBarIconWithBadge = React.memo(
     opacity: number;
   }) => {
     const badgeSize = 16;
+
     return (
-      <View
-        style={{
-          width: size,
-          height: size,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <View style={styles.badgedIconWrap}>
         <Ionicons name={name} size={size} color={color} style={{ opacity }} />
         <View
-          style={{
-            position: 'absolute',
-            top: -2,
-            right: -10,
-            minWidth: badgeSize,
-            height: badgeSize,
-            paddingHorizontal: 4,
-            borderRadius: badgeSize / 2,
-            backgroundColor: '#EF4444',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.9)',
-          }}
+          style={[styles.aiBadge, { minWidth: badgeSize, height: badgeSize }]}
         >
-          <Text
-            style={{
-              color: '#FFFFFF',
-              fontSize: 9,
-              fontWeight: '700',
-              lineHeight: 10,
-            }}
-          >
-            AI
-          </Text>
+          <Text style={styles.aiBadgeText}>AI</Text>
         </View>
       </View>
     );
   }
 );
 
-// Функция определения иконки по названию маршрута
 const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
   switch (routeName) {
     case 'Horoscope':
       return 'planet-outline';
-    case 'CosmicSimulator':
-      return 'time-outline';
     case 'Dating':
       return 'heart-outline';
     case 'Advisor':
@@ -96,36 +66,77 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
   }
 };
 
-// Мемоизированный компонент фона таббара
 const TabBarBackground = React.memo(() => (
-  <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill}>
+  <View style={styles.tabBarShell}>
     <LinearGradient
-      colors={['rgba(167, 114, 181, 0.3)', 'rgba(26, 7, 31, 0.3)']}
-      style={{ flex: 1 }}
+      colors={[
+        'rgba(226, 203, 255, 0.28)',
+        'rgba(168, 120, 255, 0.2)',
+        'rgba(255,255,255,0.08)',
+      ]}
+      start={{ x: 0.08, y: 0 }}
+      end={{ x: 0.92, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+    <BlurView intensity={28} tint="dark" style={styles.tabBarBlur} />
+    <LinearGradient
+      colors={[
+        'rgba(36, 29, 58, 0.9)',
+        'rgba(34, 28, 55, 0.9)',
+        'rgba(31, 27, 50, 0.9)',
+      ]}
+      start={{ x: 0.2, y: 0 }}
+      end={{ x: 0.8, y: 1 }}
+      style={styles.tabBarFill}
+    />
+    <LinearGradient
+      pointerEvents="none"
+      colors={[
+        'rgba(247, 240, 255, 0)',
+        'rgba(236, 223, 255, 0.22)',
+        'rgba(210, 178, 255, 0.42)',
+        'rgba(236, 223, 255, 0.22)',
+        'rgba(247, 240, 255, 0)',
+      ]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.tabBarTopBorder}
+    />
+    <LinearGradient
+      pointerEvents="none"
+      colors={[
+        'rgba(255,255,255,0.08)',
+        'rgba(196, 168, 255, 0.04)',
+        'rgba(255,255,255,0)',
+      ]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
+      style={styles.tabBarHighlight}
     />
-  </BlurView>
+  </View>
 ));
 
 export default function TabNavigator() {
   const navigation = useNavigation<any>();
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const barBottomOffset = Math.max(8, Math.round(insets.bottom * 0.5) + 6);
+  const barVerticalInset = 8;
 
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionPercent, setCompletionPercent] = useState(100);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
+  const tabBarHeight = TAB_BAR_BASE_HEIGHT;
+
   const tabLabels = useMemo(
     () => ({
       horoscope: t('common.tabs.horoscope'),
-      cosmicSimulator: t('common.tabs.cosmicSimulator'),
       dating: t('common.tabs.dating'),
       messages: t('common.tabs.messages'),
       advisor: t('common.tabs.advisor'),
       profile: t('common.tabs.profile'),
     }),
-    // Важно: пересчитываем при смене языка, чтобы обновились лейблы табов
     [i18n.language, t]
   );
 
@@ -180,39 +191,51 @@ export default function TabNavigator() {
     navigation.navigate('EditProfileScreen');
   };
 
-  // Мемоизация опций навигатора
   const screenOptions = useMemo(
     () => ({
       tabBarHideOnKeyboard: true,
-
-      // КРИТИЧНО: Убираем анимацию переключения табов
       animation: 'none' as const,
-
-      // Оптимизация для производительности
-      lazy: false, // Монтируем все табы сразу
+      lazy: false,
       lazyPreloadDistance: 0,
-
-      // ВАЖНО: Отключаем detach на обеих платформах для стабильности
       detachInactiveScreens: false,
       freezeOnBlur: false,
-
-      // Единый цвет фона для всех экранов
       sceneContainerStyle: {
         backgroundColor: '#0F172A',
       },
-
-      tabBarActiveTintColor: '#ffffff',
-      tabBarInactiveTintColor: '#ffffff',
+      tabBarActiveTintColor: '#F8FAFC',
+      tabBarInactiveTintColor: 'rgba(226, 232, 240, 0.54)',
+      tabBarShowLabel: true,
       tabBarStyle: {
         position: 'absolute' as const,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(139, 92, 246, 0.3)',
-        paddingBottom: 50,
-        paddingTop: 5,
-        height: 108,
+        left: 0,
+        right: 0,
+        marginHorizontal: ISLAND_SIDE_MARGIN,
+        bottom: barBottomOffset,
+        height: tabBarHeight,
+        paddingTop: 5.2,
+        paddingBottom: barVerticalInset,
+        paddingHorizontal: 6.5,
+        borderTopWidth: 0,
+        borderRadius: 999,
         backgroundColor: 'transparent',
-        bottom: -10,
-        elevation: 0, // Убираем тень на Android
+        elevation: 18,
+        shadowColor: '#020617',
+        shadowOpacity: 0.28,
+        shadowRadius: 22,
+        shadowOffset: { width: 0, height: 10 },
+        overflow: 'hidden' as const,
+      },
+      tabBarItemStyle: {
+        marginHorizontal: 0,
+        borderRadius: 999,
+      },
+      tabBarLabelStyle: {
+        fontSize: 9.5,
+        fontWeight: '600' as const,
+        paddingBottom: 1,
+      },
+      tabBarIconStyle: {
+        marginTop: 1,
       },
       tabBarBackground: () => <TabBarBackground />,
       headerStyle: {
@@ -228,11 +251,9 @@ export default function TabNavigator() {
       },
       headerBackground: () => null,
     }),
-    // Важно: screenOptions тоже зависит от языка, потому что навигация кеширует опции.
-    [i18n.language]
+    [barBottomOffset, i18n.language, tabBarHeight]
   );
 
-  // Мемоизация функции рендера иконки
   const renderTabBarIcon = useMemo(
     () =>
       ({ route }: { route: { name: string } }) =>
@@ -245,14 +266,15 @@ export default function TabNavigator() {
         color: string;
         size: number;
       }) => {
-        const opacity = focused ? 1 : 0.5;
+        const opacity = focused ? 1 : 0.9;
         const name = getIconName(route.name);
+        const iconSize = focused ? size : size - 1;
 
         if (route.name === 'Advisor') {
           return (
             <TabBarIconWithBadge
               name={name}
-              size={size}
+              size={iconSize}
               color={color}
               opacity={opacity}
             />
@@ -260,7 +282,12 @@ export default function TabNavigator() {
         }
 
         return (
-          <Ionicons name={name} size={size} color={color} style={{ opacity }} />
+          <Ionicons
+            name={name}
+            size={iconSize}
+            color={color}
+            style={{ opacity }}
+          />
         );
       },
     []
@@ -280,15 +307,6 @@ export default function TabNavigator() {
           options={{
             title: tabLabels.horoscope,
             tabBarLabel: tabLabels.horoscope,
-            headerShown: false,
-          }}
-        />
-        <Tab.Screen
-          name="CosmicSimulator"
-          component={CosmicSimulatorScreen}
-          options={{
-            title: tabLabels.cosmicSimulator,
-            tabBarLabel: tabLabels.cosmicSimulator,
             headerShown: false,
           }}
         />
@@ -340,3 +358,64 @@ export default function TabNavigator() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  badgedIconWrap: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -11,
+    paddingHorizontal: 4,
+    borderRadius: 999,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.92)',
+  },
+  aiBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 10,
+  },
+  tabBarShell: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  tabBarBlur: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
+  },
+  tabBarFill: {
+    position: 'absolute',
+    top: 1,
+    right: 1,
+    bottom: 1,
+    left: 1,
+    borderRadius: 999,
+  },
+  tabBarTopBorder: {
+    position: 'absolute',
+    top: 0.75,
+    left: 14,
+    right: 14,
+    height: 1,
+    borderRadius: 999,
+  },
+  tabBarHighlight: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    right: 1,
+    height: 14,
+    borderTopLeftRadius: 999,
+    borderTopRightRadius: 999,
+  },
+});

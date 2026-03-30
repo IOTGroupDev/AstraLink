@@ -4,6 +4,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 
 interface AdvisorResultWidgetProps {
   verdict: 'good' | 'neutral' | 'challenging';
@@ -22,6 +23,7 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
   topic,
   topicIcon,
 }) => {
+  const { t } = useTranslation();
   type VerdictConfig = {
     icon: keyof typeof Ionicons.glyphMap;
     label: string;
@@ -34,21 +36,21 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
       case 'good':
         return {
           icon: 'checkmark-circle',
-          label: 'Отлично',
+          label: t('advisor.resultWidget.verdict.good'),
           gradient: ['#10B981', '#059669'],
           emoji: '✨',
         };
       case 'neutral':
         return {
           icon: 'remove-circle',
-          label: 'Умеренно',
+          label: t('advisor.resultWidget.verdict.neutral'),
           gradient: ['#F59E0B', '#D97706'],
           emoji: '⚖️',
         };
       case 'challenging':
         return {
           icon: 'close-circle',
-          label: 'Сложно',
+          label: t('advisor.resultWidget.verdict.challenging'),
           gradient: ['#EF4444', '#DC2626'],
           emoji: '⚠️',
         };
@@ -56,7 +58,7 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
         // На случай расширения типов в будущем — безопасное значение
         return {
           icon: 'remove-circle',
-          label: 'Умеренно',
+          label: t('advisor.resultWidget.verdict.neutral'),
           gradient: ['#F59E0B', '#D97706'],
           emoji: '⚖️',
         };
@@ -80,7 +82,9 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
         >
           <View style={styles.scoreInner}>
             <Text style={styles.scoreNumber}>{score}</Text>
-            <Text style={styles.scoreLabel}>из 100</Text>
+            <Text style={styles.scoreLabel}>
+              {t('advisor.resultWidget.outOf')}
+            </Text>
           </View>
         </LinearGradient>
 
@@ -111,7 +115,9 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
 
       {/* Energy Bar */}
       <View style={styles.energyBarContainer}>
-        <Text style={styles.energyLabel}>Уровень благоприятности</Text>
+        <Text style={styles.energyLabel}>
+          {t('advisor.resultWidget.energyLabel')}
+        </Text>
         <View style={styles.energyBarBackground}>
           <LinearGradient
             colors={[
@@ -145,28 +151,29 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
+    alignItems: 'flex-start',
+    gap: 16,
     marginBottom: 20,
   },
   scoreRing: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   scoreInner: {
     width: '100%',
     height: '100%',
     backgroundColor: '#0A0A0F',
-    borderRadius: 50,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scoreNumber: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -178,6 +185,8 @@ const styles = StyleSheet.create({
   headerInfo: {
     flex: 1,
     gap: 12,
+    minWidth: 0,
+    paddingTop: 4,
   },
   topicBadge: {
     flexDirection: 'row',
@@ -188,20 +197,25 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   topicText: {
     color: 'rgba(139, 92, 246, 1)',
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
   },
   verdictBadge: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
+    flexWrap: 'wrap',
   },
   verdictLabel: {
-    fontSize: 24,
+    fontSize: 19,
+    lineHeight: 24,
     fontWeight: '700',
+    flexShrink: 1,
   },
   explanationContainer: {
     backgroundColor: 'rgba(255,255,255,0.05)',

@@ -7,13 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   Image,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
@@ -23,7 +22,6 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
-import LoadingIndicator from '../components/shared/LoadingIndicator';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import ZodiacAvatar from '../components/profile/ZodiacAvatar';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
@@ -41,8 +39,8 @@ import {
 import { logger } from '../services/logger';
 import LanguageSelector from '../components/settings/LanguageSelector';
 import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
-
-const { width, height } = Dimensions.get('window');
+import { BottomTabFade } from '../components/shared/BottomTabFade';
+import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -89,29 +87,50 @@ const ZODIAC_ELEMENTS = {
 };
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isFocused = useIsFocused();
   const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [chart, setChart] = useState<Chart | null>(null);
   const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
+  const profileHeaderTitle = React.useMemo(() => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+
+    if (locale.startsWith('ru')) {
+      return 'Мой профиль';
+    }
+
+    if (locale.startsWith('es')) {
+      return 'Mi perfil';
+    }
+
+    return 'My profile';
+  }, [i18n.language]);
+  const profileHeaderSubtitle = React.useMemo(() => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+
+    if (locale.startsWith('ru')) {
+      return 'Профиль и карта';
+    }
+
+    if (locale.startsWith('es')) {
+      return 'Perfil y carta';
+    }
+
+    return t('profile.headerSubtitle', {
+      defaultValue: 'Profile and chart',
+    });
+  }, [i18n.language, t]);
 
   // Animations
   const fadeAnim = useSharedValue(0);
   const glowAnim = useSharedValue(0);
   const orbAnim = useSharedValue(0);
-
-  const {
-    biometricAvailable,
-    biometricEnabled,
-    biometricType,
-    setBiometricEnabled,
-  } = useAuthStore();
 
   useEffect(() => {
     fadeAnim.value = withTiming(1, { duration: 800 });
@@ -213,17 +232,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert(t('profile.logout.title'), t('profile.logout.message'), [
-      { text: t('common.buttons.cancel'), style: 'cancel' },
-      {
-        text: t('profile.logout.confirm'),
-        style: 'destructive',
-        onPress: async () => await AuthEngine.signOut(),
-      },
-    ]);
-  };
-
   const handleDeleteAccount = async () => {
     try {
       await userAPI.deleteAccount();
@@ -254,6 +262,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigation.navigate('PersonalCode' as never);
   };
 
+  const handleOpenCosmicSimulator = () => {
+    navigation.navigate('CosmicSimulator' as never);
+  };
+
+  const handleOpenLearning = () => {
+    navigation.navigate('Learning' as never, { source: 'profile' });
+  };
+
   const animatedContainerStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
   }));
@@ -268,8 +284,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         style={styles.container}
         edges={['top', 'left', 'right']}
       >
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <ProfileSkeleton />
+        <BottomTabFade />
       </SafeAreaViewSAC>
     );
   }
@@ -277,10 +294,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <CosmicBackground />
+        <CosmicBackground active={isFocused} />
         <Text style={styles.errorText}>
           {t('profile.errors.profileNotFound')}
         </Text>
+        <BottomTabFade />
       </View>
     );
   }
@@ -293,26 +311,35 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaViewSAC style={styles.container} edges={['left', 'right']}>
-      <CosmicBackground />
+      <CosmicBackground active={isFocused} />
 
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           {
             // ключевая строка: чтобы контент не перекрывался таббаром
-            paddingTop: insets.top,
-            paddingBottom: Math.max(40, tabBarHeight + insets.bottom + 16),
+            paddingTop: insets.top + 12,
+            paddingBottom: Math.max(56, tabBarHeight + 28),
           },
         ]}
         // помогает на iOS корректно отрабатывать safe area
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, animatedContainerStyle]}>
           {/* Header with Blur */}
-          <View style={styles.headerCard}>
-            <Text style={styles.title}>{t('profile.title')}</Text>
-          </View>
+          <CompactScreenHeader
+            style={styles.headerCard}
+            title={profileHeaderTitle}
+            description={profileHeaderSubtitle}
+            icon={
+              <Ionicons
+                name="person-circle-outline"
+                size={24}
+                color="#FFFFFF"
+              />
+            }
+          />
 
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
@@ -384,42 +411,71 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <View style={styles.chartCard}>
                 <NatalChartWidget chart={chart} />
 
-                <TouchableOpacity
-                  style={styles.viewChartButton}
-                  onPress={() => navigation.navigate('NatalChart' as never)}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#701F86', '#701F86']}
-                    style={styles.buttonGradient}
+                <View style={styles.natalActionsGrid}>
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={() => navigation.navigate('NatalChart' as never)}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="telescope" size={32} color="#fff" />
-                    <Text style={styles.viewChartText}>
-                      {t('profile.natalChart.viewChart')}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={32} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={['#701F86', '#5B1670']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="telescope" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewChart')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.regenerateButton}
-                  onPress={handleViewPersonalCode}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#8B5CF6', '#6D28D9']}
-                    style={styles.buttonGradient}
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleViewPersonalCode}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="code-outline" size={24} color="#fff" />
-                    <Text style={styles.regenerateButtonText}>
-                      {t(
-                        'profile.natalChart.viewPersonalCode',
-                        'View Personal Code'
-                      )}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={24} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={['#8B5CF6', '#6D28D9']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="code-outline" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewPersonalCode')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleOpenCosmicSimulator}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={['#4C1D95', '#312E81']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="planet-outline" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewSimulator')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleOpenLearning}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={['#1D4ED8', '#4338CA']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name="school-outline" size={28} color="#fff" />
+                      <Text style={styles.natalActionText}>
+                        {t('profile.natalChart.viewLearning')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -492,6 +548,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         end={{ x: 0.5, y: 1 }}
         style={[styles.topFade, { height: insets.top + 56 }]}
       />
+      <BottomTabFade />
 
       {/* Delete Account Modal */}
       <DeleteAccountModal
@@ -558,21 +615,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingTop: 0,
   },
   headerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
-    lineHeight: 39,
+    marginBottom: 28,
   },
   avatarSection: {
     alignItems: 'center',
@@ -732,36 +779,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(112, 31, 134, 0.3)',
   },
-  viewChartButton: {
-    marginTop: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 18,
-  },
-  viewChartText: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 19.5,
-  },
-  regenerateButton: {
+  natalActionsGrid: {
     marginTop: 12,
-    borderRadius: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  natalActionCard: {
+    flexBasis: '48%',
+    maxWidth: '48%',
+    borderRadius: 14,
     overflow: 'hidden',
   },
-  regenerateButtonText: {
+  natalActionGradient: {
+    minHeight: 116,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  natalActionText: {
     flex: 1,
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 18,
   },
   settingsCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',

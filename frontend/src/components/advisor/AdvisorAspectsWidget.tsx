@@ -413,13 +413,15 @@ const styles = StyleSheet.create({
   aspectHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   aspectLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     flex: 1,
+    minWidth: 0,
+    paddingRight: 12,
   },
   aspectIcon: {
     width: 32,
@@ -431,26 +433,31 @@ const styles = StyleSheet.create({
   aspectInfo: {
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
   aspectTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexWrap: 'wrap',
   },
   aspectTitle: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+    flexShrink: 1,
   },
   aspectType: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 1,
   },
   aspectDetails: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexWrap: 'wrap',
   },
   aspectDetailText: {
     color: 'rgba(255,255,255,0.6)',
@@ -463,9 +470,11 @@ const styles = StyleSheet.create({
   aspectRight: {
     alignItems: 'flex-end',
     gap: 4,
+    minWidth: 72,
+    flexShrink: 0,
   },
   impactValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   aspectExpanded: {

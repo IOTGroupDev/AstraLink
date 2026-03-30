@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { chartAPI } from '../services/api';
+import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { useSubscription } from '../hooks/useSubscription';
 import {
   getLessonsByLocale,
@@ -64,9 +65,10 @@ interface HistoricalNote {
 // Добавляем "lessons" в типы вкладок
 type SimulatorTab = 'transits' | 'planets' | 'timeline' | 'lessons';
 
-export default function CosmicSimulatorScreen() {
+export default function CosmicSimulatorScreen({ navigation }: any) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const hasLoadedRef = useRef(false);
@@ -83,7 +85,6 @@ export default function CosmicSimulatorScreen() {
   const [transitsLoading, setTransitsLoading] = useState(false);
   const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
   const [hasAIAccess, setHasAIAccess] = useState(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
   // UI состояния
   const [activeTab, setActiveTab] = useState<SimulatorTab>('transits');
@@ -97,16 +98,14 @@ export default function CosmicSimulatorScreen() {
   const [detailContent, setDetailContent] = useState<any>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerValue, setDatePickerValue] = useState('');
-
-  // Уроки
-  const [showDailyLesson, setShowDailyLesson] = useState(true);
-  const [dailyLesson, setDailyLesson] = useState<AstroLesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(
     new Set()
   );
   const [bookmarkedLessons, setBookmarkedLessons] = useState<Set<string>>(
     new Set()
   );
+
+  // Уроки
 
   // Фильтры
   const [showOnlyMajor, setShowOnlyMajor] = useState(false);
@@ -165,15 +164,6 @@ export default function CosmicSimulatorScreen() {
   }, [getInterpretationLocale]);
 
   // Выбрать урок дня
-  const selectDailyLesson = () => {
-    if (!lessons.length) return;
-    const dayOfYear = Math.floor(
-      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    const lessonIndex = dayOfYear % lessons.length;
-    setDailyLesson(lessons[lessonIndex]);
-  };
 
   // Найти релевантный урок для транзита
   const findRelevantLesson = (transit: TransitData): AstroLesson | null => {
@@ -233,7 +223,6 @@ export default function CosmicSimulatorScreen() {
       if (hasLoadedRef.current) return;
       hasLoadedRef.current = true;
       loadNatalChart();
-      selectDailyLesson();
       fadeAnim.value = withTiming(1, { duration: 800 });
 
       // Инициализация значения датапикера
@@ -307,7 +296,6 @@ export default function CosmicSimulatorScreen() {
 
       setAiInterpretation(interpretationText);
       setHasAIAccess(interpretationData.hasAIAccess);
-      setSubscriptionTier(interpretationData.subscriptionTier);
 
       // Конвертируем планеты в формат UI
       const planets: PlanetPosition[] = Object.entries(
@@ -639,6 +627,15 @@ export default function CosmicSimulatorScreen() {
     opacity: fadeAnim.value,
   }));
 
+  const handleBackPress = () => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation?.navigate?.('MainTabs');
+  };
+
   if (loading) {
     return (
       <TabScreenLayout
@@ -665,12 +662,23 @@ export default function CosmicSimulatorScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: insets.top + 12 },
+            {
+              paddingTop: insets.top + 12,
+              paddingBottom: Math.max(56, tabBarHeight + 28),
+            },
           ]}
         >
           {/* Header */}
           <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
             <View style={styles.headerTop}>
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.headerBackButton}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+
               <View style={styles.headerIconContainer}>
                 <LinearGradient
                   colors={['#8B5CF6', '#6366F1']}
@@ -751,55 +759,6 @@ export default function CosmicSimulatorScreen() {
           </BlurView>
 
           {/* 📚 УРОК ДНЯ - КОМПАКТНАЯ КАРТОЧКА */}
-          {showDailyLesson && dailyLesson && (
-            <BlurView intensity={10} tint="dark" style={styles.dailyLessonCard}>
-              <View style={styles.dailyLessonHeader}>
-                <View style={styles.dailyLessonIconContainer}>
-                  <LinearGradient
-                    colors={dailyLesson.gradient}
-                    style={styles.dailyLessonIcon}
-                  >
-                    <Text style={styles.dailyLessonEmoji}>
-                      {dailyLesson.emoji}
-                    </Text>
-                  </LinearGradient>
-                </View>
-
-                <View style={styles.dailyLessonContent}>
-                  <Text style={styles.dailyLessonLabel}>
-                    {t('cosmicSimulator.dailyLesson.label')}
-                  </Text>
-                  <Text style={styles.dailyLessonTitle} numberOfLines={1}>
-                    {dailyLesson.title}
-                  </Text>
-                  <Text style={styles.dailyLessonSubtitle} numberOfLines={2}>
-                    {dailyLesson.shortText}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => setShowDailyLesson(false)}
-                  style={styles.dailyLessonClose}
-                >
-                  <Ionicons
-                    name="close"
-                    size={20}
-                    color="rgba(255,255,255,0.5)"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => setActiveTab('lessons')}
-                style={styles.dailyLessonButton}
-              >
-                <Text style={styles.dailyLessonButtonText}>
-                  {t('cosmicSimulator.dailyLesson.button')}
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color="#8B5CF6" />
-              </TouchableOpacity>
-            </BlurView>
-          )}
 
           {/* Tabs */}
           <View style={styles.tabsContainer}>
@@ -808,47 +767,47 @@ export default function CosmicSimulatorScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.tabs}
             >
-              {(
-                ['transits', 'planets', 'timeline', 'lessons'] as SimulatorTab[]
-              ).map((tab) => {
-                const icons = {
-                  transits: 'swap-horizontal',
-                  planets: 'planet',
-                  timeline: 'calendar',
-                  lessons: 'book',
-                };
+              {(['transits', 'planets', 'timeline'] as SimulatorTab[]).map(
+                (tab) => {
+                  const icons = {
+                    transits: 'swap-horizontal',
+                    planets: 'planet',
+                    timeline: 'calendar',
+                    lessons: 'book',
+                  };
 
-                const isActive = activeTab === tab;
+                  const isActive = activeTab === tab;
 
-                return (
-                  <TouchableOpacity
-                    key={tab}
-                    onPress={() => setActiveTab(tab)}
-                    style={[styles.tab, isActive && styles.tabActive]}
-                  >
-                    {isActive ? (
-                      <View style={styles.activeTabContent}>
-                        <Ionicons
-                          name={icons[tab] as any}
-                          size={20}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                    ) : (
-                      <>
-                        <Ionicons
-                          name={icons[tab] as any}
-                          size={20}
-                          color="rgba(255,255,255,0.5)"
-                        />
-                        <Text style={styles.tabText}>
-                          {t(`cosmicSimulator.tabs.${tab}`)}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      onPress={() => setActiveTab(tab)}
+                      style={[styles.tab, isActive && styles.tabActive]}
+                    >
+                      {isActive ? (
+                        <View style={styles.activeTabContent}>
+                          <Ionicons
+                            name={icons[tab] as any}
+                            size={20}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                      ) : (
+                        <>
+                          <Ionicons
+                            name={icons[tab] as any}
+                            size={20}
+                            color="rgba(255,255,255,0.5)"
+                          />
+                          <Text style={styles.tabText}>
+                            {t(`cosmicSimulator.tabs.${tab}`)}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
+              )}
             </ScrollView>
           </View>
 
@@ -965,8 +924,6 @@ export default function CosmicSimulatorScreen() {
                 ) : (
                   <View style={styles.transitsList}>
                     {filteredTransits.map((transit, index) => {
-                      const relevantLesson = findRelevantLesson(transit);
-
                       return (
                         <TouchableOpacity
                           key={index}
@@ -1003,26 +960,6 @@ export default function CosmicSimulatorScreen() {
                           </Text>
 
                           {/* 💡 КНОПКА "УЗНАТЬ БОЛЬШЕ" */}
-                          {relevantLesson && (
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                setActiveTab('lessons');
-                              }}
-                              style={styles.learnMoreButton}
-                            >
-                              <Ionicons
-                                name="bulb-outline"
-                                size={14}
-                                color="#FBBF24"
-                              />
-                              <Text style={styles.learnMoreText}>
-                                {t('cosmicSimulator.transits.learnMore', {
-                                  aspect: t('common.aspects.' + transit.aspect),
-                                })}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -1430,7 +1367,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 0,
   },
   topFade: {
     position: 'absolute',
@@ -1464,6 +1401,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
+  },
+  headerBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   headerIconContainer: {
     width: 56,

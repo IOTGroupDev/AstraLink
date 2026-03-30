@@ -14,12 +14,15 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { acquirePresence, subscribePresence } from '../services/presence';
 import { supabase } from '../services/supabase';
 import { logger } from '../services/logger';
 import { ChatListSkeleton } from '../components/chat/ChatListItemSkeleton';
+import { BottomTabFade } from '../components/shared/BottomTabFade';
 
 type ConversationItem = {
   otherUserId: string;
@@ -35,6 +38,8 @@ export default function ChatListScreen() {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation<any>();
   const { user, isLoading: authLoading } = useAuth();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
 
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -401,6 +406,7 @@ export default function ChatListScreen() {
           <ActivityIndicator size="large" color="#8B5CF6" />
           <Text style={styles.loadingText}>{t('chatList.authCheck')}</Text>
         </View>
+        <BottomTabFade />
       </View>
     );
   }
@@ -428,6 +434,7 @@ export default function ChatListScreen() {
             </Text>
           </Pressable>
         </View>
+        <BottomTabFade />
       </View>
     );
   }
@@ -441,7 +448,7 @@ export default function ChatListScreen() {
       />
 
       {/* Заголовок */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
         <Text style={styles.title}>{t('chatList.title')}</Text>
         <Pressable
           style={styles.refreshButton}
@@ -485,12 +492,19 @@ export default function ChatListScreen() {
             }
             contentContainerStyle={
               items.length === 0
-                ? styles.emptyContentContainer
-                : styles.contentContainer
+                ? [
+                    styles.emptyContentContainer,
+                    { paddingBottom: Math.max(56, tabBarHeight + 28) },
+                  ]
+                : [
+                    styles.contentContainer,
+                    { paddingBottom: Math.max(56, tabBarHeight + 28) },
+                  ]
             }
           />
         </>
       )}
+      <BottomTabFade />
     </View>
   );
 }
@@ -505,7 +519,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(139, 92, 246, 0.2)',

@@ -1,0 +1,47 @@
+{
+  "title": "Обучение",
+  "subtitle": "Ежедневные уроки по астрологии и практика на основе вашей натальной карты.",
+  "featured": {
+    "title": "Выбранный урок"
+  },
+  "progress": {
+    "summary": "{{completed}} из {{total}} уроков пройдено"
+  },
+  "dailyLesson": {
+    "label": "Урок дня",
+    "button": "Открыть урок"
+  },
+  "filters": {
+    "all": "Все уроки"
+  },
+  "categories": {
+    "basics": "Основы",
+    "planets": "Планеты",
+    "signs": "Знаки",
+    "houses": "Дома",
+    "aspects": "Аспекты",
+    "transits": "Транзиты",
+    "practical": "Практика",
+    "lunar": "Лунные циклы"
+  },
+  "lessonCard": {
+    "difficulty": {
+      "beginner": "Начальный",
+      "intermediate": "Средний",
+      "advanced": "Продвинутый"
+    },
+    "readTime": "Время чтения: {{seconds}}с",
+    "readTimeShort": "{{seconds}}с",
+    "completedTag": "Пройдено",
+    "keyPointsTitle": "Ключевые моменты:",
+    "exampleTitle": "Пример:",
+    "completeDone": "Завершено",
+    "completeQuiz": "Пройти квиз",
+    "completeMark": "Отметить как пройденное",
+    "quiz": {
+      "title": "Проверьте себя",
+      "successTitle": "Отлично!",
+      "successSubtitle": "Урок успешно завершён"
+    }
+  }
+}

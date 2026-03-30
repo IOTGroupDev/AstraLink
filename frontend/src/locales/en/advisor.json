@@ -1,5 +1,5 @@
 {
-  "title": "Astro Advisor",
+  "title": "Astri advisor",
   "subtitle": "Is it a good day for...",
   "analysisFor": "Analysis for",
   "topics": {
@@ -52,6 +52,71 @@
   },
   "errors": {
     "requestFailed": "Request error. Try again later."
+  },
+  "chat": {
+    "headerSubtitle": "A guided advisor session that feels like a conversation.",
+    "intro": "Choose a topic and I will guide you through the reading.",
+    "topicHelp": "Pick the life area you want me to evaluate first.",
+    "selectedTopic": "Topic",
+    "selectedDate": "Date",
+    "datePrompt": "Choose the date you want me to analyze.",
+    "dateAcknowledgement": "Perfect. I will focus on {{date}}.",
+    "promptRequest": "Now describe your situation or question. I will use it as context for the reading.",
+    "inputTitle": "Your request",
+    "promptPlaceholder": "Write what you want advice about...",
+    "yourMessage": "Your message",
+    "send": "Send",
+    "loading": "Preparing your advice...",
+    "newRequest": "New request",
+    "startOver": "Start over",
+    "customDate": "Custom date",
+    "confirmDate": "Confirm date",
+    "topicAcknowledgements": {
+      "contract": "Understood. I will focus on contracts, documents, and formal commitments.",
+      "meeting": "Great. I will look at the energy around meetings and conversations.",
+      "negotiation": "Noted. I will evaluate timing for negotiations and delicate discussions.",
+      "date": "Understood. I will focus on romantic chemistry and emotional tone.",
+      "travel": "Got it. I will look at how supportive the day is for travel and movement.",
+      "purchase": "Understood. I will focus on purchases, risks, and practical timing.",
+      "health": "Noted. I will look at the day through a health and wellbeing lens.",
+      "custom": "Understood. I will give you a broader reading for this request."
+    },
+    "summary": {
+      "label": "Previous request",
+      "verdicts": {
+        "good": "Favorable",
+        "neutral": "Mixed",
+        "challenging": "Challenging"
+      }
+    }
+  },
+  "resultWidget": {
+    "verdict": {
+      "good": "Excellent",
+      "neutral": "Moderate",
+      "challenging": "Difficult"
+    },
+    "outOf": "out of 100",
+    "energyLabel": "Favorable energy level"
+  },
+  "recommendationsWidget": {
+    "title": {
+      "good": "Recommendations",
+      "neutral": "What to watch",
+      "challenging": "Important cautions"
+    },
+    "sections": {
+      "primary": "Primary",
+      "additional": "Additional"
+    },
+    "summaryNote": "Follow the recommendations to get the best result."
+  },
+  "bestWindowsWidget": {
+    "title": "Best time windows",
+    "topBadge": "Top-{{count}}",
+    "subtitle": "The most favorable hours for the selected topic",
+    "bestTime": "Best time",
+    "timelineLabel": "Day timeline"
   },
   "premium": {
     "title": "Astro Advisor Premium",
