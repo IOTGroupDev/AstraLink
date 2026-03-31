@@ -15,8 +15,15 @@ export class AuthMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     // Публичные маршруты, которые не требуют авторизации
     const publicRoutes = [
-      '/api/auth/login',
       '/api/auth/signup',
+      '/api/auth/send-magic-link',
+      '/api/auth/verify',
+      '/api/auth/google',
+      '/api/auth/apple',
+      '/api/auth/google-callback',
+      '/api/auth/apple-callback',
+      '/api/auth/complete-signup-OAuth',
+      '/api/auth/ensure-profile',
       '/api',
       '/api/docs',
     ];
@@ -77,7 +84,7 @@ export class AuthMiddleware implements NestMiddleware {
         requiresAuth: true,
         availableActions: {
           signup: '/api/auth/signup',
-          login: '/api/auth/login',
+          otp: '/api/auth/send-magic-link',
         },
       });
     }

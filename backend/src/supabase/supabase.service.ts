@@ -325,17 +325,6 @@ export class SupabaseService implements OnModuleInit {
   }
 
   /**
-   * 🔐 Вход по email + password
-   */
-  async signInWithPassword(email: string, password: string) {
-    const { data, error } = await this.supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
-  }
-
-  /**
    * 👤 Получить данные пользователя по токену
    */
   async getUser(token: string) {

@@ -99,6 +99,30 @@ export class DatingService {
     return v;
   }
 
+  private extractDatingPreferences(
+    profile:
+      | {
+          gender?: string | null;
+          lookingForGender?: string | null;
+          looking_for_gender?: string | null;
+          preferences?: unknown;
+        }
+      | null
+      | undefined,
+  ): { gender: string | null; lookingForGender: string | null } {
+    const prefs = parsePreferences((profile?.preferences as any) ?? null);
+
+    return {
+      gender: profile?.gender ?? prefs.gender ?? null,
+      lookingForGender:
+        ((profile as any)?.lookingForGender as string | null | undefined) ??
+        ((profile as any)?.looking_for_gender as string | null | undefined) ??
+        prefs.looking_for_gender ??
+        ((prefs as any).lookingForGender as string | undefined) ??
+        null,
+    };
+  }
+
   private isGenderAllowed(
     seekerGender: string | null,
     seekerLookingForGender: string | null,
@@ -112,12 +136,43 @@ export class DatingService {
 
     const matchesPref = (pref: string | null, target: string | null) => {
       if (!pref || pref === 'any') return true;
-      if (!target) return true;
+      if (!target) return false;
       return pref === target;
     };
 
     return (
       matchesPref(seekerPref, candidate) && matchesPref(candidatePref, seeker)
+    );
+  }
+
+  private passesGenderPreferences(
+    seekerProfile:
+      | {
+          gender?: string | null;
+          lookingForGender?: string | null;
+          looking_for_gender?: string | null;
+          preferences?: unknown;
+        }
+      | null
+      | undefined,
+    candidateProfile:
+      | {
+          gender?: string | null;
+          lookingForGender?: string | null;
+          looking_for_gender?: string | null;
+          preferences?: unknown;
+        }
+      | null
+      | undefined,
+  ): boolean {
+    const seeker = this.extractDatingPreferences(seekerProfile);
+    const candidate = this.extractDatingPreferences(candidateProfile);
+
+    return this.isGenderAllowed(
+      seeker.gender,
+      seeker.lookingForGender,
+      candidate.gender,
+      candidate.lookingForGender,
     );
   }
 
@@ -226,13 +281,26 @@ export class DatingService {
    */
   async getCandidatesViaSupabase(userAccessToken: string, limit = 20) {
     const safeLimit = Math.max(1, Math.min(50, limit));
+    const rankedPoolLimit = Math.max(safeLimit, Math.min(150, safeLimit * 3));
     const { data, error } = await this.supabaseService.rpcWithToken<
       CandidateRow[]
-    >('get_candidates_for_me', { p_limit: safeLimit }, userAccessToken);
+    >('get_candidates_for_me', { p_limit: rankedPoolLimit }, userAccessToken);
 
     const rows: CandidateRow[] = Array.isArray(data) ? data : [];
 
-    const admin = this.supabaseService.getAdminClient();
+    const { data: selfRes } =
+      await this.supabaseService.getUser(userAccessToken);
+    const selfId = selfRes?.user?.id ?? null;
+    const selfProfile = selfId
+      ? await this.prisma.userProfile.findUnique({
+          where: { userId: selfId },
+          select: {
+            gender: true,
+            lookingForGender: true,
+            preferences: true,
+          },
+        })
+      : null;
 
     // Итоговый список кандидатов (уже обогащённых)
     let result: EnrichedCandidate[] = [];
@@ -277,6 +345,8 @@ export class DatingService {
               preferences: u.profile!.preferences as Record<string, any>,
               city: u.profile!.city,
               gender: u.profile!.gender,
+              lookingFor: u.profile!.lookingFor,
+              lookingForGender: u.profile!.lookingForGender,
               display_name: undefined, // not in current schema
               zodiac_sign: u.profile!.zodiacSign,
             },
@@ -297,7 +367,13 @@ export class DatingService {
 
       // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for all photos
       // Используем createSignedUrlsBatch вместо множества отдельных запросов
-      const photoPaths = rows
+      const filteredRows = rows
+        .filter((r) =>
+          this.passesGenderPreferences(selfProfile, profilesMap.get(r.user_id)),
+        )
+        .slice(0, safeLimit);
+
+      const photoPaths = filteredRows
         .filter((r) => r.primary_photo_path)
         .map((r) => r.primary_photo_path!);
 
@@ -309,7 +385,7 @@ export class DatingService {
 
       // Create userId -> URL map from path -> URL map
       const photoUrlMap = new Map<string, string | null>();
-      for (const r of rows) {
+      for (const r of filteredRows) {
         if (r.primary_photo_path) {
           photoUrlMap.set(
             r.user_id,
@@ -319,7 +395,7 @@ export class DatingService {
       }
 
       // Build candidate list without additional async calls
-      result = rows.map((r) => {
+      result = filteredRows.map((r) => {
         const u = usersMap.get(r.user_id);
         const p = profilesMap.get(r.user_id);
         const ch = chartsMap.get(r.user_id);
@@ -355,10 +431,6 @@ export class DatingService {
     try {
       const needMore = safeLimit - result.length;
       if (needMore > 0) {
-        const { data: selfRes } =
-          await this.supabaseService.getUser(userAccessToken);
-        const selfId = selfRes?.user?.id;
-
         const existingIds = new Set<string>(result.map((r) => r.userId));
 
         // ✅ PRISMA: Получаем дополнительных пользователей
@@ -412,6 +484,8 @@ export class DatingService {
                   (u.profile.preferences as Record<string, any>) ?? {},
                 city: u.profile.city ?? null,
                 gender: u.profile.gender,
+                lookingFor: u.profile.lookingFor ?? null,
+                lookingForGender: u.profile.lookingForGender ?? null,
                 display_name: undefined,
                 zodiac_sign: u.profile.zodiacSign ?? null,
               } as UserProfile);
@@ -434,7 +508,10 @@ export class DatingService {
           }
 
           // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for fallback candidates
-          const fallbackUserIds = extraIds.slice(0, needMore);
+          const fallbackEligibleUserIds = extraIds.filter((uid: string) =>
+            this.passesGenderPreferences(selfProfile, profilesById.get(uid)),
+          );
+          const fallbackUserIds = fallbackEligibleUserIds.slice(0, needMore);
           const fallbackPhotoPaths = fallbackUserIds
             .map((uid: string) => photosById.get(uid))
             .filter(
@@ -463,7 +540,7 @@ export class DatingService {
           }
 
           const extraEnriched: EnrichedCandidate[] = [];
-          for (const uid of extraIds) {
+          for (const uid of fallbackEligibleUserIds) {
             if (extraEnriched.length >= needMore) break;
             if (result.find((r) => r.userId === uid)) continue;
 
@@ -664,19 +741,12 @@ export class DatingService {
     const selfProfile = await this.prisma.userProfile.findUnique({
       where: { userId },
     });
-    const selfPrefs = parsePreferences(
-      (selfProfile?.preferences as any) ?? null,
-    );
-    const selfGender =
-      (selfProfile?.gender as string | null) ?? selfPrefs.gender ?? null;
-    const selfLookingForGender =
-      ((selfProfile as any)?.lookingForGender as string | null) ??
-      selfPrefs.looking_for_gender ??
-      (selfPrefs.lookingForGender as string | undefined) ??
-      null;
+    const selfDatingPreferences = this.extractDatingPreferences(selfProfile);
 
     // If user explicitly set a gender preference, filter via DB first
-    const seekersPrefNormalized = this.normalizeGender(selfLookingForGender);
+    const seekersPrefNormalized = this.normalizeGender(
+      selfDatingPreferences.lookingForGender,
+    );
 
     const candidates = await this.prisma.chart.findMany({
       where: {
@@ -706,22 +776,7 @@ export class DatingService {
       // Фильтр по гендеру (учитываем взаимные предпочтения)
       try {
         const cProfile = c.users?.profile || c.profile;
-        const cPrefs = parsePreferences(cProfile?.preferences ?? null);
-        const candidateGender =
-          (cProfile?.gender as string | null) ?? cPrefs.gender ?? null;
-        const candidateLookingForGender =
-          (cProfile?.looking_for_gender as string | null) ??
-          cPrefs.looking_for_gender ??
-          null;
-
-        if (
-          !this.isGenderAllowed(
-            selfGender,
-            selfLookingForGender,
-            candidateGender,
-            candidateLookingForGender,
-          )
-        ) {
+        if (!this.passesGenderPreferences(selfProfile, cProfile)) {
           return false;
         }
       } catch {

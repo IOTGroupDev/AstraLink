@@ -70,7 +70,8 @@ export default function DatingScreen() {
   const [loadingCards, setLoadingCards] = useState<boolean>(true);
   const [cardAreaHeight, setCardAreaHeight] = useState(0);
 
-  const current = candidates[currentIndex] || null;
+  const hasReachedEnd = currentIndex >= candidates.length;
+  const current = hasReachedEnd ? null : candidates[currentIndex] || null;
 
   const { user, isLoading: authLoading } = useAuth();
   const navigation = useNavigation<any>();
@@ -91,7 +92,7 @@ export default function DatingScreen() {
     b === 'high' ? 85 : b === 'medium' ? 65 : 45;
 
   const nextCard = useCallback(() => {
-    setCurrentIndex((idx) => (idx + 1 < candidates.length ? idx + 1 : idx));
+    setCurrentIndex((idx) => Math.min(idx + 1, candidates.length));
   }, [candidates.length]);
 
   // ===============================
@@ -336,6 +337,7 @@ export default function DatingScreen() {
                 onLayout={handleCardAreaLayout}
               >
                 <DatingCard
+                  key={current.userId}
                   user={{
                     id: current.userId,
                     name: current.name,

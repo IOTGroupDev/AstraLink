@@ -71,64 +71,6 @@ export class SupabaseAuthService {
   }
 
   /**
-   * 🔐 Вход по email + password
-   */
-  async login(email: string, password: string): Promise<AuthResponse> {
-    try {
-      const { data, error } = await this.supabaseService.signInWithPassword(
-        email,
-        password,
-      );
-
-      if (error || !data.user) {
-        throw new UnauthorizedException(
-          error?.message || 'Неверный email или пароль',
-        );
-      }
-
-      const userId = data.user.id;
-      let { data: userProfile } =
-        await this.supabaseService.getUserProfileAdmin(userId);
-
-      if (!userProfile) {
-        try {
-          await this.ensureUserProfile(userId, data.user.email || email);
-          const retry = await this.supabaseService.getUserProfileAdmin(userId);
-          userProfile = retry.data ?? null;
-        } catch (ensureError) {
-          this.logger.warn(
-            '⚠️ ensure-profile failed during login (non-blocking):',
-            ensureError,
-          );
-        }
-      }
-
-      return {
-        user: {
-          id: data.user.id,
-          email: data.user.email || email,
-          name: userProfile?.name || data.user.user_metadata?.name,
-          birthDate: userProfile?.birth_date
-            ? new Date(userProfile.birth_date).toISOString().split('T')[0]
-            : undefined,
-          birthTime: userProfile?.birth_time,
-          birthPlace: userProfile?.birth_place,
-          createdAt: userProfile?.created_at || data.user.created_at,
-          updatedAt: userProfile?.updated_at || data.user.updated_at,
-        },
-        access_token: data.session?.access_token || '',
-        refresh_token: data.session?.refresh_token || undefined,
-      };
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      this.logger.error('Login error:', error);
-      throw new UnauthorizedException('Ошибка входа');
-    }
-  }
-
-  /**
    * ✅ Верификация магической ссылки
    * После клика по ссылке из email
    */
@@ -224,7 +166,7 @@ export class SupabaseAuthService {
         );
       }
 
-      // 2) Создаем пользователя через Admin API БЕЗ пароля
+      // 2) Создаем пользователя через Admin API без пароля.
       const { data: created, error: createError } =
         await this.supabaseService.createUserWithoutPassword(signupDto.email, {
           name: signupDto.name,

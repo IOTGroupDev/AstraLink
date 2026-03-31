@@ -97,6 +97,10 @@ export interface UserProfile {
   preferences?: string | object;
   city?: string;
   gender?: string;
+  looking_for?: string;
+  lookingFor?: string;
+  looking_for_gender?: string;
+  lookingForGender?: string;
   display_name?: string;
   zodiac_sign?: ZodiacSign;
 }

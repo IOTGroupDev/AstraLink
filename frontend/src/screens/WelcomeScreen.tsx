@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   SafeAreaView,
   StyleSheet,
@@ -14,7 +13,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores';
-import { authAPI, userAPI } from '../services/api';
+import { userAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import { authLogger } from '../services/logger';
@@ -23,7 +22,7 @@ import { authLogger } from '../services/logger';
 type RootStackParamList = {
   MainTabs: undefined;
   SignUp: undefined;
-  Login: undefined;
+  AuthEmail: undefined;
   welcome: undefined;
 };
 
@@ -45,10 +44,7 @@ export default function WelcomeScreen() {
     authenticateWithBiometrics,
   } = useAuthStore();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [showBiometricButton, setShowBiometricButton] = useState(false);
 
   useEffect(() => {
@@ -100,35 +96,7 @@ export default function WelcomeScreen() {
   };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert(t('common.errors.generic'), t('auth.errors.fillAllFields'));
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await authAPI.login({
-        email: email.trim().toLowerCase(),
-        password,
-      });
-
-      setUser(response.user);
-      authLogger.info('Успешный вход');
-
-      // Navigate to main app instead of callback
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      });
-    } catch (error: any) {
-      authLogger.error('Login error', error);
-      Alert.alert(
-        t('auth.errors.loginFailed'),
-        error.message || t('auth.errors.loginError')
-      );
-    } finally {
-      setLoading(false);
-    }
+    navigation.navigate('AuthEmail');
   };
 
   const handleSwitchToSignup = () => {
@@ -163,55 +131,7 @@ export default function WelcomeScreen() {
           </>
         )}
 
-        {/* Email */}
-        <View style={styles.inputContainer}>
-          <Ionicons
-            name="mail-outline"
-            size={20}
-            color="rgba(255,255,255,0.5)"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.login.email')}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!loading}
-          />
-        </View>
-
-        {/* Пароль */}
-        <View style={styles.inputContainer}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={20}
-            color="rgba(255,255,255,0.5)"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.login.password')}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            autoCapitalize="none"
-            editable={!loading}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-            style={styles.eyeIcon}
-          >
-            <Ionicons
-              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={20}
-              color="rgba(255,255,255,0.5)"
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.hintText}>{t('auth.otp.subtitle')}</Text>
 
         {/* Чекбокс "Запомнить меня" */}
         <TouchableOpacity
@@ -235,7 +155,7 @@ export default function WelcomeScreen() {
             <ActivityIndicator color="#000" />
           ) : (
             <Text style={styles.loginButtonText}>
-              {t('auth.login.loginButton')}
+              {t('auth.signUp.emailButton')}
             </Text>
           )}
         </TouchableOpacity>
@@ -299,26 +219,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     fontFamily: 'Montserrat-Regular',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 56,
-    marginBottom: 16,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    color: '#fff',
+  hintText: {
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 16,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 24,
     fontFamily: 'Montserrat-Regular',
-  },
-  eyeIcon: {
-    padding: 4,
   },
   checkboxRow: {
     flexDirection: 'row',

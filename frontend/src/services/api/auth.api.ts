@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './client';
 import { supabase } from '../supabase';
 import { authLogger } from '../logger';
-import type { LoginRequest, SignupRequest, AuthResponse } from '../../types';
+import type { SignupRequest, AuthResponse } from '../../types';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -159,47 +159,6 @@ function extractFromRedirectUrl(redirectedUrl: string): {
 }
 
 export const authAPI = {
-  login: async (data: LoginRequest): Promise<AuthResponse> => {
-    try {
-      authLogger.log('🔐 Отправляем данные для входа через Backend API:', {
-        email: data.email,
-      });
-
-      const response = await api.post('/auth/login', {
-        email: data.email,
-        password: data.password,
-      });
-
-      const { access_token, refresh_token, user } = response.data;
-      if (!access_token) throw new Error('Токен не получен от Backend');
-
-      if (refresh_token) {
-        try {
-          await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-        } catch (setErr) {
-          authLogger.warn('⚠️ Failed to set Supabase session:', setErr);
-        }
-      }
-
-      authLogger.log('✅ Успешный вход через Backend');
-
-      return { access_token, refresh_token, user };
-    } catch (error: any) {
-      authLogger.log('❌ API login failed:', error);
-      const errorMessage = error.response?.data?.message || error.message;
-      if (typeof errorMessage === 'string') error.message = errorMessage;
-      if (error.message?.includes('Invalid login credentials'))
-        error.message = 'Неверный email или пароль';
-      else if (error.message?.includes('Email not confirmed'))
-        error.message = 'Email не подтвержден';
-      else if (error.code === 'ERR_NETWORK') error.message = 'Ошибка сети';
-      throw error;
-    }
-  },
-
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     try {
       authLogger.log(
@@ -209,7 +168,6 @@ export const authAPI = {
 
       const response = await api.post('/auth/signup', {
         email: data.email,
-        password: data.password,
         name: data.name,
         birthDate: data.birthDate,
         birthTime: data.birthTime,

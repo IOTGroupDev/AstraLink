@@ -29,7 +29,6 @@ import { SignupRateLimitGuard } from './guards/signup-rate-limit.guard';
 import type { AuthenticatedRequest } from '@/types/auth';
 import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 import { SendMagicLinkDto } from '@/auth/dto/send-magic-link.dto';
-import { LoginRequest } from '@/types/user';
 import { EnsureUserProfileDto } from '@/auth/dto/ensure-user-profile.dto';
 
 @ApiTags('auth')
@@ -92,19 +91,6 @@ export class AuthController {
     @Body() dto: SendMagicLinkDto,
   ): Promise<{ success: boolean }> {
     return this.supabaseAuthService.sendMagicLink(dto.email);
-  }
-
-  /**
-   * 🔐 Вход по email + password
-   */
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Вход по email и паролю' })
-  @ApiResponse({ status: 200, description: 'Успешный вход' })
-  @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
-  async login(@Body() dto: LoginRequest) {
-    return this.supabaseAuthService.login(dto.email, dto.password);
   }
 
   /**

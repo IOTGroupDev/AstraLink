@@ -29,6 +29,10 @@ const setLoading = (value: boolean) => {
   useAuthStore.getState().setLoading(value);
 };
 
+const setError = (message: string | null) => {
+  useAuthStore.getState().setError(message);
+};
+
 const normalizeProfile = (raw: any): AuthProfile => ({
   id: raw.id,
   email: raw.email,
@@ -64,6 +68,7 @@ const fetchProfile = async (): Promise<AuthProfile | null> => {
 
 const bootstrap = async () => {
   setLoading(true);
+  setError(null);
   setState('BOOT');
 
   const { data, error } = await supabase.auth.getSession();
@@ -89,7 +94,8 @@ const bootstrap = async () => {
     authLogger.error('Profile load failed during boot', err);
     const fallbackProfile = profileFromSession(session);
     setProfile(fallbackProfile);
-    setState('ONBOARDING');
+    setError('profile_load_failed');
+    setState('AUTHORIZED');
   } finally {
     setLoading(false);
   }
@@ -98,10 +104,12 @@ const bootstrap = async () => {
 const handleAuthEvent = async (event: string, session: Session | null) => {
   authLogger.log('Auth event', event);
 
+  setError(null);
   setSession(session);
 
   if (!session) {
     setProfile(null);
+    setError(null);
     setState('UNAUTHORIZED');
     return;
   }
@@ -114,7 +122,8 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
     authLogger.error('Profile load failed after auth event', err);
     const fallbackProfile = session ? profileFromSession(session) : null;
     setProfile(fallbackProfile);
-    setState(fallbackProfile ? 'ONBOARDING' : 'UNAUTHORIZED');
+    setError('profile_load_failed');
+    setState(fallbackProfile ? 'AUTHORIZED' : 'UNAUTHORIZED');
   }
 };
 
@@ -137,6 +146,7 @@ export const AuthEngine = {
   async refreshProfile() {
     try {
       setLoading(true);
+      setError(null);
       const profile = await fetchProfile();
       setProfile(profile);
       resolveState(profile);

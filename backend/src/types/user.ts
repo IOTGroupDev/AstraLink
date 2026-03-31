@@ -13,16 +13,8 @@ export const UserSchema = z.object({
 
 export type User = z.infer<typeof UserSchema>;
 
-export const LoginRequestSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
-
-export type LoginRequest = z.infer<typeof LoginRequestSchema>;
-
 export const SignupRequestSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
   name: z.string().min(2),
   birthDate: z
     .string()

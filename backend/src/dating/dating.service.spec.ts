@@ -69,7 +69,7 @@ describe('DatingService', () => {
     };
 
     const mockEphemerisService = {
-      calculateSynastry: jest.fn(),
+      getSynastry: jest.fn(),
       calculateCompatibility: jest.fn(),
     };
 
@@ -324,6 +324,80 @@ describe('DatingService', () => {
     });
   });
 
+  describe('Dating Preferences', () => {
+    it('should extract gender preferences from Prisma camelCase fields', () => {
+      const prefs = (service as any).extractDatingPreferences({
+        gender: 'male',
+        lookingForGender: 'female',
+        preferences: {},
+      });
+
+      expect(prefs).toEqual({
+        gender: 'male',
+        lookingForGender: 'female',
+      });
+    });
+
+    it('should extract gender preferences from legacy preferences payload', () => {
+      const prefs = (service as any).extractDatingPreferences({
+        preferences: {
+          gender: 'female',
+          looking_for_gender: 'male',
+        },
+      });
+
+      expect(prefs).toEqual({
+        gender: 'female',
+        lookingForGender: 'male',
+      });
+    });
+
+    it('should allow candidates only when mutual gender preferences match', () => {
+      const allowed = (service as any).passesGenderPreferences(
+        {
+          gender: 'male',
+          lookingForGender: 'female',
+        },
+        {
+          gender: 'female',
+          lookingForGender: 'male',
+        },
+      );
+
+      expect(allowed).toBe(true);
+    });
+
+    it('should reject candidates with mismatched gender even in ranked feed', () => {
+      const allowed = (service as any).passesGenderPreferences(
+        {
+          gender: 'male',
+          lookingForGender: 'female',
+        },
+        {
+          gender: 'male',
+          lookingForGender: 'female',
+        },
+      );
+
+      expect(allowed).toBe(false);
+    });
+
+    it('should reject candidate when their own lookingForGender conflicts', () => {
+      const allowed = (service as any).passesGenderPreferences(
+        {
+          gender: 'male',
+          lookingForGender: 'female',
+        },
+        {
+          gender: 'female',
+          lookingForGender: 'female',
+        },
+      );
+
+      expect(allowed).toBe(false);
+    });
+  });
+
   describe('Compatibility Calculation', () => {
     it('should calculate higher compatibility for harmonious fire-air signs', () => {
       // Aries (fire) - Leo (air) should have good compatibility
@@ -365,6 +439,92 @@ describe('DatingService', () => {
 
       expect(bonus).toBeLessThan(0);
     });
+
+    it('should increase final compatibility for harmonious romantic aspects', () => {
+      const score = (service as any).calcFinalCompatibility(
+        70,
+        {
+          compatibility: 70,
+          aspects: [
+            {
+              planetA: 'venus',
+              planetB: 'mars',
+              aspect: 'trine',
+              strength: 1,
+            },
+            {
+              planetA: 'moon',
+              planetB: 'moon',
+              aspect: 'sextile',
+              strength: 1,
+            },
+          ],
+        },
+        {
+          data: {
+            planets: {
+              sun: { sign: 'Aries', longitude: 10 },
+              venus: { longitude: 135 },
+              moon: { longitude: 210 },
+            },
+          },
+        },
+        {
+          data: {
+            planets: {
+              sun: { sign: 'Leo', longitude: 20 },
+              mars: { longitude: 150 },
+              moon: { longitude: 270 },
+            },
+          },
+        },
+      );
+
+      expect(score).toBeGreaterThan(70);
+    });
+
+    it('should decrease final compatibility for challenging romantic aspects', () => {
+      const score = (service as any).calcFinalCompatibility(
+        70,
+        {
+          compatibility: 70,
+          aspects: [
+            {
+              planetA: 'venus',
+              planetB: 'mars',
+              aspect: 'square',
+              strength: 1,
+            },
+            {
+              planetA: 'moon',
+              planetB: 'moon',
+              aspect: 'opposition',
+              strength: 1,
+            },
+          ],
+        },
+        {
+          data: {
+            planets: {
+              sun: { sign: 'Aries', longitude: 10 },
+              venus: { longitude: 135 },
+              moon: { longitude: 210 },
+            },
+          },
+        },
+        {
+          data: {
+            planets: {
+              sun: { sign: 'Cancer', longitude: 20 },
+              mars: { longitude: 150 },
+              moon: { longitude: 270 },
+            },
+          },
+        },
+      );
+
+      expect(score).toBeLessThan(70);
+    });
   });
 
   describe('Synastry Caching', () => {
@@ -376,9 +536,9 @@ describe('DatingService', () => {
       };
 
       redisService.get.mockResolvedValue(null); // Cache miss
-      ephemerisService.calculateSynastry = jest
-        .fn()
-        .mockResolvedValue(mockSynastry);
+      (ephemerisService.getSynastry as jest.Mock).mockResolvedValue(
+        mockSynastry,
+      );
 
       // First call - should calculate and cache
       // Implementation depends on actual service methods
@@ -408,7 +568,7 @@ describe('DatingService', () => {
 
   describe('Edge Cases', () => {
     it('should handle users with missing charts', async () => {
-      prismaService.chart.findFirst.mockResolvedValue(null);
+      (prismaService.chart.findFirst as jest.Mock).mockResolvedValue(null);
 
       // Should handle gracefully without crashing
     });
@@ -419,7 +579,9 @@ describe('DatingService', () => {
         data: null, // Invalid data
       };
 
-      prismaService.chart.findFirst.mockResolvedValue(malformedChart as any);
+      (prismaService.chart.findFirst as jest.Mock).mockResolvedValue(
+        malformedChart as any,
+      );
 
       const sunSign = (service as any).getSunSign(malformedChart);
       expect(sunSign).toBeNull();
