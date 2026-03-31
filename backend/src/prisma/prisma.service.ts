@@ -13,6 +13,8 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
+  private readonly connectRetries = 8;
+  private readonly connectRetryDelayMs = 3000;
 
   constructor() {
     super({
@@ -62,7 +64,7 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    await this.$connect();
+    await this.connectWithRetry();
     this.logger.log('✅ Database connection established');
 
     // Note: Query performance monitoring via middleware ($use) is not available in this Prisma version.
@@ -86,5 +88,39 @@ export class PrismaService
       this.logger.error('Database health check failed', error);
       return false;
     }
+  }
+
+  private async connectWithRetry(): Promise<void> {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= this.connectRetries; attempt += 1) {
+      try {
+        await this.$connect();
+        return;
+      } catch (error) {
+        lastError = error;
+
+        const message = error instanceof Error ? error.message : String(error);
+        const isLastAttempt = attempt === this.connectRetries;
+
+        if (isLastAttempt) {
+          this.logger.error(
+            `Database connection failed after ${attempt} attempts: ${message}`,
+          );
+          break;
+        }
+
+        this.logger.warn(
+          `Database connection attempt ${attempt}/${this.connectRetries} failed: ${message}. Retrying in ${this.connectRetryDelayMs}ms...`,
+        );
+        await this.sleep(this.connectRetryDelayMs);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

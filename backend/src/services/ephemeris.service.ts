@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { existsSync } from 'fs';
 import { RedisService } from '../redis/redis.service';
 import {
   calculateAspect,
@@ -14,6 +15,9 @@ let swisseph: any;
 export class EphemerisService implements OnModuleInit {
   private readonly logger = new Logger(EphemerisService.name);
   private hasSE = false;
+  private ephemerisMode: 'swisseph+files' | 'swisseph+moshier' | 'init-failed' =
+    'init-failed';
+  private activeEphePath: string | null = null;
   private initializationAttempted = false;
   private lastInitErrorMsg: string | null = null;
   private lastInitErrorTime = 0;
@@ -61,27 +65,47 @@ export class EphemerisService implements OnModuleInit {
         return false;
       }
 
-      // Устанавливаем путь к эфемеридам
-      const paths = ['./ephe', __dirname + '/../../ephe', '/app/ephe'];
-      let pathSet = false;
+      // Allow explicit ephemeris path override in container environments.
+      const paths = [
+        process.env.SE_EPHE_PATH,
+        './ephe',
+        __dirname + '/../../ephe',
+        '/app/ephe',
+      ].filter(
+        (path): path is string => typeof path === 'string' && path.length > 0,
+      );
+      let pathWithFiles: string | null = null;
 
       for (const path of paths) {
         try {
           swisseph.swe_set_ephe_path(path);
-          this.logger.log(`Установлен путь к эфемерисным файлам: ${path}`);
-          pathSet = true;
-          break;
+          if (this.hasEphemerisFiles(path)) {
+            pathWithFiles = path;
+            this.logger.log(`Установлен путь к эфемерисным файлам: ${path}`);
+            break;
+          }
+          this.logger.debug(
+            `Swiss Ephemeris path set but no ephe files found at: ${path}`,
+          );
         } catch (_error) {
           this.logger.debug(`Не удалось установить путь ${path}`);
         }
       }
 
-      if (!pathSet) {
-        this.logger.warn('Используем встроенные данные Swiss Ephemeris');
+      if (pathWithFiles) {
+        this.activeEphePath = pathWithFiles;
+        this.ephemerisMode = 'swisseph+files';
+      } else {
+        this.activeEphePath = null;
+        this.ephemerisMode = 'swisseph+moshier';
+        this.logger.warn(
+          'Используем встроенные данные Swiss Ephemeris (Moshier fallback)',
+        );
       }
 
       this.hasSE = true;
       this.logger.log('✓ Swiss Ephemeris успешно инициализирован');
+      this.logger.log(this.describeEphemerisMode());
       return true;
     } catch (error) {
       const msg =
@@ -108,8 +132,28 @@ export class EphemerisService implements OnModuleInit {
         this.lastInitErrorTime = now;
       }
       this.hasSE = false;
+      this.activeEphePath = null;
+      this.ephemerisMode = 'init-failed';
+      this.logger.error(this.describeEphemerisMode(msg));
       return false;
     }
+  }
+
+  private hasEphemerisFiles(path: string): boolean {
+    const knownFiles = ['sepl_18.se1', 'semo_18.se1', 'seas_18.se1'];
+    return knownFiles.some((file) => existsSync(`${path}/${file}`));
+  }
+
+  private describeEphemerisMode(initError?: string): string {
+    if (this.ephemerisMode === 'swisseph+files') {
+      return `Ephemeris mode: swisseph + ephe files (${this.activeEphePath})`;
+    }
+
+    if (this.ephemerisMode === 'swisseph+moshier') {
+      return 'Ephemeris mode: swisseph + moshier fallback';
+    }
+
+    return `Ephemeris mode: init failed${initError ? ` (${initError})` : ''}`;
   }
 
   /**

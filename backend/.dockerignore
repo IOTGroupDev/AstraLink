@@ -3,6 +3,7 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.npm
 
 # Environment variables
 .env
@@ -52,9 +53,10 @@ logs
 *.tmp
 *.temp
 .cache
+*.tsbuildinfo
 
 # Prisma
-prisma/migrations
+!prisma/migrations
 !prisma/schema.prisma
 
 # Source maps
@@ -69,3 +71,4 @@ prisma/migrations
 .husky
 .lintstagedrc*
 jest.config.*
+backups
