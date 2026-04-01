@@ -67,8 +67,69 @@ export interface ChartSummary {
   karmaLessons: string[];
   talents: string[];
   recommendations: string[];
+  uniqueFeatures: string[];
   dominantElements: string[];
   dominantQualities: string[];
+  chartRuler?: {
+    ruler: string;
+    sign: string;
+    house: number;
+    interpretation: string;
+  };
+  sect?: {
+    type: 'day' | 'night';
+    interpretation: string;
+  };
+  lunarNodes?: {
+    northNode?: {
+      sign: string;
+      house: number;
+      interpretation: string;
+    };
+    southNode?: {
+      sign: string;
+      house: number;
+      interpretation: string;
+    };
+    axisInterpretation: string;
+  };
+  dispositors?: {
+    finalDispositor?: {
+      planet: string;
+      sign: string;
+      house: number;
+      interpretation: string;
+    };
+    dominantDispositor?: {
+      planet: string;
+      sign: string;
+      house: number;
+      chainCount: number;
+      interpretation: string;
+    };
+    mutualReceptions?: Array<{
+      planets: [string, string];
+      interpretation: string;
+    }>;
+    chainSummary: string;
+  };
+  keyHouseRulers?: Array<{
+    house: number;
+    sign: string;
+    ruler: string;
+    rulerSign: string;
+    rulerHouse: number;
+    interpretation: string;
+  }>;
+  thematicFocus?: {
+    relationships?: string;
+    career?: string;
+    finances?: string;
+  };
+  strongestAspects?: Array<{
+    title: string;
+    interpretation: string;
+  }>;
   lifePurpose: string;
   relationships: string;
   careerPath: string;

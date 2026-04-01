@@ -10,6 +10,8 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,6 +75,12 @@ interface AngleData {
 }
 
 type AngleKey = 'ascendant' | 'midheaven' | 'descendant' | 'ic';
+type SummaryDetailPayload = {
+  title: string;
+  subtitle?: string;
+  summary?: string;
+  lines?: string[];
+};
 
 // Planet symbols remain constant across languages
 const PLANET_SYMBOLS: Record<string, string> = {
@@ -147,6 +155,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [angleModalSubtitle, setAngleModalSubtitle] = useState('');
   const [angleModalSummary, setAngleModalSummary] = useState('');
   const [angleModalLines, setAngleModalLines] = useState<string[]>([]);
+  const [summaryModalVisible, setSummaryModalVisible] = useState(false);
+  const [summaryModalTitle, setSummaryModalTitle] = useState('');
+  const [summaryModalSubtitle, setSummaryModalSubtitle] = useState('');
+  const [summaryModalSummary, setSummaryModalSummary] = useState('');
+  const [summaryModalLines, setSummaryModalLines] = useState<string[]>([]);
 
   useEffect(() => {
     loadChartData();
@@ -368,11 +381,78 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     }
   };
 
+  const closeSummaryModal = () => {
+    setSummaryModalVisible(false);
+    setSummaryModalTitle('');
+    setSummaryModalSubtitle('');
+    setSummaryModalSummary('');
+    setSummaryModalLines([]);
+  };
+
+  const openSummaryModal = ({
+    title,
+    subtitle = '',
+    summary = '',
+    lines = [],
+  }: SummaryDetailPayload) => {
+    setSummaryModalTitle(title);
+    setSummaryModalSubtitle(subtitle);
+    setSummaryModalSummary(summary);
+    setSummaryModalLines(lines.filter(Boolean));
+    setSummaryModalVisible(true);
+  };
+
+  const renderSummaryOpenHint = (extraCount?: number) => (
+    <View style={styles.summaryCardFooter}>
+      <Text style={styles.summaryCardFooterText}>
+        {t('natalChart.summary.openDetails', 'Подробнее')}
+        {typeof extraCount === 'number' && extraCount > 0
+          ? ` · +${extraCount}`
+          : ''}
+      </Text>
+      <Ionicons
+        name="chevron-forward"
+        size={16}
+        color="rgba(139, 92, 246, 0.9)"
+      />
+    </View>
+  );
+
+  const renderPreviewList = (
+    items: string[],
+    bulletStyle?: StyleProp<ViewStyle>,
+    previewCount: number = 2
+  ) => (
+    <View style={styles.traitsList}>
+      {items.slice(0, previewCount).map((item, idx) => (
+        <View key={`${item}-${idx}`} style={styles.traitItem}>
+          <View style={[styles.traitBullet, bulletStyle]} />
+          <Text style={styles.traitText} numberOfLines={2}>
+            {item}
+          </Text>
+        </View>
+      ))}
+      {renderSummaryOpenHint(
+        items.length > previewCount ? items.length - previewCount : undefined
+      )}
+    </View>
+  );
+
+  const splitNarrativeParagraphs = (text?: string): string[] =>
+    (text || '')
+      .split(/\n{2,}|\r\n\r\n/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
   // Основная информация
   const renderOverview = () => {
     const sunSign = planets?.sun?.sign || 'N/A';
     const moonSign = planets?.moon?.sign || 'N/A';
     const ascSign = resolvedAscendant.sign || 'N/A';
+    const premiumNarrative =
+      interpretation?.aiNarrative || interpretation?.premiumNarrative || '';
+    const premiumNarrativeParagraphs =
+      splitNarrativeParagraphs(premiumNarrative);
 
     // Подсчет элементов и качеств
     const elements = { fire: 0, earth: 0, air: 0, water: 0 };
@@ -482,36 +562,93 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 <View style={styles.divider} />
                 <View style={styles.bigThreeDescriptions}>
                   {!!interpretation?.sunSign?.interpretation && (
-                    <View style={styles.bigThreeDescriptionCard}>
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      style={styles.bigThreeDescriptionCard}
+                      onPress={() =>
+                        openSummaryModal({
+                          title: `☉ ${t('natalChart.bigThree.sun')}`,
+                          subtitle: `${sunSign} ${formatDegree(
+                            planets?.sun?.degree || 0
+                          )}`,
+                          summary: interpretation.sunSign.interpretation,
+                        })
+                      }
+                    >
                       <Text style={styles.bigThreeDescriptionTitle}>
                         ☉ {t('natalChart.bigThree.sun')}
                       </Text>
-                      <Text style={styles.bigThreeDescriptionText}>
+                      <Text style={styles.bigThreeDescriptionMeta}>
+                        {sunSign} {formatDegree(planets?.sun?.degree || 0)}
+                      </Text>
+                      <Text
+                        style={styles.bigThreeDescriptionText}
+                        numberOfLines={4}
+                      >
                         {interpretation.sunSign.interpretation}
                       </Text>
-                    </View>
+                      {renderSummaryOpenHint()}
+                    </TouchableOpacity>
                   )}
 
                   {!!interpretation?.moonSign?.interpretation && (
-                    <View style={styles.bigThreeDescriptionCard}>
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      style={styles.bigThreeDescriptionCard}
+                      onPress={() =>
+                        openSummaryModal({
+                          title: `☽ ${t('natalChart.bigThree.moon')}`,
+                          subtitle: `${moonSign} ${formatDegree(
+                            planets?.moon?.degree || 0
+                          )}`,
+                          summary: interpretation.moonSign.interpretation,
+                        })
+                      }
+                    >
                       <Text style={styles.bigThreeDescriptionTitle}>
                         ☽ {t('natalChart.bigThree.moon')}
                       </Text>
-                      <Text style={styles.bigThreeDescriptionText}>
+                      <Text style={styles.bigThreeDescriptionMeta}>
+                        {moonSign} {formatDegree(planets?.moon?.degree || 0)}
+                      </Text>
+                      <Text
+                        style={styles.bigThreeDescriptionText}
+                        numberOfLines={4}
+                      >
                         {interpretation.moonSign.interpretation}
                       </Text>
-                    </View>
+                      {renderSummaryOpenHint()}
+                    </TouchableOpacity>
                   )}
 
                   {!!interpretation?.ascendant?.interpretation && (
-                    <View style={styles.bigThreeDescriptionCard}>
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      style={styles.bigThreeDescriptionCard}
+                      onPress={() =>
+                        openSummaryModal({
+                          title: `ASC ${t('natalChart.bigThree.ascendant')}`,
+                          subtitle: `${ascSign} ${formatDegree(
+                            resolvedAscendant.degree || 0
+                          )}`,
+                          summary: interpretation.ascendant.interpretation,
+                        })
+                      }
+                    >
                       <Text style={styles.bigThreeDescriptionTitle}>
                         ASC {t('natalChart.bigThree.ascendant')}
                       </Text>
-                      <Text style={styles.bigThreeDescriptionText}>
+                      <Text style={styles.bigThreeDescriptionMeta}>
+                        {ascSign} {formatDegree(resolvedAscendant.degree || 0)}
+                      </Text>
+                      <Text
+                        style={styles.bigThreeDescriptionText}
+                        numberOfLines={4}
+                      >
                         {interpretation.ascendant.interpretation}
                       </Text>
-                    </View>
+                      {renderSummaryOpenHint()}
+                    </TouchableOpacity>
                   )}
                 </View>
               </>
@@ -519,16 +656,43 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           </View>
         </BlurView>
 
-        {!!(
-          interpretation?.aiNarrative || interpretation?.premiumNarrative
-        ) && (
+        {!!premiumNarrative && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
-              <Text style={styles.cardTitle}>AI Premium</Text>
-              <Text style={styles.interpretationText}>
-                {interpretation.aiNarrative || interpretation.premiumNarrative}
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.premiumNarrative.title', 'AI Premium'),
+                  subtitle: t(
+                    'natalChart.premiumNarrative.subtitle',
+                    'Расширенный синтез карты'
+                  ),
+                  summary: premiumNarrativeParagraphs[0] || premiumNarrative,
+                  lines:
+                    premiumNarrativeParagraphs.length > 1
+                      ? premiumNarrativeParagraphs.slice(1)
+                      : [],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="sparkles-outline" size={24} color="#FFD700" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.premiumNarrative.title', 'AI Premium')}
+                </Text>
+              </View>
+              <Text style={styles.summarySubtext}>
+                {t(
+                  'natalChart.premiumNarrative.subtitle',
+                  'Расширенный синтез карты'
+                )}
               </Text>
-            </View>
+              <Text style={styles.interpretationText} numberOfLines={7}>
+                {premiumNarrative}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
           </BlurView>
         )}
 
@@ -1088,194 +1252,779 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       );
     }
 
+    const summaryGuideChips = [
+      summary.chartRuler
+        ? t('natalChart.summary.chartRuler', 'Управитель карты')
+        : null,
+      summary.lunarNodes
+        ? t('natalChart.summary.lunarNodes', 'Лунные узлы')
+        : null,
+      summary.thematicFocus?.relationships
+        ? t('natalChart.summary.relationshipMechanics', 'Механика отношений')
+        : null,
+      summary.thematicFocus?.career
+        ? t('natalChart.summary.careerMechanics', 'Механика карьеры')
+        : null,
+      summary.thematicFocus?.finances
+        ? t('natalChart.summary.financeMechanics', 'Механика денег')
+        : null,
+    ].filter(Boolean) as string[];
+
     return (
       <View style={styles.content}>
+        <BlurView intensity={20} tint="dark" style={styles.card}>
+          <View style={styles.cardInner}>
+            <View style={styles.summaryHeader}>
+              <Ionicons
+                name="layers-outline"
+                size={24}
+                color="rgba(139, 92, 246, 0.95)"
+              />
+              <Text style={styles.summaryTitle}>
+                {t(
+                  'natalChart.summary.summaryGuideTitle',
+                  'Как читать это резюме'
+                )}
+              </Text>
+            </View>
+            <Text style={styles.summarySubtext}>
+              {t(
+                'natalChart.summary.summaryGuideText',
+                'Карточки ниже показывают суть. Нажмите любую, чтобы открыть полный разбор без перегруза экрана.'
+              )}
+            </Text>
+            {!!summaryGuideChips.length && (
+              <View style={[styles.chipContainer, styles.summaryGuideChips]}>
+                {summaryGuideChips.map((chip, idx) => (
+                  <View key={`${chip}-${idx}`} style={styles.summaryGuideChip}>
+                    <Text style={styles.summaryGuideChipText}>{chip}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </BlurView>
+
+        {summary.chartRuler && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.chartRuler', 'Управитель карты'),
+                  subtitle: `${summary.chartRuler.ruler} · ${summary.chartRuler.sign} · ${summary.chartRuler.house}${t('natalChart.summary.houseShort', ' дом')}`,
+                  summary: summary.chartRuler.interpretation,
+                  lines: summary.keyHouseRulers?.length
+                    ? summary.keyHouseRulers
+                        .filter((item: any) => item.house === 1)
+                        .map((item: any) => item.interpretation)
+                    : [],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="navigate-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.chartRuler', 'Управитель карты')}
+                </Text>
+              </View>
+              <Text style={styles.summaryText}>
+                {summary.chartRuler.ruler}
+                {' · '}
+                {summary.chartRuler.sign}
+                {' · '}
+                {summary.chartRuler.house}
+                {t('natalChart.summary.houseShort', ' дом')}
+              </Text>
+              <Text style={styles.summarySubtext} numberOfLines={3}>
+                {summary.chartRuler.interpretation}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.sect && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.sect', 'Секта карты'),
+                  subtitle:
+                    summary.sect.type === 'day'
+                      ? t('natalChart.summary.dayChart', 'Дневная карта')
+                      : t('natalChart.summary.nightChart', 'Ночная карта'),
+                  summary: summary.sect.interpretation,
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="sunny-outline" size={24} color="#FFD700" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.sect', 'Секта карты')}
+                </Text>
+              </View>
+              <Text style={styles.summaryText} numberOfLines={3}>
+                {summary.sect.interpretation}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.lunarNodes && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.lunarNodes', 'Лунные узлы'),
+                  subtitle: [
+                    summary.lunarNodes.northNode
+                      ? `NN · ${summary.lunarNodes.northNode.sign} · ${summary.lunarNodes.northNode.house}${t('natalChart.summary.houseShort', ' дом')}`
+                      : '',
+                    summary.lunarNodes.southNode
+                      ? `SN · ${summary.lunarNodes.southNode.sign} · ${summary.lunarNodes.southNode.house}${t('natalChart.summary.houseShort', ' дом')}`
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join('  •  '),
+                  summary: summary.lunarNodes.axisInterpretation,
+                  lines: [
+                    summary.lunarNodes.northNode?.interpretation || '',
+                    summary.lunarNodes.southNode?.interpretation || '',
+                  ],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons
+                  name="git-network-outline"
+                  size={24}
+                  color="#FF6B6B"
+                />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.lunarNodes', 'Лунные узлы')}
+                </Text>
+              </View>
+              {!!summary.lunarNodes.northNode?.interpretation && (
+                <Text style={styles.summaryText} numberOfLines={3}>
+                  {summary.lunarNodes.northNode.interpretation}
+                </Text>
+              )}
+              {!!summary.lunarNodes.southNode?.interpretation && (
+                <Text style={styles.summarySubtext} numberOfLines={2}>
+                  {summary.lunarNodes.southNode.interpretation}
+                </Text>
+              )}
+              <Text style={styles.summarySubtext} numberOfLines={2}>
+                {summary.lunarNodes.axisInterpretation}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.dispositors && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.dispositors',
+                    'Диспозиторный центр'
+                  ),
+                  subtitle: summary.dispositors.finalDispositor
+                    ? `${summary.dispositors.finalDispositor.planet} · ${summary.dispositors.finalDispositor.sign} · ${summary.dispositors.finalDispositor.house}${t('natalChart.summary.houseShort', ' дом')}`
+                    : summary.dispositors.dominantDispositor
+                      ? `${summary.dispositors.dominantDispositor.planet} · ${summary.dispositors.dominantDispositor.sign} · ${summary.dispositors.dominantDispositor.house}${t('natalChart.summary.houseShort', ' дом')}`
+                      : '',
+                  summary:
+                    summary.dispositors.finalDispositor?.interpretation ||
+                    summary.dispositors.dominantDispositor?.interpretation ||
+                    summary.dispositors.chainSummary,
+                  lines: [
+                    summary.dispositors.chainSummary,
+                    ...(summary.dispositors.mutualReceptions || []).map(
+                      (item: any) => item.interpretation
+                    ),
+                  ],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="radio-outline" size={24} color="#4ECDC4" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.dispositors', 'Диспозиторный центр')}
+                </Text>
+              </View>
+              {!!summary.dispositors.finalDispositor && (
+                <Text style={styles.summaryText}>
+                  {summary.dispositors.finalDispositor.planet}
+                  {' · '}
+                  {summary.dispositors.finalDispositor.sign}
+                  {' · '}
+                  {summary.dispositors.finalDispositor.house}
+                  {t('natalChart.summary.houseShort', ' дом')}
+                </Text>
+              )}
+              {!!summary.dispositors.finalDispositor?.interpretation && (
+                <Text style={styles.summarySubtext} numberOfLines={3}>
+                  {summary.dispositors.finalDispositor.interpretation}
+                </Text>
+              )}
+              {!!summary.dispositors.dominantDispositor &&
+                !summary.dispositors.finalDispositor && (
+                  <Text style={styles.summaryText}>
+                    {summary.dispositors.dominantDispositor.planet}
+                    {' · '}
+                    {summary.dispositors.dominantDispositor.sign}
+                    {' · '}
+                    {summary.dispositors.dominantDispositor.house}
+                    {t('natalChart.summary.houseShort', ' дом')}
+                  </Text>
+                )}
+              {!!summary.dispositors.dominantDispositor &&
+                !summary.dispositors.finalDispositor?.interpretation && (
+                  <Text style={styles.summarySubtext} numberOfLines={3}>
+                    {summary.dispositors.dominantDispositor.interpretation}
+                  </Text>
+                )}
+              <Text style={styles.summarySubtext} numberOfLines={2}>
+                {summary.dispositors.chainSummary}
+              </Text>
+              {!!summary.dispositors.mutualReceptions?.length &&
+                renderPreviewList(
+                  summary.dispositors.mutualReceptions.map(
+                    (item: any) => item.interpretation
+                  ),
+                  styles.recommendationBullet,
+                  1
+                )}
+              {!summary.dispositors.mutualReceptions?.length &&
+                renderSummaryOpenHint()}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.keyHouseRulers && summary.keyHouseRulers.length > 0 && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.keyHouseRulers',
+                    'Управители ключевых домов'
+                  ),
+                  summary: t(
+                    'natalChart.summary.keyHouseRulersHint',
+                    'Это показывает, через какие реальные сферы жизни раскрываются главные оси карты.'
+                  ),
+                  lines: summary.keyHouseRulers.map(
+                    (item: any) => item.interpretation
+                  ),
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="git-branch-outline" size={24} color="#FFD700" />
+                <Text style={styles.summaryTitle}>
+                  {t(
+                    'natalChart.summary.keyHouseRulers',
+                    'Управители ключевых домов'
+                  )}
+                </Text>
+              </View>
+              {renderPreviewList(
+                summary.keyHouseRulers.map((item: any) => item.interpretation),
+                styles.recommendationBullet
+              )}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.thematicFocus?.relationships && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.relationshipMechanics',
+                    'Механика отношений'
+                  ),
+                  summary: summary.thematicFocus?.relationships,
+                  lines: [summary.relationships].filter(Boolean) as string[],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="heart-outline" size={24} color="#FF6B6B" />
+                <Text style={styles.summaryTitle}>
+                  {t(
+                    'natalChart.summary.relationshipMechanics',
+                    'Механика отношений'
+                  )}
+                </Text>
+              </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.thematicFocus.relationships}
+              </Text>
+              {renderSummaryOpenHint(summary.relationships ? 1 : undefined)}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.thematicFocus?.career && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.careerMechanics',
+                    'Механика карьеры'
+                  ),
+                  summary: summary.thematicFocus?.career,
+                  lines: [summary.careerPath].filter(Boolean) as string[],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="briefcase-outline" size={24} color="#4ECDC4" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.careerMechanics', 'Механика карьеры')}
+                </Text>
+              </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.thematicFocus.career}
+              </Text>
+              {renderSummaryOpenHint(summary.careerPath ? 1 : undefined)}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.thematicFocus?.finances && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.financeMechanics',
+                    'Механика денег'
+                  ),
+                  summary: summary.thematicFocus?.finances,
+                  lines: [summary.financialApproach].filter(
+                    Boolean
+                  ) as string[],
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="cash-outline" size={24} color="#FFD700" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.financeMechanics', 'Механика денег')}
+                </Text>
+              </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.thematicFocus.finances}
+              </Text>
+              {renderSummaryOpenHint(summary.financialApproach ? 1 : undefined)}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.strongestAspects && summary.strongestAspects.length > 0 && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.strongestAspects',
+                    'Сильнейшие аспекты'
+                  ),
+                  summary: t(
+                    'natalChart.summary.strongestAspectsHint',
+                    'Это самые влиятельные связи карты, которые сильнее всего окрашивают характер и сценарии.'
+                  ),
+                  lines: summary.strongestAspects.map(
+                    (item: any) => `${item.title}. ${item.interpretation}`
+                  ),
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons
+                  name="git-network-outline"
+                  size={24}
+                  color="#8B5CF6"
+                />
+                <Text style={styles.summaryTitle}>
+                  {t(
+                    'natalChart.summary.strongestAspects',
+                    'Сильнейшие аспекты'
+                  )}
+                </Text>
+              </View>
+              {renderPreviewList(
+                summary.strongestAspects.map(
+                  (item: any) => `${item.title}. ${item.interpretation}`
+                ),
+                styles.talentBullet
+              )}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
         {/* Жизненная цель */}
         {summary.lifePurpose && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.lifePurpose'),
+                  summary: summary.lifePurpose,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="compass-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.lifePurpose')}
                 </Text>
               </View>
-              <Text style={styles.summaryText}>{summary.lifePurpose}</Text>
-            </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.lifePurpose}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Личностные качества */}
         {summary.personalityTraits && summary.personalityTraits.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.personalityTraits'),
+                  lines: summary.personalityTraits,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="person-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.personalityTraits')}
                 </Text>
               </View>
-              <View style={styles.traitsList}>
-                {summary.personalityTraits.map((trait: string, idx: number) => (
-                  <View key={idx} style={styles.traitItem}>
-                    <View style={styles.traitBullet} />
-                    <Text style={styles.traitText}>{trait}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+              {renderPreviewList(
+                summary.personalityTraits,
+                styles.traitBullet,
+                3
+              )}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Таланты */}
         {summary.talents && summary.talents.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.talents'),
+                  lines: summary.talents,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="sparkles-outline" size={24} color="#FFD700" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.talents')}
                 </Text>
               </View>
-              <View style={styles.traitsList}>
-                {summary.talents.map((talent: string, idx: number) => (
-                  <View key={idx} style={styles.traitItem}>
-                    <View style={[styles.traitBullet, styles.talentBullet]} />
-                    <Text style={styles.traitText}>{talent}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+              {renderPreviewList(summary.talents, styles.talentBullet, 3)}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Жизненные темы */}
         {summary.lifeThemes && summary.lifeThemes.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.lifeThemes'),
+                  lines: summary.lifeThemes,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="book-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.lifeThemes')}
                 </Text>
               </View>
-              <View style={styles.traitsList}>
-                {summary.lifeThemes.map((theme: string, idx: number) => (
-                  <View key={idx} style={styles.traitItem}>
-                    <View style={styles.traitBullet} />
-                    <Text style={styles.traitText}>{theme}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+              {renderPreviewList(summary.lifeThemes, styles.traitBullet, 3)}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Кармические уроки */}
         {summary.karmaLessons && summary.karmaLessons.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.karmaLessons'),
+                  lines: summary.karmaLessons,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="school-outline" size={24} color="#FF6B35" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.karmaLessons')}
                 </Text>
               </View>
-              <View style={styles.traitsList}>
-                {summary.karmaLessons.map((lesson: string, idx: number) => (
-                  <View key={idx} style={styles.traitItem}>
-                    <View
-                      style={[styles.traitBullet, styles.karmaLessonBullet]}
-                    />
-                    <Text style={styles.traitText}>{lesson}</Text>
-                  </View>
-                ))}
+              {renderPreviewList(
+                summary.karmaLessons,
+                styles.karmaLessonBullet,
+                3
+              )}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {summary.uniqueFeatures && summary.uniqueFeatures.length > 0 && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t(
+                    'natalChart.summary.uniqueFeatures',
+                    'Что выделяет эту карту'
+                  ),
+                  summary: t(
+                    'natalChart.summary.uniqueFeaturesHint',
+                    'Ниже собраны самые характерные астрологические особенности именно этой карты.'
+                  ),
+                  lines: summary.uniqueFeatures,
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="aperture-outline" size={24} color="#4ECDC4" />
+                <Text style={styles.summaryTitle}>
+                  {t(
+                    'natalChart.summary.uniqueFeatures',
+                    'Что выделяет эту карту'
+                  )}
+                </Text>
               </View>
-            </View>
+              {renderPreviewList(
+                summary.uniqueFeatures,
+                styles.talentBullet,
+                3
+              )}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Отношения */}
         {summary.relationships && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.relationships'),
+                  summary: summary.relationships,
+                  lines: summary.thematicFocus?.relationships
+                    ? [summary.thematicFocus.relationships]
+                    : [],
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="heart-outline" size={24} color="#FF6B6B" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.relationships')}
                 </Text>
               </View>
-              <Text style={styles.summaryText}>{summary.relationships}</Text>
-            </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.relationships}
+              </Text>
+              {renderSummaryOpenHint(
+                summary.thematicFocus?.relationships ? 1 : undefined
+              )}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Карьера */}
         {summary.careerPath && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.careerPath'),
+                  summary: summary.careerPath,
+                  lines: summary.thematicFocus?.career
+                    ? [summary.thematicFocus.career]
+                    : [],
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="briefcase-outline" size={24} color="#4ECDC4" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.careerPath')}
                 </Text>
               </View>
-              <Text style={styles.summaryText}>{summary.careerPath}</Text>
-            </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.careerPath}
+              </Text>
+              {renderSummaryOpenHint(
+                summary.thematicFocus?.career ? 1 : undefined
+              )}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Духовный путь */}
         {summary.spiritualPath && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.spiritualPath'),
+                  summary: summary.spiritualPath,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="flame-outline" size={24} color="#9B59B6" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.spiritualPath')}
                 </Text>
               </View>
-              <Text style={styles.summaryText}>{summary.spiritualPath}</Text>
-            </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.spiritualPath}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Здоровье */}
         {summary.healthFocus && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.healthFocus'),
+                  summary: summary.healthFocus,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="fitness-outline" size={24} color="#4ECDC4" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.healthFocus')}
                 </Text>
               </View>
-              <Text style={styles.summaryText}>{summary.healthFocus}</Text>
-            </View>
+              <Text style={styles.summaryText} numberOfLines={4}>
+                {summary.healthFocus}
+              </Text>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Финансы */}
         {summary.financialApproach && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.financialApproach'),
+                  summary: summary.financialApproach,
+                  lines: summary.thematicFocus?.finances
+                    ? [summary.thematicFocus.finances]
+                    : [],
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="cash-outline" size={24} color="#FFD700" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.financialApproach')}
                 </Text>
               </View>
-              <Text style={styles.summaryText}>
+              <Text style={styles.summaryText} numberOfLines={4}>
                 {summary.financialApproach}
               </Text>
-            </View>
+              {renderSummaryOpenHint(
+                summary.thematicFocus?.finances ? 1 : undefined
+              )}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Доминирующие элементы */}
         {summary.dominantElements && summary.dominantElements.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.dominantElements'),
+                  summary: t(
+                    'natalChart.summary.dominantElementsHint',
+                    'Эти элементы показывают, какая энергия проявляется в карте естественнее и чаще.'
+                  ),
+                  lines: summary.dominantElements,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="water-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.summaryTitle}>
@@ -1291,14 +2040,28 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   )
                 )}
               </View>
-            </View>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Доминирующие качества */}
         {summary.dominantQualities && summary.dominantQualities.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.dominantQualities'),
+                  summary: t(
+                    'natalChart.summary.dominantQualitiesHint',
+                    'Эти качества показывают, как карта запускает, удерживает и меняет процессы.'
+                  ),
+                  lines: summary.dominantQualities,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="settings-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.summaryTitle}>
@@ -1314,36 +2077,36 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   )
                 )}
               </View>
-            </View>
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
           </BlurView>
         )}
 
         {/* Рекомендации */}
         {summary.recommendations && summary.recommendations.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
-            <View style={styles.cardInner}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.recommendations'),
+                  lines: summary.recommendations,
+                })
+              }
+            >
               <View style={styles.summaryHeader}>
                 <Ionicons name="bulb-outline" size={24} color="#FFD700" />
                 <Text style={styles.summaryTitle}>
                   {t('natalChart.summary.recommendations')}
                 </Text>
               </View>
-              <View style={styles.traitsList}>
-                {summary.recommendations.map(
-                  (recommendation: string, idx: number) => (
-                    <View key={idx} style={styles.traitItem}>
-                      <View
-                        style={[
-                          styles.traitBullet,
-                          styles.recommendationBullet,
-                        ]}
-                      />
-                      <Text style={styles.traitText}>{recommendation}</Text>
-                    </View>
-                  )
-                )}
-              </View>
-            </View>
+              {renderPreviewList(
+                summary.recommendations,
+                styles.recommendationBullet,
+                3
+              )}
+            </TouchableOpacity>
           </BlurView>
         )}
       </View>
@@ -1424,11 +2187,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         visible={angleModalVisible}
         onRequestClose={closeAngleModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={closeAngleModal}>
-          <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={closeAngleModal} />
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>{angleModalTitle}</Text>
@@ -1445,6 +2206,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
             >
               {angleModalLoading ? (
                 <View style={styles.modalLoading}>
@@ -1470,8 +2232,54 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </>
               )}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={summaryModalVisible}
+        onRequestClose={closeSummaryModal}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={closeSummaryModal} />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderText}>
+                <Text style={styles.modalTitle}>{summaryModalTitle}</Text>
+                {!!summaryModalSubtitle && (
+                  <Text style={styles.modalSubtitle}>
+                    {summaryModalSubtitle}
+                  </Text>
+                )}
+              </View>
+              <Pressable onPress={closeSummaryModal}>
+                <Text style={styles.modalClose}>×</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+            >
+              {!!summaryModalSummary && (
+                <View style={styles.modalSummary}>
+                  <Text style={styles.modalSummaryText}>
+                    {summaryModalSummary}
+                  </Text>
+                </View>
+              )}
+              {summaryModalLines.map((line, idx) => (
+                <Text key={`${line}-${idx}`} style={styles.modalText}>
+                  {line}
+                </Text>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </TabScreenLayout>
   );
@@ -1661,6 +2469,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 8,
   },
+  bigThreeDescriptionMeta: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.58)',
+    marginBottom: 8,
+  },
   bigThreeDescriptionText: {
     fontSize: 14,
     lineHeight: 22,
@@ -1732,9 +2545,12 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(3, 6, 20, 0.78)',
     justifyContent: 'center',
     paddingHorizontal: 18,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(3, 6, 20, 0.78)',
   },
   modalContent: {
     maxHeight: '75%',
@@ -2040,6 +2856,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.5)',
     lineHeight: 20,
+    marginTop: 8,
+  },
+  summaryCardFooter: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  summaryCardFooterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(139, 92, 246, 0.95)',
+  },
+  summaryGuideChips: {
+    marginTop: 14,
+  },
+  summaryGuideChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  summaryGuideChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.78)',
   },
   traitsList: {
     gap: 8,

@@ -21,6 +21,7 @@ import {
   getExtendedPlanetInSign,
   getExtendedAscendant,
   getExtendedHouseSign,
+  getExtendedAspect,
 } from '../../modules/shared/astro-text';
 import type { PlanetKey, Sign } from '../../modules/shared/astro-text/types';
 import { GeoService } from '../../modules/geo/geo.service';
@@ -55,6 +56,21 @@ export class NatalChartService {
     return createHash('sha1').update(payload).digest('hex');
   }
 
+  private normalizeBirthDateInput(input?: string | null): string | null {
+    if (typeof input !== 'string') return null;
+    const trimmed = input.trim();
+    const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    const year = parsed.getUTCFullYear();
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   /**
    * Create natal chart with interpretation at registration
    */
@@ -77,8 +93,8 @@ export class NatalChartService {
       throw new BadRequestException('All birth data is required');
     }
 
-    const birthDate = new Date(birthDateISO);
-    if (isNaN(birthDate.getTime())) {
+    const dateStr = this.normalizeBirthDateInput(birthDateISO);
+    if (!dateStr) {
       throw new BadRequestException('Invalid birth date');
     }
 
@@ -87,8 +103,11 @@ export class NatalChartService {
       throw new BadRequestException('Invalid birth time (expected HH:MM)');
     }
 
-    const dateStr = birthDate.toISOString().split('T')[0];
-    const location = await this.resolveBirthLocation(birthPlace);
+    const location = await this.resolveBirthLocation(
+      birthPlace,
+      dateStr,
+      birthTime,
+    );
 
     // Fingerprint for birth data
     const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
@@ -157,8 +176,10 @@ export class NatalChartService {
       const bp = userProfile?.birth_place as string | undefined;
 
       if (bd && bt && bp) {
-        const dateStr = new Date(bd).toISOString().split('T')[0];
-        currentFingerprint = this.computeFingerprint(dateStr, bt, bp);
+        const dateStr = this.normalizeBirthDateInput(bd);
+        if (dateStr) {
+          currentFingerprint = this.computeFingerprint(dateStr, bt, bp);
+        }
       }
     } catch (_e) {
       // ignore profile read issues
@@ -180,8 +201,11 @@ export class NatalChartService {
         const bt = userProfile?.birth_time as string;
         const bp = userProfile?.birth_place as string;
 
-        const dateStr = new Date(bd).toISOString().split('T')[0];
-        const location = await this.resolveBirthLocation(bp);
+        const dateStr = this.normalizeBirthDateInput(bd);
+        if (!dateStr) {
+          throw new Error('Invalid birth date in user profile');
+        }
+        const location = await this.resolveBirthLocation(bp, dateStr, bt);
 
         const newNatal = await this.ephemerisService.calculateNatalChart(
           dateStr,
@@ -386,8 +410,8 @@ export class NatalChartService {
       throw new NotFoundException('User birth data not found');
     }
 
-    const birthDate = new Date(birthDateInput);
-    if (isNaN(birthDate.getTime())) {
+    const dateStr = this.normalizeBirthDateInput(birthDateInput);
+    if (!dateStr) {
       throw new BadRequestException('Invalid birth date');
     }
 
@@ -397,9 +421,12 @@ export class NatalChartService {
     }
 
     const location =
-      payloadLocation ?? (await this.resolveBirthLocation(birthPlaceInput));
-
-    const dateStr = birthDate.toISOString().split('T')[0];
+      payloadLocation ??
+      (await this.resolveBirthLocation(
+        birthPlaceInput,
+        dateStr,
+        birthTimeInput,
+      ));
 
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
@@ -467,10 +494,12 @@ export class NatalChartService {
       sign?: string;
       houseNum?: number | string;
       aspect?: string;
+      planetA?: string;
+      planetB?: string;
     },
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<string[]> {
-    const { type, planet, sign, houseNum, aspect } = query;
+    const { type, planet, sign, houseNum, aspect, planetA, planetB } = query;
 
     if (type === 'planet' && planet && sign) {
       const extended = getExtendedPlanetInSign(
@@ -500,22 +529,32 @@ export class NatalChartService {
       return [];
     }
 
+    if (type === 'aspect' && aspect && planetA && planetB) {
+      const extended = getExtendedAspect(
+        aspect as import('../../modules/shared/astro-text/types').AspectType,
+        planetA as PlanetKey,
+        planetB as PlanetKey,
+        locale,
+      );
+      if (extended?.length) return extended;
+    }
+
     if (type === 'aspect' && aspect) {
       if (locale === 'en') {
         return [
-          `Aspect ${aspect} shows a special interaction of planets.`,
-          'More about aspects is available in the extended analysis.',
+          `Aspect ${aspect} shows a meaningful interaction between planetary themes.`,
+          'This contact becomes clearer when read together with the planets involved, their houses, and the exact orb.',
         ];
       }
       if (locale === 'es') {
         return [
-          `El aspecto ${aspect} muestra una interacción especial de planetas.`,
-          'Más sobre los aspectos está disponible en el análisis ampliado.',
+          `El aspecto ${aspect} muestra una interacción significativa entre temas planetarios.`,
+          'Se entiende mejor cuando se lee junto con los planetas implicados, sus casas y el orbe exacto.',
         ];
       }
       return [
-        `Аспект ${aspect} показывает особое взаимодействие планет.`,
-        'Подробнее об аспектах доступно в расширенном анализе.',
+        `Аспект ${aspect} показывает значимое взаимодействие планетарных тем.`,
+        'Его лучше читать вместе с тем, какие именно планеты участвуют, в каких домах они стоят и насколько точный орбис у аспекта.',
       ];
     }
 
@@ -665,6 +704,8 @@ export class NatalChartService {
 
   private async resolveBirthLocation(
     birthPlace: string,
+    birthDateISO?: string,
+    birthTime?: string,
   ): Promise<{ latitude: number; longitude: number; timezone: number }> {
     try {
       const [suggestion] = await this.geoService.suggestCities(
@@ -675,7 +716,12 @@ export class NatalChartService {
         return {
           latitude: suggestion.lat,
           longitude: suggestion.lon,
-          timezone: this.parseTimezoneOffset(suggestion.tzid, birthPlace),
+          timezone: this.parseTimezoneOffset(
+            suggestion.tzid,
+            birthPlace,
+            birthDateISO,
+            birthTime,
+          ),
         };
       }
     } catch (_e) {
@@ -685,7 +731,12 @@ export class NatalChartService {
     return this.getLocationCoordinates(birthPlace);
   }
 
-  private parseTimezoneOffset(timezone?: string, birthPlace?: string): number {
+  private parseTimezoneOffset(
+    timezone?: string,
+    birthPlace?: string,
+    birthDateISO?: string,
+    birthTime?: string,
+  ): number {
     if (!timezone) {
       return this.getLocationCoordinates(birthPlace || 'default').timezone;
     }
@@ -707,7 +758,68 @@ export class NatalChartService {
       }
     }
 
+    const historicalOffset = this.resolveHistoricalTimezoneOffset(
+      timezone,
+      birthDateISO,
+      birthTime,
+    );
+    if (historicalOffset !== null) {
+      return historicalOffset;
+    }
+
     return this.getLocationCoordinates(birthPlace || 'default').timezone;
+  }
+
+  private resolveHistoricalTimezoneOffset(
+    timezone: string,
+    birthDateISO?: string,
+    birthTime?: string,
+  ): number | null {
+    if (!birthDateISO || !birthTime || !timezone.includes('/')) {
+      return null;
+    }
+
+    const dateMatch = birthDateISO.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const timeMatch = birthTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (!dateMatch || !timeMatch) {
+      return null;
+    }
+
+    try {
+      const year = Number(dateMatch[1]);
+      const month = Number(dateMatch[2]);
+      const day = Number(dateMatch[3]);
+      const hour = Number(timeMatch[1]);
+      const minute = Number(timeMatch[2]);
+
+      const probe = new Date(
+        Date.UTC(year, month - 1, day, hour, minute, 0, 0),
+      );
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        timeZoneName: 'shortOffset',
+      }).formatToParts(probe);
+      const tzName = parts.find((part) => part.type === 'timeZoneName')?.value;
+      if (!tzName) {
+        return null;
+      }
+
+      const match = tzName.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?$/i);
+      if (!match) {
+        return null;
+      }
+
+      const hours = Number(match[1]);
+      const minutes = match[2] ? Number(match[2]) : 0;
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return null;
+      }
+
+      const sign = hours >= 0 ? 1 : -1;
+      return hours + sign * (minutes / 60);
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -885,8 +997,8 @@ export class NatalChartService {
       throw new BadRequestException('User birth data is incomplete');
     }
 
-    const birthDate = new Date(birthDateISO);
-    if (isNaN(birthDate.getTime())) {
+    const dateStr = this.normalizeBirthDateInput(birthDateISO);
+    if (!dateStr) {
       throw new BadRequestException('Invalid birth date');
     }
 
@@ -895,8 +1007,11 @@ export class NatalChartService {
       throw new BadRequestException('Invalid birth time (expected HH:MM)');
     }
 
-    const dateStr = birthDate.toISOString().split('T')[0];
-    const location = await this.resolveBirthLocation(birthPlace);
+    const location = await this.resolveBirthLocation(
+      birthPlace,
+      birthDateISO,
+      birthTime,
+    );
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
       birthTime,

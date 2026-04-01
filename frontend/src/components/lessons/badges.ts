@@ -1,4 +1,4 @@
-import { Badge } from './types';
+import { Badge } from '../../types/lessons';
 
 /**
  * База данных бейджей и достижений

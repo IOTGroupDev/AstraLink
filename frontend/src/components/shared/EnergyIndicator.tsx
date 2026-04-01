@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withTiming,
   interpolate,
   Easing,
@@ -26,8 +27,11 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
   size = SIZE,
   color = '#8B5CF6',
 }) => {
+  const AnimatedCircle = Animated.createAnimatedComponent(Circle);
   const progress = useSharedValue(0);
   const rotation = useSharedValue(0);
+  const radius = (size - STROKE_WIDTH) / 2;
+  const circumference = radius * 2 * Math.PI;
 
   useEffect(() => {
     progress.value = withTiming(energy / 100, {
@@ -41,17 +45,9 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
     });
   }, [energy]);
 
-  const animatedProps = useAnimatedStyle(() => {
-    const strokeDashoffset = interpolate(
-      progress.value,
-      [0, 1],
-      [CIRCUMFERENCE, 0]
-    );
-
-    return {
-      strokeDashoffset,
-    };
-  });
+  const animatedCircleProps = useAnimatedProps(() => ({
+    strokeDashoffset: interpolate(progress.value, [0, 1], [circumference, 0]),
+  }));
 
   const rotationStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -65,25 +61,24 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
           <Circle
             cx={size / 2}
             cy={size / 2}
-            r={RADIUS}
+            r={radius}
             stroke="rgba(255, 255, 255, 0.1)"
             strokeWidth={STROKE_WIDTH}
             fill="none"
           />
           {/* Progress circle */}
-          <Animated.View style={animatedProps}>
-            <Circle
-              cx={size / 2}
-              cy={size / 2}
-              r={RADIUS}
-              stroke={color}
-              strokeWidth={STROKE_WIDTH}
-              fill="none"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeLinecap="round"
-              transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            />
-          </Animated.View>
+          <AnimatedCircle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth={STROKE_WIDTH}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            animatedProps={animatedCircleProps}
+          />
         </Svg>
       </Animated.View>
 

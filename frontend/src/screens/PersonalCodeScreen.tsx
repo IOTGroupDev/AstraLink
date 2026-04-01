@@ -24,16 +24,16 @@ const PURPOSE_CONFIG: Array<{
   icon: string;
   color: string;
 }> = [
-  { key: 'luck', icon: '🍀', color: '#10B981' },
-  { key: 'health', icon: '❤️', color: '#EF4444' },
-  { key: 'wealth', icon: '💰', color: '#F59E0B' },
-  { key: 'love', icon: '💕', color: '#EC4899' },
-  { key: 'career', icon: '🎯', color: '#8B5CF6' },
-  { key: 'creativity', icon: '🎨', color: '#F97316' },
-  { key: 'protection', icon: '🛡️', color: '#6366F1' },
-  { key: 'intuition', icon: '🔮', color: '#A855F7' },
-  { key: 'harmony', icon: '☯️', color: '#06B6D4' },
-  { key: 'energy', icon: '⚡', color: '#FBBF24' },
+  { key: CodePurpose.LUCK, icon: '🍀', color: '#10B981' },
+  { key: CodePurpose.HEALTH, icon: '❤️', color: '#EF4444' },
+  { key: CodePurpose.WEALTH, icon: '💰', color: '#F59E0B' },
+  { key: CodePurpose.LOVE, icon: '💕', color: '#EC4899' },
+  { key: CodePurpose.CAREER, icon: '🎯', color: '#8B5CF6' },
+  { key: CodePurpose.CREATIVITY, icon: '🎨', color: '#F97316' },
+  { key: CodePurpose.PROTECTION, icon: '🛡️', color: '#6366F1' },
+  { key: CodePurpose.INTUITION, icon: '🔮', color: '#A855F7' },
+  { key: CodePurpose.HARMONY, icon: '☯️', color: '#06B6D4' },
+  { key: CodePurpose.ENERGY, icon: '⚡', color: '#FBBF24' },
 ];
 
 type PersonalCodeScreenProps = StackScreenProps<
@@ -44,7 +44,9 @@ type PersonalCodeScreenProps = StackScreenProps<
 function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [selectedPurpose, setSelectedPurpose] = useState<CodePurpose>('luck');
+  const [selectedPurpose, setSelectedPurpose] = useState<CodePurpose>(
+    CodePurpose.LUCK
+  );
   const [selectedDigitCount, setSelectedDigitCount] = useState<number>(4);
   const [result, setResult] = useState<PersonalCodeResult | null>(null);
   const [loading, setLoading] = useState(false);

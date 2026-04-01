@@ -10,9 +10,11 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withSpring,
   withTiming,
   withDelay,
+  withRepeat,
   interpolate,
   Easing,
   FadeIn,
@@ -26,6 +28,7 @@ import Svg, {
   Defs,
   LinearGradient as SvgGradient,
   Stop,
+  Text as SvgText,
 } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
@@ -43,6 +46,7 @@ const CosmicSnapshot: React.FC<CosmicSnapshotProps> = ({
   connection,
   onClose,
 }) => {
+  const AnimatedPath = Animated.createAnimatedComponent(Path);
   const [activeTab, setActiveTab] = useState<
     'strengths' | 'growth' | 'composite'
   >('strengths');
@@ -90,7 +94,7 @@ const CosmicSnapshot: React.FC<CosmicSnapshotProps> = ({
     transform: [{ scale: orb2Scale.value }],
   }));
 
-  const connectionLineStyle = useAnimatedStyle(() => ({
+  const connectionLineProps = useAnimatedProps(() => ({
     opacity: interpolate(connectionLine.value, [0, 1], [0, 1]),
     strokeDashoffset: interpolate(connectionLine.value, [0, 1], [100, 0]),
   }));
@@ -181,24 +185,23 @@ const CosmicSnapshot: React.FC<CosmicSnapshotProps> = ({
               </Defs>
 
               {/* Connection line */}
-              <Animated.Path
+              <AnimatedPath
                 d={`M ${width * 0.2} 100 Q ${width * 0.45} 50 ${width * 0.7} 100`}
                 stroke="url(#orb1Gradient)"
                 strokeWidth="3"
                 fill="none"
                 strokeDasharray="10,5"
-                style={connectionLineStyle}
+                animatedProps={connectionLineProps}
               />
 
               {/* Orb 1 */}
-              <Animated.Circle
+              <Circle
                 cx={width * 0.2}
                 cy={100}
                 r="30"
                 fill="url(#orb1Gradient)"
-                style={orb1Style}
               />
-              <Text
+              <SvgText
                 x={width * 0.2}
                 y={110}
                 fontSize="16"
@@ -207,17 +210,16 @@ const CosmicSnapshot: React.FC<CosmicSnapshotProps> = ({
                 fontWeight="bold"
               >
                 Вы
-              </Text>
+              </SvgText>
 
               {/* Orb 2 */}
-              <Animated.Circle
+              <Circle
                 cx={width * 0.7}
                 cy={100}
                 r="30"
                 fill="url(#orb2Gradient)"
-                style={orb2Style}
               />
-              <Text
+              <SvgText
                 x={width * 0.7}
                 y={110}
                 fontSize="16"
@@ -226,7 +228,7 @@ const CosmicSnapshot: React.FC<CosmicSnapshotProps> = ({
                 fontWeight="bold"
               >
                 {connection.name}
-              </Text>
+              </SvgText>
             </Svg>
           </Animated.View>
 

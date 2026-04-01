@@ -123,9 +123,8 @@ export class SupabaseAuthService {
           id: data.user.id,
           email: data.user.email || '',
           name: userProfile?.name || data.user.user_metadata?.name,
-          birthDate: userProfile?.birth_date
-            ? new Date(userProfile.birth_date).toISOString().split('T')[0]
-            : undefined,
+          birthDate:
+            this.normalizeBirthDateInput(userProfile?.birth_date) || undefined,
           birthTime: userProfile?.birth_time,
           birthPlace: userProfile?.birth_place,
           createdAt: userProfile?.created_at || data.user.created_at,
@@ -151,10 +150,11 @@ export class SupabaseAuthService {
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Валидация даты рождения
-      const birthDate = new Date(signupDto.birthDate);
-      if (isNaN(birthDate.getTime())) {
+      const birthDateOnly = this.normalizeBirthDateInput(signupDto.birthDate);
+      if (!birthDateOnly) {
         throw new BadRequestException('Неверный формат даты рождения');
       }
+      const birthDateStorageIso = this.birthDateToStorageIso(birthDateOnly);
 
       this.logger.log('🔍 Starting signup for:', signupDto.email);
 
@@ -175,7 +175,7 @@ export class SupabaseAuthService {
       const { data: created, error: createError } =
         await this.supabaseService.createUserWithoutPassword(signupDto.email, {
           name: signupDto.name,
-          birth_date: birthDate.toISOString(),
+          birth_date: birthDateStorageIso,
           birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
           birth_place: signupDto.birthPlace || 'Moscow',
         });
@@ -198,7 +198,7 @@ export class SupabaseAuthService {
             id: userId,
             email: userEmail,
             name: signupDto.name,
-            birth_date: birthDate.toISOString(),
+            birth_date: birthDateStorageIso,
             birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
             birth_place: signupDto.birthPlace || 'Moscow',
             updated_at: new Date().toISOString(),
@@ -221,7 +221,7 @@ export class SupabaseAuthService {
       try {
         await this.createNatalChart(
           userId,
-          birthDate.toISOString(),
+          birthDateOnly,
           signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
           signupDto.birthPlace || 'Moscow',
         );
@@ -318,9 +318,9 @@ export class SupabaseAuthService {
             id: userData.id,
             email: userData.email,
             name: existingProfile.name,
-            birthDate: existingProfile.birth_date
-              ? new Date(existingProfile.birth_date).toISOString().split('T')[0]
-              : undefined,
+            birthDate:
+              this.normalizeBirthDateInput(existingProfile.birth_date) ||
+              undefined,
             birthTime: existingProfile.birth_time,
             birthPlace: existingProfile.birth_place,
             createdAt: existingProfile.created_at,
@@ -399,10 +399,11 @@ export class SupabaseAuthService {
       this.logger.log(`📝 Completing signup payload: ${JSON.stringify(dto)}`);
 
       // Валидация даты рождения
-      const parsedBirthDate = new Date(birthDate);
-      if (isNaN(parsedBirthDate.getTime())) {
+      const birthDateOnly = this.normalizeBirthDateInput(birthDate);
+      if (!birthDateOnly) {
         throw new BadRequestException('Неверный формат даты рождения');
       }
+      const birthDateStorageIso = this.birthDateToStorageIso(birthDateOnly);
 
       // 1. Проверяем существование пользователя
       let { data: existingProfile, error: checkError } =
@@ -516,7 +517,7 @@ export class SupabaseAuthService {
       const { data: updatedProfile, error: updateError } =
         await this.supabaseService.updateUserProfileAdmin(userId, {
           name: name || existingProfile.name,
-          birth_date: parsedBirthDate.toISOString(),
+          birth_date: birthDateStorageIso,
           birth_time: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
           birth_place: birthPlace || 'Moscow',
           updated_at: new Date().toISOString(),
@@ -584,7 +585,7 @@ export class SupabaseAuthService {
         this.eventEmitter.emit(
           'user.signup.completed',
           new UserSignupCompletedEvent(userId, {
-            birthDate: parsedBirthDate.toISOString(),
+            birthDate: birthDateOnly,
             birthTime: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
             birthPlace: birthPlace || 'Moscow',
           }),
@@ -604,9 +605,9 @@ export class SupabaseAuthService {
           id: userId,
           email: existingProfile.email,
           name: updatedProfile.name,
-          birthDate: new Date(updatedProfile.birth_date)
-            .toISOString()
-            .split('T')[0],
+          birthDate:
+            this.normalizeBirthDateInput(updatedProfile.birth_date) ||
+            undefined,
           birthTime: updatedProfile.birth_time,
           birthPlace: updatedProfile.birth_place,
           createdAt: updatedProfile.created_at,
@@ -698,24 +699,43 @@ export class SupabaseAuthService {
     birthTime: string,
     birthPlace: string,
   ): Promise<void> {
-    const birthDateStr = new Date(birthDate).toISOString().split('T')[0];
-    const location = this.getLocationCoordinates(birthPlace);
-
-    const natalChartData = await this.ephemerisService.calculateNatalChart(
-      birthDateStr,
-      birthTime,
-      location,
-    );
-
-    const { error: chartInsertError } =
-      await this.supabaseService.createUserChartAdmin(userId, natalChartData);
-
-    if (chartInsertError) {
-      this.logger.error('Error creating natal chart:', chartInsertError);
-      throw chartInsertError;
-    } else {
-      this.logger.log('✅ Natal chart created');
+    const birthDateStr = this.normalizeBirthDateInput(birthDate);
+    if (!birthDateStr) {
+      throw new BadRequestException('Неверный формат даты рождения');
     }
+
+    const natalChartData =
+      await this.chartService.createNatalChartWithInterpretation(
+        userId,
+        birthDateStr,
+        birthTime,
+        birthPlace,
+      );
+
+    if (!natalChartData) {
+      throw new BadRequestException('Не удалось создать натальную карту');
+    }
+
+    this.logger.log('✅ Natal chart created');
+  }
+
+  private normalizeBirthDateInput(input?: string): string | null {
+    if (typeof input !== 'string') return null;
+    const trimmed = input.trim();
+    const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    const year = parsed.getUTCFullYear();
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private birthDateToStorageIso(dateOnly: string): string {
+    return `${dateOnly}T00:00:00.000Z`;
   }
 
   /**

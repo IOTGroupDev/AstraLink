@@ -14,7 +14,7 @@ interface SkeletonLoaderProps {
   /**
    * Ширина скелетона
    */
-  width?: number | string;
+  width?: ViewStyle['width'];
   /**
    * Высота скелетона
    */

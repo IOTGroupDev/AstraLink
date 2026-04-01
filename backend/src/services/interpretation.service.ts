@@ -15,7 +15,10 @@ import {
   getAspectInterpretation,
   getAscendantMeta,
 } from '../modules/shared/astro-text';
-import { getEssentialDignity } from '../modules/shared/types';
+import {
+  getEssentialDignity,
+  PLANET_RULERSHIPS,
+} from '../modules/shared/types';
 import type { DignityLevel, PlanetKey, Sign } from '../modules/shared/types';
 import type {
   ChartData,
@@ -34,6 +37,7 @@ import {
   getPatternInterpretation,
   type PlanetPosition,
 } from '../shared/astro-calculations';
+import { isDayBirth } from '../shared/astro-calculations';
 
 @Injectable()
 export class InterpretationService {
@@ -269,7 +273,7 @@ export class InterpretationService {
         ),
         planets: planetsInHouse,
         theme: getHouseTheme(houseNumber, house.sign || 'Aries', locale),
-        rulingPlanet: this.getHouseRulingPlanet(houseNumber, locale),
+        rulingPlanet: this.getHouseRulingPlanet(house.sign || 'Aries', locale),
       };
     });
 
@@ -399,7 +403,6 @@ export class InterpretationService {
         : locale === 'es'
           ? `${this.getPlanetName(planet)} en ${sign} influye de manera única en tu vida.`
           : `${this.getPlanetName(planet)} в ${sign} влияет на вашу жизнь уникальным образом.`);
-
     const area = this.getHouseLifeArea(houseNum, locale);
     const dignityMap =
       locale === 'en'
@@ -448,7 +451,6 @@ export class InterpretationService {
           ? ' Retrógrado — la expresión es más interna y reflexiva.'
           : ' Ретроградность — выражение более интровертное и рефлексивное.'
       : '';
-
     return `${base} ${areaText}${dignityText}${retroText}`.trim();
   }
 
@@ -580,6 +582,20 @@ ${ascText}
     // Доминирующие элементы и качества
     const dominantElements = this.analyzeDominantElements(planets, locale);
     const dominantQualities = this.analyzeDominantQualities(planets, locale);
+    const chartRuler = this.analyzeChartRuler(chartData, locale);
+    const sect = this.analyzeSect(chartData, locale);
+    const lunarNodes = this.analyzeLunarNodes(chartData, locale);
+    const dispositors = this.analyzeDispositors(chartData, locale);
+    const keyHouseRulers = this.analyzeKeyHouseRulers(chartData, locale);
+    const thematicFocus = this.analyzeThematicFocus(chartData, locale);
+    const strongestAspects = this.getStrongestAspectHighlights(aspects, locale);
+    const uniqueFeatures = this.analyzeUniqueChartFeatures(
+      chartData,
+      planets,
+      aspects,
+      houses,
+      locale,
+    );
 
     // Анализируем аспекты для жизненных тем
     const lifeThemes = this.analyzeLifeThemes(aspects, houses, locale);
@@ -613,8 +629,16 @@ ${ascText}
       karmaLessons,
       talents: [...new Set(talents)].slice(0, 6),
       recommendations,
+      uniqueFeatures,
       dominantElements,
       dominantQualities,
+      chartRuler: chartRuler ?? undefined,
+      sect: sect ?? undefined,
+      lunarNodes: lunarNodes ?? undefined,
+      dispositors: dispositors ?? undefined,
+      keyHouseRulers,
+      thematicFocus,
+      strongestAspects,
       lifePurpose,
       relationships,
       careerPath,
@@ -959,26 +983,710 @@ ${ascText}
   }
 
   private getHouseRulingPlanet(
+    sign: string,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const rulerKey = this.getSignRuler(sign);
+    return this.getPlanetName(rulerKey, locale);
+  }
+
+  private getSignRuler(sign: string): PlanetKey {
+    const rulingPlanets: Record<string, PlanetKey> = {
+      Aries: 'mars',
+      Taurus: 'venus',
+      Gemini: 'mercury',
+      Cancer: 'moon',
+      Leo: 'sun',
+      Virgo: 'mercury',
+      Libra: 'venus',
+      Scorpio: 'pluto',
+      Sagittarius: 'jupiter',
+      Capricorn: 'saturn',
+      Aquarius: 'uranus',
+      Pisces: 'neptune',
+    };
+    return rulingPlanets[sign] || 'sun';
+  }
+
+  private analyzeChartRuler(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): {
+    ruler: string;
+    sign: string;
+    house: number;
+    interpretation: string;
+  } | null {
+    const ascSign = chartData.ascendant?.sign || chartData.houses?.[1]?.sign;
+    const houses = chartData.houses || {};
+    const planets = chartData.planets || {};
+
+    if (!ascSign) return null;
+
+    const rulerKey = this.getSignRuler(ascSign);
+    const rulerPlanet = planets[rulerKey];
+    if (!rulerPlanet) return null;
+
+    const rulerHouse =
+      typeof rulerPlanet.house === 'number'
+        ? rulerPlanet.house
+        : this.getPlanetHouse(rulerPlanet.longitude, houses);
+    const rulerSign = rulerPlanet.sign || ascSign;
+    const localizedRuler = this.getPlanetName(rulerKey, locale);
+
+    const interpretation =
+      locale === 'en'
+        ? `Chart ruler: ${localizedRuler} in ${rulerSign}, house ${rulerHouse}. This shows where your initiative, identity, and personal style naturally seek expression.`
+        : locale === 'es'
+          ? `Regente de la carta: ${localizedRuler} en ${rulerSign}, casa ${rulerHouse}. Esto muestra dónde tu iniciativa, identidad y estilo personal buscan expresarse con naturalidad.`
+          : `Управитель карты: ${localizedRuler} в знаке ${rulerSign}, в ${rulerHouse}-м доме. Это показывает, через какую сферу жизни естественно раскрываются ваша инициатива, личный стиль и жизненный вектор.`;
+
+    return {
+      ruler: localizedRuler,
+      sign: rulerSign,
+      house: rulerHouse,
+      interpretation,
+    };
+  }
+
+  private analyzeKeyHouseRulers(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): Array<{
+    house: number;
+    sign: string;
+    ruler: string;
+    rulerSign: string;
+    rulerHouse: number;
+    interpretation: string;
+  }> {
+    const houses = chartData.houses || {};
+    const planets = chartData.planets || {};
+    const keyHouses = [1, 4, 7, 10];
+
+    return keyHouses
+      .map((houseNum) => {
+        const houseSign = houses[houseNum]?.sign;
+        if (!houseSign) return null;
+
+        const rulerKey = this.getSignRuler(houseSign);
+        const rulerPlanet = planets[rulerKey];
+        if (!rulerPlanet) return null;
+
+        const rulerHouse =
+          typeof rulerPlanet.house === 'number'
+            ? rulerPlanet.house
+            : this.getPlanetHouse(rulerPlanet.longitude, houses);
+        const rulerSign = rulerPlanet.sign || houseSign;
+        const ruler = this.getPlanetName(rulerKey, locale);
+        const interpretation =
+          locale === 'en'
+            ? `House ${houseNum} begins in ${houseSign}; its ruler is ${ruler} in ${rulerSign}, house ${rulerHouse}. This links the themes of this house with the life area of house ${rulerHouse}.`
+            : locale === 'es'
+              ? `La casa ${houseNum} comienza en ${houseSign}; su regente es ${ruler} en ${rulerSign}, casa ${rulerHouse}. Esto conecta los temas de esta casa con la esfera vital de la casa ${rulerHouse}.`
+              : `${houseNum}-й дом начинается в знаке ${houseSign}; его управитель ${ruler} стоит в знаке ${rulerSign} и в ${rulerHouse}-м доме. Это связывает темы этого дома со сферой жизни ${rulerHouse}-го дома.`;
+
+        return {
+          house: houseNum,
+          sign: houseSign,
+          ruler,
+          rulerSign,
+          rulerHouse,
+          interpretation,
+        };
+      })
+      .filter(Boolean) as Array<{
+      house: number;
+      sign: string;
+      ruler: string;
+      rulerSign: string;
+      rulerHouse: number;
+      interpretation: string;
+    }>;
+  }
+
+  private analyzeLunarNodes(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): {
+    northNode?: {
+      sign: string;
+      house: number;
+      interpretation: string;
+    };
+    southNode?: {
+      sign: string;
+      house: number;
+      interpretation: string;
+    };
+    axisInterpretation: string;
+  } | null {
+    const planets = chartData.planets || {};
+    const houses = chartData.houses || {};
+    const northNode = planets.north_node || planets.northNode;
+    const southNode = planets.south_node || planets.southNode;
+
+    if (!northNode && !southNode) return null;
+
+    const northHouse =
+      northNode &&
+      (typeof northNode.house === 'number'
+        ? northNode.house
+        : this.getPlanetHouse(northNode.longitude, houses));
+    const southHouse =
+      southNode &&
+      (typeof southNode.house === 'number'
+        ? southNode.house
+        : this.getPlanetHouse(southNode.longitude, houses));
+
+    const northInterpretation =
+      northNode?.sign && typeof northHouse === 'number'
+        ? locale === 'en'
+          ? `North Node in ${northNode.sign}, house ${northHouse}, shows the direction of growth, discomfort, and long-term development.`
+          : locale === 'es'
+            ? `El Nodo Norte en ${northNode.sign}, casa ${northHouse}, muestra la dirección de crecimiento, incomodidad fértil y desarrollo a largo plazo.`
+            : `Северный узел в ${northNode.sign}, в ${northHouse}-м доме, показывает направление роста, зоны продуктивного дискомфорта и долгосрочного развития.`
+        : '';
+
+    const southInterpretation =
+      southNode?.sign && typeof southHouse === 'number'
+        ? locale === 'en'
+          ? `South Node in ${southNode.sign}, house ${southHouse}, reflects familiar patterns, inherited strengths, and habits that are easy to fall back on.`
+          : locale === 'es'
+            ? `El Nodo Sur en ${southNode.sign}, casa ${southHouse}, refleja patrones familiares, talentos heredados y hábitos a los que es fácil volver.`
+            : `Южный узел в ${southNode.sign}, в ${southHouse}-м доме, отражает привычные сценарии, врожденные навыки и формы поведения, в которые легко скатиться.`
+        : '';
+
+    const axisInterpretation =
+      northNode?.sign && southNode?.sign
+        ? locale === 'en'
+          ? `The nodal axis moves from ${southNode.sign}${typeof southHouse === 'number' ? `, house ${southHouse}` : ''} toward ${northNode.sign}${typeof northHouse === 'number' ? `, house ${northHouse}` : ''}: growth comes through leaving automatic competence behind and choosing conscious development.`
+          : locale === 'es'
+            ? `El eje nodal va de ${southNode.sign}${typeof southHouse === 'number' ? `, casa ${southHouse}` : ''} hacia ${northNode.sign}${typeof northHouse === 'number' ? `, casa ${northHouse}` : ''}: el crecimiento llega al dejar atrás la competencia automática y elegir un desarrollo más consciente.`
+            : `Ось узлов идет от ${southNode.sign}${typeof southHouse === 'number' ? `, ${southHouse}-й дом` : ''} к ${northNode.sign}${typeof northHouse === 'number' ? `, ${northHouse}-й дом` : ''}: рост приходит через выход из автоматических навыков в сторону более осознанного развития.`
+        : locale === 'en'
+          ? 'The nodal axis indicates a shift from familiar patterns toward conscious growth.'
+          : locale === 'es'
+            ? 'El eje nodal indica un paso de patrones familiares hacia un crecimiento más consciente.'
+            : 'Ось узлов указывает на переход от привычных сценариев к более осознанному росту.';
+
+    return {
+      northNode:
+        northNode?.sign && typeof northHouse === 'number'
+          ? {
+              sign: northNode.sign,
+              house: northHouse,
+              interpretation: northInterpretation,
+            }
+          : undefined,
+      southNode:
+        southNode?.sign && typeof southHouse === 'number'
+          ? {
+              sign: southNode.sign,
+              house: southHouse,
+              interpretation: southInterpretation,
+            }
+          : undefined,
+      axisInterpretation,
+    };
+  }
+
+  private analyzeDispositors(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): {
+    finalDispositor?: {
+      planet: string;
+      sign: string;
+      house: number;
+      interpretation: string;
+    };
+    dominantDispositor?: {
+      planet: string;
+      sign: string;
+      house: number;
+      chainCount: number;
+      interpretation: string;
+    };
+    mutualReceptions?: Array<{
+      planets: [string, string];
+      interpretation: string;
+    }>;
+    chainSummary: string;
+  } | null {
+    const planets = chartData.planets || {};
+    const houses = chartData.houses || {};
+    const keys = Object.keys(planets).filter((key) =>
+      [
+        'sun',
+        'moon',
+        'mercury',
+        'venus',
+        'mars',
+        'jupiter',
+        'saturn',
+        'uranus',
+        'neptune',
+        'pluto',
+      ].includes(key),
+    );
+
+    if (keys.length === 0) return null;
+
+    const chainEnds = new Map<string, number>();
+    for (const key of keys) {
+      const end = this.resolveDispositorEnd(key, planets, 0);
+      if (!end) continue;
+      chainEnds.set(end, (chainEnds.get(end) || 0) + 1);
+    }
+
+    const dominantEnd = Array.from(chainEnds.entries()).sort(
+      (a, b) => b[1] - a[1],
+    )[0];
+    const mutualReceptions = this.findMutualReceptions(planets, locale);
+
+    if (!dominantEnd) {
+      return {
+        chainSummary:
+          locale === 'en'
+            ? 'No clear dispositorship center is visible.'
+            : locale === 'es'
+              ? 'No se ve un centro dispositor claro.'
+              : 'Явный центр диспозиторной цепочки не выявлен.',
+      };
+    }
+
+    const [finalKey, count] = dominantEnd;
+    const finalPlanet = planets[finalKey];
+    if (!finalPlanet?.sign) {
+      return {
+        mutualReceptions,
+        chainSummary:
+          locale === 'en'
+            ? 'A dispositor center is implied, but the final placement is incomplete.'
+            : locale === 'es'
+              ? 'Se intuye un centro dispositor, pero la posición final está incompleta.'
+              : 'Центр диспозиторной цепочки намечен, но финальное положение определено не полностью.',
+      };
+    }
+
+    const finalHouse =
+      typeof finalPlanet.house === 'number'
+        ? finalPlanet.house
+        : this.getPlanetHouse(finalPlanet.longitude, houses);
+    const localizedPlanet = this.getPlanetName(finalKey, locale);
+    const finalDispositorKey = this.resolveFinalDispositorKey(planets);
+    const interpretation =
+      locale === 'en'
+        ? `${localizedPlanet} acts as the main dispositor focus in ${finalPlanet.sign}, house ${finalHouse}. Many chart themes ultimately report to this planet, so it becomes a strategic center of motivation and expression.`
+        : locale === 'es'
+          ? `${localizedPlanet} funciona como foco dispositor principal en ${finalPlanet.sign}, casa ${finalHouse}. Muchos temas de la carta terminan reportando a este planeta, por lo que se convierte en un centro estratégico de motivación y expresión.`
+          : `${localizedPlanet} выступает главным диспозиторным центром в ${finalPlanet.sign}, в ${finalHouse}-м доме. Многие темы карты в итоге сходятся к этой планете, поэтому она становится стратегическим центром мотивации и самовыражения.`;
+
+    const chainSummary =
+      locale === 'en'
+        ? `${count} major planetary chains converge on ${localizedPlanet}, which suggests an internal center of gravity in the chart.`
+        : locale === 'es'
+          ? `${count} cadenas planetarias principales convergen en ${localizedPlanet}, lo que sugiere un centro interno de gravedad en la carta.`
+          : `${count} основных планетарных цепочек сходятся к ${localizedPlanet}, что указывает на внутренний центр тяжести карты.`;
+
+    const finalDispositor =
+      finalDispositorKey && planets[finalDispositorKey]?.sign
+        ? (() => {
+            const planet = planets[finalDispositorKey];
+            const house =
+              typeof planet.house === 'number'
+                ? planet.house
+                : this.getPlanetHouse(planet.longitude, houses);
+            const planetName = this.getPlanetName(finalDispositorKey, locale);
+            const text =
+              locale === 'en'
+                ? `${planetName} is in its own rulership, so the dispositorship chain can terminate here and give the chart a clear internal command point.`
+                : locale === 'es'
+                  ? `${planetName} está en su propio domicilio, por lo que la cadena dispositora puede cerrarse aquí y dar a la carta un punto interno claro de mando.`
+                  : `${planetName} находится в собственном знаке управления, поэтому диспозиторная цепочка может завершаться на нем и формировать ясный внутренний центр управления картой.`;
+            return {
+              planet: planetName,
+              sign: planet.sign ?? finalPlanet.sign ?? '',
+              house,
+              interpretation: text,
+            };
+          })()
+        : undefined;
+
+    return {
+      finalDispositor,
+      dominantDispositor: {
+        planet: localizedPlanet,
+        sign: finalPlanet.sign,
+        house: finalHouse,
+        chainCount: count,
+        interpretation,
+      },
+      mutualReceptions,
+      chainSummary,
+    };
+  }
+
+  private analyzeSect(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): { type: 'day' | 'night'; interpretation: string } | null {
+    const sunLongitude = chartData.planets?.sun?.longitude;
+    const ascLongitude =
+      chartData.ascendant?.longitude ?? chartData.houses?.[1]?.cusp;
+    if (typeof sunLongitude !== 'number' || typeof ascLongitude !== 'number') {
+      return null;
+    }
+
+    const dayChart = isDayBirth(sunLongitude, ascLongitude);
+    return {
+      type: dayChart ? 'day' : 'night',
+      interpretation: dayChart
+        ? locale === 'en'
+          ? 'This is a day chart: solar, outward, and visibility-driven factors tend to work more directly.'
+          : locale === 'es'
+            ? 'Esta es una carta diurna: los factores solares, externos y vinculados a la visibilidad tienden a funcionar de forma más directa.'
+            : 'Это дневная карта: солнечные, внешние и социально заметные факторы обычно проявляются здесь прямее и увереннее.'
+        : locale === 'en'
+          ? 'This is a night chart: lunar, internal, relational, and subjective factors tend to carry more weight.'
+          : locale === 'es'
+            ? 'Esta es una carta nocturna: los factores lunares, internos, vinculares y subjetivos suelen tener más peso.'
+            : 'Это ночная карта: лунные, внутренние, эмоциональные и субъективные факторы обычно имеют здесь больший вес.',
+    };
+  }
+
+  private resolveFinalDispositorKey(
+    planets: Record<string, any>,
+  ): string | null {
+    const classicalKeys = [
+      'sun',
+      'moon',
+      'mercury',
+      'venus',
+      'mars',
+      'jupiter',
+      'saturn',
+    ];
+
+    for (const key of classicalKeys) {
+      const sign = planets[key]?.sign as Sign | undefined;
+      if (!sign) continue;
+      if (PLANET_RULERSHIPS[sign] === key) {
+        return key;
+      }
+    }
+
+    return null;
+  }
+
+  private findMutualReceptions(
+    planets: Record<string, any>,
+    locale: 'ru' | 'en' | 'es',
+  ): Array<{
+    planets: [string, string];
+    interpretation: string;
+  }> {
+    const supportedKeys = [
+      'sun',
+      'moon',
+      'mercury',
+      'venus',
+      'mars',
+      'jupiter',
+      'saturn',
+    ];
+    const receptions: Array<{
+      planets: [string, string];
+      interpretation: string;
+    }> = [];
+
+    for (let i = 0; i < supportedKeys.length; i += 1) {
+      for (let j = i + 1; j < supportedKeys.length; j += 1) {
+        const keyA = supportedKeys[i];
+        const keyB = supportedKeys[j];
+        const signA = planets[keyA]?.sign as Sign | undefined;
+        const signB = planets[keyB]?.sign as Sign | undefined;
+        if (!signA || !signB) continue;
+
+        const rulerOfA = PLANET_RULERSHIPS[signA];
+        const rulerOfB = PLANET_RULERSHIPS[signB];
+        if (rulerOfA !== keyB || rulerOfB !== keyA) continue;
+
+        const nameA = this.getPlanetName(keyA, locale);
+        const nameB = this.getPlanetName(keyB, locale);
+        const interpretation =
+          locale === 'en'
+            ? `${nameA} and ${nameB} are in mutual reception. They reinforce one another and create a closed exchange between their topics.`
+            : locale === 'es'
+              ? `${nameA} y ${nameB} están en recepción mutua. Se refuerzan entre sí y crean un intercambio cerrado entre sus temas.`
+              : `${nameA} и ${nameB} находятся во взаимной рецепции. Они усиливают друг друга и создают замкнутый обмен между своими темами.`;
+
+        receptions.push({
+          planets: [nameA, nameB],
+          interpretation,
+        });
+      }
+    }
+
+    return receptions;
+  }
+
+  private resolveDispositorEnd(
+    planetKey: string,
+    planets: Record<string, any>,
+    depth: number,
+    visited: Set<string> = new Set(),
+  ): string | null {
+    if (depth > 12 || visited.has(planetKey)) return planetKey;
+    const planet = planets[planetKey];
+    if (!planet?.sign) return null;
+
+    const rulerKey = this.getSignRuler(planet.sign);
+    if (rulerKey === planetKey) return planetKey;
+
+    visited.add(planetKey);
+    if (!planets[rulerKey]) return planetKey;
+
+    return this.resolveDispositorEnd(rulerKey, planets, depth + 1, visited);
+  }
+
+  private analyzeUniqueChartFeatures(
+    chartData: ChartData,
+    planets: PlanetInterpretation[],
+    aspects: AspectInterpretation[],
+    houses: HouseInterpretation[],
+    locale: 'ru' | 'en' | 'es',
+  ): string[] {
+    const features: string[] = [];
+    const rawPlanets = chartData.planets || {};
+    const rawHouses = chartData.houses || {};
+
+    const houseCounts = new Map<number, string[]>();
+    for (const [key, planet] of Object.entries(rawPlanets)) {
+      if (typeof planet?.longitude !== 'number') continue;
+      const house =
+        typeof planet.house === 'number'
+          ? planet.house
+          : this.getPlanetHouse(planet.longitude, rawHouses);
+      const current = houseCounts.get(house) || [];
+      current.push(this.getPlanetName(key, locale));
+      houseCounts.set(house, current);
+    }
+
+    const stellium = Array.from(houseCounts.entries()).find(
+      ([, housePlanets]) => housePlanets.length >= 3,
+    );
+    if (stellium) {
+      const [houseNum, housePlanets] = stellium;
+      features.push(
+        locale === 'en'
+          ? `A stellium-like concentration appears in house ${houseNum}: ${housePlanets.join(', ')}. This makes that life area unusually central.`
+          : locale === 'es'
+            ? `Hay una concentración tipo stellium en la casa ${houseNum}: ${housePlanets.join(', ')}. Esto vuelve esa esfera de vida especialmente central.`
+            : `В карте есть концентрация по типу стеллиума в ${houseNum}-м доме: ${housePlanets.join(', ')}. Это делает данную сферу жизни особенно центральной.`,
+      );
+    }
+
+    const angularCount = Array.from(houseCounts.entries())
+      .filter(([houseNum]) => [1, 4, 7, 10].includes(houseNum))
+      .reduce((sum, [, housePlanets]) => sum + housePlanets.length, 0);
+    if (angularCount >= 3) {
+      features.push(
+        locale === 'en'
+          ? 'The chart is strongly angular: key planets cluster around houses 1, 4, 7, and 10, making life events more visible and decisive.'
+          : locale === 'es'
+            ? 'La carta tiene un fuerte énfasis angular: varios planetas se concentran en las casas 1, 4, 7 y 10, haciendo la vida más visible y decisiva.'
+            : 'Карта имеет выраженный угловой акцент: важные планеты сосредоточены вокруг 1, 4, 7 и 10 домов, поэтому события жизни проявляются ярче и прямее.',
+      );
+    }
+
+    const elementCounts = {
+      fire: planets.filter((p) => p.element === 'fire').length,
+      earth: planets.filter((p) => p.element === 'earth').length,
+      air: planets.filter((p) => p.element === 'air').length,
+      water: planets.filter((p) => p.element === 'water').length,
+    };
+    const missingElements = Object.entries(elementCounts)
+      .filter(([, count]) => count === 0)
+      .map(([element]) => element);
+    if (missingElements.length > 0) {
+      const elementLabels = missingElements.map((element) =>
+        locale === 'en'
+          ? element
+          : locale === 'es'
+            ? {
+                fire: 'fuego',
+                earth: 'tierra',
+                air: 'aire',
+                water: 'agua',
+              }[element] || element
+            : {
+                fire: 'огонь',
+                earth: 'земля',
+                air: 'воздух',
+                water: 'вода',
+              }[element] || element,
+      );
+      features.push(
+        locale === 'en'
+          ? `One element is underrepresented or absent: ${elementLabels.join(', ')}. This often points to a quality that must be developed consciously.`
+          : locale === 'es'
+            ? `Hay un elemento débil o ausente: ${elementLabels.join(', ')}. A menudo esto señala una cualidad que necesita desarrollarse de forma consciente.`
+            : `В карте ослаблена или отсутствует одна из стихий: ${elementLabels.join(', ')}. Обычно это указывает на качество, которое приходится развивать осознанно.`,
+      );
+    }
+
+    const rawAspects = chartData.aspects || [];
+    const challengingAspects = rawAspects.filter((a) =>
+      ['square', 'opposition'].includes(String(a.aspect).toLowerCase()),
+    ).length;
+    const harmoniousAspects = rawAspects.filter((a) =>
+      ['trine', 'sextile', 'conjunction'].includes(
+        String(a.aspect).toLowerCase(),
+      ),
+    ).length;
+    if (challengingAspects >= 3 && harmoniousAspects >= 3) {
+      features.push(
+        locale === 'en'
+          ? 'The chart combines both supportive and tense aspect patterns, so growth comes through balancing ease with pressure rather than relying on only one mode.'
+          : locale === 'es'
+            ? 'La carta combina patrones armónicos y tensos, así que el crecimiento llega al equilibrar facilidad y presión, no solo apoyándose en un solo modo.'
+            : 'В карте одновременно выражены поддерживающие и напряженные аспектные рисунки, поэтому рост идет через баланс между естественностью и внутренним напряжением.',
+      );
+    }
+
+    const loadedHouses = houses.filter((house) => house.planets.length >= 2);
+    if (loadedHouses.length > 0) {
+      features.push(
+        locale === 'en'
+          ? `The most loaded houses are ${loadedHouses
+              .slice(0, 2)
+              .map((house) => house.house)
+              .join(', ')}, which concentrates repeated life lessons there.`
+          : locale === 'es'
+            ? `Las casas más cargadas son ${loadedHouses
+                .slice(0, 2)
+                .map((house) => house.house)
+                .join(
+                  ', ',
+                )}, lo que concentra allí lecciones repetidas de vida.`
+            : `Наиболее нагруженные дома: ${loadedHouses
+                .slice(0, 2)
+                .map((house) => house.house)
+                .join(
+                  ', ',
+                )}. Это означает, что именно там будут концентрироваться повторяющиеся жизненные сюжеты.`,
+      );
+    }
+
+    return [...new Set(features)].slice(0, 5);
+  }
+
+  private analyzeThematicFocus(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): {
+    relationships?: string;
+    career?: string;
+    finances?: string;
+  } {
+    return {
+      relationships: this.describeHouseRulerFlow(chartData, 7, locale),
+      career: this.describeHouseRulerFlow(chartData, 10, locale),
+      finances: this.describeMoneyAxis(chartData, locale),
+    };
+  }
+
+  private describeHouseRulerFlow(
+    chartData: ChartData,
     houseNum: number,
     locale: 'ru' | 'en' | 'es',
   ): string {
-    const rulingPlanets: Record<number, string> = {
-      1: locale === 'en' ? 'Mars' : locale === 'es' ? 'Marte' : 'Марс',
-      2: locale === 'en' ? 'Venus' : locale === 'es' ? 'Venus' : 'Венера',
-      3:
-        locale === 'en' ? 'Mercury' : locale === 'es' ? 'Mercurio' : 'Меркурий',
-      4: locale === 'en' ? 'Moon' : locale === 'es' ? 'Luna' : 'Луна',
-      5: locale === 'en' ? 'Sun' : locale === 'es' ? 'Sol' : 'Солнце',
-      6:
-        locale === 'en' ? 'Mercury' : locale === 'es' ? 'Mercurio' : 'Меркурий',
-      7: locale === 'en' ? 'Venus' : locale === 'es' ? 'Venus' : 'Венера',
-      8: locale === 'en' ? 'Pluto' : locale === 'es' ? 'Plutón' : 'Плутон',
-      9: locale === 'en' ? 'Jupiter' : locale === 'es' ? 'Júpiter' : 'Юпитер',
-      10: locale === 'en' ? 'Saturn' : locale === 'es' ? 'Saturno' : 'Сатурн',
-      11: locale === 'en' ? 'Uranus' : locale === 'es' ? 'Urano' : 'Уран',
-      12: locale === 'en' ? 'Neptune' : locale === 'es' ? 'Neptuno' : 'Нептун',
-    };
-    return rulingPlanets[houseNum] || '';
+    const houses = chartData.houses || {};
+    const planets = chartData.planets || {};
+    const houseSign = houses[houseNum]?.sign;
+    if (!houseSign) return '';
+
+    const rulerKey = this.getSignRuler(houseSign);
+    const rulerPlanet = planets[rulerKey];
+    if (!rulerPlanet?.sign) return '';
+
+    const rulerHouse =
+      typeof rulerPlanet.house === 'number'
+        ? rulerPlanet.house
+        : this.getPlanetHouse(rulerPlanet.longitude, houses);
+    const rulerName = this.getPlanetName(rulerKey, locale);
+
+    if (locale === 'en') {
+      return `House ${houseNum} starts in ${houseSign}, and its ruler ${rulerName} is placed in house ${rulerHouse}. This means the topics of house ${houseNum} tend to unfold through the sphere of house ${rulerHouse}.`;
+    }
+    if (locale === 'es') {
+      return `La casa ${houseNum} comienza en ${houseSign}, y su regente ${rulerName} está en la casa ${rulerHouse}. Esto significa que los temas de la casa ${houseNum} suelen desplegarse a través de la esfera de la casa ${rulerHouse}.`;
+    }
+    return `${houseNum}-й дом начинается в знаке ${houseSign}, а его управитель ${rulerName} расположен в ${rulerHouse}-м доме. Это означает, что темы ${houseNum}-го дома обычно реализуются через сферу ${rulerHouse}-го дома.`;
+  }
+
+  private describeMoneyAxis(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const second = this.describeHouseRulerFlow(chartData, 2, locale);
+    const eighth = this.describeHouseRulerFlow(chartData, 8, locale);
+    if (!second && !eighth) return '';
+
+    if (locale === 'en') {
+      return [second, eighth]
+        .filter(Boolean)
+        .join(' ')
+        .concat(
+          ' Taken together, this shows how personal resources and shared resources interact in the chart.',
+        );
+    }
+    if (locale === 'es') {
+      return [second, eighth]
+        .filter(Boolean)
+        .join(' ')
+        .concat(
+          ' En conjunto, esto muestra cómo interactúan en la carta los recursos propios y los compartidos.',
+        );
+    }
+    return [second, eighth]
+      .filter(Boolean)
+      .join(' ')
+      .concat(
+        ' Вместе это показывает, как в карте взаимодействуют личные ресурсы и совместные или зависимые финансовые сюжеты.',
+      );
+  }
+
+  private getStrongestAspectHighlights(
+    aspects: AspectInterpretation[],
+    locale: 'ru' | 'en' | 'es',
+  ): Array<{
+    title: string;
+    interpretation: string;
+  }> {
+    return [...aspects]
+      .sort((a, b) => {
+        const strengthDiff = (b.strength || 0) - (a.strength || 0);
+        if (strengthDiff !== 0) return strengthDiff;
+        return (a.orb || 99) - (b.orb || 99);
+      })
+      .slice(0, 3)
+      .map((aspect) => ({
+        title:
+          locale === 'en'
+            ? `${aspect.planetA} ${aspect.type} ${aspect.planetB}`
+            : locale === 'es'
+              ? `${aspect.planetA} ${aspect.type} ${aspect.planetB}`
+              : `${aspect.planetA} ${aspect.type} ${aspect.planetB}`,
+        interpretation:
+          locale === 'en'
+            ? `${aspect.interpretation} This is one of the tightest and most influential aspects in the chart.`
+            : locale === 'es'
+              ? `${aspect.interpretation} Este es uno de los aspectos más cerrados e influyentes de la carta.`
+              : `${aspect.interpretation} Это один из самых точных и влиятельных аспектов карты.`,
+      }));
   }
 
   private analyzeDominantElements(

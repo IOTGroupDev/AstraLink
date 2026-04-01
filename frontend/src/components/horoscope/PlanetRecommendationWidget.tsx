@@ -814,11 +814,9 @@ const PlanetaryRecommendationWidget: React.FC<
         visible={adviceModalVisible}
         onRequestClose={closeAdviceModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={closeAdviceModal}>
-          <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={closeAdviceModal} />
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{adviceModalTitle}</Text>
               <Pressable onPress={closeAdviceModal}>
@@ -828,6 +826,7 @@ const PlanetaryRecommendationWidget: React.FC<
             <ScrollView
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
+              nestedScrollEnabled={true}
             >
               {!!adviceModalSummary && (
                 <View style={styles.modalSummary}>
@@ -848,8 +847,8 @@ const PlanetaryRecommendationWidget: React.FC<
                 ))
               )}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -970,10 +969,13 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
   modalContent: {
     width: '100%',

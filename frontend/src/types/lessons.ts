@@ -41,7 +41,7 @@ export interface AstroLesson {
   subtitle?: string;
   icon: string; // Ionicons name
   emoji?: string;
-  gradient: string[];
+  gradient: readonly [string, string, ...string[]];
 
   // Контент
   shortText: string; // Краткое описание (2-3 предложения)
@@ -103,7 +103,7 @@ export interface Badge {
   description: string;
   icon: string;
   emoji: string;
-  gradient: string[];
+  gradient: readonly [string, string, ...string[]];
   requirement: {
     type:
       | 'lessons_completed'

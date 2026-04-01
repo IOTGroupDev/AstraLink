@@ -11,6 +11,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { PersonalCodeResult } from '../../types/personal-code';
+import { CodePurpose } from '../../types/personal-code';
 import { chartAPI } from '../../services/api';
 import { logger } from '../../services/logger';
 
@@ -32,7 +33,7 @@ const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
   const loadDailyCode = async () => {
     try {
       setLoading(true);
-      const code = await chartAPI.generatePersonalCode('luck', 4);
+      const code = await chartAPI.generatePersonalCode(CodePurpose.LUCK, 4);
       setTodayCode(code);
     } catch (error) {
       logger.error('Failed to load daily code', error);

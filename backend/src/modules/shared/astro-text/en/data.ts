@@ -35,91 +35,154 @@ export const PLANET_IN_SIGN_EN: Partial<
     Pisces: 'Sun in Pisces brings imagination, intuition, and compassion.',
   },
   moon: {
-    Aries: 'Moon in Aries intensifies emotional spontaneity and passion.',
-    Taurus: 'Moon in Taurus stabilizes emotions and loves comfort.',
-    Gemini: 'Moon in Gemini brings emotional flexibility and curiosity.',
-    Cancer: 'Moon in Cancer heightens sensitivity and intuition.',
-    Leo: 'Moon in Leo adds generosity and a need for recognition.',
-    Virgo: 'Moon in Virgo adds practicality and care in details.',
-    Libra: 'Moon in Libra seeks balance and harmony in relationships.',
-    Scorpio: 'Moon in Scorpio deepens feelings and intensity.',
-    Sagittarius: 'Moon in Sagittarius uplifts mood and desire for freedom.',
-    Capricorn: 'Moon in Capricorn adds restraint and responsibility.',
-    Aquarius: 'Moon in Aquarius values independence and originality.',
-    Pisces: 'Moon in Pisces raises empathy and dreaminess.',
+    Aries:
+      'Moon in Aries intensifies emotional spontaneity, passion, and immediate reaction. Feelings rise fast and honestly, which gives courage but can make patience harder in vulnerable moments.',
+    Taurus:
+      'Moon in Taurus stabilizes emotions and seeks comfort, continuity, and physical reassurance. You often regulate feeling through calm rhythms, loyalty, touch, and what feels dependable.',
+    Gemini:
+      'Moon in Gemini brings emotional flexibility, curiosity, and a need to process through words. Feelings move quickly and often become easier to understand once they are named, shared, or thought through.',
+    Cancer:
+      'Moon in Cancer heightens sensitivity, intuition, and attachment to emotional safety. You feel deeply, remember atmospheres strongly, and need trust before the heart fully opens.',
+    Leo: 'Moon in Leo adds emotional generosity, warmth, and a strong need to feel seen. Love is rarely casual here: the heart wants sincerity, loyalty, and a response that feels wholehearted.',
+    Virgo:
+      'Moon in Virgo adds practicality, discernment, and care expressed through details. You often love by noticing what is needed, fixing what is off, and making life more manageable for people you care about.',
+    Libra:
+      'Moon in Libra seeks balance, harmony, and emotional reciprocity in relationship. You are deeply affected by tone, fairness, and whether connection feels mutual and civilized.',
+    Scorpio:
+      'Moon in Scorpio deepens feeling, instinct, and emotional intensity. You rarely feel halfway, and trust is central because the inner world here is powerful, private, and transformative.',
+    Sagittarius:
+      'Moon in Sagittarius uplifts mood and strengthens the need for freedom, honesty, and movement. Emotions breathe better when there is perspective, space, and something meaningful ahead.',
+    Capricorn:
+      'Moon in Capricorn adds restraint, responsibility, and emotional self-control. Feeling is strong, but it is often managed quietly, with trust built through consistency rather than display.',
+    Aquarius:
+      'Moon in Aquarius values independence, originality, and breathing room in emotional life. You need both connection and space, and often understand feeling better after stepping back enough to observe it.',
+    Pisces:
+      'Moon in Pisces raises empathy, dreaminess, and porous emotional sensitivity. You absorb atmosphere easily, which makes you compassionate and intuitive but also in need of stronger energetic boundaries.',
   },
   mercury: {
-    Aries: 'Mercury in Aries quickens thought and direct speech.',
-    Taurus: 'Mercury in Taurus brings practicality and consistency of thought.',
-    Gemini: 'Mercury in Gemini boosts communication and versatility.',
-    Cancer: 'Mercury in Cancer adds intuition and emotional memory.',
-    Leo: 'Mercury in Leo expresses with confidence and flair.',
-    Virgo: 'Mercury in Virgo refines analysis and attention to detail.',
-    Libra: 'Mercury in Libra seeks balance and fairness in dialogue.',
+    Aries:
+      'Mercury in Aries quickens thought and makes speech direct, brave, and immediate. You tend to decide fast and speak from instinct, which is powerful when paired with patience.',
+    Taurus:
+      'Mercury in Taurus brings practical thinking, steadiness, and a preference for what can be trusted. You absorb information slowly but thoroughly and often return to simple, durable conclusions.',
+    Gemini:
+      'Mercury in Gemini boosts communication, versatility, and mental speed. Your mind connects ideas quickly, thrives on variety, and needs constant intellectual movement.',
+    Cancer:
+      'Mercury in Cancer adds intuition, emotional memory, and sensitivity to tone. You often think through feeling first, remembering what words meant emotionally as much as literally.',
+    Leo: 'Mercury in Leo expresses with confidence, drama, and warmth. You want your ideas to matter, and you speak best when your voice has heart, conviction, and creative color.',
+    Virgo:
+      'Mercury in Virgo refines analysis, accuracy, and attention to detail. Your mind naturally notices what can be improved, organized, clarified, or made more useful.',
+    Libra:
+      'Mercury in Libra seeks balance, fairness, and elegance in dialogue. You think relationally, compare perspectives well, and often look for the most civilized way to say a difficult truth.',
     Scorpio:
-      'Mercury in Scorpio penetrates to the core and speaks with intensity.',
+      'Mercury in Scorpio penetrates to the core and speaks with intensity. You dislike superficial answers and prefer insight, subtext, and conversations that reveal what is really going on.',
     Sagittarius:
-      'Mercury in Sagittarius broadens perspectives and philosophical thinking.',
-    Capricorn: 'Mercury in Capricorn structures ideas and plans strategically.',
-    Aquarius: 'Mercury in Aquarius innovates and thinks unconventionally.',
-    Pisces: 'Mercury in Pisces imagines, empathizes, and connects intuitively.',
+      'Mercury in Sagittarius broadens perspective and leans toward big ideas, meaning, and philosophy. You often think in themes and principles rather than details, which inspires others but benefits from grounding.',
+    Capricorn:
+      'Mercury in Capricorn structures ideas strategically and thinks in terms of outcomes, timing, and responsibility. Your words carry weight when you trust your authority and keep things precise.',
+    Aquarius:
+      'Mercury in Aquarius innovates, questions assumptions, and thinks unconventionally. Your mind often runs ahead of the room, spotting patterns, systems, and future possibilities others miss.',
+    Pisces:
+      'Mercury in Pisces imagines, empathizes, and connects intuitively. You process through atmosphere, symbolism, and inner resonance, which gives poetic intelligence but needs occasional clarity checks.',
   },
   venus: {
-    Aries: 'Venus in Aries loves boldly and directly.',
-    Taurus: 'Venus in Taurus values stability, comfort, and sensuality.',
-    Gemini: 'Venus in Gemini enjoys lightness, curiosity, and conversation.',
-    Cancer: 'Venus in Cancer nurtures closeness and safety.',
-    Leo: 'Venus in Leo loves generously and theatrically.',
-    Virgo: 'Venus in Virgo cares through practical acts and attention.',
-    Libra: 'Venus in Libra seeks harmony, beauty, and cooperation.',
-    Scorpio: 'Venus in Scorpio bonds intensely and transforms through love.',
-    Sagittarius: 'Venus in Sagittarius loves freedom and shared adventures.',
-    Capricorn: 'Venus in Capricorn commits steadily and values reliability.',
-    Aquarius: 'Venus in Aquarius values independence and friendly love.',
-    Pisces: 'Venus in Pisces loves compassionately and poetically.',
+    Aries:
+      'Venus in Aries loves boldly, directly, and with strong immediacy. Attraction grows through spark, honesty, and aliveness, while boredom or emotional passivity quickly cools interest.',
+    Taurus:
+      'Venus in Taurus values stability, comfort, sensuality, and the slow building of trust. Love deepens through consistency, touch, beauty, and the feeling that something real can last.',
+    Gemini:
+      'Venus in Gemini enjoys lightness, curiosity, wit, and conversation. Attraction often begins in the mind, and connection stays alive when there is movement, play, and room to keep discovering each other.',
+    Cancer:
+      'Venus in Cancer nurtures closeness, loyalty, and emotional safety. Love tends to express itself through care, memory, tenderness, and the wish to protect what feels intimate.',
+    Leo: 'Venus in Leo loves generously, proudly, and with visible warmth. The heart wants romance to feel meaningful, expressive, and alive, not half-hearted or hidden.',
+    Virgo:
+      'Venus in Virgo cares through practical acts, attention, and thoughtful refinement. Love often shows up as devotion in details, though it is important not to confuse care with quiet self-erasure.',
+    Libra:
+      'Venus in Libra seeks harmony, beauty, cooperation, and elegant reciprocity. Relationship matters deeply here, and affection grows where there is mutual consideration and shared aesthetic or emotional balance.',
+    Scorpio:
+      'Venus in Scorpio bonds intensely and transforms through love. Superficial relating rarely satisfies; intimacy needs honesty, emotional depth, and trust strong enough to survive real vulnerability.',
+    Sagittarius:
+      'Venus in Sagittarius loves freedom, sincerity, and shared adventure. Attraction grows when there is spaciousness, truth, humor, and the sense that love expands life rather than confines it.',
+    Capricorn:
+      'Venus in Capricorn commits steadily and values reliability, maturity, and emotional substance. Love is often measured less by words than by effort, continuity, and the willingness to show up over time.',
+    Aquarius:
+      'Venus in Aquarius values independence, originality, and love that includes friendship. Attraction often lives in mental affinity, shared ideals, and the freedom to remain fully oneself inside connection.',
+    Pisces:
+      'Venus in Pisces loves compassionately, poetically, and with deep romantic imagination. This placement gives tenderness and devotion, though it benefits from keeping fantasy and reality in honest conversation.',
   },
   mars: {
-    Aries: 'Mars in Aries acts fast, direct, and boldly.',
-    Taurus: 'Mars in Taurus acts steadily and persistently.',
-    Gemini: 'Mars in Gemini acts flexibly and through ideas.',
-    Cancer: 'Mars in Cancer acts protectively and indirectly.',
-    Leo: 'Mars in Leo acts proudly and creatively.',
-    Virgo: 'Mars in Virgo acts precisely and efficiently.',
-    Libra: 'Mars in Libra acts diplomatically and cooperatively.',
-    Scorpio: 'Mars in Scorpio acts intensely and strategically.',
-    Sagittarius: 'Mars in Sagittarius acts expansively and optimistically.',
-    Capricorn: 'Mars in Capricorn acts disciplined and goal-oriented.',
-    Aquarius: 'Mars in Aquarius acts innovatively and collectively.',
-    Pisces: 'Mars in Pisces acts sensitively and inspired.',
+    Aries:
+      'Mars in Aries acts fast, direct, and boldly. Energy rises through challenge, competition, and clear movement, though this placement benefits from learning when force helps and when it only escalates.',
+    Taurus:
+      'Mars in Taurus acts steadily, persistently, and with strong endurance. Once committed, you move with impressive staying power, but changing direction can take time.',
+    Gemini:
+      'Mars in Gemini acts flexibly, mentally, and through ideas, words, and quick adaptation. Energy often follows interest, variety, and stimulation, which is powerful when focus is sustained long enough to land.',
+    Cancer:
+      'Mars in Cancer acts protectively, emotionally, and often indirectly. Drive is tied to safety, care, and instinct, so action becomes strongest when something meaningful needs defending.',
+    Leo: 'Mars in Leo acts proudly, creatively, and with strong personal presence. Motivation increases when there is room to lead, express, and move from the heart rather than mere obligation.',
+    Virgo:
+      'Mars in Virgo acts precisely, efficiently, and with problem-solving focus. Energy tends to organize itself around usefulness, improvement, and the satisfaction of doing something well.',
+    Libra:
+      'Mars in Libra acts diplomatically, relationally, and with awareness of the other side. Direct aggression is rarely the first instinct; action works best when it can remain fair without becoming indecisive.',
+    Scorpio:
+      'Mars in Scorpio acts intensely, strategically, and with deep reserves of will. This is concentrated force: less noisy than powerful, and often strongest when working toward something transformative.',
+    Sagittarius:
+      'Mars in Sagittarius acts expansively, optimistically, and with a hunger for movement. Energy wants direction, meaning, and open space, and often drops when life feels too narrow or repetitive.',
+    Capricorn:
+      'Mars in Capricorn acts with discipline, timing, and strong goal orientation. Effort is rarely wasted here: energy tends to organize around strategy, results, and long-range achievement.',
+    Aquarius:
+      'Mars in Aquarius acts innovatively, independently, and with collective awareness. Motivation often grows through ideas, causes, systems, and the freedom to do things differently.',
+    Pisces:
+      'Mars in Pisces acts sensitively, intuitively, and through inspiration more than force. Action becomes strongest when connected to meaning, compassion, imagination, or a subtle inner calling.',
   },
   jupiter: {
-    Aries: 'Jupiter in Aries expands courage and initiative.',
-    Taurus: 'Jupiter in Taurus expands stability and material growth.',
-    Gemini: 'Jupiter in Gemini expands learning and communication.',
-    Cancer: 'Jupiter in Cancer expands care and family values.',
-    Leo: 'Jupiter in Leo expands creativity and self-expression.',
-    Virgo: 'Jupiter in Virgo expands service and craftsmanship.',
-    Libra: 'Jupiter in Libra expands fairness and partnerships.',
-    Scorpio: 'Jupiter in Scorpio expands depth and transformation.',
-    Sagittarius: 'Jupiter in Sagittarius expands horizons and faith.',
-    Capricorn: 'Jupiter in Capricorn expands responsibility and results.',
-    Aquarius: 'Jupiter in Aquarius expands innovation and networks.',
-    Pisces: 'Jupiter in Pisces expands compassion and imagination.',
+    Aries:
+      'Jupiter in Aries expands courage, initiative, and belief in your own momentum. Growth tends to come when you trust action, leadership, and the willingness to begin before everything is perfect.',
+    Taurus:
+      'Jupiter in Taurus expands stability, material growth, and trust in steady development. Prosperity often comes through patience, values, and building something that lasts.',
+    Gemini:
+      'Jupiter in Gemini expands learning, communication, and curiosity about the world. You grow through ideas, exchange, teaching, and the ability to stay mentally open.',
+    Cancer:
+      'Jupiter in Cancer expands care, emotional generosity, and family-centered wisdom. Protection, belonging, and nourishment often become the place where your faith deepens.',
+    Leo: 'Jupiter in Leo expands creativity, confidence, and the desire to live with heart. You tend to grow when you allow yourself visibility, generosity, and genuine self-expression.',
+    Virgo:
+      'Jupiter in Virgo expands service, practical intelligence, and craftsmanship. Growth comes through improving systems, being useful, and treating mastery as a spiritual discipline.',
+    Libra:
+      'Jupiter in Libra expands fairness, social grace, and partnership awareness. You grow through cooperation, diplomacy, and learning how harmony can create opportunity.',
+    Scorpio:
+      'Jupiter in Scorpio expands depth, resilience, and inner transformation. Your growth often comes through truth, emotional courage, and the willingness to go through profound change.',
+    Sagittarius:
+      'Jupiter in Sagittarius expands horizons, faith, travel, and philosophical vision. This is a placement that believes life gets larger when you keep seeking meaning and possibility.',
+    Capricorn:
+      'Jupiter in Capricorn expands responsibility, strategic ambition, and long-term results. Good fortune tends to follow structure, discipline, and patient effort applied with maturity.',
+    Aquarius:
+      'Jupiter in Aquarius expands innovation, networks, and progressive thinking. You grow by thinking beyond the personal and aligning with communities, ideals, and future-minded systems.',
+    Pisces:
+      'Jupiter in Pisces expands compassion, imagination, and spiritual trust. Growth often comes through surrender, empathy, creativity, and the ability to feel connected to something larger.',
   },
   saturn: {
-    Aries: 'Saturn in Aries demands disciplined initiative.',
-    Taurus: 'Saturn in Taurus demands stable resource management.',
-    Gemini: 'Saturn in Gemini demands structured learning and speech.',
-    Cancer: 'Saturn in Cancer demands emotional maturity and boundaries.',
-    Leo: 'Saturn in Leo demands responsibility in self-expression.',
-    Virgo: 'Saturn in Virgo demands precision and practical service.',
-    Libra: 'Saturn in Libra demands balanced commitment and fairness.',
-    Scorpio: 'Saturn in Scorpio demands integrity in power and depth.',
+    Aries:
+      'Saturn in Aries demands disciplined initiative and mature use of will. You are asked to act bravely without acting blindly, and to build confidence through consistency rather than force.',
+    Taurus:
+      'Saturn in Taurus demands stable resource management and a realistic relationship with security. Lessons often revolve around money, self-worth, patience, and what is truly reliable.',
+    Gemini:
+      'Saturn in Gemini demands structure in learning, speech, and mental habits. You are asked to slow the mind down enough to make your words credible, useful, and well formed.',
+    Cancer:
+      'Saturn in Cancer demands emotional maturity, containment, and stronger inner boundaries. Security has to be built from within, not only borrowed from family or familiar attachment.',
+    Leo: 'Saturn in Leo demands responsibility in self-expression, visibility, and creative pride. You are learning to shine from substance, not from performance alone.',
+    Virgo:
+      'Saturn in Virgo demands precision, humility, and practical service. This placement matures through craft, discipline, and learning that usefulness can be a real form of dignity.',
+    Libra:
+      'Saturn in Libra demands balanced commitment, fairness, and relational accountability. It teaches that healthy partnership is not only romantic feeling but structure, choice, and mutual respect.',
+    Scorpio:
+      'Saturn in Scorpio demands integrity in power, intimacy, and emotional depth. You are asked to face fear honestly and build strength through truth rather than control.',
     Sagittarius:
-      'Saturn in Sagittarius demands responsibility in beliefs and expansion.',
-    Capricorn: 'Saturn in Capricorn structures ambition and leadership.',
-    Aquarius: 'Saturn in Aquarius structures innovation and community.',
-    Pisces: 'Saturn in Pisces structures compassion and imagination.',
+      'Saturn in Sagittarius demands responsibility in beliefs, worldview, and expansion. It asks you to turn conviction into lived wisdom, not just inspiring language.',
+    Capricorn:
+      'Saturn in Capricorn structures ambition, endurance, and leadership. This placement understands long arcs of effort and often builds authority through persistence and standards.',
+    Aquarius:
+      'Saturn in Aquarius structures innovation, ideals, and community life. You are learning how freedom, systems, and responsibility can work together instead of canceling each other out.',
+    Pisces:
+      'Saturn in Pisces structures compassion, imagination, and porous emotional space. The lesson is to give form to sensitivity without becoming overwhelmed by what has no boundary.',
   },
   uranus: {
     Aries: 'Uranus in Aries electrifies initiative and breakthroughs.',
@@ -165,33 +228,54 @@ export const PLANET_IN_SIGN_EN: Partial<
     Pisces: 'Pluto in Pisces transforms spirituality and the unseen.',
   },
   north_node: {
-    Aries: 'North Node in Aries calls for developing independence and courage.',
+    Aries:
+      'North Node in Aries calls for developing independence, courage, and clearer self-definition. Growth comes when you stop over-orienting to others and trust your own initiating force.',
     Taurus:
-      'North Node in Taurus guides toward building stability and self-worth.',
-    Gemini: 'North Node in Gemini encourages communication and learning.',
-    Cancer: 'North Node in Cancer focuses on emotional security and nurturing.',
-    Leo: 'North Node in Leo promotes self-expression and leadership.',
-    Virgo: 'North Node in Virgo emphasizes service and practical skills.',
-    Libra: 'North Node in Libra teaches balance and harmonious relationships.',
-    Scorpio: 'North Node in Scorpio demands transformation and intimacy.',
-    Sagittarius: 'North Node in Sagittarius expands horizons and philosophy.',
-    Capricorn: 'North Node in Capricorn builds responsibility and structure.',
-    Aquarius: 'North Node in Aquarius fosters innovation and community.',
-    Pisces: 'North Node in Pisces develops compassion and spirituality.',
+      'North Node in Taurus guides you toward stability, simplicity, and self-worth rooted in reality. Your path asks for calm embodiment instead of drama, crisis, or emotional extremes.',
+    Gemini:
+      'North Node in Gemini encourages curiosity, communication, and the humility to keep learning. Growth comes through listening, asking questions, and staying flexible rather than clinging to certainty.',
+    Cancer:
+      'North Node in Cancer focuses on emotional security, tenderness, and the courage to need closeness. The path here is softer, more vulnerable, and more human than pure control.',
+    Leo: 'North Node in Leo promotes self-expression, heart-led leadership, and creative visibility. You are meant to step out of detachment and allow your personal light to be seen.',
+    Virgo:
+      'North Node in Virgo emphasizes practical skills, discernment, and grounded service. Growth comes through order, embodiment, and learning how to make inspiration useful.',
+    Libra:
+      'North Node in Libra teaches balance, cooperation, and mature partnership. Your development depends on learning reciprocity without losing yourself in the process.',
+    Scorpio:
+      'North Node in Scorpio demands transformation, intimacy, and deeper emotional truth. The path asks for courage in letting go, trusting change, and entering real vulnerability.',
+    Sagittarius:
+      'North Node in Sagittarius expands your path through meaning, vision, and lived philosophy. Growth comes when you stop scattering energy and commit to a larger direction.',
+    Capricorn:
+      'North Node in Capricorn builds responsibility, structure, and adult authority. Your path asks for self-command, stronger boundaries, and a willingness to build something durable.',
+    Aquarius:
+      'North Node in Aquarius fosters innovation, community, and a less ego-bound perspective. Growth comes when your life serves something broader than personal validation alone.',
+    Pisces:
+      'North Node in Pisces develops compassion, surrender, and spiritual trust. The path here is to soften excessive control and allow intuition, empathy, and meaning to breathe.',
   },
   south_node: {
-    Aries: 'South Node in Aries indicates past life independence to balance.',
-    Taurus: 'South Node in Taurus shows comfort patterns to release.',
-    Gemini: 'South Node in Gemini reveals communication habits to evolve.',
-    Cancer: 'South Node in Cancer points to emotional dependencies to heal.',
-    Leo: 'South Node in Leo suggests creative pride to moderate.',
-    Virgo: 'South Node in Virgo indicates service patterns to transform.',
-    Libra: 'South Node in Libra shows relationship dynamics to balance.',
-    Scorpio: 'South Node in Scorpio reveals power issues to resolve.',
-    Sagittarius: 'South Node in Sagittarius points to beliefs to expand.',
-    Capricorn: 'South Node in Capricorn indicates structures to rebuild.',
-    Aquarius: 'South Node in Aquarius shows detachment to integrate.',
-    Pisces: 'South Node in Pisces reveals illusions to clarify.',
+    Aries:
+      'South Node in Aries points to over-reliance on self-protection, speed, or going it alone. It shows familiar strength, but also a pattern that can resist cooperation.',
+    Taurus:
+      'South Node in Taurus shows comfort patterns around predictability, control, and staying where life feels safe. What is familiar may be stable, but it can also become stagnant.',
+    Gemini:
+      'South Node in Gemini reveals habits of mental scattering, over-processing, or staying at the level of information. It is easy to know many things without committing to a deeper direction.',
+    Cancer:
+      'South Node in Cancer points to emotional dependency, retreat, or over-attachment to the familiar. Care is natural here, but growth requires not hiding inside it.',
+    Leo: 'South Node in Leo suggests patterns around pride, personal centrality, or needing recognition to feel real. The familiar role may be creative and bright, but too tightly tied to validation.',
+    Virgo:
+      'South Node in Virgo indicates habits of over-analysis, perfectionism, or over-functioning. Competence is strong here, but it can crowd out trust, softness, and surrender.',
+    Libra:
+      'South Node in Libra shows old relationship patterns built around pleasing, mirroring, or waiting for balance to come from outside. Harmony is familiar, but indecision may be too.',
+    Scorpio:
+      'South Node in Scorpio reveals attachment to intensity, suspicion, or crisis-driven transformation. Depth is natural here, but it can become a habit of emotional extremity.',
+    Sagittarius:
+      'South Node in Sagittarius points to fixed beliefs, certainty, or attachment to being the one who knows. Vision is strong, but growth asks for more dialogue and nuance.',
+    Capricorn:
+      'South Node in Capricorn indicates familiar patterns of control, stoicism, duty, and self-containment. These can be strengths, but they may also block emotional nourishment.',
+    Aquarius:
+      'South Node in Aquarius shows detachment, over-intellectualizing, or hiding inside the collective. Objectivity is familiar, but the heart can stay too far away from the center.',
+    Pisces:
+      'South Node in Pisces reveals habits of drifting, idealizing, or dissolving boundaries when life becomes difficult. Sensitivity is real, but clarity must grow alongside it.',
   },
   lilith: {
     Aries: 'Lilith in Aries expresses raw feminine power and independence.',
@@ -210,18 +294,29 @@ export const PLANET_IN_SIGN_EN: Partial<
     Pisces: 'Lilith in Pisces dissolves boundaries and embraces mystery.',
   },
   chiron: {
-    Aries: 'Chiron in Aries heals wounds of identity and self-assertion.',
-    Taurus: 'Chiron in Taurus addresses wounds of self-worth and security.',
-    Gemini: 'Chiron in Gemini heals communication and learning traumas.',
-    Cancer: 'Chiron in Cancer mends emotional and family wounds.',
-    Leo: 'Chiron in Leo heals creative expression and recognition issues.',
-    Virgo: 'Chiron in Virgo addresses health and service-related wounds.',
-    Libra: 'Chiron in Libra heals relationship and balance wounds.',
-    Scorpio: 'Chiron in Scorpio transforms deep trauma and power wounds.',
-    Sagittarius: 'Chiron in Sagittarius heals belief and expansion wounds.',
-    Capricorn: 'Chiron in Capricorn addresses authority and structure wounds.',
-    Aquarius: 'Chiron in Aquarius heals detachment and community wounds.',
-    Pisces: 'Chiron in Pisces mends spiritual and boundary wounds.',
+    Aries:
+      'Chiron in Aries heals wounds around identity, permission to exist, and self-assertion. There can be pain around taking up space, but also deep medicine in teaching others courage.',
+    Taurus:
+      'Chiron in Taurus addresses wounds of self-worth, safety, and receiving. Healing often begins when value stops depending only on possession, productivity, or external proof.',
+    Gemini:
+      'Chiron in Gemini heals communication, learning, and the right to use your voice. Early misunderstanding can become later wisdom about language, listening, and nuanced truth.',
+    Cancer:
+      'Chiron in Cancer mends emotional, maternal, and family-pattern wounds. The pain often lives around belonging, but so does the gift of becoming a safer presence for others.',
+    Leo: 'Chiron in Leo heals wounds around creative expression, recognition, and the right to shine. What once felt exposed or rejected can become a source of generous heart-led leadership.',
+    Virgo:
+      'Chiron in Virgo addresses wounds tied to usefulness, health, imperfection, and criticism. Healing comes when service is no longer used to earn love or avoid vulnerability.',
+    Libra:
+      'Chiron in Libra heals wounds around relationship, fairness, and mutuality. Pain in mirroring can become wisdom about reciprocity, boundaries, and mature love.',
+    Scorpio:
+      'Chiron in Scorpio transforms deep trauma around trust, power, intimacy, and emotional survival. Healing here is rarely superficial; it asks for truth all the way down.',
+    Sagittarius:
+      'Chiron in Sagittarius heals wounds of belief, direction, and trust in life’s meaning. Doubt can eventually turn into lived wisdom that does not need dogma to stand.',
+    Capricorn:
+      'Chiron in Capricorn addresses wounds around authority, achievement, and inner permission to be respected. Healing often means redefining success so it includes humanity as well as strength.',
+    Aquarius:
+      'Chiron in Aquarius heals pain around exclusion, difference, and belonging within the group. What once felt alien can become a gift for community, perspective, and future vision.',
+    Pisces:
+      'Chiron in Pisces mends wounds of spiritual disconnection, porous boundaries, and emotional overwhelm. Healing develops through compassion with form, not compassion without limits.',
   },
 };
 
