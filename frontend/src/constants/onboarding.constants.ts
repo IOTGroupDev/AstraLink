@@ -19,6 +19,7 @@ export const ONBOARDING_COLORS = {
   textDim70: 'rgba(255, 255, 255, 0.7)',
   textDim75: 'rgba(255, 255, 255, 0.75)',
   textDim50: 'rgba(255, 255, 255, 0.5)',
+  error: '#FF7A7A',
   btnBg: '#ECECEC',
   btnBgDisabled: 'rgba(236, 236, 236, 0.4)',
   btnText: '#000000',

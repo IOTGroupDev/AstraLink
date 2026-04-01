@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ChartService } from '../chart/chart.service';
 import { EphemerisService } from '../services/ephemeris.service';
@@ -14,6 +15,9 @@ import type {
   OAuthCallbackRequest,
 } from '../types';
 import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
+import { UserSignupCompletedEvent } from '@/auth/events';
+
+const DEFAULT_UNKNOWN_BIRTH_TIME = '12:00';
 
 @Injectable()
 export class SupabaseAuthService {
@@ -23,6 +27,7 @@ export class SupabaseAuthService {
     private supabaseService: SupabaseService,
     private chartService: ChartService,
     private ephemerisService: EphemerisService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -171,7 +176,7 @@ export class SupabaseAuthService {
         await this.supabaseService.createUserWithoutPassword(signupDto.email, {
           name: signupDto.name,
           birth_date: birthDate.toISOString(),
-          birth_time: signupDto.birthTime || '00:00',
+          birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
           birth_place: signupDto.birthPlace || 'Moscow',
         });
 
@@ -194,7 +199,7 @@ export class SupabaseAuthService {
             email: userEmail,
             name: signupDto.name,
             birth_date: birthDate.toISOString(),
-            birth_time: signupDto.birthTime || '00:00',
+            birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
             birth_place: signupDto.birthPlace || 'Moscow',
             updated_at: new Date().toISOString(),
           },
@@ -217,7 +222,7 @@ export class SupabaseAuthService {
         await this.createNatalChart(
           userId,
           birthDate.toISOString(),
-          signupDto.birthTime || '00:00',
+          signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
           signupDto.birthPlace || 'Moscow',
         );
       } catch (chartError) {
@@ -512,7 +517,7 @@ export class SupabaseAuthService {
         await this.supabaseService.updateUserProfileAdmin(userId, {
           name: name || existingProfile.name,
           birth_date: parsedBirthDate.toISOString(),
-          birth_time: birthTime || '00:00',
+          birth_time: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
           birth_place: birthPlace || 'Moscow',
           updated_at: new Date().toISOString(),
         });
@@ -538,18 +543,21 @@ export class SupabaseAuthService {
         this.logger.log('✅ Subscription already exists');
       }
 
-      // 4. Создаем натальную карту
+      // 4. Планируем создание натальной карты в фоне
       try {
-        await this.createNatalChart(
-          userId,
-          parsedBirthDate.toISOString(),
-          birthTime || '00:00',
-          birthPlace || 'Moscow',
+        this.eventEmitter.emit(
+          'user.signup.completed',
+          new UserSignupCompletedEvent(userId, {
+            birthDate: parsedBirthDate.toISOString(),
+            birthTime: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
+            birthPlace: birthPlace || 'Moscow',
+          }),
         );
-      } catch (chartError) {
+        this.logger.log('🛰️ Natal chart creation scheduled in background');
+      } catch (scheduleError) {
         this.logger.error(
-          'Error creating natal chart (non-blocking):',
-          chartError,
+          'Error scheduling natal chart creation (non-blocking):',
+          scheduleError,
         );
       }
 

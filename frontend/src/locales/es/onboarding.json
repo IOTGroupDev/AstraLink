@@ -23,7 +23,10 @@
     "timePlaceholder": "Seleccionar hora",
     "namePlaceholder": "Tu nombre",
     "placePlaceholder": "Tu lugar de nacimiento",
-    "unknownTime": "no sé la hora exacta"
+    "unknownTime": "no sé la hora exacta",
+    "missingBirthDate": "Falta la fecha de nacimiento. Vuelve al paso anterior.",
+    "saveFailed": "No se pudo completar el registro. Inténtalo de nuevo.",
+    "submitting": "FINALIZANDO..."
   },
   "button": {
     "login": "Iniciar sesión",

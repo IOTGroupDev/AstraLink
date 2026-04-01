@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
 import { authAPI, userExtendedProfileAPI } from '../../services/api';
 import { AuthEngine } from '../../services/authEngine';
+import { authLogger } from '../../services/logger';
 
 import { OnboardingLayout } from '../../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
@@ -29,6 +30,7 @@ import {
   ONBOARDING_TYPOGRAPHY,
   ONBOARDING_LAYOUT,
 } from '../../constants/onboarding.constants';
+import { useAuthStore } from '../../stores/auth.store';
 import type { CityOption } from '../../services/api/geo.api';
 
 type RootStackParamList = {
@@ -54,6 +56,8 @@ export default function OnboardingFourthScreen() {
   const setBirthTimeInStore = useOnboardingStore((s) => s.setBirthTime);
   const setBirthPlaceInStore = useOnboardingStore((s) => s.setBirthPlace);
   const setCompleted = useOnboardingStore((s) => s.setCompleted);
+  const setAuthState = useAuthStore((s) => s.setAuthState);
+  const setAuthProfile = useAuthStore((s) => s.setProfile);
 
   // local state
   const [name, setName] = useState(storedName ?? '');
@@ -124,13 +128,14 @@ export default function OnboardingFourthScreen() {
 
       const birthDate = `${storedBirthDate.year}-${String(storedBirthDate.month).padStart(2, '0')}-${String(storedBirthDate.day).padStart(2, '0')}`;
       const birthTime = `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
+      const resolvedBirthPlace = selectedCity?.city || placeClean;
 
       await authAPI.completeSignup({
         userId: session.user.id,
         name: nameClean,
         birthDate,
         birthTime,
-        birthPlace: selectedCity?.city || placeClean,
+        birthPlace: resolvedBirthPlace,
       });
 
       await userExtendedProfileAPI.updateUserProfile({
@@ -138,12 +143,29 @@ export default function OnboardingFourthScreen() {
       });
 
       setCompleted(true);
-
-      await AuthEngine.refreshProfile();
-
+      setAuthProfile({
+        id: session.user.id,
+        email: session.user.email || '',
+        name: nameClean,
+        birthDate,
+        birthTime,
+        birthPlace: resolvedBirthPlace,
+        onboardingCompleted: true,
+      });
+      setAuthState('AUTHORIZED');
       navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      void AuthEngine.refreshProfileInBackground();
     } catch (error) {
-      setErrorText(t('onboarding.fourth.saveFailed'));
+      authLogger.error('Onboarding completion failed', error);
+      const responseMessage = (error as any)?.response?.data?.message;
+      const serverMessage = Array.isArray(responseMessage)
+        ? responseMessage.join('\n')
+        : typeof responseMessage === 'string'
+          ? responseMessage
+          : error instanceof Error
+            ? error.message
+            : null;
+      setErrorText(serverMessage || t('onboarding.fourth.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -160,12 +182,19 @@ export default function OnboardingFourthScreen() {
     setBirthTimeInStore,
     setBirthPlaceInStore,
     setCompleted,
+    setAuthState,
+    setAuthProfile,
     navigation,
     t,
   ]);
 
   const handleCitySelect = useCallback((city: CityOption) => {
     setSelectedCity(city);
+  }, []);
+
+  const handleBirthPlaceChange = useCallback((text: string) => {
+    setBirthPlace(text);
+    setSelectedCity((current) => (current?.display === text ? current : null));
   }, []);
 
   const isFormValid = Boolean(name.trim() && birthPlace.trim());
@@ -227,7 +256,7 @@ export default function OnboardingFourthScreen() {
               <AstralCityInput
                 placeholder={t('onboarding.fourth.placePlaceholder')}
                 value={birthPlace}
-                onChangeText={setBirthPlace}
+                onChangeText={handleBirthPlaceChange}
                 onCitySelect={handleCitySelect}
                 icon="location-outline"
                 required
@@ -241,7 +270,11 @@ export default function OnboardingFourthScreen() {
         </KeyboardAvoidingView>
 
         <OnboardingButton
-          title={t('onboarding.button.next')}
+          title={
+            submitting
+              ? t('onboarding.fourth.submitting')
+              : t('onboarding.button.next')
+          }
           onPress={handleContinue}
           disabled={!isFormValid || submitting}
         />

@@ -621,7 +621,7 @@ const UserDataLoaderScreen: React.FC = () => {
             authLogger.error('Error completing signup:', completeError);
           }
 
-          const maxAttempts = 1;
+          const maxAttempts = 3;
           let success = false;
 
           for (let i = 0; i < maxAttempts; i++) {
@@ -635,7 +635,7 @@ const UserDataLoaderScreen: React.FC = () => {
             await new Promise((r) => setTimeout(r, 700));
 
             const res = await verifyProvisioning(userId);
-            if (res.chartOk && res.subscriptionOk) {
+            if (res.subscriptionOk) {
               success = true;
               profile = res.dbProfile || profile;
               break;
@@ -708,7 +708,7 @@ const UserDataLoaderScreen: React.FC = () => {
             defaultValue: 'Validating data...',
           })
         );
-        const maxAttempts = 1;
+        const maxAttempts = 3;
         let provisionOk = false;
         let dbProfile: any = null;
 
@@ -725,7 +725,7 @@ const UserDataLoaderScreen: React.FC = () => {
           const res = await verifyProvisioning(userId);
           dbProfile = res.dbProfile || dbProfile;
 
-          if (res.profileOk && res.chartOk && res.subscriptionOk) {
+          if (res.profileOk && res.subscriptionOk) {
             provisionOk = true;
             break;
           }

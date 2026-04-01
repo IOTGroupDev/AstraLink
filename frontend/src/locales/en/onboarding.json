@@ -23,7 +23,10 @@
     "timePlaceholder": "Select time",
     "namePlaceholder": "Your name",
     "placePlaceholder": "Your place of birth",
-    "unknownTime": "don't know exact time"
+    "unknownTime": "don't know exact time",
+    "missingBirthDate": "Birth date is missing. Please go back to the previous step.",
+    "saveFailed": "Could not complete registration. Please try again.",
+    "submitting": "FINISHING..."
   },
   "button": {
     "login": "Login",

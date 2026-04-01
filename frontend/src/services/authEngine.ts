@@ -155,6 +155,17 @@ export const AuthEngine = {
     }
   },
 
+  async refreshProfileInBackground() {
+    try {
+      setError(null);
+      const profile = await fetchProfile();
+      setProfile(profile);
+      resolveState(profile);
+    } catch (err) {
+      authLogger.warn('Background profile refresh failed', err);
+    }
+  },
+
   async signOut() {
     try {
       await supabase.auth.signOut();

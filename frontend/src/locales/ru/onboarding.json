@@ -23,7 +23,10 @@
     "timePlaceholder": "Выберите время",
     "namePlaceholder": "Ваше имя",
     "placePlaceholder": "Ваше место рождения",
-    "unknownTime": "не знаю точное время"
+    "unknownTime": "не знаю точное время",
+    "missingBirthDate": "Не найдена дата рождения. Вернитесь на предыдущий шаг.",
+    "saveFailed": "Не удалось завершить регистрацию. Попробуйте ещё раз.",
+    "submitting": "ЗАВЕРШЕНИЕ..."
   },
   "button": {
     "login": "ВОЙТИ",
