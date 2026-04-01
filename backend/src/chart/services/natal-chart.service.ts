@@ -331,7 +331,7 @@ export class NatalChartService {
   /**
    * Create natal chart (basic method for backward compatibility)
    */
-  async createNatalChart(userId: string, _data: any) {
+  async createNatalChart(userId: string, data: any) {
     // Check existing chart via repository
     const existingChart = await this.chartRepository.findByUserId(userId);
     if (existingChart) {
@@ -344,29 +344,64 @@ export class NatalChartService {
       };
     }
 
-    // Get user data
-    const { data: user } = await this.supabaseService
-      .from('users')
-      .select('id, birth_date, birth_time, birth_place')
-      .eq('id', userId)
-      .single();
+    let birthDateInput =
+      typeof data?.birthDate === 'string' ? data.birthDate : null;
+    let birthTimeInput =
+      typeof data?.birthTime === 'string' ? data.birthTime : null;
+    let birthPlaceInput =
+      typeof data?.birthPlace === 'string' ? data.birthPlace : null;
 
-    if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
+    const payloadLocation =
+      typeof data?.latitude === 'number' &&
+      typeof data?.longitude === 'number' &&
+      typeof data?.timezone === 'number'
+        ? {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            timezone: data.timezone,
+          }
+        : null;
+
+    if (!birthDateInput || !birthTimeInput || !birthPlaceInput) {
+      const { data: user } =
+        await this.supabaseService.getUserProfileAdmin(userId);
+
+      if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
+        throw new NotFoundException('User birth data not found');
+      }
+
+      birthDateInput =
+        birthDateInput || (user.birth_date as string | null) || null;
+      birthTimeInput =
+        birthTimeInput || (user.birth_time as string | null) || null;
+      birthPlaceInput =
+        birthPlaceInput || (user.birth_place as string | null) || null;
+    } else {
+      this.logger.debug(`Using provided birth data payload for user ${userId}`);
+    }
+
+    if (!birthDateInput || !birthTimeInput || !birthPlaceInput) {
       throw new NotFoundException('User birth data not found');
     }
 
-    const birthDate = new Date(user.birth_date as string);
-    const birthTime = user.birth_time as string;
+    const birthDate = new Date(birthDateInput);
+    if (isNaN(birthDate.getTime())) {
+      throw new BadRequestException('Invalid birth date');
+    }
 
-    const location = await this.resolveBirthLocation(
-      user.birth_place as string,
-    );
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(birthTimeInput)) {
+      throw new BadRequestException('Invalid birth time (expected HH:MM)');
+    }
+
+    const location =
+      payloadLocation ?? (await this.resolveBirthLocation(birthPlaceInput));
 
     const dateStr = birthDate.toISOString().split('T')[0];
 
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
-      birthTime,
+      birthTimeInput,
       location,
     );
 
@@ -380,8 +415,8 @@ export class NatalChartService {
     // Fingerprint for birth data
     const fingerprint = this.computeFingerprint(
       dateStr,
-      birthTime,
-      user.birth_place as string,
+      birthTimeInput,
+      birthPlaceInput,
     );
 
     const chartWithInterpretation = {
