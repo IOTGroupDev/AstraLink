@@ -10,15 +10,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import {
+  useNavigation,
+  useIsFocused,
+  type NavigationProp,
+} from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import type { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../hooks/useAuth';
-import { datingAPI, chatAPI } from '../services/api';
+import { datingAPI, chatAPI, userAPI } from '../services/api';
 import CosmicChat from '../components/dating/CosmicChat';
 import DatingCard from '../components/dating/DatingCard';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getAllZodiacSigns } from '../services/zodiac.service';
 import CosmicBackground from '../components/shared/CosmicBackground';
 import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import { logger } from '../services/logger';
@@ -32,6 +36,7 @@ type ApiCandidate = {
   userId: string;
   badge: 'high' | 'medium' | 'low';
   photoUrl?: string | null;
+  photos?: string[] | null;
   avatarUrl?: string | null;
   name?: string | null;
   age?: number | null;
@@ -39,21 +44,22 @@ type ApiCandidate = {
   bio?: string | null;
   interests?: string[] | null;
   city?: string | null;
+  lookingFor?: string | null;
+  lastActive?: string | null;
 };
 
 // Расширенный тип для UI
 type Candidate = ApiCandidate & {
   name: string;
-  age: number;
-  zodiacSign: string;
-  bio: string;
+  age?: number | null;
+  zodiacSign?: string | null;
+  bio?: string | null;
   interests: string[];
-  distance: number;
   city?: string;
-  photos?: string[];
-  photoUrl?: string;
-  height?: number;
-  lookingFor?: string;
+  photos: string[];
+  photoUrl?: string | null;
+  lookingFor?: string | null;
+  lastActive?: string | null;
 };
 
 export default function DatingScreen() {
@@ -64,17 +70,18 @@ export default function DatingScreen() {
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
     name: string;
-    zodiacSign: string;
+    zodiacSign?: string | null;
     compatibility: number;
   } | null>(null);
   const [loadingCards, setLoadingCards] = useState<boolean>(true);
+  const [moderationBusy, setModerationBusy] = useState(false);
   const [cardAreaHeight, setCardAreaHeight] = useState(0);
 
   const hasReachedEnd = currentIndex >= candidates.length;
   const current = hasReachedEnd ? null : candidates[currentIndex] || null;
 
   const { user, isLoading: authLoading } = useAuth();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const cardBottomPadding = Math.max(20, tabBarHeight + 12);
@@ -94,6 +101,12 @@ export default function DatingScreen() {
   const nextCard = useCallback(() => {
     setCurrentIndex((idx) => Math.min(idx + 1, candidates.length));
   }, [candidates.length]);
+
+  const removeCandidateFromFeed = useCallback((userId: string) => {
+    setCandidates((prev) =>
+      prev.filter((candidate) => candidate.userId !== userId)
+    );
+  }, []);
 
   // ===============================
   // Handlers
@@ -147,6 +160,25 @@ export default function DatingScreen() {
     setChatVisible(true);
   }, [current]);
 
+  const handleOpenProfile = useCallback(() => {
+    if (!current) return;
+
+    navigation.navigate('DatingProfile', {
+      userId: current.userId,
+      compatibility: getCompatibilityFromBadge(current.badge),
+      name: current.name,
+      age: current.age ?? null,
+      zodiacSign: current.zodiacSign ?? null,
+      bio: current.bio ?? null,
+      interests: current.interests,
+      city: current.city ?? null,
+      photos: current.photos,
+      photoUrl: current.photoUrl ?? null,
+      lookingFor: current.lookingFor ?? null,
+      lastActive: current.lastActive ?? null,
+    });
+  }, [current, navigation]);
+
   const handleSendMessage = useCallback(
     async (text: string) => {
       if (!selectedUser?.id) {
@@ -181,6 +213,104 @@ export default function DatingScreen() {
     setSelectedUser(null);
   }, []);
 
+  const reportCurrentUser = useCallback(
+    async (targetUserId: string) => {
+      try {
+        setModerationBusy(true);
+        await userAPI.reportUser(targetUserId, 'dating_profile_report');
+        removeCandidateFromFeed(targetUserId);
+      } catch (error) {
+        logger.error('[Dating] Ошибка репорта пользователя', error);
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.actions.failedToReport')
+        );
+      } finally {
+        setModerationBusy(false);
+      }
+    },
+    [removeCandidateFromFeed, t]
+  );
+
+  const blockCurrentUser = useCallback(
+    async (targetUserId: string) => {
+      try {
+        setModerationBusy(true);
+        await userAPI.blockUser(targetUserId);
+        removeCandidateFromFeed(targetUserId);
+      } catch (error) {
+        logger.error('[Dating] Ошибка блокировки пользователя', error);
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.actions.failedToBlock')
+        );
+      } finally {
+        setModerationBusy(false);
+      }
+    },
+    [removeCandidateFromFeed, t]
+  );
+
+  const handleOpenActions = useCallback(() => {
+    if (!current || moderationBusy) return;
+
+    Alert.alert(
+      t('dating.actions.title'),
+      t('dating.actions.subtitle', { name: current.name }),
+      [
+        {
+          text: t('common.buttons.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('dating.actions.report'),
+          onPress: () => {
+            Alert.alert(
+              t('dating.actions.reportTitle'),
+              t('dating.actions.reportMessage', { name: current.name }),
+              [
+                {
+                  text: t('common.buttons.cancel'),
+                  style: 'cancel',
+                },
+                {
+                  text: t('dating.actions.report'),
+                  style: 'destructive',
+                  onPress: () => {
+                    void reportCurrentUser(current.userId);
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
+          text: t('dating.actions.block'),
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              t('dating.actions.blockTitle'),
+              t('dating.actions.blockMessage', { name: current.name }),
+              [
+                {
+                  text: t('common.buttons.cancel'),
+                  style: 'cancel',
+                },
+                {
+                  text: t('dating.actions.block'),
+                  style: 'destructive',
+                  onPress: () => {
+                    void blockCurrentUser(current.userId);
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }, [blockCurrentUser, current, moderationBusy, reportCurrentUser, t]);
+
   const handleCardAreaLayout = useCallback((event: LayoutChangeEvent) => {
     const nextHeight = event.nativeEvent.layout.height;
     setCardAreaHeight((prev) =>
@@ -206,53 +336,28 @@ export default function DatingScreen() {
           logger.info('[Dating] Нет кандидатов от API');
         }
 
-        const allZodiacSigns = getAllZodiacSigns();
-        const randomInterests = [
-          t('dating.interests.music'),
-          t('dating.interests.sports'),
-          t('dating.interests.travel'),
-          t('dating.interests.books'),
-          t('dating.interests.movies'),
-          t('dating.interests.art'),
-          t('dating.interests.cooking'),
-          t('dating.interests.yoga'),
-          t('dating.interests.meditation'),
-          t('dating.interests.nature'),
-        ];
-        const lookingForOptions = [
-          t('dating.lookingFor.relationship'),
-          t('dating.lookingFor.friendship'),
-          t('dating.lookingFor.communication'),
-          t('dating.lookingFor.somethingNew'),
-        ];
-
         const enriched: Candidate[] = data.map((c) => {
-          // Используем знак из API или выбираем случайный
-          let zodiacName = c.zodiacSign;
-          if (!zodiacName) {
-            const randomSign =
-              allZodiacSigns[Math.floor(Math.random() * allZodiacSigns.length)];
-            zodiacName = randomSign.nameRu;
-          }
-
           return {
             ...c,
             name: c.name || t('dating.defaults.userName'),
-            age: c.age || Math.floor(Math.random() * 15) + 25,
-            zodiacSign: zodiacName,
-            bio: c.bio || t('dating.defaults.userBio'),
-            interests:
-              c.interests ||
-              randomInterests.slice(0, Math.floor(Math.random() * 3) + 2),
-            distance: Math.floor(Math.random() * 50) + 1,
+            age: c.age ?? null,
+            zodiacSign: c.zodiacSign ?? null,
+            bio: c.bio ?? null,
+            interests: Array.isArray(c.interests) ? c.interests : [],
             city: c.city ?? undefined,
-            photos: c.photoUrl ? [c.photoUrl] : [],
-            photoUrl: c.photoUrl || c.avatarUrl || undefined,
-            height: Math.floor(Math.random() * 25) + 160, // 160-185 см
-            lookingFor:
-              lookingForOptions[
-                Math.floor(Math.random() * lookingForOptions.length)
-              ],
+            photos:
+              Array.isArray(c.photos) && c.photos.length > 0
+                ? c.photos
+                : c.photoUrl
+                  ? [c.photoUrl]
+                  : [],
+            photoUrl: c.photoUrl || c.avatarUrl || null,
+            lookingFor: c.lookingFor
+              ? t(`dating.lookingFor.${c.lookingFor}`, {
+                  defaultValue: c.lookingFor,
+                })
+              : null,
+            lastActive: c.lastActive ?? null,
           };
         });
 
@@ -346,14 +451,18 @@ export default function DatingScreen() {
                     compatibility: getCompatibilityFromBadge(current.badge),
                     bio: current.bio,
                     interests: current.interests,
-                    distance: current.distance,
+                    city: current.city,
+                    photos: current.photos,
                     photoUrl: current.photoUrl,
-                    height: current.height,
                     lookingFor: current.lookingFor,
+                    lastActive: current.lastActive,
                   }}
                   cardHeight={measuredCardHeight}
                   onSwipe={handleSwipe}
                   onChat={handleChat}
+                  onOpenProfile={handleOpenProfile}
+                  onOpenActions={handleOpenActions}
+                  actionsDisabled={moderationBusy}
                   isTop={true}
                 />
               </View>

@@ -62,6 +62,9 @@ describe('DatingService', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
       },
+      userBlock: {
+        findMany: jest.fn(),
+      },
       user: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
@@ -395,6 +398,38 @@ describe('DatingService', () => {
       );
 
       expect(allowed).toBe(false);
+    });
+
+    it('should collect blocked ids from both block directions', async () => {
+      const findManyMock = jest.spyOn(prismaService.userBlock, 'findMany');
+      findManyMock.mockResolvedValue([
+        {
+          userId: mockUserId,
+          blockedUserId: 'blocked-by-me',
+        } as any,
+        {
+          userId: 'blocked-me',
+          blockedUserId: mockUserId,
+        } as any,
+      ]);
+
+      const excludedUserIds = await (service as any).getExcludedUserIds(
+        mockUserId,
+      );
+
+      expect(findManyMock).toHaveBeenCalledWith({
+        where: {
+          OR: [{ userId: mockUserId }, { blockedUserId: mockUserId }],
+        },
+        select: {
+          userId: true,
+          blockedUserId: true,
+        },
+      });
+      expect(Array.from(excludedUserIds)).toEqual([
+        'blocked-by-me',
+        'blocked-me',
+      ]);
     });
   });
 

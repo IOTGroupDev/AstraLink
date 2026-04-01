@@ -18,6 +18,34 @@
     "message": "You have mutual attraction!",
     "openChat": "Open Chat"
   },
+  "actions": {
+    "title": "Profile actions",
+    "subtitle": "What do you want to do with {{name}}?",
+    "openLabel": "Open profile actions",
+    "report": "Report",
+    "reportTitle": "Report profile",
+    "reportMessage": "Send a report for {{name}} and hide this profile from your feed?",
+    "block": "Block",
+    "blockTitle": "Block user",
+    "blockMessage": "{{name}} will no longer appear in your feed.",
+    "failedToBlock": "Failed to block user",
+    "failedToReport": "Failed to send report"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "More detail on your compatibility",
+    "openButton": "Open full profile",
+    "aboutTitle": "About",
+    "interestsTitle": "Interests",
+    "locationTitle": "City",
+    "lookingForTitle": "Looking for",
+    "lastActiveTitle": "Last active",
+    "sendMessage": "Send first message",
+    "loading": "Loading profile...",
+    "emptyBio": "This user has not added a bio yet",
+    "emptyInterests": "This user has not listed interests yet",
+    "failedToLoad": "Failed to load profile"
+  },
   "errors": {
     "noUserData": "No user data",
     "userNotSelected": "User not selected",

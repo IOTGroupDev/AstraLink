@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -32,19 +32,23 @@ interface DatingCardProps {
   user: {
     id: string;
     name: string;
-    age: number;
-    zodiacSign: string;
+    age?: number | null;
+    zodiacSign?: string | null;
     compatibility: number;
-    bio: string;
-    interests: string[];
-    distance?: number;
-    photoUrl?: string;
-    height?: number;
-    lookingFor?: string;
+    bio?: string | null;
+    interests?: string[];
+    city?: string | null;
+    photos?: string[] | null;
+    photoUrl?: string | null;
+    lookingFor?: string | null;
+    lastActive?: string | null;
   };
   cardHeight?: number;
   onSwipe: (direction: 'left' | 'right') => void;
   onChat: () => void;
+  onOpenProfile: () => void;
+  onOpenActions: () => void;
+  actionsDisabled?: boolean;
   isTop: boolean;
 }
 
@@ -53,12 +57,21 @@ const DatingCard: React.FC<DatingCardProps> = ({
   cardHeight,
   onSwipe,
   onChat,
+  onOpenProfile,
+  onOpenActions,
+  actionsDisabled = false,
   isTop: _isTop,
 }) => {
   const { t } = useTranslation();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
+  const photoUrls = Array.isArray(user.photos)
+    ? user.photos.filter((photo): photo is string => !!photo)
+    : user.photoUrl
+      ? [user.photoUrl]
+      : [];
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const resolvedCardHeight =
     cardHeight != null
       ? Math.min(MAX_CARD_HEIGHT, Math.max(0, cardHeight))
@@ -66,6 +79,25 @@ const DatingCard: React.FC<DatingCardProps> = ({
           MIN_CARD_HEIGHT,
           Math.min(MAX_CARD_HEIGHT, DEFAULT_CARD_HEIGHT)
         );
+  const activePhotoUrl = photoUrls[activePhotoIndex] ?? user.photoUrl ?? null;
+
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [user.id]);
+
+  const handlePrevPhoto = () => {
+    if (photoUrls.length <= 1) return;
+    setActivePhotoIndex((index) =>
+      index === 0 ? photoUrls.length - 1 : index - 1
+    );
+  };
+
+  const handleNextPhoto = () => {
+    if (photoUrls.length <= 1) return;
+    setActivePhotoIndex((index) =>
+      index === photoUrls.length - 1 ? 0 : index + 1
+    );
+  };
 
   const getZodiacLabel = (sign: string): string => {
     const raw = String(sign || '').trim();
@@ -98,13 +130,15 @@ const DatingCard: React.FC<DatingCardProps> = ({
     return t(`dating.interests.${key}`, { defaultValue: interest });
   };
 
-  const distanceLabel =
-    user.distance != null
-      ? t('dating.card.distanceAway', {
-          distance: user.distance,
-          defaultValue: `${user.distance} km away`,
-        })
-      : null;
+  const cityLabel = user.city ? String(user.city).trim() : null;
+  const hasMeta = Boolean(user.zodiacSign || cityLabel);
+  const titleText = user.age != null ? `${user.name}, ${user.age}` : user.name;
+  const lastActiveLabel = (() => {
+    if (!user.lastActive) return null;
+    const parsed = new Date(user.lastActive);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toLocaleDateString();
+  })();
 
   const gestureHandler = Gesture.Pan()
     .onUpdate((event) => {
@@ -156,35 +190,41 @@ const DatingCard: React.FC<DatingCardProps> = ({
     <View style={styles.infoContainer}>
       <BlurView intensity={20} tint="dark" style={styles.infoBlur}>
         <View style={styles.headerRow}>
-          <Text style={styles.name}>
-            {user.name}, {user.age}
-          </Text>
+          <Text style={styles.name}>{titleText}</Text>
         </View>
 
-        <View style={styles.metaRow}>
-          <Text style={styles.zodiacSign} numberOfLines={1}>
-            {getZodiacLabel(user.zodiacSign)}
-          </Text>
-          {distanceLabel ? (
-            <>
-              <Text style={styles.metaDivider}>{'\u00B7'}</Text>
-              <View style={styles.distanceRow}>
-                <Ionicons
-                  name="location"
-                  size={14}
-                  color="rgba(255,255,255,0.7)"
-                />
-                <Text style={styles.distanceText} numberOfLines={1}>
-                  {distanceLabel}
-                </Text>
-              </View>
-            </>
-          ) : null}
-        </View>
+        {hasMeta ? (
+          <View style={styles.metaRow}>
+            {user.zodiacSign ? (
+              <Text style={styles.zodiacSign} numberOfLines={1}>
+                {getZodiacLabel(user.zodiacSign)}
+              </Text>
+            ) : null}
+            {cityLabel ? (
+              <>
+                {user.zodiacSign ? (
+                  <Text style={styles.metaDivider}>{'\u00B7'}</Text>
+                ) : null}
+                <View style={styles.metaInfoRow}>
+                  <Ionicons
+                    name="location"
+                    size={14}
+                    color="rgba(255,255,255,0.7)"
+                  />
+                  <Text style={styles.metaInfoText} numberOfLines={1}>
+                    {cityLabel}
+                  </Text>
+                </View>
+              </>
+            ) : null}
+          </View>
+        ) : null}
 
-        <Text style={styles.bio} numberOfLines={3}>
-          {user.bio}
-        </Text>
+        {user.bio ? (
+          <Text style={styles.bio} numberOfLines={3}>
+            {user.bio}
+          </Text>
+        ) : null}
 
         <View style={styles.compatibilitySection}>
           <Text style={styles.compatibilityLabel}>
@@ -214,29 +254,6 @@ const DatingCard: React.FC<DatingCardProps> = ({
         </View>
 
         <View style={styles.detailsRow}>
-          <View style={styles.detailItem}>
-            <Ionicons
-              name="briefcase-outline"
-              size={16}
-              color="rgba(255,255,255,0.9)"
-            />
-            <Text style={styles.detailText}>{t('dating.card.profession')}</Text>
-          </View>
-          {user.height && (
-            <View style={styles.detailItem}>
-              <Ionicons
-                name="resize-outline"
-                size={16}
-                color="rgba(255,255,255,0.9)"
-              />
-              <Text style={styles.detailText}>
-                {t('dating.card.heightCm', {
-                  height: user.height,
-                  defaultValue: `${user.height} cm`,
-                })}
-              </Text>
-            </View>
-          )}
           {user.lookingFor && (
             <View style={styles.detailItem}>
               <Ionicons
@@ -247,9 +264,21 @@ const DatingCard: React.FC<DatingCardProps> = ({
               <Text style={styles.detailText}>{user.lookingFor}</Text>
             </View>
           )}
+          {lastActiveLabel ? (
+            <View style={styles.detailItem}>
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color="rgba(255,255,255,0.9)"
+              />
+              <Text style={styles.detailText} numberOfLines={1}>
+                {lastActiveLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
-        {user.interests && user.interests.length > 0 && (
+        {Array.isArray(user.interests) && user.interests.length > 0 && (
           <View style={styles.interestsContainer}>
             {user.interests.slice(0, 4).map((interest, index) => (
               <View key={index} style={styles.interestTag}>
@@ -260,6 +289,27 @@ const DatingCard: React.FC<DatingCardProps> = ({
             ))}
           </View>
         )}
+
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={onOpenProfile}
+          activeOpacity={0.85}
+          disabled={actionsDisabled}
+        >
+          <Ionicons
+            name="sparkles-outline"
+            size={16}
+            color="rgba(255,255,255,0.95)"
+          />
+          <Text style={styles.profileButtonText}>
+            {t('dating.profile.openButton')}
+          </Text>
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color="rgba(255,255,255,0.95)"
+          />
+        </TouchableOpacity>
       </BlurView>
     </View>
   );
@@ -274,9 +324,9 @@ const DatingCard: React.FC<DatingCardProps> = ({
     >
       <GestureDetector gesture={gestureHandler}>
         <View style={styles.card}>
-          {user.photoUrl ? (
+          {activePhotoUrl ? (
             <ImageBackground
-              source={{ uri: user.photoUrl }}
+              source={{ uri: activePhotoUrl }}
               style={styles.photoBackground}
               imageStyle={styles.photoImage}
             >
@@ -284,6 +334,50 @@ const DatingCard: React.FC<DatingCardProps> = ({
                 colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
                 style={styles.gradientOverlay}
               />
+
+              <TouchableOpacity
+                style={styles.moreButton}
+                onPress={onOpenActions}
+                activeOpacity={0.8}
+                disabled={actionsDisabled}
+                accessibilityRole="button"
+                accessibilityLabel={t('dating.actions.openLabel')}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+              </TouchableOpacity>
+
+              {photoUrls.length > 1 ? (
+                <>
+                  <View style={styles.photoPagination}>
+                    {photoUrls.map((photo, index) => (
+                      <View
+                        key={`${photo}-${index}`}
+                        style={[
+                          styles.photoPaginationDot,
+                          index === activePhotoIndex &&
+                            styles.photoPaginationDotActive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.photoNavButton, styles.photoNavLeft]}
+                    onPress={handlePrevPhoto}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chevron-back" size={18} color="#fff" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.photoNavButton, styles.photoNavRight]}
+                    onPress={handleNextPhoto}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chevron-forward" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </>
+              ) : null}
 
               <View style={styles.sideButtons}>
                 <TouchableOpacity
@@ -334,6 +428,17 @@ const DatingCard: React.FC<DatingCardProps> = ({
                 colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
                 style={styles.gradientOverlay}
               />
+
+              <TouchableOpacity
+                style={styles.moreButton}
+                onPress={onOpenActions}
+                activeOpacity={0.8}
+                disabled={actionsDisabled}
+                accessibilityRole="button"
+                accessibilityLabel={t('dating.actions.openLabel')}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+              </TouchableOpacity>
 
               <View style={styles.sideButtons}>
                 <TouchableOpacity
@@ -406,6 +511,55 @@ const styles = StyleSheet.create({
     right: 0,
     height: '60%',
   },
+  moreButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(17, 24, 39, 0.7)',
+    zIndex: 10,
+  },
+  photoPagination: {
+    position: 'absolute',
+    top: 18,
+    left: 64,
+    right: 64,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  photoPaginationDot: {
+    flex: 1,
+    maxWidth: 32,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  photoPaginationDotActive: {
+    backgroundColor: '#fff',
+  },
+  photoNavButton: {
+    position: 'absolute',
+    top: '44%',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(17, 24, 39, 0.7)',
+    zIndex: 10,
+  },
+  photoNavLeft: {
+    left: 12,
+  },
+  photoNavRight: {
+    right: 12,
+  },
   sideButtons: {
     position: 'absolute',
     top: 12,
@@ -459,6 +613,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     minWidth: 0,
   },
+  metaInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   zodiacSign: {
     fontSize: 15,
     fontWeight: '600',
@@ -470,14 +631,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     marginHorizontal: 8,
   },
-  distanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  distanceText: {
+  metaInfoText: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
     flexShrink: 1,
@@ -538,6 +692,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+    marginBottom: 12,
   },
   interestTag: {
     paddingHorizontal: 12,
@@ -551,6 +706,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     fontWeight: '500',
+  },
+  profileButton: {
+    minHeight: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  profileButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

@@ -111,6 +111,8 @@ export interface UserProfile {
   lookingFor?: string;
   looking_for_gender?: string;
   lookingForGender?: string;
+  last_active?: string;
+  lastActive?: string;
   display_name?: string;
   zodiac_sign?: ZodiacSign;
 }
@@ -140,12 +142,15 @@ export interface EnrichedCandidate {
   userId: string;
   badge: CandidateBadge;
   photoUrl: string | null;
+  photos?: string[] | null;
   name: string | null;
   age: number | null;
   zodiacSign: ZodiacSign | string | null;
   bio: string | null;
   interests?: string[];
   city: string | null;
+  lookingFor?: string | null;
+  lastActive?: string | null;
 }
 
 // Compatibility calculation types

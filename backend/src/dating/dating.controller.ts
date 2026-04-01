@@ -117,10 +117,10 @@ export class DatingController {
     }
   }
 
-  // New: get candidates via Supabase RPC cache (badge only)
+  // New: get ranked candidates via Supabase RPC cache
   @Get('candidates')
   @ApiOperation({
-    summary: 'Получить кандидатов (кэш совместимости, только бейджи)',
+    summary: 'Получить кандидатов для свайпа (ранжирование по совместимости)',
   })
   @ApiResponse({ status: 200, description: 'Список кандидатов' })
   async getCandidates(

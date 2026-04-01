@@ -36,6 +36,20 @@ export type RootStackParamList = {
 
   // Chat
   ChatList: undefined;
+  DatingProfile: {
+    userId: string;
+    compatibility: number;
+    name?: string | null;
+    age?: number | null;
+    zodiacSign?: string | null;
+    bio?: string | null;
+    interests?: string[] | null;
+    city?: string | null;
+    photos?: string[] | null;
+    photoUrl?: string | null;
+    lookingFor?: string | null;
+    lastActive?: string | null;
+  };
   ChatDialog: {
     otherUserId: string;
     displayName?: string | null;
