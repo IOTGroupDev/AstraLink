@@ -64,7 +64,7 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
   };
 
   // Цвета планет
-  const planetColors = {
+  const planetColors: Record<string, string> = {
     sun: '#FFD700',
     moon: '#C0C0C0',
     mercury: '#8C7853',
@@ -78,7 +78,7 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
   };
 
   // Сокращения планет
-  const planetAbbr = {
+  const planetAbbr: Record<string, string> = {
     sun: '☉',
     moon: '☽',
     mercury: '☿',
@@ -171,7 +171,7 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
         {/* Планеты на их натальных позициях */}
         {Object.entries(chart.data.planets).map(
           ([planetKey, planet]: [string, any]) => {
-            if (!planet.longitude) return null;
+            if (typeof planet.longitude !== 'number') return null;
 
             const angle = planet.longitude * (Math.PI / 180);
             const x = centerX + Math.cos(angle - Math.PI / 2) * planetsRadius;

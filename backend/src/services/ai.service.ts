@@ -451,6 +451,30 @@ export class AIService {
         : locale === 'es'
           ? 'Trata "challenges" como riesgos concretos, disparadores, errores o acciones que conviene evitar.'
           : 'Поле "challenges" трактуйте как конкретные риски, триггеры, ошибки и действия, которых лучше не делать.';
+    const humanVoiceLine =
+      locale === 'en'
+        ? 'Write as if you are speaking to one real person: natural, emotionally intelligent, observant, and alive.'
+        : locale === 'es'
+          ? 'Escribe como si hablaras con una persona real: natural, emocionalmente inteligente, observador y vivo.'
+          : 'Пишите так, как будто обращаетесь к одному реальному человеку: естественно, внимательно, живо и психологически точно.';
+    const antiTemplateLine =
+      locale === 'en'
+        ? 'Avoid canned coaching phrases, generic encouragement, and section-opening formulas that make the text feel templated.'
+        : locale === 'es'
+          ? 'Evita frases prefabricadas de coaching, ánimo genérico y fórmulas de apertura que hagan que el texto suene a plantilla.'
+          : 'Избегайте заготовленных коучинговых фраз, общего ободрения и одинаковых вступительных формул, из-за которых текст звучит как шаблон.';
+    const flowLine =
+      locale === 'en'
+        ? 'Let each section read like flowing prose, not like disconnected mini-summaries.'
+        : locale === 'es'
+          ? 'Haz que cada sección se lea como prosa fluida, no como mini-resúmenes desconectados.'
+          : 'Пусть каждый раздел читается как живая связная речь, а не как набор разрозненных мини-выводов.';
+    const specificityLine =
+      locale === 'en'
+        ? 'Use specific emotional and situational language instead of abstract astrology jargon whenever possible.'
+        : locale === 'es'
+          ? 'Usa lenguaje emocional y situacional específico en lugar de jerga astrológica abstracta siempre que sea posible.'
+          : 'По возможности используйте конкретный эмоциональный и жизненный язык вместо абстрактного астрологического жаргона.';
 
     if (locale === 'en') {
       return isDeepSeek
@@ -485,11 +509,15 @@ JSON format:
 Style and content requirements:
 - This is PREMIUM analysis — be as detailed and personalized as possible
 - Write warm, human, empathetic prose (avoid robotic phrasing)
+- ${humanVoiceLine}
 - Vary sentence length; avoid repetitive structures and clichés
 - Use light imagery where it helps clarity (not purple prose)
 - Consider interactions between transits and natal placements
 - Be concrete, practical, and realistic
 - Keep a positive but honest tone
+- ${antiTemplateLine}
+- ${flowLine}
+- ${specificityLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -530,6 +558,10 @@ Content requirements:
 - Consider interactions between transits and natal planets
 - Be concrete and practical
 - Provide realistic, actionable advice
+- ${humanVoiceLine}
+- ${antiTemplateLine}
+- ${flowLine}
+- ${specificityLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -571,11 +603,15 @@ Formato JSON:
 Requisitos de estilo y contenido:
 - Esto es análisis PREMIUM: sé lo más detallado y personalizado posible
 - Escribe de forma cálida, humana y empática (evita frases robóticas)
+- ${humanVoiceLine}
 - Varía la longitud de las frases; evita repeticiones y clichés
 - Usa imágenes ligeras solo cuando ayuden a la claridad
 - Considera la interacción de los tránsitos con posiciones natales
 - Sé concreto, práctico y realista
 - Mantén un tono positivo pero honesto
+- ${antiTemplateLine}
+- ${flowLine}
+- ${specificityLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -616,6 +652,10 @@ Requisitos de contenido:
 - Considera la interacción de los tránsitos con las posiciones natales
 - Sé concreto y práctico
 - Da consejos realistas y aplicables
+- ${humanVoiceLine}
+- ${antiTemplateLine}
+- ${flowLine}
+- ${specificityLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -655,11 +695,15 @@ ${transitDescription}
 Требования к стилю и контенту:
 - Это PREMIUM анализ - будьте максимально детальны и персонализированы
 - Пишите тепло, по‑человечески, эмпатично (без «роботности»)
+- ${humanVoiceLine}
 - Разнообразьте длину фраз, избегайте повторов и клише
 - Легкие образные сравнения допустимы, если помогают ясности
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны, практичны и реалистичны
 - Сохраняйте позитивный, но честный тон
+- ${antiTemplateLine}
+- ${flowLine}
+- ${specificityLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -699,6 +743,10 @@ ${transitDescription}
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны и практичны
 - Давайте реалистичные, применимые советы
+- ${humanVoiceLine}
+- ${antiTemplateLine}
+- ${flowLine}
+- ${specificityLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -729,6 +777,37 @@ ${transitDescription}
       context.planets,
       locale,
     );
+    const chartRulerDesc = this.getChartRulerDescription(
+      context.planets,
+      context.houses,
+      context.ascendant,
+      locale,
+    );
+    const lunarNodesDesc = this.getLunarNodesDescription(
+      context.planets,
+      context.houses,
+      locale,
+    );
+    const sectDesc = this.getSectDescription(
+      context.planets,
+      context.houses,
+      context.ascendant,
+      locale,
+    );
+    const dispositorDesc = this.getDispositorDescription(
+      context.planets,
+      context.houses,
+      locale,
+    );
+    const mutualReceptionDesc = this.getMutualReceptionDescription(
+      context.planets,
+      locale,
+    );
+    const keyHouseRulersDesc = this.getKeyHouseRulersDescription(
+      context.planets,
+      context.houses,
+      locale,
+    );
     const angularAxisDesc = this.getAngularAxisDescription(
       context.houses,
       context.ascendant,
@@ -740,6 +819,36 @@ ${transitDescription}
         : context.ascendant?.sign
           ? `${this.getLocalizedSign(context.ascendant.sign, locale)}${typeof context.ascendant.degree === 'number' ? ` ${context.ascendant.degree.toFixed(1)}°` : ''}`
           : this.getAscendantFromHouses(context.houses, locale);
+    const naturalConsultationLine =
+      locale === 'en'
+        ? 'Write like a skilled astrologer speaking directly to one person, not like an encyclopedia entry.'
+        : locale === 'es'
+          ? 'Escribe como un astrólogo experto que habla directamente con una persona, no como una entrada enciclopédica.'
+          : 'Пишите как опытный астролог, который говорит напрямую с одним человеком, а не как энциклопедическая статья.';
+    const naturalRhythmLine =
+      locale === 'en'
+        ? 'Vary rhythm and syntax: mix longer reflective sentences with shorter precise ones.'
+        : locale === 'es'
+          ? 'Varía el ritmo y la sintaxis: mezcla frases más reflexivas con otras breves y precisas.'
+          : 'Варьируйте ритм и синтаксис: чередуйте более вдумчивые фразы с короткими и точными.';
+    const antiAstroClicheLine =
+      locale === 'en'
+        ? 'Avoid empty astro clichés, fortune-cookie phrasing, and generic spiritual abstractions.'
+        : locale === 'es'
+          ? 'Evita clichés astrológicos vacíos, frases tipo galleta de la fortuna y abstracciones espirituales genéricas.'
+          : 'Избегайте пустых астрологических клише, фраз в духе печенья с предсказанием и общих духовных абстракций.';
+    const emotionalSpecificityLine =
+      locale === 'en'
+        ? 'Name likely feelings, tensions, and life situations in plain human language when the chart supports it.'
+        : locale === 'es'
+          ? 'Nombra posibles sentimientos, tensiones y situaciones de vida con lenguaje humano claro cuando la carta lo respalde.'
+          : 'Называйте вероятные чувства, напряжения и жизненные ситуации простым человеческим языком, если карта это поддерживает.';
+    const synthesisLine =
+      locale === 'en'
+        ? 'Make the reading feel lived-in: show how the person may actually experience these patterns in daily life, relationships, and choices.'
+        : locale === 'es'
+          ? 'Haz que la lectura se sienta vivida: muestra cómo la persona puede experimentar estos patrones en la vida diaria, en los vínculos y en sus decisiones.'
+          : 'Сделайте текст прожитым: показывайте, как эти паттерны могут реально ощущаться в повседневной жизни, отношениях и выборе.';
 
     if (locale === 'en') {
       return `Create an extended PREMIUM natal-chart interpretation based strictly on the provided chart data.
@@ -755,6 +864,24 @@ ${angularAxisDesc}
 
 DOMINANT FOCUS:
 ${dominantPlanetaryFocus}
+
+CHART RULER:
+${chartRulerDesc}
+
+LUNAR NODES:
+${lunarNodesDesc}
+
+SECT:
+${sectDesc}
+
+DISPOSITOR FOCUS:
+${dispositorDesc}
+
+MUTUAL RECEPTIONS:
+${mutualReceptionDesc}
+
+KEY HOUSE RULERS:
+${keyHouseRulersDesc}
 
 PLANETS:
 ${planetsDesc}
@@ -779,8 +906,14 @@ Hard requirements:
 - Avoid generic astrology filler and avoid repeating the same idea in different words.
 - Do not moralize and do not sound mystical for the sake of style.
 - Keep the tone intelligent, psychologically precise, warm, and concrete.
+- ${naturalConsultationLine}
+- ${naturalRhythmLine}
+- ${antiAstroClicheLine}
+- ${emotionalSpecificityLine}
+- ${synthesisLine}
 - Explain synthesis: show how placements work together, not just one-by-one.
 - Pay special attention to the user's real chart anchors: big three, angular houses, dominant houses, repeated elements, and strongest aspects.
+- Give special weight to the tightest aspects by orb/strength and to the rulers of houses 7, 10, 2, and 8 when discussing relationships, career, and money.
 
 The result must read like a high-end personalized astrological consultation, not a template.`;
     }
@@ -799,6 +932,24 @@ ${angularAxisDesc}
 
 FOCO DOMINANTE:
 ${dominantPlanetaryFocus}
+
+REGENTE DE LA CARTA:
+${chartRulerDesc}
+
+NODOS LUNARES:
+${lunarNodesDesc}
+
+SECTA:
+${sectDesc}
+
+FOCO DISPOSITOR:
+${dispositorDesc}
+
+RECEPCIONES MUTUAS:
+${mutualReceptionDesc}
+
+REGENTES DE CASAS CLAVE:
+${keyHouseRulersDesc}
 
 PLANETAS:
 ${planetsDesc}
@@ -823,8 +974,14 @@ Requisitos estrictos:
 - Evita relleno astrológico genérico y evita repetir la misma idea con otras palabras.
 - No moralices ni uses tono místico vacío.
 - Mantén un tono inteligente, psicológico, cálido y concreto.
+- ${naturalConsultationLine}
+- ${naturalRhythmLine}
+- ${antiAstroClicheLine}
+- ${emotionalSpecificityLine}
+- ${synthesisLine}
 - Haz síntesis: muestra cómo los factores trabajan juntos, no solo uno por uno.
 - Da atención especial a los anclajes reales de la carta: gran tríada, casas angulares, casas dominantes, elementos repetidos y aspectos fuertes.
+- Da peso especial a los aspectos más cerrados por orbe/fuerza y a los regentes de las casas 7, 10, 2 y 8 al hablar de relaciones, carrera y dinero.
 
 El resultado debe sentirse como una consulta astrológica personalizada de alto nivel, no como una plantilla.`;
     }
@@ -841,6 +998,24 @@ ${angularAxisDesc}
 
 ДОМИНИРУЮЩИЙ ФОКУС:
 ${dominantPlanetaryFocus}
+
+УПРАВИТЕЛЬ КАРТЫ:
+${chartRulerDesc}
+
+ЛУННЫЕ УЗЛЫ:
+${lunarNodesDesc}
+
+СЕКТА КАРТЫ:
+${sectDesc}
+
+ДИСПОЗИТОРНЫЙ ФОКУС:
+${dispositorDesc}
+
+ВЗАИМНЫЕ РЕЦЕПЦИИ:
+${mutualReceptionDesc}
+
+УПРАВИТЕЛИ КЛЮЧЕВЫХ ДОМОВ:
+${keyHouseRulersDesc}
 
 ПЛАНЕТЫ:
 ${planetsDesc}
@@ -865,8 +1040,14 @@ ${aspectsDesc}
 - Не используйте шаблонную астрологическую воду и не повторяйте одну мысль разными словами.
 - Не морализируйте и не уходите в мистический туман ради стиля.
 - Тон должен быть умным, психологически точным, теплым и конкретным.
+- ${naturalConsultationLine}
+- ${naturalRhythmLine}
+- ${antiAstroClicheLine}
+- ${emotionalSpecificityLine}
+- ${synthesisLine}
 - Делайте синтез: показывайте, как факторы карты работают вместе.
 - Особое внимание уделяйте нашим главным якорям: большая тройка, угловые дома, повтор элементов, доминанты по домам и сильнейшие аспекты.
+- Отдельно учитывайте самые точные аспекты по орбу/силе и управителей 7, 10, 2 и 8 домов, когда говорите про отношения, карьеру и деньги.
 
 Итоговый текст должен читаться как дорогая персональная консультация по натальной карте, а не как шаблонный гороскоп.`;
   }
@@ -1072,6 +1253,351 @@ ${aspectsDesc}
         if (depth === 0) {
           return text.slice(start, i + 1);
         }
+      }
+    }
+
+    return null;
+  }
+
+  private getSignRuler(sign: string): string {
+    const rulers: Record<string, string> = {
+      Aries: 'mars',
+      Taurus: 'venus',
+      Gemini: 'mercury',
+      Cancer: 'moon',
+      Leo: 'sun',
+      Virgo: 'mercury',
+      Libra: 'venus',
+      Scorpio: 'pluto',
+      Sagittarius: 'jupiter',
+      Capricorn: 'saturn',
+      Aquarius: 'uranus',
+      Pisces: 'neptune',
+    };
+    return rulers[sign] || 'sun';
+  }
+
+  private getChartRulerDescription(
+    planets: any,
+    houses: any,
+    ascendant: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const ascSign =
+      typeof ascendant === 'string'
+        ? ascendant
+        : ascendant?.sign || houses?.[1]?.sign || houses?.['1']?.sign;
+    if (!ascSign) {
+      return locale === 'en'
+        ? 'Chart ruler is not available'
+        : locale === 'es'
+          ? 'No hay regente de carta disponible'
+          : 'Управитель карты не определен';
+    }
+
+    const rulerKey = this.getSignRuler(ascSign);
+    const rulerPlanet = planets?.[rulerKey];
+    if (!rulerPlanet) {
+      return locale === 'en'
+        ? `${this.getPlanetName(rulerKey, locale)} rules the Ascendant sign ${this.getLocalizedSign(ascSign, locale)}.`
+        : locale === 'es'
+          ? `${this.getPlanetName(rulerKey, locale)} rige el Ascendente en ${this.getLocalizedSign(ascSign, locale)}.`
+          : `${this.getPlanetName(rulerKey, locale)} управляет Асцендентом в ${this.getLocalizedSign(ascSign, locale)}.`;
+    }
+
+    const house =
+      typeof rulerPlanet.house === 'number'
+        ? rulerPlanet.house
+        : typeof rulerPlanet.longitude === 'number'
+          ? this.getHouseFromLongitude(rulerPlanet.longitude, houses)
+          : null;
+    const sign = rulerPlanet.sign
+      ? this.getLocalizedSign(rulerPlanet.sign, locale)
+      : this.getLocalizedSign(ascSign, locale);
+
+    if (locale === 'en') {
+      return `${this.getPlanetName(rulerKey, locale)} rules the Ascendant and stands in ${sign}${house ? `, house ${house}` : ''}.`;
+    }
+    if (locale === 'es') {
+      return `${this.getPlanetName(rulerKey, locale)} rige el Ascendente y se ubica en ${sign}${house ? `, casa ${house}` : ''}.`;
+    }
+    return `${this.getPlanetName(rulerKey, locale)} управляет Асцендентом и находится в знаке ${sign}${house ? `, в ${house}-м доме` : ''}.`;
+  }
+
+  private getKeyHouseRulersDescription(
+    planets: any,
+    houses: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const keyHouses = [1, 4, 7, 10];
+    const lines = keyHouses
+      .map((houseNum) => {
+        const sign =
+          houses?.[houseNum]?.sign ?? houses?.[String(houseNum)]?.sign;
+        if (!sign) return null;
+        const rulerKey = this.getSignRuler(sign);
+        const rulerPlanet = planets?.[rulerKey];
+        const localizedSign = this.getLocalizedSign(sign, locale);
+        const rulerName = this.getPlanetName(rulerKey, locale);
+        const rulerHouse =
+          typeof rulerPlanet?.house === 'number'
+            ? rulerPlanet.house
+            : typeof rulerPlanet?.longitude === 'number'
+              ? this.getHouseFromLongitude(rulerPlanet.longitude, houses)
+              : null;
+        const rulerSign = rulerPlanet?.sign
+          ? this.getLocalizedSign(rulerPlanet.sign, locale)
+          : null;
+
+        if (locale === 'en') {
+          return `House ${houseNum} in ${localizedSign} -> ruler ${rulerName}${rulerSign ? ` in ${rulerSign}` : ''}${rulerHouse ? `, house ${rulerHouse}` : ''}`;
+        }
+        if (locale === 'es') {
+          return `Casa ${houseNum} en ${localizedSign} -> regente ${rulerName}${rulerSign ? ` en ${rulerSign}` : ''}${rulerHouse ? `, casa ${rulerHouse}` : ''}`;
+        }
+        return `${houseNum}-й дом в ${localizedSign} -> управитель ${rulerName}${rulerSign ? ` в ${rulerSign}` : ''}${rulerHouse ? `, ${rulerHouse}-й дом` : ''}`;
+      })
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      return locale === 'en'
+        ? 'Key house rulers are not available'
+        : locale === 'es'
+          ? 'No hay regentes de casas clave disponibles'
+          : 'Управители ключевых домов не определены';
+    }
+
+    return lines.join('\n');
+  }
+
+  private getLunarNodesDescription(
+    planets: any,
+    houses: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const northNode = planets?.north_node ?? planets?.northNode;
+    const southNode = planets?.south_node ?? planets?.southNode;
+
+    if (!northNode && !southNode) {
+      return locale === 'en'
+        ? 'Lunar nodes are not available'
+        : locale === 'es'
+          ? 'Los nodos lunares no están disponibles'
+          : 'Лунные узлы не определены';
+    }
+
+    const describeNode = (label: string, node: any) => {
+      if (!node?.sign) return null;
+      const sign = this.getLocalizedSign(node.sign, locale);
+      const house =
+        typeof node.house === 'number'
+          ? node.house
+          : typeof node.longitude === 'number'
+            ? this.getHouseFromLongitude(node.longitude, houses)
+            : null;
+
+      if (locale === 'en') {
+        return `${label}: ${sign}${house ? `, house ${house}` : ''}`;
+      }
+      if (locale === 'es') {
+        return `${label}: ${sign}${house ? `, casa ${house}` : ''}`;
+      }
+      return `${label}: ${sign}${house ? `, ${house}-й дом` : ''}`;
+    };
+
+    return [
+      describeNode('North Node', northNode),
+      describeNode('South Node', southNode),
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  private getDispositorDescription(
+    planets: any,
+    houses: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const keys = Object.keys(planets || {}).filter((key) =>
+      [
+        'sun',
+        'moon',
+        'mercury',
+        'venus',
+        'mars',
+        'jupiter',
+        'saturn',
+        'uranus',
+        'neptune',
+        'pluto',
+      ].includes(key),
+    );
+
+    const ends = new Map<string, number>();
+    for (const key of keys) {
+      const end = this.resolvePromptDispositorEnd(key, planets, 0);
+      if (!end) continue;
+      ends.set(end, (ends.get(end) || 0) + 1);
+    }
+
+    const dominant = Array.from(ends.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (!dominant) {
+      return locale === 'en'
+        ? 'No clear dispositor center'
+        : locale === 'es'
+          ? 'No hay un centro dispositor claro'
+          : 'Явный диспозиторный центр не определен';
+    }
+
+    const [planetKey, count] = dominant;
+    const planet = planets?.[planetKey];
+    const sign = planet?.sign
+      ? this.getLocalizedSign(planet.sign, locale)
+      : null;
+    const house =
+      typeof planet?.house === 'number'
+        ? planet.house
+        : typeof planet?.longitude === 'number'
+          ? this.getHouseFromLongitude(planet.longitude, houses)
+          : null;
+    const planetName = this.getPlanetName(planetKey, locale);
+
+    if (locale === 'en') {
+      return `${planetName}${sign ? ` in ${sign}` : ''}${house ? `, house ${house}` : ''} receives ${count} dispositor chains and may function as an internal center of the chart.`;
+    }
+    if (locale === 'es') {
+      return `${planetName}${sign ? ` en ${sign}` : ''}${house ? `, casa ${house}` : ''} recibe ${count} cadenas dispositores y puede funcionar como centro interno de la carta.`;
+    }
+    return `${planetName}${sign ? ` в ${sign}` : ''}${house ? `, ${house}-й дом` : ''} получает ${count} диспозиторных цепочек и может работать как внутренний центр карты.`;
+  }
+
+  private getSectDescription(
+    planets: any,
+    houses: any,
+    ascendant: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const sunLongitude = planets?.sun?.longitude;
+    const ascLongitude =
+      typeof ascendant?.longitude === 'number'
+        ? ascendant.longitude
+        : (houses?.[1]?.cusp ?? houses?.['1']?.cusp);
+
+    if (typeof sunLongitude !== 'number' || typeof ascLongitude !== 'number') {
+      return locale === 'en'
+        ? 'Sect is not available'
+        : locale === 'es'
+          ? 'La secta no está disponible'
+          : 'Секта карты не определена';
+    }
+
+    const isDayChart = (sunLongitude - ascLongitude + 360) % 360 < 180;
+    if (locale === 'en') {
+      return isDayChart
+        ? 'Day chart: solar and outward-facing factors tend to act more directly.'
+        : 'Night chart: lunar and inward-facing factors tend to carry more weight.';
+    }
+    if (locale === 'es') {
+      return isDayChart
+        ? 'Carta diurna: los factores solares y orientados hacia afuera suelen actuar con más claridad.'
+        : 'Carta nocturna: los factores lunares e internos suelen tener más peso.';
+    }
+    return isDayChart
+      ? 'Дневная карта: солнечные и внешне направленные факторы обычно проявляются прямее.'
+      : 'Ночная карта: лунные и внутренние факторы обычно имеют больший вес.';
+  }
+
+  private getMutualReceptionDescription(
+    planets: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const classicalRulers: Record<string, string> = {
+      Aries: 'mars',
+      Taurus: 'venus',
+      Gemini: 'mercury',
+      Cancer: 'moon',
+      Leo: 'sun',
+      Virgo: 'mercury',
+      Libra: 'venus',
+      Scorpio: 'mars',
+      Sagittarius: 'jupiter',
+      Capricorn: 'saturn',
+      Aquarius: 'saturn',
+      Pisces: 'jupiter',
+    };
+    const supportedKeys = [
+      'sun',
+      'moon',
+      'mercury',
+      'venus',
+      'mars',
+      'jupiter',
+      'saturn',
+    ];
+    const receptions: string[] = [];
+
+    for (let i = 0; i < supportedKeys.length; i += 1) {
+      for (let j = i + 1; j < supportedKeys.length; j += 1) {
+        const a = supportedKeys[i];
+        const b = supportedKeys[j];
+        const signA = planets?.[a]?.sign;
+        const signB = planets?.[b]?.sign;
+        if (!signA || !signB) continue;
+        if (classicalRulers[signA] !== b || classicalRulers[signB] !== a) {
+          continue;
+        }
+        receptions.push(
+          `${this.getPlanetName(a, locale)} ↔ ${this.getPlanetName(b, locale)}`,
+        );
+      }
+    }
+
+    if (receptions.length === 0) {
+      return locale === 'en'
+        ? 'No clear mutual receptions'
+        : locale === 'es'
+          ? 'No hay recepciones mutuas claras'
+          : 'Явных взаимных рецепций нет';
+    }
+
+    return receptions.join(', ');
+  }
+
+  private resolvePromptDispositorEnd(
+    planetKey: string,
+    planets: Record<string, any>,
+    depth: number,
+    visited: Set<string> = new Set(),
+  ): string | null {
+    if (depth > 12 || visited.has(planetKey)) return planetKey;
+    const planet = planets?.[planetKey];
+    if (!planet?.sign) return null;
+    const rulerKey = this.getSignRuler(planet.sign);
+    if (rulerKey === planetKey) return planetKey;
+    visited.add(planetKey);
+    if (!planets?.[rulerKey]) return planetKey;
+    return this.resolvePromptDispositorEnd(
+      rulerKey,
+      planets,
+      depth + 1,
+      visited,
+    );
+  }
+
+  private getHouseFromLongitude(longitude: number, houses: any): number | null {
+    if (!houses || typeof longitude !== 'number') return null;
+
+    for (let i = 1; i <= 12; i += 1) {
+      const current = houses?.[i]?.cusp ?? houses?.[String(i)]?.cusp;
+      const nextIndex = i === 12 ? 1 : i + 1;
+      const next =
+        houses?.[nextIndex]?.cusp ?? houses?.[String(nextIndex)]?.cusp;
+
+      if (typeof current !== 'number' || typeof next !== 'number') continue;
+      if (current <= next) {
+        if (longitude >= current && longitude < next) return i;
+      } else if (longitude >= current || longitude < next) {
+        return i;
       }
     }
 

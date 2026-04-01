@@ -13,6 +13,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Subscription } from '../../types/index';
 
+type GradientColors = readonly [string, string, ...string[]];
+
 interface SubscriptionCardProps {
   subscription: Subscription | null;
   onUpgrade: () => void;
@@ -23,17 +25,17 @@ interface SubscriptionCardProps {
 const SUBSCRIPTION_LEVELS = {
   free: {
     color: '#6B7280',
-    gradient: ['#6B7280', '#4B5563'],
+    gradient: ['#6B7280', '#4B5563'] as GradientColors,
     icon: 'star-outline' as const,
   },
   basic: {
     color: '#8B5CF6',
-    gradient: ['#8B5CF6', '#7C3AED'],
+    gradient: ['#8B5CF6', '#7C3AED'] as GradientColors,
     icon: 'star' as const,
   },
   max: {
     color: '#F59E0B',
-    gradient: ['#F59E0B', '#D97706', '#DC2626'],
+    gradient: ['#F59E0B', '#D97706', '#DC2626'] as GradientColors,
     icon: 'diamond' as const,
   },
 };
@@ -66,9 +68,16 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     scaleAnim.value = withTiming(1, { duration: 100 });
   };
 
-  const currentLevel = subscription?.tier || 'free';
+  const currentLevel: keyof typeof SUBSCRIPTION_LEVELS =
+    subscription?.tier || 'free';
   const levelConfig =
     SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
+  const glowGradient: GradientColors = [
+    levelConfig.gradient[0],
+    levelConfig.gradient[levelConfig.gradient.length - 1] ??
+      levelConfig.gradient[0],
+    'transparent',
+  ];
 
   // Get translated tier name and features
   const tierName = t(`subscription.tiers.${currentLevel}.name`);
@@ -132,7 +141,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         {/* Background Glow */}
         <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
           <LinearGradient
-            colors={[...levelConfig.gradient, 'transparent']}
+            colors={glowGradient}
             style={StyleSheet.absoluteFillObject}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -170,7 +179,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#8B5CF6', '#7C3AED']}
+                  colors={['#8B5CF6', '#7C3AED'] as const}
                   style={styles.upgradeGradient}
                 >
                   <Ionicons name="arrow-up" size={16} color="#fff" />

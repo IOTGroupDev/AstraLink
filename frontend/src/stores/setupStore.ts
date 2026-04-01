@@ -14,19 +14,19 @@ export const defaultStorage = createJSONStorage(() => AsyncStorage);
 export function withPersist<T extends object>(
   config: StateCreator<T, [], []>,
   options: PersistOptions<T>
-): StateCreator<T, [['zustand/persist', unknown]], []> {
+): StateCreator<T, [], []> {
   const { name, version, partialize } = options;
   return persist(config, {
     name,
     version,
     partialize,
     storage: defaultStorage,
-  });
+  }) as StateCreator<T, [], []>;
 }
 
 export function createStoreWithMiddleware<T extends object>(
   config: StateCreator<T, [], []>,
   options: PersistOptions<T>
 ): UseBoundStore<StoreApi<T>> {
-  return create(withPersist<T>(config, options));
+  return create<T>()(withPersist<T>(config, options));
 }

@@ -8,6 +8,7 @@ import {
   getRequiredTiers,
   FEATURE_REQUIREMENTS,
   TRIAL_CONFIG,
+  UpgradeSubscriptionRequest,
 } from '../types/subscription';
 import { logger } from '../services/logger';
 
@@ -45,8 +46,10 @@ export const useSubscription = () => {
 
   // Upgrade подписки
   const upgradeMutation = useMutation({
-    mutationFn: (data: { tier: SubscriptionTier; paymentMethod?: string }) =>
-      subscriptionAPI.upgrade(data.tier, data.paymentMethod),
+    mutationFn: (data: {
+      tier: SubscriptionTier;
+      paymentMethod?: UpgradeSubscriptionRequest['paymentMethod'];
+    }) => subscriptionAPI.upgrade(data.tier, data.paymentMethod),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
     },
@@ -100,7 +103,7 @@ export const useSubscription = () => {
   const isPremium = (): boolean => {
     return (
       isActive &&
-      (tier === SubscriptionTier.PREMIUM || tier === SubscriptionTier.MAX)
+      (tier === SubscriptionTier.BASIC || tier === SubscriptionTier.MAX)
     );
   };
 
@@ -157,7 +160,10 @@ export const useSubscription = () => {
   /**
    * Улучшить подписку (Mock платеж)
    */
-  const upgrade = async (tier: SubscriptionTier, paymentMethod = 'mock') => {
+  const upgrade = async (
+    tier: SubscriptionTier,
+    paymentMethod: UpgradeSubscriptionRequest['paymentMethod'] = 'mock'
+  ) => {
     try {
       await upgradeMutation.mutateAsync({ tier, paymentMethod });
       return { success: true };
@@ -190,8 +196,8 @@ export const useSubscription = () => {
     if (requiredTiers.length === 0) return null;
 
     // Возвращаем самый дешевый тир
-    if (requiredTiers.includes(SubscriptionTier.PREMIUM)) {
-      return SubscriptionTier.PREMIUM;
+    if (requiredTiers.includes(SubscriptionTier.BASIC)) {
+      return SubscriptionTier.BASIC;
     }
     return SubscriptionTier.MAX;
   };

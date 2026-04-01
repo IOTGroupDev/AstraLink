@@ -174,6 +174,8 @@ export class ChartService {
       sign?: string;
       houseNum?: number | string;
       aspect?: string;
+      planetA?: string;
+      planetB?: string;
     },
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<string[]> {

@@ -22,6 +22,10 @@
     "moon": "Луна",
     "ascendant": "Асцендент"
   },
+  "premiumNarrative": {
+    "title": "AI Premium",
+    "subtitle": "Расширенный синтез карты"
+  },
   "statistics": {
     "title": "Статистика карты",
     "planets": "Планеты",
@@ -85,6 +89,25 @@
     "summaryInProgress": "Резюме формируется",
     "summaryNotFormed": "Полное резюме личности пока не сформировано.",
     "dataAvailableInOtherTabs": "Данные доступны в других вкладках: Обзор, Планеты, Дома, Аспекты.",
+    "summaryGuideTitle": "Как читать это резюме",
+    "summaryGuideText": "Карточки ниже показывают суть. Нажмите любую, чтобы открыть полный разбор без перегруза экрана.",
+    "openDetails": "Подробнее",
+    "houseShort": " дом",
+    "chartRuler": "Управитель карты",
+    "sect": "Секта карты",
+    "dayChart": "Дневная карта",
+    "nightChart": "Ночная карта",
+    "lunarNodes": "Лунные узлы",
+    "dispositors": "Диспозиторный центр",
+    "keyHouseRulers": "Управители ключевых домов",
+    "keyHouseRulersHint": "Это показывает, через какие реальные сферы жизни раскрываются главные оси карты.",
+    "relationshipMechanics": "Механика отношений",
+    "careerMechanics": "Механика карьеры",
+    "financeMechanics": "Механика денег",
+    "strongestAspects": "Сильнейшие аспекты",
+    "strongestAspectsHint": "Это самые влиятельные связи карты, которые сильнее всего окрашивают характер и сценарии.",
+    "uniqueFeatures": "Что выделяет эту карту",
+    "uniqueFeaturesHint": "Ниже собраны самые характерные астрологические особенности именно этой карты.",
     "lifePurpose": "Жизненная цель",
     "personalityTraits": "Личностные качества",
     "talents": "Таланты и дары",
@@ -96,7 +119,9 @@
     "healthFocus": "Здоровье",
     "financialApproach": "Финансовый подход",
     "dominantElements": "Доминирующие элементы",
+    "dominantElementsHint": "Эти элементы показывают, какая энергия проявляется в карте естественнее и чаще.",
     "dominantQualities": "Доминирующие качества",
+    "dominantQualitiesHint": "Эти качества показывают, как карта запускает, удерживает и меняет процессы.",
     "recommendations": "Рекомендации"
   },
   "ascendant": {

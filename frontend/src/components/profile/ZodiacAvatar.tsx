@@ -8,7 +8,7 @@ interface ZodiacAvatarProps {
   showText?: boolean;
 }
 
-const ZODIAC_SYMBOLS = {
+const ZODIAC_SYMBOLS: Record<string, string> = {
   Aries: '♈',
   Taurus: '♉',
   Gemini: '♊',

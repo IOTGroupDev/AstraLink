@@ -459,11 +459,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
         visible={modalVisible}
         onRequestClose={closeModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={closeModal}>
-          <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={closeModal} />
+          <View style={styles.modalContent}>
             <LinearGradient
               colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
               start={{ x: 0, y: 0.44 }}
@@ -495,12 +493,13 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
                 style={styles.modalScroll}
                 contentContainerStyle={styles.modalScrollContent}
                 showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
               >
                 <Text style={styles.modalText}>{selectedContent}</Text>
               </ScrollView>
             </LinearGradient>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -646,10 +645,13 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
   modalContent: {
     width: '100%',

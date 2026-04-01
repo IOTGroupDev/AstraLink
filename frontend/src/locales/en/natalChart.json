@@ -22,6 +22,10 @@
     "moon": "Moon",
     "ascendant": "Ascendant"
   },
+  "premiumNarrative": {
+    "title": "AI Premium",
+    "subtitle": "Extended chart synthesis"
+  },
   "statistics": {
     "title": "Chart Statistics",
     "planets": "Planets",
@@ -85,6 +89,25 @@
     "summaryInProgress": "Summary is being generated",
     "summaryNotFormed": "Complete personality summary not yet formed.",
     "dataAvailableInOtherTabs": "Data is available in other tabs: Overview, Planets, Houses, Aspects.",
+    "summaryGuideTitle": "How to read this summary",
+    "summaryGuideText": "The cards below show the essence. Tap any card to open the full interpretation without overloading the screen.",
+    "openDetails": "Read more",
+    "houseShort": " house",
+    "chartRuler": "Chart Ruler",
+    "sect": "Chart Sect",
+    "dayChart": "Day Chart",
+    "nightChart": "Night Chart",
+    "lunarNodes": "Lunar Nodes",
+    "dispositors": "Dispositor Focus",
+    "keyHouseRulers": "Key House Rulers",
+    "keyHouseRulersHint": "This shows which real-life areas carry the chart's main axes.",
+    "relationshipMechanics": "Relationship Mechanics",
+    "careerMechanics": "Career Mechanics",
+    "financeMechanics": "Money Mechanics",
+    "strongestAspects": "Strongest Aspects",
+    "strongestAspectsHint": "These are the most influential links in the chart and the ones that color the life story most strongly.",
+    "uniqueFeatures": "What stands out in this chart",
+    "uniqueFeaturesHint": "These are the most distinctive astrological features of this particular chart.",
     "lifePurpose": "Life Purpose",
     "personalityTraits": "Personality Traits",
     "talents": "Talents and Gifts",
@@ -96,7 +119,9 @@
     "healthFocus": "Health",
     "financialApproach": "Financial Approach",
     "dominantElements": "Dominant Elements",
+    "dominantElementsHint": "These elements show which energy in the chart comes through most naturally and repeatedly.",
     "dominantQualities": "Dominant Qualities",
+    "dominantQualitiesHint": "These qualities show how the chart initiates, sustains, and changes processes.",
     "recommendations": "Recommendations"
   },
   "ascendant": {

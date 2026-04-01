@@ -2,13 +2,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface SubscriptionLimits {
+export interface SubscriptionLimits {
   natalChart: number | 'full' | 'basic';
   horoscope: 'ai' | 'interpreter';
 }
 
-interface SubscriptionStatus {
-  tier: 'free' | 'premium' | 'max';
+export interface SubscriptionStatus {
+  tier: 'free' | 'basic' | 'max';
   isActive: boolean;
   isTrial: boolean;
   expiresAt?: string;
@@ -40,7 +40,7 @@ const FREE_LIMITS: SubscriptionLimits = {
   horoscope: 'interpreter',
 };
 
-const PREMIUM_LIMITS: SubscriptionLimits = {
+const BASIC_LIMITS: SubscriptionLimits = {
   natalChart: 1,
   horoscope: 'ai',
 };

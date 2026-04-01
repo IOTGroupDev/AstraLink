@@ -235,6 +235,7 @@ interface AstralInputProps extends TextInputProps {
   icon?: keyof typeof Ionicons.glyphMap;
   required?: boolean;
   animationValue?: any;
+  isFocused?: boolean;
 }
 
 const AstralInput: React.FC<AstralInputProps> = ({

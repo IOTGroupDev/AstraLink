@@ -2,20 +2,20 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface PlanetPosition {
+export interface PlanetPosition {
   longitude: number;
   sign: string;
   degree: number;
   speed?: number;
 }
 
-interface HousePosition {
+export interface HousePosition {
   longitude: number;
   sign: string;
   degree: number;
 }
 
-interface NatalChart {
+export interface NatalChart {
   id: string;
   userId: string;
   data: {

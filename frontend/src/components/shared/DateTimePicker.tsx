@@ -17,6 +17,7 @@ import Animated, {
   withTiming,
   interpolate,
   interpolateColor,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 interface DateTimePickerProps {
@@ -28,7 +29,8 @@ interface DateTimePickerProps {
   required?: boolean;
   error?: boolean;
   errorMessage?: string;
-  animationValue: Animated.SharedValue<number>;
+  animationValue: SharedValue<number>;
+  isFocused?: boolean;
 }
 
 /**

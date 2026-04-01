@@ -31,6 +31,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   compact = false,
 }) => {
   const { t } = useTranslation();
+  const completedGradient = ['#10B981', '#059669'] as const;
   const [expanded, setExpanded] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -276,9 +277,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                 disabled={isCompleted && !lesson.quiz}
               >
                 <LinearGradient
-                  colors={
-                    isCompleted ? ['#10B981', '#059669'] : lesson.gradient
-                  }
+                  colors={isCompleted ? completedGradient : lesson.gradient}
                   style={styles.completeButtonGradient}
                 >
                   <Ionicons

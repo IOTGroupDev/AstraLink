@@ -51,7 +51,6 @@ const initI18n = async () => {
   const defaultLanguage = storedLanguage || getDefaultLanguage();
 
   await i18n.use(initReactI18next).init({
-    compatibilityJSON: 'v3',
     resources: {
       en: { translation: en },
       es: { translation: es },

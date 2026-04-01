@@ -1,5 +1,4 @@
-import { AstroLesson } from './types';
-import { LessonCategory } from '../types/lessons';
+import { AstroLesson, LessonCategory } from '../types/lessons';
 
 /**
  * База данных астрологических уроков
@@ -816,7 +815,7 @@ export const getRelatedLessons = (lessonId: string): AstroLesson[] => {
 
   return lesson.relatedLessons
     .map((id: string) => getLessonById(id))
-    .filter((l: undefined): l is AstroLesson => l !== undefined);
+    .filter((lesson): lesson is AstroLesson => lesson !== undefined);
 };
 
 /**

@@ -670,6 +670,45 @@ function mergeTraits(a: string[] = [], b: string[] = [], cap = 6): string[] {
   return uniq.slice(0, cap);
 }
 
+function normalizeExtendedLine(line: string): string {
+  return line
+    .replace(/^[•\-\s]+/, '')
+    .replace(/[.]+$/g, '')
+    .trim();
+}
+
+function buildSupplementalText(
+  baseText: string,
+  extendedLines: string[] | undefined,
+  locale: 'ru' | 'en' | 'es',
+): string {
+  if (!baseText || !extendedLines?.length) return baseText;
+
+  const normalizedBase = baseText.toLowerCase();
+  const cleaned = extendedLines
+    .map(normalizeExtendedLine)
+    .filter(Boolean)
+    .filter((line) => !normalizedBase.includes(line.toLowerCase()));
+
+  if (!cleaned.length) return baseText;
+
+  const maxAdditions = baseText.length < 120 ? 2 : 1;
+  const additions = cleaned.slice(0, maxAdditions);
+  if (!additions.length) return baseText;
+
+  const punctuated = additions.map((line) =>
+    /[.!?…]$/.test(line) ? line : `${line}.`,
+  );
+
+  if (locale === 'en') {
+    return `${baseText} ${punctuated.join(' ')}`.trim();
+  }
+  if (locale === 'es') {
+    return `${baseText} ${punctuated.join(' ')}`.trim();
+  }
+  return `${baseText} ${punctuated.join(' ')}`.trim();
+}
+
 /**
  * Extended details (15 lines max recommended)
  */
@@ -707,16 +746,238 @@ export function getExtendedHouseSign(
   return byHouse[sign] || [];
 }
 
-/**
- * Placeholder: no extended aspect templates yet
- */
+function getPlanetDomain(
+  planet: PlanetKey,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): string {
+  const ru: Record<PlanetKey, string> = {
+    sun: 'воля, идентичность и способ проявлять себя',
+    moon: 'эмоции, потребности и чувство безопасности',
+    mercury: 'мышление, речь и способ обрабатывать информацию',
+    venus: 'привязанности, ценности и стиль отношений',
+    mars: 'энергия, напор и способ действовать',
+    jupiter: 'рост, вера и расширение горизонтов',
+    saturn: 'ответственность, границы и внутренний каркас',
+    uranus: 'свобода, перемены и стремление к обновлению',
+    neptune: 'воображение, идеалы и тонкая чувствительность',
+    pluto: 'сила, кризисы и глубокая трансформация',
+    north_node: 'вектор развития и задачи роста',
+    south_node: 'привычные сценарии и прошлый опыт',
+    lilith: 'сырая инстинктивная сила и тема запретного',
+    chiron: 'уязвимость, исцеление и путь мудрости',
+  };
+  const en: Record<PlanetKey, string> = {
+    sun: 'will, identity, and conscious self-expression',
+    moon: 'emotions, needs, and inner safety',
+    mercury: 'thinking, speech, and information processing',
+    venus: 'attachment, values, and relating style',
+    mars: 'energy, drive, and action',
+    jupiter: 'growth, faith, and expansion',
+    saturn: 'responsibility, structure, and boundaries',
+    uranus: 'freedom, change, and awakening',
+    neptune: 'imagination, ideals, and subtle sensitivity',
+    pluto: 'power, crisis, and deep transformation',
+    north_node: 'growth direction and developmental tasks',
+    south_node: 'habit patterns and familiar past tendencies',
+    lilith: 'raw instinct, taboo, and uncompromising truth',
+    chiron: 'vulnerability, healing, and earned wisdom',
+  };
+  const es: Record<PlanetKey, string> = {
+    sun: 'voluntad, identidad y autoexpresión consciente',
+    moon: 'emociones, necesidades y seguridad interior',
+    mercury: 'pensamiento, habla y procesamiento de información',
+    venus: 'afecto, valores y estilo de vínculo',
+    mars: 'energía, impulso y forma de actuar',
+    jupiter: 'crecimiento, fe y expansión',
+    saturn: 'responsabilidad, estructura y límites',
+    uranus: 'libertad, cambio y despertar',
+    neptune: 'imaginación, ideales y sensibilidad sutil',
+    pluto: 'poder, crisis y transformación profunda',
+    north_node: 'dirección evolutiva y tareas de crecimiento',
+    south_node: 'patrones conocidos y experiencia pasada',
+    lilith: 'instinto crudo, tabú y verdad incómoda',
+    chiron: 'vulnerabilidad, sanación y sabiduría adquirida',
+  };
+
+  return (locale === 'en' ? en : locale === 'es' ? es : ru)[planet];
+}
+
+function getAspectCoreMeaning(
+  aspect: AspectType,
+  locale: 'ru' | 'en' | 'es' = 'ru',
+): {
+  dynamic: string;
+  gift: string;
+  challenge: string;
+  practice: string;
+} {
+  const ru: Record<
+    AspectType,
+    { dynamic: string; gift: string; challenge: string; practice: string }
+  > = {
+    conjunction: {
+      dynamic: 'сливает две энергии в один мощный узел',
+      gift: 'дает цельность, концентрацию и сильную включенность',
+      challenge: 'может делать реакцию слишком прямой и неразделенной',
+      practice:
+        'учиться различать, где заканчивается один импульс и начинается другой',
+    },
+    sextile: {
+      dynamic: 'создает рабочую совместимость и возможность сотрудничества',
+      gift: 'дает полезные шансы, легкость контакта и обучаемость',
+      challenge: 'часто остается потенциалом, если не делать конкретный шаг',
+      practice:
+        'активно использовать возникающие возможности, а не ждать идеального момента',
+    },
+    square: {
+      dynamic: 'создает внутреннее трение и требует перестройки привычек',
+      gift: 'дает силу роста, характер и высокую мотивацию к развитию',
+      challenge:
+        'может включать защитные реакции, раздражение и чувство постоянного давления',
+      practice:
+        'переводить напряжение в дисциплину, а не в самосаботаж или конфликт',
+    },
+    trine: {
+      dynamic: 'связывает энергии естественно и плавно',
+      gift: 'дает талант, внутреннюю поддержку и ощущение потока',
+      challenge:
+        'может создавать избыточную расслабленность и привычку полагаться только на легкость',
+      practice: 'осознанно превращать природный дар в навык и результат',
+    },
+    opposition: {
+      dynamic: 'ставит две энергии на разные полюса и требует баланса',
+      gift: 'дает объемный взгляд, способность видеть обе стороны и развивать зрелость',
+      challenge:
+        'часто переживается как качели, проекция на других или внутренний раскол',
+      practice:
+        'не выбирать один полюс против другого, а искать живой диалог между ними',
+    },
+  };
+  const en: Record<
+    AspectType,
+    { dynamic: string; gift: string; challenge: string; practice: string }
+  > = {
+    conjunction: {
+      dynamic: 'fuses two energies into one concentrated knot',
+      gift: 'brings focus, intensity, and strong involvement',
+      challenge: 'can make reactions too merged and immediate',
+      practice: 'learn to separate one impulse from the other before acting',
+    },
+    sextile: {
+      dynamic: 'creates workable cooperation and an opening for growth',
+      gift: 'brings useful opportunities, ease of contact, and learnability',
+      challenge: 'often stays only potential if no concrete step is taken',
+      practice: 'use openings actively instead of waiting for a perfect moment',
+    },
+    square: {
+      dynamic: 'creates friction and demands a restructuring of habits',
+      gift: 'builds character, momentum, and development through effort',
+      challenge: 'can trigger defensiveness, irritation, and pressure',
+      practice:
+        'turn tension into discipline instead of conflict or self-sabotage',
+    },
+    trine: {
+      dynamic: 'links two energies naturally and fluently',
+      gift: 'brings talent, support, and a sense of flow',
+      challenge: 'can become complacent if you rely only on ease',
+      practice: 'turn natural gifts into conscious skill and consistent output',
+    },
+    opposition: {
+      dynamic: 'places two energies on opposite poles and asks for balance',
+      gift: 'offers perspective, maturity, and the ability to see both sides',
+      challenge: 'can feel like oscillation, projection, or inner division',
+      practice:
+        'build dialogue between both poles instead of choosing one against the other',
+    },
+  };
+  const es: Record<
+    AspectType,
+    { dynamic: string; gift: string; challenge: string; practice: string }
+  > = {
+    conjunction: {
+      dynamic: 'fusiona dos energías en un mismo núcleo',
+      gift: 'da concentración, intensidad y gran implicación',
+      challenge: 'puede volver la reacción demasiado inmediata o mezclada',
+      practice: 'aprender a distinguir un impulso del otro antes de actuar',
+    },
+    sextile: {
+      dynamic: 'crea cooperación útil y una apertura para crecer',
+      gift: 'trae oportunidades, facilidad de contacto y aprendizaje',
+      challenge:
+        'a menudo queda solo como potencial si no se concreta en acción',
+      practice:
+        'usar activamente las oportunidades en vez de esperar el momento perfecto',
+    },
+    square: {
+      dynamic: 'genera fricción y exige reestructurar hábitos',
+      gift: 'fortalece carácter, impulso y crecimiento mediante esfuerzo',
+      challenge:
+        'puede activar irritación, defensa y sensación de presión constante',
+      practice:
+        'convertir la tensión en disciplina y no en conflicto o autosabotaje',
+    },
+    trine: {
+      dynamic: 'conecta dos energías de forma natural y fluida',
+      gift: 'aporta talento, apoyo interno y sensación de flujo',
+      challenge: 'puede volver cómoda la zona conocida y frenar desarrollo',
+      practice:
+        'transformar el talento natural en habilidad consciente y resultados',
+    },
+    opposition: {
+      dynamic: 'coloca dos energías en polos distintos y pide equilibrio',
+      gift: 'aporta perspectiva, madurez y capacidad de ver ambos lados',
+      challenge: 'puede sentirse como vaivén, proyección o división interna',
+      practice:
+        'crear diálogo entre ambos polos en lugar de elegir uno contra el otro',
+    },
+  };
+
+  return (locale === 'en' ? en : locale === 'es' ? es : ru)[aspect];
+}
+
 export function getExtendedAspect(
-  _aspect: AspectType,
-  _planetA: PlanetKey,
-  _planetB: PlanetKey,
-  _locale: 'ru' | 'en' | 'es' = 'ru',
+  aspect: AspectType,
+  planetA: PlanetKey,
+  planetB: PlanetKey,
+  locale: 'ru' | 'en' | 'es' = 'ru',
 ): string[] {
-  return [];
+  const specific = getAspectPairTemplate(aspect, planetA, planetB, locale);
+  const a = getPlanetName(planetA, locale);
+  const b = getPlanetName(planetB, locale);
+  const aDomain = getPlanetDomain(planetA, locale);
+  const bDomain = getPlanetDomain(planetB, locale);
+  const core = getAspectCoreMeaning(aspect, locale);
+
+  if (locale === 'en') {
+    return [
+      specific || `${a} and ${b}: this aspect ${core.dynamic}.`,
+      `${a} describes ${aDomain}, while ${b} speaks about ${bDomain}. Their contact shows how these two parts of the psyche interact in real life.`,
+      `Gift of the aspect: it ${core.gift}.`,
+      `Main difficulty: it ${core.challenge}.`,
+      `In practice, this aspect works best when you ${core.practice}.`,
+      `Pay attention to moments when the themes of ${a} and ${b} are activated at the same time: they often reveal one of the key inner patterns of the chart.`,
+    ];
+  }
+
+  if (locale === 'es') {
+    return [
+      specific || `${a} y ${b}: este aspecto ${core.dynamic}.`,
+      `${a} habla de ${aDomain}, mientras ${b} muestra ${bDomain}. Su contacto revela cómo interactúan en la vida real estas dos partes de la psique.`,
+      `Potencial del aspecto: ${core.gift}.`,
+      `Dificultad principal: ${core.challenge}.`,
+      `En la práctica, este aspecto funciona mejor cuando logras ${core.practice}.`,
+      `Observa los momentos en que los temas de ${a} y ${b} se activan a la vez: ahí suele aparecer uno de los patrones centrales de la carta.`,
+    ];
+  }
+
+  return [
+    specific || `${a} и ${b}: этот аспект ${core.dynamic}.`,
+    `${a} показывает ${aDomain}, а ${b} связан с темой ${bDomain}. Их контакт раскрывает, как в жизни взаимодействуют две важные части вашей психики.`,
+    `Потенциал аспекта: он ${core.gift}.`,
+    `Главная сложность: он ${core.challenge}.`,
+    `На практике этот аспект раскрывается лучше всего, когда вы ${core.practice}.`,
+    `Особенно важно отслеживать ситуации, где темы ${a} и ${b} включаются одновременно: в них часто виден один из центральных внутренних сценариев карты.`,
+  ];
 }
 
 // Public API
@@ -737,16 +998,29 @@ export function getPlanetInSignText(
   const d = dicts(locale);
   const bySign = d.planetInSign[planet] || {};
   const found: string | undefined = bySign[sign];
-  if (found) return found;
+  const ext = getExtendedPlanetInSign(planet, sign, locale);
+  if (found) return buildSupplementalText(found, ext, locale);
 
   // Fallback generic line
   if (locale === 'en') {
-    return `${getPlanetName(planet, 'en')} in ${getSignName(sign, 'en')} influences your life in a unique way.`;
+    return buildSupplementalText(
+      `${getPlanetName(planet, 'en')} in ${getSignName(sign, 'en')} influences your life in a unique way.`,
+      ext,
+      locale,
+    );
   }
   if (locale === 'es') {
-    return `${getPlanetName(planet, 'es')} en ${getSignName(sign, 'es')} influye en tu vida de manera única.`;
+    return buildSupplementalText(
+      `${getPlanetName(planet, 'es')} en ${getSignName(sign, 'es')} influye en tu vida de manera única.`,
+      ext,
+      locale,
+    );
   }
-  return `${getPlanetName(planet, 'ru')} в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+  return buildSupplementalText(
+    `${getPlanetName(planet, 'ru')} в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`,
+    ext,
+    locale,
+  );
 }
 
 export function getKeywords(
@@ -821,14 +1095,27 @@ export function getAscendantText(
 ): string {
   const d = dicts(locale);
   const found = d.ascendant[sign];
-  if (found) return found;
+  const ext = getExtendedAscendant(sign, locale);
+  if (found) return buildSupplementalText(found, ext, locale);
   if (locale === 'en') {
-    return `Ascendant in ${getSignName(sign, 'en')} shapes your outward image.`;
+    return buildSupplementalText(
+      `Ascendant in ${getSignName(sign, 'en')} shapes your outward image.`,
+      ext,
+      locale,
+    );
   }
   if (locale === 'es') {
-    return `Ascendente en ${getSignName(sign, 'es')} moldea tu imagen externa.`;
+    return buildSupplementalText(
+      `Ascendente en ${getSignName(sign, 'es')} moldea tu imagen externa.`,
+      ext,
+      locale,
+    );
   }
-  return `Асцендент в ${getSignName(sign, 'ru')} формирует ваш внешний образ.`;
+  return buildSupplementalText(
+    `Асцендент в ${getSignName(sign, 'ru')} формирует ваш внешний образ.`,
+    ext,
+    locale,
+  );
 }
 
 export function getAscendantMeta(
@@ -914,24 +1201,49 @@ export function getHouseSignInterpretation(
 ): string {
   const d = dicts(locale);
   const byHouse = d.houseSignInterpretations[houseNum];
+  const ext = getExtendedHouseSign(houseNum, sign, locale);
   if (!byHouse) {
     if (locale === 'en') {
-      return `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`;
+      return buildSupplementalText(
+        `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`,
+        ext,
+        locale,
+      );
     }
     if (locale === 'es') {
-      return `${houseNum} casa en ${getSignName(sign, 'es')} influye en tu vida de manera única.`;
+      return buildSupplementalText(
+        `${houseNum} casa en ${getSignName(sign, 'es')} influye en tu vida de manera única.`,
+        ext,
+        locale,
+      );
     }
-    return `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+    return buildSupplementalText(
+      `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`,
+      ext,
+      locale,
+    );
   }
   const found = byHouse[sign];
-  if (found) return found;
+  if (found) return buildSupplementalText(found, ext, locale);
   if (locale === 'en') {
-    return `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`;
+    return buildSupplementalText(
+      `${houseNum} house in ${getSignName(sign, 'en')} influences your life in a unique way.`,
+      ext,
+      locale,
+    );
   }
   if (locale === 'es') {
-    return `${houseNum} casa en ${getSignName(sign, 'es')} influye en tu vida de manera única.`;
+    return buildSupplementalText(
+      `${houseNum} casa en ${getSignName(sign, 'es')} influye en tu vida de manera única.`,
+      ext,
+      locale,
+    );
   }
-  return `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`;
+  return buildSupplementalText(
+    `${houseNum}-й дом в ${getSignName(sign, 'ru')} влияет на вашу жизнь уникальным образом.`,
+    ext,
+    locale,
+  );
 }
 
 export function getGeneralTemplates(
@@ -1164,15 +1476,15 @@ export function getAspectInterpretation(
 
   const a = getPlanetName(planetA, locale);
   const b = getPlanetName(planetB, locale);
-  const aspectName = getAspectName(aspect, locale);
+  const core = getAspectCoreMeaning(aspect, locale);
 
   if (locale === 'en') {
-    return `${a} ${aspectName} ${b}, affecting your character and life path.`;
+    return `${a} and ${b} form an aspect that ${core.dynamic}. This connection ${core.gift}.`;
   }
   if (locale === 'es') {
-    return `${a} ${aspectName} ${b}, influyendo en tu carácter y camino de vida.`;
+    return `${a} y ${b} forman un aspecto que ${core.dynamic}. Esta conexión ${core.gift}.`;
   }
-  return `${a} ${aspectName} ${b}, что влияет на ваш характер и жизненный путь.`;
+  return `${a} и ${b} образуют аспект, который ${core.dynamic}. Эта связь ${core.gift}.`;
 }
 
 /**

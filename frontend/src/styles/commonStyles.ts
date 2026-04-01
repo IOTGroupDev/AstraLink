@@ -325,7 +325,7 @@ export const commonStyles = StyleSheet.create({
  * Используйте если нужны динамические значения
  */
 export const createThemedStyles = <T extends StyleSheet.NamedStyles<T>>(
-  stylesFactory: (theme: typeof theme) => T
+  stylesFactory: (currentTheme: typeof theme) => T
 ): T => {
   return StyleSheet.create(stylesFactory(theme));
 };

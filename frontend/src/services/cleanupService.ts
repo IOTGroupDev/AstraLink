@@ -59,7 +59,7 @@ export const listAllStorageKeys = async (): Promise<string[]> => {
   try {
     const keys = await AsyncStorage.getAllKeys();
     storageLogger.log('AsyncStorage keys:', keys);
-    return keys;
+    return [...keys];
   } catch (error) {
     storageLogger.error('Error listing storage keys:', error);
     return [];

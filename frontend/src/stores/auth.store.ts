@@ -17,12 +17,19 @@ export interface AuthProfile {
   onboardingCompleted?: boolean;
 }
 
+type AuthCompatUser = AuthProfile & {
+  role?: string;
+};
+
 interface AuthStateStore {
   authState: AuthState;
   session: Session | null;
   profile: AuthProfile | null;
+  user: AuthProfile | null;
   isLoading: boolean;
   error: string | null;
+  isAuthenticated: boolean;
+  onboardingCompleted: boolean;
 
   biometricEnabled: boolean;
   biometricAvailable: boolean;
@@ -32,9 +39,13 @@ interface AuthStateStore {
   setAuthState: (state: AuthState) => void;
   setSession: (session: Session | null) => void;
   setProfile: (profile: AuthProfile | null) => void;
+  setUser: (user: AuthCompatUser | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   resetAuth: () => void;
+  login: (user: AuthCompatUser) => void;
+  logout: () => void;
+  setOnboardingCompleted: (completed: boolean) => Promise<void>;
 
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
   setRememberMe: (remember: boolean) => Promise<void>;
@@ -49,8 +60,11 @@ export const useAuthStore = create<AuthStateStore>()(
       authState: 'BOOT',
       session: null,
       profile: null,
+      user: null,
       isLoading: false,
       error: null,
+      isAuthenticated: false,
+      onboardingCompleted: false,
 
       biometricEnabled: false,
       biometricAvailable: false,
@@ -58,8 +72,35 @@ export const useAuthStore = create<AuthStateStore>()(
       rememberMe: true,
 
       setAuthState: (state) => set({ authState: state }),
-      setSession: (session) => set({ session }),
-      setProfile: (profile) => set({ profile }),
+      setSession: (session) =>
+        set((state) => ({
+          session,
+          isAuthenticated: !!session && state.authState !== 'UNAUTHORIZED',
+        })),
+      setProfile: (profile) =>
+        set((state) => ({
+          profile,
+          user: profile,
+          onboardingCompleted: !!profile?.onboardingCompleted,
+          isAuthenticated:
+            !!profile && state.authState !== 'UNAUTHORIZED'
+              ? true
+              : state.isAuthenticated,
+        })),
+      setUser: (user) =>
+        set((state) => ({
+          user,
+          profile: user,
+          onboardingCompleted: !!user?.onboardingCompleted,
+          isAuthenticated: !!user,
+          authState: user
+            ? user.onboardingCompleted
+              ? 'AUTHORIZED'
+              : state.session
+                ? 'ONBOARDING'
+                : state.authState
+            : 'UNAUTHORIZED',
+        })),
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       resetAuth: () =>
@@ -67,9 +108,52 @@ export const useAuthStore = create<AuthStateStore>()(
           authState: 'UNAUTHORIZED',
           session: null,
           profile: null,
+          user: null,
           isLoading: false,
           error: null,
+          isAuthenticated: false,
+          onboardingCompleted: false,
         }),
+      login: (user) =>
+        set((state) => ({
+          user,
+          profile: user,
+          isAuthenticated: true,
+          onboardingCompleted: !!user.onboardingCompleted,
+          authState:
+            state.session || user.onboardingCompleted
+              ? 'AUTHORIZED'
+              : 'ONBOARDING',
+          error: null,
+        })),
+      logout: () =>
+        set({
+          authState: 'UNAUTHORIZED',
+          session: null,
+          profile: null,
+          user: null,
+          isLoading: false,
+          error: null,
+          isAuthenticated: false,
+          onboardingCompleted: false,
+        }),
+      setOnboardingCompleted: async (completed) => {
+        await tokenService.setOnboardingCompleted(completed);
+        set((state) => ({
+          onboardingCompleted: completed,
+          profile: state.profile
+            ? { ...state.profile, onboardingCompleted: completed }
+            : state.profile,
+          user: state.user
+            ? { ...state.user, onboardingCompleted: completed }
+            : state.user,
+          authState: completed
+            ? 'AUTHORIZED'
+            : state.session || state.profile
+              ? 'ONBOARDING'
+              : state.authState,
+        }));
+      },
 
       setBiometricEnabled: async (enabled) => {
         await tokenService.setBiometricEnabled(enabled);
@@ -128,6 +212,7 @@ export const useAuthStore = create<AuthStateStore>()(
 export const useAuthState = () => useAuthStore((state) => state.authState);
 export const useAuthSession = () => useAuthStore((state) => state.session);
 export const useAuthProfile = () => useAuthStore((state) => state.profile);
+export const useAuthUser = () => useAuthStore((state) => state.user);
 export const useAuthLoading = () => useAuthStore((state) => state.isLoading);
 export const useAuthError = () => useAuthStore((state) => state.error);
 export const useIsAuthenticated = () =>
@@ -140,3 +225,5 @@ export const useBiometricEnabled = () =>
 export const useBiometricAvailable = () =>
   useAuthStore((state) => state.biometricAvailable);
 export const useRememberMe = () => useAuthStore((state) => state.rememberMe);
+
+export type User = AuthProfile;

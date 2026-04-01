@@ -22,6 +22,10 @@
     "moon": "Luna",
     "ascendant": "Ascendente"
   },
+  "premiumNarrative": {
+    "title": "AI Premium",
+    "subtitle": "Síntesis ampliada de la carta"
+  },
   "statistics": {
     "title": "Estadísticas de la Carta",
     "planets": "Planetas",
@@ -85,6 +89,25 @@
     "summaryInProgress": "El resumen se está generando",
     "summaryNotFormed": "El resumen completo de personalidad aún no se ha formado.",
     "dataAvailableInOtherTabs": "Los datos están disponibles en otras pestañas: Resumen, Planetas, Casas, Aspectos.",
+    "summaryGuideTitle": "Cómo leer esta síntesis",
+    "summaryGuideText": "Las tarjetas de abajo muestran lo esencial. Toca cualquiera para abrir la interpretación completa sin sobrecargar la pantalla.",
+    "openDetails": "Ver más",
+    "houseShort": " casa",
+    "chartRuler": "Regente de la carta",
+    "sect": "Secta de la carta",
+    "dayChart": "Carta diurna",
+    "nightChart": "Carta nocturna",
+    "lunarNodes": "Nodos lunares",
+    "dispositors": "Centro dispositor",
+    "keyHouseRulers": "Regentes de casas clave",
+    "keyHouseRulersHint": "Esto muestra qué áreas reales de la vida expresan los ejes principales de la carta.",
+    "relationshipMechanics": "Mecánica de relaciones",
+    "careerMechanics": "Mecánica profesional",
+    "financeMechanics": "Mecánica del dinero",
+    "strongestAspects": "Aspectos más fuertes",
+    "strongestAspectsHint": "Estos son los vínculos más influyentes de la carta y los que más colorean el carácter y los patrones de vida.",
+    "uniqueFeatures": "Qué distingue esta carta",
+    "uniqueFeaturesHint": "Aquí se reúnen las características astrológicas más distintivas de esta carta.",
     "lifePurpose": "Propósito de Vida",
     "personalityTraits": "Rasgos de Personalidad",
     "talents": "Talentos y Dones",
@@ -96,7 +119,9 @@
     "healthFocus": "Salud",
     "financialApproach": "Enfoque Financiero",
     "dominantElements": "Elementos Dominantes",
+    "dominantElementsHint": "Estos elementos muestran qué energía de la carta se expresa con más naturalidad y frecuencia.",
     "dominantQualities": "Cualidades Dominantes",
+    "dominantQualitiesHint": "Estas cualidades muestran cómo la carta inicia, sostiene y transforma los procesos.",
     "recommendations": "Recomendaciones"
   },
   "ascendant": {

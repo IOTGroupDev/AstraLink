@@ -19,6 +19,21 @@ export class NatalService {
     private geoService: GeoService,
   ) {}
 
+  private normalizeBirthDateInput(input?: string | null): string | null {
+    if (typeof input !== 'string') return null;
+    const trimmed = input.trim();
+    const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    const year = parsed.getUTCFullYear();
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   /**
    * Создать натальную карту с интерпретацией при регистрации
    */
@@ -45,8 +60,8 @@ export class NatalService {
       throw new BadRequestException('Все данные рождения обязательны');
     }
 
-    const birthDate = new Date(birthDateISO);
-    if (isNaN(birthDate.getTime())) {
+    const dateStr = this.normalizeBirthDateInput(birthDateISO);
+    if (!dateStr) {
       throw new BadRequestException('Некорректная дата рождения');
     }
 
@@ -57,8 +72,12 @@ export class NatalService {
       );
     }
 
-    const dateStr = birthDate.toISOString().split('T')[0];
-    const location = await this.resolveBirthLocation(birthPlace, birthLocation);
+    const location = await this.resolveBirthLocation(
+      birthPlace,
+      birthLocation,
+      dateStr,
+      birthTime,
+    );
 
     // Рассчитываем натальную карту через Swiss Ephemeris
     const natalChartData = await this.ephemerisService.calculateNatalChart(
@@ -205,7 +224,12 @@ export class NatalService {
 
     if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
       // Fallback данные для демонстрации
-      const fallbackLocation = await this.resolveBirthLocation('Москва');
+      const fallbackLocation = await this.resolveBirthLocation(
+        'Москва',
+        undefined,
+        '1990-05-15',
+        '14:30',
+      );
       const fallbackChartData = await this.ephemerisService.calculateNatalChart(
         '1990-05-15',
         '14:30',
@@ -222,9 +246,17 @@ export class NatalService {
     }
 
     // Рассчитываем натальную карту
-    const birthDate = new Date(user.birth_date).toISOString().split('T')[0];
+    const birthDate = this.normalizeBirthDateInput(user.birth_date);
+    if (!birthDate) {
+      throw new BadRequestException('Некорректная дата рождения');
+    }
     const birthTime = user.birth_time;
-    const location = await this.resolveBirthLocation(user.birth_place);
+    const location = await this.resolveBirthLocation(
+      user.birth_place,
+      undefined,
+      birthDate,
+      birthTime,
+    );
 
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       birthDate,
@@ -282,6 +314,8 @@ export class NatalService {
   private async resolveBirthLocation(
     birthPlace: string,
     birthLocation?: { latitude: number; longitude: number; timezone?: string },
+    birthDateISO?: string,
+    birthTime?: string,
   ): Promise<{ latitude: number; longitude: number; timezone: number }> {
     if (birthLocation) {
       if (
@@ -296,7 +330,12 @@ export class NatalService {
       return {
         latitude: birthLocation.latitude,
         longitude: birthLocation.longitude,
-        timezone: this.parseTimezoneOffset(birthLocation.timezone, birthPlace),
+        timezone: this.parseTimezoneOffset(
+          birthLocation.timezone,
+          birthPlace,
+          birthDateISO,
+          birthTime,
+        ),
       };
     }
 
@@ -309,7 +348,12 @@ export class NatalService {
         return {
           latitude: suggestion.lat,
           longitude: suggestion.lon,
-          timezone: this.parseTimezoneOffset(suggestion.tzid, birthPlace),
+          timezone: this.parseTimezoneOffset(
+            suggestion.tzid,
+            birthPlace,
+            birthDateISO,
+            birthTime,
+          ),
         };
       }
     } catch (_e) {
@@ -319,7 +363,12 @@ export class NatalService {
     return this.getLocationCoordinates(birthPlace);
   }
 
-  private parseTimezoneOffset(timezone?: string, birthPlace?: string): number {
+  private parseTimezoneOffset(
+    timezone?: string,
+    birthPlace?: string,
+    birthDateISO?: string,
+    birthTime?: string,
+  ): number {
     if (!timezone) {
       return this.getLocationCoordinates(birthPlace || 'default').timezone;
     }
@@ -341,6 +390,67 @@ export class NatalService {
       }
     }
 
+    const historicalOffset = this.resolveHistoricalTimezoneOffset(
+      timezone,
+      birthDateISO,
+      birthTime,
+    );
+    if (historicalOffset !== null) {
+      return historicalOffset;
+    }
+
     return this.getLocationCoordinates(birthPlace || 'default').timezone;
+  }
+
+  private resolveHistoricalTimezoneOffset(
+    timezone: string,
+    birthDateISO?: string,
+    birthTime?: string,
+  ): number | null {
+    if (!birthDateISO || !birthTime || !timezone.includes('/')) {
+      return null;
+    }
+
+    const dateMatch = birthDateISO.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const timeMatch = birthTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (!dateMatch || !timeMatch) {
+      return null;
+    }
+
+    try {
+      const year = Number(dateMatch[1]);
+      const month = Number(dateMatch[2]);
+      const day = Number(dateMatch[3]);
+      const hour = Number(timeMatch[1]);
+      const minute = Number(timeMatch[2]);
+
+      const probe = new Date(
+        Date.UTC(year, month - 1, day, hour, minute, 0, 0),
+      );
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        timeZoneName: 'shortOffset',
+      }).formatToParts(probe);
+      const tzName = parts.find((part) => part.type === 'timeZoneName')?.value;
+      if (!tzName) {
+        return null;
+      }
+
+      const match = tzName.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?$/i);
+      if (!match) {
+        return null;
+      }
+
+      const hours = Number(match[1]);
+      const minutes = match[2] ? Number(match[2]) : 0;
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return null;
+      }
+
+      const sign = hours >= 0 ? 1 : -1;
+      return hours + sign * (minutes / 60);
+    } catch {
+      return null;
+    }
   }
 }
