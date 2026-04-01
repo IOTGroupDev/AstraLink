@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './client';
@@ -8,6 +9,9 @@ import { authLogger } from '../logger';
 import type { SignupRequest, AuthResponse } from '../../types';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const OAUTH_REDIRECT_PATH = 'auth/callback';
+const OAUTH_NATIVE_REDIRECT_URI = 'astralink://auth/callback';
 
 // Persisted backoff for Supabase email OTP rate limits.
 // We can't bypass server limits; this only prevents hammering /otp and makes UX messaging accurate across app restarts.
@@ -98,39 +102,44 @@ function computeNextOtpRetryAfterSec(
 }
 
 // Redirect URI helper for OTP/Magic Link/OAuth
+function isExpoGo(): boolean {
+  const constants = Constants as any;
+  return (
+    constants?.executionEnvironment === 'storeClient' ||
+    constants?.appOwnership === 'expo'
+  );
+}
+
 function getRedirectUri(): string {
   try {
-    // DEV: universal proxy (works in Expo Go, avoids origin issues)
-    // __DEV__ is provided by Metro/RN
-    // eslint-disable-next-line no-undef
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      const url = AuthSession.makeRedirectUri({
-        useProxy: true,
-        path: 'auth/callback',
-      });
-      authLogger.log('🔗 DEV redirect via AuthSession proxy:', url);
-      return url;
-    }
-
     // Web prod: same-origin callback route
     if (
       Platform.OS === 'web' &&
       typeof window !== 'undefined' &&
       window.location
     ) {
-      return `${window.location.origin}/auth/callback`;
+      return `${window.location.origin}/${OAUTH_REDIRECT_PATH}`;
     }
 
-    // Native prod: custom scheme
-    const url = AuthSession.makeRedirectUri({
-      scheme: 'astralink',
-      path: 'auth/callback',
-    });
-    authLogger.log('🔗 PROD native redirect URI via makeRedirectUri:', url);
+    const expoGo = isExpoGo();
+    const url = expoGo
+      ? AuthSession.makeRedirectUri({
+          path: OAUTH_REDIRECT_PATH,
+        })
+      : AuthSession.makeRedirectUri({
+          native: OAUTH_NATIVE_REDIRECT_URI,
+          scheme: 'astralink',
+          path: OAUTH_REDIRECT_PATH,
+        });
+
+    authLogger.log(
+      `🔗 ${expoGo ? 'Expo Go' : 'Native'} redirect URI via makeRedirectUri:`,
+      url
+    );
     return url;
   } catch (error) {
     authLogger.error('❌ Ошибка получения redirect URI:', error);
-    return 'astralink://auth/callback';
+    return OAUTH_NATIVE_REDIRECT_URI;
   }
 }
 
@@ -156,6 +165,58 @@ function extractFromRedirectUrl(redirectedUrl: string): {
   } catch {
     return { accessToken: null, refreshToken: null, code: null };
   }
+}
+
+async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
+  accessToken: string;
+  refreshToken: string;
+}> {
+  const { accessToken, refreshToken, code } =
+    extractFromRedirectUrl(redirectedUrl);
+
+  if (accessToken && refreshToken) {
+    const { error: setErr } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (setErr) {
+      throw setErr;
+    }
+
+    return { accessToken, refreshToken };
+  }
+
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      throw error;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const exchangedAccessToken = sessionData.session?.access_token ?? null;
+    const exchangedRefreshToken = sessionData.session?.refresh_token ?? null;
+
+    if (!exchangedAccessToken || !exchangedRefreshToken) {
+      throw new Error('Не удалось получить сессию после OAuth code exchange');
+    }
+
+    return {
+      accessToken: exchangedAccessToken,
+      refreshToken: exchangedRefreshToken,
+    };
+  }
+
+  throw new Error('Токены или code не получены из OAuth потока');
+}
+
+function ensureUserProfileInBackground(data: {
+  userId: string;
+  email: string;
+}): void {
+  void authAPI.ensureUserProfile(data).catch((ensureError: any) => {
+    authLogger.warn('⚠️ ensure-profile failed (background):', ensureError);
+  });
 }
 
 export const authAPI = {
@@ -330,17 +391,10 @@ export const authAPI = {
 
       authLogger.log('✅ Код подтвержден');
 
-      try {
-        await authAPI.ensureUserProfile({
-          userId: data.user!.id,
-          email: data.user!.email!,
-        });
-      } catch (ensureError: any) {
-        authLogger.warn(
-          '⚠️ ensure-profile failed (non-blocking):',
-          ensureError
-        );
-      }
+      ensureUserProfileInBackground({
+        userId: data.user!.id,
+        email: data.user!.email!,
+      });
 
       return {
         access_token: data.session.access_token,
@@ -348,7 +402,6 @@ export const authAPI = {
           id: data.user!.id,
           email: data.user!.email!,
           name: (data.user!.user_metadata as any)?.name || '',
-          role: 'user',
         },
       };
     } catch (error: any) {
@@ -399,17 +452,10 @@ export const authAPI = {
             'Не удалось получить пользователя после Apple sign in'
           );
 
-        try {
-          await authAPI.ensureUserProfile({
-            userId: user.id,
-            email: user.email || '',
-          });
-        } catch (ensureError: any) {
-          authLogger.warn(
-            '⚠️ ensure-profile failed (Apple iOS, non-blocking):',
-            ensureError
-          );
-        }
+        ensureUserProfileInBackground({
+          userId: user.id,
+          email: user.email || '',
+        });
 
         return {
           access_token: accessToken || '',
@@ -417,7 +463,6 @@ export const authAPI = {
             id: user.id,
             email: user.email || '',
             name: (user.user_metadata as any)?.name || '',
-            role: 'user',
           },
         };
       }
@@ -441,19 +486,9 @@ export const authAPI = {
           }
         );
         if (result.type === 'success' && result.url) {
-          const { accessToken, refreshToken } = extractFromRedirectUrl(
+          const { accessToken } = await establishSessionFromRedirectUrl(
             result.url
           );
-
-          if (accessToken && refreshToken) {
-            const { error: setErr } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (setErr) throw setErr;
-          } else if (!accessToken) {
-            throw new Error('Токены не получены из Apple OAuth потока');
-          }
 
           const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
@@ -462,17 +497,10 @@ export const authAPI = {
               'Не удалось получить пользователя после Apple OAuth'
             );
 
-          try {
-            await authAPI.ensureUserProfile({
-              userId: user.id,
-              email: user.email || '',
-            });
-          } catch (ensureError: any) {
-            authLogger.warn(
-              '⚠️ ensure-profile failed (Apple OAuth, non-blocking):',
-              ensureError
-            );
-          }
+          ensureUserProfileInBackground({
+            userId: user.id,
+            email: user.email || '',
+          });
 
           return {
             access_token: accessToken || '',
@@ -480,7 +508,6 @@ export const authAPI = {
               id: user.id,
               email: user.email || '',
               name: (user.user_metadata as any)?.name || '',
-              role: 'user',
             },
           };
         }
@@ -519,35 +546,18 @@ export const authAPI = {
           }
         );
         if (result.type === 'success' && result.url) {
-          const { accessToken, refreshToken } = extractFromRedirectUrl(
+          const { accessToken } = await establishSessionFromRedirectUrl(
             result.url
           );
-
-          if (accessToken && refreshToken) {
-            const { error: setErr } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (setErr) throw setErr;
-          } else if (!accessToken) {
-            throw new Error('Токены не получены из Google OAuth потока');
-          }
 
           const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
 
-          try {
-            await authAPI.ensureUserProfile({
-              userId: user.id,
-              email: user.email || '',
-            });
-          } catch (ensureError: any) {
-            authLogger.warn(
-              '⚠️ ensure-profile failed (Google OAuth, non-blocking):',
-              ensureError
-            );
-          }
+          ensureUserProfileInBackground({
+            userId: user.id,
+            email: user.email || '',
+          });
 
           return {
             access_token: accessToken || '',
@@ -555,7 +565,6 @@ export const authAPI = {
               id: user.id,
               email: user.email!,
               name: (user.user_metadata as any)?.name || '',
-              role: 'user',
             },
           };
         }

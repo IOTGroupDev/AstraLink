@@ -88,7 +88,7 @@ if [ "$ENVIRONMENT" == "production" ]; then
   sleep 10
 
   for i in {1..30}; do
-    if docker-compose exec -T backend node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" 2>/dev/null; then
+    if docker-compose exec -T backend node -e "require('http').get('http://localhost:3000/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))" 2>/dev/null; then
       echo "✅ New containers are healthy"
       break
     fi
@@ -130,7 +130,7 @@ echo ""
 echo "🔍 Verifying deployment..."
 sleep 5
 
-if docker-compose exec -T backend node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" 2>/dev/null; then
+if docker-compose exec -T backend node -e "require('http').get('http://localhost:3000/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))" 2>/dev/null; then
   echo "✅ Health check passed"
 else
   echo "❌ Health check failed"
