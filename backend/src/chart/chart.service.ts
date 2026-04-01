@@ -198,6 +198,7 @@ export class ChartService {
     userId: string,
     period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
     locale: 'ru' | 'en' | 'es' = 'ru',
+    userTzOffsetMinutes = 0,
   ) {
     // Check user subscription (cached)
     const subscription = await this.getCachedSubscription(userId);
@@ -209,6 +210,7 @@ export class ChartService {
       period,
       isPremium,
       locale,
+      userTzOffsetMinutes,
     );
   }
 
@@ -216,30 +218,43 @@ export class ChartService {
    * Get all horoscope types (for widget)
    * ✅ ОПТИМИЗАЦИЯ: Использует кэшированную подписку
    */
-  async getAllHoroscopes(userId: string, locale: 'ru' | 'en' | 'es' = 'ru') {
+  async getAllHoroscopes(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+    userTzOffsetMinutes = 0,
+  ) {
     // Check user subscription (cached)
     const subscription = await this.getCachedSubscription(userId);
     const isPremium = this.isPremiumSubscription(subscription);
 
     const [today, tomorrow, week, month] = await Promise.all([
-      this.horoscopeService.generateHoroscope(userId, 'day', isPremium, locale),
+      this.horoscopeService.generateHoroscope(
+        userId,
+        'day',
+        isPremium,
+        locale,
+        userTzOffsetMinutes,
+      ),
       this.horoscopeService.generateHoroscope(
         userId,
         'tomorrow',
         isPremium,
         locale,
+        userTzOffsetMinutes,
       ),
       this.horoscopeService.generateHoroscope(
         userId,
         'week',
         isPremium,
         locale,
+        userTzOffsetMinutes,
       ),
       this.horoscopeService.generateHoroscope(
         userId,
         'month',
         isPremium,
         locale,
+        userTzOffsetMinutes,
       ),
     ]);
 

@@ -24,6 +24,13 @@ const buildLocalDateParams = (date?: string): URLSearchParams => {
   });
 };
 
+const buildLocalTimezoneParams = (): URLSearchParams => {
+  const now = new Date();
+  return new URLSearchParams({
+    tzOffsetMinutes: String(-now.getTimezoneOffset()),
+  });
+};
+
 export const chartAPI = {
   getNatalChart: async (): Promise<Chart | null> => {
     try {
@@ -73,9 +80,10 @@ export const chartAPI = {
     locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<any> => {
     try {
-      const response = await api.get(
-        `/chart/horoscope?period=${period}&locale=${locale}`
-      );
+      const params = buildLocalTimezoneParams();
+      params.set('period', period);
+      params.set('locale', locale);
+      const response = await api.get(`/chart/horoscope?${params.toString()}`);
       return response.data;
     } catch (error) {
       chartLogger.error(`Ошибка загрузки гороскопа на ${period}`, error);
@@ -93,7 +101,11 @@ export const chartAPI = {
     isPremium: boolean;
   }> => {
     try {
-      const response = await api.get(`/chart/horoscope/all?locale=${locale}`);
+      const params = buildLocalTimezoneParams();
+      params.set('locale', locale);
+      const response = await api.get(
+        `/chart/horoscope/all?${params.toString()}`
+      );
       return response.data;
     } catch (error) {
       chartLogger.error('Ошибка загрузки всех гороскопов', error);
@@ -174,7 +186,8 @@ export const chartAPI = {
     emotionalPhase: 'peak' | 'high' | 'low' | 'critical';
     intellectualPhase: 'peak' | 'high' | 'low' | 'critical';
   }> => {
-    const url = date ? `/chart/biorhythms?date=${date}` : '/chart/biorhythms';
+    const params = buildLocalDateParams(date);
+    const url = `/chart/biorhythms?${params.toString()}`;
     const response = await api.get(url);
     return response.data;
   },

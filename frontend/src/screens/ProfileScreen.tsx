@@ -41,6 +41,7 @@ import LanguageSelector from '../components/settings/LanguageSelector';
 import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
 import { BottomTabFade } from '../components/shared/BottomTabFade';
 import CompactScreenHeader from '../components/shared/CompactScreenHeader';
+import { getBirthDateParts } from '../utils/birthDate';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -613,9 +614,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
 // Helper Functions
 const getZodiacSign = (birthDate: string): string => {
-  const date = new Date(birthDate);
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
+  const birthDateParts = getBirthDateParts(birthDate);
+  if (!birthDateParts) {
+    return 'Pisces';
+  }
+
+  const { month, day } = birthDateParts;
 
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Aries';
   if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'Taurus';

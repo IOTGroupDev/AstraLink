@@ -6,6 +6,10 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { EphemerisService } from '../../services/ephemeris.service';
+import {
+  getBirthDateParts,
+  normalizeBirthDateValue,
+} from '@/common/utils/birth-data.util';
 
 @Injectable()
 export class BiorhythmService {
@@ -15,6 +19,27 @@ export class BiorhythmService {
     private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
   ) {}
+
+  private toUtcNoonDate(value?: string): Date {
+    const parts = getBirthDateParts(value);
+    if (parts) {
+      return new Date(
+        Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0),
+      );
+    }
+
+    const parsed = value ? new Date(value) : new Date();
+    return new Date(
+      Date.UTC(
+        parsed.getUTCFullYear(),
+        parsed.getUTCMonth(),
+        parsed.getUTCDate(),
+        12,
+        0,
+        0,
+      ),
+    );
+  }
 
   /**
    * Get real biorhythms based on user's birth date (using Swiss Ephemeris JD)
@@ -30,17 +55,7 @@ export class BiorhythmService {
     intellectual: number;
   }> {
     // Target date (noon UTC for Julian day stability)
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const targetDateNoon = new Date(
-      Date.UTC(
-        targetDate.getUTCFullYear(),
-        targetDate.getUTCMonth(),
-        targetDate.getUTCDate(),
-        12,
-        0,
-        0,
-      ),
-    );
+    const targetDateNoon = this.toUtcNoonDate(dateStr);
 
     // Get user's birth date from Supabase (admin client to bypass RLS)
     const { data: user, error: userErr } =
@@ -52,18 +67,9 @@ export class BiorhythmService {
         if (natalChart) {
           const bd =
             natalChart?.data?.birthDate || natalChart?.data?.birth_date;
-          if (bd) {
-            const birth = new Date(bd as string);
-            const birthNoon = new Date(
-              Date.UTC(
-                birth.getUTCFullYear(),
-                birth.getUTCMonth(),
-                birth.getUTCDate(),
-                12,
-                0,
-                0,
-              ),
-            );
+          const normalizedBirthDate = normalizeBirthDateValue(bd);
+          if (normalizedBirthDate) {
+            const birthNoon = this.toUtcNoonDate(normalizedBirthDate);
 
             const jdBirth = this.ephemerisService.dateToJulianDay(birthNoon);
             const jdTarget =
@@ -94,17 +100,11 @@ export class BiorhythmService {
       throw new NotFoundException('User birth date not found');
     }
 
-    const birth = new Date(user.birth_date as string);
-    const birthNoon = new Date(
-      Date.UTC(
-        birth.getUTCFullYear(),
-        birth.getUTCMonth(),
-        birth.getUTCDate(),
-        12,
-        0,
-        0,
-      ),
-    );
+    const normalizedBirthDate = normalizeBirthDateValue(user.birth_date);
+    if (!normalizedBirthDate) {
+      throw new NotFoundException('User birth date not found');
+    }
+    const birthNoon = this.toUtcNoonDate(normalizedBirthDate);
 
     // Difference in Julian days via Swiss Ephemeris (real source)
     const jdBirth = this.ephemerisService.dateToJulianDay(birthNoon);

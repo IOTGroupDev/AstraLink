@@ -33,9 +33,15 @@ import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecomme
 import { chartAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
-import { Chart, TransitsResponse } from '../types/index';
+import { Chart } from '../types/index';
 import { chartLogger } from '../services/logger';
 import { getLessonsByLocale } from '../services/lessons-database.localized';
+import {
+  addLocalDays,
+  formatLocalDate,
+  getBirthDateParts,
+  normalizeBirthDateValue,
+} from '../utils/birthDate';
 
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -76,7 +82,6 @@ const HoroscopeScreen: React.FC = () => {
 
   // State для данных
   const [chart, setChart] = useState<Chart | null>(null);
-  const [transits, setTransits] = useState<TransitsResponse | null>(null);
   const [currentPlanets, setCurrentPlanets] = useState<any>(null);
   const [predictions, setPredictions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -106,28 +111,45 @@ const HoroscopeScreen: React.FC = () => {
     targetDateISO?: string
   ) => {
     try {
-      if (!birthDateISO) return null;
-      const birth = new Date(birthDateISO);
-      if (isNaN(birth.getTime())) return null;
+      const birthParts = getBirthDateParts(birthDateISO);
+      if (!birthParts) return null;
 
       // Целевая дата = сегодня (локальная) либо переданная
-      const now = targetDateISO ? new Date(targetDateISO) : new Date();
+      const targetParts = getBirthDateParts(targetDateISO);
+      const now = targetParts
+        ? new Date(
+            Date.UTC(
+              targetParts.year,
+              targetParts.month - 1,
+              targetParts.day,
+              12,
+              0,
+              0
+            )
+          )
+        : new Date();
 
       // Используем «полдень по UTC» для обеих дат, чтобы исключить сдвиги по часовым поясам
-      const toUTCNoon = (d: Date) =>
-        new Date(
-          Date.UTC(
-            d.getUTCFullYear(),
-            d.getUTCMonth(),
-            d.getUTCDate(),
-            12,
-            0,
-            0
-          )
-        );
-
-      const birthNoonUTC = toUTCNoon(birth);
-      const targetNoonUTC = toUTCNoon(now);
+      const birthNoonUTC = new Date(
+        Date.UTC(
+          birthParts.year,
+          birthParts.month - 1,
+          birthParts.day,
+          12,
+          0,
+          0
+        )
+      );
+      const targetNoonUTC = new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate(),
+          12,
+          0,
+          0
+        )
+      );
 
       const dayMs = 24 * 60 * 60 * 1000;
       const days = Math.max(
@@ -179,13 +201,12 @@ const HoroscopeScreen: React.FC = () => {
 
         setChart(chartData);
 
+        const todayLocal = new Date();
+        const fromDate = formatLocalDate(todayLocal);
+        const toDate = formatLocalDate(addLocalDays(todayLocal, 7));
+
         const [transitsResult, planetsResult] = await Promise.allSettled([
-          chartAPI.getTransits(
-            new Date().toISOString().split('T')[0],
-            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-              .toISOString()
-              .split('T')[0]
-          ),
+          chartAPI.getTransits(fromDate, toDate),
           chartAPI.getCurrentPlanets(),
         ]);
 
@@ -198,7 +219,6 @@ const HoroscopeScreen: React.FC = () => {
         chartLogger.log('Получены транзиты', transitsData);
         chartLogger.log('Получены текущие планеты', planetsData);
 
-        setTransits(transitsData);
         setCurrentPlanets(planetsData?.planets ?? null);
 
         await loadAllPredictions(forcePredictions);
@@ -206,10 +226,7 @@ const HoroscopeScreen: React.FC = () => {
         // Загружаем биоритмы
         try {
           // Локальная дата пользователя (YYYY-MM-DD), чтобы избежать смещения по UTC на бэкенде
-          const now = new Date();
-          const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-            now.getDate()
-          ).padStart(2, '0')}`;
+          const localDateStr = formatLocalDate(new Date());
 
           const b = await chartAPI.getBiorhythms(localDateStr);
 
@@ -225,9 +242,9 @@ const HoroscopeScreen: React.FC = () => {
             near50(b.intellectual);
 
           const birthISO =
-            (chartData?.data as any)?.birthDate ||
+            normalizeBirthDateValue((chartData?.data as any)?.birthDate) ||
             (chartData?.data as any)?.birth_date ||
-            chartData?.birthDate ||
+            normalizeBirthDateValue(chartData?.birthDate) ||
             (chartData as any)?.birth_date;
 
           const clientCalc = looksFlat
@@ -253,14 +270,11 @@ const HoroscopeScreen: React.FC = () => {
           chartLogger.error('Ошибка загрузки биоритмов', e);
           // Попробуем хотя бы клиентский расчёт, если есть дата рождения
           try {
-            const now = new Date();
-            const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-              now.getDate()
-            ).padStart(2, '0')}`;
+            const localDateStr = formatLocalDate(new Date());
             const birthISO =
-              (chartData?.data as any)?.birthDate ||
+              normalizeBirthDateValue((chartData?.data as any)?.birthDate) ||
               (chartData?.data as any)?.birth_date ||
-              chartData?.birthDate ||
+              normalizeBirthDateValue(chartData?.birthDate) ||
               (chartData as any)?.birth_date;
 
             const clientCalc = computeClientBiorhythms(birthISO, localDateStr);

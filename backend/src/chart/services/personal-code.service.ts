@@ -610,7 +610,8 @@ export class PersonalCodeService {
 
     const sunSign = chartData.planets?.sun?.sign || 'неизвестно';
     const moonSign = chartData.planets?.moon?.sign || 'неизвестно';
-    const ascSign = chartData.houses?.[0]?.sign || 'неизвестно';
+    const ascSign =
+      chartData.ascendant?.sign || chartData.houses?.[1]?.sign || 'неизвестно';
 
     const prompt =
       locale === 'en'

@@ -341,7 +341,10 @@ export class TransitService {
 
     const sunSign = natalChart.data?.planets?.sun?.sign || 'неизвестно';
     const moonSign = natalChart.data?.planets?.moon?.sign || 'неизвестно';
-    const ascendant = natalChart.data?.houses?.[0]?.sign || 'неизвестно';
+    const ascendant =
+      natalChart.data?.ascendant?.sign ||
+      natalChart.data?.houses?.[1]?.sign ||
+      'неизвестно';
 
     const prompt =
       locale === 'en'

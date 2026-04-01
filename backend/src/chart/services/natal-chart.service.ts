@@ -17,7 +17,6 @@ import { RedisService } from '../../redis/redis.service';
 import { ChartRepository } from '../../repositories/chart.repository';
 import { createHash } from 'crypto';
 import {
-  getSignColors,
   getExtendedPlanetInSign,
   getExtendedAscendant,
   getExtendedHouseSign,
@@ -25,6 +24,10 @@ import {
 } from '../../modules/shared/astro-text';
 import type { PlanetKey, Sign } from '../../modules/shared/astro-text/types';
 import { GeoService } from '../../modules/geo/geo.service';
+import {
+  normalizeBirthDateValue,
+  normalizeBirthTimeValue,
+} from '@/common/utils/birth-data.util';
 
 @Injectable()
 export class NatalChartService {
@@ -71,6 +74,27 @@ export class NatalChartService {
     return `${year}-${month}-${day}`;
   }
 
+  private hasCanonicalBirthMetadata(chartData: any): boolean {
+    const birthDate = normalizeBirthDateValue(chartData?.birthDate);
+    const birthTime = normalizeBirthTimeValue(chartData?.birthTime);
+    const birthDateTimeUtc = chartData?.birthDateTimeUtc;
+    const calculationVersion = chartData?.metadata?.calculationVersion;
+
+    return Boolean(
+      birthDate &&
+      birthDate === chartData?.birthDate &&
+      birthTime &&
+      birthTime === chartData?.birthTime &&
+      typeof birthDateTimeUtc === 'string' &&
+      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+      calculationVersion === 'utc-fixed-v2',
+    );
+  }
+
+  private needsBirthDataUpgrade(chartData: any): boolean {
+    return !this.hasCanonicalBirthMetadata(chartData);
+  }
+
   /**
    * Create natal chart with interpretation at registration
    */
@@ -85,6 +109,9 @@ export class NatalChartService {
 
     // If chart already exists with interpretation, return it
     if (existing && existing.data?.interpretation) {
+      if (this.needsBirthDataUpgrade(existing.data)) {
+        return this.forceRecalculateNatalChart(userId);
+      }
       return existing;
     }
 
@@ -134,6 +161,7 @@ export class NatalChartService {
       metadata: {
         ...natalChartData?.metadata,
         fingerprint,
+        calculationVersion: 'utc-fixed-v2',
       },
     };
 
@@ -165,6 +193,18 @@ export class NatalChartService {
     }
 
     const chartData = chart.data;
+
+    if (this.needsBirthDataUpgrade(chartData)) {
+      try {
+        return await this.forceRecalculateNatalChart(userId);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to auto-upgrade natal chart birth metadata for user ${userId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
 
     // 1) Check fingerprint vs current user profile (if profile filled)
     let currentFingerprint: string | null = null;
@@ -226,6 +266,7 @@ export class NatalChartService {
           metadata: {
             ...newNatal?.metadata,
             fingerprint: currentFingerprint,
+            calculationVersion: 'utc-fixed-v2',
           },
         };
 
@@ -268,23 +309,7 @@ export class NatalChartService {
           chartData,
         );
 
-      // If no fingerprint stored yet but we can derive from chartData, try to set from chartData
       const derivedFingerprint = existingFingerprint;
-      try {
-        if (
-          !derivedFingerprint &&
-          chartData?.birthDate &&
-          chartData?.location
-        ) {
-          const d = new Date(chartData.birthDate as string)
-            .toISOString()
-            .split('T')[0];
-          // chartData.location likely { latitude, longitude, timezone } but not place string; skip place in that case
-          // leave fingerprint undefined if not derivable
-        }
-      } catch {
-        // ignore
-      }
 
       // Update chart with interpretation and version (preserve metadata)
       const updatedData = {
@@ -345,6 +370,18 @@ export class NatalChartService {
       );
     }
 
+    if (this.needsBirthDataUpgrade(chart.data)) {
+      try {
+        return await this.forceRecalculateNatalChart(userId);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to auto-upgrade natal chart for user ${userId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
     return {
       id: chart.id,
       userId: chart.user_id,
@@ -361,6 +398,9 @@ export class NatalChartService {
     // Check existing chart via repository
     const existingChart = await this.chartRepository.findByUserId(userId);
     if (existingChart) {
+      if (this.needsBirthDataUpgrade(existingChart.data)) {
+        return this.forceRecalculateNatalChart(userId);
+      }
       return {
         id: existingChart.id,
         userId: existingChart.user_id,
@@ -455,6 +495,7 @@ export class NatalChartService {
       metadata: {
         ...natalChartData?.metadata,
         fingerprint,
+        calculationVersion: 'utc-fixed-v2',
       },
     };
 
@@ -1009,7 +1050,7 @@ export class NatalChartService {
 
     const location = await this.resolveBirthLocation(
       birthPlace,
-      birthDateISO,
+      dateStr,
       birthTime,
     );
     const natalChartData = await this.ephemerisService.calculateNatalChart(
@@ -1033,7 +1074,7 @@ export class NatalChartService {
         ...natalChartData?.metadata,
         fingerprint,
         recalculatedAt: new Date().toISOString(),
-        calculationVersion: 'utc-fixed-v1',
+        calculationVersion: 'utc-fixed-v2',
       },
     };
 

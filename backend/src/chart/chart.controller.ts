@@ -76,6 +76,10 @@ export class ChartController {
     );
   }
 
+  private formatDateParam(date: Date): string {
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  }
+
   @Get('natal')
   @ApiOperation({ summary: 'Получить натальную карту пользователя' })
   @ApiResponse({ status: 200, description: 'Натальная карта' })
@@ -204,17 +208,31 @@ export class ChartController {
     description: 'ru | en | es',
     required: false,
   })
+  @ApiQuery({
+    name: 'tzOffsetMinutes',
+    description: 'Смещение пользователя от UTC в минутах',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Гороскоп на выбранный период' })
   async getHoroscope(
     @Request() req: AuthenticatedRequest,
     @Query('period') period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
     @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+    @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getHoroscope(userId, period, locale);
+
+    const tzOffsetMinutes = Number.parseInt(tzOffsetMinutesStr ?? '0', 10);
+
+    return this.chartService.getHoroscope(
+      userId,
+      period,
+      locale,
+      Number.isFinite(tzOffsetMinutes) ? tzOffsetMinutes : 0,
+    );
   }
 
   @Get('horoscope/all')
@@ -226,16 +244,29 @@ export class ChartController {
     description: 'ru | en | es',
     required: false,
   })
+  @ApiQuery({
+    name: 'tzOffsetMinutes',
+    description: 'Смещение пользователя от UTC в минутах',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Все гороскопы' })
   async getAllHoroscopes(
     @Request() req: AuthenticatedRequest,
     @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+    @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getAllHoroscopes(userId, locale);
+
+    const tzOffsetMinutes = Number.parseInt(tzOffsetMinutesStr ?? '0', 10);
+
+    return this.chartService.getAllHoroscopes(
+      userId,
+      locale,
+      Number.isFinite(tzOffsetMinutes) ? tzOffsetMinutes : 0,
+    );
   }
 
   @Get('current')
@@ -257,16 +288,27 @@ export class ChartController {
       'Дата в формате YYYY-MM-DD (опционально, по умолчанию сегодня)',
     required: false,
   })
+  @ApiQuery({
+    name: 'tzOffsetMinutes',
+    description: 'Смещение пользователя от UTC в минутах',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Биоритмы' })
   async getBiorhythms(
     @Request() req: AuthenticatedRequest,
     @Query('date') date?: string,
+    @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getBiorhythms(userId, date);
+
+    const resolvedDate = this.formatDateParam(
+      this.parseUserLocalDate(date, tzOffsetMinutesStr),
+    );
+
+    return this.chartService.getBiorhythms(userId, resolvedDate);
   }
 
   @Get('transits')

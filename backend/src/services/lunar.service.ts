@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EphemerisService } from './ephemeris.service';
+import {
+  deriveLocalBirthFieldsFromUtc,
+  normalizeBirthDateValue,
+  normalizeBirthTimeValue,
+} from '@/common/utils/birth-data.util';
 
 export interface MoonPhase {
   phase: number; // 0-1 (0 = новолуние, 0.5 = полнолуние)
@@ -73,18 +78,29 @@ export class LunarService {
       );
 
       // Определяем дом, если есть натальная карта
-      // Расширенный фолбэк: если в сохранённой карте нет домов, пробуем реконструировать их по birthDate+location
+      // Расширенный фолбэк: если в сохранённой карте нет домов, пробуем реконструировать их по canonical birth metadata
       let house: number | undefined;
       let natalHouses: any = natalChart?.houses;
 
-      if (!natalHouses && natalChart?.birthDate && natalChart?.location) {
+      if (!natalHouses && natalChart?.location) {
         try {
-          const birth = new Date(natalChart.birthDate);
-          if (!isNaN(birth.getTime())) {
-            const dateStr = birth.toISOString().split('T')[0];
-            const timeIso =
-              birth.toISOString().split('T')[1] || '12:00:00.000Z';
-            const timeStr = timeIso.slice(0, 5); // HH:MM
+          let dateStr = normalizeBirthDateValue(natalChart?.birthDate);
+          let timeStr = normalizeBirthTimeValue(natalChart?.birthTime);
+
+          if (
+            (!dateStr || !timeStr) &&
+            typeof natalChart?.birthDateTimeUtc === 'string' &&
+            Number.isFinite(natalChart?.location?.timezone)
+          ) {
+            const derived = deriveLocalBirthFieldsFromUtc(
+              natalChart.birthDateTimeUtc,
+              Number(natalChart.location.timezone),
+            );
+            dateStr = dateStr || derived?.birthDate || null;
+            timeStr = timeStr || derived?.birthTime || null;
+          }
+
+          if (dateStr && timeStr) {
             const recomputed = await this.ephemerisService.calculateNatalChart(
               dateStr,
               timeStr,

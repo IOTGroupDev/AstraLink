@@ -73,6 +73,17 @@ export interface ChartAspect {
 }
 
 export interface ChartData {
+  type?: string;
+  birthDate?: string;
+  birthTime?: string;
+  birthPlace?: string;
+  birthDateTimeUtc?: string;
+  calculatedAt?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    timezone: number | string;
+  };
   planets?: Record<string, Planet>;
   houses?: Record<number, House>;
   aspects?: ChartAspect[];

@@ -7,6 +7,11 @@ import {
   isDayBirth,
   getPartOfFortuneInterpretation,
 } from '../shared/astro-calculations';
+import {
+  buildUtcBirthDateTime,
+  normalizeBirthDateValue,
+  normalizeBirthTimeValue,
+} from '../common/utils/birth-data.util';
 import type {
   Planet,
   ChartData,
@@ -239,10 +244,13 @@ export class EphemerisService implements OnModuleInit {
 
     // Swiss Ephemeris expects UT, while user birth time is local civil time.
     // Convert local date/time into UTC before building Julian Day.
-    const utcDate = new Date(
-      Date.UTC(year, month - 1, day, hours, minutes, 0) -
-        timezoneHours * 60 * 60 * 1000,
-    );
+    const utcDate = buildUtcBirthDateTime(date, time, timezoneHours);
+    if (!utcDate) {
+      throw new Error('Не удалось преобразовать дату рождения в UTC');
+    }
+
+    const normalizedBirthDate = normalizeBirthDateValue(date) ?? date;
+    const normalizedBirthTime = normalizeBirthTimeValue(time) ?? time;
 
     const julianDay = swisseph.swe_julday(
       utcDate.getUTCFullYear(),
@@ -299,7 +307,9 @@ export class EphemerisService implements OnModuleInit {
 
     return {
       type: 'natal',
-      birthDate: new Date(`${date}T${time}`).toISOString(),
+      birthDate: normalizedBirthDate,
+      birthTime: normalizedBirthTime,
+      birthDateTimeUtc: utcDate.toISOString(),
       location,
       planets,
       houses,

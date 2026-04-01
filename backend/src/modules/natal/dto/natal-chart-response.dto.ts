@@ -16,7 +16,9 @@ export class NatalChartResponseDto {
   @ApiProperty({
     description: 'Данные натальной карты',
     example: {
-      birthDate: '1990-05-15T14:30:00.000Z',
+      birthDate: '1990-05-15',
+      birthTime: '14:30',
+      birthDateTimeUtc: '1990-05-15T11:30:00.000Z',
       planets: {
         sun: { longitude: 75.2, sign: 'Gemini', degree: 15.2 },
         moon: { longitude: 120.5, sign: 'Leo', degree: 0.5 },

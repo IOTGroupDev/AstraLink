@@ -379,6 +379,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
 import { authLogger } from '../../services/logger';
 import { useTranslation } from 'react-i18next';
+import { normalizeBirthDateValue } from '../../utils/birthDate';
 
 const UserDataLoaderScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -571,9 +572,7 @@ const UserDataLoaderScreen: React.FC = () => {
           name:
             profile.name ||
             t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
-          birthDate: profile.birthDate
-            ? new Date(profile.birthDate).toISOString().split('T')[0]
-            : undefined,
+          birthDate: normalizeBirthDateValue(profile.birthDate) || undefined,
           birthTime: profile.birthTime || undefined,
           birthPlace: profile.birthPlace || undefined,
           role: 'user',
@@ -611,9 +610,8 @@ const UserDataLoaderScreen: React.FC = () => {
               name:
                 profile.name ||
                 t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
-              birthDate: profile.birthDate
-                ? new Date(profile.birthDate).toISOString().split('T')[0]
-                : '1990-01-01',
+              birthDate:
+                normalizeBirthDateValue(profile.birthDate) || '1990-01-01',
               birthTime: profile.birthTime || '12:00',
               birthPlace: profile.birthPlace || 'Moscow',
             });
@@ -659,9 +657,7 @@ const UserDataLoaderScreen: React.FC = () => {
           name:
             profile.name ||
             t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
-          birthDate: profile.birthDate
-            ? new Date(profile.birthDate).toISOString().split('T')[0]
-            : undefined,
+          birthDate: normalizeBirthDateValue(profile.birthDate) || undefined,
           birthTime: profile.birthTime || undefined,
           birthPlace: profile.birthPlace || undefined,
           role: 'user',
@@ -748,9 +744,8 @@ const UserDataLoaderScreen: React.FC = () => {
             dbProfile?.name ||
             onboardingData.name ||
             t('auth.userDataLoader.defaultName', { defaultValue: 'User' }),
-          birthDate: dbProfile?.birthDate
-            ? new Date(dbProfile.birthDate).toISOString().split('T')[0]
-            : formatBirthDate(),
+          birthDate:
+            normalizeBirthDateValue(dbProfile?.birthDate) || formatBirthDate(),
           birthTime: dbProfile?.birthTime || formatBirthTime(),
           birthPlace:
             dbProfile?.birthPlace ||

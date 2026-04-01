@@ -10,11 +10,7 @@ import { EphemerisService } from './ephemeris.service';
 import { ChartRepository } from '../repositories';
 import { AIService } from './ai.service';
 import { RedisService } from '../redis/redis.service';
-import {
-  LIMITS,
-  secondsUntilEndOfUTCDate,
-  utcDayKey,
-} from '../config/limits.config';
+import { LIMITS } from '../config/limits.config';
 import {
   PlanetKey,
   PLANET_WEIGHTS,
@@ -31,7 +27,6 @@ import {
   AspectType,
   calculateLunarPhase,
   getLunarPhaseInterpretation,
-  LunarPhaseInfo,
 } from '../shared/astro-calculations';
 import {
   getGeneralTemplates,
@@ -44,9 +39,6 @@ import {
 import type {
   ChartData,
   TransitAspect,
-  HoroscopeContext,
-  DominantTransit,
-  EnergyMetrics,
   ChartLookupResult,
   TransitData,
   AspectCalculationResult,
@@ -54,6 +46,11 @@ import type {
   TransitPlanet,
 } from './horoscope.types';
 import type { Planet, House } from '../dating/dating.types';
+import {
+  buildUserLocalPeriodContext,
+  type UserLocalPeriod,
+} from '@/common/utils/user-local-date.util';
+import { normalizeBirthDateValue } from '@/common/utils/birth-data.util';
 
 export interface HoroscopePrediction {
   period: 'day' | 'tomorrow' | 'week' | 'month';
@@ -137,6 +134,7 @@ export class HoroscopeGeneratorService {
     period: 'day' | 'tomorrow' | 'week' | 'month',
     isPremium: boolean = false,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    userTzOffsetMinutes = 0,
   ): Promise<HoroscopePrediction> {
     const shouldUseAi = isPremium;
     this.logger.log(
@@ -160,74 +158,17 @@ export class HoroscopeGeneratorService {
     );
 
     try {
-      const targetDate = this.getTargetDate(period);
+      const periodContext = buildUserLocalPeriodContext(
+        period as UserLocalPeriod,
+        userTzOffsetMinutes,
+      );
+      const targetDate = periodContext.targetDate;
       this.logger.log(`Target date for ${period}: ${targetDate.toISOString()}`);
 
       // Redis caching: key per userId + period + date bucket
-      const dateKey = (() => {
-        const d = new Date(targetDate);
-        if (period === 'month') {
-          return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-        }
-        if (period === 'week') {
-          const tmp = new Date(
-            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-          );
-          const day = (tmp.getUTCDay() + 6) % 7; // Monday=0
-          tmp.setUTCDate(tmp.getUTCDate() - day); // start of week (Mon)
-          return tmp.toISOString().split('T')[0];
-        }
-        // day/tomorrow => cache per UTC date
-        return new Date(
-          Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-        )
-          .toISOString()
-          .split('T')[0];
-      })();
+      const dateKey = periodContext.dateKey;
       const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}:${isPremium ? 'premium' : 'free'}`;
-      const ttlSec = (() => {
-        const now = new Date();
-        const nd = new Date(targetDate);
-        let end: Date;
-        if (period === 'month') {
-          end = new Date(
-            Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth() + 1, 1, 0, 0, 0),
-          );
-        } else if (period === 'week') {
-          const tmp = new Date(
-            Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth(), nd.getUTCDate()),
-          );
-          const day = (tmp.getUTCDay() + 6) % 7;
-          tmp.setUTCDate(tmp.getUTCDate() + (7 - day)); // start of next week (Mon 00:00 UTC)
-          end = new Date(
-            Date.UTC(
-              tmp.getUTCFullYear(),
-              tmp.getUTCMonth(),
-              tmp.getUTCDate(),
-              0,
-              0,
-              0,
-            ),
-          );
-        } else {
-          // day/tomorrow => end of that UTC day
-          end = new Date(
-            Date.UTC(
-              nd.getUTCFullYear(),
-              nd.getUTCMonth(),
-              nd.getUTCDate() + 1,
-              0,
-              0,
-              0,
-            ),
-          );
-        }
-        const sec = Math.max(
-          60,
-          Math.floor((end.getTime() - now.getTime()) / 1000),
-        );
-        return sec;
-      })();
+      const ttlSec = periodContext.ttlSec;
 
       const cached = await this.redis.get<HoroscopePrediction>(cacheKey);
       if (cached) {
@@ -287,6 +228,8 @@ export class HoroscopeGeneratorService {
             transitAspects,
             period,
             targetDate,
+            periodContext.quotaDayKey,
+            periodContext.quotaTtlSec,
             cacheKey,
             ttlSec,
             userId,
@@ -367,6 +310,8 @@ export class HoroscopeGeneratorService {
     transitAspects: TransitAspect[],
     period: string,
     targetDate: Date,
+    quotaDayKey: string,
+    quotaTtlSec: number,
     _cacheKey: string,
     _ttlSec: number,
     userId: string,
@@ -376,13 +321,11 @@ export class HoroscopeGeneratorService {
 
     // Ежесуточный лимит одного AI-запроса для гороскопов (на пользователя)
     try {
-      const dayKey = utcDayKey(); // по текущей UTC-дате
-      const quotaKey = `ai:horoscope:quota:${userId}:${dayKey}:${period}`;
+      const quotaKey = `ai:horoscope:quota:${userId}:${quotaDayKey}:${period}`;
       const used = await this.redis.incr(quotaKey);
       if (used != null) {
         if (used === 1) {
-          // Первая попытка за сутки — ставим истечение к концу дня
-          await this.redis.expire(quotaKey, secondsUntilEndOfUTCDate());
+          await this.redis.expire(quotaKey, quotaTtlSec);
         }
         if (used > LIMITS.HOROSCOPE.AI_DAILY_PER_USER) {
           this.logger.warn(
@@ -1673,23 +1616,6 @@ export class HoroscopeGeneratorService {
   }
 
   /**
-   * Получение целевой даты для периода
-   */
-  private getTargetDate(period: string): Date {
-    const now = new Date();
-    switch (period) {
-      case 'tomorrow':
-        return new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      case 'week':
-        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      case 'month':
-        return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      default:
-        return now;
-    }
-  }
-
-  /**
    * Получение текущих транзитов
    */
   private async getCurrentTransits(date: Date): Promise<TransitData> {
@@ -2016,7 +1942,7 @@ export class HoroscopeGeneratorService {
     try {
       // Try to get birthDate from chartData extended properties
       const chartDataAny = chartData as Record<string, unknown>;
-      const bdISO =
+      const birthDateRaw =
         (chartDataAny?.birthDate as string | undefined) ??
         ((chartDataAny?.data as Record<string, unknown>)?.birthDate as
           | string
@@ -2025,13 +1951,34 @@ export class HoroscopeGeneratorService {
           | string
           | undefined);
 
-      if (typeof bdISO !== 'string' || bdISO.trim() === '') return cycles;
+      const birthDate = normalizeBirthDateValue(birthDateRaw);
+      if (!birthDate) return cycles;
 
-      const birth = new Date(bdISO);
-      if (isNaN(birth.getTime())) return cycles;
+      const [birthYear, birthMonth, birthDay] = birthDate
+        .split('-')
+        .map(Number);
+      if (
+        [birthYear, birthMonth, birthDay].some((part) => Number.isNaN(part))
+      ) {
+        return cycles;
+      }
+
+      const birth = new Date(
+        Date.UTC(birthYear, birthMonth - 1, birthDay, 12, 0, 0),
+      );
+      const targetDateNoon = new Date(
+        Date.UTC(
+          targetDate.getUTCFullYear(),
+          targetDate.getUTCMonth(),
+          targetDate.getUTCDate(),
+          12,
+          0,
+          0,
+        ),
+      );
 
       const age =
-        (targetDate.getTime() - birth.getTime()) /
+        (targetDateNoon.getTime() - birth.getTime()) /
         (365.2425 * 24 * 3600 * 1000);
       const near = (val: number, center: number, tol: number) =>
         Math.abs(val - center) <= tol;
