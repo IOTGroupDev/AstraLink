@@ -56,6 +56,8 @@ export default function OnboardingFourthScreen() {
   const setBirthTimeInStore = useOnboardingStore((s) => s.setBirthTime);
   const setBirthPlaceInStore = useOnboardingStore((s) => s.setBirthPlace);
   const setCompleted = useOnboardingStore((s) => s.setCompleted);
+  const authSession = useAuthStore((s) => s.session);
+  const authProfile = useAuthStore((s) => s.profile);
   const setAuthState = useAuthStore((s) => s.setAuthState);
   const setAuthProfile = useAuthStore((s) => s.setProfile);
 
@@ -73,6 +75,23 @@ export default function OnboardingFourthScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
+  const resolveSessionFromStoreOrSupabase = useCallback(async () => {
+    if (authSession?.user?.id) {
+      return authSession;
+    }
+
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('session_timeout')), 1500);
+      }),
+    ]);
+
+    return (
+      sessionResult as Awaited<ReturnType<typeof supabase.auth.getSession>>
+    ).data.session;
+  }, [authSession]);
+
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
@@ -82,11 +101,6 @@ export default function OnboardingFourthScreen() {
     const nameClean = name.trim();
     const placeClean = birthPlace.trim();
     if (!nameClean || !placeClean) return;
-
-    if (!storedBirthDate) {
-      setErrorText(t('onboarding.fourth.missingBirthDate'));
-      return;
-    }
 
     setErrorText(null);
     setSubmitting(true);
@@ -116,36 +130,59 @@ export default function OnboardingFourthScreen() {
     }
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const session = await resolveSessionFromStoreOrSupabase();
+      const userId = session?.user.id || authProfile?.id;
 
-      if (!session) {
+      if (!userId) {
         setErrorText(t('auth.userDataLoader.sessionNotFound'));
         navigation.navigate('AuthEmail');
         return;
       }
 
-      const birthDate = `${storedBirthDate.year}-${String(storedBirthDate.month).padStart(2, '0')}-${String(storedBirthDate.day).padStart(2, '0')}`;
+      const fallbackBirthDate =
+        authProfile?.birthDate?.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+      const birthDate = storedBirthDate
+        ? `${storedBirthDate.year}-${String(storedBirthDate.month).padStart(2, '0')}-${String(storedBirthDate.day).padStart(2, '0')}`
+        : fallbackBirthDate;
+
+      if (!birthDate) {
+        setErrorText(t('onboarding.fourth.missingBirthDate'));
+        return;
+      }
+
       const birthTime = `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
       const resolvedBirthPlace = selectedCity?.city || placeClean;
 
+      authLogger.log('Submitting onboarding completion', {
+        userId,
+        birthDate,
+        birthTime,
+        birthPlace: resolvedBirthPlace,
+      });
+
       await authAPI.completeSignup({
-        userId: session.user.id,
+        userId,
         name: nameClean,
         birthDate,
         birthTime,
         birthPlace: resolvedBirthPlace,
       });
 
-      await userExtendedProfileAPI.updateUserProfile({
-        is_onboarded: true,
-      });
+      void userExtendedProfileAPI
+        .updateUserProfile({
+          is_onboarded: true,
+        })
+        .catch((extendedProfileError) => {
+          authLogger.warn(
+            'Extended profile update failed after complete-signup',
+            extendedProfileError
+          );
+        });
 
       setCompleted(true);
       setAuthProfile({
-        id: session.user.id,
-        email: session.user.email || '',
+        id: userId,
+        email: session?.user.email || authProfile?.email || '',
         name: nameClean,
         birthDate,
         birthTime,
@@ -178,6 +215,9 @@ export default function OnboardingFourthScreen() {
     selectedMinute,
     selectedCity,
     storedBirthDate,
+    authSession,
+    authProfile,
+    resolveSessionFromStoreOrSupabase,
     setNameInStore,
     setBirthTimeInStore,
     setBirthPlaceInStore,

@@ -375,7 +375,7 @@ const CosmicBackground: React.FC<{ lowPower?: boolean; active?: boolean }> = ({
   }, [isLowPower, isActive]);
 
   return (
-    <View style={styles.container}>
+    <View pointerEvents="none" style={styles.container}>
       {/* Темный фон с фиолетовым оттенком - баланс */}
       <View style={styles.darkBase} />
 

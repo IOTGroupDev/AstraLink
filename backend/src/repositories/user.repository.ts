@@ -197,6 +197,7 @@ export class UserRepository implements IUserRepository {
       birth_date: raw.birth_date || null,
       birth_time: raw.birth_time || null,
       birth_place: raw.birth_place || null,
+      onboarding_completed: raw.onboarding_completed ?? null,
       gender: raw.gender || null,
       city: raw.city || null,
       interests: raw.interests || null,

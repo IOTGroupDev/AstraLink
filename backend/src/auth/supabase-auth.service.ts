@@ -529,6 +529,42 @@ export class SupabaseAuthService {
 
       this.logger.log('✅ User profile updated');
 
+      // 2.1. Помечаем онбординг завершенным в обеих пользовательских таблицах
+      const nowIso = new Date().toISOString();
+      const { error: onboardingFlagError } = await this.supabaseService
+        .fromAdmin('users')
+        .update({
+          onboarding_completed: true,
+          updated_at: nowIso,
+        })
+        .eq('id', userId);
+
+      if (onboardingFlagError) {
+        this.logger.error(
+          'Error updating onboarding_completed in public.users:',
+          onboardingFlagError,
+        );
+        throw new BadRequestException('Ошибка обновления статуса онбординга');
+      }
+
+      const { error: extendedProfileError } = await this.supabaseService
+        .fromAdmin('user_profiles')
+        .upsert({
+          user_id: userId,
+          is_onboarded: true,
+          updated_at: nowIso,
+        })
+        .select('user_id')
+        .single();
+
+      if (extendedProfileError) {
+        this.logger.error(
+          'Error updating is_onboarded in public.user_profiles:',
+          extendedProfileError,
+        );
+        throw new BadRequestException('Ошибка обновления расширенного профиля');
+      }
+
       // 3. Проверяем и создаем подписку, если ее нет
       const { data: existingSubscription } = await this.supabaseService
         .fromAdmin('subscriptions')

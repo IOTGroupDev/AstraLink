@@ -66,6 +66,13 @@ const fetchProfile = async (): Promise<AuthProfile | null> => {
   return normalizeProfile(profile);
 };
 
+const applyFallbackProfileState = (session: Session) => {
+  const fallbackProfile = profileFromSession(session);
+  setProfile(fallbackProfile);
+  setError('profile_load_failed');
+  resolveState(fallbackProfile);
+};
+
 const bootstrap = async () => {
   setLoading(true);
   setError(null);
@@ -92,10 +99,7 @@ const bootstrap = async () => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed during boot', err);
-    const fallbackProfile = profileFromSession(session);
-    setProfile(fallbackProfile);
-    setError('profile_load_failed');
-    setState('AUTHORIZED');
+    applyFallbackProfileState(session);
   } finally {
     setLoading(false);
   }
@@ -120,10 +124,13 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed after auth event', err);
-    const fallbackProfile = session ? profileFromSession(session) : null;
-    setProfile(fallbackProfile);
-    setError('profile_load_failed');
-    setState(fallbackProfile ? 'AUTHORIZED' : 'UNAUTHORIZED');
+    if (session) {
+      applyFallbackProfileState(session);
+    } else {
+      setProfile(null);
+      setError('profile_load_failed');
+      setState('UNAUTHORIZED');
+    }
   }
 };
 

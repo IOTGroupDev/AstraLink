@@ -168,9 +168,18 @@ const HoroscopeScreen: React.FC = () => {
       try {
         chartLogger.log('Загружаю данные для HoroscopeScreen');
 
-        const predictionsPromise = loadAllPredictions(forcePredictions);
-        const [chartData, transitsData, planetsData] = await Promise.all([
-          chartAPI.getNatalChart(),
+        let chartData = await chartAPI.getNatalChart();
+
+        if (!chartData) {
+          chartLogger.log(
+            'Натальная карта не найдена, создаю из данных профиля'
+          );
+          chartData = await chartAPI.createNatalChart({});
+        }
+
+        setChart(chartData);
+
+        const [transitsResult, planetsResult] = await Promise.allSettled([
           chartAPI.getTransits(
             new Date().toISOString().split('T')[0],
             new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -179,17 +188,20 @@ const HoroscopeScreen: React.FC = () => {
           ),
           chartAPI.getCurrentPlanets(),
         ]);
-        if (forcePredictions) {
-          await predictionsPromise;
-        }
+
+        const transitsData =
+          transitsResult.status === 'fulfilled' ? transitsResult.value : null;
+        const planetsData =
+          planetsResult.status === 'fulfilled' ? planetsResult.value : null;
 
         chartLogger.log('Получены данные карты', chartData);
         chartLogger.log('Получены транзиты', transitsData);
         chartLogger.log('Получены текущие планеты', planetsData);
 
-        setChart(chartData);
         setTransits(transitsData);
-        setCurrentPlanets(planetsData.planets);
+        setCurrentPlanets(planetsData?.planets ?? null);
+
+        await loadAllPredictions(forcePredictions);
 
         // Загружаем биоритмы
         try {
@@ -275,19 +287,11 @@ const HoroscopeScreen: React.FC = () => {
         }
 
         if (error.response?.status === 404) {
-          chartLogger.log('Карта не найдена, создаю новую карту');
-          try {
-            const newChart = await chartAPI.createNatalChart({});
-            setChart(newChart);
-            chartLogger.log('Карта успешно создана');
-          } catch (createError) {
-            chartLogger.error('Ошибка создания карты', createError);
-            Alert.alert(
-              t('horoscope.errors.createChartTitle'),
-              t('horoscope.errors.createChartFirst'),
-              [{ text: t('common.buttons.ok') }]
-            );
-          }
+          Alert.alert(
+            t('horoscope.errors.createChartTitle'),
+            t('horoscope.errors.createChartFirst'),
+            [{ text: t('common.buttons.ok') }]
+          );
         }
       }
     } catch (error) {
@@ -368,19 +372,23 @@ const HoroscopeScreen: React.FC = () => {
           : null,
         week: weekResponse ? extractPredictions(weekResponse) : null,
       };
+      const hasPredictionData = Boolean(
+        newPredictions.day || newPredictions.tomorrow || newPredictions.week
+      );
 
       chartLogger.log('Устанавливаю прогнозы', newPredictions);
       chartLogger.log('Структура predictions.day', {
-        hasPredictions: !!newPredictions.day,
+        hasPredictions: hasPredictionData,
         general: newPredictions.day?.general?.substring(0, 50) + '...',
         keys: Object.keys(newPredictions.day || {}),
       });
-      setPredictions(newPredictions);
+      setPredictions(hasPredictionData ? newPredictions : null);
       predictionsAttemptedRef.current = true;
-      predictionsLocaleRef.current = locale;
+      predictionsLocaleRef.current = hasPredictionData ? locale : null;
 
       const aiAllowed = hasFeature('aiHoroscope');
       const needsAi =
+        hasPredictionData &&
         aiAllowed &&
         (newPredictions.day?.generatedBy !== 'ai' ||
           newPredictions.tomorrow?.generatedBy !== 'ai' ||
@@ -619,6 +627,9 @@ const HoroscopeScreen: React.FC = () => {
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
   const hasAIAccess = hasFeature('detailedTransits');
+  const hasPredictionData = Boolean(
+    predictions?.day || predictions?.tomorrow || predictions?.week
+  );
   const dailyLearningLesson = React.useMemo(() => {
     const lessons = getLessonsByLocale(lessonsLocale);
     if (!lessons.length) return null;
@@ -695,7 +706,7 @@ const HoroscopeScreen: React.FC = () => {
     energyValue,
     energyMessage,
     mainTransit: mainTransit?.name,
-    hasPredictions: !!predictions,
+    hasPredictions: hasPredictionData,
     predictionsDayExists: !!predictions?.day,
   });
 
@@ -863,8 +874,14 @@ const HoroscopeScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
 
-              {predictions ? (
+              {hasPredictionData ? (
                 <HoroscopeWidget predictions={predictions} />
+              ) : !loading && predictionsAttemptedRef.current ? (
+                <View style={styles.placeholder}>
+                  <Text style={styles.placeholderText}>
+                    {t('horoscope.errors.failedToLoad')}
+                  </Text>
+                </View>
               ) : (
                 <HoroscopeWidgetSkeleton />
               )}

@@ -78,11 +78,91 @@ export class UserService {
     return null;
   }
 
+  private hasCompletedBirthData(profile: {
+    birth_date?: unknown;
+    birth_time?: string | null;
+    birth_place?: string | null;
+  }): boolean {
+    return (
+      !!this.formatBirthDate(profile.birth_date) &&
+      !!profile.birth_time &&
+      !!profile.birth_place
+    );
+  }
+
+  private async syncOnboardingFlagsIfNeeded(user: {
+    id: string;
+    birth_date?: unknown;
+    birth_time?: string | null;
+    birth_place?: string | null;
+    onboarding_completed?: boolean | null;
+  }): Promise<void> {
+    if (
+      !this.hasCompletedBirthData(user) ||
+      user.onboarding_completed === true
+    ) {
+      return;
+    }
+
+    const admin = this.supabaseService.getAdminClient();
+    const nowIso = new Date().toISOString();
+
+    const [usersResult, profilesResult] = await Promise.allSettled([
+      admin
+        .from('users')
+        .update({
+          onboarding_completed: true,
+          updated_at: nowIso,
+        })
+        .eq('id', user.id),
+      admin.from('user_profiles').upsert({
+        user_id: user.id,
+        is_onboarded: true,
+        updated_at: nowIso,
+      }),
+    ]);
+
+    if (
+      usersResult.status === 'fulfilled' &&
+      !usersResult.value.error &&
+      profilesResult.status === 'fulfilled' &&
+      !profilesResult.value.error
+    ) {
+      user.onboarding_completed = true;
+      this.logger.log(`Healed onboarding flags for user ${user.id}`);
+      return;
+    }
+
+    if (usersResult.status === 'rejected') {
+      this.logger.warn(
+        `Failed to sync public.users onboarding_completed for ${user.id}: ${String(usersResult.reason)}`,
+      );
+    } else if (usersResult.value.error) {
+      this.logger.warn(
+        `Failed to sync public.users onboarding_completed for ${user.id}`,
+        usersResult.value.error,
+      );
+    }
+
+    if (profilesResult.status === 'rejected') {
+      this.logger.warn(
+        `Failed to sync public.user_profiles is_onboarded for ${user.id}: ${String(profilesResult.reason)}`,
+      );
+    } else if (profilesResult.value.error) {
+      this.logger.warn(
+        `Failed to sync public.user_profiles is_onboarded for ${user.id}`,
+        profilesResult.value.error,
+      );
+    }
+  }
+
   async getProfile(userId: string) {
     // Используем централизованную fallback логику из репозитория
     const user = await this.userRepository.findById(userId);
 
     if (user) {
+      await this.syncOnboardingFlagsIfNeeded(user);
+
       return {
         id: user.id,
         email: user.email,
@@ -90,6 +170,7 @@ export class UserService {
         birthDate: this.formatBirthDate(user.birth_date),
         birthTime: user.birth_time,
         birthPlace: user.birth_place,
+        onboardingCompleted: user.onboarding_completed === true,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
       };
@@ -108,6 +189,7 @@ export class UserService {
           birthDate: this.formatBirthDate(created.birth_date),
           birthTime: created.birth_time,
           birthPlace: created.birth_place,
+          onboardingCompleted: created.onboarding_completed === true,
           createdAt: created.created_at,
           updatedAt: created.updated_at,
         };
@@ -124,6 +206,7 @@ export class UserService {
       birthDate: null,
       birthTime: null,
       birthPlace: null,
+      onboardingCompleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

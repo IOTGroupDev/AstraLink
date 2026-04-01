@@ -404,7 +404,7 @@ export class SupabaseService implements OnModuleInit {
     const { data, error } = await this.getAdminClient()
       .from('users')
       .select(
-        'id, email, name, birth_date, birth_time, birth_place, created_at, updated_at',
+        'id, email, name, birth_date, birth_time, birth_place, onboarding_completed, created_at, updated_at',
       )
       .eq('id', userId)
       .single();

@@ -67,7 +67,7 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
 };
 
 const TabBarBackground = React.memo(() => (
-  <View style={styles.tabBarShell}>
+  <View pointerEvents="none" style={styles.tabBarShell}>
     <LinearGradient
       colors={[
         'rgba(226, 203, 255, 0.28)',
