@@ -31,6 +31,17 @@ export class LunarService {
 
   constructor(private ephemerisService: EphemerisService) {}
 
+  private toUserLocalNoon(
+    year: number,
+    month: number,
+    day: number,
+    tzOffsetMinutes = 0,
+  ): Date {
+    return new Date(
+      Date.UTC(year, month, day, 12, 0, 0) - tzOffsetMinutes * 60_000,
+    );
+  }
+
   /**
    * Получить фазу луны на указанную дату
    */
@@ -164,6 +175,7 @@ export class LunarService {
     month: number,
     natalChart?: any,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    tzOffsetMinutes = 0,
   ): Promise<
     Array<{
       date: string;
@@ -182,14 +194,14 @@ export class LunarService {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day, 12, 0, 0); // Полдень для точности
+      const date = this.toUserLocalNoon(year, month, day, tzOffsetMinutes);
 
       const moonPhase = await this.getMoonPhase(date, natalChart, locale);
       const lunarDay = await this.getLunarDay(date, locale);
       const isFavorable = this.isFavorableDay(moonPhase, lunarDay);
 
       calendar.push({
-        date: date.toISOString().split('T')[0],
+        date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
         moonPhase,
         lunarDay,
         isFavorable,

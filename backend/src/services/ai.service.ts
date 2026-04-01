@@ -21,6 +21,8 @@ import {
   AILocale,
   HoroscopeResponse,
 } from './ai/interfaces/ai-types';
+import { getSignNameLocalized } from '../modules/shared/astro-text';
+import type { Sign } from '../modules/shared/astro-text/types';
 
 @Injectable()
 export class AIService {
@@ -171,6 +173,7 @@ export class AIService {
     planets: any;
     houses: any;
     aspects: any[];
+    ascendant?: { sign?: string; degree?: number; longitude?: number } | string;
     userProfile?: any;
     locale?: AILocale;
   }): Promise<string> {
@@ -430,6 +433,24 @@ export class AIService {
 
     const transitDescription = this.formatTransits(context.transits, locale);
     const isDeepSeek = provider === 'deepseek';
+    const actionabilityLine =
+      locale === 'en'
+        ? 'In advice, clearly state what to do during this period and what is better to avoid.'
+        : locale === 'es'
+          ? 'En el consejo, indica claramente qué conviene hacer durante este período y qué es mejor evitar.'
+          : 'В совете ясно укажите, что стоит делать в этот период, а чего лучше избегать.';
+    const opportunitiesLine =
+      locale === 'en'
+        ? 'Treat "opportunities" as concrete actions or openings worth leaning into.'
+        : locale === 'es'
+          ? 'Trata "opportunities" como acciones concretas u oportunidades reales en las que conviene apoyarse.'
+          : 'Поле "opportunities" трактуйте как конкретные действия и реальные возможности, на которые стоит опереться.';
+    const challengesLine =
+      locale === 'en'
+        ? 'Treat "challenges" as specific risks, triggers, mistakes, or actions better avoided.'
+        : locale === 'es'
+          ? 'Trata "challenges" como riesgos concretos, disparadores, errores o acciones que conviene evitar.'
+          : 'Поле "challenges" трактуйте как конкретные риски, триггеры, ошибки и действия, которых лучше не делать.';
 
     if (locale === 'en') {
       return isDeepSeek
@@ -456,9 +477,9 @@ JSON format:
   "career": "Career and business (5-6 sentences with practical advice)",
   "health": "Health and energy (5-6 sentences)",
   "finance": "Finance and material matters (5-6 sentences with grounded guidance)",
-  "advice": "Main advice (4-5 sentences)",
-  "challenges": ["detailed challenge 1-2 sentences", "detailed challenge 1-2 sentences", "detailed challenge 1-2 sentences", "detailed challenge 1-2 sentences"],
-  "opportunities": ["specific opportunity 1-2 sentences", "specific opportunity 1-2 sentences", "specific opportunity 1-2 sentences", "specific opportunity 1-2 sentences"]
+  "advice": "Main advice (4-5 sentences that explicitly say what to do and what to avoid)",
+  "challenges": ["specific risk / what better not to do 1", "specific risk / what better not to do 2", "specific risk / what better not to do 3", "specific risk / what better not to do 4"],
+  "opportunities": ["specific action worth taking 1", "specific action worth taking 2", "specific action worth taking 3", "specific action worth taking 4"]
 }
 
 Style and content requirements:
@@ -469,6 +490,9 @@ Style and content requirements:
 - Consider interactions between transits and natal placements
 - Be concrete, practical, and realistic
 - Keep a positive but honest tone
+- ${actionabilityLine}
+- ${opportunitiesLine}
+- ${challengesLine}
 - Frame challenges as growth opportunities
 - Each section must be unique, extended, and substantive
 - Target ~800-1100 words total`
@@ -495,9 +519,9 @@ JSON format:
   "career": "Career and business (3-4 sentences with practical advice)",
   "health": "Health and energy (3-4 sentences)",
   "finance": "Finance and material matters (3-4 sentences with investment advice)",
-  "advice": "Main advice (3-4 sentences)",
-  "challenges": ["detailed challenge 1", "detailed challenge 2", "detailed challenge 3"],
-  "opportunities": ["specific opportunity 1", "specific opportunity 2", "specific opportunity 3"]
+  "advice": "Main advice (3-4 sentences that explicitly say what to do and what to avoid)",
+  "challenges": ["specific risk / what better not to do 1", "specific risk / what better not to do 2", "specific risk / what better not to do 3"],
+  "opportunities": ["specific action worth taking 1", "specific action worth taking 2", "specific action worth taking 3"]
 }
 
 Content requirements:
@@ -506,6 +530,9 @@ Content requirements:
 - Consider interactions between transits and natal planets
 - Be concrete and practical
 - Provide realistic, actionable advice
+- ${actionabilityLine}
+- ${opportunitiesLine}
+- ${challengesLine}
 - Keep a positive but honest tone
 - Frame challenges as growth opportunities
 - Each section must be unique, extended, and substantive`;
@@ -536,9 +563,9 @@ Formato JSON:
   "career": "Carrera y negocios (5-6 frases con consejos prácticos)",
   "health": "Salud y energía (5-6 frases)",
   "finance": "Finanzas y lo material (5-6 frases con guía realista)",
-  "advice": "Consejo principal (4-5 frases)",
-  "challenges": ["desafío detallado 1-2 frases", "desafío detallado 1-2 frases", "desafío detallado 1-2 frases", "desafío detallado 1-2 frases"],
-  "opportunities": ["oportunidad concreta 1-2 frases", "oportunidad concreta 1-2 frases", "oportunidad concreta 1-2 frases", "oportunidad concreta 1-2 frases"]
+  "advice": "Consejo principal (4-5 frases que indiquen claramente qué hacer y qué evitar)",
+  "challenges": ["riesgo concreto / qué conviene evitar 1", "riesgo concreto / qué conviene evitar 2", "riesgo concreto / qué conviene evitar 3", "riesgo concreto / qué conviene evitar 4"],
+  "opportunities": ["acción concreta que conviene tomar 1", "acción concreta que conviene tomar 2", "acción concreta que conviene tomar 3", "acción concreta que conviene tomar 4"]
 }
 
 Requisitos de estilo y contenido:
@@ -549,6 +576,9 @@ Requisitos de estilo y contenido:
 - Considera la interacción de los tránsitos con posiciones natales
 - Sé concreto, práctico y realista
 - Mantén un tono positivo pero honesto
+- ${actionabilityLine}
+- ${opportunitiesLine}
+- ${challengesLine}
 - Formula los desafíos como oportunidades de crecimiento
 - Cada sección debe ser única, extensa y sustancial
 - Objetivo ~800-1100 palabras`
@@ -575,9 +605,9 @@ Formato JSON:
   "career": "Carrera y negocios (3-4 frases con consejos prácticos)",
   "health": "Salud y energía (3-4 frases)",
   "finance": "Finanzas y lo material (3-4 frases con consejos de inversión)",
-  "advice": "Consejo principal (3-4 frases)",
-  "challenges": ["desafío detallado 1", "desafío detallado 2", "desafío detallado 3"],
-  "opportunities": ["oportunidad concreta 1", "oportunidad concreta 2", "oportunidad concreta 3"]
+  "advice": "Consejo principal (3-4 frases que indiquen claramente qué hacer y qué evitar)",
+  "challenges": ["riesgo concreto / qué conviene evitar 1", "riesgo concreto / qué conviene evitar 2", "riesgo concreto / qué conviene evitar 3"],
+  "opportunities": ["acción concreta que conviene tomar 1", "acción concreta que conviene tomar 2", "acción concreta que conviene tomar 3"]
 }
 
 Requisitos de contenido:
@@ -586,6 +616,9 @@ Requisitos de contenido:
 - Considera la interacción de los tránsitos con las posiciones natales
 - Sé concreto y práctico
 - Da consejos realistas y aplicables
+- ${actionabilityLine}
+- ${opportunitiesLine}
+- ${challengesLine}
 - Mantén un tono positivo pero honesto
 - Formula los desafíos como oportunidades de crecimiento
 - Cada sección debe ser única, extensa y sustancial`;
@@ -614,9 +647,9 @@ ${transitDescription}
   "career": "Карьера и бизнес (5-6 предложений с практичными советами)",
   "health": "Здоровье и энергия (5-6 предложений)",
   "finance": "Финансы и материальное (5-6 предложений с приземленными советами)",
-  "advice": "Главный совет (4-5 предложений)",
-  "challenges": ["детальный вызов 1-2 предложения", "детальный вызов 1-2 предложения", "детальный вызов 1-2 предложения", "детальный вызов 1-2 предложения"],
-  "opportunities": ["конкретная возможность 1-2 предложения", "конкретная возможность 1-2 предложения", "конкретная возможность 1-2 предложения", "конкретная возможность 1-2 предложения"]
+  "advice": "Главный совет (4-5 предложений, где прямо сказано что делать и чего лучше избегать)",
+  "challenges": ["конкретный риск / чего лучше не делать 1", "конкретный риск / чего лучше не делать 2", "конкретный риск / чего лучше не делать 3", "конкретный риск / чего лучше не делать 4"],
+  "opportunities": ["конкретное действие, которое стоит сделать 1", "конкретное действие, которое стоит сделать 2", "конкретное действие, которое стоит сделать 3", "конкретное действие, которое стоит сделать 4"]
 }
 
 Требования к стилю и контенту:
@@ -627,6 +660,9 @@ ${transitDescription}
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны, практичны и реалистичны
 - Сохраняйте позитивный, но честный тон
+- ${actionabilityLine}
+- ${opportunitiesLine}
+- ${challengesLine}
 - Вызовы формулируйте как возможности для роста
 - Каждый раздел должен быть уникальным, расширенным и содержательным
 - Ориентир ~800-1100 слов`
@@ -652,9 +688,9 @@ ${transitDescription}
   "career": "Карьера и бизнес (3-4 предложения с практичными советами)",
   "health": "Здоровье и энергия (3-4 предложения)",
   "finance": "Финансы и материальное (3-4 предложения с инвестиционными советами)",
-  "advice": "Главный совет (3-4 предложения)",
-  "challenges": ["детальный вызов 1", "детальный вызов 2", "детальный вызов 3"],
-  "opportunities": ["конкретная возможность 1", "конкретная возможность 2", "конкретная возможность 3"]
+  "advice": "Главный совет (3-4 предложения, где прямо сказано что делать и чего лучше избегать)",
+  "challenges": ["конкретный риск / чего лучше не делать 1", "конкретный риск / чего лучше не делать 2", "конкретный риск / чего лучше не делать 3"],
+  "opportunities": ["конкретное действие, которое стоит сделать 1", "конкретное действие, которое стоит сделать 2", "конкретное действие, которое стоит сделать 3"]
 }
 
 Требования к контенту:
@@ -663,6 +699,9 @@ ${transitDescription}
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны и практичны
 - Давайте реалистичные, применимые советы
+- ${actionabilityLine}
+- ${opportunitiesLine}
+- ${challengesLine}
 - Сохраняйте позитивный но честный тон
 - Вызовы формулируйте как возможности для роста
 - Каждый раздел должен быть уникальным, расширенным и содержательным`;
@@ -676,6 +715,9 @@ ${transitDescription}
       planets: any;
       houses: any;
       aspects: any[];
+      ascendant?:
+        | { sign?: string; degree?: number; longitude?: number }
+        | string;
       userProfile?: any;
     },
     locale: AILocale = 'ru',
@@ -683,10 +725,36 @@ ${transitDescription}
     const planetsDesc = this.formatPlanets(context.planets, locale);
     const housesDesc = this.formatHouses(context.houses, locale);
     const aspectsDesc = this.formatAspects(context.aspects, locale);
+    const dominantPlanetaryFocus = this.getDominantPlanetaryFocus(
+      context.planets,
+      locale,
+    );
+    const angularAxisDesc = this.getAngularAxisDescription(
+      context.houses,
+      context.ascendant,
+      locale,
+    );
+    const ascendantDesc =
+      typeof context.ascendant === 'string'
+        ? context.ascendant
+        : context.ascendant?.sign
+          ? `${this.getLocalizedSign(context.ascendant.sign, locale)}${typeof context.ascendant.degree === 'number' ? ` ${context.ascendant.degree.toFixed(1)}°` : ''}`
+          : this.getAscendantFromHouses(context.houses, locale);
 
     if (locale === 'en') {
-      return `Create a deep psychological interpretation of the natal chart.
+      return `Create an extended PREMIUM natal-chart interpretation based strictly on the provided chart data.
 LANGUAGE: English only.
+FORMAT: plain text only, no JSON, no markdown headings, no bullet lists.
+LENGTH: 7-10 substantial paragraphs.
+
+ASCENDANT:
+${ascendantDesc}
+
+ANGULAR AXES:
+${angularAxisDesc}
+
+DOMINANT FOCUS:
+${dominantPlanetaryFocus}
 
 PLANETS:
 ${planetsDesc}
@@ -697,19 +765,40 @@ ${housesDesc}
 ASPECTS:
 ${aspectsDesc}
 
-Create a detailed interpretation (3-5 paragraphs) covering:
-1. Core personality traits
-2. Talents and strengths
-3. Challenges and growth areas
-4. Life themes and patterns
-5. Recommendations for development
+Write one coherent premium analysis that:
+1. Starts from the Big Three: Sun, Moon, Ascendant.
+2. Explains how the outer angles (Ascendant, IC, Descendant, Midheaven) shape private life, relationships, and public path.
+3. Interprets the most important planets through sign, house, degree, and retrograde status when present.
+4. Uses the aspects as real dynamics, not as isolated textbook definitions.
+5. Highlights repeating themes, internal contradictions, strengths, and likely growth tasks.
+6. Gives practical developmental guidance grounded in this exact chart.
 
-Style: Psychological, supportive, practical. Focus on opportunities, not limitations.`;
+Hard requirements:
+- Do not invent placements, aspects, houses, or biographical facts.
+- If some data is weak or missing, simply say the chart emphasizes other available factors.
+- Avoid generic astrology filler and avoid repeating the same idea in different words.
+- Do not moralize and do not sound mystical for the sake of style.
+- Keep the tone intelligent, psychologically precise, warm, and concrete.
+- Explain synthesis: show how placements work together, not just one-by-one.
+- Pay special attention to the user's real chart anchors: big three, angular houses, dominant houses, repeated elements, and strongest aspects.
+
+The result must read like a high-end personalized astrological consultation, not a template.`;
     }
 
     if (locale === 'es') {
-      return `Crea una interpretación psicológica profunda de la carta natal.
+      return `Crea una interpretación PREMIUM ampliada de la carta natal basándote estrictamente en los datos proporcionados.
 IDIOMA: Español solamente.
+FORMATO: solo texto plano, sin JSON, sin encabezados markdown, sin viñetas.
+LONGITUD: 7-10 párrafos sustanciales.
+
+ASCENDENTE:
+${ascendantDesc}
+
+EJES ANGULARES:
+${angularAxisDesc}
+
+FOCO DOMINANTE:
+${dominantPlanetaryFocus}
 
 PLANETAS:
 ${planetsDesc}
@@ -720,17 +809,38 @@ ${housesDesc}
 ASPECTOS:
 ${aspectsDesc}
 
-Crea una interpretación detallada (3-5 párrafos) que cubra:
-1. Rasgos clave de la personalidad
-2. Talentos y fortalezas
-3. Desafíos y áreas de crecimiento
-4. Temas y patrones de vida
-5. Recomendaciones para el desarrollo
+Escribe un análisis premium coherente que:
+1. Comience por la gran tríada: Sol, Luna y Ascendente.
+2. Explique cómo los ángulos principales (Ascendente, IC, Descendente y Medio Cielo) moldean vida privada, vínculos y camino público.
+3. Interprete los planetas importantes por signo, casa, grado y retrogradación si existe.
+4. Use los aspectos como dinámicas reales, no como definiciones sueltas de manual.
+5. Destaque temas repetidos, contradicciones internas, fortalezas y tareas de crecimiento.
+6. Ofrezca orientación práctica basada en esta carta exacta.
 
-Estilo: psicológico, de apoyo y práctico. Enfócate en oportunidades, no en limitaciones.`;
+Requisitos estrictos:
+- No inventes posiciones, aspectos, casas ni datos biográficos.
+- Si algún dato es débil o falta, indícalo brevemente y apóyate en lo que sí está claro.
+- Evita relleno astrológico genérico y evita repetir la misma idea con otras palabras.
+- No moralices ni uses tono místico vacío.
+- Mantén un tono inteligente, psicológico, cálido y concreto.
+- Haz síntesis: muestra cómo los factores trabajan juntos, no solo uno por uno.
+- Da atención especial a los anclajes reales de la carta: gran tríada, casas angulares, casas dominantes, elementos repetidos y aspectos fuertes.
+
+El resultado debe sentirse como una consulta astrológica personalizada de alto nivel, no como una plantilla.`;
     }
 
-    return `Создайте глубокую психологическую интерпретацию натальной карты.
+    return `Создайте расширенную PREMIUM-интерпретацию натальной карты, строго опираясь на переданные данные.
+ФОРМАТ: только сплошной текст, без JSON, без markdown-заголовков, без списков.
+ОБЪЕМ: 7-10 содержательных абзацев.
+
+АСЦЕНДЕНТ:
+${ascendantDesc}
+
+УГЛЫ КАРТЫ:
+${angularAxisDesc}
+
+ДОМИНИРУЮЩИЙ ФОКУС:
+${dominantPlanetaryFocus}
 
 ПЛАНЕТЫ:
 ${planetsDesc}
@@ -741,14 +851,42 @@ ${housesDesc}
 АСПЕКТЫ:
 ${aspectsDesc}
 
-Создайте детальную интерпретацию (3-5 абзацев), охватывающую:
-1. Ключевые черты личности
-2. Таланты и сильные стороны
-3. Вызовы и области роста
-4. Жизненные темы и паттерны
-5. Рекомендации для развития
+Нужно написать единый premium-анализ, который:
+1. Начинает разбор с большой тройки: Солнце, Луна, Асцендент.
+2. Объясняет, как углы карты (ASC, IC, DSC, MC) формируют личную подачу, внутреннюю опору, сценарий партнерства и социальную реализацию.
+3. Интерпретирует ключевые планеты через знак, дом, градус и ретроградность, если она есть.
+4. Использует аспекты как живую динамику характера, а не как отдельные учебниковые формулы.
+5. Выявляет повторяющиеся темы, внутренние противоречия, сильные стороны и задачи роста.
+6. Дает практичные выводы и рекомендации, которые реально следуют из этой карты.
 
-Стиль: Психологический, поддерживающий, практичный. Фокус на возможностях, а не ограничениях.`;
+Жесткие требования:
+- Ничего не выдумывайте: не добавляйте несуществующие положения, аспекты, дома или биографические детали.
+- Если каких-то данных недостаточно, кратко отметьте это и опирайтесь на то, что выражено ясно.
+- Не используйте шаблонную астрологическую воду и не повторяйте одну мысль разными словами.
+- Не морализируйте и не уходите в мистический туман ради стиля.
+- Тон должен быть умным, психологически точным, теплым и конкретным.
+- Делайте синтез: показывайте, как факторы карты работают вместе.
+- Особое внимание уделяйте нашим главным якорям: большая тройка, угловые дома, повтор элементов, доминанты по домам и сильнейшие аспекты.
+
+Итоговый текст должен читаться как дорогая персональная консультация по натальной карте, а не как шаблонный гороскоп.`;
+  }
+
+  private getAscendantFromHouses(houses: any, locale: AILocale): string {
+    const firstHouse = houses?.[1] ?? houses?.['1'];
+    if (!firstHouse?.sign) {
+      return locale === 'ru'
+        ? 'Неизвестно'
+        : locale === 'es'
+          ? 'Desconocido'
+          : 'Unknown';
+    }
+
+    const degree =
+      typeof firstHouse.cusp === 'number'
+        ? `${(firstHouse.cusp % 30).toFixed(1)}°`
+        : '';
+
+    return `${this.getLocalizedSign(firstHouse.sign, locale)}${degree ? ` ${degree}` : ''}`;
   }
 
   /**
@@ -983,9 +1121,25 @@ ${aspectsDesc}
     }
 
     return aspects
-      .slice(0, 5)
+      .slice(0, 8)
       .map((a) => {
-        return `${this.getPlanetName(a.planetA, locale)} ${this.getAspectName(a.aspect, locale)} ${this.getPlanetName(a.planetB, locale)}`;
+        const orb =
+          typeof a.orb === 'number'
+            ? locale === 'en'
+              ? `, orb ${Math.abs(a.orb).toFixed(1)}°`
+              : locale === 'es'
+                ? `, orbe ${Math.abs(a.orb).toFixed(1)}°`
+                : `, орб ${Math.abs(a.orb).toFixed(1)}°`
+            : '';
+        const strength =
+          typeof a.strength === 'number'
+            ? locale === 'en'
+              ? `, strength ${Math.round(a.strength * 100)}%`
+              : locale === 'es'
+                ? `, fuerza ${Math.round(a.strength * 100)}%`
+                : `, сила ${Math.round(a.strength * 100)}%`
+            : '';
+        return `${this.getPlanetName(a.planetA, locale)} ${this.getAspectName(a.aspect, locale)} ${this.getPlanetName(a.planetB, locale)}${orb}${strength}`;
       })
       .join(', ');
   }
@@ -1025,7 +1179,31 @@ ${aspectsDesc}
             : locale === 'es'
               ? 'desconocido'
               : 'неизвестно';
-        return `${this.getPlanetName(key, locale)}: ${planet.sign || fallbackSign}`;
+        const sign = planet.sign
+          ? this.getLocalizedSign(planet.sign, locale)
+          : fallbackSign;
+        const degree =
+          typeof planet.degree === 'number'
+            ? `${planet.degree.toFixed(1)}°`
+            : typeof planet.longitude === 'number'
+              ? `${(planet.longitude % 30).toFixed(1)}°`
+              : '';
+        const house =
+          typeof planet.house === 'number'
+            ? locale === 'en'
+              ? `, house ${planet.house}`
+              : locale === 'es'
+                ? `, casa ${planet.house}`
+                : `, дом ${planet.house}`
+            : '';
+        const retrograde = planet.retrograde
+          ? locale === 'en'
+            ? ', retrograde'
+            : locale === 'es'
+              ? ', retrógrado'
+              : ', ретроградный'
+          : '';
+        return `${this.getPlanetName(key, locale)}: ${sign}${degree ? ` ${degree}` : ''}${house}${retrograde}`;
       })
       .filter(Boolean)
       .join(', ');
@@ -1055,9 +1233,118 @@ ${aspectsDesc}
             : locale === 'es'
               ? 'desconocido'
               : 'неизвестно';
-        return `${label} ${key}: ${house.sign || fallbackSign}`;
+        const degree =
+          typeof house?.cusp === 'number'
+            ? ` ${(house.cusp % 30).toFixed(1)}°`
+            : '';
+        const sign = house?.sign
+          ? this.getLocalizedSign(house.sign, locale)
+          : fallbackSign;
+        return `${label} ${key}: ${sign}${degree}`;
       })
       .join(', ');
+  }
+
+  private getDominantPlanetaryFocus(
+    planets: any,
+    locale: AILocale = 'ru',
+  ): string {
+    if (!planets) {
+      return locale === 'en'
+        ? 'No clear dominant focus available'
+        : locale === 'es'
+          ? 'No hay un foco dominante claro'
+          : 'Нет данных для определения доминирующего фокуса';
+    }
+
+    const houseCounts = new Map<number, string[]>();
+    for (const [key, planet] of Object.entries<any>(planets)) {
+      if (typeof planet?.house !== 'number') continue;
+      const existing = houseCounts.get(planet.house) || [];
+      existing.push(this.getPlanetName(key, locale));
+      houseCounts.set(planet.house, existing);
+    }
+
+    const dominantHouse = Array.from(houseCounts.entries()).sort(
+      (a, b) => b[1].length - a[1].length,
+    )[0];
+
+    if (!dominantHouse) {
+      return locale === 'en'
+        ? 'House concentration is not explicit'
+        : locale === 'es'
+          ? 'La concentración por casas no es explícita'
+          : 'Выраженной концентрации по домам нет';
+    }
+
+    const [houseNum, planetsInHouse] = dominantHouse;
+    if (locale === 'en') {
+      return `Strongest house concentration: house ${houseNum} (${planetsInHouse.join(', ')}).`;
+    }
+    if (locale === 'es') {
+      return `Mayor concentración en la casa ${houseNum} (${planetsInHouse.join(', ')}).`;
+    }
+    return `Наиболее выраженная концентрация в ${houseNum}-м доме (${planetsInHouse.join(', ')}).`;
+  }
+
+  private getAngularAxisDescription(
+    houses: any,
+    ascendant: any,
+    locale: AILocale = 'ru',
+  ): string {
+    const asc =
+      typeof ascendant === 'string'
+        ? ascendant
+        : ascendant?.sign
+          ? `${this.getLocalizedSign(ascendant.sign, locale)}${typeof ascendant.degree === 'number' ? ` ${ascendant.degree.toFixed(1)}°` : ''}`
+          : this.getAscendantFromHouses(houses, locale);
+
+    const house4 = houses?.[4] ?? houses?.['4'];
+    const house7 = houses?.[7] ?? houses?.['7'];
+    const house10 = houses?.[10] ?? houses?.['10'];
+
+    const formatAngle = (house: any) => {
+      if (!house?.sign) {
+        return locale === 'en'
+          ? 'unknown'
+          : locale === 'es'
+            ? 'desconocido'
+            : 'неизвестно';
+      }
+      return `${this.getLocalizedSign(house.sign, locale)}${typeof house?.cusp === 'number' ? ` ${(house.cusp % 30).toFixed(1)}°` : ''}`;
+    };
+
+    const ic = formatAngle(house4);
+    const dsc = formatAngle(house7);
+    const mc = formatAngle(house10);
+
+    if (locale === 'en') {
+      return `ASC: ${asc}; IC: ${ic}; DSC: ${dsc}; MC: ${mc}.`;
+    }
+    if (locale === 'es') {
+      return `ASC: ${asc}; IC: ${ic}; DSC: ${dsc}; MC: ${mc}.`;
+    }
+    return `ASC: ${asc}; IC: ${ic}; DSC: ${dsc}; MC: ${mc}.`;
+  }
+
+  private getLocalizedSign(sign: string, locale: AILocale = 'ru'): string {
+    const knownSigns = new Set([
+      'Aries',
+      'Taurus',
+      'Gemini',
+      'Cancer',
+      'Leo',
+      'Virgo',
+      'Libra',
+      'Scorpio',
+      'Sagittarius',
+      'Capricorn',
+      'Aquarius',
+      'Pisces',
+    ]);
+
+    if (!knownSigns.has(sign)) return sign;
+    return getSignNameLocalized(sign as Sign, locale);
   }
 
   /**

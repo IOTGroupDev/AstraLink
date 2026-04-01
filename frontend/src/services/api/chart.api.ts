@@ -9,6 +9,21 @@ import type {
 import { CodePurpose, PersonalCodeResult } from '../../types/personal-code';
 import { chartLogger } from '../logger';
 
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildLocalDateParams = (date?: string): URLSearchParams => {
+  const now = new Date();
+  return new URLSearchParams({
+    date: date ?? formatLocalDate(now),
+    tzOffsetMinutes: String(-now.getTimezoneOffset()),
+  });
+};
+
 export const chartAPI = {
   getNatalChart: async (): Promise<Chart | null> => {
     try {
@@ -25,6 +40,11 @@ export const chartAPI = {
 
   createNatalChart: async (data: any): Promise<Chart> => {
     const response = await api.post('/chart/natal', { data });
+    return response.data;
+  },
+
+  recalculateNatalChart: async (): Promise<Chart> => {
+    const response = await api.post('/chart/natal/recalculate');
     return response.data;
   },
 
@@ -96,9 +116,9 @@ export const chartAPI = {
     locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<MoonPhase> => {
     try {
-      const url = date
-        ? `/chart/moon-phase?date=${date}&locale=${locale}`
-        : `/chart/moon-phase?locale=${locale}`;
+      const params = buildLocalDateParams(date);
+      params.set('locale', locale);
+      const url = `/chart/moon-phase?${params.toString()}`;
       const response = await api.get(url);
       return response.data;
     } catch (error) {
@@ -112,9 +132,9 @@ export const chartAPI = {
     locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<LunarDay> => {
     try {
-      const url = date
-        ? `/chart/lunar-day?date=${date}&locale=${locale}`
-        : `/chart/lunar-day?locale=${locale}`;
+      const params = buildLocalDateParams(date);
+      params.set('locale', locale);
+      const url = `/chart/lunar-day?${params.toString()}`;
       const response = await api.get(url);
       return response.data;
     } catch (error) {
@@ -132,8 +152,9 @@ export const chartAPI = {
       const now = new Date();
       const targetYear = year ?? now.getFullYear();
       const targetMonth = month ?? now.getMonth();
+      const tzOffsetMinutes = -now.getTimezoneOffset();
       const response = await api.get(
-        `/chart/lunar-calendar?year=${targetYear}&month=${targetMonth}&locale=${locale}`
+        `/chart/lunar-calendar?year=${targetYear}&month=${targetMonth}&locale=${locale}&tzOffsetMinutes=${tzOffsetMinutes}`
       );
       return response.data;
     } catch (error) {

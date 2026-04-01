@@ -6,6 +6,7 @@
     "planets": "Planets",
     "houses": "Houses",
     "aspects": "Aspects",
+    "ascendant": "Ascendant",
     "summary": "Summary"
   },
   "errors": {
@@ -35,6 +36,11 @@
     "midheaven": "Midheaven (10th house)",
     "descendant": "Descendant (7th house)",
     "ic": "Imum Coeli (4th house)"
+  },
+  "angleModal": {
+    "openHint": "Tap to read more",
+    "loading": "Loading detailed interpretation...",
+    "detailsError": "Failed to load detailed interpretation."
   },
   "planetDetails": {
     "longitude": "Longitude:",
@@ -92,6 +98,13 @@
     "dominantElements": "Dominant Elements",
     "dominantQualities": "Dominant Qualities",
     "recommendations": "Recommendations"
+  },
+  "ascendant": {
+    "title": "Ascendant and first impression",
+    "keywords": "Keywords",
+    "strengths": "Strengths",
+    "challenges": "Growth edges",
+    "firstHouse": "Connection with the 1st house"
   },
   "modalities": {
     "cardinal": "Cardinal",

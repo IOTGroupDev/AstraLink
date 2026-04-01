@@ -1,33 +1,62 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AIService } from './ai.service';
+import { ClaudeProvider } from './ai/providers/claude.provider';
+import { OpenAIProvider } from './ai/providers/openai.provider';
+import { DeepSeekProvider } from './ai/providers/deepseek.provider';
+
+const createProviderMock = (isAvailable: boolean) => ({
+  isAvailable: jest.fn(() => isAvailable),
+  generateHoroscope: jest.fn(),
+  generateInterpretation: jest.fn(),
+  getProviderInfo: jest.fn(() => ({ provider: 'mock', model: 'mock-model' })),
+});
+
+const createModule = async ({
+  claude = false,
+  openai = true,
+  deepseek = false,
+  preference = 'auto',
+}: {
+  claude?: boolean;
+  openai?: boolean;
+  deepseek?: boolean;
+  preference?: string;
+}) =>
+  Test.createTestingModule({
+    providers: [
+      AIService,
+      {
+        provide: ConfigService,
+        useValue: {
+          get: jest.fn((key: string) => {
+            if (key === 'AI_PROVIDER_PREFERENCE') return preference;
+            return undefined;
+          }),
+        },
+      },
+      {
+        provide: ClaudeProvider,
+        useValue: createProviderMock(claude),
+      },
+      {
+        provide: OpenAIProvider,
+        useValue: createProviderMock(openai),
+      },
+      {
+        provide: DeepSeekProvider,
+        useValue: createProviderMock(deepseek),
+      },
+    ],
+  }).compile();
 
 describe('AIService', () => {
   let service: AIService;
-  let configService: ConfigService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AIService,
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string) => {
-              // Mock environment variables
-              const config = {
-                OPENAI_API_KEY: 'test-openai-key',
-                ANTHROPIC_API_KEY: undefined, // Test OpenAI as primary
-              };
-              return config[key as keyof typeof config];
-            }),
-          },
-        },
-      ],
-    }).compile();
+    const module: TestingModule = await createModule({});
 
     service = module.get<AIService>(AIService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -41,17 +70,11 @@ describe('AIService', () => {
     });
 
     it('should set provider to "none" when no keys provided', async () => {
-      const moduleNoKeys = await Test.createTestingModule({
-        providers: [
-          AIService,
-          {
-            provide: ConfigService,
-            useValue: {
-              get: jest.fn(() => undefined),
-            },
-          },
-        ],
-      }).compile();
+      const moduleNoKeys = await createModule({
+        claude: false,
+        openai: false,
+        deepseek: false,
+      });
 
       const serviceNoKeys = moduleNoKeys.get<AIService>(AIService);
       expect(serviceNoKeys.isAvailable()).toBe(false);
@@ -61,23 +84,10 @@ describe('AIService', () => {
 
   describe('provider priority', () => {
     it('should prefer Claude over OpenAI when both keys exist', async () => {
-      const moduleBothKeys = await Test.createTestingModule({
-        providers: [
-          AIService,
-          {
-            provide: ConfigService,
-            useValue: {
-              get: jest.fn((key: string) => {
-                const config = {
-                  OPENAI_API_KEY: 'test-openai-key',
-                  ANTHROPIC_API_KEY: 'test-anthropic-key',
-                };
-                return config[key as keyof typeof config];
-              }),
-            },
-          },
-        ],
-      }).compile();
+      const moduleBothKeys = await createModule({
+        claude: true,
+        openai: true,
+      });
 
       const serviceBothKeys = moduleBothKeys.get<AIService>(AIService);
       expect(serviceBothKeys.getProvider()).toBe('claude');
@@ -127,11 +137,11 @@ describe('AIService', () => {
     });
 
     it('should translate aspect names correctly', () => {
-      expect(service['getAspectName']('conjunction')).toBe('в соединении с');
-      expect(service['getAspectName']('opposition')).toBe('в оппозиции к');
-      expect(service['getAspectName']('trine')).toBe('в тригоне к');
-      expect(service['getAspectName']('square')).toBe('в квадрате к');
-      expect(service['getAspectName']('sextile')).toBe('в секстиле к');
+      expect(service['getAspectName']('conjunction')).toBe('соединение с');
+      expect(service['getAspectName']('opposition')).toBe('оппозиция к');
+      expect(service['getAspectName']('trine')).toBe('трин к');
+      expect(service['getAspectName']('square')).toBe('квадрат к');
+      expect(service['getAspectName']('sextile')).toBe('секстиль к');
     });
 
     it('should format transits correctly', () => {
@@ -153,7 +163,7 @@ describe('AIService', () => {
       const formatted = service['formatTransits'](transits);
 
       expect(formatted).toContain('Марс');
-      expect(formatted).toContain('в тригоне к');
+      expect(formatted).toContain('трин к');
       expect(formatted).toContain('Венера');
       expect(formatted).toContain('85%');
     });
@@ -185,6 +195,8 @@ describe('AIService', () => {
       expect(prompt).toContain('Асцендент: Стрелец');
       expect(prompt).toContain('КРИТИЧЕСКИ ВАЖНО');
       expect(prompt).toContain('JSON');
+      expect(prompt).toContain('что стоит делать');
+      expect(prompt).toContain('чего лучше избегать');
     });
 
     it('should build correct prompt for week period', () => {
@@ -202,17 +214,6 @@ describe('AIService', () => {
       const prompt = service['buildHoroscopePrompt'](context);
 
       expect(prompt).toContain('на эту неделю');
-    });
-  });
-
-  describe('sleep utility', () => {
-    it('should sleep for specified milliseconds', async () => {
-      const startTime = Date.now();
-      await service['sleep'](100);
-      const duration = Date.now() - startTime;
-
-      expect(duration).toBeGreaterThanOrEqual(100);
-      expect(duration).toBeLessThan(150);
     });
   });
 });

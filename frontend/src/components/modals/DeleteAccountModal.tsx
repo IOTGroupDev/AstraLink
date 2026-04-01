@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useTranslation } from 'react-i18next';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { logger } from '../../services/logger';
 
 const { width } = Dimensions.get('window');
@@ -74,16 +64,12 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [step, setStep] = useState<'warning' | 'confirm'>('warning');
 
-  const warningScale = useSharedValue(1);
-  const confirmButtonScale = useSharedValue(1);
-
-  const warningAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: warningScale.value }],
-  }));
-
-  const confirmButtonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: confirmButtonScale.value }],
-  }));
+  useEffect(() => {
+    if (!visible) {
+      setStep('warning');
+      setIsDeleting(false);
+    }
+  }, [visible]);
 
   const handleClose = () => {
     if (!isDeleting) {
@@ -93,20 +79,12 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   };
 
   const handleProceedToConfirm = () => {
-    warningScale.value = withSequence(
-      withSpring(1.1, { damping: 8 }),
-      withSpring(1)
-    );
     setStep('confirm');
   };
 
   const handleConfirmDelete = async () => {
     try {
       setIsDeleting(true);
-      confirmButtonScale.value = withSequence(
-        withTiming(0.9, { duration: 100 }),
-        withTiming(1, { duration: 100 })
-      );
       await onConfirm();
       setStep('warning');
     } catch (error) {
@@ -116,24 +94,18 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
     }
   };
 
-  const handleButtonPressIn = (scaleValue: Animated.SharedValue<number>) => {
-    scaleValue.value = withSpring(0.95);
-  };
-
-  const handleButtonPressOut = (scaleValue: Animated.SharedValue<number>) => {
-    scaleValue.value = withSpring(1);
-  };
-
   return (
     <Modal
       visible={visible}
       transparent
       animationType="none"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
       onRequestClose={handleClose}
     >
       <Animated.View
-        entering={FadeIn.duration(300)}
-        exiting={FadeOut.duration(200)}
+        entering={FadeIn.duration(180)}
+        exiting={FadeOut.duration(140)}
         style={styles.overlay}
       >
         <BlurView intensity={20} style={StyleSheet.absoluteFillObject}>
@@ -145,26 +117,20 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
           />
         </BlurView>
 
-        <Animated.View
-          entering={SlideInDown.springify().damping(15)}
-          exiting={SlideOutDown.duration(200)}
-          style={styles.modalContainer}
-        >
+        <View style={styles.modalContainer}>
           {step === 'warning' ? (
             <LinearGradient
               colors={['rgba(30, 30, 46, 0.98)', 'rgba(17, 17, 27, 0.98)']}
               style={styles.modalContent}
             >
-              <Animated.View
-                style={[styles.iconContainer, warningAnimatedStyle]}
-              >
+              <View style={styles.iconContainer}>
                 <LinearGradient
                   colors={['#FF6B6B', '#FF5252']}
                   style={styles.iconGradient}
                 >
                   <Ionicons name="warning" size={48} color="#fff" />
                 </LinearGradient>
-              </Animated.View>
+              </View>
 
               <Text style={styles.title}>
                 {t('profile.deleteAccountModal.warning.title')}
@@ -242,18 +208,16 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
           ) : (
             <LinearGradient
               colors={['rgba(30, 30, 46, 0.98)', 'rgba(17, 17, 27, 0.98)']}
-              style={styles.modalContent}
+              style={[styles.modalContent, styles.confirmContent]}
             >
-              <Animated.View
-                style={[styles.iconContainer, warningAnimatedStyle]}
-              >
+              <View style={styles.iconContainer}>
                 <LinearGradient
                   colors={['#DC2626', '#B91C1C']}
                   style={styles.iconGradient}
                 >
                   <Ionicons name="skull" size={48} color="#fff" />
                 </LinearGradient>
-              </Animated.View>
+              </View>
 
               <Text style={styles.title}>
                 {t('profile.deleteAccountModal.confirm.title')}
@@ -296,14 +260,10 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <Animated.View
-                  style={[{ flex: 1 }, confirmButtonAnimatedStyle]}
-                >
+                <View style={{ flex: 1 }}>
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={handleConfirmDelete}
-                    onPressIn={() => handleButtonPressIn(confirmButtonScale)}
-                    onPressOut={() => handleButtonPressOut(confirmButtonScale)}
                     disabled={isDeleting}
                     activeOpacity={0.8}
                   >
@@ -325,11 +285,11 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                       )}
                     </LinearGradient>
                   </TouchableOpacity>
-                </Animated.View>
+                </View>
               </View>
             </LinearGradient>
           )}
-        </Animated.View>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -350,6 +310,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modalContent: {
+    minHeight: 520,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
@@ -359,6 +320,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
+  },
+  confirmContent: {
+    justifyContent: 'center',
   },
   iconContainer: {
     alignSelf: 'center',

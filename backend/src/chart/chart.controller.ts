@@ -35,6 +35,47 @@ export class ChartController {
     private readonly lunarService: LunarService,
   ) {}
 
+  private parseUserLocalDate(
+    dateStr?: string,
+    tzOffsetMinutesStr?: string,
+  ): Date {
+    const tzOffsetMinutes = Number.parseInt(tzOffsetMinutesStr ?? '0', 10);
+    const hasValidOffset = Number.isFinite(tzOffsetMinutes);
+
+    if (!dateStr) {
+      if (!hasValidOffset) {
+        return new Date();
+      }
+
+      const now = new Date();
+      const userNow = new Date(now.getTime() + tzOffsetMinutes * 60_000);
+
+      return new Date(
+        Date.UTC(
+          userNow.getUTCFullYear(),
+          userNow.getUTCMonth(),
+          userNow.getUTCDate(),
+          12,
+          0,
+          0,
+        ) -
+          tzOffsetMinutes * 60_000,
+      );
+    }
+
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+      return new Date(dateStr);
+    }
+
+    const [year, month, day] = parts;
+    const offsetMinutes = hasValidOffset ? tzOffsetMinutes : 0;
+
+    return new Date(
+      Date.UTC(year, month - 1, day, 12, 0, 0) - offsetMinutes * 60_000,
+    );
+  }
+
   @Get('natal')
   @ApiOperation({ summary: 'Получить натальную карту пользователя' })
   @ApiResponse({ status: 200, description: 'Натальная карта' })
@@ -71,6 +112,37 @@ export class ChartController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
     return this.chartService.getNatalChartWithInterpretation(userId);
+  }
+
+  @Post('natal/recalculate')
+  @ApiOperation({
+    summary:
+      'Принудительно пересчитать натальную карту по текущим данным профиля',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Натальная карта пересчитана',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Неполные или некорректные birth data',
+  })
+  @ApiResponse({ status: 404, description: 'Натальная карта не найдена' })
+  async forceRecalculateNatalChart(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+
+    const localeHeader =
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
+    const locale = localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+
+    return this.chartService.forceRecalculateNatalChart(userId, locale);
   }
 
   @Post('natal')
@@ -254,16 +326,21 @@ export class ChartController {
     description: 'ru | en | es',
     required: false,
   })
+  @ApiQuery({
+    name: 'tzOffsetMinutes',
+    description: 'Смещение пользователя от UTC в минутах',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Фаза луны' })
   async getMoonPhase(
     @Request() req: AuthenticatedRequest,
     @Query('date') dateStr?: string,
+    @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
     @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
 
-    // Парсим дату
-    const date = dateStr ? new Date(dateStr) : new Date();
+    const date = this.parseUserLocalDate(dateStr, tzOffsetMinutesStr);
 
     // Получаем натальную карту для определения дома Луны
     let natalChart: any = null;
@@ -293,12 +370,18 @@ export class ChartController {
     description: 'ru | en | es',
     required: false,
   })
+  @ApiQuery({
+    name: 'tzOffsetMinutes',
+    description: 'Смещение пользователя от UTC в минутах',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Лунный день' })
   async getLunarDay(
     @Query('date') dateStr?: string,
+    @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
     @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
-    const date = dateStr ? new Date(dateStr) : new Date();
+    const date = this.parseUserLocalDate(dateStr, tzOffsetMinutesStr);
     return this.lunarService.getLunarDay(date, locale);
   }
 
@@ -319,11 +402,17 @@ export class ChartController {
     description: 'ru | en | es',
     required: false,
   })
+  @ApiQuery({
+    name: 'tzOffsetMinutes',
+    description: 'Смещение пользователя от UTC в минутах',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Лунный календарь на месяц' })
   async getLunarCalendar(
     @Request() req: AuthenticatedRequest,
     @Query('year') yearStr?: string,
     @Query('month') monthStr?: string,
+    @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
     @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -331,6 +420,7 @@ export class ChartController {
     const now = new Date();
     const year = yearStr ? parseInt(yearStr) : now.getFullYear();
     const month = monthStr ? parseInt(monthStr) : now.getMonth();
+    const tzOffsetMinutes = Number.parseInt(tzOffsetMinutesStr ?? '0', 10);
 
     // Получаем натальную карту
     let natalChart: any = null;
@@ -350,6 +440,7 @@ export class ChartController {
       month,
       natalChart,
       locale,
+      Number.isFinite(tzOffsetMinutes) ? tzOffsetMinutes : 0,
     );
   }
 

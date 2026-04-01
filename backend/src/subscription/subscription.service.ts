@@ -9,9 +9,9 @@ import {
   FEATURE_MATRIX,
   TRIAL_CONFIG,
 } from '../types';
-import { AIService } from '../services/ai.service';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { RedisService } from '../redis/redis.service';
+import { NatalChartService } from '../chart/services';
 
 @Injectable()
 export class SubscriptionService {
@@ -19,7 +19,7 @@ export class SubscriptionService {
 
   constructor(
     private prisma: PrismaService,
-    private aiService: AIService,
+    private natalChartService: NatalChartService,
     private horoscopeService: HoroscopeGeneratorService,
     private redis: RedisService,
   ) {}
@@ -302,7 +302,7 @@ export class SubscriptionService {
 
     this.logger.log(`User ${userId} upgraded to ${tier}`);
 
-    this.schedulePremiumRefresh(userId, locale);
+    await this.refreshPremiumAssets(userId, locale);
 
     return {
       success: true,
@@ -321,11 +321,6 @@ export class SubscriptionService {
     userId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
-    if (!this.aiService.isAvailable()) {
-      this.logger.warn(`AI not available for premium refresh user=${userId}`);
-      return;
-    }
-
     // Очистим кэш гороскопов, чтобы не вернуть старые FREE ответы
     try {
       await this.redis.deleteByPattern(`horoscope:${userId}:*`);
@@ -337,47 +332,29 @@ export class SubscriptionService {
       );
     }
 
-    // 1) AI-интерпретация натальной карты
+    // 1) Полный premium refresh натальной карты:
+    // пересчет карты + структурная интерпретация + расширенный AI narrative
     try {
-      const chartRec = await this.prisma.chart.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (chartRec) {
-        const chartData = (chartRec.data as any) || {};
-        const aiText = await this.aiService.generateChartInterpretation({
-          planets: chartData?.planets,
-          houses: chartData?.houses,
-          aspects: chartData?.aspects || [],
-          userProfile: undefined,
-          locale,
-        });
-
-        const updatedData = {
-          ...chartData,
-          interpretation: aiText,
-          interpretationVersion: 'ai-v1',
-          generatedBy: 'ai',
-        };
-
-        await this.prisma.chart.update({
-          where: { id: chartRec.id },
-          data: { data: updatedData },
-        });
-      }
+      await this.natalChartService.refreshPremiumChartAssets(userId, locale);
     } catch (e) {
       this.logger.warn(
-        `AI interpretation generation failed for ${userId}: ${
+        `Premium natal chart refresh failed for ${userId}: ${
           e instanceof Error ? e.message : String(e)
         }`,
       );
     }
 
-    // 2) Прогрев PREMIUM-гороскопов (AI для всех периодов)
+    // 2) Сначала синхронно собираем дневной PREMIUM-гороскоп:
+    // именно он нужен сразу после апгрейда вместе с actionable advice.
     try {
+      await this.horoscopeService.generateHoroscope(
+        userId,
+        'day',
+        true,
+        locale,
+      );
       await Promise.all(
-        (['day', 'tomorrow', 'week', 'month'] as const).map((p) =>
+        (['tomorrow', 'week', 'month'] as const).map((p) =>
           this.horoscopeService.generateHoroscope(userId, p, true, locale),
         ),
       );
@@ -388,22 +365,6 @@ export class SubscriptionService {
         }`,
       );
     }
-  }
-
-  private schedulePremiumRefresh(
-    userId: string,
-    locale: 'ru' | 'en' | 'es' = 'ru',
-  ) {
-    // Run in background to avoid blocking upgrade response
-    setImmediate(() => {
-      this.refreshPremiumAssets(userId, locale).catch((e) => {
-        this.logger.warn(
-          `Premium refresh failed for ${userId}: ${
-            e instanceof Error ? e.message : String(e)
-          }`,
-        );
-      });
-    });
   }
 
   /**

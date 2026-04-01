@@ -15,7 +15,7 @@ import type { RootStackParamList } from '../types/navigation';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
-import { chartAPI, userAPI } from '../services/api';
+import { userAPI } from '../services/api';
 import { subscriptionAPI } from '../services/api/subscription.api';
 import { SubscriptionTier } from '../types/subscription';
 
@@ -25,18 +25,12 @@ type SubscriptionScreenProps = StackScreenProps<
 >;
 
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [currentSubscription, setCurrentSubscription] =
     React.useState<Subscription | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
-  const [aiRefreshing, setAiRefreshing] = React.useState(false);
-
-  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
-    const lang = String(i18n.language || 'en').toLowerCase();
-    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
-  }, [i18n.language]);
 
   React.useEffect(() => {
     fetchSubscription();
@@ -91,12 +85,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
               if (result.success) {
-                setAiRefreshing(true);
-                void Promise.allSettled([
-                  chartAPI.regenerateChartWithAI(),
-                  chartAPI.getAllHoroscopes(getApiLocale()),
-                ]).finally(() => setAiRefreshing(false));
-
                 queryClient.invalidateQueries({ queryKey: ['subscription'] });
 
                 Alert.alert(
@@ -255,18 +243,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
             </View>
           );
         })}
-
-        {aiRefreshing && (
-          <View style={styles.aiRefreshBanner}>
-            <Ionicons name="sparkles" size={18} color="#F59E0B" />
-            <Text style={styles.aiRefreshText}>
-              {t(
-                'subscription.aiRefreshing',
-                'Updating AI horoscope and interpretation...'
-              )}
-            </Text>
-          </View>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

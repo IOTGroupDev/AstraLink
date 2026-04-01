@@ -6,6 +6,7 @@
     "planets": "Planetas",
     "houses": "Casas",
     "aspects": "Aspectos",
+    "ascendant": "Ascendente",
     "summary": "Síntesis"
   },
   "errors": {
@@ -35,6 +36,11 @@
     "midheaven": "Medio Cielo (casa 10)",
     "descendant": "Descendente (casa 7)",
     "ic": "Fondo del Cielo (casa 4)"
+  },
+  "angleModal": {
+    "openHint": "Toca para ver la interpretación",
+    "loading": "Cargando descripción detallada...",
+    "detailsError": "No se pudo cargar la descripción detallada."
   },
   "planetDetails": {
     "longitude": "Longitud:",
@@ -92,6 +98,13 @@
     "dominantElements": "Elementos Dominantes",
     "dominantQualities": "Cualidades Dominantes",
     "recommendations": "Recomendaciones"
+  },
+  "ascendant": {
+    "title": "Ascendente y primera impresión",
+    "keywords": "Palabras clave",
+    "strengths": "Fortalezas",
+    "challenges": "Áreas de crecimiento",
+    "firstHouse": "Relación con la casa 1"
   },
   "modalities": {
     "cardinal": "Cardinal",
