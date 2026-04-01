@@ -156,6 +156,13 @@ export class ChartService {
     return this.natalChartService.createNatalChart(userId, data);
   }
 
+  async forceRecalculateNatalChart(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    return this.natalChartService.forceRecalculateNatalChart(userId, locale);
+  }
+
   /**
    * Get lazy interpretation details ("Read more")
    */
@@ -422,7 +429,7 @@ export class ChartService {
       }
 
       // 3. Regenerate interpretation with AI
-      await this.natalChartService.regenerateInterpretation(userId, locale);
+      await this.natalChartService.regenerateAiInterpretation(userId, locale);
 
       // 4. Update ai_generated_at timestamp using Prisma
       await this.prisma.chart.updateMany({

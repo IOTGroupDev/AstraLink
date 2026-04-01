@@ -82,6 +82,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabaseLogger } from './logger';
+import { tokenService } from './tokenService';
 
 const env: any =
   (typeof process !== 'undefined' ? (process as any).env : {}) || {};
@@ -112,3 +113,52 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: Platform.OS === 'web',
   },
 });
+
+let tokenSyncInitPromise: Promise<void> | null = null;
+
+async function initSupabaseTokenSync(): Promise<void> {
+  if (tokenSyncInitPromise) {
+    return tokenSyncInitPromise;
+  }
+
+  tokenSyncInitPromise = (async () => {
+    try {
+      await tokenService.init();
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        supabaseLogger.warn('Failed to read initial Supabase session', error);
+      }
+
+      await tokenService.setToken(data.session?.access_token ?? null);
+
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        supabaseLogger.log(
+          'Supabase auth state changed:',
+          event,
+          session?.access_token ? 'token present' : 'no token'
+        );
+
+        try {
+          await tokenService.setToken(session?.access_token ?? null);
+        } catch (syncError) {
+          supabaseLogger.warn(
+            'Failed to sync auth token to tokenService',
+            syncError
+          );
+        }
+      });
+    } catch (error) {
+      supabaseLogger.error('Supabase token sync initialization failed', error);
+      try {
+        await tokenService.setToken(null);
+      } catch {
+        // ignore follow-up cleanup errors
+      }
+    }
+  })();
+
+  return tokenSyncInitPromise;
+}
+
+void initSupabaseTokenSync();

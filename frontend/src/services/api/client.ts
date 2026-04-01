@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from '../supabase';
 import { apiLogger } from '../logger';
+import { tokenService } from '../tokenService';
 
 // Ensure base URL ends with /api/v1 (API versioning)
 function ensureApiBase(url: string): string {
@@ -85,6 +86,57 @@ const PUBLIC_ENDPOINTS = [
   '/geo/cities',
 ];
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getAccessTokenWithRetry(): Promise<string | null> {
+  try {
+    const cachedToken = await tokenService.getToken();
+    if (cachedToken) {
+      return cachedToken;
+    }
+  } catch (error) {
+    apiLogger.warn(
+      '⚠️ tokenService.getToken failed, falling back to Supabase:',
+      error
+    );
+  }
+
+  const maxAttempts = 6;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        apiLogger.warn(
+          '⚠️ supabase.auth.getSession failed during token lookup:',
+          error
+        );
+      }
+
+      const token = data.session?.access_token ?? null;
+      if (token) {
+        try {
+          await tokenService.setToken(token);
+        } catch {
+          // token cache sync failure should not block the request
+        }
+        return token;
+      }
+    } catch (error) {
+      apiLogger.warn('⚠️ Unexpected token lookup error:', error);
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await sleep(200);
+    }
+  }
+
+  return null;
+}
+
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
   const fullUrl = `${(config as any).baseURL ?? ''}${config.url ?? ''}`;
@@ -104,8 +156,7 @@ api.interceptors.request.use(async (config) => {
   apiLogger.log('🔍 Получение токена для запроса:', fullUrl);
 
   try {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    const token = await getAccessTokenWithRetry();
 
     if (token) {
       (config.headers as any).Authorization = `Bearer ${token}`;

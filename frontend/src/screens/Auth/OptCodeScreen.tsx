@@ -227,6 +227,14 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   }, [resendIn, email, CODE_LENGTH, t]);
 
+  useEffect(() => {
+    if (!canSubmit) return;
+    if (submitLock.current) return;
+    if (lastSubmittedCode.current === code) return;
+
+    void handleSubmit();
+  }, [canSubmit, code, handleSubmit]);
+
   return (
     <AuthLayout>
       <KeyboardAvoidingView
@@ -254,9 +262,21 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
                   onChangeText={(v) => onChangeDigit(i, v)}
                   onKeyPress={(e) => onKeyPress(i, e)}
                   keyboardType="number-pad"
+                  inputMode="numeric"
                   maxLength={1}
                   textContentType={i === 0 ? 'oneTimeCode' : 'none'}
                   autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
+                  submitBehavior="blurAndSubmit"
+                  onSubmitEditing={() => {
+                    if (i === CODE_LENGTH - 1) {
+                      void handleSubmit();
+                    } else {
+                      inputsRef.current[i + 1]?.focus();
+                    }
+                  }}
                   selectionColor="white"
                   style={[styles.box, digits[i] ? styles.boxFilled : null]}
                   autoFocus={i === 0}

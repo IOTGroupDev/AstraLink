@@ -1,5 +1,5 @@
 // frontend/src/screens/ProfileScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,14 @@ import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 interface ProfileScreenProps {
   navigation: any;
 }
+
+const DEFAULT_SUBSCRIPTION = {
+  tier: 'free',
+  isActive: false,
+  isTrial: false,
+  isTrialActive: false,
+  features: [],
+} as any;
 
 // Темы по стихиям (названия будут переведены в компоненте)
 const ELEMENT_THEMES = {
@@ -96,6 +104,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const requestIdRef = useRef(0);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const profileHeaderTitle = React.useMemo(() => {
@@ -151,21 +160,47 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }, [])
   );
 
-  const fetchProfileData = async () => {
-    setLoading(true);
-    try {
-      const [pRes, sRes, cRes] = await Promise.allSettled([
-        userAPI.getProfile(),
-        userAPI.getSubscription(), // может вернуть 401/404
-        chartAPI.getNatalChart(), // может вернуть 404, если нет карты
-      ]);
+  const buildProfileFromAuth = React.useCallback((): UserProfile | null => {
+    if (!authProfile?.id || !authProfile.email || !authProfile.birthDate) {
+      return null;
+    }
 
-      // PROFILE (обязательно)
-      if (pRes.status === 'fulfilled') {
-        setProfile(pRes.value);
+    return {
+      id: authProfile.id,
+      name: authProfile.name || '',
+      email: authProfile.email,
+      birthDate: authProfile.birthDate,
+      birthTime: authProfile.birthTime || '12:00',
+      birthPlace: authProfile.birthPlace || '',
+      zodiacSign: 'Aquarius' as ZodiacSign,
+      element: 'Air' as any,
+      createdAt: new Date().toISOString(),
+      isDarkMode: true,
+    };
+  }, [authProfile]);
+
+  const fetchProfileData = async () => {
+    const requestId = ++requestIdRef.current;
+    const shouldBlockScreen = !profile;
+
+    if (shouldBlockScreen) {
+      const fallbackProfile = buildProfileFromAuth();
+      if (fallbackProfile) {
+        setProfile((current) => current ?? fallbackProfile);
+        setLoading(false);
       } else {
-        const st = pRes.reason?.response?.status;
-        const data = pRes.reason?.response?.data;
+        setLoading(true);
+      }
+    }
+
+    try {
+      let resolvedProfile: UserProfile;
+
+      try {
+        resolvedProfile = await userAPI.getProfile();
+      } catch (profileError: any) {
+        const st = profileError?.response?.status;
+        const data = profileError?.response?.data;
         logger.warn('getProfile failed', st, data);
 
         if (st === 401) {
@@ -177,48 +212,59 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           return;
         }
 
-        // Любая другая ошибка профиля — это критично
-        throw pRes.reason;
+        throw profileError;
       }
 
-      // SUBSCRIPTION (не критично для показа профиля)
-      if (sRes.status === 'fulfilled') {
-        setSubscription(sRes.value);
-      } else {
-        const st = sRes.reason?.response?.status;
-        const data = sRes.reason?.response?.data;
-        logger.info('getSubscription failed (игнорируем)', st, data);
-
-        // Игнорируем 404 и прочее — поставим дефолт
-        setSubscription({
-          tier: 'free',
-          isActive: false,
-          isTrial: false,
-          isTrialActive: false,
-          features: [],
-        } as any);
+      if (requestId !== requestIdRef.current) {
+        return;
       }
 
-      // CHART (опционально)
-      if (cRes.status === 'fulfilled') {
-        setChart(cRes.value);
-      } else {
-        const st = cRes.reason?.response?.status;
-        const data = cRes.reason?.response?.data;
-        logger.info('getNatalChart failed (опционально)', st, data);
-        setChart(null);
-      }
+      setProfile(resolvedProfile);
+      setLoading(false);
 
-      // USER PHOTOS (опционально, для аватара)
-      try {
-        const photos = await userPhotosAPI.listPhotos();
-        const primary = photos.find((p) => p.isPrimary) || photos[0];
-        setPrimaryPhotoUrl(primary?.url || null);
-      } catch (photoErr) {
-        logger.info('listPhotos failed (опционально)', photoErr);
-        setPrimaryPhotoUrl(null);
-      }
+      void (async () => {
+        const [sRes, cRes, photoRes] = await Promise.allSettled([
+          userAPI.getSubscription(),
+          chartAPI.getNatalChart(),
+          userPhotosAPI.listPhotos(),
+        ]);
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
+        if (sRes.status === 'fulfilled') {
+          setSubscription(sRes.value);
+        } else {
+          const st = sRes.reason?.response?.status;
+          const data = sRes.reason?.response?.data;
+          logger.info('getSubscription failed (игнорируем)', st, data);
+          setSubscription(DEFAULT_SUBSCRIPTION);
+        }
+
+        if (cRes.status === 'fulfilled') {
+          setChart(cRes.value);
+        } else {
+          const st = cRes.reason?.response?.status;
+          const data = cRes.reason?.response?.data;
+          logger.info('getNatalChart failed (опционально)', st, data);
+          setChart(null);
+        }
+
+        if (photoRes.status === 'fulfilled') {
+          const photos = photoRes.value;
+          const primary = photos.find((p) => p.isPrimary) || photos[0];
+          setPrimaryPhotoUrl(primary?.url || null);
+        } else {
+          logger.info('listPhotos failed (опционально)', photoRes.reason);
+          setPrimaryPhotoUrl(null);
+        }
+      })();
     } catch (error: any) {
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
       // сюда попадём только если упал getProfile (критично)
       const st = error?.response?.status;
       const data = error?.response?.data;
@@ -228,7 +274,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         data?.message || t('profile.errors.failedToLoad')
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 

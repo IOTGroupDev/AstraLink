@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Modal,
+  Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,9 +61,18 @@ interface ChartData {
       sign: string;
       degree: number;
     };
+    interpretation?: any;
   };
   interpretation?: any;
 }
+
+interface AngleData {
+  sign: string;
+  degree: number;
+  longitude?: number;
+}
+
+type AngleKey = 'ascendant' | 'midheaven' | 'descendant' | 'ic';
 
 // Planet symbols remain constant across languages
 const PLANET_SYMBOLS: Record<string, string> = {
@@ -120,7 +132,7 @@ const getHouseForLongitude = (
 };
 
 const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const [chartData, setChartData] = useState<ChartData | null>(null);
@@ -129,6 +141,12 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'planets' | 'houses' | 'aspects' | 'summary'
   >('overview');
+  const [angleModalVisible, setAngleModalVisible] = useState(false);
+  const [angleModalLoading, setAngleModalLoading] = useState(false);
+  const [angleModalTitle, setAngleModalTitle] = useState('');
+  const [angleModalSubtitle, setAngleModalSubtitle] = useState('');
+  const [angleModalSummary, setAngleModalSummary] = useState('');
+  const [angleModalLines, setAngleModalLines] = useState<string[]>([]);
 
   useEffect(() => {
     loadChartData();
@@ -212,6 +230,14 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   // Извлекаем данные из правильной структуры
   const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
   const interpretation = chartData.data?.interpretation;
+  const resolvedAscendant: AngleData = ascendant || {
+    sign: houses?.[1]?.sign || 'N/A',
+    degree: typeof houses?.[1]?.cusp === 'number' ? houses[1].cusp % 30 : 0,
+  };
+  const resolvedMidheaven: AngleData = midheaven || {
+    sign: houses?.[10]?.sign || 'N/A',
+    degree: typeof houses?.[10]?.cusp === 'number' ? houses[10].cusp % 30 : 0,
+  };
 
   // Вкладки
   const tabs: Array<{
@@ -247,11 +273,106 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     },
   ];
 
+  const closeAngleModal = () => {
+    setAngleModalVisible(false);
+    setAngleModalLoading(false);
+    setAngleModalTitle('');
+    setAngleModalSubtitle('');
+    setAngleModalSummary('');
+    setAngleModalLines([]);
+  };
+
+  const openAngleDetails = async (angle: AngleKey) => {
+    const rawLocale = ['ru', 'en', 'es'].includes(i18n.language)
+      ? i18n.language
+      : i18n.language.split('-')[0];
+    const locale = (
+      ['ru', 'en', 'es'].includes(rawLocale) ? rawLocale : 'ru'
+    ) as 'ru' | 'en' | 'es';
+
+    const config = {
+      ascendant: {
+        symbol: 'ASC',
+        title: t('natalChart.angles.ascendant'),
+        sign: resolvedAscendant.sign,
+        degree: resolvedAscendant.degree,
+        summary: interpretation?.ascendant?.interpretation || '',
+        request: {
+          type: 'ascendant' as const,
+          sign: resolvedAscendant.sign,
+          locale,
+        },
+      },
+      midheaven: {
+        symbol: 'MC',
+        title: t('natalChart.angles.midheaven'),
+        sign: resolvedMidheaven.sign,
+        degree: resolvedMidheaven.degree,
+        summary:
+          interpretation?.houses?.find((house: any) => house.house === 10)
+            ?.interpretation || '',
+        request: {
+          type: 'house' as const,
+          houseNum: 10,
+          sign: resolvedMidheaven.sign,
+          locale,
+        },
+      },
+      descendant: {
+        symbol: 'DSC',
+        title: t('natalChart.angles.descendant'),
+        sign: houses?.[7]?.sign || 'N/A',
+        degree: typeof houses?.[7]?.cusp === 'number' ? houses[7].cusp % 30 : 0,
+        summary:
+          interpretation?.houses?.find((house: any) => house.house === 7)
+            ?.interpretation || '',
+        request: {
+          type: 'house' as const,
+          houseNum: 7,
+          sign: houses?.[7]?.sign || 'Aries',
+          locale,
+        },
+      },
+      ic: {
+        symbol: 'IC',
+        title: t('natalChart.angles.ic'),
+        sign: houses?.[4]?.sign || 'N/A',
+        degree: typeof houses?.[4]?.cusp === 'number' ? houses[4].cusp % 30 : 0,
+        summary:
+          interpretation?.houses?.find((house: any) => house.house === 4)
+            ?.interpretation || '',
+        request: {
+          type: 'house' as const,
+          houseNum: 4,
+          sign: houses?.[4]?.sign || 'Aries',
+          locale,
+        },
+      },
+    }[angle];
+
+    setAngleModalTitle(`${config.symbol} · ${config.title}`);
+    setAngleModalSubtitle(`${config.sign} ${formatDegree(config.degree)}`);
+    setAngleModalSummary(config.summary);
+    setAngleModalLines([]);
+    setAngleModalVisible(true);
+    setAngleModalLoading(true);
+
+    try {
+      const details = await chartAPI.getInterpretationDetails(config.request);
+      setAngleModalLines(details?.lines || []);
+    } catch (error) {
+      logger.error('Ошибка загрузки расшифровки угла карты', error);
+      setAngleModalLines([t('natalChart.angleModal.detailsError')]);
+    } finally {
+      setAngleModalLoading(false);
+    }
+  };
+
   // Основная информация
   const renderOverview = () => {
     const sunSign = planets?.sun?.sign || 'N/A';
     const moonSign = planets?.moon?.sign || 'N/A';
-    const ascSign = ascendant?.sign || 'N/A';
+    const ascSign = resolvedAscendant.sign || 'N/A';
 
     // Подсчет элементов и качеств
     const elements = { fire: 0, earth: 0, air: 0, water: 0 };
@@ -347,12 +468,69 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
                 <Text style={styles.bigThreeValue}>{ascSign}</Text>
                 <Text style={styles.bigThreeDegree}>
-                  {formatDegree(ascendant?.degree || 0)}
+                  {formatDegree(resolvedAscendant.degree || 0)}
                 </Text>
               </View>
             </View>
+
+            {!!(
+              interpretation?.sunSign?.interpretation ||
+              interpretation?.moonSign?.interpretation ||
+              interpretation?.ascendant?.interpretation
+            ) && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.bigThreeDescriptions}>
+                  {!!interpretation?.sunSign?.interpretation && (
+                    <View style={styles.bigThreeDescriptionCard}>
+                      <Text style={styles.bigThreeDescriptionTitle}>
+                        ☉ {t('natalChart.bigThree.sun')}
+                      </Text>
+                      <Text style={styles.bigThreeDescriptionText}>
+                        {interpretation.sunSign.interpretation}
+                      </Text>
+                    </View>
+                  )}
+
+                  {!!interpretation?.moonSign?.interpretation && (
+                    <View style={styles.bigThreeDescriptionCard}>
+                      <Text style={styles.bigThreeDescriptionTitle}>
+                        ☽ {t('natalChart.bigThree.moon')}
+                      </Text>
+                      <Text style={styles.bigThreeDescriptionText}>
+                        {interpretation.moonSign.interpretation}
+                      </Text>
+                    </View>
+                  )}
+
+                  {!!interpretation?.ascendant?.interpretation && (
+                    <View style={styles.bigThreeDescriptionCard}>
+                      <Text style={styles.bigThreeDescriptionTitle}>
+                        ASC {t('natalChart.bigThree.ascendant')}
+                      </Text>
+                      <Text style={styles.bigThreeDescriptionText}>
+                        {interpretation.ascendant.interpretation}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            )}
           </View>
         </BlurView>
+
+        {!!(
+          interpretation?.aiNarrative || interpretation?.premiumNarrative
+        ) && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <View style={styles.cardInner}>
+              <Text style={styles.cardTitle}>AI Premium</Text>
+              <Text style={styles.interpretationText}>
+                {interpretation.aiNarrative || interpretation.premiumNarrative}
+              </Text>
+            </View>
+          </BlurView>
+        )}
 
         {/* Статистика карты */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
@@ -419,7 +597,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           <View style={styles.cardInner}>
             <Text style={styles.cardTitle}>{t('natalChart.angles.title')}</Text>
 
-            <View style={styles.angleItem}>
+            <TouchableOpacity
+              style={styles.angleItem}
+              activeOpacity={0.85}
+              onPress={() => openAngleDetails('ascendant')}
+            >
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>ASC</Text>
                 <Text style={styles.angleLabel}>
@@ -427,13 +609,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.angleValue}>
-                {ascendant?.sign} {formatDegree(ascendant?.degree || 0)}
+                {resolvedAscendant.sign}{' '}
+                {formatDegree(resolvedAscendant.degree || 0)}
               </Text>
-            </View>
+              <Text style={styles.angleHint}>
+                {t('natalChart.angleModal.openHint')}
+              </Text>
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <View style={styles.angleItem}>
+            <TouchableOpacity
+              style={styles.angleItem}
+              activeOpacity={0.85}
+              onPress={() => openAngleDetails('midheaven')}
+            >
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>MC</Text>
                 <Text style={styles.angleLabel}>
@@ -441,13 +631,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.angleValue}>
-                {midheaven?.sign} {formatDegree(midheaven?.degree || 0)}
+                {resolvedMidheaven.sign}{' '}
+                {formatDegree(resolvedMidheaven.degree || 0)}
               </Text>
-            </View>
+              <Text style={styles.angleHint}>
+                {t('natalChart.angleModal.openHint')}
+              </Text>
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <View style={styles.angleItem}>
+            <TouchableOpacity
+              style={styles.angleItem}
+              activeOpacity={0.85}
+              onPress={() => openAngleDetails('descendant')}
+            >
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>DSC</Text>
                 <Text style={styles.angleLabel}>
@@ -458,11 +656,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 {houses?.[7]?.sign || 'N/A'}{' '}
                 {houses?.[7]?.cusp ? formatDegree(houses[7].cusp) : ''}
               </Text>
-            </View>
+              <Text style={styles.angleHint}>
+                {t('natalChart.angleModal.openHint')}
+              </Text>
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <View style={styles.angleItem}>
+            <TouchableOpacity
+              style={styles.angleItem}
+              activeOpacity={0.85}
+              onPress={() => openAngleDetails('ic')}
+            >
               <View style={styles.angleHeader}>
                 <Text style={styles.angleSymbol}>IC</Text>
                 <Text style={styles.angleLabel}>
@@ -473,7 +678,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 {houses?.[4]?.sign || 'N/A'}{' '}
                 {houses?.[4]?.cusp ? formatDegree(houses[4].cusp) : ''}
               </Text>
-            </View>
+              <Text style={styles.angleHint}>
+                {t('natalChart.angleModal.openHint')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </BlurView>
       </View>
@@ -1209,6 +1417,62 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         {activeTab === 'aspects' && renderAspects()}
         {activeTab === 'summary' && renderSummary()}
       </ScrollView>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={angleModalVisible}
+        onRequestClose={closeAngleModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeAngleModal}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderText}>
+                <Text style={styles.modalTitle}>{angleModalTitle}</Text>
+                {!!angleModalSubtitle && (
+                  <Text style={styles.modalSubtitle}>{angleModalSubtitle}</Text>
+                )}
+              </View>
+              <Pressable onPress={closeAngleModal}>
+                <Text style={styles.modalClose}>×</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+            >
+              {angleModalLoading ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="small" color="#8B5CF6" />
+                  <Text style={styles.modalLoadingText}>
+                    {t('natalChart.angleModal.loading')}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {!!angleModalSummary && (
+                    <View style={styles.modalSummary}>
+                      <Text style={styles.modalSummaryText}>
+                        {angleModalSummary}
+                      </Text>
+                    </View>
+                  )}
+                  {angleModalLines.map((line, idx) => (
+                    <Text key={`${line}-${idx}`} style={styles.modalText}>
+                      {line}
+                    </Text>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </TabScreenLayout>
   );
 };
@@ -1358,6 +1622,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
+  bigThreeDescriptions: {
+    gap: 12,
+  },
   bigThreeItem: {
     alignItems: 'center',
   },
@@ -1380,6 +1647,24 @@ const styles = StyleSheet.create({
   bigThreeDegree: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.5)',
+  },
+  bigThreeDescriptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  bigThreeDescriptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  bigThreeDescriptionText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: 'rgba(255, 255, 255, 0.88)',
   },
 
   // Статистика
@@ -1437,6 +1722,93 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginLeft: 62,
+  },
+  angleHint: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginLeft: 62,
+    marginTop: 6,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(3, 6, 20, 0.78)',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  modalContent: {
+    maxHeight: '75%',
+    borderRadius: 24,
+    backgroundColor: 'rgba(19, 24, 44, 0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  modalHeaderText: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 4,
+  },
+  modalClose: {
+    fontSize: 30,
+    lineHeight: 30,
+    color: '#FFFFFF',
+  },
+  modalScroll: {
+    maxHeight: '100%',
+  },
+  modalScrollContent: {
+    padding: 18,
+    paddingBottom: 24,
+  },
+  modalLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+  },
+  modalLoadingText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.72)',
+  },
+  modalSummary: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.22)',
+    padding: 14,
+    marginBottom: 14,
+  },
+  modalSummaryText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#FFFFFF',
+  },
+  modalText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 12,
   },
 
   // Планеты

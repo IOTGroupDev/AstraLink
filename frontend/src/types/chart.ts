@@ -17,6 +17,12 @@ export interface Aspect {
   strength: number;
 }
 
+export interface ChartAngle {
+  longitude: number;
+  sign: string;
+  degree: number;
+}
+
 /**
  * Payload shape we receive from backend under 'data'
  */
@@ -28,6 +34,8 @@ export interface ChartData {
   houses: Record<string, House>;
   planets: Record<string, Planet>;
   aspects: Aspect[];
+  ascendant?: ChartAngle;
+  midheaven?: ChartAngle;
 }
 
 /**

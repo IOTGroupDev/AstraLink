@@ -6,6 +6,7 @@
     "planets": "Планеты",
     "houses": "Дома",
     "aspects": "Аспекты",
+    "ascendant": "Асцендент",
     "summary": "Резюме"
   },
   "errors": {
@@ -35,6 +36,11 @@
     "midheaven": "Середина Неба (10-й дом)",
     "descendant": "Десцендент (7-й дом)",
     "ic": "Дно Неба (4-й дом)"
+  },
+  "angleModal": {
+    "openHint": "Нажмите для расшифровки",
+    "loading": "Загружаем подробное описание...",
+    "detailsError": "Не удалось загрузить подробное описание."
   },
   "planetDetails": {
     "longitude": "Долгота:",
@@ -92,6 +98,13 @@
     "dominantElements": "Доминирующие элементы",
     "dominantQualities": "Доминирующие качества",
     "recommendations": "Рекомендации"
+  },
+  "ascendant": {
+    "title": "Асцендент и первое впечатление",
+    "keywords": "Ключевые слова",
+    "strengths": "Сильные стороны",
+    "challenges": "Зоны роста",
+    "firstHouse": "Связь с 1-м домом"
   },
   "modalities": {
     "cardinal": "Кардинальное",

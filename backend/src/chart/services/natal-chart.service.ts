@@ -12,6 +12,7 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import { EphemerisService } from '../../services/ephemeris.service';
 import { InterpretationService } from '../../services/interpretation.service';
+import { AIService } from '../../services/ai.service';
 import { RedisService } from '../../redis/redis.service';
 import { ChartRepository } from '../../repositories/chart.repository';
 import { createHash } from 'crypto';
@@ -32,6 +33,7 @@ export class NatalChartService {
     private supabaseService: SupabaseService,
     private ephemerisService: EphemerisService,
     private interpretationService: InterpretationService,
+    private aiService: AIService,
     private redis: RedisService,
     private chartRepository: ChartRepository,
     private geoService: GeoService,
@@ -481,14 +483,21 @@ export class NatalChartService {
 
     if (type === 'ascendant' && sign) {
       const extended = getExtendedAscendant(sign as Sign, locale);
-      return extended || [];
+      if (extended?.length) return extended;
+      return this.buildAscendantDetails(sign as Sign, locale);
     }
 
     if (type === 'house' && houseNum && sign) {
       const num =
         typeof houseNum === 'string' ? parseInt(houseNum, 10) : houseNum;
       const extended = getExtendedHouseSign(num, sign as Sign, locale);
-      return extended || [];
+      if (extended?.length) return extended;
+
+      if ([4, 7, 10].includes(num)) {
+        return this.buildAngularHouseDetails(num, sign as Sign, locale);
+      }
+
+      return [];
     }
 
     if (type === 'aspect' && aspect) {
@@ -511,6 +520,125 @@ export class NatalChartService {
     }
 
     return [];
+  }
+
+  private buildAscendantDetails(
+    sign: Sign,
+    locale: 'ru' | 'en' | 'es',
+  ): string[] {
+    if (locale === 'en') {
+      return [
+        `Ascendant in ${sign} shapes your first impression and default response style.`,
+        'It shows how you enter new situations, how you act spontaneously, and how other people read your energy.',
+        'This angle is especially visible in first meetings, public presentation, and moments of change.',
+        'It works as the outer interface of personality before people get to know your Sun and Moon in depth.',
+        'The more consciously you use this energy, the more coherent and persuasive your image becomes.',
+      ];
+    }
+
+    if (locale === 'es') {
+      return [
+        `El Ascendente en ${sign} moldea tu primera impresión y tu forma espontánea de reaccionar.`,
+        'Muestra cómo entras en situaciones nuevas, cómo actúas de manera natural y cómo otras personas perciben tu energía.',
+        'Este ángulo se nota con fuerza en comienzos, encuentros, exposición pública y cambios de rumbo.',
+        'Funciona como la interfaz visible de la personalidad antes de que se conozcan a fondo tu Sol y tu Luna.',
+        'Cuanto más conscientemente uses esta energía, más coherente y convincente será tu presencia.',
+      ];
+    }
+
+    return [
+      `Асцендент в ${sign} формирует первое впечатление, стиль включения в новые ситуации и естественную манеру реагировать на мир.`,
+      'Этот угол показывает, как вы ведете себя спонтанно, как заявляете о себе и каким вас считывают люди при знакомстве.',
+      'Асцендент особенно заметен в начале отношений, при публичной подаче, в моменты перемен и когда нужно быстро принять роль.',
+      'Если Солнце говорит о внутреннем векторе, а Луна о чувствах, то Асцендент переводит это в поведение, жест, ритм и язык тела.',
+      'Чем осознаннее проживается энергия Асцендента, тем цельнее выглядит ваш образ и тем легче вам вызывать доверие.',
+    ];
+  }
+
+  private buildAngularHouseDetails(
+    houseNum: number,
+    sign: Sign,
+    locale: 'ru' | 'en' | 'es',
+  ): string[] {
+    if (locale === 'en') {
+      const messages: Record<number, string[]> = {
+        4: [
+          `IC in ${sign} describes your emotional foundation, roots, and private sense of safety.`,
+          'It shows what restores you, what feels like home, and which family patterns live underneath visible behavior.',
+          'This angle often explains why external success only works when inner stability is protected.',
+          'A strong IC points to the importance of belonging, grounding, and deep personal support.',
+          'Working with this angle helps you build life from inner security rather than pure reaction.',
+        ],
+        7: [
+          `Descendant in ${sign} shows what you seek in close partnership and what qualities you often meet through other people.`,
+          'This angle acts like a mirror: it reveals the style of cooperation, reciprocity, and projection in important relationships.',
+          'It can describe both the partners you attract and the traits you need to develop in yourself.',
+          'In mature relationships, the Descendant helps define balance, fairness, and shared expectations.',
+          'Conscious work with this angle reduces projection and creates healthier bonds.',
+        ],
+        10: [
+          `Midheaven in ${sign} describes your public path, visible ambitions, and professional image.`,
+          'It speaks about vocation, reputation, authority, and the kind of contribution you want to make in the world.',
+          'This angle becomes especially important in career choices, leadership, and long-term goals.',
+          'The Midheaven shows not only how you seek success, but also how you want to be recognized.',
+          'Working with this angle helps align outer achievement with inner meaning.',
+        ],
+      };
+      return messages[houseNum] || [];
+    }
+
+    if (locale === 'es') {
+      const messages: Record<number, string[]> = {
+        4: [
+          `El IC en ${sign} describe tu base emocional, tus raíces y tu necesidad privada de seguridad.`,
+          'Muestra qué te devuelve al equilibrio, qué significa para ti sentirte en casa y qué patrones familiares sostienen tu conducta.',
+          'Este ángulo recuerda que el éxito externo necesita un fundamento interno estable.',
+          'Un IC fuerte habla de pertenencia, intimidad y apoyo profundo.',
+          'Trabajarlo con conciencia ayuda a construir la vida desde la seguridad interior.',
+        ],
+        7: [
+          `El Descendente en ${sign} muestra qué buscas en la pareja y qué cualidades encuentras a través de otras personas.`,
+          'Este ángulo funciona como un espejo de cooperación, proyección y reciprocidad en vínculos importantes.',
+          'Puede describir tanto el tipo de pareja que atraes como rasgos que necesitas integrar en ti.',
+          'En relaciones maduras ayuda a definir equilibrio, acuerdos y expectativas compartidas.',
+          'Trabajar conscientemente este ángulo reduce proyecciones y mejora la calidad del vínculo.',
+        ],
+        10: [
+          `El Medio Cielo en ${sign} describe tu trayectoria pública, tus ambiciones visibles y tu imagen profesional.`,
+          'Habla de vocación, reputación, autoridad y del tipo de contribución que deseas dejar en el mundo.',
+          'Se activa con fuerza en decisiones de carrera, liderazgo y metas de largo plazo.',
+          'Este ángulo no solo muestra cómo alcanzar éxito, sino también cómo quieres ser reconocido.',
+          'Vivirlo con conciencia ayuda a unir logro externo y sentido interior.',
+        ],
+      };
+      return messages[houseNum] || [];
+    }
+
+    const messages: Record<number, string[]> = {
+      4: [
+        `IC в ${sign} показывает ваш внутренний фундамент: корни, семейные сценарии, чувство дома и базовую эмоциональную опору.`,
+        'По этому углу видно, что помогает вам восстанавливаться, где вы чувствуете безопасность и какие глубинные темы несете из прошлого.',
+        'IC объясняет, почему внешние достижения не дают устойчивости, если изнутри нет ощущения опоры и принадлежности.',
+        'Это угол приватной жизни, памяти, внутренней тишины и той среды, где вы снова собираете себя.',
+        'Осознанная работа с IC помогает строить жизнь не из напряжения, а из внутренней устойчивости.',
+      ],
+      7: [
+        `Десцендент в ${sign} раскрывает сценарий партнерства: каких людей вы притягиваете, что ищете в близких союзах и как учитесь взаимодействовать на равных.`,
+        'Этот угол работает как зеркало: через партнера вы встречаетесь с качествами, которые важно замечать, принимать или развивать в себе.',
+        'По Десценденту видно, как вы понимаете компромисс, взаимность, справедливость и личные ожидания в отношениях.',
+        'Он описывает не только романтические связи, но и все формы зрелого сотрудничества, переговоров и союзов.',
+        'Чем осознаннее проживается этот угол, тем меньше проекций на других и тем больше реальной близости и партнерской зрелости.',
+      ],
+      10: [
+        `MC в ${sign} описывает ваш общественный вектор: карьерные амбиции, публичную роль, репутацию и способ двигаться к признанию.`,
+        'По этому углу видно, в чем вы хотите состояться, какой след хотите оставить и какую форму авторитета готовы выстроить.',
+        'MC особенно важен в теме призвания, долгосрочной стратегии, ответственности и социального статуса.',
+        'Если Асцендент показывает старт и личную подачу, то MC говорит о вершине, к которой вы стремитесь, и о том, как вас читает общество.',
+        'Осознанная работа с этим углом помогает соединить внешнюю реализацию с внутренним смыслом, а не строить успех только ради оценки со стороны.',
+      ],
+    };
+
+    return messages[houseNum] || [];
   }
 
   /**
@@ -625,5 +753,194 @@ export class NatalChartService {
     }
 
     this.logger.log(`Interpretation regenerated for user ${userId}`);
+  }
+
+  async regenerateAiInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<void> {
+    const chart = await this.chartRepository.findByUserId(userId);
+
+    if (!chart) {
+      throw new NotFoundException('Natal chart not found');
+    }
+
+    await this.attachAiNarrativeToChart(chart.id, chart.data, userId, locale);
+
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+    } catch (_e) {
+      void 0;
+    }
+
+    this.logger.log(`AI interpretation regenerated for user ${userId}`);
+  }
+
+  async refreshPremiumChartAssets(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<void> {
+    await this.forceRecalculateNatalChart(userId, locale);
+
+    const chart = await this.chartRepository.findByUserId(userId);
+    if (!chart) {
+      throw new NotFoundException('Natal chart not found');
+    }
+
+    await this.attachAiNarrativeToChart(chart.id, chart.data, userId, locale);
+
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+    } catch (_e) {
+      void 0;
+    }
+
+    this.logger.log(`Premium chart assets refreshed for user ${userId}`);
+  }
+
+  private async attachAiNarrativeToChart(
+    chartId: string,
+    chartData: any,
+    userId: string,
+    locale: 'ru' | 'en' | 'es',
+  ): Promise<void> {
+    if (!this.aiService.isAvailable()) {
+      this.logger.warn(`AI not available for chart enhancement user=${userId}`);
+      return;
+    }
+
+    let baseInterpretation = chartData?.interpretation;
+    if (!baseInterpretation || typeof baseInterpretation !== 'object') {
+      baseInterpretation =
+        await this.interpretationService.generateNatalChartInterpretation(
+          userId,
+          chartData,
+          locale,
+        );
+    }
+
+    let userProfile: any;
+    try {
+      const profileResponse =
+        await this.supabaseService.getUserProfileAdmin(userId);
+      userProfile = profileResponse?.data;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to load user profile for AI chart enhancement ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    const aiNarrative = await this.aiService.generateChartInterpretation({
+      planets: chartData?.planets,
+      houses: chartData?.houses,
+      aspects: chartData?.aspects || [],
+      ascendant: chartData?.ascendant,
+      userProfile,
+      locale,
+    });
+
+    const aiGeneratedAt = new Date().toISOString();
+    const interpretation = {
+      ...baseInterpretation,
+      aiNarrative,
+      premiumNarrative: aiNarrative,
+      aiGeneratedAt,
+      generatedBy: 'ai',
+    };
+
+    const updatedData = {
+      ...chartData,
+      interpretation,
+      interpretationVersion: 'v3-ai',
+      generatedBy: 'ai',
+    };
+
+    await this.chartRepository.update(chartId, { data: updatedData });
+  }
+
+  /**
+   * Force full natal chart recalculation using current user birth data.
+   * Intended for repairing charts after calculation logic fixes.
+   */
+  async forceRecalculateNatalChart(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    const chart = await this.chartRepository.findByUserId(userId);
+    if (!chart) {
+      throw new NotFoundException('Natal chart not found');
+    }
+
+    const { data: userProfile } =
+      await this.supabaseService.getUserProfileAdmin(userId);
+    const birthDateISO = userProfile?.birth_date as string | undefined;
+    const birthTime = userProfile?.birth_time as string | undefined;
+    const birthPlace = userProfile?.birth_place as string | undefined;
+
+    if (!birthDateISO || !birthTime || !birthPlace) {
+      throw new BadRequestException('User birth data is incomplete');
+    }
+
+    const birthDate = new Date(birthDateISO);
+    if (isNaN(birthDate.getTime())) {
+      throw new BadRequestException('Invalid birth date');
+    }
+
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(birthTime)) {
+      throw new BadRequestException('Invalid birth time (expected HH:MM)');
+    }
+
+    const dateStr = birthDate.toISOString().split('T')[0];
+    const location = await this.resolveBirthLocation(birthPlace);
+    const natalChartData = await this.ephemerisService.calculateNatalChart(
+      dateStr,
+      birthTime,
+      location,
+    );
+    const interpretation =
+      await this.interpretationService.generateNatalChartInterpretation(
+        userId,
+        natalChartData,
+        locale,
+      );
+
+    const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
+    const updatedData = {
+      ...natalChartData,
+      interpretation,
+      interpretationVersion: 'v3',
+      metadata: {
+        ...natalChartData?.metadata,
+        fingerprint,
+        recalculatedAt: new Date().toISOString(),
+        calculationVersion: 'utc-fixed-v1',
+      },
+    };
+
+    const updated = await this.chartRepository.update(chart.id, {
+      data: updatedData,
+    });
+
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
+    } catch (_e) {
+      void 0;
+    }
+
+    this.logger.log(`Natal chart fully recalculated for user ${userId}`);
+
+    return {
+      id: updated.id,
+      userId: updated.user_id,
+      data: updated.data,
+      createdAt: updated.created_at,
+      updatedAt: updated.updated_at,
+    };
   }
 }

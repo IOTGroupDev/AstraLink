@@ -7,7 +7,12 @@ import {
   isDayBirth,
   getPartOfFortuneInterpretation,
 } from '../shared/astro-calculations';
-import type { Planet, ChartData } from '../dating/dating.types';
+import type {
+  Planet,
+  ChartData,
+  ChartAngle,
+  ZodiacSign,
+} from '../dating/dating.types';
 
 let swisseph: any;
 
@@ -227,22 +232,37 @@ export class EphemerisService implements OnModuleInit {
       throw new Error('Некорректный формат даты или времени');
     }
 
+    const timezoneHours =
+      typeof location?.timezone === 'number' && isFinite(location.timezone)
+        ? location.timezone
+        : 0;
+
+    // Swiss Ephemeris expects UT, while user birth time is local civil time.
+    // Convert local date/time into UTC before building Julian Day.
+    const utcDate = new Date(
+      Date.UTC(year, month - 1, day, hours, minutes, 0) -
+        timezoneHours * 60 * 60 * 1000,
+    );
+
     const julianDay = swisseph.swe_julday(
-      year,
-      month,
-      day,
-      hours + minutes / 60,
+      utcDate.getUTCFullYear(),
+      utcDate.getUTCMonth() + 1,
+      utcDate.getUTCDate(),
+      utcDate.getUTCHours() + utcDate.getUTCMinutes() / 60,
       swisseph.SE_GREG_CAL,
     );
 
     const planets = await this.calculatePlanets(julianDay);
-    const houses = await this.calculateHouses(julianDay, location);
+    const { houses, ascendant, midheaven } = await this.calculateHouses(
+      julianDay,
+      location,
+    );
     const aspects = this.calculateAspects(planets);
 
     // Calculate Part of Fortune
     let partOfFortune = null;
     try {
-      const ascendantLongitude = houses?.[1]?.longitude;
+      const ascendantLongitude = ascendant?.longitude;
       const sunLongitude = planets?.sun?.longitude;
       const moonLongitude = planets?.moon?.longitude;
 
@@ -284,6 +304,8 @@ export class EphemerisService implements OnModuleInit {
       planets,
       houses,
       aspects,
+      ascendant,
+      midheaven,
       partOfFortune,
       calculatedAt: new Date().toISOString(),
     };
@@ -496,10 +518,16 @@ export class EphemerisService implements OnModuleInit {
   private async calculateHouses(
     julianDay: number,
     location: { latitude: number; longitude: number; timezone: number },
-  ): Promise<any> {
+  ): Promise<{
+    houses: Record<number, { cusp: number; sign: string }>;
+    ascendant: ChartAngle;
+    midheaven: ChartAngle;
+  }> {
     await this.ensureSwissEphemeris();
 
-    const houses: any = {};
+    const houses: Record<number, { cusp: number; sign: string }> = {};
+    let ascendantLongitude: number | null = null;
+    let midheavenLongitude: number | null = null;
 
     try {
       const rawHouses = swisseph.swe_houses(
@@ -519,6 +547,24 @@ export class EphemerisService implements OnModuleInit {
         cuspsArray = rawHouses[0];
       } else if (rawHouses?.house && Array.isArray(rawHouses.house)) {
         cuspsArray = [null, ...rawHouses.house];
+      }
+
+      if (typeof rawHouses?.ascendant === 'number') {
+        ascendantLongitude = rawHouses.ascendant;
+      } else if (typeof rawHouses?.ac === 'number') {
+        ascendantLongitude = rawHouses.ac;
+      } else if (Array.isArray(rawHouses?.ascmc)) {
+        ascendantLongitude = rawHouses.ascmc[0] ?? null;
+        midheavenLongitude = rawHouses.ascmc[1] ?? null;
+      } else if (Array.isArray(rawHouses?.[1])) {
+        ascendantLongitude = rawHouses[1][0] ?? null;
+        midheavenLongitude = rawHouses[1][1] ?? null;
+      }
+
+      if (typeof rawHouses?.midheaven === 'number') {
+        midheavenLongitude = rawHouses.midheaven;
+      } else if (typeof rawHouses?.mc === 'number') {
+        midheavenLongitude = rawHouses.mc;
       }
 
       if (cuspsArray) {
@@ -556,7 +602,35 @@ export class EphemerisService implements OnModuleInit {
       }
     }
 
-    return houses;
+    const fallbackAsc = houses[1]?.cusp ?? 0;
+    const fallbackMc = houses[10]?.cusp ?? 270;
+    const normalizedAsc =
+      typeof ascendantLongitude === 'number' &&
+      isFinite(ascendantLongitude) &&
+      ascendantLongitude >= 0
+        ? ascendantLongitude
+        : fallbackAsc;
+    const normalizedMc =
+      typeof midheavenLongitude === 'number' &&
+      isFinite(midheavenLongitude) &&
+      midheavenLongitude >= 0
+        ? midheavenLongitude
+        : fallbackMc;
+
+    return {
+      houses,
+      ascendant: this.buildAngle(normalizedAsc),
+      midheaven: this.buildAngle(normalizedMc),
+    };
+  }
+
+  private buildAngle(longitude: number): ChartAngle {
+    const normalizedLongitude = ((longitude % 360) + 360) % 360;
+    return {
+      longitude: normalizedLongitude,
+      sign: this.longitudeToSign(normalizedLongitude) as ZodiacSign,
+      degree: normalizedLongitude % 30,
+    };
   }
 
   private calculateAspects(planets: Record<string, Planet>): any[] {

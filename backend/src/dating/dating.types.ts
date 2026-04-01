@@ -58,6 +58,12 @@ export interface House {
   sign?: ZodiacSign;
 }
 
+export interface ChartAngle {
+  longitude: number;
+  sign?: ZodiacSign;
+  degree: number;
+}
+
 export interface ChartAspect {
   planetA: PlanetName;
   planetB: PlanetName;
@@ -70,9 +76,13 @@ export interface ChartData {
   planets?: Record<string, Planet>;
   houses?: Record<number, House>;
   aspects?: ChartAspect[];
+  ascendant?: ChartAngle;
+  midheaven?: ChartAngle;
   data?: {
     planets?: Record<string, Planet>;
     houses?: Record<number, House>;
+    ascendant?: ChartAngle;
+    midheaven?: ChartAngle;
   };
 }
 

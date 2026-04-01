@@ -274,7 +274,9 @@ export class InterpretationService {
     });
 
     // Асцендент (1-й дом)
+    const ascendantSource = chartData.ascendant;
     const ascSign =
+      ascendantSource?.sign ||
       houses[1]?.sign ||
       (locale === 'en' ? 'Aries' : locale === 'es' ? 'Aries' : 'Овен');
     const ascendant: PlanetInterpretation = {
@@ -286,7 +288,9 @@ export class InterpretationService {
             : 'Асцендент',
       sign: ascSign,
       house: 1,
-      degree: houses[1]?.cusp || 0,
+      degree:
+        ascendantSource?.degree ??
+        ((houses[1]?.cusp as number | undefined) ?? 0) % 30,
       interpretation: this.interpretAscendant(ascSign, locale),
       keywords: this.getAscendantKeywords(ascSign, locale),
       strengths: this.getAscendantStrengths(ascSign, locale),
@@ -474,28 +478,84 @@ export class InterpretationService {
   ): string {
     const sun = chartData.planets?.sun;
     const moon = chartData.planets?.moon;
-    const asc = chartData.houses?.[1];
+    const asc = chartData.ascendant || chartData.houses?.[1];
+    const sunSign = (sun?.sign || 'Aries') as Sign;
+    const moonSign = (moon?.sign || 'Cancer') as Sign;
+    const ascSign = (asc?.sign || 'Libra') as Sign;
+    const sunText = getPlanetInSignText('sun', sunSign, locale);
+    const moonText = getPlanetInSignText('moon', moonSign, locale);
+    const ascText = getAscendantText(ascSign, locale);
+
+    const synthesizedPlanets: PlanetInterpretation[] = Object.entries(
+      chartData.planets || {},
+    ).flatMap(([key, planet]) => {
+      if (!planet?.sign) return [];
+
+      const sign = planet.sign;
+
+      return [
+        {
+          planet: this.getPlanetName(key, locale),
+          sign,
+          house: 0,
+          degree: Math.round(planet.longitude % 30),
+          interpretation: '',
+          keywords: this.getPlanetKeywords(key, sign, locale),
+          strengths: this.getPlanetStrengths(key, sign, locale),
+          challenges: this.getPlanetChallenges(key, sign, locale),
+          element: this.getSignElement(sign),
+          quality: this.getSignQuality(sign),
+        },
+      ];
+    });
+
+    const dominantElement =
+      this.analyzeDominantElements(synthesizedPlanets, locale).join(', ') ||
+      (locale === 'en'
+        ? 'balanced elements'
+        : locale === 'es'
+          ? 'elementos equilibrados'
+          : 'сбалансированных стихий');
+    const dominantQuality =
+      this.analyzeDominantQualities(synthesizedPlanets, locale).join(', ') ||
+      (locale === 'en'
+        ? 'balanced qualities'
+        : locale === 'es'
+          ? 'cualidades equilibradas'
+          : 'сбалансированных качеств');
 
     if (locale === 'en') {
-      return `Your natal chart shows a unique configuration of cosmic energies at birth.
-Sun in ${sun?.sign || 'an unknown sign'} shapes core vitality and self-expression.
-Moon in ${moon?.sign || 'an unknown sign'} reveals emotional nature and inner world.
-Ascendant in ${asc?.sign || 'an unknown sign'} reflects how you meet the world.
-Together, these form a coherent portrait of your personality and life path.`;
+      return `Your natal chart is built around a distinct Big Three: Sun in ${sunSign}, Moon in ${moonSign}, and Ascendant in ${ascSign}. This combination describes your core identity, your emotional nature, and the way you enter the world.
+
+${sunText}
+${moonText}
+${ascText}
+
+Together these positions create a layered personality structure: the Sun defines conscious direction and self-expression, the Moon shows emotional needs and instinctive reactions, and the Ascendant turns all of this into visible behavior, first impressions, and personal style. The chart background is colored by ${dominantElement} and ${dominantQuality}, so your temperament carries both core and supporting tones.
+
+The strongest development path in this chart is to align what you want, what you feel, and how you act. When your Sun, Moon, and Ascendant work in one direction, your choices become clearer, relationships become more coherent, and your life path gains momentum.`;
     }
     if (locale === 'es') {
-      return `Tu carta natal muestra una configuración única de energías cósmicas en el momento de tu nacimiento.
-Sol en ${sun?.sign || 'un signo desconocido'} moldea la vitalidad y la autoexpresión.
-Luna en ${moon?.sign || 'un signo desconocido'} revela la naturaleza emocional y el mundo interior.
-Ascendente en ${asc?.sign || 'un signo desconocido'} refleja cómo te presentas al mundo.
-En conjunto, forman un retrato coherente de tu personalidad y camino de vida.`;
+      return `Tu carta natal se organiza alrededor de una Gran Tríada muy clara: Sol en ${sunSign}, Luna en ${moonSign} y Ascendente en ${ascSign}. Esta combinación describe tu identidad central, tu mundo emocional y la manera en que entras en relación con el entorno.
+
+${sunText}
+${moonText}
+${ascText}
+
+Juntas, estas posiciones forman una estructura compleja: el Sol marca la dirección consciente y la autoexpresión, la Luna revela necesidades afectivas y reacciones internas, y el Ascendente convierte todo eso en presencia visible, comportamiento y estilo personal. El trasfondo de la carta está teñido por ${dominantElement} y ${dominantQuality}, así que tu temperamento tiene varias capas.
+
+La tarea clave de esta carta es unir deseo, emoción y acción. Cuando Sol, Luna y Ascendente cooperan, tus decisiones se vuelven más claras, tus relaciones más coherentes y tu camino vital más sólido.`;
     }
 
-    return `Ваша натальная карта показывает уникальное сочетание космических энергий в момент вашего рождения.
-Солнце в ${sun?.sign || 'неизвестном знаке'} определяет жизненную силу и самовыражение.
-Луна в ${moon?.sign || 'неизвестном знаке'} раскрывает эмоциональную природу и внутренний мир.
-Асцендент в ${asc?.sign || 'неизвестном знаке'} отражает то, как вы встречаете мир.
-Вместе эти элементы создают цельный портрет вашей личности и жизненного пути.`;
+    return `Ваша натальная карта строится вокруг ярко выраженной большой тройки: Солнце в ${sunSign}, Луна в ${moonSign} и Асцендент в ${ascSign}. Именно эта связка показывает ваш внутренний стержень, эмоциональную природу и тот образ, через который вы входите в контакт с миром.
+
+${sunText}
+${moonText}
+${ascText}
+
+Вместе эти положения создают многослойную структуру личности: Солнце описывает волю, осознанные цели и способ самореализации, Луна отвечает за чувства, привязанности и внутреннее ощущение безопасности, а Асцендент переводит всё это в манеру поведения, первое впечатление и жизненный стиль. Фон карты окрашен влиянием ${dominantElement} и ${dominantQuality}, поэтому ваш характер нельзя свести к одному-единственному архетипу.
+
+Ключевая задача этой карты — согласовать желания, чувства и действия. Когда энергия Солнца, Луны и Асцендента работает в одном направлении, вы точнее понимаете себя, увереннее строите отношения и быстрее находите собственную траекторию развития.`;
   }
 
   /**
