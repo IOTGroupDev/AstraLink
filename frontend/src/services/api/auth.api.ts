@@ -3,6 +3,7 @@ import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { SignInWithOAuthCredentials } from '@supabase/supabase-js';
 import { api } from './client';
 import { supabase } from '../supabase';
 import { authLogger } from '../logger';
@@ -12,6 +13,19 @@ WebBrowser.maybeCompleteAuthSession();
 
 const OAUTH_REDIRECT_PATH = 'auth/callback';
 const OAUTH_NATIVE_REDIRECT_URI = 'astralink://auth/callback';
+const runtimeEnv: Record<string, string | undefined> =
+  typeof process !== 'undefined'
+    ? ((process as { env?: Record<string, string | undefined> }).env ?? {})
+    : {};
+const expoExtra = (Constants?.expoConfig?.extra ?? {}) as Record<
+  string,
+  string | undefined
+>;
+const YANDEX_OAUTH_PROVIDER =
+  runtimeEnv.EXPO_PUBLIC_SUPABASE_YANDEX_PROVIDER ||
+  expoExtra.SUPABASE_YANDEX_PROVIDER ||
+  runtimeEnv.SUPABASE_YANDEX_PROVIDER ||
+  'custom:yandex';
 
 // Persisted backoff for Supabase email OTP rate limits.
 // We can't bypass server limits; this only prevents hammering /otp and makes UX messaging accurate across app restarts.
@@ -574,6 +588,68 @@ export const authAPI = {
       throw new Error('Не удалось инициировать OAuth');
     } catch (error: any) {
       authLogger.error('❌ Google sign in failed:', error);
+      throw error;
+    }
+  },
+
+  yandexSignIn: async (): Promise<AuthResponse> => {
+    try {
+      authLogger.log(
+        '🔐 Начало Yandex OAuth. Provider:',
+        YANDEX_OAUTH_PROVIDER
+      );
+      const redirectUri = getRedirectUri();
+      authLogger.log('🔗 Yandex Redirect URI:', redirectUri);
+
+      const credentials = {
+        // `custom:*` identifier must match the provider configured in Supabase Auth.
+        provider: YANDEX_OAUTH_PROVIDER,
+        options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: true,
+        },
+      } as unknown as SignInWithOAuthCredentials;
+
+      const { data, error } = await supabase.auth.signInWithOAuth(credentials);
+      if (error) throw error;
+
+      if (data.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUri,
+          {
+            preferEphemeralSession: true,
+          }
+        );
+        if (result.type === 'success' && result.url) {
+          const { accessToken } = await establishSessionFromRedirectUrl(
+            result.url
+          );
+
+          const { data: userRes } = await supabase.auth.getUser();
+          const user = userRes.user;
+          if (!user) throw new Error('Не удалось получить данные пользователя');
+
+          ensureUserProfileInBackground({
+            userId: user.id,
+            email: user.email || '',
+          });
+
+          return {
+            access_token: accessToken || '',
+            user: {
+              id: user.id,
+              email: user.email || '',
+              name: (user.user_metadata as any)?.name || '',
+            },
+          };
+        }
+        throw new Error('Авторизация отменена или не завершена');
+      }
+
+      throw new Error('Не удалось инициировать OAuth');
+    } catch (error: any) {
+      authLogger.error('❌ Yandex sign in failed:', error);
       throw error;
     }
   },

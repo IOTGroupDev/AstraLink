@@ -6,10 +6,9 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
@@ -19,6 +18,9 @@ import {
   withBiometricProtection,
   handleOAuthError,
 } from '../../services/oauthHelper';
+import { AuthEngine } from '../../services/authEngine';
+import { useAuthStore } from '../../stores/auth.store';
+import type { RootStackParamList } from '../../types/navigation';
 import {
   AUTH_COLORS,
   AUTH_TYPOGRAPHY,
@@ -26,11 +28,35 @@ import {
 } from '../../constants/auth.constants';
 
 const SignUpScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { reset } = useOnboardingStore();
+
+  const routeAfterOAuth = async () => {
+    try {
+      await AuthEngine.refreshProfile();
+    } catch {
+      // ignore and fallback to current store state below
+    }
+
+    const nextState = useAuthStore.getState().authState;
+    if (nextState === 'AUTHORIZED') {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' as never }],
+      });
+      return;
+    }
+
+    if (nextState === 'ONBOARDING') {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding1' as never }],
+      });
+    }
+  };
 
   const handleEmailSignUp = () => {
     navigation.navigate('AuthEmail' as never);
@@ -42,8 +68,8 @@ const SignUpScreen = () => {
       setLoadingProvider('google');
       await withBiometricProtection(() => authAPI.googleSignIn(), 'Google');
       reset();
-      // Навигация будет управляться AuthEngine
-    } catch (error: any) {
+      await routeAfterOAuth();
+    } catch (error: unknown) {
       handleOAuthError(error, 'Google');
     } finally {
       setLoading(false);
@@ -57,8 +83,8 @@ const SignUpScreen = () => {
       setLoadingProvider('apple');
       await withBiometricProtection(() => authAPI.appleSignIn(), 'Apple');
       reset();
-      // Навигация будет управляться AuthEngine
-    } catch (error: any) {
+      await routeAfterOAuth();
+    } catch (error: unknown) {
       handleOAuthError(error, 'Apple');
     } finally {
       setLoading(false);
@@ -66,17 +92,15 @@ const SignUpScreen = () => {
     }
   };
 
-  const handleVKSignUp = async () => {
+  const handleYandexSignUp = async () => {
     try {
       setLoading(true);
-      setLoadingProvider('vk');
-      Alert.alert(
-        'В разработке',
-        'Авторизация через VK будет доступна в следующей версии',
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
-      handleOAuthError(error, 'VK');
+      setLoadingProvider('yandex');
+      await withBiometricProtection(() => authAPI.yandexSignIn(), 'Yandex');
+      reset();
+      await routeAfterOAuth();
+    } catch (error: unknown) {
+      handleOAuthError(error, 'Yandex');
     } finally {
       setLoading(false);
       setLoadingProvider(null);
@@ -151,23 +175,25 @@ const SignUpScreen = () => {
                 )}
               </TouchableOpacity>
 
-              {/*<TouchableOpacity*/}
-              {/*  style={[*/}
-              {/*    styles.socialButton,*/}
-              {/*    loading && loadingProvider !== 'vk' && styles.disabledButton,*/}
-              {/*  ]}*/}
-              {/*  onPress={handleVKSignUp}*/}
-              {/*  activeOpacity={0.8}*/}
-              {/*  disabled={loading}*/}
-              {/*>*/}
-              {/*  {loadingProvider === 'vk' ? (*/}
-              {/*    <ActivityIndicator color={AUTH_COLORS.border} size="small" />*/}
-              {/*  ) : (*/}
-              {/*    <View style={styles.vkIcon}>*/}
-              {/*      <Text style={styles.vkText}>VK</Text>*/}
-              {/*    </View>*/}
-              {/*  )}*/}
-              {/*</TouchableOpacity>*/}
+              <TouchableOpacity
+                style={[
+                  styles.socialButton,
+                  loading &&
+                    loadingProvider !== 'yandex' &&
+                    styles.disabledButton,
+                ]}
+                onPress={handleYandexSignUp}
+                activeOpacity={0.8}
+                disabled={loading}
+              >
+                {loadingProvider === 'yandex' ? (
+                  <ActivityIndicator color={AUTH_COLORS.border} size="small" />
+                ) : (
+                  <View style={styles.yandexIcon}>
+                    <Text style={styles.yandexText}>Ya</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -175,7 +201,7 @@ const SignUpScreen = () => {
             <Text style={styles.loadingText}>
               {loadingProvider === 'google' && t('auth.signUp.loading.google')}
               {loadingProvider === 'apple' && t('auth.signUp.loading.apple')}
-              {loadingProvider === 'vk' && t('auth.signUp.loading.vk')}
+              {loadingProvider === 'yandex' && t('auth.signUp.loading.yandex')}
             </Text>
           )}
         </View>
@@ -233,14 +259,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-  vkIcon: {
+  yandexIcon: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  vkText: {
+  yandexText: {
     fontSize: 20,
     fontWeight: '700',
-    color: AUTH_COLORS.border,
+    color: '#FC3F1D',
   },
   disabledButton: {
     opacity: 0.5,

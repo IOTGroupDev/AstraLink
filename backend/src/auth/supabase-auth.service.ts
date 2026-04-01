@@ -18,6 +18,7 @@ import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 import { UserSignupCompletedEvent } from '@/auth/events';
 
 const DEFAULT_UNKNOWN_BIRTH_TIME = '12:00';
+const DEFAULT_YANDEX_OAUTH_PROVIDER = 'custom:yandex';
 
 @Injectable()
 export class SupabaseAuthService {
@@ -34,7 +35,7 @@ export class SupabaseAuthService {
    * 🌐 Создание ссылки для OAuth авторизации
    */
   async getOAuthUrl(
-    provider: 'google' | 'apple',
+    provider: string,
     redirectUri?: string,
   ): Promise<{ url: string }> {
     const redirectTo =
@@ -54,6 +55,13 @@ export class SupabaseAuthService {
 
     this.logger.log(`🔗 ${provider} OAuth ссылка сгенерирована: ${url}`);
     return { url };
+  }
+
+  async getYandexOAuthUrl(redirectUri?: string): Promise<{ url: string }> {
+    return this.getOAuthUrl(
+      process.env.SUPABASE_YANDEX_PROVIDER || DEFAULT_YANDEX_OAUTH_PROVIDER,
+      redirectUri,
+    );
   }
 
   /**
@@ -271,8 +279,14 @@ export class SupabaseAuthService {
     return this.processOAuthCallback('Apple', data);
   }
 
+  async handleYandexCallback(
+    data: OAuthCallbackRequest,
+  ): Promise<AuthResponse> {
+    return this.processOAuthCallback('Yandex', data);
+  }
+
   private async processOAuthCallback(
-    provider: 'Google' | 'Apple',
+    provider: 'Google' | 'Apple' | 'Yandex',
     data: OAuthCallbackRequest,
   ): Promise<AuthResponse> {
     try {

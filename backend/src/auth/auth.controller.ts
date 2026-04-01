@@ -144,6 +144,23 @@ export class AuthController {
   }
 
   /**
+   * 🟡 Создание Yandex OAuth ссылки
+   * Возвращает URL для начала авторизации через Yandex
+   */
+  @Public()
+  @Get('yandex')
+  @ApiOperation({
+    summary: 'Инициация Yandex OAuth',
+    description: 'Возвращает ссылку для начала авторизации через Yandex',
+  })
+  @ApiResponse({ status: 200, description: 'Ссылка успешно сгенерирована' })
+  async getYandexOAuthUrl(
+    @Query('redirectUri') redirectUri?: string,
+  ): Promise<{ url: string }> {
+    return this.supabaseAuthService.getYandexOAuthUrl(redirectUri);
+  }
+
+  /**
    * 🔐 Google OAuth callback
    * Обработка авторизации через Google
    */
@@ -181,6 +198,26 @@ export class AuthController {
     @Body() body: OAuthCallbackRequest,
   ): Promise<AuthResponse> {
     return this.supabaseAuthService.handleAppleCallback(body);
+  }
+
+  /**
+   * 🟡 Yandex OAuth callback
+   * Обработка авторизации через Yandex
+   */
+  @Public()
+  @Post('yandex-callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Обработка Yandex OAuth callback',
+    description:
+      'Создает или авторизует пользователя после успешной OAuth авторизации через Yandex',
+  })
+  @ApiResponse({ status: 200, description: 'OAuth успешно обработан' })
+  @ApiResponse({ status: 400, description: 'Ошибка обработки OAuth' })
+  async handleYandexCallback(
+    @Body() body: OAuthCallbackRequest,
+  ): Promise<AuthResponse> {
+    return this.supabaseAuthService.handleYandexCallback(body);
   }
 
   /**
