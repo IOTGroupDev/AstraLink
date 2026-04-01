@@ -35,6 +35,22 @@ export const userAPI = {
     await api.post('/subscription/cancel');
   },
 
+  blockUser: async (blockedUserId: string): Promise<{ success: boolean }> => {
+    const response = await api.post('/user/block', { blockedUserId });
+    return response.data;
+  },
+
+  reportUser: async (
+    reportedUserId: string,
+    reason: string
+  ): Promise<{ success: boolean }> => {
+    const response = await api.post('/user/report', {
+      reportedUserId,
+      reason,
+    });
+    return response.data;
+  },
+
   deleteAccount: async (): Promise<void> => {
     try {
       apiLogger.log('Отправка запроса на удаление аккаунта');

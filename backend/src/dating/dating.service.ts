@@ -8,7 +8,6 @@ import { RedisService } from '../redis/redis.service';
 import type { DatingMatchResponse } from '../types';
 import { parseInterests, parsePreferences } from '../utils/preferences.utils';
 import type {
-  CandidateBadge,
   CandidateRow,
   EnrichedCandidate,
   ChartData,
@@ -18,7 +17,6 @@ import type {
   UserData,
   UserProfile,
   UserChart,
-  UserPhoto,
   SynastryData,
 } from './dating.types';
 
@@ -275,6 +273,75 @@ export class DatingService {
     return score;
   }
 
+  private async resolvePhotoUrlMap(
+    rawPaths: Array<string | null | undefined>,
+  ): Promise<Map<string, string | null>> {
+    const uniquePaths = Array.from(
+      new Set(
+        rawPaths.filter(
+          (path): path is string => !!path && typeof path === 'string',
+        ),
+      ),
+    );
+
+    const result = new Map<string, string | null>();
+    if (!uniquePaths.length) {
+      return result;
+    }
+
+    const storagePaths: string[] = [];
+    for (const path of uniquePaths) {
+      if (/^https?:\/\//i.test(path)) {
+        result.set(path, path);
+      } else {
+        storagePaths.push(path);
+      }
+    }
+
+    if (storagePaths.length > 0) {
+      const signedMap = await this.supabaseService.createSignedUrlsBatch(
+        'user-photos',
+        storagePaths,
+        900,
+      );
+
+      for (const path of storagePaths) {
+        result.set(path, signedMap.get(path) ?? null);
+      }
+    }
+
+    return result;
+  }
+
+  private async getExcludedUserIds(
+    userId: string | null | undefined,
+  ): Promise<Set<string>> {
+    if (!userId) {
+      return new Set<string>();
+    }
+
+    const blocks = await this.prisma.userBlock.findMany({
+      where: {
+        OR: [{ userId }, { blockedUserId: userId }],
+      },
+      select: {
+        userId: true,
+        blockedUserId: true,
+      },
+    });
+
+    const excludedUserIds = new Set<string>();
+    for (const block of blocks) {
+      if (block.userId === userId) {
+        excludedUserIds.add(block.blockedUserId);
+      } else if (block.blockedUserId === userId) {
+        excludedUserIds.add(block.userId);
+      }
+    }
+
+    return excludedUserIds;
+  }
+
   /**
    * Получить кандидатов через Supabase RPC get_candidates_for_me
    * Требуется user access token для корректного auth.uid() в RLS.
@@ -301,13 +368,16 @@ export class DatingService {
           },
         })
       : null;
+    const excludedUserIds = await this.getExcludedUserIds(selfId);
 
     // Итоговый список кандидатов (уже обогащённых)
     let result: EnrichedCandidate[] = [];
 
     // Основной путь: обогащаем данные RPC, если что-то вернулось
     if (!error && rows.length > 0) {
-      const candidateIds = rows.map((r) => r.user_id);
+      const candidateIds = rows
+        .map((r) => r.user_id)
+        .filter((candidateId) => !excludedUserIds.has(candidateId));
 
       // ✅ PRISMA: Получаем данные пользователей с профилями и картами через include
       const users = await this.prisma.public_users.findMany({
@@ -316,6 +386,9 @@ export class DatingService {
           profile: true, // UserProfile relation
           charts: {
             orderBy: { createdAt: 'desc' },
+          },
+          photos: {
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
           },
         },
       });
@@ -347,6 +420,7 @@ export class DatingService {
               gender: u.profile!.gender,
               lookingFor: u.profile!.lookingFor,
               lookingForGender: u.profile!.lookingForGender,
+              lastActive: u.profile!.lastActive?.toISOString?.() ?? null,
               display_name: undefined, // not in current schema
               zodiac_sign: u.profile!.zodiacSign,
             },
@@ -365,32 +439,50 @@ export class DatingService {
         }
       }
 
-      // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for all photos
-      // Используем createSignedUrlsBatch вместо множества отдельных запросов
+      const photosByUser = new Map<string, string[]>();
+      for (const u of users) {
+        const paths = Array.isArray((u as any).photos)
+          ? (u as any).photos
+              .map((photo: any) => photo?.storagePath)
+              .filter(
+                (path: unknown): path is string => typeof path === 'string',
+              )
+          : [];
+        photosByUser.set(u.id, paths);
+      }
+
       const filteredRows = rows
+        .filter((r) => !excludedUserIds.has(r.user_id))
         .filter((r) =>
           this.passesGenderPreferences(selfProfile, profilesMap.get(r.user_id)),
         )
         .slice(0, safeLimit);
 
-      const photoPaths = filteredRows
-        .filter((r) => r.primary_photo_path)
-        .map((r) => r.primary_photo_path!);
-
-      const photoUrlsBatch = await this.supabaseService.createSignedUrlsBatch(
-        'user-photos',
-        photoPaths,
-        900,
+      const photoUrlLookup = await this.resolvePhotoUrlMap(
+        filteredRows.flatMap((r) => {
+          const primaryPath = r.primary_photo_path
+            ? [r.primary_photo_path]
+            : [];
+          return [...primaryPath, ...(photosByUser.get(r.user_id) ?? [])];
+        }),
       );
 
-      // Create userId -> URL map from path -> URL map
+      const candidatePhotosMap = new Map<string, string[]>();
       const photoUrlMap = new Map<string, string | null>();
       for (const r of filteredRows) {
+        const photoUrls = (photosByUser.get(r.user_id) ?? [])
+          .map((path) => photoUrlLookup.get(path) ?? null)
+          .filter((url): url is string => !!url);
+
+        candidatePhotosMap.set(r.user_id, photoUrls);
+
         if (r.primary_photo_path) {
           photoUrlMap.set(
             r.user_id,
-            photoUrlsBatch.get(r.primary_photo_path) ?? null,
+            photoUrlLookup.get(r.primary_photo_path) ?? null,
           );
+        } else {
+          photoUrlMap.set(r.user_id, photoUrls[0] ?? null);
         }
       }
 
@@ -417,12 +509,15 @@ export class DatingService {
           userId: r.user_id,
           badge: r.badge,
           photoUrl: photoUrlMap.get(r.user_id) ?? null,
+          photos: candidatePhotosMap.get(r.user_id) ?? null,
           name: displayName,
           age: age ?? null,
           zodiacSign: sunSign,
           bio: p?.bio ?? null,
           interests,
           city: p?.city ?? u?.birth_place ?? null,
+          lookingFor: p?.lookingFor ?? null,
+          lastActive: p?.lastActive ?? null,
         };
       });
     }
@@ -449,7 +544,10 @@ export class DatingService {
 
         const extraIds = moreUsers
           .map((u: any) => u.id)
-          .filter((id: string) => id !== selfId && !existingIds.has(id));
+          .filter(
+            (id: string) =>
+              id !== selfId && !existingIds.has(id) && !excludedUserIds.has(id),
+          );
 
         if (extraIds.length) {
           // ✅ PRISMA: Получаем профили, карты и фото через include
@@ -461,7 +559,7 @@ export class DatingService {
                 orderBy: { createdAt: 'desc' },
               },
               photos: {
-                where: { isPrimary: true },
+                orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
               },
             },
           });
@@ -472,7 +570,7 @@ export class DatingService {
 
           const profilesById = new Map<string, UserProfile>();
           const chartsById = new Map<string, UserChart>();
-          const photosById = new Map<string, string | null>();
+          const photoPathsById = new Map<string, string[]>();
 
           for (const u of extraUsersData) {
             // Profile
@@ -486,6 +584,7 @@ export class DatingService {
                 gender: u.profile.gender,
                 lookingFor: u.profile.lookingFor ?? null,
                 lookingForGender: u.profile.lookingForGender ?? null,
+                lastActive: u.profile.lastActive?.toISOString?.() ?? null,
                 display_name: undefined,
                 zodiac_sign: u.profile.zodiacSign ?? null,
               } as UserProfile);
@@ -502,9 +601,14 @@ export class DatingService {
             }
 
             // Photo (primary)
-            if (u.photos && u.photos.length > 0) {
-              photosById.set(u.id, u.photos[0].storagePath);
-            }
+            photoPathsById.set(
+              u.id,
+              (u.photos ?? [])
+                .map((photo: any) => photo?.storagePath)
+                .filter(
+                  (path: unknown): path is string => typeof path === 'string',
+                ),
+            );
           }
 
           // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for fallback candidates
@@ -512,31 +616,20 @@ export class DatingService {
             this.passesGenderPreferences(selfProfile, profilesById.get(uid)),
           );
           const fallbackUserIds = fallbackEligibleUserIds.slice(0, needMore);
-          const fallbackPhotoPaths = fallbackUserIds
-            .map((uid: string) => photosById.get(uid))
-            .filter(
-              (path: any): path is string => !!path && typeof path === 'string',
-            );
+          const fallbackPhotoLookup = await this.resolvePhotoUrlMap(
+            fallbackUserIds.flatMap(
+              (uid: string) => photoPathsById.get(uid) ?? [],
+            ),
+          );
 
-          const fallbackPhotoUrlsBatch =
-            await this.supabaseService.createSignedUrlsBatch(
-              'user-photos',
-              fallbackPhotoPaths,
-              900,
-            );
-
-          // Create userId -> URL map
           const fallbackPhotoUrlMap = new Map<string, string | null>();
+          const fallbackPhotosMap = new Map<string, string[]>();
           for (const uid of fallbackUserIds) {
-            const storagePath = photosById.get(uid);
-            if (storagePath) {
-              fallbackPhotoUrlMap.set(
-                uid,
-                fallbackPhotoUrlsBatch.get(storagePath) ?? null,
-              );
-            } else {
-              fallbackPhotoUrlMap.set(uid, null);
-            }
+            const photoUrls = (photoPathsById.get(uid) ?? [])
+              .map((path) => fallbackPhotoLookup.get(path) ?? null)
+              .filter((url): url is string => !!url);
+            fallbackPhotosMap.set(uid, photoUrls);
+            fallbackPhotoUrlMap.set(uid, photoUrls[0] ?? null);
           }
 
           const extraEnriched: EnrichedCandidate[] = [];
@@ -566,12 +659,15 @@ export class DatingService {
               userId: uid,
               badge: 'low',
               photoUrl: fallbackPhotoUrlMap.get(uid) ?? null,
+              photos: fallbackPhotosMap.get(uid) ?? null,
               name: displayName,
               age: age ?? null,
               zodiacSign: sunSign ?? null,
               bio: p?.bio ?? null,
               interests,
               city: p?.city ?? u?.birth_place ?? null,
+              lookingFor: p?.lookingFor ?? null,
+              lastActive: p?.lastActive ?? null,
             });
           }
 
@@ -742,6 +838,7 @@ export class DatingService {
       where: { userId },
     });
     const selfDatingPreferences = this.extractDatingPreferences(selfProfile);
+    const excludedUserIds = Array.from(await this.getExcludedUserIds(userId));
 
     // If user explicitly set a gender preference, filter via DB first
     const seekersPrefNormalized = this.normalizeGender(
@@ -750,7 +847,9 @@ export class DatingService {
 
     const candidates = await this.prisma.chart.findMany({
       where: {
-        NOT: { userId },
+        userId: {
+          notIn: [userId, ...excludedUserIds],
+        },
         ...(seekersPrefNormalized
           ? {
               users: {
@@ -940,6 +1039,8 @@ export class DatingService {
     bio: string | null;
     interests: string[] | null;
     city: string | null;
+    lookingFor: string | null;
+    lastActive: string | null;
     primaryPhotoUrl: string | null;
     photos?: string[] | null;
   }> {
@@ -966,6 +1067,8 @@ export class DatingService {
         bio: null,
         interests: null,
         city: null,
+        lookingFor: null,
+        lastActive: null,
         primaryPhotoUrl: null,
         photos: null,
       };
@@ -988,6 +1091,8 @@ export class DatingService {
           zodiac_sign: userData.profile.zodiacSign,
           display_name: null, // не в схеме
           gender: userData.profile.gender,
+          lookingFor: userData.profile.lookingFor,
+          lastActive: userData.profile.lastActive?.toISOString?.() ?? null,
         }
       : null;
 
@@ -1158,6 +1263,8 @@ export class DatingService {
       bio: profile?.bio ?? null,
       interests,
       city: profile?.city ?? user?.birth_place ?? null,
+      lookingFor: profile?.lookingFor ?? null,
+      lastActive: profile?.lastActive ?? null,
       primaryPhotoUrl,
       photos,
     };

@@ -1,7 +1,7 @@
 import { api } from './client';
 
 export const datingAPI = {
-  // Candidate feed (badge-only)
+  // Ranked candidate feed for swipe discovery
   getCandidates: async (
     limit = 20
   ): Promise<
@@ -9,6 +9,7 @@ export const datingAPI = {
       userId: string;
       badge: 'high' | 'medium' | 'low';
       photoUrl: string | null;
+      photos?: string[] | null;
       avatarUrl?: string | null;
       name?: string | null;
       age?: number | null;
@@ -16,6 +17,8 @@ export const datingAPI = {
       bio?: string | null;
       interests?: string[] | null;
       city?: string | null;
+      lookingFor?: string | null;
+      lastActive?: string | null;
     }>
   > => {
     const safeLimit = Math.max(1, Math.min(50, limit));
@@ -36,6 +39,7 @@ export const datingAPI = {
           userId: it?.userId ?? it?.user_id ?? it?.id ?? '',
           badge: (it?.badge ?? 'low') as 'high' | 'medium' | 'low',
           photoUrl: photo,
+          photos: Array.isArray(it?.photos) ? it.photos : null,
           avatarUrl: it?.avatarUrl ?? null,
           name: it?.name ?? null,
           age: typeof it?.age === 'number' ? it.age : (it?.age ?? null),
@@ -43,6 +47,8 @@ export const datingAPI = {
           bio: it?.bio ?? null,
           interests: Array.isArray(it?.interests) ? it.interests : null,
           city: it?.city ?? null,
+          lookingFor: it?.lookingFor ?? it?.looking_for ?? null,
+          lastActive: it?.lastActive ?? it?.last_active ?? null,
         };
       })
       .filter((c) => typeof c.userId === 'string' && c.userId.length > 0);
@@ -59,6 +65,8 @@ export const datingAPI = {
     bio: string | null;
     interests: string[] | null;
     city: string | null;
+    lookingFor?: string | null;
+    lastActive?: string | null;
     primaryPhotoUrl: string | null;
     photos?: string[] | null;
   }> => {
@@ -74,6 +82,8 @@ export const datingAPI = {
       bio: d?.bio ?? null,
       interests: Array.isArray(d?.interests) ? d.interests : null,
       city: d?.city ?? null,
+      lookingFor: d?.lookingFor ?? d?.looking_for ?? null,
+      lastActive: d?.lastActive ?? d?.last_active ?? null,
       primaryPhotoUrl: d?.primaryPhotoUrl ?? null,
       photos: Array.isArray(d?.photos) ? d.photos : null,
     };

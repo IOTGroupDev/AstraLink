@@ -1,7 +1,7 @@
 // src/navigation/MainStackNavigator.tsx
 import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
 
 import TabNavigator from './TabNavigator';
@@ -21,6 +21,7 @@ import NatalChartScreen from '../screens/NatalChartScreen';
 import PersonalCodeScreen from '../screens/PersonalCodeScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import LearningScreen from '../screens/LearningScreen';
+import DatingProfileScreen from '../screens/DatingProfileScreen';
 
 import { useAuthState } from '../stores/auth.store';
 
@@ -40,7 +41,7 @@ const resolveRoute = (state: string) => {
 
 export default function MainStackNavigator() {
   const authState = useAuthState();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const target = resolveRoute(authState);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ export default function MainStackNavigator() {
             component={CosmicSimulatorScreen}
           />
           <Stack.Screen name="Learning" component={LearningScreen} />
+          <Stack.Screen name="DatingProfile" component={DatingProfileScreen} />
           <Stack.Screen name="ChatDialog" component={ChatDialogScreen} />
           <Stack.Screen name="ChatList" component={ChatListScreen} />
           <Stack.Screen name="NatalChart" component={NatalChartScreen} />

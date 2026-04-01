@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -16,8 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { logger } from '../../services/logger';
 
-const { width } = Dimensions.get('window');
-
 const TAB_BAR_HEIGHT = 80; // Высота таб-бара
 
 interface CosmicChatProps {
@@ -25,7 +22,7 @@ interface CosmicChatProps {
   user: {
     id: string;
     name: string;
-    zodiacSign: string;
+    zodiacSign?: string | null;
     compatibility: number;
   };
   onClose: () => void;
@@ -43,10 +40,15 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
   const [sending, setSending] = useState(false);
 
   const astroSuggestions = [
-    t('dating.cosmicChat.suggestions.greeting', {
-      zodiacSign: user.zodiacSign,
-      defaultValue: `Hi! I see you're ${user.zodiacSign} ✨`,
-    }),
+    user.zodiacSign
+      ? t('dating.cosmicChat.suggestions.greeting', {
+          zodiacSign: user.zodiacSign,
+          defaultValue: `Hi! I see you're ${user.zodiacSign} ✨`,
+        })
+      : t('dating.cosmicChat.suggestions.aboutMe', {
+          name: user.name,
+          defaultValue: `Tell me about yourself, ${user.name}`,
+        }),
     t('dating.cosmicChat.suggestions.compatibility', {
       percent: user.compatibility,
       defaultValue: `Our compatibility is ${user.compatibility}% — the stars are on our side! 🌟`,
@@ -105,7 +107,7 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{user.name}</Text>
                 <Text style={styles.userZodiac}>
-                  {user.zodiacSign} •{' '}
+                  {user.zodiacSign ? `${user.zodiacSign} • ` : ''}
                   {t('dating.cosmicChat.compatibilityLabel', {
                     percent: user.compatibility,
                     defaultValue: `${user.compatibility}% compatibility`,

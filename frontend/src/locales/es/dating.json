@@ -18,6 +18,34 @@
     "message": "¡Tienen atracción mutua!",
     "openChat": "Abrir chat"
   },
+  "actions": {
+    "title": "Acciones del perfil",
+    "subtitle": "¿Qué quieres hacer con {{name}}?",
+    "openLabel": "Abrir acciones del perfil",
+    "report": "Reportar",
+    "reportTitle": "Reportar perfil",
+    "reportMessage": "¿Enviar un reporte sobre {{name}} y ocultar este perfil de tu feed?",
+    "block": "Bloquear",
+    "blockTitle": "Bloquear usuario",
+    "blockMessage": "{{name}} ya no aparecerá en tu feed.",
+    "failedToBlock": "No se pudo bloquear al usuario",
+    "failedToReport": "No se pudo enviar el reporte"
+  },
+  "profile": {
+    "title": "Perfil",
+    "subtitle": "Más detalles sobre su compatibilidad",
+    "openButton": "Abrir perfil completo",
+    "aboutTitle": "Sobre la persona",
+    "interestsTitle": "Intereses",
+    "locationTitle": "Ciudad",
+    "lookingForTitle": "Busca",
+    "lastActiveTitle": "Última actividad",
+    "sendMessage": "Enviar primer mensaje",
+    "loading": "Cargando perfil...",
+    "emptyBio": "Esta persona todavía no añadió una bio",
+    "emptyInterests": "Esta persona todavía no indicó intereses",
+    "failedToLoad": "No se pudo cargar el perfil"
+  },
   "errors": {
     "noUserData": "Sin datos de usuario",
     "userNotSelected": "Usuario no seleccionado",
