@@ -1,19 +1,45 @@
 // src/screens/auth/AuthCallbackScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import ZodiacLoadingAnimation from '../../components/shared/ZodiacLoadingAnimation';
 import { supabase } from '../../services/supabase';
+import { AuthEngine } from '../../services/authEngine';
+import { useAuthStore } from '../../stores/auth.store';
 import { AUTH_COLORS, AUTH_TYPOGRAPHY } from '../../constants/auth.constants';
+import type { RootStackParamList } from '../../types/navigation';
 
 const AuthCallbackScreen: React.FC = () => {
   const { t } = useTranslation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void handleCallback();
   }, []);
+
+  const routeAfterCallback = async () => {
+    try {
+      await AuthEngine.refreshProfile();
+    } catch {
+      // ignore and use current auth store state
+    }
+
+    const nextState = useAuthStore.getState().authState;
+    if (nextState === 'AUTHORIZED') {
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      return;
+    }
+
+    if (nextState === 'ONBOARDING') {
+      navigation.reset({ index: 0, routes: [{ name: 'Onboarding1' }] });
+      return;
+    }
+
+    navigation.reset({ index: 0, routes: [{ name: 'SignUp' }] });
+  };
 
   const handleCallback = async () => {
     try {
@@ -52,16 +78,28 @@ const AuthCallbackScreen: React.FC = () => {
         }
 
         try {
-          // @ts-ignore
-          const bc = new BroadcastChannel('supabase-auth');
-          bc.postMessage({
-            type: 'SIGNED_IN',
-            accessToken,
-            refreshToken: refreshToken || '',
-            ts: Date.now(),
-          });
-          bc.close();
-        } catch (bcError) {
+          const BroadcastChannelCtor =
+            typeof globalThis !== 'undefined'
+              ? (
+                  globalThis as typeof globalThis & {
+                    BroadcastChannel?: new (name: string) => {
+                      postMessage: (message: unknown) => void;
+                      close: () => void;
+                    };
+                  }
+                ).BroadcastChannel
+              : undefined;
+          if (BroadcastChannelCtor) {
+            const bc = new BroadcastChannelCtor('supabase-auth');
+            bc.postMessage({
+              type: 'SIGNED_IN',
+              accessToken,
+              refreshToken: refreshToken || '',
+              ts: Date.now(),
+            });
+            bc.close();
+          }
+        } catch (_bcError) {
           // Silent fail
         }
 
@@ -71,8 +109,11 @@ const AuthCallbackScreen: React.FC = () => {
             document.title,
             window.location.pathname
           );
-        } catch {}
+        } catch {
+          // ignore history cleanup errors
+        }
 
+        await routeAfterCallback();
         return;
       }
 
@@ -89,16 +130,23 @@ const AuthCallbackScreen: React.FC = () => {
         );
       }
 
+      await routeAfterCallback();
       return;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : t('auth.callback.authorizationError', {
+              defaultValue: 'Authorization error',
+            });
       setError(
-        err?.message ||
+        errorMessage ||
           t('auth.callback.authorizationError', {
             defaultValue: 'Authorization error',
           })
       );
       setTimeout(() => {
-        setError((prev) => prev);
+        navigation.reset({ index: 0, routes: [{ name: 'SignUp' }] });
       }, 3000);
     }
   };

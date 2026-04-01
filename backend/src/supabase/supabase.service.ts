@@ -245,11 +245,11 @@ export class SupabaseService implements OnModuleInit {
    * 🌐 Генерация OAuth ссылки для внешних провайдеров
    */
   async getOAuthSignInUrl(
-    provider: 'google' | 'apple',
+    provider: string,
     redirectTo: string,
   ): Promise<{ url: string | null; error: any }> {
     const { data, error } = await this.supabase.auth.signInWithOAuth({
-      provider,
+      provider: provider as any,
       options: {
         redirectTo,
       },
