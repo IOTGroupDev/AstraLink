@@ -107,7 +107,7 @@ export const chartAPI = {
     try {
       const params = buildLocalTimezoneParams();
       params.set('period', period);
-      params.set('locale', locale);
+      params.set('locale', normalizeLocale(locale));
       const response = await api.get(`/chart/horoscope?${params.toString()}`);
       return response.data;
     } catch (error) {
@@ -127,7 +127,7 @@ export const chartAPI = {
   }> => {
     try {
       const params = buildLocalTimezoneParams();
-      params.set('locale', locale);
+      params.set('locale', normalizeLocale(locale));
       const response = await api.get(
         `/chart/horoscope/all?${params.toString()}`
       );

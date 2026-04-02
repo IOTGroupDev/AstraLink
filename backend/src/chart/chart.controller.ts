@@ -248,7 +248,7 @@ export class ChartController {
   async getHoroscope(
     @Request() req: AuthenticatedRequest,
     @Query('period') period: 'day' | 'tomorrow' | 'week' | 'month' = 'day',
-    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+    @Query('locale') localeQuery?: string,
     @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -261,7 +261,7 @@ export class ChartController {
     return this.chartService.getHoroscope(
       userId,
       period,
-      locale,
+      this.resolveLocale(req, localeQuery as 'ru' | 'en' | 'es' | undefined),
       Number.isFinite(tzOffsetMinutes) ? tzOffsetMinutes : 0,
     );
   }
@@ -283,7 +283,7 @@ export class ChartController {
   @ApiResponse({ status: 200, description: 'Все гороскопы' })
   async getAllHoroscopes(
     @Request() req: AuthenticatedRequest,
-    @Query('locale') locale: 'ru' | 'en' | 'es' = 'ru',
+    @Query('locale') localeQuery?: string,
     @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -295,7 +295,7 @@ export class ChartController {
 
     return this.chartService.getAllHoroscopes(
       userId,
-      locale,
+      this.resolveLocale(req, localeQuery as 'ru' | 'en' | 'es' | undefined),
       Number.isFinite(tzOffsetMinutes) ? tzOffsetMinutes : 0,
     );
   }

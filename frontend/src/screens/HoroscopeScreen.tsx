@@ -43,23 +43,26 @@ import {
   normalizeBirthDateValue,
 } from '../utils/birthDate';
 
+const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
+  const normalized = String(locale || 'en').toLowerCase();
+  if (normalized.startsWith('ru')) return 'ru';
+  if (normalized.startsWith('es')) return 'es';
+  return 'en';
+};
+
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
   const lessonsLocale = React.useMemo((): 'ru' | 'en' | 'es' => {
-    const locale = String(i18n.language || 'en').toLowerCase();
-    return locale === 'ru' || locale === 'en' || locale === 'es'
-      ? locale
-      : 'en';
+    return normalizeAppLocale(i18n.language);
   }, [i18n.language]);
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
-    const lang = String(i18n.language || 'en').toLowerCase();
-    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+    return normalizeAppLocale(i18n.language);
   }, [i18n.language]);
   const horoscopeHeaderDescription = React.useMemo(() => {
-    const locale = String(i18n.language || 'en').toLowerCase();
+    const locale = normalizeAppLocale(i18n.language);
 
     if (locale === 'ru') {
       return 'Ежедневный обзор';
@@ -102,6 +105,7 @@ const HoroscopeScreen: React.FC = () => {
     null
   );
   const predictionsRetryCountRef = useRef(0);
+  const predictionsRequestIdRef = useRef(0);
   const dataLoadingRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
 
@@ -322,6 +326,7 @@ const HoroscopeScreen: React.FC = () => {
     try {
       chartLogger.log('Загружаю прогнозы');
       const locale = getApiLocale();
+      const requestId = ++predictionsRequestIdRef.current;
       if (!isAuthenticated) return;
       if (!force) {
         if (
@@ -331,7 +336,6 @@ const HoroscopeScreen: React.FC = () => {
           return;
         }
       }
-      if (predictionsLoadingRef.current) return;
       predictionsLoadingRef.current = true;
 
       const results = await Promise.allSettled([
@@ -389,6 +393,19 @@ const HoroscopeScreen: React.FC = () => {
       const hasPredictionData = Boolean(
         newPredictions.day || newPredictions.tomorrow || newPredictions.week
       );
+
+      if (
+        requestId !== predictionsRequestIdRef.current ||
+        locale !== getApiLocale()
+      ) {
+        chartLogger.log('Пропускаю устаревший ответ гороскопа', {
+          requestId,
+          currentRequestId: predictionsRequestIdRef.current,
+          requestLocale: locale,
+          currentLocale: getApiLocale(),
+        });
+        return;
+      }
 
       chartLogger.log('Устанавливаю прогнозы', newPredictions);
       chartLogger.log('Структура predictions.day', {
@@ -617,6 +634,7 @@ const HoroscopeScreen: React.FC = () => {
   useEffect(() => {
     if (!hasLoadedOnceRef.current) return;
     chartLogger.log('Перезагружаю прогнозы из-за смены языка');
+    predictionsRequestIdRef.current += 1;
     predictionsRetryCountRef.current = 0;
     if (predictionsRetryRef.current) {
       clearTimeout(predictionsRetryRef.current);
@@ -768,9 +786,9 @@ const HoroscopeScreen: React.FC = () => {
               <Text style={styles.headerDate}>
                 {t('horoscope.positionsOn', {
                   date: new Date().toLocaleDateString(
-                    i18n.language === 'ru'
+                    normalizeAppLocale(i18n.language) === 'ru'
                       ? 'ru-RU'
-                      : i18n.language === 'es'
+                      : normalizeAppLocale(i18n.language) === 'es'
                         ? 'es-ES'
                         : 'en-US',
                     {

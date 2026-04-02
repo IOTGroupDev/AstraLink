@@ -38,11 +38,7 @@ const RESEND_SECONDS = 30;
 
 const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
   const { t } = useTranslation();
-  const {
-    email,
-    codeLength = 6,
-    shouldCreateUser: _shouldCreateUser = true,
-  } = route.params;
+  const { email, codeLength = 6 } = route.params;
   const CODE_LENGTH = codeLength;
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
@@ -53,10 +49,16 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
   const inputsRef = useRef<Array<TextInput | null>>([]);
   const submitLock = useRef(false);
   const lastSubmittedCode = useRef<string | null>(null);
+  const digitsRef = useRef<string[]>(Array(CODE_LENGTH).fill(''));
+  const userStartedEditingRef = useRef(false);
 
   const setInputRef = (idx: number) => (el: TextInput | null) => {
     inputsRef.current[idx] = el;
   };
+
+  useEffect(() => {
+    digitsRef.current = digits;
+  }, [digits]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -68,6 +70,9 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     let active = true;
     const poll = async () => {
       try {
+        if (userStartedEditingRef.current) return;
+        if (digitsRef.current.some(Boolean)) return;
+
         const text = await Clipboard.getStringAsync();
         if (!active) return;
         const cleaned = (text || '').replace(/\D/g, '').slice(0, CODE_LENGTH);
@@ -75,7 +80,9 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           setError(null);
           setDigits(cleaned.split(''));
         }
-      } catch {}
+      } catch {
+        // ignore clipboard access errors
+      }
     };
     const id = setInterval(poll, 800);
     return () => {
@@ -89,6 +96,8 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const onChangeDigit = (idx: number, val: string) => {
     setError(null);
+    userStartedEditingRef.current = true;
+    lastSubmittedCode.current = null;
     const cleaned = val.replace(/\D/g, '');
 
     // Handle full code paste (iOS QuickType autofill)
@@ -122,6 +131,10 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     [digits]
   );
 
+  const onFocusDigit = useCallback(() => {
+    setError(null);
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     if (lastSubmittedCode.current === code) return;
@@ -147,6 +160,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
             setError(t('auth.otp.errors.expired'));
             setDigits(Array(CODE_LENGTH).fill(''));
+            userStartedEditingRef.current = false;
             setResendIn(RESEND_SECONDS);
             lastSubmittedCode.current = null;
           } catch (reErr: any) {
@@ -188,10 +202,10 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.message ?? '';
+      lastSubmittedCode.current = null;
 
       if (/rate limit/i.test(msg)) {
         setError(t('auth.otp.errors.rateLimit'));
-        lastSubmittedCode.current = null;
       } else {
         setError(msg || t('auth.otp.errors.verifyFailed'));
       }
@@ -208,6 +222,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       await authAPI.sendVerificationCode(String(email).trim().toLowerCase());
 
       setDigits(Array(CODE_LENGTH).fill(''));
+      userStartedEditingRef.current = false;
       setResendIn(RESEND_SECONDS);
       lastSubmittedCode.current = null;
     } catch (e: any) {
@@ -226,14 +241,6 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       setError(msg);
     }
   }, [resendIn, email, CODE_LENGTH, t]);
-
-  useEffect(() => {
-    if (!canSubmit) return;
-    if (submitLock.current) return;
-    if (lastSubmittedCode.current === code) return;
-
-    void handleSubmit();
-  }, [canSubmit, code, handleSubmit]);
 
   return (
     <AuthLayout>
@@ -268,15 +275,8 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
                   autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  returnKeyType={i === CODE_LENGTH - 1 ? 'done' : 'next'}
-                  submitBehavior="blurAndSubmit"
-                  onSubmitEditing={() => {
-                    if (i === CODE_LENGTH - 1) {
-                      void handleSubmit();
-                    } else {
-                      inputsRef.current[i + 1]?.focus();
-                    }
-                  }}
+                  selectTextOnFocus
+                  onFocus={onFocusDigit}
                   selectionColor="white"
                   style={[styles.box, digits[i] ? styles.boxFilled : null]}
                   autoFocus={i === 0}

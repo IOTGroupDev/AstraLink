@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Dimensions,
   TouchableOpacity,
   Modal,
 } from 'react-native';
@@ -15,8 +14,6 @@ import { SvgXml } from 'react-native-svg';
 import { chartAPI } from '../../services/api';
 import { logger } from '../../services/logger';
 import { useTranslation } from 'react-i18next';
-
-const { width } = Dimensions.get('window');
 
 const svgIcons = {
   star: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -110,14 +107,20 @@ const tabs = [
   { id: 'week' as TabType, labelKey: 'horoscope.periods.week' },
 ];
 
+const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
+  const normalized = String(locale || 'en').toLowerCase();
+  if (normalized.startsWith('ru')) return 'ru';
+  if (normalized.startsWith('es')) return 'es';
+  return 'en';
+};
+
 const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   predictions: initialPredictions,
   isLoading: initialLoading,
 }) => {
   const { t, i18n } = useTranslation();
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
-    const lang = String(i18n.language || 'en').toLowerCase();
-    return lang === 'ru' || lang === 'en' || lang === 'es' ? lang : 'en';
+    return normalizeAppLocale(i18n.language);
   }, [i18n.language]);
 
   const [activeTab, setActiveTab] = useState<TabType>('day');
