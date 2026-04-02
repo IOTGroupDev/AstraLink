@@ -55,7 +55,9 @@ async function loadOtpRateLimitState(): Promise<OtpRateLimitState> {
           return parsed as OtpRateLimitState;
         }
       }
-    } catch {}
+    } catch (_error) {
+      return otpRateLimitState;
+    }
     return otpRateLimitState;
   }
 
@@ -71,7 +73,9 @@ async function loadOtpRateLimitState(): Promise<OtpRateLimitState> {
         return parsed as OtpRateLimitState;
       }
     }
-  } catch {}
+  } catch (_error) {
+    return otpRateLimitState;
+  }
   return otpRateLimitState;
 }
 
@@ -85,7 +89,9 @@ async function saveOtpRateLimitState(state: OtpRateLimitState): Promise<void> {
           JSON.stringify(state)
         );
       }
-    } catch {}
+    } catch (_error) {
+      return;
+    }
     return;
   }
 
@@ -94,7 +100,9 @@ async function saveOtpRateLimitState(state: OtpRateLimitState): Promise<void> {
       OTP_RATE_LIMIT_STORAGE_KEY,
       JSON.stringify(state)
     );
-  } catch {}
+  } catch (_error) {
+    return;
+  }
 }
 
 function computeNextOtpRetryAfterSec(
@@ -185,6 +193,7 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   accessToken: string;
   refreshToken: string;
 }> {
+  authLogger.log('↩️ OAuth redirect URL received:', redirectedUrl);
   const { accessToken, refreshToken, code } =
     extractFromRedirectUrl(redirectedUrl);
 
@@ -218,6 +227,30 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
     return {
       accessToken: exchangedAccessToken,
       refreshToken: exchangedRefreshToken,
+    };
+  }
+
+  // Some providers can return control to the app without preserving query/hash
+  // params on the native deep link. In that case, try the current Supabase session
+  // before failing hard.
+  const { data: existingSessionData, error: sessionError } =
+    await supabase.auth.getSession();
+  if (sessionError) {
+    authLogger.warn(
+      '⚠️ Failed to inspect Supabase session after OAuth:',
+      sessionError
+    );
+  }
+
+  const existingAccessToken = existingSessionData.session?.access_token ?? null;
+  const existingRefreshToken =
+    existingSessionData.session?.refresh_token ?? null;
+
+  if (existingAccessToken && existingRefreshToken) {
+    authLogger.log('✅ OAuth session recovered from existing Supabase session');
+    return {
+      accessToken: existingAccessToken,
+      refreshToken: existingRefreshToken,
     };
   }
 
@@ -450,7 +483,7 @@ export const authAPI = {
           throw new Error('Apple identityToken отсутствует');
         }
 
-        const { data, error } = await supabase.auth.signInWithIdToken({
+        const { error } = await supabase.auth.signInWithIdToken({
           provider: 'apple',
           token: idToken,
         });
