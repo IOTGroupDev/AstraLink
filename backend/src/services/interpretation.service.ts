@@ -464,7 +464,7 @@ export class InterpretationService {
     locale: 'ru' | 'en' | 'es',
   ): string {
     return getAspectInterpretation(
-      aspect as import('../modules/shared/types').AspectType,
+      aspect,
       planet1 as PlanetKey,
       planet2 as PlanetKey,
       locale,
@@ -675,12 +675,7 @@ ${ascText}
   }
 
   private getAspectName(aspect: string, locale: 'ru' | 'en' | 'es'): string {
-    return (
-      getATAspectName(
-        aspect as import('../modules/shared/types').AspectType,
-        locale,
-      ) || aspect
-    );
+    return getATAspectName(aspect, locale) || aspect;
   }
 
   private getPlanetKeywords(

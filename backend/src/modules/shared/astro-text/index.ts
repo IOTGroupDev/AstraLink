@@ -803,7 +803,7 @@ function getPlanetDomain(
 }
 
 function getAspectCoreMeaning(
-  aspect: AspectType,
+  aspect: string,
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): {
   dynamic: string;
@@ -932,11 +932,43 @@ function getAspectCoreMeaning(
     },
   };
 
-  return (locale === 'en' ? en : locale === 'es' ? es : ru)[aspect];
+  const fallback =
+    locale === 'en'
+      ? {
+          dynamic: 'connects two energies through a more nuanced pattern',
+          gift: 'can reveal subtle coordination and a non-obvious growth path',
+          challenge:
+            'may be harder to read immediately because the effect is less direct',
+          practice:
+            'watch repeated situations where both planetary themes activate together',
+        }
+      : locale === 'es'
+        ? {
+            dynamic: 'conecta dos energías mediante un patrón más matizado',
+            gift: 'puede revelar coordinación sutil y una vía de crecimiento menos evidente',
+            challenge:
+              'puede ser más difícil de leer de inmediato porque su efecto es menos directo',
+            practice:
+              'observa situaciones repetidas donde ambos temas planetarios se activan al mismo tiempo',
+          }
+        : {
+            dynamic:
+              'связывает две энергии через более тонкий и неочевидный рисунок',
+            gift: 'может показывать скрытый ресурс и дополнительную точку роста',
+            challenge:
+              'часто читается не сразу, потому что действует менее прямолинейно',
+            practice:
+              'наблюдать повторяющиеся ситуации, где темы обеих планет включаются одновременно',
+          };
+
+  return (
+    (locale === 'en' ? en : locale === 'es' ? es : ru)[aspect as AspectType] ||
+    fallback
+  );
 }
 
 export function getExtendedAspect(
-  aspect: AspectType,
+  aspect: string,
   planetA: PlanetKey,
   planetB: PlanetKey,
   locale: 'ru' | 'en' | 'es' = 'ru',
@@ -983,11 +1015,11 @@ export function getExtendedAspect(
 // Public API
 
 export function getAspectName(
-  aspect: AspectType,
+  aspect: string,
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string {
   const d = dicts(locale);
-  return d.aspectNames[aspect] || aspect;
+  return d.aspectNames[aspect as AspectType] || aspect;
 }
 
 export function getPlanetInSignText(
@@ -1451,13 +1483,13 @@ export function getSignColors(
  * Aspect pair exact template, if defined in dictionaries
  */
 export function getAspectPairTemplate(
-  aspect: AspectType,
+  aspect: string,
   planetA: PlanetKey,
   planetB: PlanetKey,
   locale: 'ru' | 'en' | 'es' = 'ru',
 ): string | undefined {
   const d = dicts(locale);
-  const byAspect = d.aspectPairTemplates[aspect];
+  const byAspect = d.aspectPairTemplates[aspect as AspectType];
   if (!byAspect) return undefined;
   return byAspect[planetA]?.[planetB] || byAspect[planetB]?.[planetA];
 }
@@ -1466,7 +1498,7 @@ export function getAspectPairTemplate(
  * Aspect narrative with pair template fallback to generic
  */
 export function getAspectInterpretation(
-  aspect: AspectType,
+  aspect: string,
   planetA: PlanetKey,
   planetB: PlanetKey,
   locale: 'ru' | 'en' | 'es' = 'ru',
