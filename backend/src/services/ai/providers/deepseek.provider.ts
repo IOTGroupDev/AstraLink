@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { BaseAIProvider } from './base-ai-provider';
+import type { AIGenerateOptions } from '../interfaces/ai-types';
 
 @Injectable()
 export class DeepSeekProvider extends BaseAIProvider {
@@ -57,6 +58,7 @@ export class DeepSeekProvider extends BaseAIProvider {
     prompt: string,
     retries = 3,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    options?: AIGenerateOptions,
   ): Promise<string> {
     if (!this.client) {
       throw new Error('DeepSeek not initialized');
@@ -67,23 +69,35 @@ export class DeepSeekProvider extends BaseAIProvider {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const startTime = Date.now();
+        const maxTokens = options?.maxTokens ?? 1500;
+        const temperature = options?.temperature ?? 0.7;
 
-        const completion = await this.client.chat.completions.create({
-          model: this.model,
-          messages: [
-            {
-              role: 'system',
-              content: this.getSystemPrompt(locale),
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 1500,
-          response_format: { type: 'json_object' }, // JSON mode
-        } as any); // response_format supported but types outdated
+        const completion = await (this.client.chat.completions.create as any)(
+          {
+            model: this.model,
+            messages: [
+              {
+                role: 'system',
+                content: this.getSystemPrompt(locale),
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            temperature,
+            max_tokens: maxTokens,
+            ...(options?.responseFormat === 'text'
+              ? {}
+              : { response_format: { type: 'json_object' } }),
+          },
+          {
+            ...(typeof options?.timeoutMs === 'number'
+              ? { timeout: options.timeoutMs }
+              : {}),
+            ...(options?.signal ? { signal: options.signal } : {}),
+          },
+        ); // request options + response_format supported but local types lag behind runtime
 
         const duration = Date.now() - startTime;
         const choices = completion?.choices;

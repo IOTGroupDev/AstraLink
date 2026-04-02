@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
-import Animated, { useSharedValue } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 import { CommonActions, useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -30,7 +30,6 @@ import {
   userPhotosAPI,
   userExtendedProfileAPI,
 } from '../services/api';
-import { UserProfile } from '../types';
 import AstralInput from '../components/shared/AstralInput';
 import AstralCityInput from '../components/shared/AstralCityInput';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
@@ -94,7 +93,6 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const isFocused = useIsFocused();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [showAllInterests, setShowAllInterests] = useState(false);
@@ -244,9 +242,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const profileData = await userAPI.getProfile();
-      setProfile(profileData);
-
+      const [profileData, photosData, userProfile] = await Promise.all([
+        userAPI.getProfile(),
+        userPhotosAPI.listPhotos().catch((error) => {
+          logger.error('Error loading photos', error);
+          return [];
+        }),
+        userExtendedProfileAPI.getUserProfile().catch(() => null),
+      ]);
       const nextFormData = {
         name: profileData.name || '',
         birthDate: profileData.birthDate || '',
@@ -255,22 +258,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       };
       setFormData(nextFormData);
 
-      // Load photos - оборачиваем в try-catch
-      try {
-        const photosData = await userPhotosAPI.listPhotos();
-        logger.info('Photos loaded', photosData);
-        setPhotos(
-          photosData.map((p) => ({
-            id: p.id,
-            url: p.url || '',
-            isPrimary: p.isPrimary,
-            sortOrder: 0,
-          }))
-        );
-      } catch (photoError) {
-        logger.error('Error loading photos', photoError);
-        // Не прерываем загрузку, просто оставляем photos пустым
-      }
+      setPhotos(
+        photosData.map((p) => ({
+          id: p.id,
+          url: p.url || '',
+          isPrimary: p.isPrimary,
+          sortOrder: 0,
+        }))
+      );
 
       // Load profile data (bio, interests) - тоже оборачиваем
       let nextBio = '';
@@ -280,7 +275,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       let nextLookingFor: typeof lookingFor = '';
       let nextLookingForGender: typeof lookingForGender = '';
       try {
-        const userProfile = await userExtendedProfileAPI.getUserProfile();
+        if (!userProfile) {
+          throw new Error('no extended profile');
+        }
         nextBio = userProfile.bio || '';
         nextCity = userProfile.city || '';
         nextSelectedInterests = userProfile.preferences?.interests || [];
@@ -376,19 +373,27 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       logger.info('Uploaded to storage');
 
       // 3. Confirm upload
-      await userPhotosAPI.confirmPhoto(path);
+      const confirmedPhoto = await userPhotosAPI.confirmPhoto(path);
       logger.info('Confirmed in DB');
 
-      // 4. Reload photos
-      const photosData = await userPhotosAPI.listPhotos();
-      setPhotos(
-        photosData.map((p) => ({
-          id: p.id,
-          url: p.url || '',
-          isPrimary: p.isPrimary,
+      // 4. Update local gallery immediately instead of refetching everything
+      setPhotos((current) => {
+        const nextPhoto: Photo = {
+          id: confirmedPhoto.id,
+          url: confirmedPhoto.url || '',
+          isPrimary: confirmedPhoto.isPrimary,
           sortOrder: 0,
-        }))
-      );
+        };
+
+        if (confirmedPhoto.isPrimary) {
+          return [
+            nextPhoto,
+            ...current.map((photo) => ({ ...photo, isPrimary: false })),
+          ];
+        }
+
+        return [nextPhoto, ...current];
+      });
 
       Alert.alert(
         t('editProfile.alerts.photoAdded.title'),
@@ -614,7 +619,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.photosContainer}
           >
-            {photos.map((photo, index) => (
+            {photos.map((photo) => (
               <View key={photo.id} style={styles.photoCard}>
                 <Image source={{ uri: photo.url }} style={styles.photoImage} />
 

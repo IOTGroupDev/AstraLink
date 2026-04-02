@@ -51,6 +51,15 @@ export const userAPI = {
     return response.data;
   },
 
+  updatePushToken: async (data: {
+    expoPushToken: string;
+    enabled?: boolean;
+    platform?: 'ios' | 'android';
+  }): Promise<{ success: boolean; enabled: boolean; tokenCount: number }> => {
+    const response = await api.put('/user/push-token', data);
+    return response.data;
+  },
+
   deleteAccount: async (): Promise<void> => {
     try {
       apiLogger.log('Отправка запроса на удаление аккаунта');

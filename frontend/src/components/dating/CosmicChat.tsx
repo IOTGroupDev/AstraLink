@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  type KeyboardEvent,
+  ScrollView,
 } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../services/logger';
-
-const TAB_BAR_HEIGHT = 80; // Высота таб-бара
 
 interface CosmicChatProps {
   visible: boolean;
@@ -36,8 +39,46 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
   onSendMessage,
 }) => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const handleShow = (event: KeyboardEvent) => {
+      const nextHeight = Math.max(
+        0,
+        event.endCoordinates.height -
+          (Platform.OS === 'ios' ? insets.bottom : 0)
+      );
+      setKeyboardHeight(nextHeight);
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [insets.bottom]);
+
+  const restingBottom = useMemo(
+    () => Math.max(tabBarHeight, insets.bottom + 12),
+    [insets.bottom, tabBarHeight]
+  );
+
+  const sheetBottom = keyboardHeight > 0 ? keyboardHeight + 12 : restingBottom;
 
   const astroSuggestions = [
     user.zodiacSign
@@ -89,15 +130,23 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
 
       <Animated.View
         entering={SlideInDown.duration(400).springify()}
-        style={styles.container}
+        style={[styles.container, { bottom: sheetBottom }]}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={restingBottom}
           style={styles.keyboardView}
+          enabled
         >
           <LinearGradient
             colors={['#0F172A', '#1E293B', '#334155']}
-            style={styles.content}
+            style={[
+              styles.content,
+              {
+                paddingBottom:
+                  keyboardHeight > 0 ? 16 : Math.max(16, insets.bottom + 8),
+              },
+            ]}
           >
             {/* Header */}
             <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
@@ -120,23 +169,30 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
             {/* Suggestions */}
             <Animated.View
               entering={FadeIn.delay(300)}
-              style={styles.suggestionsContainer}
+              style={styles.suggestionsWrap}
             >
-              <Text style={styles.suggestionsTitle}>
-                {t('dating.cosmicChat.suggestionsTitle', {
-                  defaultValue: '💫 Start the conversation:',
-                })}
-              </Text>
-              {astroSuggestions.map((suggestion, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.suggestionItem}
-                  onPress={() => handleSuggestion(suggestion)}
-                >
-                  <Ionicons name="star" size={16} color="#8B5CF6" />
-                  <Text style={styles.suggestionText}>{suggestion}</Text>
-                </TouchableOpacity>
-              ))}
+              <ScrollView
+                style={styles.suggestionsScroll}
+                contentContainerStyle={styles.suggestionsContainer}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.suggestionsTitle}>
+                  {t('dating.cosmicChat.suggestionsTitle', {
+                    defaultValue: '💫 Start the conversation:',
+                  })}
+                </Text>
+                {astroSuggestions.map((suggestion, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => handleSuggestion(suggestion)}
+                  >
+                    <Ionicons name="star" size={16} color="#8B5CF6" />
+                    <Text style={styles.suggestionText}>{suggestion}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </Animated.View>
 
             {/* Input */}
@@ -191,12 +247,11 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    bottom: TAB_BAR_HEIGHT, // Не закрывает табы
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
     position: 'absolute',
-    bottom: TAB_BAR_HEIGHT, // Отступ для табов
     left: 0,
     right: 0,
     maxHeight: '70%',
@@ -243,10 +298,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   suggestionsContainer: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 10,
+  },
+  suggestionsWrap: {
+    flex: 1,
+  },
+  suggestionsScroll: {
+    flex: 1,
   },
   suggestionsTitle: {
     fontSize: 16,

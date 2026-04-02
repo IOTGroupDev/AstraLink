@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { supabase } from '../supabase';
 import { apiLogger } from '../logger';
 import { tokenService } from '../tokenService';
+import i18n from '../../i18n';
 
 // Ensure base URL ends with /api/v1 (API versioning)
 function ensureApiBase(url: string): string {
@@ -137,9 +138,20 @@ async function getAccessTokenWithRetry(): Promise<string | null> {
   return null;
 }
 
+function getNormalizedLocale(): 'ru' | 'en' | 'es' {
+  const rawLocale = String(i18n.language || 'en').toLowerCase();
+  if (rawLocale.startsWith('ru')) return 'ru';
+  if (rawLocale.startsWith('es')) return 'es';
+  return 'en';
+}
+
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
   const fullUrl = `${(config as any).baseURL ?? ''}${config.url ?? ''}`;
+  const locale = getNormalizedLocale();
+
+  (config.headers as any)['x-locale'] = locale;
+  (config.headers as any)['Accept-Language'] = locale;
 
   // Проверяем, публичный ли это эндпоинт
   const isPublic = PUBLIC_ENDPOINTS.some((endpoint) =>

@@ -81,7 +81,7 @@ export interface HoroscopePrediction {
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
-  private readonly horoscopeFormatVersion = 'fmt-v2';
+  private readonly horoscopeFormatVersion = 'fmt-v3';
   private readonly inflightPremium = new Map<
     string,
     Promise<HoroscopePrediction>
@@ -249,8 +249,15 @@ export class HoroscopeGeneratorService {
           this.logger.warn(
             `AI generation timeout (${this.aiSoftTimeoutMs}ms) for ${cacheKey}`,
           );
-          aiPromise
+          void aiPromise
             .then((aiResult) => this.redis.set(cacheKey, aiResult, ttlSec))
+            .catch((error) => {
+              this.logger.warn(
+                `Background AI cache fill failed for ${cacheKey}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+            })
             .finally(() => {
               this.inflightPremium.delete(cacheKey);
               this.redis.del(pendingKey).catch(() => undefined);

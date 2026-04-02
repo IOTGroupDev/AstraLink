@@ -17,6 +17,7 @@ import { DeepSeekProvider } from './ai/providers/deepseek.provider';
 import { IAIProvider } from './ai/interfaces/ai-provider.interface';
 import {
   AIProvider,
+  AIGenerateOptions,
   AIGenerationContext,
   AILocale,
   HoroscopeResponse,
@@ -27,6 +28,7 @@ import type { Sign } from '../modules/shared/astro-text/types';
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
+  private readonly horoscopeRequestTimeoutMs = 10500;
   private providers: Map<AIProvider, IAIProvider>;
   private primaryProvider: AIProvider = 'none';
   private readonly preferredNarrativeKeys = [
@@ -132,6 +134,9 @@ export class AIService {
       this.primaryProvider,
     );
     let response: string;
+    const providerOptions = this.getHoroscopeGenerationOptions(
+      this.primaryProvider,
+    );
 
     try {
       // Try primary provider
@@ -140,13 +145,17 @@ export class AIService {
         throw new Error(`Provider ${this.primaryProvider} not found`);
       }
 
-      response = await provider.generate(prompt, undefined, locale);
+      response = await provider.generate(prompt, 1, locale, providerOptions);
       return this.parseAIResponse(response, locale);
     } catch (error) {
       this.logger.error(
         `❌ Generation error via ${this.primaryProvider}:`,
         error,
       );
+
+      if (this.isTimeoutLikeError(error)) {
+        throw error;
+      }
 
       // 🔄 Automatic fallback to alternative providers
       const availableProviders = this.getAvailableProviders().filter(
@@ -166,7 +175,12 @@ export class AIService {
             locale,
             fallbackProvider,
           );
-          response = await provider.generate(fallbackPrompt, undefined, locale);
+          response = await provider.generate(
+            fallbackPrompt,
+            1,
+            locale,
+            this.getHoroscopeGenerationOptions(fallbackProvider),
+          );
           return this.parseAIResponse(response, locale);
         } catch (fallbackError) {
           this.logger.error(
@@ -504,7 +518,7 @@ export class AIService {
 
     if (locale === 'en') {
       return isDeepSeek
-        ? `Create a deeply personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
+        ? `Create a concise but deeply personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
 
 NATAL CHART:
 - Sun: ${context.sunSign}
@@ -522,22 +536,20 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Holistic summary of the whole period (6-8 sentences, rich and specific)",
-  "love": "Love and relationships (5-6 sentences with concrete recommendations)",
-  "career": "Career and business (5-6 sentences with practical advice)",
-  "health": "Health and energy (5-6 sentences)",
-  "finance": "Finance and material matters (5-6 sentences with grounded guidance)",
-  "advice": "Main advice (4-5 sentences that explicitly say what to do and what to avoid)",
-  "challenges": ["specific risk / what better not to do 1", "specific risk / what better not to do 2", "specific risk / what better not to do 3", "specific risk / what better not to do 4"],
-  "opportunities": ["specific action worth taking 1", "specific action worth taking 2", "specific action worth taking 3", "specific action worth taking 4"]
+  "general": "Holistic summary of the whole period (3-4 sentences, specific and human)",
+  "love": "Love and relationships (2-3 sentences with concrete recommendations)",
+  "career": "Career and business (2-3 sentences with practical advice)",
+  "health": "Health and energy (2-3 sentences)",
+  "finance": "Finance and material matters (2-3 sentences with grounded guidance)",
+  "advice": "Main advice (2-3 sentences that explicitly say what to do and what to avoid)",
+  "challenges": ["specific risk 1", "specific risk 2", "specific risk 3"],
+  "opportunities": ["specific action 1", "specific action 2", "specific action 3"]
 }
 
 Style and content requirements:
 - This is PREMIUM analysis — be as detailed and personalized as possible
 - Write warm, human, empathetic prose (avoid robotic phrasing)
 - ${humanVoiceLine}
-- Vary sentence length; avoid repetitive structures and clichés
-- Use light imagery where it helps clarity (not purple prose)
 - Consider interactions between transits and natal placements
 - Be concrete, practical, and realistic
 - Keep a positive but honest tone
@@ -549,9 +561,9 @@ Style and content requirements:
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
-- Frame challenges as growth opportunities
-- Each section must be unique, extended, and substantive
-- Target ~800-1100 words total`
+- Keep each field compact; avoid long introductions and repetition
+- Target ~350-500 words total
+- Do not exceed 4 sentences in any prose field`
         : `Create a personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
 
 NATAL CHART:
@@ -570,19 +582,19 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Holistic summary of the whole period (4-5 sentences with deep analysis)",
-  "love": "Love and relationships (3-4 sentences with concrete recommendations)",
-  "career": "Career and business (3-4 sentences with practical advice)",
-  "health": "Health and energy (3-4 sentences)",
-  "finance": "Finance and material matters (3-4 sentences with investment advice)",
-  "advice": "Main advice (3-4 sentences that explicitly say what to do and what to avoid)",
+  "general": "Holistic summary of the whole period (3-4 sentences with deep analysis)",
+  "love": "Love and relationships (2-3 sentences with concrete recommendations)",
+  "career": "Career and business (2-3 sentences with practical advice)",
+  "health": "Health and energy (2-3 sentences)",
+  "finance": "Finance and material matters (2-3 sentences with grounded guidance)",
+  "advice": "Main advice (2-3 sentences that explicitly say what to do and what to avoid)",
   "challenges": ["specific risk / what better not to do 1", "specific risk / what better not to do 2", "specific risk / what better not to do 3"],
   "opportunities": ["specific action worth taking 1", "specific action worth taking 2", "specific action worth taking 3"]
 }
 
 Content requirements:
 - This is PREMIUM analysis — be as detailed and personalized as possible
-- Keep it concise while substantive (target ~500-800 words total)
+- Keep it concise while substantive (target ~450-650 words total)
 - Consider interactions between transits and natal planets
 - Be concrete and practical
 - Provide realistic, actionable advice
@@ -602,7 +614,7 @@ Content requirements:
 
     if (locale === 'es') {
       return isDeepSeek
-        ? `Crea un horóscopo PREMIUM muy personalizado ${periodText} para una persona con la siguiente carta natal:
+        ? `Crea un horóscopo PREMIUM muy personalizado y conciso ${periodText} para una persona con la siguiente carta natal:
 
 CARTA NATAL:
 - Sol: ${context.sunSign}
@@ -620,22 +632,20 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Resumen integral de todo el período (6-8 frases, rico y específico)",
-  "love": "Amor y relaciones (5-6 frases con recomendaciones concretas)",
-  "career": "Carrera y negocios (5-6 frases con consejos prácticos)",
-  "health": "Salud y energía (5-6 frases)",
-  "finance": "Finanzas y lo material (5-6 frases con guía realista)",
-  "advice": "Consejo principal (4-5 frases que indiquen claramente qué hacer y qué evitar)",
-  "challenges": ["riesgo concreto / qué conviene evitar 1", "riesgo concreto / qué conviene evitar 2", "riesgo concreto / qué conviene evitar 3", "riesgo concreto / qué conviene evitar 4"],
-  "opportunities": ["acción concreta que conviene tomar 1", "acción concreta que conviene tomar 2", "acción concreta que conviene tomar 3", "acción concreta que conviene tomar 4"]
+  "general": "Resumen integral de todo el período (3-4 frases, específico y humano)",
+  "love": "Amor y relaciones (2-3 frases con recomendaciones concretas)",
+  "career": "Carrera y negocios (2-3 frases con consejos prácticos)",
+  "health": "Salud y energía (2-3 frases)",
+  "finance": "Finanzas y lo material (2-3 frases con guía realista)",
+  "advice": "Consejo principal (2-3 frases que indiquen claramente qué hacer y qué evitar)",
+  "challenges": ["riesgo concreto 1", "riesgo concreto 2", "riesgo concreto 3"],
+  "opportunities": ["acción concreta 1", "acción concreta 2", "acción concreta 3"]
 }
 
 Requisitos de estilo y contenido:
 - Esto es análisis PREMIUM: sé lo más detallado y personalizado posible
 - Escribe de forma cálida, humana y empática (evita frases robóticas)
 - ${humanVoiceLine}
-- Varía la longitud de las frases; evita repeticiones y clichés
-- Usa imágenes ligeras solo cuando ayuden a la claridad
 - Considera la interacción de los tránsitos con posiciones natales
 - Sé concreto, práctico y realista
 - Mantén un tono positivo pero honesto
@@ -647,9 +657,9 @@ Requisitos de estilo y contenido:
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
-- Formula los desafíos como oportunidades de crecimiento
-- Cada sección debe ser única, extensa y sustancial
-- Objetivo ~800-1100 palabras`
+- Mantén cada campo compacto; evita introducciones largas y repeticiones
+- Objetivo ~350-500 palabras
+- No superes 4 frases en ningún campo de prosa`
         : `Crea un horóscopo PREMIUM personalizado ${periodText} para una persona con la siguiente carta natal:
 
 CARTA NATAL:
@@ -668,19 +678,19 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Resumen integral de todo el período (4-5 frases con análisis profundo)",
-  "love": "Amor y relaciones (3-4 frases con recomendaciones concretas)",
-  "career": "Carrera y negocios (3-4 frases con consejos prácticos)",
-  "health": "Salud y energía (3-4 frases)",
-  "finance": "Finanzas y lo material (3-4 frases con consejos de inversión)",
-  "advice": "Consejo principal (3-4 frases que indiquen claramente qué hacer y qué evitar)",
+  "general": "Resumen integral de todo el período (3-4 frases con análisis profundo)",
+  "love": "Amor y relaciones (2-3 frases con recomendaciones concretas)",
+  "career": "Carrera y negocios (2-3 frases con consejos prácticos)",
+  "health": "Salud y energía (2-3 frases)",
+  "finance": "Finanzas y lo material (2-3 frases con guía realista)",
+  "advice": "Consejo principal (2-3 frases que indiquen claramente qué hacer y qué evitar)",
   "challenges": ["riesgo concreto / qué conviene evitar 1", "riesgo concreto / qué conviene evitar 2", "riesgo concreto / qué conviene evitar 3"],
   "opportunities": ["acción concreta que conviene tomar 1", "acción concreta que conviene tomar 2", "acción concreta que conviene tomar 3"]
 }
 
 Requisitos de contenido:
 - Esto es análisis PREMIUM: sé lo más detallado y personalizado posible
-- Sé conciso pero sustancial (objetivo ~500-800 palabras)
+- Sé conciso pero sustancial (objetivo ~450-650 palabras)
 - Considera la interacción de los tránsitos con las posiciones natales
 - Sé concreto y práctico
 - Da consejos realistas y aplicables
@@ -699,7 +709,7 @@ Requisitos de contenido:
     }
 
     return isDeepSeek
-      ? `Создайте максимально персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
+      ? `Создайте максимально персонализированный, но компактный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
 
 НАТАЛЬНАЯ КАРТА:
 - Солнце: ${context.sunSign}
@@ -716,22 +726,20 @@ ${transitDescription}
 
 Формат JSON:
 {
-  "general": "Цельное резюме всего периода (6-8 предложений, подробно и конкретно)",
-  "love": "Любовь и отношения (5-6 предложений с конкретными рекомендациями)",
-  "career": "Карьера и бизнес (5-6 предложений с практичными советами)",
-  "health": "Здоровье и энергия (5-6 предложений)",
-  "finance": "Финансы и материальное (5-6 предложений с приземленными советами)",
-  "advice": "Главный совет (4-5 предложений, где прямо сказано что делать и чего лучше избегать)",
-  "challenges": ["конкретный риск / чего лучше не делать 1", "конкретный риск / чего лучше не делать 2", "конкретный риск / чего лучше не делать 3", "конкретный риск / чего лучше не делать 4"],
-  "opportunities": ["конкретное действие, которое стоит сделать 1", "конкретное действие, которое стоит сделать 2", "конкретное действие, которое стоит сделать 3", "конкретное действие, которое стоит сделать 4"]
+  "general": "Цельное резюме всего периода (3-4 предложения, конкретно и по-человечески)",
+  "love": "Любовь и отношения (2-3 предложения с конкретными рекомендациями)",
+  "career": "Карьера и бизнес (2-3 предложения с практичными советами)",
+  "health": "Здоровье и энергия (2-3 предложения)",
+  "finance": "Финансы и материальное (2-3 предложения с приземленными советами)",
+  "advice": "Главный совет (2-3 предложения, где прямо сказано что делать и чего лучше избегать)",
+  "challenges": ["конкретный риск 1", "конкретный риск 2", "конкретный риск 3"],
+  "opportunities": ["конкретное действие 1", "конкретное действие 2", "конкретное действие 3"]
 }
 
 Требования к стилю и контенту:
 - Это PREMIUM анализ - будьте максимально детальны и персонализированы
 - Пишите тепло, по‑человечески, эмпатично (без «роботности»)
 - ${humanVoiceLine}
-- Разнообразьте длину фраз, избегайте повторов и клише
-- Легкие образные сравнения допустимы, если помогают ясности
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны, практичны и реалистичны
 - Сохраняйте позитивный, но честный тон
@@ -743,9 +751,9 @@ ${transitDescription}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
-- Вызовы формулируйте как возможности для роста
-- Каждый раздел должен быть уникальным, расширенным и содержательным
-- Ориентир ~800-1100 слов`
+- Держите каждый раздел компактным; без длинных вступлений и повторов
+- Ориентир ~350-500 слов
+- Не превышайте 4 предложения в одном текстовом поле`
       : `Создайте персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
 
 НАТАЛЬНАЯ КАРТА:
@@ -763,19 +771,19 @@ ${transitDescription}
 
 Формат JSON:
 {
-  "general": "Цельное резюме всего периода (4-5 предложений с глубоким анализом)",
-  "love": "Любовь и отношения (3-4 предложения с конкретными рекомендациями)",
-  "career": "Карьера и бизнес (3-4 предложения с практичными советами)",
-  "health": "Здоровье и энергия (3-4 предложения)",
-  "finance": "Финансы и материальное (3-4 предложения с инвестиционными советами)",
-  "advice": "Главный совет (3-4 предложения, где прямо сказано что делать и чего лучше избегать)",
+  "general": "Цельное резюме всего периода (3-4 предложения с глубоким анализом)",
+  "love": "Любовь и отношения (2-3 предложения с конкретными рекомендациями)",
+  "career": "Карьера и бизнес (2-3 предложения с практичными советами)",
+  "health": "Здоровье и энергия (2-3 предложения)",
+  "finance": "Финансы и материальное (2-3 предложения с приземленными советами)",
+  "advice": "Главный совет (2-3 предложения, где прямо сказано что делать и чего лучше избегать)",
   "challenges": ["конкретный риск / чего лучше не делать 1", "конкретный риск / чего лучше не делать 2", "конкретный риск / чего лучше не делать 3"],
   "opportunities": ["конкретное действие, которое стоит сделать 1", "конкретное действие, которое стоит сделать 2", "конкретное действие, которое стоит сделать 3"]
 }
 
 Требования к контенту:
 - Это PREMIUM анализ - будьте максимально детальны и персонализированы
-- Будьте лаконичны, но содержательны (ориентир ~500-800 слов)
+- Будьте лаконичны, но содержательны (ориентир ~450-650 слов)
 - Учитывайте взаимодействие транзитов с натальными планетами
 - Будьте конкретны и практичны
 - Давайте реалистичные, применимые советы
@@ -1554,6 +1562,30 @@ ${aspectsDesc}
       .replace(/^```[a-zA-Z]*\n?/, '')
       .replace(/```$/, '')
       .trim();
+  }
+
+  private getHoroscopeGenerationOptions(
+    provider: AIProvider,
+  ): AIGenerateOptions {
+    const timeoutMs =
+      provider === 'claude'
+        ? this.horoscopeRequestTimeoutMs + 500
+        : this.horoscopeRequestTimeoutMs;
+
+    return {
+      timeoutMs,
+      maxTokens: provider === 'deepseek' ? 900 : 1100,
+      temperature: provider === 'deepseek' ? 0.55 : 0.6,
+      responseFormat: 'json_object',
+    };
+  }
+
+  private isTimeoutLikeError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    return /timeout|timed out|abort|aborted|deadline/i.test(error.message);
   }
 
   private extractJsonObject(input: string): string | null {

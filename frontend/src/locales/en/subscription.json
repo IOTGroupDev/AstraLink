@@ -15,7 +15,15 @@
   "aiRefreshing": "Updating AI horoscope and interpretation...",
   "loadingModal": {
     "title": "Preparing your Premium",
-    "message": "Loading premium data and generating your personal AI interpretations. This can take a little time."
+    "message": "Loading premium data and generating your personal AI interpretations. This can take a little time.",
+    "progressTitle": "Current step",
+    "stages": {
+      "activating": "Activating subscription...",
+      "syncing": "Syncing premium access...",
+      "natal": "Refreshing natal chart interpretation...",
+      "horoscope": "Updating AI horoscope...",
+      "finalizing": "Applying updates to your screens..."
+    }
   },
   "errorMessage": "Failed to upgrade subscription. Please try again.",
   "tiers": {

@@ -18,6 +18,7 @@ import type {
   User,
 } from './chat.types';
 import { COLUMN_CANDIDATES as COLS } from './chat.types';
+import { ChatNotificationsService } from './chat-notifications.service';
 
 export interface ChatMessage {
   id: string;
@@ -53,7 +54,21 @@ export class ChatService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly redis: RedisService,
+    private readonly chatNotificationsService: ChatNotificationsService,
   ) {}
+
+  private triggerIncomingMessageNotification(params: {
+    senderId: string;
+    recipientId: string;
+    text?: string;
+    mediaPath?: string | null;
+  }): void {
+    void this.chatNotificationsService
+      .notifyIncomingMessage(params)
+      .catch((error) => {
+        this.logger.warn('Failed to send chat push notification', error);
+      });
+  }
 
   /**
    * Отправить сообщение через RPC send_message (SECURITY DEFINER).
@@ -65,6 +80,17 @@ export class ChatService {
     text?: string,
     mediaPath?: string | null,
   ): Promise<{ id: string }> {
+    const { data: userRes, error: userErr } =
+      await this.supabaseService.getUser(userAccessToken);
+    const typedUserRes = userRes as SupabaseUserResponse | null;
+    const uid = typedUserRes?.user?.id;
+    if (!uid || userErr) {
+      this.logger.error('Cannot resolve user from token for sendMessage', {
+        userErr: userErr?.message ?? userErr,
+      });
+      throw new Error('send_message failed (no user from token)');
+    }
+
     // 1) RPC (если включено переменной окружения)
     const payload = {
       p_recipient_id: recipientId,
@@ -204,6 +230,12 @@ export class ChatService {
           // не критично для возврата id — фронтенд подхватит media через кэш/подпись URL
         }
 
+        this.triggerIncomingMessageNotification({
+          senderId: uid,
+          recipientId,
+          text,
+          mediaPath,
+        });
         return { id: newId };
       }
       if (!this.rpcWarned) {
@@ -215,20 +247,6 @@ export class ChatService {
     }
 
     // 2) Фоллбек: прямой INSERT с перебором названий колонок
-
-    const { data: userRes, error: userErr } =
-      await this.supabaseService.getUser(userAccessToken);
-    const typedUserRes = userRes as SupabaseUserResponse | null;
-    const uid = typedUserRes?.user?.id;
-    if (!uid || userErr) {
-      this.logger.error(
-        'Cannot resolve user from token for sendMessage fallback',
-        {
-          userErr: userErr?.message ?? userErr,
-        },
-      );
-      throw new Error('send_message failed (no user from token)');
-    }
 
     const client = this.supabaseService.getClientForToken(userAccessToken);
 
@@ -295,6 +313,12 @@ export class ChatService {
                 ins01.messageId ??
                 ins01.pk;
               if (newId01) {
+                this.triggerIncomingMessageNotification({
+                  senderId: uid,
+                  recipientId,
+                  text,
+                  mediaPath,
+                });
                 return { id: String(newId01) };
               }
             }
@@ -319,6 +343,12 @@ export class ChatService {
               ins0.messageId ??
               ins0.pk;
             if (newId0) {
+              this.triggerIncomingMessageNotification({
+                senderId: uid,
+                recipientId,
+                text,
+                mediaPath,
+              });
               return { id: String(newId0) };
             }
           }
@@ -356,6 +386,12 @@ export class ChatService {
                     ins2.messageId ??
                     ins2.pk;
                   if (newId2) {
+                    this.triggerIncomingMessageNotification({
+                      senderId: uid,
+                      recipientId,
+                      text,
+                      mediaPath,
+                    });
                     return { id: String(newId2) };
                   }
                 }
@@ -380,6 +416,12 @@ export class ChatService {
                   ins1.messageId ??
                   ins1.pk;
                 if (newId) {
+                  this.triggerIncomingMessageNotification({
+                    senderId: uid,
+                    recipientId,
+                    text,
+                    mediaPath,
+                  });
                   return { id: String(newId) };
                 }
               }

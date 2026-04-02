@@ -152,6 +152,13 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
     route.params.photos,
   ]);
 
+  useEffect(() => {
+    setActivePhotoIndex((currentIndex) => {
+      if (resolvedPhotos.length <= 1) return 0;
+      return Math.min(currentIndex, resolvedPhotos.length - 1);
+    });
+  }, [resolvedPhotos.length]);
+
   const displayName =
     profile?.name ?? route.params.name ?? t('dating.defaults.userName');
   const displayTitle =
@@ -333,6 +340,12 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
             <ScrollView
               horizontal
               pagingEnabled
+              nestedScrollEnabled
+              directionalLockEnabled
+              scrollEnabled={resolvedPhotos.length > 1}
+              bounces={false}
+              overScrollMode="never"
+              scrollEventThrottle={16}
               onMomentumScrollEnd={handlePhotoScroll}
               showsHorizontalScrollIndicator={false}
             >
@@ -359,6 +372,7 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
           )}
 
           <LinearGradient
+            pointerEvents="none"
             colors={['rgba(9, 12, 26, 0.08)', 'rgba(9, 12, 26, 0.82)']}
             style={styles.heroOverlay}
           />
@@ -382,7 +396,7 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.heroFooter}>
+          <View pointerEvents="none" style={styles.heroFooter}>
             <View style={styles.compatibilityBadge}>
               <Ionicons name="sparkles" size={14} color="#0F172A" />
               <Text style={styles.compatibilityBadgeText}>

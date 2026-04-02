@@ -15,7 +15,15 @@
   "aiRefreshing": "Actualizando el horóscopo e interpretación con IA...",
   "loadingModal": {
     "title": "Preparando tu Premium",
-    "message": "Estamos cargando los datos premium y generando tus interpretaciones personales con IA. Esto puede tardar un poco."
+    "message": "Estamos cargando los datos premium y generando tus interpretaciones personales con IA. Esto puede tardar un poco.",
+    "progressTitle": "Paso actual",
+    "stages": {
+      "activating": "Activando la suscripción...",
+      "syncing": "Sincronizando el acceso premium...",
+      "natal": "Actualizando la interpretación de la carta natal...",
+      "horoscope": "Actualizando el horóscopo con IA...",
+      "finalizing": "Aplicando la actualización en tus pantallas..."
+    }
   },
   "errorMessage": "No se pudo actualizar la suscripción. Inténtalo de nuevo.",
   "tiers": {

@@ -19,6 +19,7 @@ import { NavigationTheme } from './src/navigation/navigationConfig';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/stores/auth.store';
 import { AuthEngine } from './src/services/authEngine';
+import { notificationService } from './src/services/notifications';
 import SplashScreen from './src/screens/SplashScreen';
 import { logger } from './src/services/logger';
 import { enableScreens } from 'react-native-screens';
@@ -31,6 +32,7 @@ const queryClient = new QueryClient();
 export default function App() {
   const authState = useAuthStore((s) => s.authState);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const session = useAuthStore((s) => s.session);
 
   useEffect(() => {
     (async () => {
@@ -45,12 +47,25 @@ export default function App() {
         }
 
         await AuthEngine.init();
+        await notificationService.init();
         logger.log('Auth engine initialized');
       } catch (err) {
         logger.error('App initialization error:', err);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const isAuthorized =
+      authState === 'AUTHORIZED' || authState === 'ONBOARDING';
+
+    if (!isAuthorized || !userId) {
+      return;
+    }
+
+    void notificationService.syncAuthenticatedPushToken(userId);
+  }, [authState, session?.user?.id]);
 
   if (authState === 'BOOT' || isLoading) {
     return (

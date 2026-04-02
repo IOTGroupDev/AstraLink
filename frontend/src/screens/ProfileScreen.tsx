@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -97,15 +98,19 @@ const ZODIAC_ELEMENTS = {
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
   const isFocused = useIsFocused();
   const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(
+    () => queryClient.getQueryData<Subscription>(['subscription']) ?? null
+  );
   const [chart, setChart] = useState<Chart | null>(null);
   const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const requestIdRef = useRef(0);
+  const profileRef = useRef<UserProfile | null>(null);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const profileHeaderTitle = React.useMemo(() => {
@@ -155,11 +160,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     orbAnim.value = withRepeat(withTiming(360, { duration: 20000 }), -1, false);
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchProfileData();
-    }, [])
-  );
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   const buildProfileFromAuth = React.useCallback((): UserProfile | null => {
     if (!authProfile?.id || !authProfile.email || !authProfile.birthDate) {
@@ -180,9 +183,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     };
   }, [authProfile]);
 
-  const fetchProfileData = async () => {
+  const fetchProfileData = React.useCallback(async () => {
     const requestId = ++requestIdRef.current;
-    const shouldBlockScreen = !profile;
+    const shouldBlockScreen = !profileRef.current;
 
     if (shouldBlockScreen) {
       const fallbackProfile = buildProfileFromAuth();
@@ -195,11 +198,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
 
     try {
-      let resolvedProfile: UserProfile;
+      const [profileRes, subscriptionRes, chartRes, photoRes] =
+        await Promise.allSettled([
+          userAPI.getProfile(),
+          userAPI.getSubscription(),
+          chartAPI.getNatalChart(),
+          userPhotosAPI.listPhotos(),
+        ]);
 
-      try {
-        resolvedProfile = await userAPI.getProfile();
-      } catch (profileError: any) {
+      if (profileRes.status === 'rejected') {
+        const profileError: any = profileRes.reason;
         const st = profileError?.response?.status;
         const data = profileError?.response?.data;
         logger.warn('getProfile failed', st, data);
@@ -220,47 +228,41 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         return;
       }
 
+      const resolvedProfile = profileRes.value;
+      const resolvedSubscription =
+        subscriptionRes.status === 'fulfilled'
+          ? subscriptionRes.value
+          : (queryClient.getQueryData<Subscription>(['subscription']) ??
+            DEFAULT_SUBSCRIPTION);
+      const resolvedChart =
+        chartRes.status === 'fulfilled' ? chartRes.value : null;
+      const resolvedPhotos =
+        photoRes.status === 'fulfilled' ? photoRes.value : [];
+      const primaryPhoto =
+        resolvedPhotos.find((p) => p.isPrimary) || resolvedPhotos[0];
+
       setProfile(resolvedProfile);
+      setSubscription(resolvedSubscription);
+      setChart(resolvedChart);
+      setPrimaryPhotoUrl(primaryPhoto?.url || null);
       setLoading(false);
+      queryClient.setQueryData(['subscription'], resolvedSubscription);
 
-      void (async () => {
-        const [sRes, cRes, photoRes] = await Promise.allSettled([
-          userAPI.getSubscription(),
-          chartAPI.getNatalChart(),
-          userPhotosAPI.listPhotos(),
-        ]);
+      if (subscriptionRes.status === 'rejected') {
+        const st = subscriptionRes.reason?.response?.status;
+        const data = subscriptionRes.reason?.response?.data;
+        logger.info('getSubscription failed (ignoring)', st, data);
+      }
 
-        if (requestId !== requestIdRef.current) {
-          return;
-        }
+      if (chartRes.status === 'rejected') {
+        const st = chartRes.reason?.response?.status;
+        const data = chartRes.reason?.response?.data;
+        logger.info('getNatalChart failed (optional)', st, data);
+      }
 
-        if (sRes.status === 'fulfilled') {
-          setSubscription(sRes.value);
-        } else {
-          const st = sRes.reason?.response?.status;
-          const data = sRes.reason?.response?.data;
-          logger.info('getSubscription failed (игнорируем)', st, data);
-          setSubscription(DEFAULT_SUBSCRIPTION);
-        }
-
-        if (cRes.status === 'fulfilled') {
-          setChart(cRes.value);
-        } else {
-          const st = cRes.reason?.response?.status;
-          const data = cRes.reason?.response?.data;
-          logger.info('getNatalChart failed (опционально)', st, data);
-          setChart(null);
-        }
-
-        if (photoRes.status === 'fulfilled') {
-          const photos = photoRes.value;
-          const primary = photos.find((p) => p.isPrimary) || photos[0];
-          setPrimaryPhotoUrl(primary?.url || null);
-        } else {
-          logger.info('listPhotos failed (опционально)', photoRes.reason);
-          setPrimaryPhotoUrl(null);
-        }
-      })();
+      if (photoRes.status === 'rejected') {
+        logger.info('listPhotos failed (optional)', photoRes.reason);
+      }
     } catch (error: any) {
       if (requestId !== requestIdRef.current) {
         return;
@@ -279,7 +281,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         setLoading(false);
       }
     }
-  };
+  }, [buildProfileFromAuth, queryClient, t]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void fetchProfileData();
+    }, [fetchProfileData])
+  );
 
   const handleDeleteAccount = async () => {
     try {
@@ -416,7 +424,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
 
               {/* Premium Badge */}
-              {subscription?.tier !== 'free' && (
+              {subscription != null && subscription.tier !== 'free' && (
                 <View style={styles.premiumBadge}>
                   <Ionicons name="diamond" size={16} color="#fff" />
                 </View>
@@ -445,9 +453,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               {t('profile.sections.subscription')}
             </Text>
             <SubscriptionCard
-              subscription={subscription as any}
+              subscription={subscription}
               onUpgrade={handleUpgradeSubscription}
-              showUpgradeButton={subscription?.tier !== 'max'}
+              showUpgradeButton={!!subscription && subscription.tier !== 'max'}
             />
           </View>
 

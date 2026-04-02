@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -142,13 +142,20 @@ export default function TabNavigator() {
 
   useEffect(() => {
     let isMounted = true;
+    let interactionTask: { cancel?: () => void } | null = null;
 
     const checkProfileCompletion = async () => {
       try {
-        const [profile, extendedProfile, hidePopup] = await Promise.all([
+        const hidePopup = await AsyncStorage.getItem(
+          PROFILE_COMPLETION_HIDE_KEY
+        );
+        if (hidePopup || !isMounted) {
+          return;
+        }
+
+        const [profile, extendedProfile] = await Promise.all([
           userAPI.getProfile(),
           userExtendedProfileAPI.getUserProfile(),
-          AsyncStorage.getItem(PROFILE_COMPLETION_HIDE_KEY),
         ]);
 
         const percent = calculateProfileCompletion(profile, extendedProfile);
@@ -156,7 +163,7 @@ export default function TabNavigator() {
         if (!isMounted) return;
 
         setCompletionPercent(percent);
-        if (percent < 70 && !hidePopup) {
+        if (percent < 70) {
           setShowCompletionModal(true);
         }
       } catch {
@@ -164,10 +171,13 @@ export default function TabNavigator() {
       }
     };
 
-    checkProfileCompletion();
+    interactionTask = InteractionManager.runAfterInteractions(() => {
+      void checkProfileCompletion();
+    });
 
     return () => {
       isMounted = false;
+      interactionTask?.cancel?.();
     };
   }, []);
 
@@ -195,10 +205,10 @@ export default function TabNavigator() {
     () => ({
       tabBarHideOnKeyboard: true,
       animation: 'none' as const,
-      lazy: false,
+      lazy: true,
       lazyPreloadDistance: 0,
-      detachInactiveScreens: false,
-      freezeOnBlur: false,
+      detachInactiveScreens: true,
+      freezeOnBlur: true,
       sceneContainerStyle: {
         backgroundColor: '#0F172A',
       },

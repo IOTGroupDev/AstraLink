@@ -4,7 +4,7 @@
  */
 
 import { Logger } from '@nestjs/common';
-import type { AILocale } from '../interfaces/ai-types';
+import type { AIGenerateOptions, AILocale } from '../interfaces/ai-types';
 import { IAIProvider } from '../interfaces/ai-provider.interface';
 
 export abstract class BaseAIProvider implements IAIProvider {
@@ -20,6 +20,7 @@ export abstract class BaseAIProvider implements IAIProvider {
     prompt: string,
     retries?: number,
     locale?: AILocale,
+    options?: AIGenerateOptions,
   ): Promise<string>;
   abstract stream(
     prompt: string,

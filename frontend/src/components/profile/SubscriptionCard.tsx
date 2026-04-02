@@ -1,6 +1,12 @@
 // frontend/src/components/SubscriptionCard.tsx
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +39,11 @@ const SUBSCRIPTION_LEVELS = {
     gradient: ['#8B5CF6', '#7C3AED'] as GradientColors,
     icon: 'star' as const,
   },
+  premium: {
+    color: '#8B5CF6',
+    gradient: ['#8B5CF6', '#7C3AED'] as GradientColors,
+    icon: 'star' as const,
+  },
   max: {
     color: '#F59E0B',
     gradient: ['#F59E0B', '#D97706', '#DC2626'] as GradientColors,
@@ -48,6 +59,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const { t, i18n } = useTranslation();
   const glowAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(1);
+  const isLoading = subscription == null;
 
   React.useEffect(() => {
     glowAnim.value = withRepeat(
@@ -69,7 +81,8 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   };
 
   const currentLevel: keyof typeof SUBSCRIPTION_LEVELS =
-    subscription?.tier || 'free';
+    (subscription?.tier as keyof typeof SUBSCRIPTION_LEVELS | undefined) ||
+    'free';
   const levelConfig =
     SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
   const glowGradient: GradientColors = [
@@ -80,11 +93,14 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   ];
 
   // Get translated tier name and features
-  const tierName = t(`subscription.tiers.${currentLevel}.name`);
-  const tierFeatures: string[] = t(
-    `subscription.tiers.${currentLevel}.features`,
-    { returnObjects: true }
-  ) as string[];
+  const tierName = isLoading
+    ? t('common.loading.loading', 'Loading...')
+    : t(`subscription.tiers.${currentLevel}.name`);
+  const tierFeatures: string[] = isLoading
+    ? []
+    : (t(`subscription.tiers.${currentLevel}.features`, {
+        returnObjects: true,
+      }) as string[]);
 
   const animatedGlowStyle = useAnimatedStyle(() => {
     return {
@@ -117,7 +133,6 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   // Support both paid expiration and active trial end date
   const endDateStr = subscription?.expiresAt || subscription?.trialEndsAt;
   const endDate = endDateStr ? new Date(endDateStr) : null;
-  const isOnTrial = !!subscription?.isTrial && !!subscription?.trialEndsAt;
 
   const isExpired = endDate ? endDate < new Date() : false;
 
@@ -170,7 +185,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               </LinearGradient>
             </View>
 
-            {shouldShowUpgradeButton && (
+            {shouldShowUpgradeButton && !isLoading && (
               <TouchableOpacity
                 style={styles.upgradeButton}
                 onPress={onUpgrade}
@@ -193,7 +208,14 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
           {/* Status */}
           <View style={styles.statusContainer}>
-            {subscription?.tier === 'free' ? (
+            {isLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color={levelConfig.color} />
+                <Text style={styles.statusText}>
+                  {t('common.loading.loading', 'Loading...')}
+                </Text>
+              </View>
+            ) : subscription?.tier === 'free' ? (
               <Text style={styles.statusText}>
                 {t('subscription.status.freeAccount')}
               </Text>
@@ -230,22 +252,24 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </View>
 
           {/* Features */}
-          <View style={styles.featuresContainer}>
-            {tierFeatures.map((feature, index) => (
-              <View key={index} style={styles.featureItem}>
-                <View
-                  style={[
-                    styles.featureDot,
-                    { backgroundColor: levelConfig.color },
-                  ]}
-                />
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            ))}
-          </View>
+          {!isLoading && (
+            <View style={styles.featuresContainer}>
+              {tierFeatures.map((feature, index) => (
+                <View key={index} style={styles.featureItem}>
+                  <View
+                    style={[
+                      styles.featureDot,
+                      { backgroundColor: levelConfig.color },
+                    ]}
+                  />
+                  <Text style={styles.featureText}>{feature}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Progress Bar (для премиум подписок) */}
-          {subscription?.tier !== 'free' && !isExpired && (
+          {!isLoading && subscription?.tier !== 'free' && !isExpired && (
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
                 <LinearGradient
@@ -336,6 +360,11 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     marginBottom: 15,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   statusText: {
     color: '#B0B0B0',

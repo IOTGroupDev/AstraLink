@@ -6,6 +6,14 @@
 export type AIProvider = 'claude' | 'openai' | 'deepseek' | 'none';
 export type AILocale = 'ru' | 'en' | 'es';
 
+export interface AIGenerateOptions {
+  maxTokens?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  temperature?: number;
+  responseFormat?: 'json_object' | 'text';
+}
+
 export interface AIGenerationContext {
   sunSign: string;
   moonSign: string;

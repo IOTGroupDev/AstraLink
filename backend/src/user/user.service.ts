@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -12,6 +13,7 @@ import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
 import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
+import { UpdatePushTokenDto } from './dto/update-push-token.dto';
 
 @Injectable()
 export class UserService {
@@ -24,6 +26,33 @@ export class UserService {
     private eventEmitter: EventEmitter2,
     private prisma: PrismaService,
   ) {}
+
+  private asJsonObject(value: unknown): Record<string, unknown> {
+    if (!value || Array.isArray(value) || typeof value !== 'object') {
+      return {};
+    }
+    return value as Record<string, unknown>;
+  }
+
+  private normalizeExpoPushTokens(value: unknown): string[] {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [];
+    }
+
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        value
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
 
   /**
    * Normalize birthDate for API responses as YYYY-MM-DD (без времени).
@@ -209,6 +238,69 @@ export class UserService {
       onboardingCompleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async updateExpoPushToken(userId: string, body: UpdatePushTokenDto) {
+    const expoPushToken = String(body.expoPushToken || '').trim();
+    if (!expoPushToken) {
+      throw new BadRequestException('expoPushToken is required');
+    }
+
+    const existingProfile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { preferences: true },
+    });
+
+    const currentPreferences = this.asJsonObject(existingProfile?.preferences);
+    const currentNotifications = this.asJsonObject(
+      currentPreferences.notifications,
+    );
+    const previousTokens = this.normalizeExpoPushTokens(
+      currentNotifications.expoPushTokens ?? currentNotifications.expoPushToken,
+    );
+    const enabled = body.enabled !== false;
+    const nextTokens = enabled
+      ? Array.from(new Set([...previousTokens, expoPushToken]))
+      : previousTokens.filter((token) => token !== expoPushToken);
+
+    const nextNotifications: Prisma.JsonObject = {
+      ...currentNotifications,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (body.platform) {
+      nextNotifications.lastPlatform = body.platform;
+    }
+
+    if (nextTokens.length > 0) {
+      nextNotifications.expoPushTokens = nextTokens;
+      nextNotifications.expoPushToken = nextTokens[0];
+    } else {
+      delete nextNotifications.expoPushTokens;
+      delete nextNotifications.expoPushToken;
+    }
+
+    const nextPreferences: Prisma.JsonObject = {
+      ...currentPreferences,
+      notifications: nextNotifications,
+    };
+
+    await this.prisma.userProfile.upsert({
+      where: { userId },
+      update: {
+        preferences: nextPreferences,
+      },
+      create: {
+        userId,
+        preferences: nextPreferences,
+      },
+    });
+
+    return {
+      success: true,
+      enabled: enabled && nextTokens.length > 0,
+      tokenCount: nextTokens.length,
     };
   }
 

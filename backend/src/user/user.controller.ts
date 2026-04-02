@@ -24,6 +24,7 @@ import { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
 import { BlockUserDto, ReportUserDto } from './dto/moderation.dto';
 import { UpdateExtendedProfileDto } from './dto/update-extended-profile.dto';
+import { UpdatePushTokenDto } from './dto/update-push-token.dto';
 import type {
   SubscriptionStatusResponse,
   UpdateProfileRequest,
@@ -75,6 +76,17 @@ export class UserController {
   ) {
     const userId = req.user?.userId || req.user?.id;
     return this.userService.updateProfile(userId as string, updateData);
+  }
+
+  @Put('push-token')
+  @ApiOperation({ summary: 'Register or remove Expo push token' })
+  @ApiResponse({ status: 200, description: 'Push token synced successfully' })
+  async updatePushToken(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: UpdatePushTokenDto,
+  ) {
+    const userId = this.getUserId(req);
+    return this.userService.updateExpoPushToken(userId, body);
   }
 
   private getUserId(req: AuthenticatedRequest): string {

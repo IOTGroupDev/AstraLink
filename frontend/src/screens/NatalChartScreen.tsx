@@ -16,6 +16,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { chartAPI } from '../services/api';
 import { useSubscription } from '../hooks/useSubscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
@@ -219,6 +220,14 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     }
     prevTierRef.current = nextTier;
   }, [loadChartData, subscription?.tier]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!chartData) return undefined;
+      void loadChartData();
+      return undefined;
+    }, [chartData, loadChartData])
+  );
 
   if (loading) {
     return (

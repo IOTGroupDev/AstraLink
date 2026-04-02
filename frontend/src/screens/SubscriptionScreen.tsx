@@ -20,6 +20,7 @@ import SubscriptionCard from '../components/profile/SubscriptionCard';
 import { userAPI } from '../services/api';
 import { subscriptionAPI } from '../services/api/subscription.api';
 import { SubscriptionTier } from '../types/subscription';
+import { chartAPI } from '../services/api/chart.api';
 
 type SubscriptionScreenProps = StackScreenProps<
   RootStackParamList,
@@ -27,31 +28,45 @@ type SubscriptionScreenProps = StackScreenProps<
 >;
 
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const cachedSubscription =
+    queryClient.getQueryData<Subscription>(['subscription']) ?? null;
   const [currentSubscription, setCurrentSubscription] =
-    React.useState<Subscription | null>(null);
-  const [loading, setLoading] = React.useState(true);
+    React.useState<Subscription | null>(cachedSubscription);
+  const [loading, setLoading] = React.useState(!cachedSubscription);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
+  const [purchaseStage, setPurchaseStage] = React.useState<
+    'activating' | 'syncing' | 'natal' | 'horoscope' | 'finalizing' | null
+  >(null);
   const loadingPopupVisible = purchasing !== null;
 
   React.useEffect(() => {
     fetchSubscription();
   }, []);
 
+  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
+    const locale = String(i18n.language || 'en').toLowerCase();
+    if (locale.startsWith('ru')) return 'ru';
+    if (locale.startsWith('es')) return 'es';
+    return 'en';
+  }, [i18n.language]);
+
   const fetchSubscription = async () => {
     try {
       const subscription = await userAPI.getSubscription();
       setCurrentSubscription(subscription);
+      queryClient.setQueryData(['subscription'], subscription);
     } catch (error) {
       // If no subscription, default to free
-      setCurrentSubscription({
+      const freeFallback = {
         tier: 'free',
         isActive: false,
         isTrial: false,
         isTrialActive: false,
         features: [],
-      } as any);
+      } as any;
+      setCurrentSubscription((current) => current ?? freeFallback);
     } finally {
       setLoading(false);
     }
@@ -85,10 +100,43 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
           onPress: async () => {
             try {
               setPurchasing(tier);
+              setPurchaseStage('activating');
+              const locale = getApiLocale();
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
               if (result.success) {
-                queryClient.invalidateQueries({ queryKey: ['subscription'] });
+                const optimisticSubscription = {
+                  ...(currentSubscription || {}),
+                  tier,
+                  isActive: true,
+                  isTrial: false,
+                  expiresAt: result.subscription?.expiresAt,
+                } as Subscription;
+                setCurrentSubscription(optimisticSubscription);
+                queryClient.setQueryData(
+                  ['subscription'],
+                  optimisticSubscription
+                );
+
+                setPurchaseStage('syncing');
+                const freshSubscription = await subscriptionAPI.getStatus();
+                setCurrentSubscription(freshSubscription as Subscription);
+                queryClient.setQueryData(['subscription'], freshSubscription);
+                await queryClient.invalidateQueries({
+                  queryKey: ['subscription'],
+                });
+                await queryClient.refetchQueries({
+                  queryKey: ['subscription'],
+                  type: 'active',
+                });
+
+                setPurchaseStage('natal');
+                await chartAPI.getNatalChartWithInterpretation(locale);
+
+                setPurchaseStage('horoscope');
+                await chartAPI.getAllHoroscopes(locale);
+
+                setPurchaseStage('finalizing');
 
                 Alert.alert(
                   t('subscription.successTitle', 'Success!'),
@@ -100,7 +148,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
                     {
                       text: t('common.buttons.ok', 'OK'),
                       onPress: () => {
-                        fetchSubscription();
+                        navigation.goBack();
                       },
                     },
                   ]
@@ -120,6 +168,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
               );
             } finally {
               setPurchasing(null);
+              setPurchaseStage(null);
             }
           },
         },
@@ -268,6 +317,41 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
                 'Loading premium data and generating your AI interpretations. This can take a little time.'
               )}
             </Text>
+            <View style={styles.progressCard}>
+              <Text style={styles.progressTitle}>
+                {t('subscription.loadingModal.progressTitle', 'Current step')}
+              </Text>
+              <Text style={styles.progressValue}>
+                {purchaseStage === 'syncing' &&
+                  t(
+                    'subscription.loadingModal.stages.syncing',
+                    'Syncing premium access...'
+                  )}
+                {purchaseStage === 'natal' &&
+                  t(
+                    'subscription.loadingModal.stages.natal',
+                    'Refreshing natal chart interpretation...'
+                  )}
+                {purchaseStage === 'horoscope' &&
+                  t(
+                    'subscription.loadingModal.stages.horoscope',
+                    'Updating AI horoscope...'
+                  )}
+                {purchaseStage === 'finalizing' &&
+                  t(
+                    'subscription.loadingModal.stages.finalizing',
+                    'Finalizing and updating your screens...'
+                  )}
+                {purchaseStage !== 'syncing' &&
+                  purchaseStage !== 'natal' &&
+                  purchaseStage !== 'horoscope' &&
+                  purchaseStage !== 'finalizing' &&
+                  t(
+                    'subscription.loadingModal.stages.activating',
+                    'Activating subscription...'
+                  )}
+              </Text>
+            </View>
             <View style={styles.aiRefreshBanner}>
               <Ionicons name="sparkles-outline" size={18} color="#F59E0B" />
               <Text style={styles.aiRefreshText}>
@@ -439,6 +523,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  progressCard: {
+    marginTop: 16,
+    width: '100%',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  progressTitle: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  progressValue: {
+    marginTop: 6,
+    color: '#F9FAFB',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   aiRefreshBanner: {
     flexDirection: 'row',

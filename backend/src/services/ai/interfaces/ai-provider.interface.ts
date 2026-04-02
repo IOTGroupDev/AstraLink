@@ -3,7 +3,7 @@
  * Strategy Pattern interface for all AI providers
  */
 
-import type { AILocale } from './ai-types';
+import type { AIGenerateOptions, AILocale } from './ai-types';
 
 export interface IAIProvider {
   /**
@@ -27,6 +27,7 @@ export interface IAIProvider {
     prompt: string,
     retries?: number,
     locale?: AILocale,
+    options?: AIGenerateOptions,
   ): Promise<string>;
 
   /**

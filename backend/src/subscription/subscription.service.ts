@@ -16,6 +16,7 @@ import { NatalChartService } from '../chart/services';
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
+  private readonly statusCacheTtlSec = 60;
 
   constructor(
     private prisma: PrismaService,
@@ -45,7 +46,11 @@ export class SubscriptionService {
    */
   async getStatus(userId: string): Promise<SubscriptionStatusResponse> {
     try {
-      this.logger.log(`Getting subscription status for user: ${userId}`);
+      const cacheKey = `subscription:${userId}`;
+      const cached = await this.redis.get<SubscriptionStatusResponse>(cacheKey);
+      if (cached) {
+        return cached;
+      }
 
       // ✅ PRISMA: Получаем подписку через Prisma
       const subscription = await this.prisma.subscription.findUnique({
@@ -53,11 +58,8 @@ export class SubscriptionService {
       });
 
       if (!subscription) {
-        this.logger.log(`No subscription found, creating free subscription`);
         return await this.createFreeSubscription(userId);
       }
-
-      this.logger.log(`Subscription found: ${JSON.stringify(subscription)}`);
 
       const tier = subscription.tier as SubscriptionTier;
       const expiresAt = subscription.expiresAt;
@@ -76,7 +78,6 @@ export class SubscriptionService {
       }
 
       if (!isActive && tier !== SubscriptionTier.FREE) {
-        this.logger.log(`Subscription expired, downgrading to free`);
         await this.downgradeToFree(userId);
         return this.getStatus(userId);
       }
@@ -100,7 +101,7 @@ export class SubscriptionService {
         );
       }
 
-      return {
+      const response = {
         tier,
         expiresAt: expiresAt?.toISOString(),
         isActive,
@@ -109,6 +110,9 @@ export class SubscriptionService {
         features,
         daysRemaining,
       };
+
+      await this.redis.set(cacheKey, response, this.statusCacheTtlSec);
+      return response;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -125,8 +129,6 @@ export class SubscriptionService {
   private async createFreeSubscription(
     userId: string,
   ): Promise<SubscriptionStatusResponse> {
-    this.logger.log(`Creating free subscription for user: ${userId}`);
-
     // Validate user exists before creating subscription
     await this.validateUserExists(userId);
 
@@ -149,15 +151,21 @@ export class SubscriptionService {
       },
     });
 
-    this.logger.log(`✅ Subscription created successfully`);
-
-    return {
+    const response = {
       tier: SubscriptionTier.FREE,
       isActive: true,
       isTrial: false,
       features: FEATURE_MATRIX[SubscriptionTier.FREE].features,
       trialEndsAt: TRIAL_CONFIG.enabled ? trialEndsAt.toISOString() : undefined,
     };
+
+    await this.redis.set(
+      `subscription:${userId}`,
+      response,
+      this.statusCacheTtlSec,
+    );
+
+    return response;
   }
 
   /**
@@ -203,10 +211,27 @@ export class SubscriptionService {
     // ✅ Очистка кэша подписки в Redis
     const cacheKey = `subscription:${userId}`;
     await this.redis.del(cacheKey);
+    await this.redis.set(
+      cacheKey,
+      {
+        tier: TRIAL_CONFIG.tier,
+        expiresAt: undefined,
+        isActive: true,
+        isTrial: true,
+        trialEndsAt: trialEndsAt.toISOString(),
+        features: FEATURE_MATRIX[TRIAL_CONFIG.tier].features,
+        daysRemaining: TRIAL_CONFIG.duration,
+      },
+      this.statusCacheTtlSec,
+    );
 
-    await this.refreshPremiumAssets(userId);
-
-    this.logger.log(`Trial activated for user ${userId}`);
+    void this.refreshPremiumAssets(userId).catch((e) => {
+      this.logger.warn(
+        `Deferred premium refresh after trial activation failed for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    });
 
     return {
       success: true,
@@ -273,7 +298,6 @@ export class SubscriptionService {
     // ✅ Очистка кэша подписки в Redis
     const cacheKey = `subscription:${userId}`;
     await this.redis.del(cacheKey);
-    this.logger.debug(`Cleared subscription cache for user ${userId}`);
 
     // ✅ Очистка кэша гороскопов сразу после апгрейда
     try {
@@ -300,9 +324,30 @@ export class SubscriptionService {
       });
     }
 
-    this.logger.log(`User ${userId} upgraded to ${tier}`);
+    const statusResponse: SubscriptionStatusResponse = {
+      tier,
+      expiresAt: expiresAt.toISOString(),
+      isActive: true,
+      isTrial: false,
+      trialEndsAt: undefined,
+      features: FEATURE_MATRIX[tier].features,
+      daysRemaining: Math.max(
+        0,
+        Math.ceil(
+          (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      ),
+    };
 
-    await this.refreshPremiumAssets(userId, locale);
+    await this.redis.set(cacheKey, statusResponse, this.statusCacheTtlSec);
+
+    void this.refreshPremiumAssets(userId, locale).catch((e) => {
+      this.logger.warn(
+        `Deferred premium refresh failed for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    });
 
     return {
       success: true,
@@ -381,8 +426,6 @@ export class SubscriptionService {
     const cacheKey = `subscription:${userId}`;
     await this.redis.del(cacheKey);
 
-    this.logger.log(`Subscription cancelled for user ${userId}`);
-
     return {
       success: true,
       message: 'Подписка отменена. Доступ сохранится до конца периода.',
@@ -406,8 +449,6 @@ export class SubscriptionService {
     // ✅ Очистка кэша подписки в Redis
     const cacheKey = `subscription:${userId}`;
     await this.redis.del(cacheKey);
-
-    this.logger.log(`User ${userId} downgraded to FREE`);
   }
 
   /**

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Post,
   Request,
   UnauthorizedException,
@@ -55,13 +56,14 @@ export class AdvisorController {
   async evaluate(
     @Request() req: AuthenticatedRequest,
     @Body() dto: EvaluateAdviceDto,
+    @Headers('x-locale') locale?: string,
   ): Promise<AdviceResponseDto> {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
-    return await this.advisor.evaluate(userId, dto);
+    return await this.advisor.evaluate(userId, dto, locale);
   }
 
   @Get('usage')

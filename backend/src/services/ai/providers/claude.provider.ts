@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { BaseAIProvider } from './base-ai-provider';
+import type { AIGenerateOptions } from '../interfaces/ai-types';
 
 @Injectable()
 export class ClaudeProvider extends BaseAIProvider {
@@ -54,6 +55,7 @@ export class ClaudeProvider extends BaseAIProvider {
     prompt: string,
     retries = 3,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    options?: AIGenerateOptions,
   ): Promise<string> {
     if (!this.client) {
       throw new Error('Claude not initialized');
@@ -64,19 +66,29 @@ export class ClaudeProvider extends BaseAIProvider {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const startTime = Date.now();
+        const maxTokens = options?.maxTokens ?? 2000;
+        const temperature = options?.temperature ?? 0.7;
 
-        const message = await this.client.messages.create({
-          model: this.model,
-          max_tokens: 2000,
-          temperature: 0.7,
-          system: this.getSystemPrompt(locale),
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        });
+        const message = await (this.client.messages.create as any)(
+          {
+            model: this.model,
+            max_tokens: maxTokens,
+            temperature,
+            system: this.getSystemPrompt(locale),
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          },
+          {
+            ...(typeof options?.timeoutMs === 'number'
+              ? { timeout: options.timeoutMs }
+              : {}),
+            ...(options?.signal ? { signal: options.signal } : {}),
+          },
+        );
 
         const duration = Date.now() - startTime;
         const content =

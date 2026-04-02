@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { userAPI } from './api/user.api';
 import { authLogger } from './logger';
+import { notificationService } from './notifications';
 import { useAuthStore, type AuthProfile } from '../stores/auth.store';
 
 export type AuthState = 'BOOT' | 'UNAUTHORIZED' | 'ONBOARDING' | 'AUTHORIZED';
@@ -175,11 +176,13 @@ export const AuthEngine = {
 
   async signOut() {
     try {
+      await notificationService.unregisterCurrentPushToken();
       await supabase.auth.signOut();
     } finally {
       setSession(null);
       setProfile(null);
       setState('UNAUTHORIZED');
+      await notificationService.clearCachedPushToken();
     }
   },
 
