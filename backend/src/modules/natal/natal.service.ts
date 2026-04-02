@@ -62,7 +62,43 @@ export class NatalService {
     return !this.hasCanonicalBirthMetadata(chartData);
   }
 
-  private async recalculatePersistedChart(userId: string, chartId: string) {
+  private resolveStoredInterpretationLocale(
+    chartData: any,
+  ): 'ru' | 'en' | 'es' | null {
+    const locale =
+      chartData?.interpretationLocale ??
+      chartData?.metadata?.interpretationLocale ??
+      chartData?.interpretation?.locale;
+
+    if (locale === 'ru' || locale === 'en' || locale === 'es') {
+      return locale;
+    }
+
+    return chartData?.interpretation ? 'ru' : null;
+  }
+
+  private withInterpretationLocale<T extends Record<string, any>>(
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+  ): T & {
+    interpretationLocale: 'ru' | 'en' | 'es';
+    metadata: Record<string, any>;
+  } {
+    return {
+      ...chartData,
+      interpretationLocale: locale,
+      metadata: {
+        ...(chartData?.metadata || {}),
+        interpretationLocale: locale,
+      },
+    };
+  }
+
+  private async recalculatePersistedChart(
+    userId: string,
+    chartId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const { data: userProfile } =
       await this.supabaseService.getUserProfileAdmin(userId);
     const birthDateISO = userProfile?.birth_date as string | undefined;
@@ -93,20 +129,26 @@ export class NatalService {
       await this.interpretationService.generateNatalChartInterpretation(
         userId,
         natalChartData,
+        locale,
       );
+
+    const localizedData = this.withInterpretationLocale(
+      {
+        ...natalChartData,
+        interpretation,
+      },
+      locale,
+    );
+    localizedData.metadata = {
+      ...localizedData.metadata,
+      recalculatedAt: new Date().toISOString(),
+      calculationVersion: 'utc-fixed-v2',
+    };
 
     return this.prisma.chart.update({
       where: { id: chartId },
       data: {
-        data: {
-          ...natalChartData,
-          interpretation,
-          metadata: {
-            ...natalChartData?.metadata,
-            recalculatedAt: new Date().toISOString(),
-            calculationVersion: 'utc-fixed-v2',
-          },
-        },
+        data: localizedData,
       },
     });
   }
@@ -120,6 +162,7 @@ export class NatalService {
     birthTime: string,
     birthPlace: string,
     birthLocation?: { latitude: number; longitude: number; timezone?: string },
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     // Проверяем существующую карту
     const existing = await this.prisma.chart.findFirst({
@@ -133,9 +176,9 @@ export class NatalService {
         this.logger.warn(
           `Upgrading legacy natal chart metadata for user ${userId} via /natal create path`,
         );
-        return this.recalculatePersistedChart(userId, existing.id);
+        return this.recalculatePersistedChart(userId, existing.id, locale);
       }
-      return existing;
+      return this.getNatalChartWithInterpretation(userId, locale);
     }
 
     // Валидация данных
@@ -174,16 +217,20 @@ export class NatalService {
       await this.interpretationService.generateNatalChartInterpretation(
         userId,
         natalChartData,
+        locale,
       );
 
     // Сохраняем карту с интерпретацией
-    const chartWithInterpretation = {
-      ...natalChartData,
-      interpretation,
-      metadata: {
-        ...natalChartData?.metadata,
-        calculationVersion: 'utc-fixed-v2',
+    const chartWithInterpretation = this.withInterpretationLocale(
+      {
+        ...natalChartData,
+        interpretation,
       },
+      locale,
+    );
+    chartWithInterpretation.metadata = {
+      ...chartWithInterpretation.metadata,
+      calculationVersion: 'utc-fixed-v2',
     };
 
     return await this.prisma.chart.create({
@@ -197,7 +244,10 @@ export class NatalService {
   /**
    * Получить натальную карту с интерпретацией
    */
-  async getNatalChartWithInterpretation(userId: string) {
+  async getNatalChartWithInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const chart = await this.prisma.chart.findFirst({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -210,25 +260,32 @@ export class NatalService {
     const chartData = chart.data as any;
 
     if (this.needsBirthDataUpgrade(chartData)) {
-      return this.recalculatePersistedChart(userId, chart.id);
+      return this.recalculatePersistedChart(userId, chart.id, locale);
     }
 
-    // Если интерпретация отсутствует, генерируем её
-    if (!chartData.interpretation) {
+    // Если интерпретация отсутствует или сохранена на другом языке, генерируем её заново
+    if (
+      !chartData.interpretation ||
+      this.resolveStoredInterpretationLocale(chartData) !== locale
+    ) {
       const interpretation =
         await this.interpretationService.generateNatalChartInterpretation(
           userId,
           chartData,
+          locale,
         );
 
       // Обновляем карту с интерпретацией
-      const updatedData = {
-        ...chartData,
-        interpretation,
-        metadata: {
-          ...(chartData?.metadata || {}),
-          calculationVersion: 'utc-fixed-v2',
+      const updatedData = this.withInterpretationLocale(
+        {
+          ...chartData,
+          interpretation,
         },
+        locale,
+      );
+      updatedData.metadata = {
+        ...updatedData.metadata,
+        calculationVersion: 'utc-fixed-v2',
       };
 
       await this.prisma.chart.update({

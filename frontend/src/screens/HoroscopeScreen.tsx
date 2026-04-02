@@ -196,7 +196,7 @@ const HoroscopeScreen: React.FC = () => {
           chartLogger.log(
             'Натальная карта не найдена, создаю из данных профиля'
           );
-          chartData = await chartAPI.createNatalChart({});
+          chartData = await chartAPI.createNatalChart({}, getApiLocale());
         }
 
         setChart(chartData);
@@ -494,7 +494,7 @@ const HoroscopeScreen: React.FC = () => {
     if (!raw) return '';
     const cleaned = String(raw).trim().toLowerCase();
     if (!cleaned) return '';
-    let key = cleaned.replace(/[\s\-]+/g, '_');
+    let key = cleaned.replace(/[\s-]+/g, '_');
     key = key.replace(/[^\w]/g, '');
     if (key === 'southnode') return 'south_node';
     return key;

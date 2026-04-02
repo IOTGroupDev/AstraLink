@@ -131,15 +131,24 @@ export class ChartService {
   /**
    * Get natal chart with interpretation
    */
-  async getNatalChartWithInterpretation(userId: string) {
-    return this.natalChartService.getNatalChartWithInterpretation(userId);
+  async getNatalChartWithInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    return this.natalChartService.getNatalChartWithInterpretation(
+      userId,
+      locale,
+    );
   }
 
   /**
    * Get only natal chart interpretation
    */
-  async getChartInterpretation(userId: string) {
-    return this.natalChartService.getChartInterpretation(userId);
+  async getChartInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    return this.natalChartService.getChartInterpretation(userId, locale);
   }
 
   /**
@@ -152,8 +161,12 @@ export class ChartService {
   /**
    * Create natal chart (basic method for backward compatibility)
    */
-  async createNatalChart(userId: string, data: any) {
-    return this.natalChartService.createNatalChart(userId, data);
+  async createNatalChart(
+    userId: string,
+    data: any,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    return this.natalChartService.createNatalChart(userId, data, locale);
   }
 
   async forceRecalculateNatalChart(

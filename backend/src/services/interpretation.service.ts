@@ -24,7 +24,6 @@ import type {
   ChartData,
   Planet,
   House,
-  ChartAspect,
   PlanetInterpretation,
   AspectInterpretation,
   HouseInterpretation,
@@ -335,7 +334,7 @@ export class InterpretationService {
     };
 
     // Сохраняем интерпретацию в базу данных
-    await this.saveInterpretation(userId, interpretation);
+    await this.saveInterpretation(userId, interpretation, locale);
 
     return interpretation;
   }
@@ -365,6 +364,7 @@ export class InterpretationService {
   private async saveInterpretation(
     userId: string,
     interpretation: NatalChartInterpretation,
+    locale: 'ru' | 'en' | 'es',
   ): Promise<void> {
     const chart = await this.prisma.chart.findFirst({
       where: { userId },
@@ -376,6 +376,11 @@ export class InterpretationService {
         ...(chart.data as any),
         interpretation,
         interpretationVersion: 'v3',
+        interpretationLocale: locale,
+        metadata: {
+          ...((chart.data as any)?.metadata || {}),
+          interpretationLocale: locale,
+        },
       };
 
       await this.prisma.chart.update({

@@ -95,6 +95,49 @@ export class NatalChartService {
     return !this.hasCanonicalBirthMetadata(chartData);
   }
 
+  private resolveStoredInterpretationLocale(
+    chartData: any,
+  ): 'ru' | 'en' | 'es' | null {
+    const locale =
+      chartData?.interpretationLocale ??
+      chartData?.metadata?.interpretationLocale ??
+      chartData?.interpretation?.locale;
+
+    if (locale === 'ru' || locale === 'en' || locale === 'es') {
+      return locale;
+    }
+
+    // Legacy charts were persisted in Russian before locale-aware metadata.
+    return chartData?.interpretation ? 'ru' : null;
+  }
+
+  private hasAiInterpretation(chartData: any): boolean {
+    return Boolean(
+      chartData?.interpretationVersion === 'v3-ai' ||
+      chartData?.generatedBy === 'ai' ||
+      chartData?.interpretation?.generatedBy === 'ai' ||
+      chartData?.interpretation?.aiNarrative ||
+      chartData?.interpretation?.premiumNarrative,
+    );
+  }
+
+  private withInterpretationLocale<T extends Record<string, any>>(
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+  ): T & {
+    interpretationLocale: 'ru' | 'en' | 'es';
+    metadata: Record<string, any>;
+  } {
+    return {
+      ...chartData,
+      interpretationLocale: locale,
+      metadata: {
+        ...(chartData?.metadata || {}),
+        interpretationLocale: locale,
+      },
+    };
+  }
+
   /**
    * Create natal chart with interpretation at registration
    */
@@ -103,6 +146,7 @@ export class NatalChartService {
     birthDateISO: string,
     birthTime: string,
     birthPlace: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     // Check existing chart via repository
     const existing = await this.chartRepository.findByUserId(userId);
@@ -110,9 +154,9 @@ export class NatalChartService {
     // If chart already exists with interpretation, return it
     if (existing && existing.data?.interpretation) {
       if (this.needsBirthDataUpgrade(existing.data)) {
-        return this.forceRecalculateNatalChart(userId);
+        return this.forceRecalculateNatalChart(userId, locale);
       }
-      return existing;
+      return this.getNatalChartWithInterpretation(userId, locale);
     }
 
     // Validate data
@@ -151,18 +195,22 @@ export class NatalChartService {
       await this.interpretationService.generateNatalChartInterpretation(
         userId,
         natalChartData,
+        locale,
       );
 
     // Save chart with interpretation (including version) + metadata (fingerprint)
-    const chartWithInterpretation = {
-      ...natalChartData,
-      interpretation,
-      interpretationVersion: 'v3',
-      metadata: {
-        ...natalChartData?.metadata,
-        fingerprint,
-        calculationVersion: 'utc-fixed-v2',
+    const chartWithInterpretation = this.withInterpretationLocale(
+      {
+        ...natalChartData,
+        interpretation,
+        interpretationVersion: 'v3',
       },
+      locale,
+    );
+    chartWithInterpretation.metadata = {
+      ...chartWithInterpretation.metadata,
+      fingerprint,
+      calculationVersion: 'utc-fixed-v2',
     };
 
     const created = await this.chartRepository.create({
@@ -185,7 +233,10 @@ export class NatalChartService {
   /**
    * Get natal chart with interpretation
    */
-  async getNatalChartWithInterpretation(userId: string) {
+  async getNatalChartWithInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const chart = await this.chartRepository.findByUserId(userId);
 
     if (!chart) {
@@ -196,7 +247,7 @@ export class NatalChartService {
 
     if (this.needsBirthDataUpgrade(chartData)) {
       try {
-        return await this.forceRecalculateNatalChart(userId);
+        return await this.forceRecalculateNatalChart(userId, locale);
       } catch (error) {
         this.logger.warn(
           `Failed to auto-upgrade natal chart birth metadata for user ${userId}: ${
@@ -257,17 +308,21 @@ export class NatalChartService {
           await this.interpretationService.generateNatalChartInterpretation(
             userId,
             newNatal,
+            locale,
           );
 
-        const updatedData = {
-          ...newNatal,
-          interpretation: newInterp,
-          interpretationVersion: 'v3',
-          metadata: {
-            ...newNatal?.metadata,
-            fingerprint: currentFingerprint,
-            calculationVersion: 'utc-fixed-v2',
+        const updatedData = this.withInterpretationLocale(
+          {
+            ...newNatal,
+            interpretation: newInterp,
+            interpretationVersion: 'v3',
           },
+          locale,
+        );
+        updatedData.metadata = {
+          ...updatedData.metadata,
+          fingerprint: currentFingerprint,
+          calculationVersion: 'utc-fixed-v2',
         };
 
         await this.chartRepository.update(chart.id, { data: updatedData });
@@ -277,6 +332,29 @@ export class NatalChartService {
           await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
         } catch (_e) {
           void 0;
+        }
+
+        if (
+          this.hasAiInterpretation(chartData) &&
+          this.aiService.isAvailable()
+        ) {
+          await this.attachAiNarrativeToChart(
+            chart.id,
+            updatedData,
+            userId,
+            locale,
+          );
+
+          const refreshed = await this.chartRepository.findByUserId(userId);
+          if (refreshed) {
+            return {
+              id: refreshed.id,
+              userId: refreshed.user_id,
+              data: refreshed.data,
+              createdAt: refreshed.created_at,
+              updatedAt: refreshed.updated_at,
+            };
+          }
         }
 
         return {
@@ -293,44 +371,73 @@ export class NatalChartService {
       }
     }
 
-    // 2) If interpretation is missing or version is outdated — regenerate for v3
+    const storedLocale = this.resolveStoredInterpretationLocale(chartData);
+    const hasCurrentInterpretationVersion =
+      chartData.interpretationVersion === 'v3' ||
+      chartData.interpretationVersion === 'v3-ai' ||
+      chartData.interpretationVersion === 'ai-v1';
+
+    // 2) If interpretation is missing, outdated, or in a different locale — regenerate
     if (
       !chartData.interpretation ||
-      (chartData.interpretationVersion !== 'v3' &&
-        chartData.interpretationVersion !== 'ai-v1')
+      !hasCurrentInterpretationVersion ||
+      storedLocale !== locale
     ) {
       this.logger.log(
-        `Regenerating interpretation for user ${userId} (version: ${chartData.interpretationVersion || 'none'})`,
+        `Regenerating interpretation for user ${userId} (version: ${chartData.interpretationVersion || 'none'}, storedLocale: ${storedLocale || 'unknown'}, requestedLocale: ${locale})`,
       );
 
       const interpretation =
         await this.interpretationService.generateNatalChartInterpretation(
           userId,
           chartData,
+          locale,
         );
 
       const derivedFingerprint = existingFingerprint;
 
       // Update chart with interpretation and version (preserve metadata)
-      const updatedData = {
-        ...chartData,
-        interpretation,
-        interpretationVersion: 'v3',
-        metadata: {
-          ...(chartData?.metadata || {}),
-          fingerprint: existingFingerprint ?? derivedFingerprint,
+      const updatedData = this.withInterpretationLocale(
+        {
+          ...chartData,
+          interpretation,
+          interpretationVersion: 'v3',
         },
+        locale,
+      );
+      updatedData.metadata = {
+        ...updatedData.metadata,
+        fingerprint: existingFingerprint ?? derivedFingerprint,
       };
 
       await this.chartRepository.update(chart.id, { data: updatedData });
 
-      // Invalidate cached horoscopes and user-specific transits after interpretation regeneration
       try {
         await this.redis.deleteByPattern(`horoscope:${userId}:*`);
         await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
       } catch (_e) {
         // Ignore Redis errors during interpretation regeneration
         void 0;
+      }
+
+      if (this.hasAiInterpretation(chartData) && this.aiService.isAvailable()) {
+        await this.attachAiNarrativeToChart(
+          chart.id,
+          updatedData,
+          userId,
+          locale,
+        );
+
+        const refreshed = await this.chartRepository.findByUserId(userId);
+        if (refreshed) {
+          return {
+            id: refreshed.id,
+            userId: refreshed.user_id,
+            data: refreshed.data,
+            createdAt: refreshed.created_at,
+            updatedAt: refreshed.updated_at,
+          };
+        }
       }
 
       return {
@@ -354,8 +461,12 @@ export class NatalChartService {
   /**
    * Get only natal chart interpretation
    */
-  async getChartInterpretation(userId: string) {
-    return await this.interpretationService.getStoredInterpretation(userId);
+  async getChartInterpretation(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    const chart = await this.getNatalChartWithInterpretation(userId, locale);
+    return chart?.data?.interpretation || null;
   }
 
   /**
@@ -394,20 +505,18 @@ export class NatalChartService {
   /**
    * Create natal chart (basic method for backward compatibility)
    */
-  async createNatalChart(userId: string, data: any) {
+  async createNatalChart(
+    userId: string,
+    data: any,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     // Check existing chart via repository
     const existingChart = await this.chartRepository.findByUserId(userId);
     if (existingChart) {
       if (this.needsBirthDataUpgrade(existingChart.data)) {
-        return this.forceRecalculateNatalChart(userId);
+        return this.forceRecalculateNatalChart(userId, locale);
       }
-      return {
-        id: existingChart.id,
-        userId: existingChart.user_id,
-        data: existingChart.data,
-        createdAt: existingChart.created_at,
-        updatedAt: existingChart.updated_at,
-      };
+      return this.getNatalChartWithInterpretation(userId, locale);
     }
 
     let birthDateInput =
@@ -479,6 +588,7 @@ export class NatalChartService {
       await this.interpretationService.generateNatalChartInterpretation(
         userId,
         natalChartData,
+        locale,
       );
 
     // Fingerprint for birth data
@@ -488,15 +598,18 @@ export class NatalChartService {
       birthPlaceInput,
     );
 
-    const chartWithInterpretation = {
-      ...natalChartData,
-      interpretation,
-      interpretationVersion: 'v3',
-      metadata: {
-        ...natalChartData?.metadata,
-        fingerprint,
-        calculationVersion: 'utc-fixed-v2',
+    const chartWithInterpretation = this.withInterpretationLocale(
+      {
+        ...natalChartData,
+        interpretation,
+        interpretationVersion: 'v3',
       },
+      locale,
+    );
+    chartWithInterpretation.metadata = {
+      ...chartWithInterpretation.metadata,
+      fingerprint,
+      calculationVersion: 'utc-fixed-v2',
     };
 
     // Save chart via repository
@@ -888,11 +1001,14 @@ export class NatalChartService {
       );
 
     // Update chart with interpretation and version
-    const updatedData = {
-      ...chartData,
-      interpretation,
-      interpretationVersion: 'v3',
-    };
+    const updatedData = this.withInterpretationLocale(
+      {
+        ...chartData,
+        interpretation,
+        interpretationVersion: 'v3',
+      },
+      locale,
+    );
 
     await this.chartRepository.update(chart.id, { data: updatedData });
 
@@ -1012,7 +1128,9 @@ export class NatalChartService {
       generatedBy: 'ai',
     };
 
-    await this.chartRepository.update(chartId, { data: updatedData });
+    await this.chartRepository.update(chartId, {
+      data: this.withInterpretationLocale(updatedData, locale),
+    });
   }
 
   /**
@@ -1066,16 +1184,19 @@ export class NatalChartService {
       );
 
     const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
-    const updatedData = {
-      ...natalChartData,
-      interpretation,
-      interpretationVersion: 'v3',
-      metadata: {
-        ...natalChartData?.metadata,
-        fingerprint,
-        recalculatedAt: new Date().toISOString(),
-        calculationVersion: 'utc-fixed-v2',
+    const updatedData = this.withInterpretationLocale(
+      {
+        ...natalChartData,
+        interpretation,
+        interpretationVersion: 'v3',
       },
+      locale,
+    );
+    updatedData.metadata = {
+      ...updatedData.metadata,
+      fingerprint,
+      recalculatedAt: new Date().toISOString(),
+      calculationVersion: 'utc-fixed-v2',
     };
 
     const updated = await this.chartRepository.update(chart.id, {

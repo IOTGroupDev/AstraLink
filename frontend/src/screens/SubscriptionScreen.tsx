@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +33,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     React.useState<Subscription | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
+  const loadingPopupVisible = purchasing !== null;
 
   React.useEffect(() => {
     fetchSubscription();
@@ -244,6 +247,39 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
           );
         })}
       </ScrollView>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={loadingPopupVisible}
+        onRequestClose={() => {
+          // Prevent closing while premium assets are being prepared
+        }}
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingModal}>
+            <ActivityIndicator size="large" color="#8B5CF6" />
+            <Text style={styles.loadingModalTitle}>
+              {t('subscription.loadingModal.title', 'Preparing your Premium')}
+            </Text>
+            <Text style={styles.loadingModalMessage}>
+              {t(
+                'subscription.loadingModal.message',
+                'Loading premium data and generating your AI interpretations. This can take a little time.'
+              )}
+            </Text>
+            <View style={styles.aiRefreshBanner}>
+              <Ionicons name="sparkles-outline" size={18} color="#F59E0B" />
+              <Text style={styles.aiRefreshText}>
+                {t(
+                  'subscription.aiRefreshing',
+                  'Updating AI horoscope and interpretation...'
+                )}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -372,12 +408,44 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 16,
   },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingModal: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#111827',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.28)',
+    alignItems: 'center',
+  },
+  loadingModalTitle: {
+    marginTop: 16,
+    color: '#F9FAFB',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  loadingModalMessage: {
+    marginTop: 10,
+    color: '#D1D5DB',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
   aiRefreshBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 12,
-    marginHorizontal: 16,
+    marginTop: 18,
+    width: '100%',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,

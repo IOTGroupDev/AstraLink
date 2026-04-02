@@ -81,6 +81,7 @@ export interface HoroscopePrediction {
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
+  private readonly horoscopeFormatVersion = 'fmt-v2';
   private readonly inflightPremium = new Map<
     string,
     Promise<HoroscopePrediction>
@@ -167,7 +168,7 @@ export class HoroscopeGeneratorService {
 
       // Redis caching: key per userId + period + date bucket
       const dateKey = periodContext.dateKey;
-      const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}:${isPremium ? 'premium' : 'free'}`;
+      const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}:${isPremium ? 'premium' : 'free'}:${this.horoscopeFormatVersion}`;
       const ttlSec = periodContext.ttlSec;
 
       const cached = await this.redis.get<HoroscopePrediction>(cacheKey);
@@ -418,26 +419,28 @@ export class HoroscopeGeneratorService {
         locale,
       );
 
-      const isValidText = (v: any) =>
-        typeof v === 'string' && v.trim().length >= 20;
+      const isValidText = (
+        value: unknown,
+        field: 'general' | 'love' | 'career' | 'health' | 'finance' | 'advice',
+      ) => this.isRenderableHoroscopeText(value, field);
 
       const mergedPredictions = {
-        general: isValidText(aiPredictions.general)
+        general: isValidText(aiPredictions.general, 'general')
           ? aiPredictions.general
           : fallbackPredictions.general,
-        love: isValidText(aiPredictions.love)
+        love: isValidText(aiPredictions.love, 'love')
           ? aiPredictions.love
           : fallbackPredictions.love,
-        career: isValidText(aiPredictions.career)
+        career: isValidText(aiPredictions.career, 'career')
           ? aiPredictions.career
           : fallbackPredictions.career,
-        health: isValidText(aiPredictions.health)
+        health: isValidText(aiPredictions.health, 'health')
           ? aiPredictions.health
           : fallbackPredictions.health,
-        finance: isValidText(aiPredictions.finance)
+        finance: isValidText(aiPredictions.finance, 'finance')
           ? aiPredictions.finance
           : fallbackPredictions.finance,
-        advice: isValidText(aiPredictions.advice)
+        advice: isValidText(aiPredictions.advice, 'advice')
           ? aiPredictions.advice
           : fallbackPredictions.advice,
         challenges: Array.isArray(aiPredictions.challenges)
@@ -449,12 +452,12 @@ export class HoroscopeGeneratorService {
       };
 
       const aiComplete =
-        isValidText(aiPredictions.general) &&
-        isValidText(aiPredictions.love) &&
-        isValidText(aiPredictions.career) &&
-        isValidText(aiPredictions.health) &&
-        isValidText(aiPredictions.finance) &&
-        isValidText(aiPredictions.advice) &&
+        isValidText(aiPredictions.general, 'general') &&
+        isValidText(aiPredictions.love, 'love') &&
+        isValidText(aiPredictions.career, 'career') &&
+        isValidText(aiPredictions.health, 'health') &&
+        isValidText(aiPredictions.finance, 'finance') &&
+        isValidText(aiPredictions.advice, 'advice') &&
         Array.isArray(aiPredictions.challenges) &&
         aiPredictions.challenges.length > 0 &&
         Array.isArray(aiPredictions.opportunities) &&
@@ -551,6 +554,66 @@ export class HoroscopeGeneratorService {
       generatedBy: 'interpreter',
       lunarPhase,
     };
+  }
+
+  private isRenderableHoroscopeText(
+    value: unknown,
+    field: 'general' | 'love' | 'career' | 'health' | 'finance' | 'advice',
+  ): value is string {
+    if (typeof value !== 'string') {
+      return false;
+    }
+
+    const text = value.trim();
+    if (text.length < 20) {
+      return false;
+    }
+
+    if (this.looksMachineFormatted(text)) {
+      return false;
+    }
+
+    if (field === 'general' && this.looksLikeSectionEnumeration(text)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private looksMachineFormatted(value: string): boolean {
+    const text = value.trim();
+
+    if (
+      (text.startsWith('{') && text.endsWith('}')) ||
+      (text.startsWith('[') && text.endsWith(']'))
+    ) {
+      return true;
+    }
+
+    if (
+      /"(general|love|career|health|finance|advice|challenges|opportunities)"\s*:/i.test(
+        text,
+      )
+    ) {
+      return true;
+    }
+
+    const lines = text.split(/\n+/).filter((line) => line.trim().length > 0);
+    const labeledLines = lines.filter((line) =>
+      /^(general|love|career|health|finance|advice|challenges|opportunities|amor|carrera|salud|finanzas|consejo|desaf[ií]os?|oportunidades|общий|общее|любовь|карьер|здоровье|финансы|совет|вызов|возможност)/i.test(
+        line.trim(),
+      ),
+    );
+
+    return labeledLines.length >= 2;
+  }
+
+  private looksLikeSectionEnumeration(value: string): boolean {
+    const matches = value.match(
+      /\b(?:love|career|health|finance|advice|amor|carrera|salud|finanzas|consejo|любовь|карьер[аы]|здоровье|финансы|совет)\b\s*:/gi,
+    );
+
+    return matches != null && matches.length >= 2;
   }
 
   private async awaitWithTimeout<T>(

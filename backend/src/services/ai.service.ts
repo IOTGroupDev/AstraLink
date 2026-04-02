@@ -29,6 +29,20 @@ export class AIService {
   private readonly logger = new Logger(AIService.name);
   private providers: Map<AIProvider, IAIProvider>;
   private primaryProvider: AIProvider = 'none';
+  private readonly preferredNarrativeKeys = [
+    'summary',
+    'overview',
+    'text',
+    'message',
+    'forecast',
+    'interpretation',
+    'insight',
+    'narrative',
+    'guidance',
+    'focus',
+    'main',
+    'description',
+  ] as const;
 
   constructor(
     private configService: ConfigService,
@@ -475,6 +489,18 @@ export class AIService {
         : locale === 'es'
           ? 'Usa lenguaje emocional y situacional específico en lugar de jerga astrológica abstracta siempre que sea posible.'
           : 'По возможности используйте конкретный эмоциональный и жизненный язык вместо абстрактного астрологического жаргона.';
+    const generalSummaryLine =
+      locale === 'en'
+        ? 'The "general" field must be a holistic summary of the entire period: one integrated narrative about the mood, trajectory, and main theme. Do not retell love, career, health, finance, and advice one by one.'
+        : locale === 'es'
+          ? 'El campo "general" debe ser un resumen integral de todo el período: una sola narrativa sobre el tono, la trayectoria y el tema principal. No repitas amor, carrera, salud, finanzas y consejo uno por uno.'
+          : 'Поле "general" должно быть цельным резюме всего периода: одной связной сводкой про настроение, динамику и главную тему. Не пересказывайте по очереди любовь, карьеру, здоровье, финансы и советы.';
+    const plainJsonValuesLine =
+      locale === 'en'
+        ? 'Every JSON value for general, love, career, health, finance, and advice must be plain human prose. Never return nested objects, key-value maps, labels like "general:", or mini-JSON inside a field.'
+        : locale === 'es'
+          ? 'Cada valor JSON de general, amor, carrera, salud, finanzas y consejo debe ser prosa humana normal. Nunca devuelvas objetos anidados, mapas clave-valor, etiquetas como "general:" ni mini-JSON dentro de un campo.'
+          : 'Каждое JSON-значение для general, love, career, health, finance и advice должно быть обычным человеческим текстом. Нельзя возвращать вложенные объекты, пары ключ-значение, подписи вида "general:" или мини-JSON внутри поля.';
 
     if (locale === 'en') {
       return isDeepSeek
@@ -496,7 +522,7 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Overall forecast (6-8 sentences, rich and specific)",
+  "general": "Holistic summary of the whole period (6-8 sentences, rich and specific)",
   "love": "Love and relationships (5-6 sentences with concrete recommendations)",
   "career": "Career and business (5-6 sentences with practical advice)",
   "health": "Health and energy (5-6 sentences)",
@@ -518,6 +544,8 @@ Style and content requirements:
 - ${antiTemplateLine}
 - ${flowLine}
 - ${specificityLine}
+- ${generalSummaryLine}
+- ${plainJsonValuesLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -542,7 +570,7 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Overall forecast (4-5 sentences with deep analysis)",
+  "general": "Holistic summary of the whole period (4-5 sentences with deep analysis)",
   "love": "Love and relationships (3-4 sentences with concrete recommendations)",
   "career": "Career and business (3-4 sentences with practical advice)",
   "health": "Health and energy (3-4 sentences)",
@@ -562,6 +590,8 @@ Content requirements:
 - ${antiTemplateLine}
 - ${flowLine}
 - ${specificityLine}
+- ${generalSummaryLine}
+- ${plainJsonValuesLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -590,7 +620,7 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Pronóstico general (6-8 frases, rico y específico)",
+  "general": "Resumen integral de todo el período (6-8 frases, rico y específico)",
   "love": "Amor y relaciones (5-6 frases con recomendaciones concretas)",
   "career": "Carrera y negocios (5-6 frases con consejos prácticos)",
   "health": "Salud y energía (5-6 frases)",
@@ -612,6 +642,8 @@ Requisitos de estilo y contenido:
 - ${antiTemplateLine}
 - ${flowLine}
 - ${specificityLine}
+- ${generalSummaryLine}
+- ${plainJsonValuesLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -636,7 +668,7 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Pronóstico general (4-5 frases con análisis profundo)",
+  "general": "Resumen integral de todo el período (4-5 frases con análisis profundo)",
   "love": "Amor y relaciones (3-4 frases con recomendaciones concretas)",
   "career": "Carrera y negocios (3-4 frases con consejos prácticos)",
   "health": "Salud y energía (3-4 frases)",
@@ -656,6 +688,8 @@ Requisitos de contenido:
 - ${antiTemplateLine}
 - ${flowLine}
 - ${specificityLine}
+- ${generalSummaryLine}
+- ${plainJsonValuesLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -682,7 +716,7 @@ ${transitDescription}
 
 Формат JSON:
 {
-  "general": "Общий прогноз (6-8 предложений, подробно и конкретно)",
+  "general": "Цельное резюме всего периода (6-8 предложений, подробно и конкретно)",
   "love": "Любовь и отношения (5-6 предложений с конкретными рекомендациями)",
   "career": "Карьера и бизнес (5-6 предложений с практичными советами)",
   "health": "Здоровье и энергия (5-6 предложений)",
@@ -704,6 +738,8 @@ ${transitDescription}
 - ${antiTemplateLine}
 - ${flowLine}
 - ${specificityLine}
+- ${generalSummaryLine}
+- ${plainJsonValuesLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -727,7 +763,7 @@ ${transitDescription}
 
 Формат JSON:
 {
-  "general": "Общий прогноз (4-5 предложений с глубоким анализом)",
+  "general": "Цельное резюме всего периода (4-5 предложений с глубоким анализом)",
   "love": "Любовь и отношения (3-4 предложения с конкретными рекомендациями)",
   "career": "Карьера и бизнес (3-4 предложения с практичными советами)",
   "health": "Здоровье и энергия (3-4 предложения)",
@@ -747,6 +783,8 @@ ${transitDescription}
 - ${antiTemplateLine}
 - ${flowLine}
 - ${specificityLine}
+- ${generalSummaryLine}
+- ${plainJsonValuesLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -1099,14 +1137,16 @@ ${aspectsDesc}
         }
       }
 
-      return parsed;
+      return this.normalizeHoroscopeResponse(parsed, locale);
     } catch (error) {
       this.logger.error('JSON parsing failed, attempting text parsing:', error);
 
       // Fallback to regex extraction if JSON parsing fails
       try {
         const extracted = this.extractJsonObject(response);
-        if (extracted) return JSON.parse(extracted);
+        if (extracted) {
+          return this.normalizeHoroscopeResponse(JSON.parse(extracted), locale);
+        }
       } catch (regexError) {
         this.logger.error('Regex extraction also failed:', regexError);
       }
@@ -1158,7 +1198,7 @@ ${aspectsDesc}
       );
       if (adviceMatch) sections.advice = adviceMatch[0].trim();
 
-      return sections;
+      return this.normalizeHoroscopeResponse(sections, locale);
     }
 
     if (locale === 'es') {
@@ -1186,7 +1226,7 @@ ${aspectsDesc}
       );
       if (adviceMatch) sections.advice = adviceMatch[0].trim();
 
-      return sections;
+      return this.normalizeHoroscopeResponse(sections, locale);
     }
 
     const generalMatch = response.match(/общ[ий|ее].*?(?=любовь|карьер|$)/is);
@@ -1207,7 +1247,304 @@ ${aspectsDesc}
     const adviceMatch = response.match(/совет.*?(?=вызов|возможност|$)/is);
     if (adviceMatch) sections.advice = adviceMatch[0].trim();
 
-    return sections;
+    return this.normalizeHoroscopeResponse(sections, locale);
+  }
+
+  private normalizeHoroscopeResponse(
+    raw: unknown,
+    locale: AILocale,
+  ): HoroscopeResponse {
+    const record =
+      raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+
+    return {
+      general: this.normalizeHoroscopeTextField(
+        record.general,
+        'general',
+        locale,
+      ),
+      love: this.normalizeHoroscopeTextField(record.love, 'love', locale),
+      career: this.normalizeHoroscopeTextField(record.career, 'career', locale),
+      health: this.normalizeHoroscopeTextField(record.health, 'health', locale),
+      finance: this.normalizeHoroscopeTextField(
+        record.finance,
+        'finance',
+        locale,
+      ),
+      advice: this.normalizeHoroscopeTextField(record.advice, 'advice', locale),
+      challenges: this.normalizeHoroscopeListField(
+        record.challenges,
+        'challenges',
+        locale,
+      ),
+      opportunities: this.normalizeHoroscopeListField(
+        record.opportunities,
+        'opportunities',
+        locale,
+      ),
+    };
+  }
+
+  private normalizeHoroscopeTextField(
+    value: unknown,
+    field: 'general' | 'love' | 'career' | 'health' | 'finance' | 'advice',
+    locale: AILocale,
+  ): string {
+    const fragments = this.extractNarrativeFragments(value);
+    const cleaned = fragments
+      .map((fragment) => this.cleanHoroscopeText(fragment, field, locale))
+      .filter((fragment) => fragment.length > 0);
+
+    return this.joinNarrativeFragments(cleaned);
+  }
+
+  private normalizeHoroscopeListField(
+    value: unknown,
+    field: 'challenges' | 'opportunities',
+    locale: AILocale,
+  ): string[] {
+    const fragments = this.extractNarrativeFragments(value);
+    const items = fragments
+      .flatMap((fragment) => this.splitPotentialListItems(fragment))
+      .map((fragment) => this.cleanHoroscopeText(fragment, field, locale))
+      .filter((fragment) => fragment.length >= 6);
+
+    return [...new Set(items)].slice(0, 6);
+  }
+
+  private extractNarrativeFragments(value: unknown, depth = 0): string[] {
+    if (depth > 4 || value == null) {
+      return [];
+    }
+
+    if (typeof value === 'string') {
+      return [value];
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return [String(value)];
+    }
+
+    if (Array.isArray(value)) {
+      return value.flatMap((entry) =>
+        this.extractNarrativeFragments(entry, depth + 1),
+      );
+    }
+
+    if (typeof value === 'object') {
+      const record = value as Record<string, unknown>;
+      const preferredKeys = new Set<string>(this.preferredNarrativeKeys);
+      const preferred = this.preferredNarrativeKeys.flatMap((key) =>
+        key in record
+          ? this.extractNarrativeFragments(record[key], depth + 1)
+          : [],
+      );
+      const remainder = Object.entries(record)
+        .filter(([key]) => !preferredKeys.has(key))
+        .flatMap(([, entry]) =>
+          this.extractNarrativeFragments(entry, depth + 1),
+        );
+
+      return [...preferred, ...remainder];
+    }
+
+    return [];
+  }
+
+  private cleanHoroscopeText(
+    value: string,
+    field: keyof HoroscopeResponse,
+    locale: AILocale,
+  ): string {
+    let text = this.stripCodeFences(value)
+      .replace(/\r/g, '\n')
+      .replace(/\\n/g, '\n')
+      .trim();
+
+    if (!text) {
+      return '';
+    }
+
+    text = this.unwrapWrappedText(text);
+    text = this.stripLeadingHoroscopeLabel(text, field, locale);
+
+    const maybeStructured = this.tryParseStructuredFieldValue(text);
+    if (maybeStructured != null) {
+      return Array.isArray(maybeStructured)
+        ? this.joinNarrativeFragments(
+            maybeStructured
+              .flatMap((entry) => this.extractNarrativeFragments(entry))
+              .map((entry) => this.cleanHoroscopeText(entry, field, locale))
+              .filter(Boolean),
+          )
+        : this.normalizeHoroscopeTextField(
+            maybeStructured,
+            this.mapFieldToTextKey(field),
+            locale,
+          );
+    }
+
+    text = text
+      .replace(/^[-*•\d.\s)]+/, '')
+      .replace(/\n+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s+([,.;!?])/g, '$1')
+      .trim();
+
+    text = this.unwrapWrappedText(text);
+    text = this.stripLeadingHoroscopeLabel(text, field, locale);
+
+    return text.trim();
+  }
+
+  private joinNarrativeFragments(fragments: string[]): string {
+    const unique = [...new Set(fragments.map((fragment) => fragment.trim()))]
+      .filter(Boolean)
+      .slice(0, 4);
+
+    return unique
+      .join(' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  private splitPotentialListItems(value: string): string[] {
+    const normalized = value.replace(/\r/g, '\n').trim();
+    if (!normalized) {
+      return [];
+    }
+
+    if (
+      normalized.includes('\n') ||
+      /[•;]|(?:^|\s)\d+[.)]\s/.test(normalized)
+    ) {
+      return normalized
+        .split(/\n+|(?:^|\s)(?=\d+[.)]\s)|[•;]+/g)
+        .map((part) => part.trim())
+        .filter(Boolean);
+    }
+
+    return [normalized];
+  }
+
+  private stripLeadingHoroscopeLabel(
+    value: string,
+    field: keyof HoroscopeResponse,
+    locale: AILocale,
+  ): string {
+    const labels = this.getHoroscopeFieldLabels(field, locale)
+      .map((label) => this.escapeRegex(label))
+      .join('|');
+
+    let current = value.trim();
+    const labelPattern = new RegExp(
+      `^(?:["'“”\\s#>*_[\\]{}()]+)?(?:${labels})(?:\\s+(?:section|forecast|resumen|pron[oó]stico|раздел|прогноз))?(?:["'“”\\s_\\-–—]*)[:=\\-–—]+\\s*`,
+      'iu',
+    );
+
+    for (let i = 0; i < 3; i += 1) {
+      const next = current.replace(labelPattern, '').trim();
+      if (next === current) {
+        break;
+      }
+      current = next;
+    }
+
+    return current;
+  }
+
+  private tryParseStructuredFieldValue(value: string): unknown | null {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (
+      !(
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))
+      )
+    ) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
+  }
+
+  private unwrapWrappedText(value: string): string {
+    let text = value.trim();
+
+    for (let i = 0; i < 3; i += 1) {
+      const unwrapped = text.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
+      if (unwrapped === text) {
+        break;
+      }
+      text = unwrapped;
+    }
+
+    return text;
+  }
+
+  private getHoroscopeFieldLabels(
+    field: keyof HoroscopeResponse,
+    _locale: AILocale,
+  ): string[] {
+    const base: Record<keyof HoroscopeResponse, string[]> = {
+      general: [
+        'general',
+        'overall forecast',
+        'общий прогноз',
+        'общее',
+        'pronóstico general',
+        'resumen general',
+      ],
+      love: ['love', 'relationships', 'amor', 'любовь', 'отношения'],
+      career: ['career', 'work', 'carrera', 'карьера'],
+      health: ['health', 'wellbeing', 'salud', 'здоровье'],
+      finance: [
+        'finance',
+        'finances',
+        'money',
+        'finanzas',
+        'финансы',
+        'деньги',
+      ],
+      advice: ['advice', 'guidance', 'consejo', 'совет', 'рекомендации'],
+      challenges: [
+        'challenges',
+        'challenge',
+        'desafíos',
+        'desafios',
+        'вызовы',
+        'риски',
+      ],
+      opportunities: [
+        'opportunities',
+        'opportunity',
+        'oportunidades',
+        'возможности',
+      ],
+    };
+
+    return base[field];
+  }
+
+  private mapFieldToTextKey(
+    field: keyof HoroscopeResponse,
+  ): 'general' | 'love' | 'career' | 'health' | 'finance' | 'advice' {
+    if (field === 'challenges' || field === 'opportunities') {
+      return 'advice';
+    }
+
+    return field;
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private stripCodeFences(input: string): string {

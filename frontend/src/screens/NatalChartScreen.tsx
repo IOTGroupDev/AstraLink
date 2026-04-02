@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -161,14 +161,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [summaryModalSummary, setSummaryModalSummary] = useState('');
   const [summaryModalLines, setSummaryModalLines] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadChartData();
-  }, []);
+  const getChartLocale = useCallback((): 'ru' | 'en' | 'es' => {
+    const rawLocale = String(i18n.language || 'en').toLowerCase();
+    if (rawLocale === 'en' || rawLocale.startsWith('en-')) return 'en';
+    if (rawLocale === 'es' || rawLocale.startsWith('es-')) return 'es';
+    return 'ru';
+  }, [i18n.language]);
 
-  const loadChartData = async () => {
+  const loadChartData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await chartAPI.getNatalChartWithInterpretation();
+      const data =
+        await chartAPI.getNatalChartWithInterpretation(getChartLocale());
       // Подробное логирование для отладки структуры
       logger.info('Полная структура данных', {
         level1Keys: data ? Object.keys(data) : [],
@@ -196,7 +200,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getChartLocale, t]);
+
+  useEffect(() => {
+    void loadChartData();
+  }, [loadChartData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -207,10 +215,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   useEffect(() => {
     const nextTier = subscription?.tier;
     if (prevTierRef.current && nextTier && prevTierRef.current !== nextTier) {
-      loadChartData();
+      void loadChartData();
     }
     prevTierRef.current = nextTier;
-  }, [subscription?.tier]);
+  }, [loadChartData, subscription?.tier]);
 
   if (loading) {
     return (
@@ -998,7 +1006,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                         {t('natalChart.houses.planetsInHouse')}
                       </Text>
                       <View style={styles.planetChips}>
-                        {planetsInHouse.map(([key, planet]) => (
+                        {planetsInHouse.map(([key, _planet]) => (
                           <View key={key} style={styles.planetChip}>
                             <Text style={styles.planetChipSymbol}>
                               {PLANET_SYMBOLS[key] || '●'}

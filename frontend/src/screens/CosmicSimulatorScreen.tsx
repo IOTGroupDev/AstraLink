@@ -29,7 +29,6 @@ import {
   getLessonsByLocale,
   getLessonsByCategoryLocalized,
 } from '../services/lessons-database.localized';
-import { AstroLesson } from '../types/lessons';
 import { LessonCard } from '../components/lessons/LessonCard';
 import { ChartVisualization } from '../components/simulator/Chartvisualization';
 import { logger } from '../services/logger';
@@ -109,18 +108,11 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
 
   // Фильтры
   const [showOnlyMajor, setShowOnlyMajor] = useState(false);
-  const [minOrb, setMinOrb] = useState(10);
+  const minOrb = 10;
 
   // Анимации
   const fadeAnim = useSharedValue(0);
   const datePickerAnimation = useSharedValue(1);
-
-  // Временной диапазон (±5 лет)
-  const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - 5);
-  const endDate = new Date();
-  endDate.setFullYear(endDate.getFullYear() + 5);
-  const totalTimeSpan = endDate.getTime() - startDate.getTime();
 
   const getPlanetLabel = useCallback(
     (planetKeyOrName: string): string => {
@@ -165,34 +157,12 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
 
   // Выбрать урок дня
 
-  // Найти релевантный урок для транзита
-  const findRelevantLesson = (transit: TransitData): AstroLesson | null => {
-    // Поиск урока по аспекту
-    const aspectTranslated = t('common.aspects.' + transit.aspect);
-    const aspectLesson = lessons.find(
-      (lesson) =>
-        lesson.category === 'aspects' &&
-        lesson.title
-          .toLowerCase()
-          .includes(aspectTranslated?.toLowerCase() || '')
-    );
-
-    if (aspectLesson) return aspectLesson;
-
-    // Поиск урока по планете
-    const planetLesson = lessons.find(
-      (lesson) =>
-        lesson.category === 'planets' &&
-        lesson.title.toLowerCase().includes(transit.planet.toLowerCase())
-    );
-
-    return planetLesson || null;
-  };
-
   const loadNatalChart = async () => {
     try {
       setLoading(true);
-      const data = await chartAPI.getNatalChartWithInterpretation();
+      const data = await chartAPI.getNatalChartWithInterpretation(
+        getInterpretationLocale()
+      );
       setNatalChart(data);
     } catch (error) {
       logger.error(t('cosmicSimulator.errors.loadNatalChart'), error);
@@ -433,7 +403,7 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
     natalChart: any,
     date: Date
   ): TransitData[] => {
-    let natalPlanets = natalChart?.data?.planets || natalChart?.planets;
+    const natalPlanets = natalChart?.data?.planets || natalChart?.planets;
 
     if (!natalPlanets) {
       return [];

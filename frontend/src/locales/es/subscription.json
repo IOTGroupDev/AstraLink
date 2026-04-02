@@ -13,6 +13,10 @@
   "successTitle": "¡Éxito!",
   "successMessage": "Tu suscripción se ha actualizado correctamente.",
   "aiRefreshing": "Actualizando el horóscopo e interpretación con IA...",
+  "loadingModal": {
+    "title": "Preparando tu Premium",
+    "message": "Estamos cargando los datos premium y generando tus interpretaciones personales con IA. Esto puede tardar un poco."
+  },
   "errorMessage": "No se pudo actualizar la suscripción. Inténtalo de nuevo.",
   "tiers": {
     "free": {

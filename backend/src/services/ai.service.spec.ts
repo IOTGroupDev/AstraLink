@@ -115,6 +115,55 @@ describe('AIService', () => {
       expect(result.opportunities).toHaveLength(3);
     });
 
+    it('should normalize nested objects and strip field labels', () => {
+      const structuredJSON = JSON.stringify({
+        general: {
+          summary:
+            'Today asks you to slow down, listen carefully, and stop reacting on autopilot.',
+          focus:
+            'The bigger story is emotional clarity: once you stop rushing, the whole day becomes easier to read.',
+        },
+        love: 'Love: Honest conversations go better when you drop the need to control the outcome.',
+        career: {
+          text: 'Career rewards steady follow-through more than dramatic moves.',
+        },
+        health: {
+          description:
+            'Health improves when you protect your sleep and stop carrying stress into the evening.',
+        },
+        finance:
+          '"finance": "Money is better handled conservatively today; avoid impulsive purchases."',
+        advice: {
+          message:
+            'Advice: Focus on one real priority and let the rest wait until your mind settles.',
+        },
+        challenges: [
+          { text: 'Overcommitting yourself just to calm other people down.' },
+          'Reacting too quickly before the situation fully unfolds.',
+        ],
+        opportunities: [
+          { summary: 'Return to a conversation that deserves more honesty.' },
+          'Finish the task that has been draining background energy all week.',
+        ],
+      });
+
+      const result = service['parseAIResponse'](structuredJSON, 'en');
+
+      expect(result.general).toContain('Today asks you to slow down');
+      expect(result.general).not.toMatch(/\bsummary\b|\bfocus\b/i);
+      expect(result.love).not.toMatch(/^love\s*:/i);
+      expect(result.finance).toBe(
+        'Money is better handled conservatively today; avoid impulsive purchases.',
+      );
+      expect(result.advice).not.toMatch(/^advice\s*:/i);
+      expect(result.challenges).toContain(
+        'Overcommitting yourself just to calm other people down.',
+      );
+      expect(result.opportunities).toContain(
+        'Return to a conversation that deserves more honesty.',
+      );
+    });
+
     it('should handle JSON parsing errors gracefully', () => {
       const invalidJSON = 'This is not JSON';
 
@@ -123,6 +172,29 @@ describe('AIService', () => {
       // Should fallback to text parsing
       expect(result).toBeDefined();
       expect(typeof result).toBe('object');
+    });
+
+    it('should clean labeled text fallback into readable prose', () => {
+      const rawText = `General: This day is less about speed and more about emotional calibration. Once you stop pushing, you begin to notice which conversations and tasks really matter.
+Love: In relationships, warmth works better than pressure today.
+Career: Work improves when you finish one clear priority instead of scattering yourself.
+Health: Your body needs a steadier rhythm and fewer stress spikes.
+Finance: Keep spending simple and avoid emotional purchases.
+Advice: Slow the pace, name what matters, and act from clarity.`;
+
+      const result = service['parseAIResponse'](rawText, 'en');
+
+      expect(result.general).toContain(
+        'This day is less about speed and more about emotional calibration.',
+      );
+      expect(result.general).not.toMatch(/^general\s*:/i);
+      expect(result.love).toBe(
+        'In relationships, warmth works better than pressure today.',
+      );
+      expect(result.career).toBe(
+        'Work improves when you finish one clear priority instead of scattering yourself.',
+      );
+      expect(result.advice).not.toMatch(/^advice\s*:/i);
     });
   });
 
@@ -197,6 +269,7 @@ describe('AIService', () => {
       expect(prompt).toContain('JSON');
       expect(prompt).toContain('что стоит делать');
       expect(prompt).toContain('чего лучше избегать');
+      expect(prompt).toContain('Поле "general" должно быть цельным резюме');
     });
 
     it('should build correct prompt for week period', () => {

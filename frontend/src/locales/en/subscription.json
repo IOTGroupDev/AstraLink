@@ -13,6 +13,10 @@
   "successTitle": "Success!",
   "successMessage": "Your subscription has been upgraded successfully.",
   "aiRefreshing": "Updating AI horoscope and interpretation...",
+  "loadingModal": {
+    "title": "Preparing your Premium",
+    "message": "Loading premium data and generating your personal AI interpretations. This can take a little time."
+  },
   "errorMessage": "Failed to upgrade subscription. Please try again.",
   "tiers": {
     "free": {

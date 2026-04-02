@@ -31,6 +31,13 @@ const buildLocalTimezoneParams = (): URLSearchParams => {
   });
 };
 
+const normalizeLocale = (locale?: string): 'ru' | 'en' | 'es' => {
+  const normalized = String(locale || 'ru').toLowerCase();
+  if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+  if (normalized === 'es' || normalized.startsWith('es-')) return 'es';
+  return 'ru';
+};
+
 export const chartAPI = {
   getNatalChart: async (): Promise<Chart | null> => {
     try {
@@ -45,19 +52,33 @@ export const chartAPI = {
     }
   },
 
-  createNatalChart: async (data: any): Promise<Chart> => {
-    const response = await api.post('/chart/natal', { data });
+  createNatalChart: async (
+    data: any,
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<Chart> => {
+    const response = await api.post(
+      `/chart/natal?locale=${normalizeLocale(locale)}`,
+      { data }
+    );
     return response.data;
   },
 
-  recalculateNatalChart: async (): Promise<Chart> => {
-    const response = await api.post('/chart/natal/recalculate');
+  recalculateNatalChart: async (
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<Chart> => {
+    const response = await api.post(
+      `/chart/natal/recalculate?locale=${normalizeLocale(locale)}`
+    );
     return response.data;
   },
 
-  getChartInterpretation: async (): Promise<any> => {
+  getChartInterpretation: async (
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<any> => {
     try {
-      const response = await api.get('/chart/natal/interpretation');
+      const response = await api.get(
+        `/chart/natal/interpretation?locale=${normalizeLocale(locale)}`
+      );
       return response.data;
     } catch (error) {
       chartLogger.error('Ошибка загрузки интерпретации', error);
@@ -65,9 +86,13 @@ export const chartAPI = {
     }
   },
 
-  getNatalChartWithInterpretation: async (): Promise<any> => {
+  getNatalChartWithInterpretation: async (
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<any> => {
     try {
-      const response = await api.get('/chart/natal/full');
+      const response = await api.get(
+        `/chart/natal/full?locale=${normalizeLocale(locale)}`
+      );
       return response.data;
     } catch (error) {
       chartLogger.error('Ошибка загрузки полной карты', error);

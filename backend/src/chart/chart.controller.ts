@@ -35,6 +35,24 @@ export class ChartController {
     private readonly lunarService: LunarService,
   ) {}
 
+  private resolveLocale(
+    req: AuthenticatedRequest,
+    localeQuery?: 'ru' | 'en' | 'es',
+  ): 'ru' | 'en' | 'es' {
+    if (localeQuery === 'ru' || localeQuery === 'en' || localeQuery === 'es') {
+      return localeQuery;
+    }
+
+    const localeHeader =
+      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
+
+    return localeHeader?.toLowerCase().startsWith('es')
+      ? 'es'
+      : localeHeader?.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ru';
+  }
+
   private parseUserLocalDate(
     dateStr?: string,
     tzOffsetMinutesStr?: string,
@@ -96,12 +114,18 @@ export class ChartController {
   @ApiOperation({ summary: 'Получить детальную интерпретацию натальной карты' })
   @ApiResponse({ status: 200, description: 'Интерпретация натальной карты' })
   @ApiResponse({ status: 404, description: 'Интерпретация не найдена' })
-  async getChartInterpretation(@Request() req: AuthenticatedRequest) {
+  async getChartInterpretation(
+    @Request() req: AuthenticatedRequest,
+    @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getChartInterpretation(userId);
+    return this.chartService.getChartInterpretation(
+      userId,
+      this.resolveLocale(req, localeQuery),
+    );
   }
 
   @Get('natal/full')
@@ -110,12 +134,18 @@ export class ChartController {
     status: 200,
     description: 'Полная натальная карта с интерпретацией',
   })
-  async getNatalChartWithInterpretation(@Request() req: AuthenticatedRequest) {
+  async getNatalChartWithInterpretation(
+    @Request() req: AuthenticatedRequest,
+    @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.getNatalChartWithInterpretation(userId);
+    return this.chartService.getNatalChartWithInterpretation(
+      userId,
+      this.resolveLocale(req, localeQuery),
+    );
   }
 
   @Post('natal/recalculate')
@@ -132,21 +162,19 @@ export class ChartController {
     description: 'Неполные или некорректные birth data',
   })
   @ApiResponse({ status: 404, description: 'Натальная карта не найдена' })
-  async forceRecalculateNatalChart(@Request() req: AuthenticatedRequest) {
+  async forceRecalculateNatalChart(
+    @Request() req: AuthenticatedRequest,
+    @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
-    const localeHeader =
-      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
-    const locale = localeHeader?.toLowerCase().startsWith('es')
-      ? 'es'
-      : localeHeader?.toLowerCase().startsWith('en')
-        ? 'en'
-        : 'ru';
-
-    return this.chartService.forceRecalculateNatalChart(userId, locale);
+    return this.chartService.forceRecalculateNatalChart(
+      userId,
+      this.resolveLocale(req, localeQuery),
+    );
   }
 
   @Post('natal')
@@ -155,12 +183,17 @@ export class ChartController {
   async createNatalChart(
     @Request() req: AuthenticatedRequest,
     @Body() chartData: CreateNatalChartRequest,
+    @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.chartService.createNatalChart(userId, chartData.data);
+    return this.chartService.createNatalChart(
+      userId,
+      chartData.data,
+      this.resolveLocale(req, localeQuery),
+    );
   }
 
   @Post('regenerate-ai')
@@ -177,21 +210,19 @@ export class ChartController {
     description: 'Превышен лимит генераций (доступна 1 раз в 24 часа)',
   })
   @ApiResponse({ status: 404, description: 'Натальная карта не найдена' })
-  async regenerateChartWithAI(@Request() req: AuthenticatedRequest) {
+  async regenerateChartWithAI(
+    @Request() req: AuthenticatedRequest,
+    @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
+  ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
-    const localeHeader =
-      getHeaderValue(req, 'x-locale') || getHeaderValue(req, 'accept-language');
-    const locale = localeHeader?.toLowerCase().startsWith('es')
-      ? 'es'
-      : localeHeader?.toLowerCase().startsWith('en')
-        ? 'en'
-        : 'ru';
-
-    return this.chartService.regenerateChartWithAI(userId, locale);
+    return this.chartService.regenerateChartWithAI(
+      userId,
+      this.resolveLocale(req, localeQuery),
+    );
   }
 
   @Get('horoscope')
