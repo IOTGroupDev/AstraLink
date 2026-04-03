@@ -13,14 +13,13 @@ datasource db {
 
 model Chart {
   id            String       @id @default(uuid())
-  userId        String       @map("user_id")
+  userId        String       @unique @map("user_id")
   data          Json
   aiGeneratedAt DateTime?    @map("ai_generated_at")
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
   users         public_users @relation(fields: [userId], references: [id])
 
-  @@index([userId])
   @@index([createdAt])
   @@index([aiGeneratedAt])
   @@map("charts")

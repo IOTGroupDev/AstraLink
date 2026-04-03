@@ -49,12 +49,12 @@ export class NatalService {
 
     return Boolean(
       birthDate &&
-      birthDate === chartData?.birthDate &&
-      birthTime &&
-      birthTime === chartData?.birthTime &&
-      typeof birthDateTimeUtc === 'string' &&
-      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
-      calculationVersion === 'utc-fixed-v2',
+        birthDate === chartData?.birthDate &&
+        birthTime &&
+        birthTime === chartData?.birthTime &&
+        typeof birthDateTimeUtc === 'string' &&
+        !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+        calculationVersion === 'utc-fixed-v2',
     );
   }
 
@@ -233,8 +233,12 @@ export class NatalService {
       calculationVersion: 'utc-fixed-v2',
     };
 
-    return await this.prisma.chart.create({
-      data: {
+    return await this.prisma.chart.upsert({
+      where: { userId },
+      update: {
+        data: chartWithInterpretation,
+      },
+      create: {
         userId,
         data: chartWithInterpretation,
       },

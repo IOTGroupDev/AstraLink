@@ -82,9 +82,14 @@ export class ChartRepository implements IChartRepository {
    */
   async create(data: CreateChartDto): Promise<NatalChart> {
     try {
-      // Use Prisma for creation (fastest)
-      const created = await this.prisma.chart.create({
-        data: {
+      // Natal chart is a single source of truth per user. Use upsert so
+      // concurrent signup/auth flows can't insert duplicate rows.
+      const created = await this.prisma.chart.upsert({
+        where: { userId: data.user_id },
+        update: {
+          data: data.data,
+        },
+        create: {
           userId: data.user_id,
           data: data.data,
         },
