@@ -145,6 +145,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
+  const hasLoadedOnceRef = useRef(false);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [archetype, setArchetype] = useState<ArchetypeResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,6 +205,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         fullDataStructure: JSON.stringify(data, null, 2).substring(0, 2000),
       });
       setChartData(data);
+      hasLoadedOnceRef.current = true;
 
       if (archetypeResult.status === 'fulfilled') {
         setArchetype(archetypeResult.value);
@@ -243,10 +245,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (!chartData) return undefined;
+      if (!hasLoadedOnceRef.current) return undefined;
       void loadChartData();
       return undefined;
-    }, [chartData, loadChartData])
+    }, [loadChartData])
   );
 
   if (loading) {
