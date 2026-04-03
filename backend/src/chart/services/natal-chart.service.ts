@@ -557,10 +557,19 @@ export class NatalChartService {
       }
     }
 
+    const chartData = chart.data as Record<string, any>;
+    const sanitizedData = {
+      ...chartData,
+    };
+
+    if ('interpretation' in sanitizedData) {
+      delete sanitizedData.interpretation;
+    }
+
     return {
       id: chart.id,
       userId: chart.user_id,
-      data: chart.data,
+      data: sanitizedData,
       createdAt: chart.created_at,
       updatedAt: chart.updated_at,
     };

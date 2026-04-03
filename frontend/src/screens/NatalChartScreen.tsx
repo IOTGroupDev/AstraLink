@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   StyleProp,
   ViewStyle,
+  InteractionManager,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -261,6 +262,47 @@ const normalizeChartPayload = (rawValue: unknown): ChartData | null => {
   };
 };
 
+const normalizeArchetypePayload = (
+  rawValue: unknown
+): ArchetypeResult | null => {
+  if (!isRecord(rawValue) || !isRecord(rawValue.blueprint)) {
+    return null;
+  }
+
+  const blueprint = rawValue.blueprint as Record<string, unknown>;
+
+  return {
+    source: rawValue.source === 'date_only' ? 'date_only' : 'natal',
+    generatedBy: 'algorithm',
+    title: normalizeNarrativeValue(rawValue.title),
+    subtitle: normalizeNarrativeValue(rawValue.subtitle),
+    essence: normalizeNarrativeValue(rawValue.essence),
+    overview: normalizeNarrativeValue(rawValue.overview),
+    strengths: normalizeTextList(rawValue.strengths),
+    shadowPatterns: normalizeTextList(rawValue.shadowPatterns),
+    relationships: normalizeNarrativeValue(rawValue.relationships),
+    work: normalizeNarrativeValue(rawValue.work),
+    growthTask: normalizeNarrativeValue(rawValue.growthTask),
+    note: normalizeNarrativeValue(rawValue.note),
+    blueprint: {
+      birthDate: normalizeNarrativeValue(blueprint.birthDate),
+      sunSign: normalizeNarrativeValue(blueprint.sunSign),
+      moonSign: normalizeNarrativeValue(blueprint.moonSign) || null,
+      ascendantSign: normalizeNarrativeValue(blueprint.ascendantSign) || null,
+      dominantElement:
+        normalizeNarrativeValue(blueprint.dominantElement) || 'N/A',
+      lifePathNumber:
+        typeof blueprint.lifePathNumber === 'number'
+          ? blueprint.lifePathNumber
+          : 0,
+      masterNumber:
+        typeof blueprint.masterNumber === 'number'
+          ? blueprint.masterNumber
+          : null,
+    },
+  };
+};
+
 const toArray = <T,>(value: unknown): T[] =>
   Array.isArray(value) ? (value as T[]) : [];
 
@@ -293,6 +335,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
+  const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const summaryContentOffsetRef = useRef(0);
@@ -429,12 +472,47 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     [getQualityInfo, resolveQualityKey]
   );
 
+  const hydrateInterpretation = useCallback(
+    async (requestId: number, locale: 'ru' | 'en' | 'es') => {
+      try {
+        const interpretationPayload =
+          await chartAPI.getChartInterpretation(locale);
+
+        if (requestId !== loadRequestIdRef.current) {
+          return;
+        }
+
+        setChartData((current) => {
+          if (!current?.data) {
+            return current;
+          }
+
+          return {
+            ...current,
+            interpretation: interpretationPayload,
+            data: {
+              ...current.data,
+              interpretation: interpretationPayload,
+            },
+          };
+        });
+      } catch (error) {
+        logger.error('Ошибка фоновой загрузки интерпретации карты', error);
+      }
+    },
+    []
+  );
+
   const loadChartData = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
+    let shouldHydrateInterpretation = false;
+    const localeForHydration: 'ru' | 'en' | 'es' = getChartLocale();
+
     try {
       setLoading(true);
-      const locale = getChartLocale();
+      const locale = localeForHydration;
       const [chartResult, archetypeResult] = await Promise.allSettled([
-        chartAPI.getNatalChartWithInterpretation(locale),
+        chartAPI.getNatalChart(),
         chartAPI.getArchetype(locale),
       ]);
 
@@ -456,9 +534,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       });
       setChartData(data);
       hasLoadedOnceRef.current = true;
+      shouldHydrateInterpretation = !data.data.interpretation;
 
       if (archetypeResult.status === 'fulfilled') {
-        setArchetype(archetypeResult.value);
+        setArchetype(normalizeArchetypePayload(archetypeResult.value));
       } else {
         setArchetype(null);
         logger.info('Архетип не загружен', archetypeResult.reason);
@@ -473,7 +552,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [getChartLocale, t]);
+
+    if (shouldHydrateInterpretation) {
+      InteractionManager.runAfterInteractions(() => {
+        if (requestId !== loadRequestIdRef.current) {
+          return;
+        }
+        void hydrateInterpretation(requestId, localeForHydration);
+      });
+    }
+  }, [getChartLocale, hydrateInterpretation, t]);
 
   useEffect(() => {
     void loadChartData();
