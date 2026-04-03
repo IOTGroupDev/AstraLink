@@ -15,6 +15,8 @@ import { UserRepository } from '../repositories';
 import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
 import { UpdatePushTokenDto } from './dto/update-push-token.dto';
 
+const PROFILE_PRIMARY_PHOTO_TTL_SEC = 60 * 60 * 24;
+
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
@@ -185,12 +187,49 @@ export class UserService {
     }
   }
 
+  private async getPrimaryPhotoSnapshot(userId: string): Promise<{
+    primaryPhotoUrl: string | null;
+    primaryPhotoPath: string | null;
+    primaryPhotoExpiresAt: string | null;
+  }> {
+    const primaryPhoto = await this.prisma.userPhoto.findFirst({
+      where: { userId },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+      select: { storagePath: true },
+    });
+
+    if (!primaryPhoto?.storagePath) {
+      return {
+        primaryPhotoUrl: null,
+        primaryPhotoPath: null,
+        primaryPhotoExpiresAt: null,
+      };
+    }
+
+    const primaryPhotoUrl = await this.supabaseService.createSignedUrl(
+      'user-photos',
+      primaryPhoto.storagePath,
+      PROFILE_PRIMARY_PHOTO_TTL_SEC,
+    );
+
+    return {
+      primaryPhotoUrl,
+      primaryPhotoPath: primaryPhoto.storagePath,
+      primaryPhotoExpiresAt: primaryPhotoUrl
+        ? new Date(
+            Date.now() + PROFILE_PRIMARY_PHOTO_TTL_SEC * 1000,
+          ).toISOString()
+        : null,
+    };
+  }
+
   async getProfile(userId: string) {
     // Используем централизованную fallback логику из репозитория
     const user = await this.userRepository.findById(userId);
 
     if (user) {
       await this.syncOnboardingFlagsIfNeeded(user);
+      const primaryPhoto = await this.getPrimaryPhotoSnapshot(user.id);
 
       return {
         id: user.id,
@@ -202,6 +241,7 @@ export class UserService {
         onboardingCompleted: user.onboarding_completed === true,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
+        ...primaryPhoto,
       };
     }
 
@@ -211,6 +251,7 @@ export class UserService {
       const created = await this.userRepository.findById(userId);
 
       if (created) {
+        const primaryPhoto = await this.getPrimaryPhotoSnapshot(created.id);
         return {
           id: created.id,
           email: created.email,
@@ -221,6 +262,7 @@ export class UserService {
           onboardingCompleted: created.onboarding_completed === true,
           createdAt: created.created_at,
           updatedAt: created.updated_at,
+          ...primaryPhoto,
         };
       }
     } catch (_e) {
@@ -238,6 +280,9 @@ export class UserService {
       onboardingCompleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      primaryPhotoUrl: null,
+      primaryPhotoPath: null,
+      primaryPhotoExpiresAt: null,
     };
   }
 

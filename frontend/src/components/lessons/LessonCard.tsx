@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,8 @@ interface LessonCardProps {
   onTaskPress?: (lesson: AstroLesson) => void;
   isBookmarked?: boolean;
   compact?: boolean;
+  startExpanded?: boolean;
+  expansionKey?: string | null;
 }
 export interface QuizOption {
   text: string; // Текст варианта ответа
@@ -29,13 +31,21 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   onTaskPress,
   isBookmarked = false,
   compact = false,
+  startExpanded = false,
+  expansionKey,
 }) => {
   const { t } = useTranslation();
   const completedGradient = ['#10B981', '#059669'] as const;
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(startExpanded);
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [quizCompleted, setQuizCompleted] = useState(false);
+
+  useEffect(() => {
+    if (startExpanded) {
+      setExpanded(true);
+    }
+  }, [startExpanded, expansionKey]);
 
   const getDifficultyColor = () => {
     switch (lesson.difficulty) {

@@ -82,12 +82,12 @@ export class NatalChartService {
 
     return Boolean(
       birthDate &&
-      birthDate === chartData?.birthDate &&
-      birthTime &&
-      birthTime === chartData?.birthTime &&
-      typeof birthDateTimeUtc === 'string' &&
-      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
-      calculationVersion === 'utc-fixed-v2',
+        birthDate === chartData?.birthDate &&
+        birthTime &&
+        birthTime === chartData?.birthTime &&
+        typeof birthDateTimeUtc === 'string' &&
+        !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+        calculationVersion === 'utc-fixed-v2',
     );
   }
 
@@ -114,11 +114,75 @@ export class NatalChartService {
   private hasAiInterpretation(chartData: any): boolean {
     return Boolean(
       chartData?.interpretationVersion === 'v3-ai' ||
-      chartData?.generatedBy === 'ai' ||
-      chartData?.interpretation?.generatedBy === 'ai' ||
-      chartData?.interpretation?.aiNarrative ||
-      chartData?.interpretation?.premiumNarrative,
+        chartData?.generatedBy === 'ai' ||
+        chartData?.interpretation?.generatedBy === 'ai' ||
+        chartData?.interpretation?.aiNarrative ||
+        chartData?.interpretation?.premiumNarrative,
     );
+  }
+
+  private normalizeNarrativeValue(value: unknown): string {
+    if (typeof value === 'string') {
+      const cleaned = value
+        .trim()
+        .replace(/^```[a-zA-Z]*\n?/, '')
+        .replace(/```$/, '')
+        .trim();
+
+      if (!cleaned) {
+        return '';
+      }
+
+      const looksStructured =
+        (cleaned.startsWith('{') && cleaned.endsWith('}')) ||
+        (cleaned.startsWith('[') && cleaned.endsWith(']'));
+
+      if (looksStructured) {
+        try {
+          return this.normalizeNarrativeValue(JSON.parse(cleaned));
+        } catch {
+          return cleaned;
+        }
+      }
+
+      return cleaned;
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this.normalizeNarrativeValue(item))
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>;
+      const preferredKeys = [
+        'narrative',
+        'interpretation',
+        'synthesis',
+        'summary',
+        'overview',
+        'general',
+        'text',
+        'content',
+        'message',
+      ] as const;
+
+      for (const key of preferredKeys) {
+        const normalized = this.normalizeNarrativeValue(record[key]);
+        if (normalized) {
+          return normalized;
+        }
+      }
+
+      return Object.values(record)
+        .map((item) => this.normalizeNarrativeValue(item))
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
+    return '';
   }
 
   private withInterpretationLocale<T extends Record<string, any>>(
@@ -1103,7 +1167,7 @@ export class NatalChartService {
       );
     }
 
-    const aiNarrative = await this.aiService.generateChartInterpretation({
+    const rawAiNarrative = await this.aiService.generateChartInterpretation({
       planets: chartData?.planets,
       houses: chartData?.houses,
       aspects: chartData?.aspects || [],
@@ -1111,6 +1175,7 @@ export class NatalChartService {
       userProfile,
       locale,
     });
+    const aiNarrative = this.normalizeNarrativeValue(rawAiNarrative);
 
     const aiGeneratedAt = new Date().toISOString();
     const interpretation = {

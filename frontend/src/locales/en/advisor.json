@@ -53,6 +53,11 @@
   "errors": {
     "requestFailed": "Request error. Try again later."
   },
+  "history": {
+    "title": "Advisor history",
+    "message": "We store the last {{count}} advisor requests and replies on this device. Older entries are removed automatically so the app and server do not carry unnecessary load.",
+    "confirm": "Got it"
+  },
   "chat": {
     "headerSubtitle": "A guided advisor session that feels like a conversation.",
     "intro": "Choose a topic and I will guide you through the reading.",

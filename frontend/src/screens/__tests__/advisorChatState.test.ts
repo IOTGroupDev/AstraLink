@@ -4,6 +4,8 @@ import {
   confirmAdvisorCustomDate,
   createInitialAdvisorChatState,
   createNextAdvisorChatState,
+  deriveAdvisorSessionRevealState,
+  pruneAdvisorChatState,
   selectAdvisorTopic,
   submitAdvisorPrompt,
   updateAdvisorCustomDate,
@@ -118,5 +120,55 @@ describe('advisorChatState', () => {
     expect(nextState.sessions[0]?.collapsed).toBe(true);
     expect(nextState.sessions[1]?.status).toBe('choose_topic');
     expect(nextState.activeSessionId).toBe('advisor-session-31');
+  });
+
+  it('prunes the oldest sessions while keeping the active one', () => {
+    const sessions = Array.from({ length: 4 }, (_, index) => ({
+      ...createInitialAdvisorChatState(
+        new Date('2026-03-25T12:00:00.000Z'),
+        index + 1
+      ).sessions[0]!,
+      id: `advisor-session-${index + 1}`,
+      createdAt: index + 1,
+      updatedAt: index + 1,
+      status: 'completed' as const,
+    }));
+
+    const pruned = pruneAdvisorChatState(
+      {
+        sessions,
+        activeSessionId: 'advisor-session-4',
+      },
+      2
+    );
+
+    expect(pruned.sessions.map((session) => session.id)).toEqual([
+      'advisor-session-3',
+      'advisor-session-4',
+    ]);
+    expect(pruned.activeSessionId).toBe('advisor-session-4');
+  });
+
+  it('restores reveal state for a saved session that is ready for prompt input', () => {
+    const session = chooseAdvisorQuickDate(
+      selectAdvisorTopic(
+        createInitialAdvisorChatState(new Date('2026-03-25T12:00:00.000Z'), 100)
+          .sessions[0]!,
+        'travel',
+        101
+      ),
+      'tomorrow',
+      new Date('2026-03-25T12:00:00.000Z'),
+      102
+    );
+
+    expect(deriveAdvisorSessionRevealState(session)).toEqual({
+      topicAck: true,
+      datePrompt: true,
+      dateChoices: false,
+      dateAck: true,
+      promptRequest: true,
+      promptInput: true,
+    });
   });
 });

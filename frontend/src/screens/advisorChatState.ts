@@ -29,6 +29,15 @@ export interface AdvisorSession {
   updatedAt: number;
 }
 
+export interface AdvisorSessionRevealState {
+  topicAck: boolean;
+  datePrompt: boolean;
+  dateChoices: boolean;
+  dateAck: boolean;
+  promptRequest: boolean;
+  promptInput: boolean;
+}
+
 export interface AdvisorChatState {
   sessions: AdvisorSession[];
   activeSessionId: string;
@@ -282,5 +291,86 @@ export function createNextAdvisorChatState(
   return {
     sessions: [...sessions, nextSession],
     activeSessionId: nextSession.id,
+  };
+}
+
+export function deriveAdvisorSessionRevealState(
+  session: AdvisorSession
+): AdvisorSessionRevealState {
+  const hasTopic = Boolean(session.topic);
+  const hasDate = Boolean(session.date);
+  const hasPrompt = Boolean(session.prompt);
+
+  if (!hasTopic) {
+    return {
+      topicAck: false,
+      datePrompt: false,
+      dateChoices: false,
+      dateAck: false,
+      promptRequest: false,
+      promptInput: false,
+    };
+  }
+
+  if (!hasDate) {
+    return {
+      topicAck: true,
+      datePrompt: true,
+      dateChoices: true,
+      dateAck: false,
+      promptRequest: false,
+      promptInput: false,
+    };
+  }
+
+  if (!hasPrompt && session.status === 'write_prompt') {
+    return {
+      topicAck: true,
+      datePrompt: true,
+      dateChoices: false,
+      dateAck: true,
+      promptRequest: true,
+      promptInput: true,
+    };
+  }
+
+  return {
+    topicAck: true,
+    datePrompt: true,
+    dateChoices: false,
+    dateAck: true,
+    promptRequest: true,
+    promptInput: true,
+  };
+}
+
+export function pruneAdvisorChatState(
+  state: AdvisorChatState,
+  limit: number
+): AdvisorChatState {
+  if (state.sessions.length <= limit) {
+    return state;
+  }
+
+  const removableIds = state.sessions
+    .filter((session) => session.id !== state.activeSessionId)
+    .map((session) => session.id);
+  const idsToDrop = new Set(
+    removableIds.slice(0, state.sessions.length - limit)
+  );
+
+  const sessions = state.sessions.filter(
+    (session) => !idsToDrop.has(session.id)
+  );
+
+  const activeExists = sessions.some(
+    (session) => session.id === state.activeSessionId
+  );
+
+  return {
+    sessions,
+    activeSessionId: activeExists
+      ? state.activeSessionId
+      : sessions[sessions.length - 1]?.id || state.activeSessionId,
   };
 }

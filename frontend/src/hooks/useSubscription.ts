@@ -4,7 +4,6 @@ import { subscriptionAPI } from '../services/api';
 import {
   SubscriptionTier,
   Subscription,
-  requiresTier,
   getRequiredTiers,
   FEATURE_REQUIREMENTS,
   TRIAL_CONFIG,
@@ -103,7 +102,7 @@ export const useSubscription = () => {
   const isPremium = (): boolean => {
     return (
       isActive &&
-      (tier === SubscriptionTier.BASIC || tier === SubscriptionTier.MAX)
+      (tier === SubscriptionTier.PREMIUM || tier === SubscriptionTier.MAX)
     );
   };
 
@@ -196,8 +195,8 @@ export const useSubscription = () => {
     if (requiredTiers.length === 0) return null;
 
     // Возвращаем самый дешевый тир
-    if (requiredTiers.includes(SubscriptionTier.BASIC)) {
-      return SubscriptionTier.BASIC;
+    if (requiredTiers.includes(SubscriptionTier.PREMIUM)) {
+      return SubscriptionTier.PREMIUM;
     }
     return SubscriptionTier.MAX;
   };

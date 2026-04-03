@@ -87,6 +87,25 @@ export interface HoroscopeMeta {
   keyWindow: string;
 }
 
+export interface HoroscopeMainTransit {
+  name: string;
+  description: string;
+  aspect?: string;
+  targetPlanet?: string;
+  strength?: number;
+  tone: HoroscopeTone;
+  transitPlanetKey?: string;
+  natalPlanetKey?: string;
+}
+
+export interface HoroscopeDailyContext {
+  source: 'natal-daily-v1';
+  tone: HoroscopeTone;
+  summary: string;
+  biorhythmSummary: string;
+  lunarSummary: string;
+}
+
 export interface HoroscopeContent {
   general: string;
   love: string;
@@ -104,6 +123,8 @@ export interface HoroscopeContent {
   status: HoroscopeStatus;
   updatedAt: string;
   meta: HoroscopeMeta;
+  mainTransit?: HoroscopeMainTransit | null;
+  dailyContext?: HoroscopeDailyContext;
 }
 
 export interface HoroscopeBundle {
@@ -368,9 +389,9 @@ export const chartAPI = {
     date: string;
     interpretation: string;
     aspect?: any;
+    dailyContext?: HoroscopeDailyContext;
   }> => {
-    const qs = new URLSearchParams();
-    if (date) qs.set('date', date);
+    const qs = buildLocalDateParams(date);
     if (locale) qs.set('locale', locale);
     const url = `/chart/transits/main-interpretation?${qs.toString()}`;
     const response = await api.get(url);

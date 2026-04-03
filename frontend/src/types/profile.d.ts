@@ -8,6 +8,9 @@ export interface UserProfile {
   birthTime: string;
   birthPlace: string;
   avatar?: string;
+  primaryPhotoUrl?: string | null;
+  primaryPhotoPath?: string | null;
+  primaryPhotoExpiresAt?: string | null;
   registrationDate: string;
   isDarkMode: boolean;
 }

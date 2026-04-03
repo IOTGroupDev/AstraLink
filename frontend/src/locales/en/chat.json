@@ -19,6 +19,8 @@
     "authRequired": "Authorization Required",
     "authRequiredMessage": "You must be logged in to use chat",
     "noInterlocutor": "Interlocutor not specified",
+    "galleryPermissionTitle": "Photo access required",
+    "galleryPermissionMessage": "Allow access to your photo library to send images.",
     "failedToSend": "Failed to send message. Please try again.",
     "failedToSendFile": "Failed to send file. Please try again.",
     "failedToDelete": "Failed to delete message.",

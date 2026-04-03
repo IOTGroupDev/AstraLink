@@ -42,6 +42,14 @@ import { useSubscription } from '../hooks/useSubscription';
 import { Chart } from '../types/index';
 import { chartLogger } from '../services/logger';
 import { getCoreLessonsByLocale } from '../services/lessons-database.localized';
+import { pickDailyLesson } from '../services/daily-lesson';
+import {
+  buildHoroscopeDailyBucketKey,
+  getHoroscopeChartRevision,
+  readHoroscopeScreenCache,
+  writeHoroscopeScreenCache,
+} from '../services/horoscope-cache';
+import { useCompletedLessonIds } from '../stores';
 import {
   addLocalDays,
   formatLocalDate,
@@ -61,6 +69,7 @@ const HoroscopeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
+  const completedLessonIds = useCompletedLessonIds();
   const appLocale = React.useMemo((): 'ru' | 'en' | 'es' => {
     return normalizeAppLocale(i18n.language);
   }, [i18n.language]);
@@ -113,6 +122,8 @@ const HoroscopeScreen: React.FC = () => {
   const predictionsRequestIdRef = useRef(0);
   const dataLoadingRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
+  const lastLoadedBucketRef = useRef<string | null>(null);
+  const mainTransitInterpretationCacheRef = useRef<Record<string, string>>({});
 
   const extractHoroscopeContent = React.useCallback(
     (response: any): HoroscopeContent => {
@@ -135,6 +146,10 @@ const HoroscopeScreen: React.FC = () => {
               risk: '',
               keyWindow: '',
             },
+          mainTransit:
+            response.predictions.mainTransit || response.mainTransit || null,
+          dailyContext:
+            response.predictions.dailyContext || response.dailyContext,
         };
       }
 
@@ -160,6 +175,8 @@ const HoroscopeScreen: React.FC = () => {
           risk: '',
           keyWindow: '',
         },
+        mainTransit: response?.mainTransit || null,
+        dailyContext: response?.dailyContext,
       };
     },
     []
@@ -324,6 +341,9 @@ const HoroscopeScreen: React.FC = () => {
     dataLoadingRef.current = true;
     try {
       setLoading(true);
+      if (forcePredictions) {
+        mainTransitInterpretationCacheRef.current = {};
+      }
 
       if (!isAuthenticated) {
         chartLogger.warn(
@@ -346,6 +366,37 @@ const HoroscopeScreen: React.FC = () => {
         }
 
         setChart(chartData);
+        const bucketKey = buildHoroscopeDailyBucketKey();
+        const tierKey = subscription?.tier || 'free';
+        const chartRevision = getHoroscopeChartRevision(chartData);
+        const cacheUserId = user?.id;
+
+        if (!forcePredictions && cacheUserId) {
+          const cached = await readHoroscopeScreenCache(cacheUserId);
+          if (
+            cached &&
+            cached.bucketKey === bucketKey &&
+            cached.locale === getApiLocale() &&
+            cached.tier === tierKey &&
+            cached.chartRevision === chartRevision
+          ) {
+            chartLogger.log('Использую локальный daily-cache гороскопа', {
+              bucketKey,
+              locale: getApiLocale(),
+              tierKey,
+              chartRevision,
+            });
+            setChart(cached.chart || chartData);
+            setCurrentPlanets(cached.currentPlanets ?? null);
+            setPredictions(cached.predictions ?? null);
+            setBiorhythms(cached.biorhythms ?? null);
+            predictionsAttemptedRef.current = cached.predictions != null;
+            predictionsLocaleRef.current =
+              cached.predictions != null ? getApiLocale() : null;
+            lastLoadedBucketRef.current = bucketKey;
+            return;
+          }
+        }
 
         const todayLocal = new Date();
         const fromDate = formatLocalDate(todayLocal);
@@ -367,9 +418,10 @@ const HoroscopeScreen: React.FC = () => {
 
         setCurrentPlanets(planetsData?.planets ?? null);
 
-        await loadAllPredictions(forcePredictions);
+        const loadedPredictions = await loadAllPredictions(forcePredictions);
 
         // Загружаем биоритмы
+        let finalBiorhythms: BiorhythmResponse | null = null;
         try {
           // Локальная дата пользователя (YYYY-MM-DD), чтобы избежать смещения по UTC на бэкенде
           const localDateStr = formatLocalDate(new Date());
@@ -401,6 +453,7 @@ const HoroscopeScreen: React.FC = () => {
             ? toRichBiorhythm(clientCalc, b?.summary)
             : b;
 
+          finalBiorhythms = finalValues;
           setBiorhythms(finalValues);
 
           chartLogger.log('Биоритмы', {
@@ -423,7 +476,8 @@ const HoroscopeScreen: React.FC = () => {
 
             const clientCalc = computeClientBiorhythms(birthISO, localDateStr);
             if (clientCalc) {
-              setBiorhythms(toRichBiorhythm(clientCalc));
+              finalBiorhythms = toRichBiorhythm(clientCalc);
+              setBiorhythms(finalBiorhythms);
               chartLogger.log(
                 'ℹ️ Поставлены клиентские биоритмы (fallback):',
                 clientCalc
@@ -433,6 +487,21 @@ const HoroscopeScreen: React.FC = () => {
             // ignore
           }
         }
+
+        if (cacheUserId) {
+          await writeHoroscopeScreenCache(cacheUserId, {
+            bucketKey,
+            locale: getApiLocale(),
+            tier: tierKey,
+            chartRevision,
+            chart: chartData,
+            currentPlanets: planetsData?.planets ?? null,
+            predictions: loadedPredictions,
+            biorhythms: finalBiorhythms,
+            cachedAt: new Date().toISOString(),
+          });
+        }
+        lastLoadedBucketRef.current = bucketKey;
       } catch (error: any) {
         chartLogger.error('Ошибка загрузки данных карты', error);
 
@@ -462,18 +531,20 @@ const HoroscopeScreen: React.FC = () => {
   };
 
   // Загрузка прогнозов
-  const loadAllPredictions = async (force = false) => {
+  const loadAllPredictions = async (
+    force = false
+  ): Promise<HoroscopeBundle | null> => {
     try {
       chartLogger.log('Загружаю прогнозы');
       const locale = getApiLocale();
       const requestId = ++predictionsRequestIdRef.current;
-      if (!isAuthenticated) return;
+      if (!isAuthenticated) return null;
       if (!force) {
         if (
           predictionsLoadingRef.current ||
           (predictionsLocaleRef.current === locale && predictions)
         ) {
-          return;
+          return predictions || null;
         }
       }
       predictionsLoadingRef.current = true;
@@ -499,7 +570,7 @@ const HoroscopeScreen: React.FC = () => {
           requestLocale: locale,
           currentLocale: getApiLocale(),
         });
-        return;
+        return null;
       }
 
       chartLogger.log('Устанавливаю прогнозы', newPredictions);
@@ -539,17 +610,19 @@ const HoroscopeScreen: React.FC = () => {
           predictionsRetryRef.current = null;
         }
       }
+      return hasPredictionData ? newPredictions : null;
     } catch (error) {
       chartLogger.error('Ошибка загрузки прогнозов', error);
       if (!predictionsAttemptedRef.current) {
         predictionsAttemptedRef.current = true;
-        return;
+        return null;
       }
       Alert.alert(
         t('common.errors.generic'),
         t('horoscope.errors.failedToLoad'),
         [{ text: t('common.buttons.ok') }]
       );
+      return null;
     } finally {
       predictionsLoadingRef.current = false;
     }
@@ -596,78 +669,6 @@ const HoroscopeScreen: React.FC = () => {
     energy -= challengePenalty;
 
     return Math.min(95, Math.max(20, Math.round(energy)));
-  };
-
-  // Получение главного транзита
-  const normalizePlanetKey = (raw?: string): string => {
-    if (!raw) return '';
-    const cleaned = String(raw).trim().toLowerCase();
-    if (!cleaned) return '';
-    let key = cleaned.replace(/[\s-]+/g, '_');
-    key = key.replace(/[^\w]/g, '');
-    if (key === 'southnode') return 'south_node';
-    return key;
-  };
-
-  const normalizeAspectKey = (raw?: string): string => {
-    if (!raw) return '';
-    const cleaned = String(raw).trim().toLowerCase();
-    if (!cleaned) return '';
-    let key = cleaned.replace(/[\s_]+/g, '-');
-    key = key.replace(/[^a-z0-9-]/g, '');
-    key = key.replace(/-+/g, '-');
-    if (key === 'sesqui-quadrate') return 'sesquiquadrate';
-    if (key === 'bi-quintile') return 'biquintile';
-    if (key === 'semi-sextile') return 'semi-sextile';
-    if (key === 'semi-square') return 'semi-square';
-    return key;
-  };
-
-  const getMainTransit = () => {
-    if (
-      chart &&
-      chart.data &&
-      chart.data.aspects &&
-      chart.data.aspects.length > 0
-    ) {
-      const strongestAspect = chart.data.aspects.reduce((strongest, current) =>
-        (current.strength || 0) > (strongest.strength || 0)
-          ? current
-          : strongest
-      );
-
-      const rawPlanetA = strongestAspect.planetA || '';
-      const rawPlanetB = strongestAspect.planetB || '';
-      const rawAspect = strongestAspect.aspect || '';
-
-      const planetAKey = normalizePlanetKey(rawPlanetA);
-      const planetBKey = normalizePlanetKey(rawPlanetB);
-      const aspectKey = normalizeAspectKey(rawAspect);
-
-      const planetA = t(`common.planets.${planetAKey}`, {
-        defaultValue: rawPlanetA,
-      });
-      const planetB = t(`common.planets.${planetBKey}`, {
-        defaultValue: rawPlanetB,
-      });
-      const aspectName = t(`common.aspects.${aspectKey}`, {
-        defaultValue: rawAspect,
-      });
-
-      return {
-        name: `${planetA} - ${aspectName} - ${planetB}`,
-        aspect: aspectName,
-        targetPlanet: planetB,
-        strength: strongestAspect.strength || 0.8,
-        description: t('horoscope.transit.description', {
-          planetA,
-          aspect: aspectName,
-          planetB,
-        }),
-      };
-    }
-
-    return null;
   };
 
   // Получение сообщения об энергии (по значению)
@@ -718,14 +719,19 @@ const HoroscopeScreen: React.FC = () => {
     React.useCallback(() => {
       if (!isAuthenticated || authLoading) return undefined;
       if (!hasLoadedOnceRef.current) return undefined;
-      refreshForSubscriptionChange();
+      const nextBucket = buildHoroscopeDailyBucketKey();
+      if (lastLoadedBucketRef.current === nextBucket) {
+        return undefined;
+      }
+      void loadData(true);
       return undefined;
-    }, [isAuthenticated, authLoading, refreshForSubscriptionChange])
+    }, [isAuthenticated, authLoading])
   );
 
   useEffect(() => {
     if (!hasLoadedOnceRef.current) return;
     chartLogger.log('Перезагружаю horoscope screen из-за смены языка');
+    mainTransitInterpretationCacheRef.current = {};
     predictionsRequestIdRef.current += 1;
     predictionsRetryCountRef.current = 0;
     if (predictionsRetryRef.current) {
@@ -747,26 +753,22 @@ const HoroscopeScreen: React.FC = () => {
 
   // Формирование данных для виджетов
   const energyValue =
-    (biorhythms?.physical as number | undefined) ??
     (predictions?.day?.energy as number | undefined) ??
+    (biorhythms?.overall as number | undefined) ??
     getCurrentEnergy();
-  const energyMessage = getEnergyMessage(energyValue);
-  const mainTransit = getMainTransit();
+  const energyMessage =
+    predictions?.day?.dailyContext?.summary ||
+    biorhythms?.summary ||
+    getEnergyMessage(energyValue);
+  const mainTransit = predictions?.day?.mainTransit ?? null;
   const hasAIAccess = hasFeature('detailedTransits');
   const hasPredictionData = Boolean(
     predictions?.day || predictions?.tomorrow || predictions?.week
   );
   const dailyLearningLesson = React.useMemo(() => {
     const lessons = getCoreLessonsByLocale(lessonsLocale);
-    if (!lessons.length) return null;
-
-    const startOfYear = new Date(new Date().getFullYear(), 0, 0).getTime();
-    const dayOfYear = Math.floor(
-      (Date.now() - startOfYear) / (1000 * 60 * 60 * 24)
-    );
-
-    return lessons[dayOfYear % lessons.length] ?? null;
-  }, [lessonsLocale]);
+    return pickDailyLesson(lessons, completedLessonIds);
+  }, [completedLessonIds, lessonsLocale]);
 
   const openMainTransitDetails = async () => {
     if (!hasAIAccess) {
@@ -782,11 +784,26 @@ const HoroscopeScreen: React.FC = () => {
     setTransitModalText('');
     try {
       const locale = getApiLocale();
-      const response = await chartAPI.getMainTransitInterpretation(locale);
-      setTransitModalText(
-        response?.interpretation ||
-          t('horoscope.mainTransitWidget.detailsError')
+      const transitDate = predictions?.day?.date || new Date().toISOString();
+      const cacheKey = `${locale}:${transitDate}`;
+      const cachedInterpretation =
+        mainTransitInterpretationCacheRef.current[cacheKey];
+
+      if (cachedInterpretation) {
+        setTransitModalText(cachedInterpretation);
+        setTransitModalLoading(false);
+        return;
+      }
+
+      const response = await chartAPI.getMainTransitInterpretation(
+        locale,
+        transitDate
       );
+      const nextText =
+        response?.interpretation ||
+        t('horoscope.mainTransitWidget.detailsError');
+      mainTransitInterpretationCacheRef.current[cacheKey] = nextText;
+      setTransitModalText(nextText);
     } catch (_error) {
       setTransitModalText(t('horoscope.mainTransitWidget.detailsError'));
     } finally {
@@ -942,6 +959,7 @@ const HoroscopeScreen: React.FC = () => {
                     (navigation as any).navigate('Learning', {
                       source: 'horoscope',
                       lessonId: dailyLearningLesson.id,
+                      category: dailyLearningLesson.category,
                     })
                   }
                 >
@@ -1002,7 +1020,7 @@ const HoroscopeScreen: React.FC = () => {
 
               {hasPredictionData ? (
                 <HoroscopeWidget
-                  key={`horoscope-${appLocale}`}
+                  key={`horoscope-${appLocale}-${predictions?.day?.date || 'empty'}-${predictions?.week?.date || 'empty'}-${predictions?.month?.date || 'empty'}`}
                   predictions={predictions}
                 />
               ) : !loading && predictionsAttemptedRef.current ? (

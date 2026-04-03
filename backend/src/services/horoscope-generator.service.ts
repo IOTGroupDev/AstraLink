@@ -7,6 +7,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { EphemerisService } from './ephemeris.service';
+import { LunarService, type LunarDay, type MoonPhase } from './lunar.service';
 import { ChartRepository } from '../repositories';
 import { AIService } from './ai.service';
 import { RedisService } from '../redis/redis.service';
@@ -52,7 +53,12 @@ import {
   buildUserLocalPeriodContext,
   type UserLocalPeriod,
 } from '@/common/utils/user-local-date.util';
-import { normalizeBirthDateValue } from '@/common/utils/birth-data.util';
+import {
+  buildDailyAstroContext,
+  extractChartBirthDate,
+  type DailyAstroContext,
+  type DailyAstroMainTransit,
+} from '@/common/utils/daily-astro-context.util';
 
 export interface HoroscopePrediction {
   period: 'day' | 'tomorrow' | 'week' | 'month';
@@ -78,6 +84,11 @@ export interface HoroscopePrediction {
     risk: string;
     keyWindow: string;
   };
+  mainTransit?: DailyAstroMainTransit | null;
+  dailyContext?: Pick<
+    DailyAstroContext,
+    'source' | 'tone' | 'summary' | 'biorhythmSummary' | 'lunarSummary'
+  >;
   lunarPhase?: {
     phase: string;
     emoji: string;
@@ -91,7 +102,7 @@ export interface HoroscopePrediction {
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
-  private readonly horoscopeFormatVersion = 'fmt-v4';
+  private readonly horoscopeFormatVersion = 'fmt-v6';
   private readonly inflightPremium = new Map<
     string,
     Promise<HoroscopePrediction>
@@ -100,6 +111,7 @@ export class HoroscopeGeneratorService {
   constructor(
     private ephemerisService: EphemerisService,
     private aiService: AIService,
+    private lunarService: LunarService,
     private redis: RedisService,
     private chartRepository: ChartRepository,
   ) {}
@@ -221,7 +233,7 @@ export class HoroscopeGeneratorService {
           this.logger.warn(
             `AI generation pending for ${cacheKey}, returning interpreter fallback`,
           );
-          return this.buildInterpreterFallback(
+          return await this.buildInterpreterFallback(
             chartData,
             transits,
             transitAspects,
@@ -289,7 +301,7 @@ export class HoroscopeGeneratorService {
         this.inflightPremium.delete(cacheKey);
         await this.redis.del(pendingKey);
       } else {
-        result = this.generateFreeHoroscope(
+        result = await this.generateFreeHoroscope(
           chartData,
           transits,
           transitAspects,
@@ -351,57 +363,14 @@ export class HoroscopeGeneratorService {
           this.logger.warn(
             `AI daily limit reached for horoscope user=${userId} used=${used}/${LIMITS.HOROSCOPE.AI_DAILY_PER_USER}`,
           );
-          // Фолбэк на интерпретатор (без AI)
-          const dominantTransit = this.getDominantTransit(
-            transitAspects,
-            'general',
-          );
-          const energy = this.calculateEnergy(transitAspects);
-          const mood = this.determineMood(energy, transitAspects, locale);
-          const predictions = this.generateRuleBasedPredictions(
-            chartData.planets?.sun?.sign || 'Aries',
-            chartData.planets?.moon?.sign || 'Cancer',
-            dominantTransit,
+          return this.buildInterpreterFallback(
+            chartData,
+            transits,
             transitAspects,
             period,
             targetDate,
-            chartData,
             locale,
           );
-          const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
-          const updatedAt = new Date().toISOString();
-
-          return {
-            period: period as 'day' | 'tomorrow' | 'week' | 'month',
-            date: targetDate.toISOString(),
-            general: predictions.general,
-            love: predictions.love,
-            career: predictions.career,
-            health: predictions.health,
-            finance: predictions.finance,
-            advice: predictions.advice,
-            luckyNumbers: this.generateLuckyNumbers(chartData, targetDate),
-            luckyColors: this.generateLuckyColors(
-              chartData.planets?.sun?.sign || 'Aries',
-              dominantTransit,
-              locale,
-            ),
-            energy,
-            mood,
-            challenges: [],
-            opportunities: [],
-            generatedBy: 'interpreter',
-            status: 'ready',
-            updatedAt,
-            meta: this.buildHoroscopeMeta(
-              chartData,
-              transitAspects,
-              period as 'day' | 'tomorrow' | 'week' | 'month',
-              targetDate,
-              locale,
-            ),
-            lunarPhase,
-          };
         }
       }
     } catch (e) {
@@ -423,6 +392,14 @@ export class HoroscopeGeneratorService {
     const ascendant = chartData.houses?.[1]?.sign || 'Aries';
 
     try {
+      const { dailyContext, lunarPhase, lunarDay } =
+        await this.buildDailyAstroInputs(
+          chartData,
+          transits,
+          transitAspects,
+          targetDate,
+          locale,
+        );
       const aiContext = {
         sunSign,
         moonSign,
@@ -433,6 +410,21 @@ export class HoroscopeGeneratorService {
         transits: transitAspects,
         period,
         locale,
+        dailyContext: {
+          energy: dailyContext.energy,
+          tone: dailyContext.tone,
+          summary: dailyContext.summary,
+          biorhythmSummary: dailyContext.biorhythmSummary,
+          lunarSummary: dailyContext.lunarSummary,
+          mainTransitSummary:
+            dailyContext.mainTransit?.description ||
+            (locale === 'en'
+              ? 'No dominant transit stands out.'
+              : locale === 'es'
+                ? 'No destaca un tránsito dominante.'
+                : 'Нет одного транзита, который доминирует над остальными.'),
+          lunarDaySummary: lunarDay.summary,
+        },
       };
 
       const aiPredictions = await this.aiService.generateHoroscope(aiContext);
@@ -492,17 +484,14 @@ export class HoroscopeGeneratorService {
         Array.isArray(aiPredictions.opportunities) &&
         aiPredictions.opportunities.length > 0;
 
-      const energy = this.calculateEnergy(transitAspects);
-      const mood = this.determineMood(energy, transitAspects, locale);
+      const energy = dailyContext.energy;
+      const mood = dailyContext.mood;
       const luckyNumbers = this.generateLuckyNumbers(chartData, targetDate);
       const luckyColors = this.generateLuckyColors(
         sunSign,
         transitAspects[0],
         locale,
       );
-
-      // Calculate lunar phase for the target date
-      const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
       const updatedAt = new Date().toISOString();
 
       const result: HoroscopePrediction = {
@@ -530,6 +519,14 @@ export class HoroscopeGeneratorService {
           targetDate,
           locale,
         ),
+        mainTransit: dailyContext.mainTransit,
+        dailyContext: {
+          source: dailyContext.source,
+          tone: dailyContext.tone,
+          summary: dailyContext.summary,
+          biorhythmSummary: dailyContext.biorhythmSummary,
+          lunarSummary: dailyContext.lunarSummary,
+        },
         lunarPhase,
       };
       return result;
@@ -537,7 +534,7 @@ export class HoroscopeGeneratorService {
       this.logger.error('❌ Ошибка AI-генерации для PREMIUM:', error);
       this.logger.log('Fallback to interpreter (FREE rules) with real data');
       // Fallback на интерпретатор с реальными расчетами (без generic-моков)
-      return this.buildInterpreterFallback(
+      return await this.buildInterpreterFallback(
         chartData,
         transits,
         transitAspects,
@@ -548,7 +545,91 @@ export class HoroscopeGeneratorService {
     }
   }
 
-  private buildInterpreterFallback(
+  private toHoroscopeLunarPhase(
+    moonPhase: MoonPhase,
+  ): HoroscopePrediction['lunarPhase'] {
+    const phaseName = moonPhase.phaseName || '';
+
+    return {
+      phase: phaseName,
+      emoji: this.getLunarEmoji(phaseName),
+      description: phaseName,
+      illumination: moonPhase.illumination || 0,
+      interpretation: moonPhase.recommendations?.general || '',
+    };
+  }
+
+  private getLunarEmoji(phaseName: string): string {
+    const normalized = String(phaseName).toLowerCase();
+    if (
+      normalized.includes('новолуние') ||
+      normalized.includes('new moon') ||
+      normalized.includes('luna nueva')
+    ) {
+      return '🌑';
+    }
+    if (
+      normalized.includes('полнолуние') ||
+      normalized.includes('full moon') ||
+      normalized.includes('luna llena')
+    ) {
+      return '🌕';
+    }
+    if (
+      normalized.includes('первая четверть') ||
+      normalized.includes('first quarter') ||
+      normalized.includes('cuarto creciente')
+    ) {
+      return '🌓';
+    }
+    if (
+      normalized.includes('последняя четверть') ||
+      normalized.includes('last quarter') ||
+      normalized.includes('cuarto menguante')
+    ) {
+      return '🌗';
+    }
+    if (normalized.includes('раст') || normalized.includes('wax')) {
+      return '🌔';
+    }
+    return '🌘';
+  }
+
+  private async buildDailyAstroInputs(
+    chartData: ChartData,
+    transits: TransitData,
+    transitAspects: TransitAspect[],
+    targetDate: Date,
+    locale: 'ru' | 'en' | 'es',
+  ): Promise<{
+    dailyContext: DailyAstroContext;
+    lunarPhase: HoroscopePrediction['lunarPhase'];
+    lunarDay: LunarDay;
+    moonPhaseData: MoonPhase;
+  }> {
+    const [moonPhaseData, lunarDay] = await Promise.all([
+      this.lunarService.getMoonPhase(targetDate, chartData, locale),
+      this.lunarService.getLunarDay(targetDate, locale),
+    ]);
+
+    const dailyContext = buildDailyAstroContext({
+      birthDateValue: extractChartBirthDate(chartData),
+      targetDate,
+      transitAspects,
+      lunarPhase: moonPhaseData,
+      lunarDay,
+      locale,
+    });
+
+    return {
+      dailyContext,
+      lunarPhase: this.toHoroscopeLunarPhase(moonPhaseData),
+      lunarDay,
+      moonPhaseData,
+    };
+  }
+
+  private async buildInterpreterFallback(
     chartData: ChartData,
     transits: TransitData,
     transitAspects: TransitAspect[],
@@ -556,10 +637,17 @@ export class HoroscopeGeneratorService {
     targetDate: Date,
     locale: 'ru' | 'en' | 'es',
     status: 'ready' | 'ai_pending' = 'ready',
-  ): HoroscopePrediction {
+  ): Promise<HoroscopePrediction> {
     const dominantTransit = this.getDominantTransit(transitAspects, 'general');
-    const energy = this.calculateEnergy(transitAspects);
-    const mood = this.determineMood(energy, transitAspects, locale);
+    const { dailyContext, lunarPhase } = await this.buildDailyAstroInputs(
+      chartData,
+      transits,
+      transitAspects,
+      targetDate,
+      locale,
+    );
+    const energy = dailyContext.energy;
+    const mood = dailyContext.mood;
     const predictions = this.generateRuleBasedPredictions(
       chartData.planets?.sun?.sign || 'Aries',
       chartData.planets?.moon?.sign || 'Cancer',
@@ -570,7 +658,6 @@ export class HoroscopeGeneratorService {
       chartData,
       locale,
     );
-    const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
     const updatedAt = new Date().toISOString();
 
     return {
@@ -602,6 +689,14 @@ export class HoroscopeGeneratorService {
         targetDate,
         locale,
       ),
+      mainTransit: dailyContext.mainTransit,
+      dailyContext: {
+        source: dailyContext.source,
+        tone: dailyContext.tone,
+        summary: dailyContext.summary,
+        biorhythmSummary: dailyContext.biorhythmSummary,
+        lunarSummary: dailyContext.lunarSummary,
+      },
       lunarPhase,
     };
   }
@@ -686,7 +781,7 @@ export class HoroscopeGeneratorService {
   /**
    * FREE: Генерация через интерпретатор (правила)
    */
-  private generateFreeHoroscope(
+  private async generateFreeHoroscope(
     chartData: ChartData,
     transits: TransitData,
     transitAspects: TransitAspect[],
@@ -695,15 +790,22 @@ export class HoroscopeGeneratorService {
     _cacheKey: string,
     _ttlSec: number,
     locale: 'ru' | 'en' | 'es',
-  ): HoroscopePrediction {
+  ): Promise<HoroscopePrediction> {
     this.logger.log('🆓 FREE: Генерация через интерпретатор (правила)');
 
     const sunSign = chartData.planets?.sun?.sign || 'Aries';
     const moonSign = chartData.planets?.moon?.sign || 'Cancer';
 
     const dominantTransit = this.getDominantTransit(transitAspects, 'general');
-    const energy = this.calculateEnergy(transitAspects);
-    const mood = this.determineMood(energy, transitAspects, locale);
+    const { dailyContext, lunarPhase } = await this.buildDailyAstroInputs(
+      chartData,
+      transits,
+      transitAspects,
+      targetDate,
+      locale,
+    );
+    const energy = dailyContext.energy;
+    const mood = dailyContext.mood;
 
     const predictions = this.generateRuleBasedPredictions(
       sunSign,
@@ -715,9 +817,6 @@ export class HoroscopeGeneratorService {
       chartData,
       locale,
     );
-
-    // Calculate lunar phase for the target date
-    const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
     const updatedAt = new Date().toISOString();
 
     const result: HoroscopePrediction = {
@@ -745,6 +844,14 @@ export class HoroscopeGeneratorService {
         targetDate,
         locale,
       ),
+      mainTransit: dailyContext.mainTransit,
+      dailyContext: {
+        source: dailyContext.source,
+        tone: dailyContext.tone,
+        summary: dailyContext.summary,
+        biorhythmSummary: dailyContext.biorhythmSummary,
+        lunarSummary: dailyContext.lunarSummary,
+      },
       lunarPhase,
     };
     return result;
@@ -764,6 +871,7 @@ export class HoroscopeGeneratorService {
     locale: 'ru' | 'en' | 'es',
   ): RuleBasedPredictions {
     const timeFrame = this.getTimeFrame(period, locale);
+    const variationSeed = this.getPredictionVariationSeed(period, targetDate);
 
     // Доминирующие транзиты по доменам
     const domLove = this.getDominantTransit(transitAspects, 'love');
@@ -778,6 +886,7 @@ export class HoroscopeGeneratorService {
         transitAspects,
         timeFrame,
         targetDate,
+        variationSeed,
         locale,
       ),
       love: this.generateLovePrediction(
@@ -786,6 +895,7 @@ export class HoroscopeGeneratorService {
         transitAspects,
         timeFrame,
         domLove,
+        variationSeed,
         locale,
       ),
       career: this.generateCareerPrediction(
@@ -793,6 +903,7 @@ export class HoroscopeGeneratorService {
         transitAspects,
         timeFrame,
         domCareer,
+        variationSeed,
         locale,
       ),
       health: this.generateHealthPrediction(
@@ -800,6 +911,7 @@ export class HoroscopeGeneratorService {
         transitAspects,
         timeFrame,
         domHealth,
+        variationSeed,
         locale,
       ),
       finance: this.generateFinancePrediction(
@@ -807,6 +919,7 @@ export class HoroscopeGeneratorService {
         transitAspects,
         timeFrame,
         domFinance,
+        variationSeed,
         locale,
       ),
       advice: this.generateAdvice(
@@ -815,6 +928,7 @@ export class HoroscopeGeneratorService {
         timeFrame,
         targetDate,
         chartData,
+        variationSeed,
         locale,
       ),
     };
@@ -829,6 +943,7 @@ export class HoroscopeGeneratorService {
     transitAspects: TransitAspect[],
     timeFrame: string,
     _targetDate: Date,
+    variationSeed: string,
     locale: 'ru' | 'en' | 'es',
   ): string {
     const tone = this.determinePredictionTone(transitAspects);
@@ -849,6 +964,7 @@ export class HoroscopeGeneratorService {
 
     // Детерминированный выбор по сигнатуре транзита (без привязки к дате)
     const sig = [
+      variationSeed,
       timeFrame,
       dominantTransit?.transitPlanet || '-',
       dominantTransit?.aspect || '-',
@@ -880,6 +996,7 @@ export class HoroscopeGeneratorService {
     transitAspects: TransitAspect[],
     timeFrame: string,
     dominantTransit?: TransitAspect | null,
+    variationSeed = 'base',
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): string {
     const venusAspects = transitAspects.filter(
@@ -888,6 +1005,7 @@ export class HoroscopeGeneratorService {
 
     try {
       const phraseSeed = [
+        variationSeed,
         timeFrame,
         sunSign,
         dominantTransit?.transitPlanet || '-',
@@ -1026,6 +1144,7 @@ export class HoroscopeGeneratorService {
     transitAspects: TransitAspect[],
     timeFrame: string,
     dominantTransit?: TransitAspect | null,
+    variationSeed = 'base',
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): string {
     const jupiterAspects = transitAspects.filter(
@@ -1040,6 +1159,7 @@ export class HoroscopeGeneratorService {
 
     try {
       const actionSeed = [
+        variationSeed,
         timeFrame,
         sunSign,
         dominantTransit?.transitPlanet || '-',
@@ -1282,6 +1402,7 @@ export class HoroscopeGeneratorService {
     transitAspects: TransitAspect[],
     timeFrame: string,
     dominantTransit?: TransitAspect | null,
+    variationSeed = 'base',
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): string {
     const marsAspects = transitAspects.filter(
@@ -1292,6 +1413,7 @@ export class HoroscopeGeneratorService {
       const idx =
         Math.abs(
           hashSignature([
+            variationSeed,
             timeFrame,
             sunSign,
             dominantTransit?.transitPlanet || '-',
@@ -1406,6 +1528,7 @@ export class HoroscopeGeneratorService {
     transitAspects: TransitAspect[],
     timeFrame: string,
     dominantTransit?: TransitAspect | null,
+    variationSeed = 'base',
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): string {
     const jupiterAspects = transitAspects.filter(
@@ -1416,6 +1539,7 @@ export class HoroscopeGeneratorService {
       const idx =
         Math.abs(
           hashSignature([
+            variationSeed,
             timeFrame,
             sunSign,
             dominantTransit?.transitPlanet || '-',
@@ -1534,6 +1658,7 @@ export class HoroscopeGeneratorService {
     timeFrame: string,
     targetDate: Date,
     chartData: ChartData,
+    variationSeed: string,
     locale: 'ru' | 'en' | 'es',
   ): string {
     const advices = getAdvicePool(
@@ -1545,6 +1670,7 @@ export class HoroscopeGeneratorService {
         ? advices[
             Math.abs(
               hashSignature([
+                variationSeed,
                 timeFrame,
                 sunSign,
                 dominantTransit?.transitPlanet || '-',
@@ -1595,6 +1721,34 @@ export class HoroscopeGeneratorService {
     if (score > 0.5) return 'positive';
     if (score < -0.5) return 'challenging';
     return 'neutral';
+  }
+
+  private getPredictionVariationSeed(period: string, targetDate: Date): string {
+    const year = targetDate.getUTCFullYear();
+    const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getUTCDate()).padStart(2, '0');
+
+    if (period === 'month') {
+      return `${period}:${year}-${month}`;
+    }
+
+    if (period === 'week') {
+      const weekStart = new Date(
+        Date.UTC(
+          targetDate.getUTCFullYear(),
+          targetDate.getUTCMonth(),
+          targetDate.getUTCDate(),
+        ),
+      );
+      const weekday = (weekStart.getUTCDay() + 6) % 7;
+      weekStart.setUTCDate(weekStart.getUTCDate() - weekday);
+      const weekYear = weekStart.getUTCFullYear();
+      const weekMonth = String(weekStart.getUTCMonth() + 1).padStart(2, '0');
+      const weekDay = String(weekStart.getUTCDate()).padStart(2, '0');
+      return `${period}:${weekYear}-${weekMonth}-${weekDay}`;
+    }
+
+    return `${period}:${year}-${month}-${day}`;
   }
 
   private buildHoroscopeMeta(
@@ -2488,18 +2642,7 @@ export class HoroscopeGeneratorService {
       },
     };
     try {
-      // Try to get birthDate from chartData extended properties
-      const chartDataAny = chartData as Record<string, unknown>;
-      const birthDateRaw =
-        (chartDataAny?.birthDate as string | undefined) ??
-        ((chartDataAny?.data as Record<string, unknown>)?.birthDate as
-          | string
-          | undefined) ??
-        ((chartDataAny?.meta as Record<string, unknown>)?.birthDate as
-          | string
-          | undefined);
-
-      const birthDate = normalizeBirthDateValue(birthDateRaw);
+      const birthDate = extractChartBirthDate(chartData);
       if (!birthDate) return cycles;
 
       const [birthYear, birthMonth, birthDay] = birthDate

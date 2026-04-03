@@ -19,6 +19,8 @@
     "authRequired": "Se requiere autorización",
     "authRequiredMessage": "Debes iniciar sesión para usar el chat",
     "noInterlocutor": "Interlocutor no especificado",
+    "galleryPermissionTitle": "Se requiere acceso a las fotos",
+    "galleryPermissionMessage": "Permite el acceso a tu galería para enviar imágenes.",
     "failedToSend": "Error al enviar mensaje. Inténtalo de nuevo.",
     "failedToSendFile": "Error al enviar archivo. Inténtalo de nuevo.",
     "failedToDelete": "Error al eliminar mensaje.",

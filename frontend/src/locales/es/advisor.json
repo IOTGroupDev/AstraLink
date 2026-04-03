@@ -53,6 +53,11 @@
   "errors": {
     "requestFailed": "Error en la solicitud. Inténtalo más tarde."
   },
+  "history": {
+    "title": "Historial del asesor",
+    "message": "Guardamos en este dispositivo las últimas {{count}} consultas y respuestas del asesor. Las entradas más antiguas se eliminan automáticamente para no cargar de más la app ni el servidor.",
+    "confirm": "Entendido"
+  },
   "chat": {
     "headerSubtitle": "Un asesor guiado que se siente como una conversación.",
     "intro": "Elige un tema y te guiaré paso a paso por la consulta.",

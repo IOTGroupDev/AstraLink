@@ -37,6 +37,13 @@ import CosmicBackground from '../components/shared/CosmicBackground';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { logger } from '../services/logger';
 import type { CityOption } from '../services/api/geo.api';
+import { clearHoroscopeScreenCache } from '../services/horoscope-cache';
+import {
+  clearCachedPrimaryPhoto,
+  setCachedPrimaryPhoto,
+} from '../services/profile-photo-cache';
+
+const SHORT_LIVED_SIGNED_URL_TTL_MS = 14 * 60 * 1000;
 
 interface Photo {
   id: string;
@@ -93,6 +100,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const isFocused = useIsFocused();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const [profileId, setProfileId] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [showAllInterests, setShowAllInterests] = useState(false);
@@ -256,6 +264,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         birthTime: profileData.birthTime || '',
         birthPlace: profileData.birthPlace || '',
       };
+      setProfileId(profileData.id || '');
       setFormData(nextFormData);
 
       setPhotos(
@@ -395,6 +404,16 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         return [nextPhoto, ...current];
       });
 
+      if (confirmedPhoto.isPrimary && profileId && confirmedPhoto.url) {
+        await setCachedPrimaryPhoto(profileId, {
+          url: confirmedPhoto.url,
+          path: confirmedPhoto.path,
+          expiresAt: new Date(
+            Date.now() + SHORT_LIVED_SIGNED_URL_TTL_MS
+          ).toISOString(),
+        });
+      }
+
       Alert.alert(
         t('editProfile.alerts.photoAdded.title'),
         t('editProfile.alerts.photoAdded.message')
@@ -421,8 +440,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              const deletedPhoto = photos.find((p) => p.id === photoId);
               await userPhotosAPI.deletePhoto(photoId);
               setPhotos(photos.filter((p) => p.id !== photoId));
+
+              if (deletedPhoto?.isPrimary && profileId) {
+                await clearCachedPrimaryPhoto(profileId);
+              }
+
               Alert.alert(
                 t('editProfile.alerts.photoDeleted.title'),
                 t('editProfile.alerts.photoDeleted.message')
@@ -443,6 +468,18 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     try {
       await userPhotosAPI.setPrimary(photoId);
       setPhotos(photos.map((p) => ({ ...p, isPrimary: p.id === photoId })));
+
+      const nextPrimaryPhoto = photos.find((p) => p.id === photoId);
+      if (profileId && nextPrimaryPhoto?.url) {
+        await setCachedPrimaryPhoto(profileId, {
+          url: nextPrimaryPhoto.url,
+          path: null,
+          expiresAt: new Date(
+            Date.now() + SHORT_LIVED_SIGNED_URL_TTL_MS
+          ).toISOString(),
+        });
+      }
+
       Alert.alert(
         t('editProfile.alerts.primaryPhotoSet.title'),
         t('editProfile.alerts.primaryPhotoSet.message')
@@ -502,6 +539,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (lookingForGender) extPayload.looking_for_gender = lookingForGender;
 
       await userExtendedProfileAPI.updateUserProfile(extPayload);
+      await clearHoroscopeScreenCache();
 
       // Normalize values (trim) to avoid snapshot mismatch after save
       const savedFormData = {

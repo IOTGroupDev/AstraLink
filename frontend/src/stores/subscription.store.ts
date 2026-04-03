@@ -8,7 +8,7 @@ export interface SubscriptionLimits {
 }
 
 export interface SubscriptionStatus {
-  tier: 'free' | 'basic' | 'max';
+  tier: 'free' | 'premium' | 'max';
   isActive: boolean;
   isTrial: boolean;
   expiresAt?: string;
@@ -38,16 +38,6 @@ interface SubscriptionState {
 const FREE_LIMITS: SubscriptionLimits = {
   natalChart: 0.2,
   horoscope: 'interpreter',
-};
-
-const BASIC_LIMITS: SubscriptionLimits = {
-  natalChart: 1,
-  horoscope: 'ai',
-};
-
-const MAX_LIMITS: SubscriptionLimits = {
-  natalChart: 1,
-  horoscope: 'ai',
 };
 
 export const useSubscriptionStore = create<SubscriptionState>()(

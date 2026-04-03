@@ -139,8 +139,8 @@ export class SupabaseService implements OnModuleInit {
   ): Promise<string | null> {
     if (!this.adminSupabase) return null;
 
-    // Проверяем кэш (ключ: signed-url:bucket:path)
-    const cacheKey = `signed-url:${bucket}:${path}`;
+    // Проверяем кэш (TTL входит в ключ, чтобы не смешивать короткие и длинные signed URLs)
+    const cacheKey = `signed-url:${bucket}:${path}:${expiresInSec}`;
     try {
       const cached = await this.redis.get<string>(cacheKey);
       if (cached) return cached;

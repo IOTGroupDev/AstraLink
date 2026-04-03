@@ -98,8 +98,8 @@ describe('AdvisorService', () => {
     expect(result.directAnswer).toContain('подписать договор аренды');
     expect(result.explanation).toContain('Поверх натала');
     expect(result.explanation).toContain('подписать договор аренды');
-    expect(result.explanation).toContain('00:00-00:59');
-    expect(result.recommendations?.[0]?.text).toContain('00:00-00:59');
+    expect(result.explanation).toContain('09:00-09:59');
+    expect(result.recommendations?.[0]?.text).toContain('09:00-09:59');
     expect(result.risks).toEqual([]);
     expect(result.clarifyingQuestion).toBeUndefined();
   });
@@ -109,15 +109,15 @@ describe('AdvisorService', () => {
     aiService.generateText.mockResolvedValue(
       JSON.stringify({
         directAnswer:
-          'Да, для договора день рабочий: ставьте ключевой шаг на 00:00-00:59.',
+          'Да, для договора день рабочий: ставьте ключевой шаг на 09:00-09:59.',
         explanation:
-          'Для договора это сильный день: лучшее окно 00:00-00:59, а главные драйверы сейчас Меркурий, Юпитер и Сатурн.',
+          'Для договора это сильный день: лучшее окно 09:00-09:59, а главные драйверы сейчас Меркурий, Юпитер и Сатурн.',
         risks: ['Проверьте формулировки спорных пунктов ещё раз.'],
         clarifyingQuestion: null,
         alternativeDate: null,
         recommendations: [
           {
-            text: 'Ставьте подписание на 00:00-00:59.',
+            text: 'Ставьте подписание на 09:00-09:59.',
             priority: 'high',
             category: 'action',
           },
@@ -144,11 +144,43 @@ describe('AdvisorService', () => {
     expect(aiService.generateText.mock.calls.length).toBe(1);
     expect(result.generatedBy).toBe('hybrid');
     expect(result.directAnswer).toContain('ставьте ключевой шаг');
-    expect(result.explanation).toContain('лучшее окно 00:00-00:59');
+    expect(result.explanation).toContain('лучшее окно 09:00-09:59');
     expect(result.risks).toEqual([
       'Проверьте формулировки спорных пунктов ещё раз.',
     ]);
     expect(result.recommendations).toHaveLength(2);
+  });
+
+  it('keeps gift purchases out of unrealistic night hours', async () => {
+    const result = await service.evaluate(
+      'user-6',
+      {
+        topic: 'purchase',
+        date: '2026-04-02',
+        timezone: 'UTC',
+        customNote: 'купить подарок',
+      },
+      'ru',
+    );
+
+    expect(result.bestWindows[0]?.startISO).toContain('T10:00:00.000Z');
+    expect(result.directAnswer).toContain('10:00-10:59');
+  });
+
+  it('keeps medical visits in daytime hours', async () => {
+    const result = await service.evaluate(
+      'user-7',
+      {
+        topic: 'health',
+        date: '2026-04-02',
+        timezone: 'UTC',
+        customNote: 'поход к врачу',
+      },
+      'ru',
+    );
+
+    expect(result.bestWindows[0]?.startISO).toContain('T08:00:00.000Z');
+    expect(result.directAnswer).toContain('08:00-08:59');
   });
 
   it('returns a clarifying question for generic prompts', async () => {

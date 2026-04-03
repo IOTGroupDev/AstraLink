@@ -1166,6 +1166,7 @@ export class AdvisorService {
     timeZone: string;
     natalPlanets: Record<string, PlanetData>;
     topicKey: string;
+    customNote?: string;
     locale: AdvisorLocale;
     currentScore: number;
   }): Promise<AdvisorAlternativeDate | null> {
@@ -1179,6 +1180,7 @@ export class AdvisorService {
         input.natalPlanets,
         input.topicKey,
         input.timeZone,
+        input.customNote,
       );
       const bestWindow = windows[0] || null;
       const bestScore = bestWindow?.score ?? 0;
@@ -1267,6 +1269,7 @@ export class AdvisorService {
       natalPlanets,
       topicKey,
       tz,
+      customNote,
     );
 
     // Get best window (with safety check)
@@ -1311,6 +1314,7 @@ export class AdvisorService {
             timeZone: tz,
             natalPlanets,
             topicKey,
+            customNote,
             locale: resolvedLocale,
             currentScore: score,
           });
@@ -1428,10 +1432,12 @@ export class AdvisorService {
     natalPlanets: Record<string, PlanetData>,
     topic: string,
     timeZone = 'UTC',
+    customNote?: string,
   ): Promise<TimeWindow[]> {
     const windows: TimeWindow[] = [];
+    const allowedHours = this.getAdvisorHours(topic, customNote);
 
-    for (let hour = 0; hour < 24; hour++) {
+    for (const hour of allowedHours) {
       const startUTC = this.zonedLocalDateTimeToUtc(date, hour, 0, timeZone);
       const nextBoundaryUTC =
         hour === 23
@@ -1460,6 +1466,105 @@ export class AdvisorService {
     }
 
     return windows.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  }
+
+  private getAdvisorHours(topic: string, customNote?: string): number[] {
+    const topicKey = this.resolveTopic(topic);
+    const normalizedNote = this.normalizeCustomNote(customNote).toLowerCase();
+
+    const hasAnyKeyword = (keywords: string[]): boolean =>
+      keywords.some((keyword) => normalizedNote.includes(keyword));
+
+    const range = (startInclusive: number, endExclusive: number): number[] =>
+      Array.from(
+        { length: Math.max(0, endExclusive - startInclusive) },
+        (_, index) => startInclusive + index,
+      );
+
+    const doctorKeywords = [
+      'врач',
+      'доктор',
+      'клиник',
+      'анализ',
+      'обслед',
+      'процедур',
+      'doctor',
+      'clinic',
+      'medical',
+      'appointment',
+      'médic',
+      'clínic',
+      'consulta',
+    ];
+    const purchaseKeywords = [
+      'подар',
+      'купить',
+      'магаз',
+      'шоп',
+      'shopping',
+      'gift',
+      'buy',
+      'store',
+      'shop',
+      'regalo',
+      'compr',
+      'tienda',
+    ];
+    const dateKeywords = [
+      'свидан',
+      'ресторан',
+      'ужин',
+      'бар',
+      'date',
+      'dinner',
+      'restaurant',
+      'cita',
+      'cena',
+      'restaurante',
+    ];
+    const travelKeywords = [
+      'поезд',
+      'аэропорт',
+      'самолет',
+      'самолёт',
+      'вылет',
+      'travel',
+      'flight',
+      'airport',
+      'train',
+      'viaje',
+      'vuelo',
+      'aeropuerto',
+    ];
+
+    if (hasAnyKeyword(doctorKeywords)) {
+      return range(8, 19);
+    }
+
+    if (hasAnyKeyword(purchaseKeywords)) {
+      return range(10, 22);
+    }
+
+    if (hasAnyKeyword(dateKeywords)) {
+      return range(12, 24);
+    }
+
+    if (hasAnyKeyword(travelKeywords)) {
+      return range(6, 23);
+    }
+
+    const hoursByTopic: Record<string, number[]> = {
+      contract: range(9, 19),
+      meeting: range(10, 21),
+      negotiation: range(10, 20),
+      date: range(12, 24),
+      travel: range(6, 23),
+      purchase: range(10, 22),
+      health: range(8, 19),
+      custom: range(8, 22),
+    };
+
+    return hoursByTopic[topicKey] || range(8, 22);
   }
 
   private async evaluateTimePoint(

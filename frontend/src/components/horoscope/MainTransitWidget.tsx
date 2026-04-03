@@ -12,6 +12,8 @@ interface MainTransitWidgetProps {
     targetPlanet?: string;
     strength?: number;
     description: string;
+    transitPlanetKey?: string;
+    natalPlanetKey?: string;
   } | null;
   isLoading?: boolean;
   onPress?: () => void;
@@ -90,7 +92,12 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
                 <View style={styles.iconContainer}>
                   <View style={styles.iconFrame}>
                     <PlanetIcon
-                      name={transitData.targetPlanet || transitData.name}
+                      name={
+                        transitData.transitPlanetKey ||
+                        transitData.natalPlanetKey ||
+                        transitData.targetPlanet ||
+                        transitData.name
+                      }
                       size={62}
                     />
                   </View>

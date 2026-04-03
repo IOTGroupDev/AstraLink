@@ -24,6 +24,15 @@ export interface AIGenerationContext {
   transits: any[];
   period: string;
   locale?: AILocale;
+  dailyContext?: {
+    energy: number;
+    tone: 'supportive' | 'mixed' | 'challenging';
+    summary: string;
+    biorhythmSummary: string;
+    lunarSummary: string;
+    mainTransitSummary: string;
+    lunarDaySummary?: string;
+  };
   userProfile?: {
     name?: string;
     birthDate?: string;

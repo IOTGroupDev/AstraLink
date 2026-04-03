@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -20,6 +20,10 @@ import {
   getPersonalizedNatalLessonsLocalized,
 } from '../services/lessons-database.localized';
 import { isGeneratedNatalPlacementLessonId } from '../services/generated-sign-lessons';
+import {
+  buildDailyLessonDismissKey,
+  pickDailyLesson,
+} from '../services/daily-lesson';
 import { chartAPI } from '../services/api';
 import type { Chart } from '../types';
 import type { AstroLesson, LessonCategory } from '../types/lessons';
@@ -37,26 +41,10 @@ const CATEGORY_ORDER: LessonCategory[] = [
   'signs',
 ];
 
-const getLocalDayKey = () => {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-};
-
 const getLessonsLocale = (language: string): 'ru' | 'en' | 'es' => {
   const locale = String(language || 'en').toLowerCase();
   if (locale === 'ru' || locale === 'en' || locale === 'es') return locale;
   return 'en';
-};
-
-const getLessonOfTheDay = <T,>(items: T[]): T | null => {
-  if (!items.length) return null;
-  const startOfYear = new Date(new Date().getFullYear(), 0, 0).getTime();
-  const dayOfYear = Math.floor(
-    (Date.now() - startOfYear) / (1000 * 60 * 60 * 24)
-  );
-  return items[dayOfYear % items.length] ?? null;
 };
 
 const getHouseSign = (
@@ -158,25 +146,30 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
       } as Record<LessonCategory, number>
     );
   }, [generalLessons]);
+  const [selectedCategory, setSelectedCategory] = useState<
+    LessonCategory | 'all'
+  >(route?.params?.category || 'all');
+  const [focusedLessonId, setFocusedLessonId] = useState<string | null>(
+    route?.params?.lessonId || null
+  );
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const featuredLessonId = route?.params?.lessonId || focusedLessonId || null;
   const featuredLesson = useMemo(
     () =>
-      route?.params?.lessonId
-        ? getLessonByIdLocalized(locale, route.params.lessonId)
+      featuredLessonId
+        ? getLessonByIdLocalized(locale, featuredLessonId)
         : null,
-    [locale, route?.params?.lessonId]
+    [featuredLessonId, locale]
   );
   const [personalizedLessons, setPersonalizedLessons] = useState<AstroLesson[]>(
     []
   );
   const dailyLesson = useMemo(
-    () => getLessonOfTheDay(generalLessons),
-    [generalLessons]
+    () => pickDailyLesson(generalLessons, completedLessonIds),
+    [completedLessonIds, generalLessons]
   );
   const dailyLessonKey = useMemo(
-    () =>
-      dailyLesson
-        ? `${getLocalDayKey()}:${dailyLesson.id}`
-        : `${getLocalDayKey()}:none`,
+    () => buildDailyLessonDismissKey(dailyLesson?.id || null),
     [dailyLesson]
   );
 
@@ -186,13 +179,6 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
         (category) => (categoriesWithCount[category] || 0) > 0
       ),
     [categoriesWithCount]
-  );
-
-  const [selectedCategory, setSelectedCategory] = useState<
-    LessonCategory | 'all'
-  >(route?.params?.category || 'all');
-  const [focusedLessonId, setFocusedLessonId] = useState<string | null>(
-    route?.params?.lessonId || null
   );
 
   useEffect(() => {
@@ -208,6 +194,11 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
       setLastSource(route.params.source);
     }
   }, [route?.params?.source, setLastSource]);
+
+  useEffect(() => {
+    if (!featuredLessonId) return;
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  }, [featuredLessonId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -294,6 +285,7 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
   const handleOpenLesson = (lessonId: string, category: LessonCategory) => {
     setSelectedCategory(category);
     setFocusedLessonId(lessonId);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const handleTaskPress = (navigationTarget?: string) => {
@@ -322,6 +314,7 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
     >
       <View style={styles.screen}>
         <ScrollView
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
@@ -369,55 +362,57 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
             </Text>
           </BlurView>
 
-          {dailyLesson && dismissedDailyLessonKey !== dailyLessonKey && (
-            <BlurView intensity={10} tint="dark" style={styles.dailyCard}>
-              <View style={styles.dailyHeader}>
-                <View style={styles.dailyIconWrap}>
-                  <LinearGradient
-                    colors={
-                      dailyLesson.gradient as [string, string, ...string[]]
-                    }
-                    style={styles.dailyIcon}
-                  >
-                    <Text style={styles.dailyEmoji}>{dailyLesson.emoji}</Text>
-                  </LinearGradient>
-                </View>
+          {dailyLesson &&
+            dismissedDailyLessonKey !== dailyLessonKey &&
+            featuredLesson?.id !== dailyLesson.id && (
+              <BlurView intensity={10} tint="dark" style={styles.dailyCard}>
+                <View style={styles.dailyHeader}>
+                  <View style={styles.dailyIconWrap}>
+                    <LinearGradient
+                      colors={
+                        dailyLesson.gradient as [string, string, ...string[]]
+                      }
+                      style={styles.dailyIcon}
+                    >
+                      <Text style={styles.dailyEmoji}>{dailyLesson.emoji}</Text>
+                    </LinearGradient>
+                  </View>
 
-                <View style={styles.dailyContent}>
-                  <Text style={styles.dailyLabel}>
-                    {t('learning.dailyLesson.label')}
-                  </Text>
-                  <Text style={styles.dailyTitle}>{dailyLesson.title}</Text>
-                  <Text style={styles.dailySubtitle} numberOfLines={3}>
-                    {dailyLesson.shortText}
-                  </Text>
+                  <View style={styles.dailyContent}>
+                    <Text style={styles.dailyLabel}>
+                      {t('learning.dailyLesson.label')}
+                    </Text>
+                    <Text style={styles.dailyTitle}>{dailyLesson.title}</Text>
+                    <Text style={styles.dailySubtitle} numberOfLines={3}>
+                      {dailyLesson.shortText}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => dismissDailyLesson(dailyLessonKey)}
+                    style={styles.dailyDismiss}
+                  >
+                    <Ionicons
+                      name="close"
+                      size={18}
+                      color="rgba(255,255,255,0.6)"
+                    />
+                  </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => dismissDailyLesson(dailyLessonKey)}
-                  style={styles.dailyDismiss}
+                  onPress={() =>
+                    handleOpenLesson(dailyLesson.id, dailyLesson.category)
+                  }
+                  style={styles.dailyAction}
                 >
-                  <Ionicons
-                    name="close"
-                    size={18}
-                    color="rgba(255,255,255,0.6)"
-                  />
+                  <Text style={styles.dailyActionText}>
+                    {t('learning.dailyLesson.button')}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={16} color="#8B5CF6" />
                 </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                onPress={() =>
-                  handleOpenLesson(dailyLesson.id, dailyLesson.category)
-                }
-                style={styles.dailyAction}
-              >
-                <Text style={styles.dailyActionText}>
-                  {t('learning.dailyLesson.button')}
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color="#8B5CF6" />
-              </TouchableOpacity>
-            </BlurView>
-          )}
+              </BlurView>
+            )}
 
           {featuredLesson && (
             <View style={styles.featuredContainer}>
@@ -430,6 +425,8 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
                 isBookmarked={bookmarkedLessonIds.includes(featuredLesson.id)}
                 onComplete={markLessonCompleted}
                 onBookmark={toggleLessonBookmark}
+                startExpanded={true}
+                expansionKey={featuredLesson.id}
                 onTaskPress={(lesson) =>
                   handleTaskPress(lesson.task?.navigationTarget)
                 }

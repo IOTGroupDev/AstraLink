@@ -122,6 +122,45 @@
     "dominantElementsHint": "Estos elementos muestran qué energía de la carta se expresa con más naturalidad y frecuencia.",
     "dominantQualities": "Cualidades Dominantes",
     "dominantQualitiesHint": "Estas cualidades muestran cómo la carta inicia, sostiene y transforma los procesos.",
+    "elementDetails": {
+      "fire": {
+        "overview": "El fuego da a la carta una energía directa, iniciadora y de reacción rápida. Te resulta más natural avanzar actuando que quedarte mucho tiempo dudando.",
+        "strength": "Fortaleza principal: valentía, impulso y capacidad para poner las cosas en marcha con rapidez.",
+        "watchOut": "Cuidado con la impulsividad, la impaciencia y el agotamiento cuando todo se vive al máximo."
+      },
+      "earth": {
+        "overview": "La tierra vuelve la carta práctica, estable y orientada a resultados. La energía se expresa mejor cuando toma una forma real.",
+        "strength": "Fortaleza principal: fiabilidad, disciplina y capacidad de convertir el esfuerzo en algo útil y concreto.",
+        "watchOut": "Cuidado con la rigidez, el exceso de cautela y la tendencia a quedarse atrapado en el control o la rutina."
+      },
+      "air": {
+        "overview": "El aire refuerza el pensamiento, la conexión y la necesidad de comprender la vida a través de ideas, diálogo y perspectiva.",
+        "strength": "Fortaleza principal: flexibilidad mental, comunicación y capacidad para ver varias opciones a la vez.",
+        "watchOut": "Cuidado con la dispersión, el exceso de pensamiento y quedarse en la mente en lugar de pasar a la acción."
+      },
+      "water": {
+        "overview": "El agua hace la carta sensible, profunda e intuitiva. Sueles percibir con más intensidad el ambiente, las emociones y los motivos ocultos.",
+        "strength": "Fortaleza principal: empatía, profundidad emocional y percepción sutil de las personas y del momento.",
+        "watchOut": "Cuidado con los cambios de ánimo, absorber el clima emocional ajeno y hundirte demasiado en lo que sientes."
+      }
+    },
+    "qualityDetails": {
+      "cardinal": {
+        "overview": "La cualidad cardinal te convierte en una persona de inicio y primer paso. La carta entra en un ciclo nuevo con más facilidad de la que se queda en uno viejo.",
+        "strength": "Fortaleza principal: iniciativa, velocidad para empezar y capacidad de mover una situación.",
+        "watchOut": "Cuidado con la impaciencia ante procesos lentos y con la dificultad para sostener el tramo largo después del arranque."
+      },
+      "fixed": {
+        "overview": "La cualidad fija aporta estabilidad, fidelidad a un rumbo y capacidad para mantener la forma bajo presión.",
+        "strength": "Fortaleza principal: constancia, resistencia y capacidad para consolidar resultados.",
+        "watchOut": "Cuidado con la terquedad, la inercia y la dificultad para cambiar cuando la vida ya exige una actualización."
+      },
+      "mutable": {
+        "overview": "La cualidad mutable vuelve la carta flexible, adaptable y muy sensible a los cambios de contexto.",
+        "strength": "Fortaleza principal: adaptación, rapidez para aprender y capacidad para conectar distintos enfoques.",
+        "watchOut": "Cuidado con la dispersión, la duda y perder el foco cuando aparecen demasiadas opciones."
+      }
+    },
     "recommendations": "Recomendaciones",
     "archetype": {
       "title": "Arquetipo",

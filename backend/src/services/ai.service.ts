@@ -460,6 +460,35 @@ export class AIService {
             }[context.period] || 'на сегодня';
 
     const transitDescription = this.formatTransits(context.transits, locale);
+    const dailyContextDescription = context.dailyContext
+      ? locale === 'en'
+        ? `DAILY CONTEXT:
+- Overall energy: ${context.dailyContext.energy}/100
+- Day tone: ${context.dailyContext.tone}
+- Main synthesis: ${context.dailyContext.summary}
+- Biorhythms: ${context.dailyContext.biorhythmSummary}
+- Lunar context: ${context.dailyContext.lunarSummary}
+- Main transit anchor: ${context.dailyContext.mainTransitSummary}`
+        : locale === 'es'
+          ? `CONTEXTO DIARIO:
+- Energía general: ${context.dailyContext.energy}/100
+- Tono del día: ${context.dailyContext.tone}
+- Síntesis principal: ${context.dailyContext.summary}
+- Biorritmos: ${context.dailyContext.biorhythmSummary}
+- Contexto lunar: ${context.dailyContext.lunarSummary}
+- Tránsito principal: ${context.dailyContext.mainTransitSummary}`
+          : `ДНЕВНОЙ КОНТЕКСТ:
+- Общая энергия: ${context.dailyContext.energy}/100
+- Тон дня: ${context.dailyContext.tone}
+- Главный синтез: ${context.dailyContext.summary}
+- Биоритмы: ${context.dailyContext.biorhythmSummary}
+- Лунный контекст: ${context.dailyContext.lunarSummary}
+- Главный транзит: ${context.dailyContext.mainTransitSummary}`
+      : locale === 'en'
+        ? 'DAILY CONTEXT: not available.'
+        : locale === 'es'
+          ? 'CONTEXTO DIARIO: no disponible.'
+          : 'ДНЕВНОЙ КОНТЕКСТ: недоступен.';
     const isDeepSeek = provider === 'deepseek';
     const actionabilityLine =
       locale === 'en'
@@ -515,6 +544,12 @@ export class AIService {
         : locale === 'es'
           ? 'Cada valor JSON de general, amor, carrera, salud, finanzas y consejo debe ser prosa humana normal. Nunca devuelvas objetos anidados, mapas clave-valor, etiquetas como "general:" ni mini-JSON dentro de un campo.'
           : 'Каждое JSON-значение для general, love, career, health, finance и advice должно быть обычным человеческим текстом. Нельзя возвращать вложенные объекты, пары ключ-значение, подписи вида "general:" или мини-JSON внутри поля.';
+    const consistencyLine =
+      locale === 'en'
+        ? 'Do not contradict the daily context. If transits are active but energy reserve is low, describe the day as selective and paced, not universally high-energy.'
+        : locale === 'es'
+          ? 'No contradigas el contexto diario. Si los tránsitos están activos pero la reserva de energía es baja, describe el día como selectivo y dosificado, no como de energía universalmente alta.'
+          : 'Не противоречьте дневному контексту. Если транзиты активны, но запас энергии низкий, описывайте день как требующий точности и дозировки, а не как безусловно «энергичный».';
 
     if (locale === 'en') {
       return isDeepSeek
@@ -528,6 +563,8 @@ NATAL CHART:
 
 CURRENT TRANSITS:
 ${transitDescription}
+
+${dailyContextDescription}
 
 PERIOD: ${context.period}
 
@@ -558,6 +595,7 @@ Style and content requirements:
 - ${specificityLine}
 - ${generalSummaryLine}
 - ${plainJsonValuesLine}
+- ${consistencyLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -574,6 +612,8 @@ NATAL CHART:
 
 CURRENT TRANSITS:
 ${transitDescription}
+
+${dailyContextDescription}
 
 PERIOD: ${context.period}
 
@@ -604,6 +644,7 @@ Content requirements:
 - ${specificityLine}
 - ${generalSummaryLine}
 - ${plainJsonValuesLine}
+- ${consistencyLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -624,6 +665,8 @@ CARTA NATAL:
 
 TRÁNSITOS ACTUALES:
 ${transitDescription}
+
+${dailyContextDescription}
 
 PERÍODO: ${context.period}
 
@@ -654,6 +697,7 @@ Requisitos de estilo y contenido:
 - ${specificityLine}
 - ${generalSummaryLine}
 - ${plainJsonValuesLine}
+- ${consistencyLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -670,6 +714,8 @@ CARTA NATAL:
 
 TRÁNSITOS ACTUALES:
 ${transitDescription}
+
+${dailyContextDescription}
 
 PERÍODO: ${context.period}
 
@@ -700,6 +746,7 @@ Requisitos de contenido:
 - ${specificityLine}
 - ${generalSummaryLine}
 - ${plainJsonValuesLine}
+- ${consistencyLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -719,6 +766,8 @@ Requisitos de contenido:
 
 ТЕКУЩИЕ ТРАНЗИТЫ:
 ${transitDescription}
+
+${dailyContextDescription}
 
 ПЕРИОД: ${context.period}
 
@@ -748,6 +797,7 @@ ${transitDescription}
 - ${specificityLine}
 - ${generalSummaryLine}
 - ${plainJsonValuesLine}
+- ${consistencyLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
@@ -764,6 +814,8 @@ ${transitDescription}
 
 ТЕКУЩИЕ ТРАНЗИТЫ:
 ${transitDescription}
+
+${dailyContextDescription}
 
 ПЕРИОД: ${context.period}
 
@@ -793,6 +845,7 @@ ${transitDescription}
 - ${specificityLine}
 - ${generalSummaryLine}
 - ${plainJsonValuesLine}
+- ${consistencyLine}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}

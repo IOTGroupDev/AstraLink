@@ -26,8 +26,16 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
+import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { advisorAPI } from '../services/api';
+import {
+  ADVISOR_HISTORY_LIMIT,
+  hideAdvisorHistoryHint,
+  readAdvisorHistory,
+  shouldShowAdvisorHistoryHint,
+  writeAdvisorHistory,
+} from '../services/advisor-history';
 import type {
   AdvisorEvaluateResponse,
   AdvisorTopic,
@@ -45,7 +53,9 @@ import {
   confirmAdvisorCustomDate,
   createInitialAdvisorChatState,
   createNextAdvisorChatState,
+  deriveAdvisorSessionRevealState,
   openAdvisorCustomDate,
+  pruneAdvisorChatState,
   selectAdvisorTopic,
   setAdvisorError,
   setAdvisorResult,
@@ -53,6 +63,7 @@ import {
   updateAdvisorCustomDate,
   updateAdvisorPromptDraft,
   type AdvisorSession,
+  type AdvisorSessionRevealState,
   type QuickDateKey,
 } from './advisorChatState';
 
@@ -91,16 +102,7 @@ const WHEEL_LOCALE_BY_LANGUAGE: Record<string, 'ru' | 'en'> = {
   en: 'en',
 };
 
-type SessionRevealState = {
-  topicAck: boolean;
-  datePrompt: boolean;
-  dateChoices: boolean;
-  dateAck: boolean;
-  promptRequest: boolean;
-  promptInput: boolean;
-};
-
-const DEFAULT_REVEAL_STATE: SessionRevealState = {
+const DEFAULT_REVEAL_STATE: AdvisorSessionRevealState = {
   topicAck: false,
   datePrompt: false,
   dateChoices: false,
@@ -127,6 +129,7 @@ const AdvisorScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
+  const { user } = useAuth();
   const { isPremium } = useSubscription();
   const premium = useMemo(() => isPremium(), [isPremium]);
   const scrollRef = useRef<ScrollView>(null);
@@ -137,9 +140,11 @@ const AdvisorScreen: React.FC = () => {
   const [{ sessions, activeSessionId }, setChatState] = useState(() =>
     createInitialAdvisorChatState()
   );
-  const [reveals, setReveals] = useState<Record<string, SessionRevealState>>(
-    {}
-  );
+  const [reveals, setReveals] = useState<
+    Record<string, AdvisorSessionRevealState>
+  >({});
+  const historyHydratedRef = useRef(false);
+  const [showHistoryNotice, setShowHistoryNotice] = useState(false);
 
   const timezone = useMemo(() => {
     try {
@@ -260,10 +265,81 @@ const AdvisorScreen: React.FC = () => {
   );
 
   const getSessionReveal = useCallback(
-    (sessionId: string): SessionRevealState =>
+    (sessionId: string): AdvisorSessionRevealState =>
       reveals[sessionId] ?? DEFAULT_REVEAL_STATE,
     [reveals]
   );
+
+  useEffect(() => {
+    const userId = user?.id;
+    let cancelled = false;
+
+    historyHydratedRef.current = false;
+
+    if (!userId) {
+      setChatState(createInitialAdvisorChatState());
+      setReveals({});
+      setShowHistoryNotice(false);
+      historyHydratedRef.current = true;
+      return undefined;
+    }
+
+    void (async () => {
+      const [storedState, shouldShowHint] = await Promise.all([
+        readAdvisorHistory(userId),
+        shouldShowAdvisorHistoryHint(userId),
+      ]);
+
+      if (cancelled) return;
+
+      const prunedState = pruneAdvisorChatState(
+        storedState,
+        ADVISOR_HISTORY_LIMIT
+      );
+
+      setChatState(prunedState);
+      setReveals(
+        Object.fromEntries(
+          prunedState.sessions.map((session) => [
+            session.id,
+            deriveAdvisorSessionRevealState(session),
+          ])
+        )
+      );
+      setShowHistoryNotice(shouldShowHint);
+      historyHydratedRef.current = true;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!historyHydratedRef.current || !user?.id) return;
+
+    const state = pruneAdvisorChatState(
+      { sessions, activeSessionId },
+      ADVISOR_HISTORY_LIMIT
+    );
+
+    if (
+      state.sessions.length !== sessions.length ||
+      state.activeSessionId !== activeSessionId
+    ) {
+      setChatState(state);
+      return;
+    }
+
+    void writeAdvisorHistory(user.id, state);
+  }, [activeSessionId, sessions, user?.id]);
+
+  const dismissHistoryNotice = useCallback(() => {
+    const userId = user?.id;
+    setShowHistoryNotice(false);
+    if (!userId) return;
+    void hideAdvisorHistoryHint(userId);
+  }, [user?.id]);
 
   const formatDisplayDate = useCallback(
     (value?: string) => {
@@ -619,6 +695,27 @@ const AdvisorScreen: React.FC = () => {
               description={advisorHeaderDescription}
               icon={<Ionicons name="sparkles" size={22} color="#FFFFFF" />}
             />
+
+            {showHistoryNotice && (
+              <AssistantCard>
+                <Text style={styles.widgetTitle}>
+                  {t('advisor.history.title')}
+                </Text>
+                <Text style={styles.widgetSubtitle}>
+                  {t('advisor.history.message', {
+                    count: ADVISOR_HISTORY_LIMIT,
+                  })}
+                </Text>
+                <TouchableOpacity
+                  onPress={dismissHistoryNotice}
+                  style={styles.historyNoticeButton}
+                >
+                  <Text style={styles.historyNoticeButtonText}>
+                    {t('advisor.history.confirm')}
+                  </Text>
+                </TouchableOpacity>
+              </AssistantCard>
+            )}
 
             <View style={styles.transcript}>
               {sessions.map((session) => {
@@ -1258,6 +1355,20 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 4,
     marginBottom: 14,
+  },
+  historyNoticeButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.35)',
+  },
+  historyNoticeButtonText: {
+    color: '#CFFAFE',
+    fontSize: 13,
+    fontWeight: '700',
   },
   chipsWrap: {
     flexDirection: 'row',

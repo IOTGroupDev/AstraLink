@@ -32,7 +32,7 @@ import { chatAPI, userPhotosAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { logger } from '../services/logger';
 
@@ -192,7 +192,12 @@ export default function ChatDialogScreen() {
       return () => {
         try {
           sub.remove();
-        } catch {}
+        } catch (removeError) {
+          logger.warn(
+            'Не удалось удалить обработчик кнопки назад',
+            removeError
+          );
+        }
       };
     }, [navigation])
   );
@@ -208,7 +213,9 @@ export default function ChatDialogScreen() {
       try {
         s1.remove();
         s2.remove();
-      } catch {}
+      } catch (removeError) {
+        logger.warn('Не удалось удалить keyboard listeners', removeError);
+      }
     };
   }, []);
 
@@ -255,7 +262,7 @@ export default function ChatDialogScreen() {
                 const localIdx = prev.findIndex(
                   (m) =>
                     m.id.startsWith('local-') &&
-                    (!!mp ? m.mediaPath === mp : false) &&
+                    (mp ? m.mediaPath === mp : false) &&
                     m.senderId === user.id &&
                     !m.text
                 );
@@ -495,30 +502,37 @@ export default function ChatDialogScreen() {
     if (!user || !otherUserId) return;
     try {
       setUploading(true);
-      const pick = await DocumentPicker.getDocumentAsync({
-        type: ['image/*'],
-        multiple: false,
-        copyToCacheDirectory: true,
-      });
-      if ((pick as any)?.canceled) {
-        setUploading(false);
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          t('chat.errors.galleryPermissionTitle'),
+          t('chat.errors.galleryPermissionMessage')
+        );
         return;
       }
-      const asset = (pick as any)?.assets?.[0];
+
+      const pick = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 0.9,
+      });
+      if (pick.canceled) return;
+
+      const asset = pick.assets?.[0];
       if (!asset?.uri) {
-        setUploading(false);
         return;
       }
       const uri: string = asset.uri;
-      const name: string = asset.name || uri;
+      const name: string = asset.fileName || uri;
       const lower = name.toLowerCase();
-      const mime: 'image/jpeg' | 'image/png' | 'image/webp' = lower.endsWith(
-        '.png'
-      )
-        ? 'image/png'
-        : lower.endsWith('.webp')
-          ? 'image/webp'
-          : 'image/jpeg';
+      const assetMime = asset.mimeType?.toLowerCase();
+      const mime: 'image/jpeg' | 'image/png' | 'image/webp' =
+        assetMime === 'image/png' || lower.endsWith('.png')
+          ? 'image/png'
+          : assetMime === 'image/webp' || lower.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
       const ext: 'jpg' | 'jpeg' | 'png' | 'webp' =
         mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpeg';
 
@@ -540,7 +554,12 @@ export default function ChatDialogScreen() {
           localSignedUrl = data.signedUrl;
           mediaUrlCacheRef.current[path] = data.signedUrl;
         }
-      } catch {}
+      } catch (signedUrlError) {
+        logger.warn(
+          'Не удалось создать signed URL для вложения',
+          signedUrlError
+        );
+      }
 
       const nowIso = new Date().toISOString();
       setMessages((prev) => [

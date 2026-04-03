@@ -122,6 +122,45 @@
     "dominantElementsHint": "These elements show which energy in the chart comes through most naturally and repeatedly.",
     "dominantQualities": "Dominant Qualities",
     "dominantQualitiesHint": "These qualities show how the chart initiates, sustains, and changes processes.",
+    "elementDetails": {
+      "fire": {
+        "overview": "Fire gives the chart direct, initiating, fast-rising energy. You tend to move more easily through action than through long hesitation.",
+        "strength": "Core strength: courage, drive, and the ability to ignite movement quickly.",
+        "watchOut": "Watch for impulsiveness, impatience, and burnout when everything is lived at maximum intensity."
+      },
+      "earth": {
+        "overview": "Earth makes the chart practical, steady, and result-oriented. Energy feels most natural when it becomes something tangible.",
+        "strength": "Core strength: reliability, discipline, and the ability to turn effort into form and usefulness.",
+        "watchOut": "Watch for rigidity, over-caution, and getting stuck in control or routine."
+      },
+      "air": {
+        "overview": "Air strengthens thinking, connection, and the need to understand life through ideas, dialogue, and perspective.",
+        "strength": "Core strength: mental flexibility, communication, and seeing multiple options at once.",
+        "watchOut": "Watch for scattering attention, overthinking, and staying in the mind instead of acting."
+      },
+      "water": {
+        "overview": "Water makes the chart sensitive, deep, and intuitive. You tend to read atmosphere, emotion, and unspoken motives more strongly.",
+        "strength": "Core strength: empathy, emotional depth, and subtle awareness of people and timing.",
+        "watchOut": "Watch for mood swings, absorbing other people's emotional weather, and getting pulled too deeply into feelings."
+      }
+    },
+    "qualityDetails": {
+      "cardinal": {
+        "overview": "Cardinal quality makes you a starter. The chart finds it easier to enter a new cycle than to remain in an old one.",
+        "strength": "Core strength: initiative, quick starts, and the power to get things moving.",
+        "watchOut": "Watch for impatience with slower processes and difficulty sustaining the long middle after the launch."
+      },
+      "fixed": {
+        "overview": "Fixed quality brings steadiness, loyalty to a course, and the ability to hold shape under pressure.",
+        "strength": "Core strength: consistency, endurance, and the ability to stabilize results.",
+        "watchOut": "Watch for stubbornness, inertia, and resistance when life already needs an update."
+      },
+      "mutable": {
+        "overview": "Mutable quality makes the chart flexible, adaptive, and responsive to changing context.",
+        "strength": "Core strength: adaptability, learning speed, and the ability to connect different approaches.",
+        "watchOut": "Watch for diffuseness, indecision, and losing focus when there are too many possible directions."
+      }
+    },
     "recommendations": "Recommendations",
     "archetype": {
       "title": "Archetype",

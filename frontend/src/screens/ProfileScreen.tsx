@@ -29,7 +29,7 @@ import SubscriptionCard from '../components/profile/SubscriptionCard';
 import NatalChartWidget from '../components/profile/NatalChartWidget';
 import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
-import { userAPI, chartAPI, userPhotosAPI } from '../services/api';
+import { userAPI, chartAPI } from '../services/api';
 import { clearAllUserData } from '../services/cleanupService';
 import { AuthEngine } from '../services/authEngine';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -43,6 +43,10 @@ import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
 import { BottomTabFade } from '../components/shared/BottomTabFade';
 import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import { getBirthDateParts } from '../utils/birthDate';
+import {
+  getCachedPrimaryPhoto,
+  setCachedPrimaryPhoto,
+} from '../services/profile-photo-cache';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -186,6 +190,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const fetchProfileData = React.useCallback(async () => {
     const requestId = ++requestIdRef.current;
     const shouldBlockScreen = !profileRef.current;
+    const fallbackUserId = authProfile?.id || profileRef.current?.id;
 
     if (shouldBlockScreen) {
       const fallbackProfile = buildProfileFromAuth();
@@ -197,14 +202,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       }
     }
 
+    if (fallbackUserId) {
+      void getCachedPrimaryPhoto(fallbackUserId).then((cachedPhoto) => {
+        if (requestId !== requestIdRef.current || !cachedPhoto?.url) {
+          return;
+        }
+        setPrimaryPhotoUrl((current) => current ?? cachedPhoto.url);
+      });
+    }
+
     try {
-      const [profileRes, subscriptionRes, chartRes, photoRes] =
-        await Promise.allSettled([
-          userAPI.getProfile(),
-          userAPI.getSubscription(),
-          chartAPI.getNatalChart(),
-          userPhotosAPI.listPhotos(),
-        ]);
+      const [profileRes, subscriptionRes, chartRes] = await Promise.allSettled([
+        userAPI.getProfile(),
+        userAPI.getSubscription(),
+        chartAPI.getNatalChart(),
+      ]);
 
       if (profileRes.status === 'rejected') {
         const profileError: any = profileRes.reason;
@@ -236,17 +248,33 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             DEFAULT_SUBSCRIPTION);
       const resolvedChart =
         chartRes.status === 'fulfilled' ? chartRes.value : null;
-      const resolvedPhotos =
-        photoRes.status === 'fulfilled' ? photoRes.value : [];
-      const primaryPhoto =
-        resolvedPhotos.find((p) => p.isPrimary) || resolvedPhotos[0];
+      const cachedPhoto = await getCachedPrimaryPhoto(resolvedProfile.id);
+      const hasFreshServerPhoto =
+        !!resolvedProfile.primaryPhotoUrl && !!resolvedProfile.primaryPhotoPath;
+      const canReuseCachedPhoto =
+        !!cachedPhoto?.url &&
+        !!resolvedProfile.primaryPhotoPath &&
+        cachedPhoto.path === resolvedProfile.primaryPhotoPath;
+      const nextPrimaryPhotoUrl = canReuseCachedPhoto
+        ? cachedPhoto?.url || null
+        : resolvedProfile.primaryPhotoUrl || null;
 
       setProfile(resolvedProfile);
       setSubscription(resolvedSubscription);
       setChart(resolvedChart);
-      setPrimaryPhotoUrl(primaryPhoto?.url || null);
+      setPrimaryPhotoUrl(nextPrimaryPhotoUrl);
       setLoading(false);
       queryClient.setQueryData(['subscription'], resolvedSubscription);
+
+      if (hasFreshServerPhoto) {
+        await setCachedPrimaryPhoto(resolvedProfile.id, {
+          url: resolvedProfile.primaryPhotoUrl as string,
+          path: resolvedProfile.primaryPhotoPath ?? null,
+          expiresAt: resolvedProfile.primaryPhotoExpiresAt ?? null,
+        });
+      } else {
+        await setCachedPrimaryPhoto(resolvedProfile.id, null);
+      }
 
       if (subscriptionRes.status === 'rejected') {
         const st = subscriptionRes.reason?.response?.status;
@@ -258,10 +286,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         const st = chartRes.reason?.response?.status;
         const data = chartRes.reason?.response?.data;
         logger.info('getNatalChart failed (optional)', st, data);
-      }
-
-      if (photoRes.status === 'rejected') {
-        logger.info('listPhotos failed (optional)', photoRes.reason);
       }
     } catch (error: any) {
       if (requestId !== requestIdRef.current) {
@@ -281,7 +305,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         setLoading(false);
       }
     }
-  }, [buildProfileFromAuth, queryClient, t]);
+  }, [authProfile?.id, buildProfileFromAuth, queryClient, t]);
 
   useFocusEffect(
     React.useCallback(() => {

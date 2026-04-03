@@ -6,6 +6,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EphemerisService } from '../../services/ephemeris.service';
 import { AIService } from '../../services/ai.service';
+import { LunarService } from '../../services/lunar.service';
 import { calculateAspect } from '../../shared/astro-calculations';
 import { SubscriptionTier, hasAIAccess } from '../../types/subscription';
 import type { TransitAspect } from '../../services/horoscope.types';
@@ -15,14 +16,35 @@ import {
   secondsUntilEndOfUTCDate,
   utcDayKey,
 } from '../../config/limits.config';
+import {
+  buildDailyAstroContext,
+  extractChartBirthDate,
+} from '@/common/utils/daily-astro-context.util';
+import { buildUserLocalPeriodContext } from '@/common/utils/user-local-date.util';
+
+export interface MainTransitInterpretationResult {
+  date: string;
+  aspect: TransitAspect | null;
+  interpretation: string;
+  dailyContext: ReturnType<typeof buildDailyAstroContext> | null;
+  subscriptionTier: SubscriptionTier;
+  hasAIAccess: boolean;
+  message: string;
+}
 
 @Injectable()
 export class TransitService {
   private readonly logger = new Logger(TransitService.name);
+  private readonly mainTransitFormatVersion = 'ai-daily-v1';
+  private readonly inflightMainTransit = new Map<
+    string,
+    Promise<MainTransitInterpretationResult>
+  >();
 
   constructor(
     private ephemerisService: EphemerisService,
     private aiService: AIService,
+    private lunarService: LunarService,
     private redis: RedisService,
   ) {}
 
@@ -125,6 +147,32 @@ export class TransitService {
     }
 
     let aiInterpretation = null;
+    let dailyContext: ReturnType<typeof buildDailyAstroContext> | null = null;
+    try {
+      const [moonPhase, lunarDay] = await Promise.all([
+        this.lunarService.getMoonPhase(
+          date,
+          natalChart?.data || natalChart,
+          locale,
+        ),
+        this.lunarService.getLunarDay(date, locale),
+      ]);
+      dailyContext = buildDailyAstroContext({
+        birthDateValue: extractChartBirthDate(natalChart),
+        targetDate: date,
+        transitAspects: significantTransits,
+        lunarPhase: moonPhase,
+        lunarDay,
+        locale,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Transit daily context build failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
     if (allowAI && significantTransits.length > 0) {
       try {
         // Generate AI interpretation for top 5 transits
@@ -133,6 +181,7 @@ export class TransitService {
           natalChart,
           date,
           locale,
+          dailyContext,
         );
       } catch (error) {
         this.logger.error('Failed to generate AI interpretation:', error);
@@ -173,7 +222,55 @@ export class TransitService {
     date: Date,
     subscriptionTier: SubscriptionTier,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    userTzOffsetMinutes = 0,
   ) {
+    const periodContext = buildUserLocalPeriodContext(
+      'day',
+      userTzOffsetMinutes,
+      date,
+    );
+    const cacheKey = `horoscope:${userId}:main-transit:${periodContext.dateKey}:${locale}:${subscriptionTier}:${this.mainTransitFormatVersion}`;
+    const ttlSec = periodContext.ttlSec;
+
+    const cached =
+      await this.redis.get<MainTransitInterpretationResult>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Main transit AI cache hit: ${cacheKey}`);
+      return cached;
+    }
+
+    const inflight = this.inflightMainTransit.get(cacheKey);
+    if (inflight) {
+      this.logger.debug(`Main transit AI awaiting inflight: ${cacheKey}`);
+      return inflight;
+    }
+
+    const computePromise = this.computeMainTransitInterpretation(
+      userId,
+      natalChart,
+      date,
+      subscriptionTier,
+      locale,
+    )
+      .then(async (result) => {
+        await this.redis.set(cacheKey, result, ttlSec);
+        return result;
+      })
+      .finally(() => {
+        this.inflightMainTransit.delete(cacheKey);
+      });
+
+    this.inflightMainTransit.set(cacheKey, computePromise);
+    return computePromise;
+  }
+
+  private async computeMainTransitInterpretation(
+    userId: string,
+    natalChart: any,
+    date: Date,
+    subscriptionTier: SubscriptionTier,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<MainTransitInterpretationResult> {
     this.logger.log(
       `Main transit AI: user=${userId} tier=${subscriptionTier} date=${date.toISOString()} locale=${locale}`,
     );
@@ -204,8 +301,15 @@ export class TransitService {
             : locale === 'es'
               ? 'No se encontraron tránsitos significativos para esta fecha.'
               : 'Значимые транзиты на эту дату не найдены.',
+        dailyContext: null,
         subscriptionTier,
         hasAIAccess: hasAIAccess(subscriptionTier),
+        message:
+          locale === 'en'
+            ? 'No significant main transit found'
+            : locale === 'es'
+              ? 'No se encontró un tránsito principal significativo'
+              : 'Значимый главный транзит не найден',
       };
     }
 
@@ -239,6 +343,32 @@ export class TransitService {
     }
 
     let interpretation = '';
+    let dailyContext: ReturnType<typeof buildDailyAstroContext> | null = null;
+    try {
+      const [moonPhase, lunarDay] = await Promise.all([
+        this.lunarService.getMoonPhase(
+          date,
+          natalChart?.data || natalChart,
+          locale,
+        ),
+        this.lunarService.getLunarDay(date, locale),
+      ]);
+      dailyContext = buildDailyAstroContext({
+        birthDateValue: extractChartBirthDate(natalChart),
+        targetDate: date,
+        transitAspects: sortedAspects,
+        lunarPhase: moonPhase,
+        lunarDay,
+        locale,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Main transit daily context build failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
     if (allowAI) {
       try {
         interpretation = await this.generateAITransitInterpretation(
@@ -246,6 +376,7 @@ export class TransitService {
           natalChart,
           date,
           locale,
+          dailyContext,
         );
       } catch (error) {
         this.logger.error('Failed to generate main transit AI:', error);
@@ -263,6 +394,7 @@ export class TransitService {
       date: date.toISOString(),
       aspect: mainAspect,
       interpretation,
+      dailyContext,
       subscriptionTier,
       hasAIAccess: hasAIAccess(subscriptionTier),
       message: allowAI
@@ -321,6 +453,7 @@ export class TransitService {
     natalChart: any,
     date: Date,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    dailyContext?: ReturnType<typeof buildDailyAstroContext> | null,
   ): Promise<string> {
     const transitDescriptions = transits
       .map((t, i) => {
@@ -345,6 +478,31 @@ export class TransitService {
       natalChart.data?.ascendant?.sign ||
       natalChart.data?.houses?.[1]?.sign ||
       'неизвестно';
+    const dailyContextBlock = dailyContext
+      ? locale === 'en'
+        ? `DAILY CONTEXT:
+- Overall energy: ${dailyContext.energy}/100
+- Tone: ${dailyContext.tone}
+- Main synthesis: ${dailyContext.summary}
+- Biorhythms: ${dailyContext.biorhythmSummary}
+- Lunar context: ${dailyContext.lunarSummary}
+- Main transit anchor: ${dailyContext.mainTransit?.description || 'No single transit dominates'}`
+        : locale === 'es'
+          ? `CONTEXTO DIARIO:
+- Energía general: ${dailyContext.energy}/100
+- Tono: ${dailyContext.tone}
+- Síntesis principal: ${dailyContext.summary}
+- Biorritmos: ${dailyContext.biorhythmSummary}
+- Contexto lunar: ${dailyContext.lunarSummary}
+- Ancla del tránsito principal: ${dailyContext.mainTransit?.description || 'No domina un solo tránsito'}`
+          : `ДНЕВНОЙ КОНТЕКСТ:
+- Общая энергия: ${dailyContext.energy}/100
+- Тон: ${dailyContext.tone}
+- Главный синтез: ${dailyContext.summary}
+- Биоритмы: ${dailyContext.biorhythmSummary}
+- Лунный контекст: ${dailyContext.lunarSummary}
+- Якорь главного транзита: ${dailyContext.mainTransit?.description || 'Нет одного доминирующего транзита'}`
+      : '';
 
     const prompt =
       locale === 'en'
@@ -358,11 +516,14 @@ NATAL CHART:
 - Moon: ${moonSign}
 - Ascendant: ${ascendant}
 
+${dailyContextBlock}
+
 Your interpretation should:
 1. Explain the influence of the strongest transits
 2. Provide practical recommendations
 3. Highlight opportunities and challenges of the day
 4. Be written in clear, simple language
+5. Never contradict the daily context. If energy reserve is low, describe the transit as selective and requiring pacing, not as universally favorable.
 
 IMPORTANT: Return only the interpretation text, NO JSON, NO structure, plain text paragraphs only.`
         : locale === 'es'
@@ -376,11 +537,14 @@ CARTA NATAL:
 - Luna: ${moonSign}
 - Ascendente: ${ascendant}
 
+${dailyContextBlock}
+
 Tu interpretación debe:
 1. Explicar la influencia de los tránsitos más fuertes
 2. Dar recomendaciones prácticas
 3. Señalar oportunidades y desafíos del día
 4. Estar escrita en un lenguaje claro y sencillo
+5. No contradecir el contexto diario. Si la reserva de energía es baja, describe el tránsito como selectivo y dosificado.
 
 IMPORTANTE: Devuelve solo el texto de la interpretación, SIN JSON, SIN estructura, solo texto en párrafos.`
           : `Вы профессиональный астролог. Проанализируйте следующие транзиты на дату ${date.toLocaleDateString('ru-RU')} и дайте краткую интерпретацию (150-200 слов):
@@ -393,11 +557,14 @@ ${transitDescriptions}
 - Луна: ${moonSign}
 - Асцендент: ${ascendant}
 
+${dailyContextBlock}
+
 Дайте интерпретацию, которая:
 1. Объясняет влияние самых сильных транзитов
 2. Даёт практические рекомендации
 3. Указывает на возможности и вызовы дня
 4. Написана простым, понятным языком
+5. Не противоречит дневному контексту. Если запас энергии низкий, описывает транзит как требующий точности и дозировки, а не как безусловно благоприятный.
 
 ВАЖНО: Верните только текст интерпретации, БЕЗ JSON, БЕЗ структуры, только простой текст параграфами.`;
 
@@ -430,7 +597,7 @@ ${transitDescriptions}
           );
 
           return extractedText;
-        } catch (parseError) {
+        } catch (_parseError) {
           this.logger.warn('Failed to parse AI JSON response, returning as-is');
           return text;
         }

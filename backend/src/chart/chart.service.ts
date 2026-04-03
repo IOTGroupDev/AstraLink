@@ -341,6 +341,7 @@ export class ChartService {
     userId: string,
     date: Date,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    userTzOffsetMinutes = 0,
   ) {
     const subscription = await this.getCachedSubscription(userId);
     const rawTier = (subscription?.tier || SubscriptionTier.FREE) as
@@ -367,6 +368,7 @@ export class ChartService {
       date,
       tier,
       locale,
+      userTzOffsetMinutes,
     );
   }
 
