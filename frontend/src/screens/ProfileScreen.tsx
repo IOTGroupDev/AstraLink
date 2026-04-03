@@ -47,6 +47,7 @@ import {
   getCachedPrimaryPhoto,
   setCachedPrimaryPhoto,
 } from '../services/profile-photo-cache';
+import type { RootStackParamList } from '../types/navigation';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -145,6 +146,23 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       defaultValue: 'Profile and chart',
     });
   }, [i18n.language, t]);
+
+  const navigateToRootScreen = React.useCallback(
+    <T extends keyof RootStackParamList>(
+      screen: T,
+      params?: RootStackParamList[T]
+    ) => {
+      const parentNavigation = navigation.getParent?.();
+
+      if (parentNavigation?.navigate) {
+        parentNavigation.navigate(screen, params);
+        return;
+      }
+
+      navigation.navigate(screen, params);
+    },
+    [navigation]
+  );
 
   // Animations
   const fadeAnim = useSharedValue(0);
@@ -336,19 +354,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   };
 
   const handleUpgradeSubscription = () => {
-    navigation.navigate('Subscription');
+    navigateToRootScreen('Subscription');
   };
 
   const handleViewPersonalCode = () => {
-    navigation.navigate('PersonalCode' as never);
+    navigateToRootScreen('PersonalCode');
   };
 
   const handleOpenCosmicSimulator = () => {
-    navigation.navigate('CosmicSimulator' as never);
+    navigateToRootScreen('CosmicSimulator');
   };
 
   const handleOpenLearning = () => {
-    navigation.navigate('Learning' as never, { source: 'profile' });
+    navigateToRootScreen('Learning', { source: 'profile' });
   };
 
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -441,7 +459,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
               <TouchableOpacity
                 style={styles.changePhotoButton}
-                onPress={() => navigation.navigate('EditProfileScreen')}
+                onPress={() => navigateToRootScreen('EditProfileScreen')}
                 activeOpacity={0.8}
               >
                 <Ionicons name="camera" size={16} color="#fff" />
@@ -495,7 +513,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <View style={styles.natalActionsGrid}>
                   <TouchableOpacity
                     style={styles.natalActionCard}
-                    onPress={() => navigation.navigate('NatalChart' as never)}
+                    onPress={() => navigateToRootScreen('NatalChart')}
                     activeOpacity={0.85}
                   >
                     <LinearGradient
