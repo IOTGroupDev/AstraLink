@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../../services/logger';
 
@@ -40,7 +40,9 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeightContext = useContext(BottomTabBarHeightContext);
+  const tabBarHeight =
+    typeof tabBarHeightContext === 'number' ? tabBarHeightContext : 0;
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);

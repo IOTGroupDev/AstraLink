@@ -8,6 +8,7 @@ import { RepositoriesModule } from '../repositories';
 import { RedisModule } from '../redis/redis.module';
 import { GeoModule } from '@/modules/geo/geo.module';
 import {
+  ArchetypeService,
   NatalChartService,
   TransitService,
   PredictionService,
@@ -37,6 +38,7 @@ import { PersonalCodeController } from '@/chart/services/personal-code.controlle
     ChartEventListener,
     UserSignupListener,
     PersonalCodeService,
+    ArchetypeService,
   ],
   exports: [
     ChartService,

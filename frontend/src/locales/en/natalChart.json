@@ -122,7 +122,19 @@
     "dominantElementsHint": "These elements show which energy in the chart comes through most naturally and repeatedly.",
     "dominantQualities": "Dominant Qualities",
     "dominantQualitiesHint": "These qualities show how the chart initiates, sustains, and changes processes.",
-    "recommendations": "Recommendations"
+    "recommendations": "Recommendations",
+    "archetype": {
+      "title": "Archetype",
+      "sourceNatal": "From natal chart",
+      "sourceDateOnly": "From birth date",
+      "strengths": "Strengths",
+      "shadows": "Shadow patterns",
+      "relationships": "In relationships",
+      "work": "At work",
+      "growthTask": "Growth task",
+      "lifePath": "Path {{num}}",
+      "dominantElement": "Element {{element}}"
+    }
   },
   "ascendant": {
     "title": "Ascendant and first impression",

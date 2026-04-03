@@ -548,17 +548,19 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
-      <CosmicChat
-        visible={chatVisible}
-        user={{
-          id: route.params.userId,
-          name: displayName,
-          zodiacSign: profile?.zodiacSign ?? route.params.zodiacSign ?? null,
-          compatibility: route.params.compatibility,
-        }}
-        onClose={() => setChatVisible(false)}
-        onSendMessage={handleSendMessage}
-      />
+      {chatVisible ? (
+        <CosmicChat
+          visible={chatVisible}
+          user={{
+            id: route.params.userId,
+            name: displayName,
+            zodiacSign: profile?.zodiacSign ?? route.params.zodiacSign ?? null,
+            compatibility: route.params.compatibility,
+          }}
+          onClose={() => setChatVisible(false)}
+          onSendMessage={handleSendMessage}
+        />
+      ) : null}
     </View>
   );
 }

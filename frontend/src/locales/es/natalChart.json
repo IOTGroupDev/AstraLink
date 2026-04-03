@@ -122,7 +122,19 @@
     "dominantElementsHint": "Estos elementos muestran qué energía de la carta se expresa con más naturalidad y frecuencia.",
     "dominantQualities": "Cualidades Dominantes",
     "dominantQualitiesHint": "Estas cualidades muestran cómo la carta inicia, sostiene y transforma los procesos.",
-    "recommendations": "Recomendaciones"
+    "recommendations": "Recomendaciones",
+    "archetype": {
+      "title": "Arquetipo",
+      "sourceNatal": "Desde la carta natal",
+      "sourceDateOnly": "Desde la fecha de nacimiento",
+      "strengths": "Fortalezas",
+      "shadows": "Patrones sombra",
+      "relationships": "En relaciones",
+      "work": "En el trabajo",
+      "growthTask": "Tarea de crecimiento",
+      "lifePath": "Camino {{num}}",
+      "dominantElement": "Elemento {{element}}"
+    }
   },
   "ascendant": {
     "title": "Ascendente y primera impresión",

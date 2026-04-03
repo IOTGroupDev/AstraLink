@@ -5,3 +5,4 @@ export * from './dating';
 export * from './profile';
 export * from './subscription';
 export * from './lunar';
+export * from './archetype';

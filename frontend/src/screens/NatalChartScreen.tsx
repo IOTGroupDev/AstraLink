@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { chartAPI } from '../services/api';
+import type { ArchetypeResult } from '../types';
 import { useSubscription } from '../hooks/useSubscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
@@ -145,6 +146,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const [chartData, setChartData] = useState<ChartData | null>(null);
+  const [archetype, setArchetype] = useState<ArchetypeResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<
@@ -172,8 +174,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const loadChartData = useCallback(async () => {
     try {
       setLoading(true);
-      const data =
-        await chartAPI.getNatalChartWithInterpretation(getChartLocale());
+      const locale = getChartLocale();
+      const [chartResult, archetypeResult] = await Promise.allSettled([
+        chartAPI.getNatalChartWithInterpretation(locale),
+        chartAPI.getArchetype(locale),
+      ]);
+
+      if (chartResult.status !== 'fulfilled') {
+        throw chartResult.reason;
+      }
+
+      const data = chartResult.value;
+
       // Подробное логирование для отладки структуры
       logger.info('Полная структура данных', {
         level1Keys: data ? Object.keys(data) : [],
@@ -192,8 +204,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         fullDataStructure: JSON.stringify(data, null, 2).substring(0, 2000),
       });
       setChartData(data);
+
+      if (archetypeResult.status === 'fulfilled') {
+        setArchetype(archetypeResult.value);
+      } else {
+        setArchetype(null);
+        logger.info('Архетип не загружен', archetypeResult.reason);
+      }
     } catch (error: any) {
       logger.error('Ошибка загрузки натальной карты', error);
+      setArchetype(null);
       Alert.alert(
         t('common.errors.generic'),
         t('natalChart.errors.failedToLoad')
@@ -460,6 +480,85 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       .split(/\n{2,}|\r\n\r\n/)
       .map((part) => part.trim())
       .filter(Boolean);
+
+  const renderArchetypeCard = () => {
+    if (!archetype) {
+      return null;
+    }
+
+    return (
+      <BlurView intensity={20} tint="dark" style={styles.card}>
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={styles.cardInner}
+          onPress={() =>
+            openSummaryModal({
+              title: `${t('natalChart.summary.archetype.title', 'Архетип')} · ${archetype.title}`,
+              subtitle: archetype.subtitle,
+              summary: archetype.overview,
+              lines: [
+                archetype.essence,
+                `${t('natalChart.summary.archetype.strengths', 'Сильные стороны')}:`,
+                ...archetype.strengths.map((item) => `• ${item}`),
+                `${t('natalChart.summary.archetype.shadows', 'Теневые паттерны')}:`,
+                ...archetype.shadowPatterns.map((item) => `• ${item}`),
+                `${t('natalChart.summary.archetype.relationships', 'В отношениях')}: ${archetype.relationships}`,
+                `${t('natalChart.summary.archetype.work', 'В работе')}: ${archetype.work}`,
+                `${t('natalChart.summary.archetype.growthTask', 'Задача роста')}: ${archetype.growthTask}`,
+                archetype.note,
+              ],
+            })
+          }
+        >
+          <View style={styles.summaryHeader}>
+            <Ionicons name="sparkles-outline" size={24} color="#FFD700" />
+            <Text style={styles.summaryTitle}>
+              {t('natalChart.summary.archetype.title', 'Архетип')}
+            </Text>
+          </View>
+          <Text style={styles.summaryText}>{archetype.title}</Text>
+          <Text style={styles.summarySubtext}>{archetype.subtitle}</Text>
+          <Text style={styles.summarySubtext} numberOfLines={4}>
+            {archetype.essence}
+          </Text>
+          <View style={[styles.chipContainer, styles.summaryGuideChips]}>
+            <View style={styles.elementChip}>
+              <Text style={styles.elementChipText}>
+                {archetype.source === 'natal'
+                  ? t(
+                      'natalChart.summary.archetype.sourceNatal',
+                      'По натальной карте'
+                    )
+                  : t(
+                      'natalChart.summary.archetype.sourceDateOnly',
+                      'По дате рождения'
+                    )}
+              </Text>
+            </View>
+            <View style={styles.elementChip}>
+              <Text style={styles.elementChipText}>
+                {t('natalChart.summary.archetype.lifePath', {
+                  defaultValue: 'Путь {{num}}',
+                  num: archetype.blueprint.lifePathNumber,
+                })}
+              </Text>
+            </View>
+            <View style={styles.elementChip}>
+              <Text style={styles.elementChipText}>
+                {t('natalChart.summary.archetype.dominantElement', {
+                  defaultValue: 'Стихия {{element}}',
+                  element: archetype.blueprint.dominantElement,
+                })}
+              </Text>
+            </View>
+          </View>
+          {renderSummaryOpenHint(
+            archetype.strengths.length + archetype.shadowPatterns.length + 2
+          )}
+        </TouchableOpacity>
+      </BlurView>
+    );
+  };
 
   // Основная информация
   const renderOverview = () => {
@@ -1220,6 +1319,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     if (!interpretation) {
       return (
         <View style={styles.content}>
+          {renderArchetypeCard()}
           <BlurView intensity={20} tint="dark" style={styles.card}>
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
@@ -1246,6 +1346,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     if (!summary) {
       return (
         <View style={styles.content}>
+          {renderArchetypeCard()}
           <BlurView intensity={20} tint="dark" style={styles.card}>
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
@@ -1270,6 +1371,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     }
 
     const summaryGuideChips = [
+      archetype ? t('natalChart.summary.archetype.title', 'Архетип') : null,
       summary.chartRuler
         ? t('natalChart.summary.chartRuler', 'Управитель карты')
         : null,
@@ -1321,6 +1423,8 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             )}
           </View>
         </BlurView>
+
+        {renderArchetypeCard()}
 
         {summary.chartRuler && (
           <BlurView intensity={20} tint="dark" style={styles.card}>

@@ -20,6 +20,7 @@ import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '@/types';
 import { Public } from '@/common/decorators/public.decorator';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { ArchetypeService } from '@/chart/services/archetype.service';
 import { LunarService } from '@/services/lunar.service';
 import { getHeaderValue } from '@/common/utils/request-headers.util';
 import type { AuthenticatedRequest } from '@/types/auth';
@@ -32,6 +33,7 @@ export class ChartController {
   private readonly logger = new Logger(ChartController.name);
   constructor(
     private readonly chartService: ChartService,
+    private readonly archetypeService: ArchetypeService,
     private readonly lunarService: LunarService,
   ) {}
 
@@ -143,6 +145,32 @@ export class ChartController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
     return this.chartService.getNatalChartWithInterpretation(
+      userId,
+      this.resolveLocale(req, localeQuery),
+    );
+  }
+
+  @Get('archetype')
+  @ApiOperation({
+    summary:
+      'Получить архетип пользователя по натальной карте или дате рождения',
+  })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
+  @ApiResponse({ status: 200, description: 'Архетип пользователя' })
+  async getArchetype(
+    @Request() req: AuthenticatedRequest,
+    @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+
+    return this.archetypeService.getUserArchetype(
       userId,
       this.resolveLocale(req, localeQuery),
     );

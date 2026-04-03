@@ -6,3 +6,4 @@ export * from './natal-chart.service';
 export * from './transit.service';
 export * from './prediction.service';
 export * from './biorhythm.service';
+export * from './archetype.service';

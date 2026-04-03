@@ -1,5 +1,6 @@
 import { api } from './client';
 import type {
+  ArchetypeResult,
   Chart,
   TransitsResponse,
   LunarCalendarDay,
@@ -98,6 +99,15 @@ export const chartAPI = {
       chartLogger.error('Ошибка загрузки полной карты', error);
       throw error;
     }
+  },
+
+  getArchetype: async (
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<ArchetypeResult> => {
+    const response = await api.get(
+      `/chart/archetype?locale=${normalizeLocale(locale)}`
+    );
+    return response.data;
   },
 
   getHoroscope: async (

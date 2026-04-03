@@ -122,7 +122,19 @@
     "dominantElementsHint": "Эти элементы показывают, какая энергия проявляется в карте естественнее и чаще.",
     "dominantQualities": "Доминирующие качества",
     "dominantQualitiesHint": "Эти качества показывают, как карта запускает, удерживает и меняет процессы.",
-    "recommendations": "Рекомендации"
+    "recommendations": "Рекомендации",
+    "archetype": {
+      "title": "Архетип",
+      "sourceNatal": "По натальной карте",
+      "sourceDateOnly": "По дате рождения",
+      "strengths": "Сильные стороны",
+      "shadows": "Теневые паттерны",
+      "relationships": "В отношениях",
+      "work": "В работе",
+      "growthTask": "Задача роста",
+      "lifePath": "Путь {{num}}",
+      "dominantElement": "Стихия {{element}}"
+    }
   },
   "ascendant": {
     "title": "Асцендент и первое впечатление",
