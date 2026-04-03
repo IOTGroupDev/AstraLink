@@ -261,6 +261,14 @@ const normalizeChartPayload = (rawValue: unknown): ChartData | null => {
   };
 };
 
+const toArray = <T,>(value: unknown): T[] =>
+  Array.isArray(value) ? (value as T[]) : [];
+
+const normalizeTextList = (value: unknown): string[] =>
+  toArray<unknown>(value)
+    .map((item) => normalizeNarrativeValue(item))
+    .filter((item): item is string => Boolean(item));
+
 const getHouseForLongitude = (
   longitude: number,
   houses: Record<number, HouseData>
@@ -603,8 +611,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         sign: resolvedMidheaven.sign,
         degree: resolvedMidheaven.degree,
         summary:
-          interpretation?.houses?.find((house: any) => house.house === 10)
-            ?.interpretation || '',
+          toArray<any>(interpretation?.houses).find(
+            (house: any) => house.house === 10
+          )?.interpretation || '',
         request: {
           type: 'house' as const,
           houseNum: 10,
@@ -618,8 +627,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         sign: houses?.[7]?.sign || 'N/A',
         degree: typeof houses?.[7]?.cusp === 'number' ? houses[7].cusp % 30 : 0,
         summary:
-          interpretation?.houses?.find((house: any) => house.house === 7)
-            ?.interpretation || '',
+          toArray<any>(interpretation?.houses).find(
+            (house: any) => house.house === 7
+          )?.interpretation || '',
         request: {
           type: 'house' as const,
           houseNum: 7,
@@ -633,8 +643,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         sign: houses?.[4]?.sign || 'N/A',
         degree: typeof houses?.[4]?.cusp === 'number' ? houses[4].cusp % 30 : 0,
         summary:
-          interpretation?.houses?.find((house: any) => house.house === 4)
-            ?.interpretation || '',
+          toArray<any>(interpretation?.houses).find(
+            (house: any) => house.house === 4
+          )?.interpretation || '',
         request: {
           type: 'house' as const,
           houseNum: 4,
@@ -653,7 +664,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
     try {
       const details = await chartAPI.getInterpretationDetails(config.request);
-      setAngleModalLines(details?.lines || []);
+      setAngleModalLines(normalizeTextList(details?.lines));
     } catch (error) {
       logger.error('Ошибка загрузки расшифровки угла карты', error);
       setAngleModalLines([t('natalChart.angleModal.detailsError')]);
@@ -725,24 +736,30 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   );
 
   const renderPreviewList = (
-    items: string[],
+    items: unknown,
     bulletStyle?: StyleProp<ViewStyle>,
     previewCount: number = 2
-  ) => (
-    <View style={styles.traitsList}>
-      {items.slice(0, previewCount).map((item, idx) => (
-        <View key={`${item}-${idx}`} style={styles.traitItem}>
-          <View style={[styles.traitBullet, bulletStyle]} />
-          <Text style={styles.traitText} numberOfLines={2}>
-            {item}
-          </Text>
-        </View>
-      ))}
-      {renderSummaryOpenHint(
-        items.length > previewCount ? items.length - previewCount : undefined
-      )}
-    </View>
-  );
+  ) => {
+    const normalizedItems = normalizeTextList(items);
+
+    return (
+      <View style={styles.traitsList}>
+        {normalizedItems.slice(0, previewCount).map((item, idx) => (
+          <View key={`${item}-${idx}`} style={styles.traitItem}>
+            <View style={[styles.traitBullet, bulletStyle]} />
+            <Text style={styles.traitText} numberOfLines={2}>
+              {item}
+            </Text>
+          </View>
+        ))}
+        {renderSummaryOpenHint(
+          normalizedItems.length > previewCount
+            ? normalizedItems.length - previewCount
+            : undefined
+        )}
+      </View>
+    );
+  };
 
   const splitNarrativeParagraphs = (text?: string): string[] =>
     normalizeNarrativeValue(text)
@@ -834,6 +851,15 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     const sunSign = planets?.sun?.sign || 'N/A';
     const moonSign = planets?.moon?.sign || 'N/A';
     const ascSign = resolvedAscendant.sign || 'N/A';
+    const sunInterpretation = normalizeNarrativeValue(
+      interpretation?.sunSign?.interpretation
+    );
+    const moonInterpretation = normalizeNarrativeValue(
+      interpretation?.moonSign?.interpretation
+    );
+    const ascendantInterpretation = normalizeNarrativeValue(
+      interpretation?.ascendant?.interpretation
+    );
     const premiumNarrative = normalizeNarrativeValue(
       interpretation?.aiNarrative || interpretation?.premiumNarrative || ''
     );
@@ -948,14 +974,14 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             </View>
 
             {!!(
-              interpretation?.sunSign?.interpretation ||
-              interpretation?.moonSign?.interpretation ||
-              interpretation?.ascendant?.interpretation
+              sunInterpretation ||
+              moonInterpretation ||
+              ascendantInterpretation
             ) && (
               <>
                 <View style={styles.divider} />
                 <View style={styles.bigThreeDescriptions}>
-                  {!!interpretation?.sunSign?.interpretation && (
+                  {!!sunInterpretation && (
                     <TouchableOpacity
                       activeOpacity={0.86}
                       style={styles.bigThreeDescriptionCard}
@@ -965,7 +991,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                           subtitle: `${sunSign} ${formatDegree(
                             planets?.sun?.degree || 0
                           )}`,
-                          summary: interpretation.sunSign.interpretation,
+                          summary: sunInterpretation,
                         })
                       }
                     >
@@ -979,13 +1005,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                         style={styles.bigThreeDescriptionText}
                         numberOfLines={4}
                       >
-                        {interpretation.sunSign.interpretation}
+                        {sunInterpretation}
                       </Text>
                       {renderSummaryOpenHint()}
                     </TouchableOpacity>
                   )}
 
-                  {!!interpretation?.moonSign?.interpretation && (
+                  {!!moonInterpretation && (
                     <TouchableOpacity
                       activeOpacity={0.86}
                       style={styles.bigThreeDescriptionCard}
@@ -995,7 +1021,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                           subtitle: `${moonSign} ${formatDegree(
                             planets?.moon?.degree || 0
                           )}`,
-                          summary: interpretation.moonSign.interpretation,
+                          summary: moonInterpretation,
                         })
                       }
                     >
@@ -1009,13 +1035,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                         style={styles.bigThreeDescriptionText}
                         numberOfLines={4}
                       >
-                        {interpretation.moonSign.interpretation}
+                        {moonInterpretation}
                       </Text>
                       {renderSummaryOpenHint()}
                     </TouchableOpacity>
                   )}
 
-                  {!!interpretation?.ascendant?.interpretation && (
+                  {!!ascendantInterpretation && (
                     <TouchableOpacity
                       activeOpacity={0.86}
                       style={styles.bigThreeDescriptionCard}
@@ -1025,7 +1051,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                           subtitle: `${ascSign} ${formatDegree(
                             resolvedAscendant.degree || 0
                           )}`,
-                          summary: interpretation.ascendant.interpretation,
+                          summary: ascendantInterpretation,
                         })
                       }
                     >
@@ -1039,7 +1065,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                         style={styles.bigThreeDescriptionText}
                         numberOfLines={4}
                       >
-                        {interpretation.ascendant.interpretation}
+                        {ascendantInterpretation}
                       </Text>
                       {renderSummaryOpenHint()}
                     </TouchableOpacity>
@@ -1362,15 +1388,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </View>
 
                 {(() => {
-                  const planetInterpretation = interpretation?.planets?.find(
-                    (p: any) => p.planet === name
+                  const planetInterpretation = toArray<any>(
+                    interpretation?.planets
+                  ).find((p: any) => p.planet === name);
+                  const planetInterpretationText = normalizeNarrativeValue(
+                    planetInterpretation?.interpretation
                   );
                   return planetInterpretation ? (
                     <>
                       <View style={styles.divider} />
                       <View style={styles.interpretationSection}>
                         <Text style={styles.interpretationText}>
-                          {planetInterpretation.interpretation}
+                          {planetInterpretationText}
                         </Text>
                       </View>
                     </>
@@ -1448,15 +1477,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 )}
 
                 {(() => {
-                  const houseInterpretation = interpretation?.houses?.find(
-                    (h: any) => h.house === num
+                  const houseInterpretation = toArray<any>(
+                    interpretation?.houses
+                  ).find((h: any) => h.house === num);
+                  const houseInterpretationText = normalizeNarrativeValue(
+                    houseInterpretation?.interpretation
                   );
                   return houseInterpretation ? (
                     <>
                       <View style={styles.divider} />
                       <View style={styles.interpretationSection}>
                         <Text style={styles.interpretationText}>
-                          {houseInterpretation.interpretation}
+                          {houseInterpretationText}
                         </Text>
                       </View>
                     </>
@@ -1598,18 +1630,23 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </View>
 
                 {(() => {
-                  const aspectInterpretation = interpretation?.aspects?.find(
+                  const aspectInterpretation = toArray<any>(
+                    interpretation?.aspects
+                  ).find(
                     (a: any) =>
                       a.planetA === planetA &&
                       a.planetB === planetB &&
                       a.aspect === aspectName
+                  );
+                  const aspectInterpretationText = normalizeNarrativeValue(
+                    aspectInterpretation?.interpretation
                   );
                   return aspectInterpretation ? (
                     <>
                       <View style={styles.divider} />
                       <View style={styles.interpretationSection}>
                         <Text style={styles.interpretationText}>
-                          {aspectInterpretation.interpretation}
+                          {aspectInterpretationText}
                         </Text>
                       </View>
                     </>
@@ -1625,7 +1662,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   // Резюме личности
   const renderSummary = () => {
-    const summary = interpretation?.summary;
+    const summary = isRecord(interpretation?.summary)
+      ? (interpretation.summary as Record<string, any>)
+      : null;
 
     logger.info('Interpretation данные', {
       hasInterpretation: !!interpretation,
@@ -1838,7 +1877,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.houseShort', ' дом')}
                 </Text>
                 <Text style={styles.summarySubtext} numberOfLines={3}>
-                  {summary.chartRuler.interpretation}
+                  {normalizeNarrativeValue(summary.chartRuler.interpretation)}
                 </Text>
                 {renderSummaryOpenHint()}
               </TouchableOpacity>
@@ -1869,7 +1908,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={3}>
-                {summary.sect.interpretation}
+                {normalizeNarrativeValue(summary.sect.interpretation)}
               </Text>
               {renderSummaryOpenHint()}
             </TouchableOpacity>
@@ -1919,16 +1958,22 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </View>
                 {!!summary.lunarNodes.northNode?.interpretation && (
                   <Text style={styles.summaryText} numberOfLines={3}>
-                    {summary.lunarNodes.northNode.interpretation}
+                    {normalizeNarrativeValue(
+                      summary.lunarNodes.northNode.interpretation
+                    )}
                   </Text>
                 )}
                 {!!summary.lunarNodes.southNode?.interpretation && (
                   <Text style={styles.summarySubtext} numberOfLines={2}>
-                    {summary.lunarNodes.southNode.interpretation}
+                    {normalizeNarrativeValue(
+                      summary.lunarNodes.southNode.interpretation
+                    )}
                   </Text>
                 )}
                 <Text style={styles.summarySubtext} numberOfLines={2}>
-                  {summary.lunarNodes.axisInterpretation}
+                  {normalizeNarrativeValue(
+                    summary.lunarNodes.axisInterpretation
+                  )}
                 </Text>
                 {renderSummaryOpenHint()}
               </TouchableOpacity>
@@ -1983,7 +2028,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               )}
               {!!summary.dispositors.finalDispositor?.interpretation && (
                 <Text style={styles.summarySubtext} numberOfLines={3}>
-                  {summary.dispositors.finalDispositor.interpretation}
+                  {normalizeNarrativeValue(
+                    summary.dispositors.finalDispositor.interpretation
+                  )}
                 </Text>
               )}
               {!!summary.dispositors.dominantDispositor &&
@@ -2000,11 +2047,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               {!!summary.dispositors.dominantDispositor &&
                 !summary.dispositors.finalDispositor?.interpretation && (
                   <Text style={styles.summarySubtext} numberOfLines={3}>
-                    {summary.dispositors.dominantDispositor.interpretation}
+                    {normalizeNarrativeValue(
+                      summary.dispositors.dominantDispositor.interpretation
+                    )}
                   </Text>
                 )}
               <Text style={styles.summarySubtext} numberOfLines={2}>
-                {summary.dispositors.chainSummary}
+                {normalizeNarrativeValue(summary.dispositors.chainSummary)}
               </Text>
               {!!summary.dispositors.mutualReceptions?.length &&
                 renderPreviewList(
@@ -2092,7 +2141,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </Text>
                 </View>
                 <Text style={styles.summaryText} numberOfLines={4}>
-                  {summary.thematicFocus.relationships}
+                  {normalizeNarrativeValue(summary.thematicFocus.relationships)}
                 </Text>
                 {renderSummaryOpenHint(summary.relationships ? 1 : undefined)}
               </TouchableOpacity>
@@ -2138,7 +2187,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </Text>
                 </View>
                 <Text style={styles.summaryText} numberOfLines={4}>
-                  {summary.thematicFocus.career}
+                  {normalizeNarrativeValue(summary.thematicFocus.career)}
                 </Text>
                 {renderSummaryOpenHint(summary.careerPath ? 1 : undefined)}
               </TouchableOpacity>
@@ -2179,7 +2228,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </Text>
                 </View>
                 <Text style={styles.summaryText} numberOfLines={4}>
-                  {summary.thematicFocus.finances}
+                  {normalizeNarrativeValue(summary.thematicFocus.finances)}
                 </Text>
                 {renderSummaryOpenHint(
                   summary.financialApproach ? 1 : undefined
@@ -2253,7 +2302,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.lifePurpose}
+                {normalizeNarrativeValue(summary.lifePurpose)}
               </Text>
               {renderSummaryOpenHint()}
             </TouchableOpacity>
@@ -2424,7 +2473,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.relationships}
+                {normalizeNarrativeValue(summary.relationships)}
               </Text>
               {renderSummaryOpenHint(
                 summary.thematicFocus?.relationships ? 1 : undefined
@@ -2456,7 +2505,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.careerPath}
+                {normalizeNarrativeValue(summary.careerPath)}
               </Text>
               {renderSummaryOpenHint(
                 summary.thematicFocus?.career ? 1 : undefined
@@ -2485,7 +2534,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.spiritualPath}
+                {normalizeNarrativeValue(summary.spiritualPath)}
               </Text>
               {renderSummaryOpenHint()}
             </TouchableOpacity>
@@ -2512,7 +2561,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.healthFocus}
+                {normalizeNarrativeValue(summary.healthFocus)}
               </Text>
               {renderSummaryOpenHint()}
             </TouchableOpacity>
@@ -2542,7 +2591,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.financialApproach}
+                {normalizeNarrativeValue(summary.financialApproach)}
               </Text>
               {renderSummaryOpenHint(
                 summary.thematicFocus?.finances ? 1 : undefined
