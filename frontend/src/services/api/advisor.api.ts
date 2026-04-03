@@ -54,12 +54,21 @@ export interface AdvisorEvaluateResponse {
     planets: string[];
   }[];
   bestWindows: { startISO: string; endISO: string; score: number }[];
+  directAnswer?: string;
   recommendations?: {
     text: string;
     priority: 'high' | 'medium' | 'low';
     category: 'action' | 'caution' | 'warning';
   }[];
   explanation: string;
+  risks?: string[];
+  clarifyingQuestion?: string;
+  alternativeDate?: {
+    date: string;
+    score: number;
+    bestWindow?: string;
+    reason: string;
+  };
   generatedBy: 'rules' | 'hybrid' | string;
   evaluatedAt: string;
   date: string;

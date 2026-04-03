@@ -22,6 +22,17 @@ interface BiorhythmsWidgetProps {
   physical: number; // 0-100
   emotional: number; // 0-100
   intellectual: number; // 0-100
+  physicalPhase?: string;
+  emotionalPhase?: string;
+  intellectualPhase?: string;
+  overall?: number;
+  overallPhase?: string;
+  summary?: string;
+  trend?: Array<{
+    date: string;
+    overall: number;
+    overallPhase: string;
+  }>;
   isLoading?: boolean; // Показать состояние загрузки
 }
 
@@ -43,11 +54,9 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
   glowColor,
 }) => {
   const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
   // Прогресс от -90 градусов (верх) по часовой стрелке
-  const progress = (value / 100) * circumference;
   const startAngle = -90; // Начинаем сверху
   const angle = (value / 100) * 360;
 
@@ -112,6 +121,7 @@ interface BiorhythmItemProps {
   title: string;
   description: string;
   value: number;
+  phase?: string;
   color: string;
   backgroundColor: string;
   glowColor: string;
@@ -122,6 +132,7 @@ const BiorhythmItem: React.FC<BiorhythmItemProps> = ({
   title,
   description,
   value,
+  phase,
   color,
   backgroundColor,
   glowColor,
@@ -147,7 +158,10 @@ const BiorhythmItem: React.FC<BiorhythmItemProps> = ({
 
       {/* Текстовая информация */}
       <View style={styles.textContainer}>
-        <Text style={styles.titleText}>{title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.titleText}>{title}</Text>
+          {phase ? <Text style={styles.phaseText}>{phase}</Text> : null}
+        </View>
         <Text style={styles.descriptionText} numberOfLines={3}>
           {description}
         </Text>
@@ -160,6 +174,13 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
   physical,
   emotional,
   intellectual,
+  physicalPhase,
+  emotionalPhase,
+  intellectualPhase,
+  overall,
+  overallPhase,
+  summary,
+  trend,
   isLoading,
 }) => {
   const { t } = useTranslation();
@@ -177,6 +198,13 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
     setModalVisible(false);
     setModalTitle('');
     setModalText('');
+  };
+
+  const getPhaseLabel = (phase?: string) => {
+    if (!phase) return '';
+    return t(`horoscope.biorhythmsWidget.phases.${phase}`, {
+      defaultValue: phase,
+    });
   };
 
   if (isLoading) {
@@ -231,12 +259,30 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
           ⏳️ {t('horoscope.biorhythms.title')}
         </Text>
 
+        {summary ? (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>
+              {t('horoscope.biorhythmsWidget.summaryTitle')}
+            </Text>
+            <Text style={styles.summaryText}>{summary}</Text>
+            {typeof overall === 'number' ? (
+              <Text style={styles.summaryMeta}>
+                {t('horoscope.biorhythmsWidget.overall', {
+                  value: Math.round(overall),
+                  phase: getPhaseLabel(overallPhase),
+                })}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* Список биоритмов */}
         <View style={styles.listContainer}>
           <BiorhythmItem
             title={t('horoscope.biorhythms.physical')}
             description={t('horoscope.biorhythmsWidget.physicalDescription')}
             value={physical}
+            phase={getPhaseLabel(physicalPhase)}
             color="#E33931"
             backgroundColor="#FFC8C9"
             glowColor="#FF8B8D"
@@ -252,6 +298,7 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
             title={t('horoscope.biorhythms.emotional')}
             description={t('horoscope.biorhythmsWidget.emotionalDescription')}
             value={emotional}
+            phase={getPhaseLabel(emotionalPhase)}
             color="#0E9B45"
             backgroundColor="#C9FFD5"
             glowColor="#72FF9A"
@@ -269,6 +316,7 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
               'horoscope.biorhythmsWidget.intellectualDescription'
             )}
             value={intellectual}
+            phase={getPhaseLabel(intellectualPhase)}
             color="#12A6DF"
             backgroundColor="#C8E0FF"
             glowColor="#6AC4FF"
@@ -280,6 +328,33 @@ const BiorhythmsWidget: React.FC<BiorhythmsWidgetProps> = ({
             }
           />
         </View>
+
+        {trend?.length ? (
+          <View style={styles.trendSection}>
+            <Text style={styles.trendTitle}>
+              {t('horoscope.biorhythmsWidget.trendTitle')}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.trendRow}
+            >
+              {trend.map((point) => (
+                <View key={point.date} style={styles.trendChip}>
+                  <Text style={styles.trendDate}>
+                    {point.date.slice(5).replace('-', '.')}
+                  </Text>
+                  <Text style={styles.trendValue}>
+                    {Math.round(point.overall)}%
+                  </Text>
+                  <Text style={styles.trendPhase}>
+                    {getPhaseLabel(point.overallPhase)}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
       </View>
 
       <Modal
@@ -381,6 +456,12 @@ const styles = StyleSheet.create({
     gap: 4,
     justifyContent: 'center',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   titleText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
@@ -388,6 +469,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0,
     lineHeight: 19.504,
+  },
+  phaseText: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#F5D0FE',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   descriptionText: {
     fontFamily: 'Montserrat-Medium',
@@ -397,6 +489,69 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     lineHeight: 15.847,
     flexShrink: 1,
+  },
+  summaryCard: {
+    gap: 8,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  summaryTitle: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#F5D0FE',
+  },
+  summaryText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#FFFFFF',
+  },
+  summaryMeta: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 12,
+    lineHeight: 16,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  trendSection: {
+    gap: 10,
+  },
+  trendTitle: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#F5D0FE',
+  },
+  trendRow: {
+    gap: 10,
+  },
+  trendChip: {
+    minWidth: 88,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: 4,
+  },
+  trendDate: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  trendValue: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  trendPhase: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 11,
+    color: '#F5D0FE',
   },
   modalOverlay: {
     flex: 1,

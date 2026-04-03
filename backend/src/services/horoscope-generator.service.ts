@@ -35,6 +35,8 @@ import {
   getAdvicePool,
   getSignColors,
   getPlanetHouseFocus,
+  getPlanetNameLocalized,
+  getAspectName,
 } from '../modules/shared/astro-text';
 import type {
   ChartData,
@@ -68,6 +70,14 @@ export interface HoroscopePrediction {
   challenges: string[];
   opportunities: string[];
   generatedBy: 'ai' | 'interpreter' | 'mixed';
+  status: 'ready' | 'ai_pending';
+  updatedAt: string;
+  meta: {
+    tone: 'supportive' | 'mixed' | 'challenging';
+    focus: string;
+    risk: string;
+    keyWindow: string;
+  };
   lunarPhase?: {
     phase: string;
     emoji: string;
@@ -81,7 +91,7 @@ export interface HoroscopePrediction {
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
-  private readonly horoscopeFormatVersion = 'fmt-v3';
+  private readonly horoscopeFormatVersion = 'fmt-v4';
   private readonly inflightPremium = new Map<
     string,
     Promise<HoroscopePrediction>
@@ -218,6 +228,7 @@ export class HoroscopeGeneratorService {
             period,
             targetDate,
             locale,
+            'ai_pending',
           );
         }
 
@@ -270,6 +281,7 @@ export class HoroscopeGeneratorService {
             period,
             targetDate,
             locale,
+            'ai_pending',
           );
         }
 
@@ -357,6 +369,7 @@ export class HoroscopeGeneratorService {
             locale,
           );
           const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
+          const updatedAt = new Date().toISOString();
 
           return {
             period: period as 'day' | 'tomorrow' | 'week' | 'month',
@@ -378,6 +391,15 @@ export class HoroscopeGeneratorService {
             challenges: [],
             opportunities: [],
             generatedBy: 'interpreter',
+            status: 'ready',
+            updatedAt,
+            meta: this.buildHoroscopeMeta(
+              chartData,
+              transitAspects,
+              period as 'day' | 'tomorrow' | 'week' | 'month',
+              targetDate,
+              locale,
+            ),
             lunarPhase,
           };
         }
@@ -481,6 +503,7 @@ export class HoroscopeGeneratorService {
 
       // Calculate lunar phase for the target date
       const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
+      const updatedAt = new Date().toISOString();
 
       const result: HoroscopePrediction = {
         period: period as 'day' | 'tomorrow' | 'week' | 'month',
@@ -498,6 +521,15 @@ export class HoroscopeGeneratorService {
         challenges: mergedPredictions.challenges,
         opportunities: mergedPredictions.opportunities,
         generatedBy: aiComplete ? 'ai' : 'mixed',
+        status: 'ready',
+        updatedAt,
+        meta: this.buildHoroscopeMeta(
+          chartData,
+          transitAspects,
+          period as 'day' | 'tomorrow' | 'week' | 'month',
+          targetDate,
+          locale,
+        ),
         lunarPhase,
       };
       return result;
@@ -523,6 +555,7 @@ export class HoroscopeGeneratorService {
     period: string,
     targetDate: Date,
     locale: 'ru' | 'en' | 'es',
+    status: 'ready' | 'ai_pending' = 'ready',
   ): HoroscopePrediction {
     const dominantTransit = this.getDominantTransit(transitAspects, 'general');
     const energy = this.calculateEnergy(transitAspects);
@@ -538,6 +571,7 @@ export class HoroscopeGeneratorService {
       locale,
     );
     const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
+    const updatedAt = new Date().toISOString();
 
     return {
       period: period as 'day' | 'tomorrow' | 'week' | 'month',
@@ -559,6 +593,15 @@ export class HoroscopeGeneratorService {
       challenges: [],
       opportunities: [],
       generatedBy: 'interpreter',
+      status,
+      updatedAt,
+      meta: this.buildHoroscopeMeta(
+        chartData,
+        transitAspects,
+        period as 'day' | 'tomorrow' | 'week' | 'month',
+        targetDate,
+        locale,
+      ),
       lunarPhase,
     };
   }
@@ -675,6 +718,7 @@ export class HoroscopeGeneratorService {
 
     // Calculate lunar phase for the target date
     const lunarPhase = this.calculateLunarPhaseForDate(transits, locale);
+    const updatedAt = new Date().toISOString();
 
     const result: HoroscopePrediction = {
       period: period as 'day' | 'tomorrow' | 'week' | 'month',
@@ -692,6 +736,15 @@ export class HoroscopeGeneratorService {
       challenges: [],
       opportunities: [],
       generatedBy: 'interpreter',
+      status: 'ready',
+      updatedAt,
+      meta: this.buildHoroscopeMeta(
+        chartData,
+        transitAspects,
+        period as 'day' | 'tomorrow' | 'week' | 'month',
+        targetDate,
+        locale,
+      ),
       lunarPhase,
     };
     return result;
@@ -1542,6 +1595,431 @@ export class HoroscopeGeneratorService {
     if (score > 0.5) return 'positive';
     if (score < -0.5) return 'challenging';
     return 'neutral';
+  }
+
+  private buildHoroscopeMeta(
+    chartData: ChartData,
+    transitAspects: TransitAspect[],
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    targetDate: Date,
+    locale: 'ru' | 'en' | 'es',
+  ): {
+    tone: 'supportive' | 'mixed' | 'challenging';
+    focus: string;
+    risk: string;
+    keyWindow: string;
+  } {
+    const tone = this.mapToneForMeta(
+      this.determinePredictionTone(transitAspects),
+    );
+    const supportiveTransit = this.getDominantTransit(
+      transitAspects.filter((aspect) =>
+        ['trine', 'sextile', 'conjunction'].includes(aspect.aspect),
+      ),
+      'general',
+    );
+    const challengingTransit = this.getDominantTransit(
+      transitAspects.filter((aspect) =>
+        [
+          'square',
+          'opposition',
+          'quincunx',
+          'semi-square',
+          'sesquiquadrate',
+        ].includes(aspect.aspect),
+      ),
+      'general',
+    );
+
+    return {
+      tone,
+      focus: this.describeHoroscopeFocus(
+        chartData,
+        supportiveTransit,
+        period,
+        locale,
+      ),
+      risk: this.describeHoroscopeRisk(
+        chartData,
+        challengingTransit,
+        period,
+        locale,
+      ),
+      keyWindow: this.describeHoroscopeKeyWindow(
+        supportiveTransit || challengingTransit,
+        targetDate,
+        locale,
+      ),
+    };
+  }
+
+  private mapToneForMeta(
+    tone: 'positive' | 'neutral' | 'challenging',
+  ): 'supportive' | 'mixed' | 'challenging' {
+    if (tone === 'positive') return 'supportive';
+    if (tone === 'challenging') return 'challenging';
+    return 'mixed';
+  }
+
+  private describeHoroscopeFocus(
+    chartData: ChartData,
+    supportiveTransit: TransitAspect | null,
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const natalFocus = this.getNatalStrategyProfile(
+      chartData.planets?.sun?.sign,
+      locale,
+    ).focus;
+
+    if (!supportiveTransit) {
+      return natalFocus;
+    }
+
+    const domain = this.inferDomainFromTransit(supportiveTransit);
+    const domainLabel = this.getDomainLabel(domain, locale);
+    const planet = getPlanetNameLocalized(
+      (supportiveTransit.transitPlanet || 'sun') as PlanetKey,
+      locale,
+    );
+    const focusByHouse =
+      supportiveTransit.house != null
+        ? getPlanetHouseFocus(
+            (supportiveTransit.transitPlanet || 'sun') as PlanetKey,
+            supportiveTransit.house,
+            locale,
+          )
+        : null;
+
+    if (locale === 'en') {
+      return focusByHouse
+        ? `Primary focus for this ${period === 'month' ? 'month' : 'period'} is ${domainLabel.toLowerCase()}. ${planet} supports progress here. ${focusByHouse}`
+        : `Primary focus for this ${period === 'month' ? 'month' : 'period'} is ${domainLabel.toLowerCase()}. ${planet} supports steady movement here.`;
+    }
+
+    if (locale === 'es') {
+      return focusByHouse
+        ? `El foco principal de este ${period === 'month' ? 'mes' : 'período'} está en ${domainLabel.toLowerCase()}. ${planet} apoya el avance aquí. ${focusByHouse}`
+        : `El foco principal de este ${period === 'month' ? 'mes' : 'período'} está en ${domainLabel.toLowerCase()}. ${planet} favorece un progreso estable aquí.`;
+    }
+
+    return focusByHouse
+      ? `Главный фокус этого ${period === 'month' ? 'месяца' : 'периода'} — ${domainLabel.toLowerCase()}. ${planet} поддерживает движение в этой сфере. ${focusByHouse}`
+      : `Главный фокус этого ${period === 'month' ? 'месяца' : 'периода'} — ${domainLabel.toLowerCase()}. ${planet} поддерживает устойчивое продвижение здесь.`;
+  }
+
+  private describeHoroscopeRisk(
+    chartData: ChartData,
+    challengingTransit: TransitAspect | null,
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const natalRisk = this.getNatalStrategyProfile(
+      chartData.planets?.sun?.sign,
+      locale,
+    ).risk;
+
+    if (!challengingTransit) {
+      return natalRisk;
+    }
+
+    const planetKey = (challengingTransit.transitPlanet ||
+      'saturn') as PlanetKey;
+    const planet = getPlanetNameLocalized(planetKey, locale);
+    const aspect = getAspectName(challengingTransit.aspect, locale);
+    const riskHint = this.getTransitRiskHint(challengingTransit, locale);
+    const domain = this.getDomainLabel(
+      this.inferDomainFromTransit(challengingTransit),
+      locale,
+    ).toLowerCase();
+
+    if (locale === 'en') {
+      return `Main risk of this ${period === 'month' ? 'month' : 'period'} is in ${domain}. ${planet} ${aspect} can trigger ${riskHint}.`;
+    }
+
+    if (locale === 'es') {
+      return `El riesgo principal de este ${period === 'month' ? 'mes' : 'período'} está en ${domain}. ${planet} en ${aspect} puede activar ${riskHint}.`;
+    }
+
+    return `Главный риск этого ${period === 'month' ? 'месяца' : 'периода'} — в сфере ${domain}. ${planet} в аспекте ${aspect} может включать ${riskHint}.`;
+  }
+
+  private describeHoroscopeKeyWindow(
+    transit: TransitAspect | null,
+    targetDate: Date,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    if (!transit) {
+      if (locale === 'en') {
+        return 'The period is smoother than usual, so steady pacing will work better than dramatic moves.';
+      }
+      if (locale === 'es') {
+        return 'El período es más estable de lo habitual, así que el ritmo constante funcionará mejor que los movimientos bruscos.';
+      }
+      return 'Период идёт ровнее обычного, поэтому лучше сработает спокойный темп, а не резкие рывки.';
+    }
+
+    const days = this.estimateTransitDurationDays(transit);
+    const endDate = new Date(targetDate.getTime() + days * 24 * 60 * 60 * 1000);
+    const formattedEnd = this.formatMetaDate(endDate, locale);
+    const planet = getPlanetNameLocalized(
+      (transit.transitPlanet || 'sun') as PlanetKey,
+      locale,
+    );
+    const aspect = getAspectName(transit.aspect, locale);
+    const natalPlanet = getPlanetNameLocalized(
+      (transit.natalPlanet || 'sun') as PlanetKey,
+      locale,
+    );
+
+    if (locale === 'en') {
+      const retrogradeHint = transit.isRetrograde
+        ? ' Leave room for revisions.'
+        : '';
+      return `Key window stays active until ${formattedEnd} (~${days} days) while ${planet} holds ${aspect} to natal ${natalPlanet}.${retrogradeHint}`;
+    }
+
+    if (locale === 'es') {
+      const retrogradeHint = transit.isRetrograde
+        ? ' Deja espacio para revisiones.'
+        : '';
+      return `La ventana clave sigue activa hasta ${formattedEnd} (~${days} días) mientras ${planet} mantiene ${aspect} con tu ${natalPlanet} natal.${retrogradeHint}`;
+    }
+
+    const retrogradeHint = transit.isRetrograde
+      ? ' Оставьте запас на пересмотр решений.'
+      : '';
+    return `Ключевое окно активно до ${formattedEnd} (~${days} дн.), пока ${planet} держит аспект ${aspect} к вашему натальному ${natalPlanet}.${retrogradeHint}`;
+  }
+
+  private getNatalStrategyProfile(
+    sunSign: string | undefined,
+    locale: 'ru' | 'en' | 'es',
+  ): { focus: string; risk: string } {
+    const cardinal = new Set(['Aries', 'Cancer', 'Libra', 'Capricorn']);
+    const fixed = new Set(['Taurus', 'Leo', 'Scorpio', 'Aquarius']);
+    const mutable = new Set(['Gemini', 'Virgo', 'Sagittarius', 'Pisces']);
+
+    if (cardinal.has(sunSign || '')) {
+      if (locale === 'en') {
+        return {
+          focus:
+            'Your natal style works best when you choose one clear initiative and move first instead of waiting too long.',
+          risk: 'Your natal risk is rushing into action before the details and timing are fully checked.',
+        };
+      }
+      if (locale === 'es') {
+        return {
+          focus:
+            'Tu estilo natal funciona mejor cuando eliges una iniciativa clara y das el primer paso sin esperar demasiado.',
+          risk: 'Tu riesgo natal es precipitarte antes de revisar bien los detalles y el momento.',
+        };
+      }
+      return {
+        focus:
+          'Ваш натальный стиль лучше всего раскрывается, когда вы выбираете один ясный импульс и начинаете без лишнего промедления.',
+        risk: 'Ваш натальный риск — спешка: не принимайте решение раньше, чем проверите детали и время.',
+      };
+    }
+
+    if (fixed.has(sunSign || '')) {
+      if (locale === 'en') {
+        return {
+          focus:
+            'Your natal style is strongest in consolidation: deepen, finish, and reinforce what is already valuable.',
+          risk: 'Your natal risk is rigidity: don’t hold onto a plan just because you already invested in it.',
+        };
+      }
+      if (locale === 'es') {
+        return {
+          focus:
+            'Tu estilo natal es más fuerte al consolidar: profundizar, terminar y reforzar lo que ya tiene valor.',
+          risk: 'Tu riesgo natal es la rigidez: no te aferres a un plan solo porque ya invertiste energía en él.',
+        };
+      }
+      return {
+        focus:
+          'Ваш натальный стиль сильнее всего в укреплении: углублять, завершать и усиливать то, что уже имеет ценность.',
+        risk: 'Ваш натальный риск — ригидность: не держитесь за план только потому, что уже вложили в него силы.',
+      };
+    }
+
+    if (mutable.has(sunSign || '')) {
+      if (locale === 'en') {
+        return {
+          focus:
+            'Your natal style is adaptive: learning, communication, and flexible planning bring the best results.',
+          risk: 'Your natal risk is scattering attention: don’t open too many options at once.',
+        };
+      }
+      if (locale === 'es') {
+        return {
+          focus:
+            'Tu estilo natal es adaptable: aprendizaje, comunicación y planes flexibles te dan mejores resultados.',
+          risk: 'Tu riesgo natal es dispersarte: no abras demasiadas opciones al mismo tiempo.',
+        };
+      }
+      return {
+        focus:
+          'Ваш натальный стиль адаптивный: обучение, общение и гибкое планирование дают лучший результат.',
+        risk: 'Ваш натальный риск — распыление внимания: не открывайте слишком много направлений одновременно.',
+      };
+    }
+
+    if (locale === 'en') {
+      return {
+        focus:
+          'Your natal style is strongest when action stays steady, simple, and grounded in what actually matters.',
+        risk: 'Your natal risk is losing focus on essentials while reacting to mood or pressure.',
+      };
+    }
+    if (locale === 'es') {
+      return {
+        focus:
+          'Tu estilo natal funciona mejor cuando avanzas con calma, claridad y atención a lo esencial.',
+        risk: 'Tu riesgo natal es perder el foco en lo importante al reaccionar al ánimo o a la presión.',
+      };
+    }
+    return {
+      focus:
+        'Ваш натальный стиль лучше всего работает, когда вы двигаетесь спокойно, ясно и держитесь сути.',
+      risk: 'Ваш натальный риск — потеря фокуса на главном под влиянием эмоций или внешнего давления.',
+    };
+  }
+
+  private inferDomainFromTransit(
+    transit: TransitAspect,
+  ): 'love' | 'career' | 'health' | 'finance' | 'general' {
+    if (transit.house === 5 || transit.house === 7) return 'love';
+    if (transit.house === 10) return 'career';
+    if (transit.house === 6) return 'health';
+    if (transit.house === 2 || transit.house === 8) return 'finance';
+    return 'general';
+  }
+
+  private getDomainLabel(
+    domain: 'love' | 'career' | 'health' | 'finance' | 'general',
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const labels = {
+      ru: {
+        love: 'отношения',
+        career: 'карьера',
+        health: 'здоровье',
+        finance: 'финансы',
+        general: 'общие дела',
+      },
+      en: {
+        love: 'Relationships',
+        career: 'Career',
+        health: 'Health',
+        finance: 'Finances',
+        general: 'General matters',
+      },
+      es: {
+        love: 'relaciones',
+        career: 'carrera',
+        health: 'salud',
+        finance: 'finanzas',
+        general: 'asuntos generales',
+      },
+    } as const;
+
+    return labels[locale][domain];
+  }
+
+  private getTransitRiskHint(
+    transit: TransitAspect,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const hints: Partial<
+      Record<PlanetKey, { ru: string; en: string; es: string }>
+    > = {
+      sun: {
+        ru: 'перегретые амбиции и конфликты эго',
+        en: 'overheated ego clashes and pushing too hard',
+        es: 'choques de ego y exceso de presión',
+      },
+      moon: {
+        ru: 'эмоциональную реактивность и скачки настроения',
+        en: 'emotional reactivity and mood swings',
+        es: 'reactividad emocional y cambios de ánimo',
+      },
+      mercury: {
+        ru: 'ошибки в договорённостях и путаницу в деталях',
+        en: 'miscommunication and detail mistakes',
+        es: 'malentendidos y errores en los detalles',
+      },
+      venus: {
+        ru: 'обиды, идеализацию и неудобные ожидания',
+        en: 'hurt feelings, idealization, and awkward expectations',
+        es: 'susceptibilidad, idealización y expectativas incómodas',
+      },
+      mars: {
+        ru: 'спешку, конфликтность и перегрузку',
+        en: 'haste, conflict, and overexertion',
+        es: 'prisa, conflicto y sobrecarga',
+      },
+      jupiter: {
+        ru: 'переоценку сил и лишние обещания',
+        en: 'overpromising and overestimating capacity',
+        es: 'prometer de más y sobreestimar tus recursos',
+      },
+      saturn: {
+        ru: 'задержки, давление и излишнюю жёсткость',
+        en: 'delays, pressure, and excessive rigidity',
+        es: 'demoras, presión y rigidez excesiva',
+      },
+      uranus: {
+        ru: 'резкие развороты и импульсивные решения',
+        en: 'sudden reversals and impulsive changes',
+        es: 'giros bruscos y decisiones impulsivas',
+      },
+      neptune: {
+        ru: 'туманность, самообман и потерю ориентира',
+        en: 'fog, self-deception, and loss of clarity',
+        es: 'confusión, autoengaño y pérdida de claridad',
+      },
+      pluto: {
+        ru: 'силовое давление и борьбу за контроль',
+        en: 'power struggles and control dynamics',
+        es: 'luchas de poder y dinámicas de control',
+      },
+      chiron: {
+        ru: 'болезненные триггеры старых тем',
+        en: 'painful triggers from older wounds',
+        es: 'disparadores dolorosos de heridas antiguas',
+      },
+      north_node: {
+        ru: 'чувство, что вас тянут слишком быстро',
+        en: 'feeling pulled faster than you are ready for',
+        es: 'sentir que todo avanza más rápido de lo que puedes integrar',
+      },
+      south_node: {
+        ru: 'скатывание в привычные, но уже тесные сценарии',
+        en: 'slipping back into old but limiting patterns',
+        es: 'volver a patrones conocidos pero limitantes',
+      },
+    };
+
+    return (
+      hints[(transit.transitPlanet || 'saturn') as PlanetKey]?.[locale] ||
+      (locale === 'en'
+        ? 'avoidable tension and reactive choices'
+        : locale === 'es'
+          ? 'tensión evitable y decisiones reactivas'
+          : 'избегаемое напряжение и реактивные решения')
+    );
+  }
+
+  private formatMetaDate(date: Date, locale: 'ru' | 'en' | 'es'): string {
+    return new Intl.DateTimeFormat(
+      locale === 'ru' ? 'ru-RU' : locale === 'es' ? 'es-ES' : 'en-US',
+      {
+        day: 'numeric',
+        month: 'short',
+      },
+    ).format(date);
   }
 
   private appendFreeDetail(

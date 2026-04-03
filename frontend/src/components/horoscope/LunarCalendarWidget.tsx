@@ -105,6 +105,11 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
   const displaySign = zodiacKey
     ? t(`common.zodiacSigns.${zodiacKey}`, { defaultValue: rawSign })
     : '-';
+  const energyLabel = lunarDay
+    ? t(`horoscope.lunarCalendar.energy.${lunarDay.energy}`, {
+        defaultValue: lunarDay.energy,
+      })
+    : '';
 
   return (
     <View style={styles.container}>
@@ -133,6 +138,11 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                   percent: moonPhase.illumination,
                 })}
               </Text>
+              {!!lunarDay?.summary && (
+                <Text style={styles.phaseSummary} numberOfLines={3}>
+                  {lunarDay.summary}
+                </Text>
+              )}
             </View>
           </View>
         </LinearGradient>
@@ -205,6 +215,9 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                   {t('horoscope.lunarCalendar.labels.lunarDay')}
                 </Text>
                 <Text style={styles.value}>{lunarDay.number}</Text>
+                <Text style={styles.dayMeta}>
+                  {lunarDay.energyScore}% · {energyLabel}
+                </Text>
               </View>
               <View style={styles.iconRight}>
                 <LunaSvg width={38} height={38} style={styles.iconGlow} />
@@ -232,6 +245,7 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
                   ellipsizeMode="tail"
                 >
                   {(
+                    lunarDay.bestFor?.[0] ||
                     lunarDay.recommendations?.[0] ||
                     t('horoscope.lunarCalendar.adviceFallback')
                   )
@@ -292,6 +306,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: 'rgba(255, 255, 255, 0.8)',
   },
+  phaseSummary: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.76)',
+  },
   row: {
     flexDirection: 'row',
     gap: 2,
@@ -326,6 +346,11 @@ const styles = StyleSheet.create({
   },
   signValue: {
     fontSize: 15,
+  },
+  dayMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.64)',
   },
   iconRight: {
     justifyContent: 'center',

@@ -14,12 +14,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { LessonCard } from '../components/lessons/LessonCard';
 import {
-  getCategoriesWithCountLocalized,
   getLessonByIdLocalized,
-  getLessonsByCategoryLocalized,
   getLessonsByLocale,
+  getPersonalizedNatalAspectLessonsLocalized,
+  getPersonalizedNatalLessonsLocalized,
 } from '../services/lessons-database.localized';
-import type { LessonCategory } from '../types/lessons';
+import { isGeneratedNatalPlacementLessonId } from '../services/generated-sign-lessons';
+import { chartAPI } from '../services/api';
+import type { Chart } from '../types';
+import type { AstroLesson, LessonCategory } from '../types/lessons';
 import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { useLearningStore } from '../stores';
 
@@ -54,6 +57,35 @@ const getLessonOfTheDay = <T,>(items: T[]): T | null => {
     (Date.now() - startOfYear) / (1000 * 60 * 60 * 24)
   );
   return items[dayOfYear % items.length] ?? null;
+};
+
+const getHouseSign = (
+  chart: Chart | null,
+  houseNumber: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+): string | null => {
+  if (!chart) return null;
+
+  const houses = chart.data?.houses ?? chart.houses;
+  if (!houses) return null;
+
+  return houses[houseNumber]?.sign || houses[String(houseNumber)]?.sign || null;
+};
+
+const getPlanetSign = (
+  chart: Chart | null,
+  primaryKey: string,
+  secondaryKey?: string
+): string | null => {
+  if (!chart) return null;
+
+  const planets = chart.data?.planets ?? chart.planets;
+  if (!planets) return null;
+
+  return (
+    planets[primaryKey]?.sign ||
+    (secondaryKey ? planets[secondaryKey]?.sign : null) ||
+    null
+  );
 };
 
 const sortLessonsByFocus = <
@@ -101,10 +133,31 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
   }));
 
   const lessons = useMemo(() => getLessonsByLocale(locale), [locale]);
-  const categoriesWithCount = useMemo(
-    () => getCategoriesWithCountLocalized(locale),
-    [locale]
+  const generalLessons = useMemo(
+    () =>
+      lessons.filter((lesson) => !isGeneratedNatalPlacementLessonId(lesson.id)),
+    [lessons]
   );
+  const categoriesWithCount = useMemo(() => {
+    return CATEGORY_ORDER.reduce(
+      (acc, category) => {
+        acc[category] = generalLessons.filter(
+          (lesson) => lesson.category === category
+        ).length;
+        return acc;
+      },
+      {
+        basics: 0,
+        planets: 0,
+        signs: 0,
+        houses: 0,
+        aspects: 0,
+        transits: 0,
+        practical: 0,
+        lunar: 0,
+      } as Record<LessonCategory, number>
+    );
+  }, [generalLessons]);
   const featuredLesson = useMemo(
     () =>
       route?.params?.lessonId
@@ -112,7 +165,13 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
         : null,
     [locale, route?.params?.lessonId]
   );
-  const dailyLesson = useMemo(() => getLessonOfTheDay(lessons), [lessons]);
+  const [personalizedLessons, setPersonalizedLessons] = useState<AstroLesson[]>(
+    []
+  );
+  const dailyLesson = useMemo(
+    () => getLessonOfTheDay(generalLessons),
+    [generalLessons]
+  );
   const dailyLessonKey = useMemo(
     () =>
       dailyLesson
@@ -150,8 +209,86 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
     }
   }, [route?.params?.source, setLastSource]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPersonalizedLessons = async () => {
+      try {
+        const chart = await chartAPI.getNatalChart();
+
+        if (!isMounted || !chart) {
+          if (isMounted) setPersonalizedLessons([]);
+          return;
+        }
+
+        const placementLessons = getPersonalizedNatalLessonsLocalized(locale, {
+          sunSign: getPlanetSign(chart, 'sun'),
+          moonSign: getPlanetSign(chart, 'moon'),
+          ascendantSign: chart.data?.ascendant?.sign || getHouseSign(chart, 1),
+          descendantSign: getHouseSign(chart, 7),
+          mercurySign: getPlanetSign(chart, 'mercury'),
+          venusSign: getPlanetSign(chart, 'venus'),
+          marsSign: getPlanetSign(chart, 'mars'),
+          midheavenSign: chart.data?.midheaven?.sign || getHouseSign(chart, 10),
+          jupiterSign: getPlanetSign(chart, 'jupiter'),
+          saturnSign: getPlanetSign(chart, 'saturn'),
+          northNodeSign: getPlanetSign(chart, 'north_node', 'northNode'),
+          southNodeSign: getPlanetSign(chart, 'south_node', 'southNode'),
+          chironSign: getPlanetSign(chart, 'chiron'),
+          houseSigns: {
+            1: getHouseSign(chart, 1),
+            2: getHouseSign(chart, 2),
+            3: getHouseSign(chart, 3),
+            4: getHouseSign(chart, 4),
+            5: getHouseSign(chart, 5),
+            6: getHouseSign(chart, 6),
+            7: getHouseSign(chart, 7),
+            8: getHouseSign(chart, 8),
+            9: getHouseSign(chart, 9),
+            10: getHouseSign(chart, 10),
+            11: getHouseSign(chart, 11),
+            12: getHouseSign(chart, 12),
+          },
+        });
+        const aspectLessons = getPersonalizedNatalAspectLessonsLocalized(
+          locale,
+          chart
+        );
+
+        if (isMounted) {
+          setPersonalizedLessons([...placementLessons, ...aspectLessons]);
+        }
+      } catch {
+        if (isMounted) {
+          setPersonalizedLessons([]);
+        }
+      }
+    };
+
+    void loadPersonalizedLessons();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [locale]);
+
+  const trackableLessonIds = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...generalLessons.map((lesson) => lesson.id),
+        ...personalizedLessons.map((lesson) => lesson.id),
+      ])
+    );
+  }, [generalLessons, personalizedLessons]);
+
+  const completedTrackedLessons = useMemo(() => {
+    return trackableLessonIds.filter((lessonId) =>
+      completedLessonIds.includes(lessonId)
+    ).length;
+  }, [completedLessonIds, trackableLessonIds]);
+
   const progressPercent = Math.round(
-    (completedLessonIds.length / Math.max(lessons.length, 1)) * 100
+    (completedTrackedLessons / Math.max(trackableLessonIds.length, 1)) * 100
   );
 
   const handleOpenLesson = (lessonId: string, category: LessonCategory) => {
@@ -226,8 +363,8 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
 
             <Text style={styles.progressCaption}>
               {t('learning.progress.summary', {
-                completed: completedLessonIds.length,
-                total: lessons.length,
+                completed: completedTrackedLessons,
+                total: trackableLessonIds.length,
               })}
             </Text>
           </BlurView>
@@ -300,6 +437,31 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
             </View>
           )}
 
+          {personalizedLessons.length > 0 && (
+            <View style={styles.personalizedContainer}>
+              <Text style={styles.sectionTitle}>
+                {t('learning.personalized.title')}
+              </Text>
+              <Text style={styles.sectionSubtitle}>
+                {t('learning.personalized.subtitle')}
+              </Text>
+
+              {personalizedLessons.map((lesson) => (
+                <LessonCard
+                  key={lesson.id}
+                  lesson={lesson}
+                  isCompleted={completedLessonIds.includes(lesson.id)}
+                  isBookmarked={bookmarkedLessonIds.includes(lesson.id)}
+                  onComplete={markLessonCompleted}
+                  onBookmark={toggleLessonBookmark}
+                  onTaskPress={(currentLesson) =>
+                    handleTaskPress(currentLesson.task?.navigationTarget)
+                  }
+                />
+              ))}
+            </View>
+          )}
+
           <View style={styles.filtersContainer}>
             <ScrollView
               horizontal
@@ -349,7 +511,7 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
 
           {categoriesToRender.map((category) => {
             const categoryLessons = sortLessonsByFocus(
-              getLessonsByCategoryLocalized(locale, category),
+              generalLessons.filter((lesson) => lesson.category === category),
               focusedLessonId
             );
 
@@ -551,6 +713,9 @@ const styles = StyleSheet.create({
   featuredContainer: {
     marginTop: 20,
   },
+  personalizedContainer: {
+    marginTop: 20,
+  },
   filtersContainer: {
     marginTop: 20,
   },
@@ -585,6 +750,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  sectionSubtitle: {
+    marginTop: -4,
+    marginBottom: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(255,255,255,0.68)',
   },
 });
 

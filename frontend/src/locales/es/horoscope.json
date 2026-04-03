@@ -29,10 +29,13 @@
   "periods": {
     "day": "Hoy",
     "tomorrow": "Mañana",
-    "week": "Esta semana"
+    "week": "Esta semana",
+    "month": "Mes"
   },
   "widget": {
     "loading": "Cargando horóscopo...",
+    "periodInsights": "Guía del período",
+    "pendingHint": "La versión con IA aún se está completando. Mientras tanto mostramos una interpretación natal fiable y actualizaremos el contenido automáticamente.",
     "categories": {
       "general": "General",
       "love": "Amor",
@@ -41,12 +44,38 @@
       "finance": "Finanzas",
       "advice": "Consejo del día"
     },
+    "opportunities": "Oportunidades",
+    "challenges": "Qué vigilar",
+    "sources": {
+      "ai": "AI",
+      "mixed": "AI + base",
+      "interpreter": "Análisis natal"
+    },
+    "status": {
+      "ready": "Listo",
+      "ai_pending": "IA actualizando"
+    },
+    "tones": {
+      "supportive": "Clima favorable",
+      "mixed": "Clima mixto",
+      "challenging": "Clima tenso"
+    },
+    "meta": {
+      "focus": "Foco del período",
+      "risk": "Riesgo del período",
+      "keyWindow": "Ventana clave"
+    },
     "luckyNumbers": "Números de la suerte",
     "luckyColors": "Colores de la suerte",
     "noDetails": "Aún no hay detalles disponibles."
   },
   "lunarCalendar": {
     "title": "Calendario lunar",
+    "energy": {
+      "positive": "día fuerte",
+      "neutral": "día equilibrado",
+      "challenging": "día intenso"
+    },
     "labels": {
       "sign": "Signo",
       "house": "Casa",
@@ -69,6 +98,18 @@
   },
   "biorhythmsWidget": {
     "loading": "Cargando biorritmos...",
+    "summaryTitle": "Ritmo del día",
+    "trendTitle": "Próximos 7 días",
+    "overall": "Tono general: {{value}}% · {{phase}}",
+    "fallbackSummary": "Apóyate en el ritmo más fuerte del día y baja la presión donde haya menos energía.",
+    "phases": {
+      "peak": "Pico",
+      "high": "Alto",
+      "rising": "En subida",
+      "critical": "Cambio",
+      "falling": "En bajada",
+      "low": "Bajo"
+    },
     "physicalDescription": "El ritmo físico refleja resistencia y vitalidad. Si está alto, planifica actividades; si está bajo, baja la intensidad.",
     "emotionalDescription": "El ritmo emocional influye en el ánimo y la sensibilidad. Alto: mejor comunicación; bajo: más calma y autocuidado.",
     "intellectualDescription": "El ritmo intelectual afecta concentración y aprendizaje. Alto: análisis y estudio; bajo: tareas rutinarias."

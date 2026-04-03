@@ -94,17 +94,27 @@ describe('AdvisorService', () => {
 
     expect(result.verdict).toBe('good');
     expect(result.generatedBy).toBe('enhanced-rules');
+    expect(result.directAnswer).toContain('Поверх натала');
+    expect(result.directAnswer).toContain('подписать договор аренды');
+    expect(result.explanation).toContain('Поверх натала');
     expect(result.explanation).toContain('подписать договор аренды');
     expect(result.explanation).toContain('00:00-00:59');
     expect(result.recommendations?.[0]?.text).toContain('00:00-00:59');
+    expect(result.risks).toEqual([]);
+    expect(result.clarifyingQuestion).toBeUndefined();
   });
 
   it('uses AI synthesis when available and returns the hybrid response', async () => {
     aiService.isAvailable.mockReturnValue(true);
     aiService.generateText.mockResolvedValue(
       JSON.stringify({
+        directAnswer:
+          'Да, для договора день рабочий: ставьте ключевой шаг на 00:00-00:59.',
         explanation:
           'Для договора это сильный день: лучшее окно 00:00-00:59, а главные драйверы сейчас Меркурий, Юпитер и Сатурн.',
+        risks: ['Проверьте формулировки спорных пунктов ещё раз.'],
+        clarifyingQuestion: null,
+        alternativeDate: null,
         recommendations: [
           {
             text: 'Ставьте подписание на 00:00-00:59.',
@@ -131,10 +141,50 @@ describe('AdvisorService', () => {
       'ru',
     );
 
-    expect(aiService.generateText.mock.calls).toHaveLength(1);
+    expect(aiService.generateText.mock.calls.length).toBe(1);
     expect(result.generatedBy).toBe('hybrid');
+    expect(result.directAnswer).toContain('ставьте ключевой шаг');
     expect(result.explanation).toContain('лучшее окно 00:00-00:59');
+    expect(result.risks).toEqual([
+      'Проверьте формулировки спорных пунктов ещё раз.',
+    ]);
     expect(result.recommendations).toHaveLength(2);
+  });
+
+  it('returns a clarifying question for generic prompts', async () => {
+    const result = await service.evaluate(
+      'user-4',
+      {
+        topic: 'travel',
+        date: '2026-04-02',
+        timezone: 'UTC',
+        customNote: 'поездка',
+      },
+      'ru',
+    );
+
+    expect(result.clarifyingQuestion).toContain('Какой отдых');
+    expect(result.explanation).toContain('Поверх натала');
+    expect(result.directAnswer).toContain('поездка');
+  });
+
+  it('suggests a concrete course of action when the user shares thoughts and doubts', async () => {
+    const result = await service.evaluate(
+      'user-5',
+      {
+        topic: 'travel',
+        date: '2026-04-02',
+        timezone: 'UTC',
+        customNote:
+          'Не знаю, ехать ли вообще на выходные. Сомневаюсь между активной поездкой и спокойным отдыхом, боюсь перегрузиться.',
+      },
+      'ru',
+    );
+
+    expect(result.directAnswer).toContain('Лучшее решение');
+    expect(result.directAnswer).toContain('Поверх натала');
+    expect(result.directAnswer).toContain('активной поездкой');
+    expect(result.clarifyingQuestion).toBeUndefined();
   });
 
   it('includes custom note and locale in the cache key', async () => {

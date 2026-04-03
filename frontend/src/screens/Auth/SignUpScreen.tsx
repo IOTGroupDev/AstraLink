@@ -110,10 +110,7 @@ const SignUpScreen = () => {
   return (
     <AuthLayout>
       <View style={styles.container}>
-        <OnboardingHeader
-          title={t('auth.signUp.title')}
-          onBack={() => navigation.goBack()}
-        />
+        <OnboardingHeader title="AstraLink" />
 
         <View style={styles.content}>
           <Text style={styles.subtitle}>{t('auth.signUp.subtitle')}</Text>
@@ -266,7 +263,7 @@ const styles = StyleSheet.create({
   yandexText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FC3F1D',
+    color: AUTH_COLORS.border,
   },
   disabledButton: {
     opacity: 0.5,

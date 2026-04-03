@@ -97,7 +97,15 @@
       "challenging": "Difícil"
     },
     "outOf": "de 100",
-    "energyLabel": "Nivel de favorabilidad"
+    "energyLabel": "Nivel de favorabilidad",
+    "alternativeScore": "{{score}} de 100",
+    "sections": {
+      "directAnswer": "Respuesta directa",
+      "why": "Por qué esta respuesta",
+      "risks": "Qué vigilar",
+      "alternativeDate": "Fecha mejor más cercana",
+      "clarifyingQuestion": "Qué conviene aclarar"
+    }
   },
   "recommendationsWidget": {
     "title": {

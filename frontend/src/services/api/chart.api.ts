@@ -39,6 +39,80 @@ const normalizeLocale = (locale?: string): 'ru' | 'en' | 'es' => {
   return 'ru';
 };
 
+export type BiorhythmPhase =
+  | 'peak'
+  | 'high'
+  | 'rising'
+  | 'critical'
+  | 'falling'
+  | 'low';
+
+export interface BiorhythmTrendPoint {
+  date: string;
+  physical: number;
+  emotional: number;
+  intellectual: number;
+  overall: number;
+  overallPhase: BiorhythmPhase;
+}
+
+export interface BiorhythmCriticalDay {
+  date: string;
+  channels: Array<'physical' | 'emotional' | 'intellectual'>;
+}
+
+export interface BiorhythmResponse {
+  physical: number;
+  emotional: number;
+  intellectual: number;
+  date: string;
+  physicalPhase: BiorhythmPhase;
+  emotionalPhase: BiorhythmPhase;
+  intellectualPhase: BiorhythmPhase;
+  overall: number;
+  overallPhase: BiorhythmPhase;
+  summary: string;
+  trend: BiorhythmTrendPoint[];
+  criticalDays: BiorhythmCriticalDay[];
+}
+
+export type HoroscopeGeneratedBy = 'ai' | 'interpreter' | 'mixed';
+export type HoroscopeStatus = 'ready' | 'ai_pending';
+export type HoroscopeTone = 'supportive' | 'mixed' | 'challenging';
+
+export interface HoroscopeMeta {
+  tone: HoroscopeTone;
+  focus: string;
+  risk: string;
+  keyWindow: string;
+}
+
+export interface HoroscopeContent {
+  general: string;
+  love: string;
+  career: string;
+  health: string;
+  finance: string;
+  advice: string;
+  luckyNumbers: number[];
+  luckyColors: Array<string | Record<string, unknown>>;
+  energy: number;
+  mood: string;
+  challenges: string[];
+  opportunities: string[];
+  generatedBy: HoroscopeGeneratedBy;
+  status: HoroscopeStatus;
+  updatedAt: string;
+  meta: HoroscopeMeta;
+}
+
+export interface HoroscopeBundle {
+  day: HoroscopeContent | null;
+  tomorrow: HoroscopeContent | null;
+  week: HoroscopeContent | null;
+  month: HoroscopeContent | null;
+}
+
 export const chartAPI = {
   getNatalChart: async (): Promise<Chart | null> => {
     try {
@@ -129,11 +203,10 @@ export const chartAPI = {
   getAllHoroscopes: async (
     locale: 'ru' | 'en' | 'es' = 'ru'
   ): Promise<{
-    today: any;
-    tomorrow: any;
-    week: any;
-    month: any;
-    isPremium: boolean;
+    today: unknown;
+    tomorrow: unknown;
+    week: unknown;
+    month: unknown;
   }> => {
     try {
       const params = buildLocalTimezoneParams();
@@ -211,17 +284,11 @@ export const chartAPI = {
   },
 
   getBiorhythms: async (
-    date?: string
-  ): Promise<{
-    physical: number;
-    emotional: number;
-    intellectual: number;
-    date: string;
-    physicalPhase: 'peak' | 'high' | 'low' | 'critical';
-    emotionalPhase: 'peak' | 'high' | 'low' | 'critical';
-    intellectualPhase: 'peak' | 'high' | 'low' | 'critical';
-  }> => {
+    date?: string,
+    locale: 'ru' | 'en' | 'es' = 'ru'
+  ): Promise<BiorhythmResponse> => {
     const params = buildLocalDateParams(date);
+    params.set('locale', normalizeLocale(locale));
     const url = `/chart/biorhythms?${params.toString()}`;
     const response = await api.get(url);
     return response.data;

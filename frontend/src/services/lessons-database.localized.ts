@@ -2,6 +2,14 @@ import { AstroLesson, LessonCategory } from '../types/lessons';
 import { ASTRO_LESSONS } from './lessons-database';
 import { ASTRO_LESSONS_EN } from './lessons-database.en';
 import { ASTRO_LESSONS_ES } from './lessons-database.es';
+import {
+  buildPersonalizedNatalLessonIds,
+  getGeneratedNatalLessons,
+  getPersonalizedNatalAspectLessons,
+  type NatalLessonPlacements,
+  type SupportedLessonsLocale,
+} from './generated-sign-lessons';
+import type { Chart } from '../types';
 
 const LESSONS_BY_LOCALE: Record<'ru' | 'en' | 'es', AstroLesson[]> = {
   ru: ASTRO_LESSONS,
@@ -9,10 +17,30 @@ const LESSONS_BY_LOCALE: Record<'ru' | 'en' | 'es', AstroLesson[]> = {
   es: ASTRO_LESSONS_ES,
 };
 
-export const getLessonsByLocale = (
+const COMBINED_LESSONS_CACHE: Partial<
+  Record<SupportedLessonsLocale, AstroLesson[]>
+> = {};
+
+export const getCoreLessonsByLocale = (
   locale: 'ru' | 'en' | 'es'
 ): AstroLesson[] => {
   return LESSONS_BY_LOCALE[locale] || ASTRO_LESSONS_EN;
+};
+
+export const getLessonsByLocale = (
+  locale: 'ru' | 'en' | 'es'
+): AstroLesson[] => {
+  if (COMBINED_LESSONS_CACHE[locale]) {
+    return COMBINED_LESSONS_CACHE[locale] as AstroLesson[];
+  }
+
+  const combinedLessons = [
+    ...getCoreLessonsByLocale(locale),
+    ...getGeneratedNatalLessons(locale),
+  ];
+
+  COMBINED_LESSONS_CACHE[locale] = combinedLessons;
+  return combinedLessons;
 };
 
 export const getLessonByIdLocalized = (
@@ -48,4 +76,22 @@ export const getCategoriesWithCountLocalized = (locale: 'ru' | 'en' | 'es') => {
   });
 
   return categories;
+};
+
+export const getPersonalizedNatalLessonsLocalized = (
+  locale: 'ru' | 'en' | 'es',
+  placements: NatalLessonPlacements
+): AstroLesson[] => {
+  const lessonIds = buildPersonalizedNatalLessonIds(placements);
+
+  return lessonIds
+    .map((lessonId) => getLessonByIdLocalized(locale, lessonId))
+    .filter((lesson): lesson is AstroLesson => Boolean(lesson));
+};
+
+export const getPersonalizedNatalAspectLessonsLocalized = (
+  locale: 'ru' | 'en' | 'es',
+  chart: Chart | null
+): AstroLesson[] => {
+  return getPersonalizedNatalAspectLessons(locale, chart);
 };

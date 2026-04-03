@@ -36,12 +36,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { logger } from '../services/logger';
 
-type RouteParams = {
-  otherUserId: string;
-  displayName?: string | null;
-  primaryPhotoUrl?: string | null;
-};
-
 type Message = {
   id: string;
   senderId: string;
@@ -62,12 +56,24 @@ export default function ChatDialogScreen() {
     if (Platform.OS !== 'ios') return 0;
     return (insets?.top || 0) + 120;
   }, [insets?.top]);
+  const headerTopPadding = Math.max((insets?.top || 0) + 12, 24);
+  const inputBottomPadding = Math.max((insets?.bottom || 0) + 8, 16);
 
   const otherUserId: string = route?.params?.otherUserId;
   const displayName: string | undefined =
     route?.params?.displayName ?? undefined;
   const primaryPhotoUrl: string | undefined =
     route?.params?.primaryPhotoUrl ?? undefined;
+
+  const openOtherProfile = useCallback(() => {
+    if (!otherUserId) return;
+    navigation.navigate('DatingProfile', {
+      userId: otherUserId,
+      compatibility: 0,
+      name: displayName ?? otherUserId,
+      photoUrl: primaryPhotoUrl ?? null,
+    });
+  }, [displayName, navigation, otherUserId, primaryPhotoUrl]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -785,7 +791,15 @@ export default function ChatDialogScreen() {
         keyboardVerticalOffset={keyboardVerticalOffset}
         enabled
       >
-        <View style={styles.header}>
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: headerTopPadding,
+              minHeight: headerTopPadding + 64,
+            },
+          ]}
+        >
           <Pressable
             style={styles.backHit}
             onPress={() =>
@@ -794,7 +808,11 @@ export default function ChatDialogScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </Pressable>
-          <View style={styles.headerCenter}>
+          <Pressable
+            style={styles.headerCenter}
+            onPress={openOtherProfile}
+            hitSlop={10}
+          >
             {primaryPhotoUrl ? (
               <Image source={{ uri: primaryPhotoUrl }} style={styles.avatar} />
             ) : (
@@ -807,7 +825,7 @@ export default function ChatDialogScreen() {
             <View style={styles.headerTextContainer}>
               <Text style={styles.title}>{displayName || otherUserId}</Text>
             </View>
-          </View>
+          </Pressable>
           <View style={{ width: 40 }} />
         </View>
 
@@ -843,7 +861,14 @@ export default function ChatDialogScreen() {
           />
         )}
 
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              paddingBottom: inputBottomPadding,
+            },
+          ]}
+        >
           <View style={styles.inputRow}>
             <Pressable
               style={[
@@ -904,12 +929,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
   },
   header: {
-    height: 80,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 40,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(139, 92, 246, 0.2)',
   },
@@ -921,6 +944,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 12,
+    minHeight: 48,
   },
   avatar: {
     width: 40,
@@ -944,11 +968,14 @@ const styles = StyleSheet.create({
   headerTextContainer: {
     marginLeft: 12,
     flex: 1,
+    justifyContent: 'center',
+    paddingTop: 4,
   },
   title: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+    lineHeight: 24,
   },
   loader: {
     flex: 1,
@@ -1060,7 +1087,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 16,
     backgroundColor: 'rgba(15, 23, 42, 0.95)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(139, 92, 246, 0.2)',

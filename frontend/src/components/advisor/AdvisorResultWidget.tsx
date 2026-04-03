@@ -10,7 +10,16 @@ interface AdvisorResultWidgetProps {
   verdict: 'good' | 'neutral' | 'challenging';
   score: number;
   color: string;
+  directAnswer?: string;
   explanation: string;
+  risks?: string[];
+  clarifyingQuestion?: string;
+  alternativeDate?: {
+    date: string;
+    score: number;
+    bestWindow?: string;
+    reason: string;
+  };
   topic: string;
   topicIcon: keyof typeof Ionicons.glyphMap;
 }
@@ -19,11 +28,30 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
   verdict,
   score,
   color,
+  directAnswer,
   explanation,
+  risks,
+  clarifyingQuestion,
+  alternativeDate,
   topic,
   topicIcon,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const formattedAlternativeDate = React.useMemo(() => {
+    if (!alternativeDate?.date) {
+      return '';
+    }
+
+    try {
+      return new Intl.DateTimeFormat(i18n.language || 'en-US', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date(`${alternativeDate.date}T12:00:00`));
+    } catch {
+      return alternativeDate.date;
+    }
+  }, [alternativeDate?.date, i18n.language]);
   type VerdictConfig = {
     icon: keyof typeof Ionicons.glyphMap;
     label: string;
@@ -66,6 +94,7 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
   };
 
   const verdictConfig = getVerdictConfig();
+  const visibleRisks = (risks || []).filter(Boolean).slice(0, 4);
 
   return (
     <BlurView intensity={10} tint="dark" style={styles.container}>
@@ -107,11 +136,79 @@ const AdvisorResultWidget: React.FC<AdvisorResultWidgetProps> = ({
         </View>
       </View>
 
-      {/* Explanation */}
+      {directAnswer ? (
+        <View style={styles.directAnswerContainer}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="navigate" size={16} color="#FDE68A" />
+            <Text style={styles.sectionTitle}>
+              {t('advisor.resultWidget.sections.directAnswer')}
+            </Text>
+          </View>
+          <Text style={styles.directAnswerText}>{directAnswer}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.explanationContainer}>
-        <Text style={styles.explanationEmoji}>{verdictConfig.emoji}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.explanationEmoji}>{verdictConfig.emoji}</Text>
+          <Text style={styles.sectionTitle}>
+            {t('advisor.resultWidget.sections.why')}
+          </Text>
+        </View>
         <Text style={styles.explanationText}>{explanation}</Text>
       </View>
+
+      {visibleRisks.length > 0 ? (
+        <View style={styles.risksContainer}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="warning" size={16} color="#FCA5A5" />
+            <Text style={styles.sectionTitle}>
+              {t('advisor.resultWidget.sections.risks')}
+            </Text>
+          </View>
+          {visibleRisks.map((risk, index) => (
+            <View key={`${risk}-${index}`} style={styles.riskRow}>
+              <View style={styles.riskDot} />
+              <Text style={styles.riskText}>{risk}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {alternativeDate ? (
+        <View style={styles.altDateContainer}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="calendar-clear" size={16} color="#93C5FD" />
+            <Text style={styles.sectionTitle}>
+              {t('advisor.resultWidget.sections.alternativeDate')}
+            </Text>
+          </View>
+          <Text style={styles.altDateTitle}>
+            {formattedAlternativeDate || alternativeDate.date}
+            {alternativeDate.bestWindow
+              ? ` • ${alternativeDate.bestWindow}`
+              : ''}
+          </Text>
+          <Text style={styles.altDateMeta}>
+            {t('advisor.resultWidget.alternativeScore', {
+              score: alternativeDate.score,
+            })}
+          </Text>
+          <Text style={styles.altDateReason}>{alternativeDate.reason}</Text>
+        </View>
+      ) : null}
+
+      {clarifyingQuestion ? (
+        <View style={styles.questionContainer}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="help-circle" size={16} color="#A5B4FC" />
+            <Text style={styles.sectionTitle}>
+              {t('advisor.resultWidget.sections.clarifyingQuestion')}
+            </Text>
+          </View>
+          <Text style={styles.questionText}>{clarifyingQuestion}</Text>
+        </View>
+      ) : null}
 
       {/* Energy Bar */}
       <View style={styles.energyBarContainer}>
@@ -223,14 +320,104 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
   },
+  directAnswerContainer: {
+    backgroundColor: 'rgba(250, 204, 21, 0.09)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(250, 204, 21, 0.22)',
+  },
+  directAnswerText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '600',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    color: 'rgba(255,255,255,0.68)',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
   explanationEmoji: {
     fontSize: 24,
-    marginBottom: 8,
   },
   explanationText: {
     color: 'rgba(255,255,255,0.85)',
     fontSize: 15,
     lineHeight: 22,
+  },
+  risksContainer: {
+    backgroundColor: 'rgba(248, 113, 113, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(248, 113, 113, 0.18)',
+  },
+  riskRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  riskDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FCA5A5',
+    marginTop: 8,
+  },
+  riskText: {
+    flex: 1,
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  altDateContainer: {
+    backgroundColor: 'rgba(96, 165, 250, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.18)',
+  },
+  altDateTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  altDateMeta: {
+    color: 'rgba(191, 219, 254, 0.84)',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  altDateReason: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  questionContainer: {
+    backgroundColor: 'rgba(129, 140, 248, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.18)',
+  },
+  questionText: {
+    color: '#E9D5FF',
+    fontSize: 14,
+    lineHeight: 21,
   },
   energyBarContainer: {
     gap: 8,

@@ -1074,7 +1074,11 @@ function AdvisorResultMessage({
           verdict={result.verdict}
           score={result.score}
           color={result.color}
+          directAnswer={result.directAnswer}
           explanation={result.explanation}
+          risks={result.risks}
+          clarifyingQuestion={result.clarifyingQuestion}
+          alternativeDate={result.alternativeDate}
           topic={topicOption.label}
           topicIcon={topicOption.icon}
         />

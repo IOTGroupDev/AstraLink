@@ -31,11 +31,17 @@ import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
 import { HoroscopeWidgetSkeleton } from '../components/horoscope/HoroscopeSkeletons';
 import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecommendationWidget';
 import { chartAPI } from '../services/api';
+import type {
+  BiorhythmPhase,
+  BiorhythmResponse,
+  HoroscopeBundle,
+  HoroscopeContent,
+} from '../services/api/chart.api';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { Chart } from '../types/index';
 import { chartLogger } from '../services/logger';
-import { getLessonsByLocale } from '../services/lessons-database.localized';
+import { getCoreLessonsByLocale } from '../services/lessons-database.localized';
 import {
   addLocalDays,
   formatLocalDate,
@@ -93,11 +99,7 @@ const HoroscopeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [biorhythms, setBiorhythms] = useState<{
-    physical: number;
-    emotional: number;
-    intellectual: number;
-  } | null>(null);
+  const [biorhythms, setBiorhythms] = useState<BiorhythmResponse | null>(null);
   const [transitModalVisible, setTransitModalVisible] = useState(false);
   const [transitModalLoading, setTransitModalLoading] = useState(false);
   const [transitModalText, setTransitModalText] = useState('');
@@ -111,6 +113,81 @@ const HoroscopeScreen: React.FC = () => {
   const predictionsRequestIdRef = useRef(0);
   const dataLoadingRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
+
+  const extractHoroscopeContent = React.useCallback(
+    (response: any): HoroscopeContent => {
+      if (response?.predictions && typeof response.predictions === 'object') {
+        return {
+          ...response.predictions,
+          generatedBy:
+            response.predictions.generatedBy ||
+            response.generatedBy ||
+            'interpreter',
+          status: response.predictions.status || response.status || 'ready',
+          updatedAt:
+            response.predictions.updatedAt ||
+            response.updatedAt ||
+            new Date().toISOString(),
+          meta: response.predictions.meta ||
+            response.meta || {
+              tone: 'mixed',
+              focus: '',
+              risk: '',
+              keyWindow: '',
+            },
+        };
+      }
+
+      return {
+        general: response?.general || '',
+        love: response?.love || '',
+        career: response?.career || '',
+        health: response?.health || '',
+        finance: response?.finance || '',
+        advice: response?.advice || '',
+        luckyNumbers: response?.luckyNumbers || [],
+        luckyColors: response?.luckyColors || [],
+        energy: response?.energy || 50,
+        mood: response?.mood || '',
+        challenges: response?.challenges || [],
+        opportunities: response?.opportunities || [],
+        generatedBy: response?.generatedBy || 'interpreter',
+        status: response?.status || 'ready',
+        updatedAt: response?.updatedAt || new Date().toISOString(),
+        meta: response?.meta || {
+          tone: 'mixed',
+          focus: '',
+          risk: '',
+          keyWindow: '',
+        },
+      };
+    },
+    []
+  );
+
+  const normalizeHoroscopeBundle = React.useCallback(
+    (response: {
+      today?: unknown;
+      day?: unknown;
+      tomorrow?: unknown;
+      week?: unknown;
+      month?: unknown;
+    }): HoroscopeBundle => {
+      return {
+        day: response?.today
+          ? extractHoroscopeContent(response.today)
+          : response?.day
+            ? extractHoroscopeContent(response.day)
+            : null,
+        tomorrow: response?.tomorrow
+          ? extractHoroscopeContent(response.tomorrow)
+          : null,
+        week: response?.week ? extractHoroscopeContent(response.week) : null,
+        month: response?.month ? extractHoroscopeContent(response.month) : null,
+      };
+    },
+    [extractHoroscopeContent]
+  );
 
   // Клиентский расчёт биоритмов (fallback), если сервер вернул плоские 50/50/50
   const computeClientBiorhythms = (
@@ -173,11 +250,73 @@ const HoroscopeScreen: React.FC = () => {
         physical: clamp(cycle(23)),
         emotional: clamp(cycle(28)),
         intellectual: clamp(cycle(33)),
+        date: targetDateISO ?? formatLocalDate(new Date()),
       };
     } catch {
       return null;
     }
   };
+
+  const getBiorhythmPhase = React.useCallback(
+    (value: number, delta: number): BiorhythmPhase => {
+      if (value >= 90) return 'peak';
+      if (value <= 10) return 'low';
+      if (value >= 65) return delta >= 0 ? 'rising' : 'high';
+      if (value <= 35) return delta <= 0 ? 'falling' : 'low';
+      return 'critical';
+    },
+    []
+  );
+
+  const toRichBiorhythm = React.useCallback(
+    (
+      values: {
+        physical: number;
+        emotional: number;
+        intellectual: number;
+        date: string;
+      },
+      summary?: string
+    ): BiorhythmResponse => {
+      const physicalDelta = values.emotional - values.physical;
+      const emotionalDelta = values.intellectual - values.emotional;
+      const intellectualDelta = values.physical - values.intellectual;
+      const overall = Math.round(
+        (values.physical + values.emotional + values.intellectual) / 3
+      );
+      const overallPhase = getBiorhythmPhase(overall, 0);
+
+      return {
+        ...values,
+        physicalPhase: getBiorhythmPhase(values.physical, physicalDelta),
+        emotionalPhase: getBiorhythmPhase(values.emotional, emotionalDelta),
+        intellectualPhase: getBiorhythmPhase(
+          values.intellectual,
+          intellectualDelta
+        ),
+        overall,
+        overallPhase,
+        summary:
+          summary ||
+          t('horoscope.biorhythmsWidget.fallbackSummary', {
+            defaultValue:
+              'Use your strongest rhythm as support today and reduce pressure where energy is lower.',
+          }),
+        trend: [
+          {
+            date: values.date,
+            physical: values.physical,
+            emotional: values.emotional,
+            intellectual: values.intellectual,
+            overall,
+            overallPhase,
+          },
+        ],
+        criticalDays: [],
+      };
+    },
+    [getBiorhythmPhase, t]
+  );
 
   // Загрузка основных данных
   const loadData = async (forcePredictions = false) => {
@@ -235,7 +374,7 @@ const HoroscopeScreen: React.FC = () => {
           // Локальная дата пользователя (YYYY-MM-DD), чтобы избежать смещения по UTC на бэкенде
           const localDateStr = formatLocalDate(new Date());
 
-          const b = await chartAPI.getBiorhythms(localDateStr);
+          const b = await chartAPI.getBiorhythms(localDateStr, getApiLocale());
 
           // Если значения "плоские" около 50% (из-за даты/часового пояса), пересчитываем на клиенте из даты рождения
           const isNum = (v: any) => typeof v === 'number' && Number.isFinite(v);
@@ -258,11 +397,9 @@ const HoroscopeScreen: React.FC = () => {
             ? computeClientBiorhythms(birthISO, localDateStr)
             : null;
 
-          const finalValues = clientCalc ?? {
-            physical: b.physical,
-            emotional: b.emotional,
-            intellectual: b.intellectual,
-          };
+          const finalValues = clientCalc
+            ? toRichBiorhythm(clientCalc, b?.summary)
+            : b;
 
           setBiorhythms(finalValues);
 
@@ -286,7 +423,7 @@ const HoroscopeScreen: React.FC = () => {
 
             const clientCalc = computeClientBiorhythms(birthISO, localDateStr);
             if (clientCalc) {
-              setBiorhythms(clientCalc);
+              setBiorhythms(toRichBiorhythm(clientCalc));
               chartLogger.log(
                 'ℹ️ Поставлены клиентские биоритмы (fallback):',
                 clientCalc
@@ -341,60 +478,15 @@ const HoroscopeScreen: React.FC = () => {
       }
       predictionsLoadingRef.current = true;
 
-      const results = await Promise.allSettled([
-        chartAPI.getHoroscope('day', locale),
-        chartAPI.getHoroscope('tomorrow', locale),
-        chartAPI.getHoroscope('week', locale),
-      ]);
-      const dayResponse =
-        results[0].status === 'fulfilled' ? results[0].value : null;
-      const tomorrowResponse =
-        results[1].status === 'fulfilled' ? results[1].value : null;
-      const weekResponse =
-        results[2].status === 'fulfilled' ? results[2].value : null;
+      const response = await chartAPI.getAllHoroscopes(locale);
+      chartLogger.log('Получены прогнозы bundle', response);
 
-      chartLogger.log('Получены прогнозы', {
-        day: dayResponse,
-        tomorrow: tomorrowResponse,
-        week: weekResponse,
-      });
-
-      const extractPredictions = (response: any) => {
-        if (response.predictions && typeof response.predictions === 'object') {
-          return {
-            ...response.predictions,
-            generatedBy:
-              response.predictions.generatedBy ||
-              response.generatedBy ||
-              'interpreter',
-          };
-        }
-        return {
-          general: response.general || '',
-          love: response.love || '',
-          career: response.career || '',
-          health: response.health || '',
-          finance: response.finance || '',
-          advice: response.advice || '',
-          luckyNumbers: response.luckyNumbers || [],
-          luckyColors: response.luckyColors || [],
-          energy: response.energy || 50,
-          mood: response.mood || '',
-          challenges: response.challenges || [],
-          opportunities: response.opportunities || [],
-          generatedBy: response.generatedBy || 'interpreter',
-        };
-      };
-
-      const newPredictions = {
-        day: dayResponse ? extractPredictions(dayResponse) : null,
-        tomorrow: tomorrowResponse
-          ? extractPredictions(tomorrowResponse)
-          : null,
-        week: weekResponse ? extractPredictions(weekResponse) : null,
-      };
+      const newPredictions = normalizeHoroscopeBundle(response);
       const hasPredictionData = Boolean(
-        newPredictions.day || newPredictions.tomorrow || newPredictions.week
+        newPredictions.day ||
+          newPredictions.tomorrow ||
+          newPredictions.week ||
+          newPredictions.month
       );
 
       if (
@@ -426,7 +518,8 @@ const HoroscopeScreen: React.FC = () => {
         aiAllowed &&
         (newPredictions.day?.generatedBy !== 'ai' ||
           newPredictions.tomorrow?.generatedBy !== 'ai' ||
-          newPredictions.week?.generatedBy !== 'ai');
+          newPredictions.week?.generatedBy !== 'ai' ||
+          newPredictions.month?.generatedBy !== 'ai');
 
       if (needsAi) {
         if (predictionsRetryCountRef.current < 2) {
@@ -501,10 +594,6 @@ const HoroscopeScreen: React.FC = () => {
 
     energy += harmonyBonus;
     energy -= challengePenalty;
-
-    // Добавляем случайность ±5% для реализма
-    const randomFactor = (Math.random() - 0.5) * 10;
-    energy += randomFactor;
 
     return Math.min(95, Math.max(20, Math.round(energy)));
   };
@@ -658,7 +747,9 @@ const HoroscopeScreen: React.FC = () => {
 
   // Формирование данных для виджетов
   const energyValue =
-    (predictions?.day?.energy as number | undefined) ?? getCurrentEnergy();
+    (biorhythms?.physical as number | undefined) ??
+    (predictions?.day?.energy as number | undefined) ??
+    getCurrentEnergy();
   const energyMessage = getEnergyMessage(energyValue);
   const mainTransit = getMainTransit();
   const hasAIAccess = hasFeature('detailedTransits');
@@ -666,7 +757,7 @@ const HoroscopeScreen: React.FC = () => {
     predictions?.day || predictions?.tomorrow || predictions?.week
   );
   const dailyLearningLesson = React.useMemo(() => {
-    const lessons = getLessonsByLocale(lessonsLocale);
+    const lessons = getCoreLessonsByLocale(lessonsLocale);
     if (!lessons.length) return null;
 
     const startOfYear = new Date(new Date().getFullYear(), 0, 0).getTime();
@@ -930,6 +1021,13 @@ const HoroscopeScreen: React.FC = () => {
                   physical={biorhythms.physical}
                   emotional={biorhythms.emotional}
                   intellectual={biorhythms.intellectual}
+                  physicalPhase={biorhythms.physicalPhase}
+                  emotionalPhase={biorhythms.emotionalPhase}
+                  intellectualPhase={biorhythms.intellectualPhase}
+                  overall={biorhythms.overall}
+                  overallPhase={biorhythms.overallPhase}
+                  summary={biorhythms.summary}
+                  trend={biorhythms.trend}
                 />
               )}
 

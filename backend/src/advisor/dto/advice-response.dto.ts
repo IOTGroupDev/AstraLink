@@ -94,6 +94,34 @@ export class AdvisorRecommendation {
   category!: 'action' | 'caution' | 'warning';
 }
 
+export class AdvisorAlternativeDate {
+  @ApiProperty({
+    description: 'Ближайшая более подходящая дата (YYYY-MM-DD)',
+    example: '2026-04-06',
+  })
+  date!: string;
+
+  @ApiProperty({
+    description: 'Оценка альтернативной даты',
+    minimum: 0,
+    maximum: 100,
+  })
+  score!: number;
+
+  @ApiProperty({
+    description: 'Лучшее окно на альтернативную дату',
+    required: false,
+    example: '14:00-14:59',
+  })
+  bestWindow?: string;
+
+  @ApiProperty({
+    description: 'Короткое объяснение, почему эта дата лучше',
+    example: 'Там меньше трения и сильнее поддержка по коммуникации.',
+  })
+  reason!: string;
+}
+
 export class AdvisorHouse {
   @ApiProperty({ description: 'Номер дома (1-12)' })
   house!: number;
@@ -140,11 +168,38 @@ export class AdviceResponseDto {
   explanation!: string;
 
   @ApiProperty({
+    description: 'Прямой короткий ответ на вопрос пользователя',
+    required: false,
+  })
+  directAnswer?: string;
+
+  @ApiProperty({
     type: [AdvisorRecommendation],
     description: 'Рекомендации',
     required: false,
   })
   recommendations?: AdvisorRecommendation[];
+
+  @ApiProperty({
+    type: [String],
+    description: 'Основные риски и чего опасаться',
+    required: false,
+  })
+  risks?: string[];
+
+  @ApiProperty({
+    description:
+      'Уточняющий вопрос, если для конкретного выбора не хватает контекста',
+    required: false,
+  })
+  clarifyingQuestion?: string;
+
+  @ApiProperty({
+    type: AdvisorAlternativeDate,
+    description: 'Ближайшая более удачная дата, если текущая слабая',
+    required: false,
+  })
+  alternativeDate?: AdvisorAlternativeDate;
 
   @ApiProperty({ description: 'Источник генерации', example: 'enhanced-rules' })
   generatedBy!: string;

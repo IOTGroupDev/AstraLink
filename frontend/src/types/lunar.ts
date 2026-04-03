@@ -57,6 +57,21 @@ export interface LunarDay {
 
   /** Рекомендации на день */
   recommendations: string[];
+
+  /** Сила дня по шкале 0-100 */
+  energyScore: number;
+
+  /** Основной режим дня */
+  focus: 'initiate' | 'build' | 'complete' | 'release' | 'restore';
+
+  /** Краткое человеческое резюме дня */
+  summary: string;
+
+  /** Для чего день подходит лучше всего */
+  bestFor: string[];
+
+  /** Чего стоит избегать */
+  avoid: string[];
 }
 
 /**
@@ -74,6 +89,12 @@ export interface LunarCalendarDay {
 
   /** Благоприятен ли день для начинаний */
   isFavorable: boolean;
+
+  /** Общая сила дня */
+  favorabilityScore: number;
+
+  /** Тип дня */
+  dayType: 'power' | 'supportive' | 'mixed' | 'challenging';
 }
 
 /**

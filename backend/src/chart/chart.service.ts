@@ -396,14 +396,15 @@ export class ChartService {
   async getBiorhythms(
     userId: string,
     dateStr?: string,
-  ): Promise<{
-    date: string;
-    physical: number;
-    emotional: number;
-    intellectual: number;
-  }> {
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const natalChart = await this.natalChartService.getNatalChart(userId);
-    return this.biorhythmService.getBiorhythms(userId, natalChart, dateStr);
+    return this.biorhythmService.getBiorhythms(
+      userId,
+      natalChart,
+      dateStr,
+      locale,
+    );
   }
 
   // ============================================================

@@ -4,6 +4,10 @@
   "featured": {
     "title": "Selected lesson"
   },
+  "personalized": {
+    "title": "For your chart",
+    "subtitle": "Personal lessons for the key points, houses, aspects, and life areas of your natal chart."
+  },
   "progress": {
     "summary": "{{completed}} of {{total}} lessons completed"
   },

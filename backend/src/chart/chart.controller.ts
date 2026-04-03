@@ -352,11 +352,17 @@ export class ChartController {
     description: 'Смещение пользователя от UTC в минутах',
     required: false,
   })
+  @ApiQuery({
+    name: 'locale',
+    description: 'ru | en | es',
+    required: false,
+  })
   @ApiResponse({ status: 200, description: 'Биоритмы' })
   async getBiorhythms(
     @Request() req: AuthenticatedRequest,
     @Query('date') date?: string,
     @Query('tzOffsetMinutes') tzOffsetMinutesStr?: string,
+    @Query('locale') localeQuery?: string,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
@@ -367,7 +373,11 @@ export class ChartController {
       this.parseUserLocalDate(date, tzOffsetMinutesStr),
     );
 
-    return this.chartService.getBiorhythms(userId, resolvedDate);
+    return this.chartService.getBiorhythms(
+      userId,
+      resolvedDate,
+      this.resolveLocale(req, localeQuery as 'ru' | 'en' | 'es' | undefined),
+    );
   }
 
   @Get('transits')

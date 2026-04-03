@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
-import { chartAPI } from '../../services/api';
-import { logger } from '../../services/logger';
 import { useTranslation } from 'react-i18next';
+import type {
+  HoroscopeBundle,
+  HoroscopeContent,
+} from '../../services/api/chart.api';
 
 const svgIcons = {
   star: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -46,18 +48,18 @@ const svgIcons = {
 };
 
 interface HoroscopeWidgetProps {
-  predictions: any;
+  predictions: HoroscopeBundle | null;
   currentPlanets?: any;
   isLoading?: boolean;
 }
 
-type TabType = 'day' | 'tomorrow' | 'week';
+type TabType = 'day' | 'tomorrow' | 'week' | 'month';
 
 interface Category {
   id: string;
   titleKey: string;
   icon: keyof typeof svgIcons;
-  dataKey: string;
+  dataKey: 'general' | 'love' | 'career' | 'health' | 'finance' | 'advice';
   border?: boolean;
 }
 
@@ -101,31 +103,19 @@ const categories: Category[] = [
   },
 ];
 
-const tabs = [
+const baseTabs = [
   { id: 'day' as TabType, labelKey: 'horoscope.periods.day' },
   { id: 'tomorrow' as TabType, labelKey: 'horoscope.periods.tomorrow' },
   { id: 'week' as TabType, labelKey: 'horoscope.periods.week' },
+  { id: 'month' as TabType, labelKey: 'horoscope.periods.month' },
 ];
 
-const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
-  const normalized = String(locale || 'en').toLowerCase();
-  if (normalized.startsWith('ru')) return 'ru';
-  if (normalized.startsWith('es')) return 'es';
-  return 'en';
-};
-
 const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
-  predictions: initialPredictions,
-  isLoading: initialLoading,
+  predictions,
+  isLoading = false,
 }) => {
   const { t, i18n } = useTranslation();
-  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
-    return normalizeAppLocale(i18n.language);
-  }, [i18n.language]);
-
   const [activeTab, setActiveTab] = useState<TabType>('day');
-  const [allHoroscopes, setAllHoroscopes] = useState<any>(null);
-  const [loading, setLoading] = useState(initialLoading || false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null
@@ -133,55 +123,55 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   const [selectedContent, setSelectedContent] = useState('');
   const modalOpenedAtRef = useRef(0);
 
-  useEffect(() => {
-    if (initialPredictions) {
-      const normalized = {
-        day: initialPredictions.day || initialPredictions.today,
-        tomorrow: initialPredictions.tomorrow,
-        week: initialPredictions.week,
-      };
-      setAllHoroscopes(normalized);
-    } else {
-      loadAllHoroscopes();
-    }
-  }, [initialPredictions]);
+  const allHoroscopes = useMemo<HoroscopeBundle | null>(() => {
+    if (!predictions) return null;
+    return {
+      day: predictions.day ?? null,
+      tomorrow: predictions.tomorrow ?? null,
+      week: predictions.week ?? null,
+      month: predictions.month ?? null,
+    };
+  }, [predictions]);
+
+  const availableTabs = useMemo(() => {
+    return baseTabs.filter((tab) => {
+      if (tab.id === 'month') {
+        return Boolean(allHoroscopes?.month);
+      }
+      return true;
+    });
+  }, [allHoroscopes]);
 
   useEffect(() => {
-    if (!initialPredictions) {
-      loadAllHoroscopes();
+    if (availableTabs.some((tab) => tab.id === activeTab)) {
+      return;
     }
-  }, [i18n.language]);
+    setActiveTab(availableTabs[0]?.id ?? 'day');
+  }, [activeTab, availableTabs, i18n.language]);
 
-  const loadAllHoroscopes = async () => {
-    try {
-      setLoading(true);
-      const locale = getApiLocale();
-      const [dayResponse, tomorrowResponse, weekResponse] = await Promise.all([
-        chartAPI.getHoroscope('day', locale),
-        chartAPI.getHoroscope('tomorrow', locale),
-        chartAPI.getHoroscope('week', locale),
-      ]);
+  const currentHoroscope: HoroscopeContent | null =
+    allHoroscopes?.[activeTab] ?? allHoroscopes?.day ?? null;
 
-      const extractPredictions = (response: any) => {
-        if (response.predictions && typeof response.predictions === 'object') {
-          return response.predictions;
-        }
-        return response;
-      };
+  const sourceLabel = useMemo(() => {
+    if (!currentHoroscope?.generatedBy) return null;
+    return t(`horoscope.widget.sources.${currentHoroscope.generatedBy}`, {
+      defaultValue: currentHoroscope.generatedBy,
+    });
+  }, [currentHoroscope?.generatedBy, t]);
 
-      setAllHoroscopes({
-        day: extractPredictions(dayResponse),
-        tomorrow: extractPredictions(tomorrowResponse),
-        week: extractPredictions(weekResponse),
-      });
-    } catch (error) {
-      logger.error('Ошибка загрузки гороскопов', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const statusLabel = useMemo(() => {
+    if (!currentHoroscope?.status) return null;
+    return t(`horoscope.widget.status.${currentHoroscope.status}`, {
+      defaultValue: currentHoroscope.status,
+    });
+  }, [currentHoroscope?.status, t]);
 
-  const currentHoroscope = allHoroscopes?.[activeTab];
+  const toneLabel = useMemo(() => {
+    if (!currentHoroscope?.meta?.tone) return null;
+    return t(`horoscope.widget.tones.${currentHoroscope.meta.tone}`, {
+      defaultValue: currentHoroscope.meta.tone,
+    });
+  }, [currentHoroscope?.meta?.tone, t]);
 
   // Normalize "lucky colors" input into array of color-like values
   const normalizeLuckyColorsSource = (src: any): any[] => {
@@ -297,7 +287,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     .map((c) => normalizeLuckyColor(c) || '#8D26A9')
     .slice(0, 6);
 
-  const getCategoryContent = (dataKey: string) => {
+  const getCategoryContent = (dataKey: Category['dataKey']) => {
     if (!currentHoroscope) return '';
     return currentHoroscope[dataKey] || '';
   };
@@ -321,7 +311,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
     }, 300);
   };
 
-  if (loading) {
+  if (isLoading || !allHoroscopes) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -346,6 +336,24 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
       >
         <View style={styles.header}>
           <Text style={styles.title}>✨ {t('horoscope.title')}</Text>
+          <View style={styles.headerBadges}>
+            {statusLabel ? (
+              <View
+                style={[
+                  styles.sourceBadge,
+                  currentHoroscope?.status === 'ai_pending' &&
+                    styles.statusBadgePending,
+                ]}
+              >
+                <Text style={styles.sourceBadgeText}>{statusLabel}</Text>
+              </View>
+            ) : null}
+            {sourceLabel ? (
+              <View style={styles.sourceBadge}>
+                <Text style={styles.sourceBadgeText}>{sourceLabel}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <ScrollView
@@ -354,7 +362,7 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
           style={styles.tabsContainer}
           contentContainerStyle={styles.tabsContent}
         >
-          {tabs.map((tab) => (
+          {availableTabs.map((tab) => (
             <Pressable
               key={tab.id}
               style={[styles.tab, activeTab === tab.id && styles.tabActive]}
@@ -373,6 +381,54 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
         </ScrollView>
 
         <View style={styles.contentContainer}>
+          {currentHoroscope?.meta ? (
+            <View style={styles.metaCard}>
+              <View style={styles.metaHeader}>
+                <Text style={styles.metaTitle}>
+                  {t('horoscope.widget.periodInsights')}
+                </Text>
+                {toneLabel ? (
+                  <View style={styles.toneChip}>
+                    <Text style={styles.toneChipText}>{toneLabel}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>
+                  {t('horoscope.widget.meta.focus')}
+                </Text>
+                <Text style={styles.metaValue}>
+                  {currentHoroscope.meta.focus}
+                </Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>
+                  {t('horoscope.widget.meta.risk')}
+                </Text>
+                <Text style={styles.metaValue}>
+                  {currentHoroscope.meta.risk}
+                </Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>
+                  {t('horoscope.widget.meta.keyWindow')}
+                </Text>
+                <Text style={styles.metaValue}>
+                  {currentHoroscope.meta.keyWindow}
+                </Text>
+              </View>
+
+              {currentHoroscope.status === 'ai_pending' ? (
+                <Text style={styles.pendingHint}>
+                  {t('horoscope.widget.pendingHint')}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
           {categories.map((category) => {
             const content = getCategoryContent(category.dataKey);
             if (!content) return null;
@@ -401,6 +457,40 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
               </Pressable>
             );
           })}
+
+          {currentHoroscope?.opportunities?.length ? (
+            <View style={styles.categoryCard}>
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryTitle}>
+                  {t('horoscope.widget.opportunities')}
+                </Text>
+              </View>
+
+              {currentHoroscope.opportunities.slice(0, 3).map((item, index) => (
+                <View key={`${item}-${index}`} style={styles.insightRow}>
+                  <Text style={styles.insightBullet}>•</Text>
+                  <Text style={styles.insightText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {currentHoroscope?.challenges?.length ? (
+            <View style={styles.categoryCard}>
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryTitle}>
+                  {t('horoscope.widget.challenges')}
+                </Text>
+              </View>
+
+              {currentHoroscope.challenges.slice(0, 3).map((item, index) => (
+                <View key={`${item}-${index}`} style={styles.insightRow}>
+                  <Text style={styles.insightBullet}>•</Text>
+                  <Text style={styles.insightText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {currentHoroscope?.luckyNumbers &&
             currentHoroscope.luckyNumbers.length > 0 && (
@@ -530,6 +620,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 20,
     paddingHorizontal: 20,
     marginBottom: 20,
@@ -539,6 +632,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sourceBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(243, 200, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(237, 164, 255, 0.24)',
+  },
+  sourceBadgeText: {
+    color: '#F5D6FF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusBadgePending: {
+    backgroundColor: 'rgba(139, 92, 246, 0.28)',
   },
   tabsContainer: {
     marginBottom: 20,
@@ -570,6 +684,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  metaCard: {
+    backgroundColor: 'rgba(243, 200, 255, 0.09)',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 164, 255, 0.22)',
+    gap: 12,
+  },
+  metaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  metaTitle: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  toneChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  toneChipText: {
+    color: '#F3C8FF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  metaRow: {
+    gap: 4,
+  },
+  metaLabel: {
+    color: '#D8B4FE',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  metaValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  pendingHint: {
+    color: '#E9D5FF',
+    fontSize: 12,
+    lineHeight: 18,
+  },
   categoryCard: {
     backgroundColor: 'rgba(10, 10, 10, 0.35)',
     borderRadius: 10,
@@ -594,6 +759,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#FFFFFF',
     fontWeight: '400',
+  },
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  insightBullet: {
+    color: '#F3C8FF',
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  insightText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
   },
   categoryActive: {
     borderColor: '#EDA4FF',

@@ -97,7 +97,15 @@
       "challenging": "Сложно"
     },
     "outOf": "из 100",
-    "energyLabel": "Уровень благоприятности"
+    "energyLabel": "Уровень благоприятности",
+    "alternativeScore": "{{score}} из 100",
+    "sections": {
+      "directAnswer": "Прямой вывод",
+      "why": "Почему такой ответ",
+      "risks": "Чего опасаться",
+      "alternativeDate": "Ближайшая лучшая дата",
+      "clarifyingQuestion": "Что стоит уточнить"
+    }
   },
   "recommendationsWidget": {
     "title": {

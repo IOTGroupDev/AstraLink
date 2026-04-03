@@ -4,6 +4,10 @@
   "featured": {
     "title": "Lección seleccionada"
   },
+  "personalized": {
+    "title": "Para tu carta",
+    "subtitle": "Lecciones personales para los puntos clave, las casas, los aspectos y las areas de vida de tu carta natal."
+  },
   "progress": {
     "summary": "{{completed}} de {{total}} lecciones completadas"
   },

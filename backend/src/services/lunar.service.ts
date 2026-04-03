@@ -28,6 +28,20 @@ export interface LunarDay {
   name: string;
   energy: string; // positive, neutral, challenging
   recommendations: string[];
+  energyScore: number;
+  focus: 'initiate' | 'build' | 'complete' | 'release' | 'restore';
+  summary: string;
+  bestFor: string[];
+  avoid: string[];
+}
+
+export interface MonthlyLunarCalendarDay {
+  date: string;
+  moonPhase: MoonPhase;
+  lunarDay: LunarDay;
+  isFavorable: boolean;
+  favorabilityScore: number;
+  dayType: 'power' | 'supportive' | 'mixed' | 'challenging';
 }
 
 @Injectable()
@@ -176,6 +190,11 @@ export class LunarService {
         name: lunarDayInfo.name,
         energy: lunarDayInfo.energy,
         recommendations: lunarDayInfo.recommendations,
+        energyScore: lunarDayInfo.energyScore,
+        focus: lunarDayInfo.focus,
+        summary: lunarDayInfo.summary,
+        bestFor: lunarDayInfo.bestFor,
+        avoid: lunarDayInfo.avoid,
       };
     } catch (error) {
       this.logger.error('Ошибка расчета лунного дня:', error);
@@ -192,39 +211,33 @@ export class LunarService {
     natalChart?: any,
     locale: 'ru' | 'en' | 'es' = 'ru',
     tzOffsetMinutes = 0,
-  ): Promise<
-    Array<{
-      date: string;
-      moonPhase: MoonPhase;
-      lunarDay: LunarDay;
-      isFavorable: boolean;
-    }>
-  > {
-    const calendar: Array<{
-      date: string;
-      moonPhase: MoonPhase;
-      lunarDay: LunarDay;
-      isFavorable: boolean;
-    }> = [];
-
+  ): Promise<MonthlyLunarCalendarDay[]> {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return Promise.all(
+      Array.from({ length: daysInMonth }, async (_, index) => {
+        const day = index + 1;
+        const date = this.toUserLocalNoon(year, month, day, tzOffsetMinutes);
 
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = this.toUserLocalNoon(year, month, day, tzOffsetMinutes);
+        const [moonPhase, lunarDay] = await Promise.all([
+          this.getMoonPhase(date, natalChart, locale),
+          this.getLunarDay(date, locale),
+        ]);
+        const favorabilityScore = this.calculateFavorabilityScore(
+          moonPhase,
+          lunarDay,
+        );
+        const dayType = this.getDayType(favorabilityScore);
 
-      const moonPhase = await this.getMoonPhase(date, natalChart, locale);
-      const lunarDay = await this.getLunarDay(date, locale);
-      const isFavorable = this.isFavorableDay(moonPhase, lunarDay);
-
-      calendar.push({
-        date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-        moonPhase,
-        lunarDay,
-        isFavorable,
-      });
-    }
-
-    return calendar;
+        return {
+          date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+          moonPhase,
+          lunarDay,
+          isFavorable: favorabilityScore >= 60,
+          favorabilityScore,
+          dayType,
+        };
+      }),
+    );
   }
 
   /**
@@ -683,6 +696,11 @@ export class LunarService {
     name: string;
     energy: string;
     recommendations: string[];
+    energyScore: number;
+    focus: 'initiate' | 'build' | 'complete' | 'release' | 'restore';
+    summary: string;
+    bestFor: string[];
+    avoid: string[];
   } {
     const lunarDays: Record<
       number,
@@ -751,28 +769,200 @@ export class LunarService {
       },
     };
 
+    const phaseBucket =
+      day <= 5
+        ? 'initiate'
+        : day <= 11
+          ? 'build'
+          : day <= 18
+            ? 'complete'
+            : day <= 24
+              ? 'release'
+              : 'restore';
+
     const fallbackName =
       locale === 'en'
         ? `Day ${day}`
         : locale === 'es'
           ? `Día ${day}`
           : `День ${day}`;
-    const fallbackRecommendations =
-      locale === 'en'
-        ? ['Follow your intuition', 'Stay attentive']
-        : locale === 'es'
-          ? ['Sigue tu intuición', 'Mantente atento']
-          : ['Следуйте интуиции', 'Будьте внимательны'];
+    const fallbackMap = {
+      ru: {
+        initiate: {
+          energy: 'positive',
+          energyScore: 78,
+          summary:
+            'День поддерживает запуск, первичный импульс и постановку намерения.',
+          recommendations: ['Начинайте новое', 'Фиксируйте цель'],
+          bestFor: ['старт задач', 'инициативы', 'настройку планов'],
+          avoid: ['хаос', 'резкие обещания без плана'],
+        },
+        build: {
+          energy: 'positive',
+          energyScore: 72,
+          summary:
+            'День подходит для наращивания темпа, рутины и устойчивого движения.',
+          recommendations: [
+            'Двигайтесь последовательно',
+            'Укрепляйте результат',
+          ],
+          bestFor: ['работу в процессе', 'переговоры', 'дисциплину'],
+          avoid: ['ленивое откладывание', 'разброс фокуса'],
+        },
+        complete: {
+          energy: 'neutral',
+          energyScore: 61,
+          summary:
+            'Лучше завершать начатое, собирать результаты и фиксировать выводы.',
+          recommendations: ['Доводите дела до конца', 'Подводите итоги'],
+          bestFor: ['финализацию', 'проверку', 'сбор обратной связи'],
+          avoid: ['лишние новые обязательства', 'суету'],
+        },
+        release: {
+          energy: 'neutral',
+          energyScore: 46,
+          summary:
+            'День тянет к разгрузке, очищению и отказу от лишнего напряжения.',
+          recommendations: ['Отпускайте лишнее', 'Упрощайте'],
+          bestFor: ['очистку', 'разбор хвостов', 'эмоциональную разгрузку'],
+          avoid: ['силовое давление', 'конфликты'],
+        },
+        restore: {
+          energy: 'challenging',
+          energyScore: 32,
+          summary:
+            'Ресурс ниже обычного, лучше замедлиться и готовиться к новому циклу.',
+          recommendations: ['Снижайте нагрузку', 'Восстанавливайтесь'],
+          bestFor: ['сон', 'рефлексию', 'тихую подготовку'],
+          avoid: ['спешку', 'крупные старты'],
+        },
+      },
+      en: {
+        initiate: {
+          energy: 'positive',
+          energyScore: 78,
+          summary:
+            'The day supports beginnings, first moves, and setting intention.',
+          recommendations: ['Start something new', 'Set a clear intention'],
+          bestFor: ['launching tasks', 'initiative', 'planning'],
+          avoid: ['chaos', 'big promises without structure'],
+        },
+        build: {
+          energy: 'positive',
+          energyScore: 72,
+          summary:
+            'The day favors momentum, discipline, and consistent progress.',
+          recommendations: ['Keep moving steadily', 'Strengthen what works'],
+          bestFor: ['ongoing work', 'negotiations', 'routine'],
+          avoid: ['procrastination', 'scattered focus'],
+        },
+        complete: {
+          energy: 'neutral',
+          energyScore: 61,
+          summary:
+            'This is better for wrapping things up and gathering results.',
+          recommendations: ['Finish open loops', 'Review the outcome'],
+          bestFor: ['finalizing', 'review', 'feedback'],
+          avoid: ['extra commitments', 'rush'],
+        },
+        release: {
+          energy: 'neutral',
+          energyScore: 46,
+          summary:
+            'The day leans toward release, simplification, and emotional cleanup.',
+          recommendations: ['Let go of excess', 'Simplify the load'],
+          bestFor: ['decluttering', 'cleanup', 'emotional release'],
+          avoid: ['pressure', 'drama'],
+        },
+        restore: {
+          energy: 'challenging',
+          energyScore: 32,
+          summary:
+            'Energy is lower than usual, so recovery matters more than pushing.',
+          recommendations: ['Lower the load', 'Restore your energy'],
+          bestFor: ['sleep', 'reflection', 'quiet preparation'],
+          avoid: ['rush', 'major launches'],
+        },
+      },
+      es: {
+        initiate: {
+          energy: 'positive',
+          energyScore: 78,
+          summary:
+            'El día favorece comienzos, primer impulso y marcar intención.',
+          recommendations: ['Empieza algo nuevo', 'Define una intención clara'],
+          bestFor: ['inicios', 'iniciativa', 'planificación'],
+          avoid: ['caos', 'promesas sin estructura'],
+        },
+        build: {
+          energy: 'positive',
+          energyScore: 72,
+          summary: 'El día favorece constancia, disciplina y avance sostenido.',
+          recommendations: [
+            'Avanza con constancia',
+            'Refuerza lo que ya funciona',
+          ],
+          bestFor: ['trabajo en curso', 'negociaciones', 'rutina'],
+          avoid: ['procrastinar', 'dispersión'],
+        },
+        complete: {
+          energy: 'neutral',
+          energyScore: 61,
+          summary:
+            'Conviene cerrar asuntos, recoger resultados y sacar conclusiones.',
+          recommendations: ['Cierra pendientes', 'Haz balance'],
+          bestFor: ['finalizar', 'revisar', 'feedback'],
+          avoid: ['compromisos extra', 'prisas'],
+        },
+        release: {
+          energy: 'neutral',
+          energyScore: 46,
+          summary:
+            'El día pide soltar, simplificar y limpiar tensión acumulada.',
+          recommendations: ['Suelta lo innecesario', 'Simplifica'],
+          bestFor: ['limpieza', 'cierres', 'descarga emocional'],
+          avoid: ['presión', 'drama'],
+        },
+        restore: {
+          energy: 'challenging',
+          energyScore: 32,
+          summary:
+            'La energía está más baja, así que conviene recuperarte y bajar el ritmo.',
+          recommendations: ['Reduce la carga', 'Recupérate'],
+          bestFor: ['descanso', 'reflexión', 'preparación tranquila'],
+          avoid: ['prisas', 'grandes inicios'],
+        },
+      },
+    } as const;
+
+    const fallback = fallbackMap[locale][phaseBucket];
 
     return (
       (lunarDays[day] && {
         name: lunarDays[day].name[locale],
         energy: lunarDays[day].energy,
         recommendations: lunarDays[day].recommendations[locale],
+        energyScore:
+          lunarDays[day].energy === 'positive'
+            ? phaseBucket === 'initiate'
+              ? 84
+              : 74
+            : lunarDays[day].energy === 'challenging'
+              ? 28
+              : 55,
+        focus: phaseBucket,
+        summary: fallback.summary,
+        bestFor: [...fallback.bestFor],
+        avoid: [...fallback.avoid],
       }) || {
         name: fallbackName,
-        energy: 'neutral',
-        recommendations: fallbackRecommendations,
+        energy: fallback.energy,
+        recommendations: [...fallback.recommendations],
+        energyScore: fallback.energyScore,
+        focus: phaseBucket,
+        summary: fallback.summary,
+        bestFor: [...fallback.bestFor],
+        avoid: [...fallback.avoid],
       }
     );
   }
@@ -786,5 +976,37 @@ export class LunarService {
     const hasPositiveEnergy = lunarDay.energy === 'positive';
 
     return (isWaxing && !moonPhase.isVoidOfCourse) || hasPositiveEnergy;
+  }
+
+  private calculateFavorabilityScore(
+    moonPhase: MoonPhase,
+    lunarDay: LunarDay,
+  ): number {
+    let score = lunarDay.energyScore;
+
+    if (moonPhase.isVoidOfCourse) {
+      score -= 18;
+    }
+
+    if (moonPhase.phase > 0 && moonPhase.phase < 0.5) {
+      score += 8;
+    } else {
+      score -= 4;
+    }
+
+    if (moonPhase.illumination >= 90 && moonPhase.illumination <= 100) {
+      score += lunarDay.energy === 'positive' ? 8 : -6;
+    }
+
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  private getDayType(
+    favorabilityScore: number,
+  ): 'power' | 'supportive' | 'mixed' | 'challenging' {
+    if (favorabilityScore >= 80) return 'power';
+    if (favorabilityScore >= 60) return 'supportive';
+    if (favorabilityScore >= 40) return 'mixed';
+    return 'challenging';
   }
 }

@@ -29,11 +29,14 @@
   "periods": {
     "day": "Today",
     "tomorrow": "Tomorrow",
-    "week": "This Week"
+    "week": "This Week",
+    "month": "Month"
   },
   "widget": {
     "loading": "Loading horoscope...",
     "syncing": "Updating horoscope and interpretation...",
+    "periodInsights": "Period navigation",
+    "pendingHint": "The AI version is still finishing. For now we show the reliable natal-based interpretation and will refresh automatically.",
     "categories": {
       "general": "General",
       "love": "Love",
@@ -42,12 +45,38 @@
       "finance": "Finance",
       "advice": "Tip of the day"
     },
+    "opportunities": "Opportunities",
+    "challenges": "Watchouts",
+    "sources": {
+      "ai": "AI",
+      "mixed": "AI + base",
+      "interpreter": "Natal analysis"
+    },
+    "status": {
+      "ready": "Ready",
+      "ai_pending": "AI updating"
+    },
+    "tones": {
+      "supportive": "Supportive tone",
+      "mixed": "Mixed tone",
+      "challenging": "Challenging tone"
+    },
+    "meta": {
+      "focus": "Period focus",
+      "risk": "Period risk",
+      "keyWindow": "Key window"
+    },
     "luckyNumbers": "Lucky numbers",
     "luckyColors": "Lucky colors",
     "noDetails": "No details available yet."
   },
   "lunarCalendar": {
     "title": "Lunar calendar",
+    "energy": {
+      "positive": "strong day",
+      "neutral": "balanced day",
+      "challenging": "intense day"
+    },
     "labels": {
       "sign": "Sign",
       "house": "House",
@@ -70,6 +99,18 @@
   },
   "biorhythmsWidget": {
     "loading": "Loading biorhythms...",
+    "summaryTitle": "Rhythm of the day",
+    "trendTitle": "Next 7 days",
+    "overall": "Overall tone: {{value}}% · {{phase}}",
+    "fallbackSummary": "Use your strongest rhythm as support today and reduce pressure where energy is lower.",
+    "phases": {
+      "peak": "Peak",
+      "high": "High",
+      "rising": "Rising",
+      "critical": "Turning point",
+      "falling": "Falling",
+      "low": "Low"
+    },
     "physicalDescription": "Physical rhythm reflects stamina and vitality. When it’s high, plan active tasks; when low, reduce intensity and recover.",
     "emotionalDescription": "Emotional rhythm affects mood and sensitivity. High values favor communication; low values suggest gentleness and rest.",
     "intellectualDescription": "Intellectual rhythm impacts focus and learning. High values are ideal for analysis, low values for routine tasks."

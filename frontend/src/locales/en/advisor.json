@@ -97,7 +97,15 @@
       "challenging": "Difficult"
     },
     "outOf": "out of 100",
-    "energyLabel": "Favorable energy level"
+    "energyLabel": "Favorable energy level",
+    "alternativeScore": "{{score}} out of 100",
+    "sections": {
+      "directAnswer": "Direct answer",
+      "why": "Why this answer",
+      "risks": "What to watch out for",
+      "alternativeDate": "Nearest better date",
+      "clarifyingQuestion": "What to clarify"
+    }
   },
   "recommendationsWidget": {
     "title": {
