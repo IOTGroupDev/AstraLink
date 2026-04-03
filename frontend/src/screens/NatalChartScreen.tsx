@@ -197,6 +197,70 @@ const normalizeNarrativeValue = (value: unknown): string => {
   return '';
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const pickFirstRecord = (
+  ...values: unknown[]
+): Record<string, unknown> | null =>
+  values.find((value): value is Record<string, unknown> => isRecord(value)) ||
+  null;
+
+const normalizeChartPayload = (rawValue: unknown): ChartData | null => {
+  const root = pickFirstRecord(rawValue);
+  if (!root) return null;
+
+  const nestedData = pickFirstRecord(
+    root.data,
+    root.data && isRecord(root.data) ? root.data.data : null,
+    root.data &&
+      isRecord(root.data) &&
+      root.data.data &&
+      isRecord(root.data.data)
+      ? root.data.data.data
+      : null
+  );
+
+  const payload = pickFirstRecord(
+    nestedData,
+    root,
+    root.data,
+    root.data && isRecord(root.data) ? root.data.data : null
+  );
+
+  if (!payload) {
+    return null;
+  }
+
+  const interpretation =
+    payload.interpretation ??
+    (nestedData?.interpretation as unknown) ??
+    (root.interpretation as unknown) ??
+    null;
+
+  return {
+    data: {
+      planets: isRecord(payload.planets)
+        ? (payload.planets as Record<string, PlanetData>)
+        : {},
+      houses: isRecord(payload.houses)
+        ? (payload.houses as Record<number, HouseData>)
+        : {},
+      aspects: Array.isArray(payload.aspects)
+        ? (payload.aspects as AspectData[])
+        : [],
+      ascendant: isRecord(payload.ascendant)
+        ? (payload.ascendant as { sign: string; degree: number })
+        : undefined,
+      midheaven: isRecord(payload.midheaven)
+        ? (payload.midheaven as { sign: string; degree: number })
+        : undefined,
+      interpretation,
+    },
+    interpretation,
+  };
+};
+
 const getHouseForLongitude = (
   longitude: number,
   houses: Record<number, HouseData>
@@ -370,24 +434,17 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         throw chartResult.reason;
       }
 
-      const data = chartResult.value;
+      const data = normalizeChartPayload(chartResult.value);
+
+      if (!data?.data) {
+        throw new Error('Invalid natal chart payload');
+      }
 
       // Подробное логирование для отладки структуры
       logger.info('Полная структура данных', {
-        level1Keys: data ? Object.keys(data) : [],
+        level1Keys: Object.keys(data),
         level2Keys: data?.data ? Object.keys(data.data) : [],
-        level3Keys: data?.data?.data ? Object.keys(data.data.data) : [],
-        level4Keys: data?.data?.data?.data
-          ? Object.keys(data.data.data.data)
-          : [],
-
-        // Где находятся planets?
         hasPlanetsInL2: !!data?.data?.planets,
-        hasPlanetsInL3: !!data?.data?.data?.planets,
-        hasPlanetsInL4: !!data?.data?.data?.data?.planets,
-
-        // Проверка полного пути
-        fullDataStructure: JSON.stringify(data, null, 2).substring(0, 2000),
       });
       setChartData(data);
       hasLoadedOnceRef.current = true;

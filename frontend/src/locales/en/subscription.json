@@ -31,8 +31,8 @@
       "name": "Free",
       "features": ["Basic features", "Limited access", "Basic natal chart"]
     },
-    "basic": {
-      "name": "AstraPlus",
+    "premium": {
+      "name": "Premium",
       "features": [
         "Full natal charts",
         "Transits and predictions",

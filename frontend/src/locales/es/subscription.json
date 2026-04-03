@@ -31,8 +31,8 @@
       "name": "Gratis",
       "features": ["Funciones básicas", "Acceso limitado", "Carta natal básica"]
     },
-    "basic": {
-      "name": "AstraPlus",
+    "premium": {
+      "name": "Premium",
       "features": [
         "Cartas natales completas",
         "Tránsitos y predicciones",

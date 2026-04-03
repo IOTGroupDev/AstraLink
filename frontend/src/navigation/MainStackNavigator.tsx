@@ -1,7 +1,6 @@
 // src/navigation/MainStackNavigator.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
 
 import TabNavigator from './TabNavigator';
@@ -39,60 +38,13 @@ const resolveRoute = (state: string) => {
   }
 };
 
-const getAllowedRoutes = (
-  state: string
-): RootStackParamList[keyof RootStackParamList] extends never
-  ? never
-  : string[] => {
-  switch (state) {
-    case 'AUTHORIZED':
-      return [
-        'MainTabs',
-        'Subscription',
-        'EditProfileScreen',
-        'CosmicSimulator',
-        'Learning',
-        'DatingProfile',
-        'ChatDialog',
-        'ChatList',
-        'NatalChart',
-        'PersonalCode',
-        'AuthCallback',
-      ];
-    case 'ONBOARDING':
-      return [
-        'Onboarding1',
-        'Onboarding2',
-        'Onboarding3',
-        'Onboarding4',
-        'AuthCallback',
-      ];
-    case 'UNAUTHORIZED':
-    default:
-      return ['SignUp', 'AuthEmail', 'OptCode', 'AuthCallback'];
-  }
-};
-
 export default function MainStackNavigator() {
   const authState = useAuthState();
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const target = resolveRoute(authState);
-  const allowedRoutes = getAllowedRoutes(authState);
-
-  useEffect(() => {
-    const currentState = navigation.getState();
-    if (!currentState?.routes?.length) return;
-
-    const currentRoute =
-      currentState.routes[currentState.index]?.name || 'Unknown';
-
-    if (!allowedRoutes.includes(currentRoute)) {
-      navigation.reset({ index: 0, routes: [{ name: target }] });
-    }
-  }, [allowedRoutes, navigation, target]);
 
   return (
     <Stack.Navigator
+      key={target}
       initialRouteName={target}
       screenOptions={{
         headerShown: false,

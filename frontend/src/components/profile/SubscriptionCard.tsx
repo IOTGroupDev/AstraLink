@@ -96,11 +96,16 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const tierName = isLoading
     ? t('common.loading.loading', 'Loading...')
     : t(`subscription.tiers.${currentLevel}.name`);
-  const tierFeatures: string[] = isLoading
+  const rawTierFeatures = isLoading
     ? []
-    : (t(`subscription.tiers.${currentLevel}.features`, {
+    : t(`subscription.tiers.${currentLevel}.features`, {
         returnObjects: true,
-      }) as string[]);
+      });
+  const tierFeatures: string[] = Array.isArray(rawTierFeatures)
+    ? rawTierFeatures.filter(
+        (feature): feature is string => typeof feature === 'string'
+      )
+    : [];
 
   const animatedGlowStyle = useAnimatedStyle(() => {
     return {
