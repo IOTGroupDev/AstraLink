@@ -39,10 +39,45 @@ const resolveRoute = (state: string) => {
   }
 };
 
+const getAllowedRoutes = (
+  state: string
+): RootStackParamList[keyof RootStackParamList] extends never
+  ? never
+  : string[] => {
+  switch (state) {
+    case 'AUTHORIZED':
+      return [
+        'MainTabs',
+        'Subscription',
+        'EditProfileScreen',
+        'CosmicSimulator',
+        'Learning',
+        'DatingProfile',
+        'ChatDialog',
+        'ChatList',
+        'NatalChart',
+        'PersonalCode',
+        'AuthCallback',
+      ];
+    case 'ONBOARDING':
+      return [
+        'Onboarding1',
+        'Onboarding2',
+        'Onboarding3',
+        'Onboarding4',
+        'AuthCallback',
+      ];
+    case 'UNAUTHORIZED':
+    default:
+      return ['SignUp', 'AuthEmail', 'OptCode', 'AuthCallback'];
+  }
+};
+
 export default function MainStackNavigator() {
   const authState = useAuthState();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const target = resolveRoute(authState);
+  const allowedRoutes = getAllowedRoutes(authState);
 
   useEffect(() => {
     const currentState = navigation.getState();
@@ -51,10 +86,10 @@ export default function MainStackNavigator() {
     const currentRoute =
       currentState.routes[currentState.index]?.name || 'Unknown';
 
-    if (currentRoute !== target) {
+    if (!allowedRoutes.includes(currentRoute)) {
       navigation.reset({ index: 0, routes: [{ name: target }] });
     }
-  }, [navigation, target]);
+  }, [allowedRoutes, navigation, target]);
 
   return (
     <Stack.Navigator
