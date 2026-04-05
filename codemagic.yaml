@@ -1,0 +1,116 @@
+workflows:
+  react-native-android-release:
+    name: AstraLink Android Release
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      android_signing:
+        - astralink_keystore # Replace with your Codemagic Android keystore reference
+      vars:
+        PROJECT_DIR: frontend
+        PACKAGE_NAME: astralink.test
+      node: 20.19.0
+      java: 17
+    cache:
+      cache_paths:
+        - ~/.npm
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+        - $CM_BUILD_DIR/frontend/node_modules
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR"
+          npm ci
+      - name: Read Expo app version
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR"
+          APP_VERSION=$(node -e "process.stdout.write(require('./app.json').expo.version)")
+          echo "APP_VERSION=$APP_VERSION" >> "$CM_ENV"
+      - name: Sync Android release Gradle config
+        script: |
+          cp "$CM_BUILD_DIR/$PROJECT_DIR/support-files/build.gradle" \
+            "$CM_BUILD_DIR/$PROJECT_DIR/android/app/build.gradle"
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/$PROJECT_DIR/android/local.properties"
+      - name: Build Android App Bundle
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR/android"
+          chmod +x gradlew
+          ./gradlew clean bundleRelease \
+            -PversionCode="$BUILD_NUMBER" \
+            -PversionName="$APP_VERSION"
+    artifacts:
+      - frontend/android/app/build/outputs/**/*.aab
+      - frontend/android/app/build/outputs/**/*.apk
+      - frontend/android/app/build/reports/**/*
+
+  react-native-ios-release:
+    name: AstraLink iOS Release
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic # Replace with your Codemagic App Store Connect integration name
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: astralink.test
+      vars:
+        PROJECT_DIR: frontend
+        BUNDLE_ID: astralink.test
+        XCODE_SCHEME: AstraLinkTest
+        XCODE_WORKSPACE: AstraLinkTest.xcworkspace
+      node: 20.19.0
+      cocoapods: default
+    cache:
+      cache_paths:
+        - ~/.npm
+        - ~/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/frontend/node_modules
+        - $HOME/Library/Developer/Xcode/DerivedData
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR"
+          npm ci
+      - name: Read Expo app version
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR"
+          APP_VERSION=$(node -e "process.stdout.write(require('./app.json').expo.version)")
+          echo "APP_VERSION=$APP_VERSION" >> "$CM_ENV"
+      - name: Install CocoaPods dependencies
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR/ios"
+          pod install --repo-update
+      - name: Set Info.plist values
+        script: |
+          PLIST="$CM_BUILD_DIR/$PROJECT_DIR/ios/$XCODE_SCHEME/Info.plist"
+          PLIST_BUDDY=/usr/libexec/PlistBuddy
+          if $PLIST_BUDDY -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST" >/dev/null 2>&1; then
+            $PLIST_BUDDY -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+          else
+            $PLIST_BUDDY -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST"
+          fi
+      - name: Set up provisioning profiles
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR/ios"
+          xcode-project use-profiles
+      - name: Set iOS marketing version
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR/ios"
+          agvtool new-marketing-version "$APP_VERSION"
+      - name: Increment iOS build number
+        script: |
+          cd "$CM_BUILD_DIR/$PROJECT_DIR/ios"
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/$PROJECT_DIR/ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
