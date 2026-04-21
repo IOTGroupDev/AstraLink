@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  ImageBackground,
   useWindowDimensions,
   Modal,
   Pressable,
@@ -74,6 +75,7 @@ import {
   setCachedPrimaryPhoto,
 } from '../services/profile-photo-cache';
 import { GradientBorderView } from '../components/shared';
+import howCanBg from '@assets/how-can-bg.png';
 
 const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
   const normalized = String(locale || 'en').toLowerCase();
@@ -105,7 +107,7 @@ const HeroMetricIcon = ({ type }: { type: 'sign' | 'house' }) => {
       <MaskedView
         pointerEvents="none"
         style={StyleSheet.absoluteFill}
-        maskElement={<Icon width={36} height={36} />}
+        maskElement={<Icon width={47} height={47} />}
       >
         <View style={styles.heroMetricIconFill} />
       </MaskedView>
@@ -146,6 +148,16 @@ const ScrollTopGlow = () => (
     />
   </Svg>
 );
+
+const QUICK_ACTIONS = [
+  { label: 'Dating', route: 'Dating' },
+  { label: 'Advisor', route: 'Advisor' },
+  { label: 'Natal Chart', route: 'NatalChart' },
+  { label: 'Learning', route: 'Learning' },
+  { label: 'Personal code', route: 'PersonalCode' },
+  { label: 'Horoscope', route: 'Horoscope' },
+  { label: 'Cosmic simulator', route: 'CosmicSimulator' },
+] as const;
 
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -1001,6 +1013,12 @@ const HoroscopeScreen: React.FC = () => {
   const openProfile = React.useCallback(() => {
     (navigation as any).navigate('Profile');
   }, [navigation]);
+  const openQuickAction = React.useCallback(
+    (route: (typeof QUICK_ACTIONS)[number]['route']) => {
+      (navigation as any).navigate(route);
+    },
+    [navigation]
+  );
   const topFadeOpacity = scrollY.interpolate({
     inputRange: [0, windowHeight / 3],
     outputRange: [0.1, 1],
@@ -1147,6 +1165,55 @@ const HoroscopeScreen: React.FC = () => {
                   </View>
                 )}
                 {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
+                <View style={styles.quickHelpCard}>
+                  <ImageBackground
+                    source={howCanBg}
+                    resizeMode="cover"
+                    style={styles.quickHelpBackground}
+                    imageStyle={styles.quickHelpBackgroundImage}
+                  />
+                  <View style={styles.quickHelpContent}>
+                    <Text style={styles.quickHelpTitle}>
+                      How can i help you{'\n'}today?
+                    </Text>
+                    <View style={styles.quickActionGrid}>
+                      {QUICK_ACTIONS.map((action) => (
+                        <TouchableOpacity
+                          key={action.route}
+                          activeOpacity={0.84}
+                          onPress={() => openQuickAction(action.route)}
+                          style={styles.quickActionButton}
+                        >
+                          <GradientBorderView
+                            colors={[
+                              'rgba(124, 119, 153, 0.7)',
+                              'rgba(124, 119, 153, 0.05)',
+                            ]}
+                            gradientProps={{
+                              locations: [0.29, 1],
+                              start: { x: 0.49, y: 0 },
+                              end: { x: 0.51, y: 1 },
+                            }}
+                            style={styles.quickActionBorder}
+                            contentStyle={styles.quickActionBorderContent}
+                          >
+                            <BlurView
+                              intensity={15}
+                              tint="dark"
+                              experimentalBlurMethod="dimezisBlurView"
+                              style={styles.quickActionBlur}
+                            >
+                              <Text style={styles.quickActionText}>
+                                {action.label}
+                              </Text>
+                            </BlurView>
+                          </GradientBorderView>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
                 <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
 
                 {/* Рекомендация дня (нормализованные данные для виджета) */}
@@ -1483,13 +1550,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   heroMetricIconWrap: {
-    width: 36,
-    height: 36,
+    width: 47,
+    height: 47,
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 4,
   },
   heroMetricIconFill: {
     flex: 1,
@@ -1513,8 +1580,8 @@ const styles = StyleSheet.create({
   },
   // Контент
   contentContainer: {
-    marginTop: 20,
-    gap: 20,
+    marginTop: 36,
+    gap: 36,
   },
   placeholder: {
     padding: 32,
@@ -1541,6 +1608,73 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  quickHelpCard: {
+    minHeight: 252,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 98, 154, 0.15)',
+    overflow: 'hidden',
+  },
+  quickHelpBackground: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    bottom: -1,
+    left: -1,
+    borderRadius: 12,
+  },
+  quickHelpContent: {
+    minHeight: 252,
+    padding: 32,
+    gap: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickHelpBackgroundImage: {
+    borderRadius: 13,
+    opacity: 0.7,
+  },
+  quickHelpTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    lineHeight: 24,
+    fontWeight: '500',
+    letterSpacing: -1.2,
+    textAlign: 'center',
+  },
+  quickActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  quickActionButton: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  quickActionBorder: {
+    borderWidth: 1,
+    borderRadius: 24,
+  },
+  quickActionBorderContent: {
+    borderRadius: 23,
+    overflow: 'hidden',
+  },
+  quickActionBlur: {
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  quickActionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 16,
+    fontWeight: '500',
+    letterSpacing: -0.8,
+    textAlign: 'center',
   },
   learningCard: {
     borderRadius: 20,
