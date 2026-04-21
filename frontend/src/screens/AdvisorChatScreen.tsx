@@ -7,7 +7,10 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Keyboard,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   ScrollView,
   StatusBar,
@@ -15,6 +18,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -24,7 +28,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Reanimated, { FadeInDown } from 'react-native-reanimated';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
@@ -45,7 +49,7 @@ import AdvisorRecommendationsWidget from '../components/advisor/AdvisorRecommend
 import AdvisorResultWidget from '../components/advisor/AdvisorResultWidget';
 import BestWindowsWidget from '../components/advisor/BestWindowsWidget';
 import DateWheelPicker from '../components/shared/DateWheelPicker';
-import CompactScreenHeader from '../components/shared/CompactScreenHeader';
+import { GradientBorderView } from '../components/shared';
 import { logger } from '../services/logger';
 import {
   buildAdvisorEvaluatePayload,
@@ -72,6 +76,12 @@ type TopicOption = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   gradient: readonly [string, string];
+  borderGradient: readonly [string, string];
+  borderHighlight: string;
+  borderBase: string;
+  accent: string;
+  background: string;
+  bubbleBackground: string;
   description: string;
 };
 
@@ -79,16 +89,104 @@ const TOPIC_CONFIG: Array<{
   key: AdvisorTopic;
   icon: keyof typeof Ionicons.glyphMap;
   gradient: readonly [string, string];
+  borderGradient: readonly [string, string];
+  borderHighlight: string;
+  borderBase: string;
+  accent: string;
+  background: string;
+  bubbleBackground: string;
 }> = [
-  { key: 'contract', icon: 'document-text', gradient: ['#5EEAD4', '#0EA5E9'] },
-  { key: 'meeting', icon: 'people', gradient: ['#FB7185', '#F97316'] },
-  { key: 'negotiation', icon: 'chatbubbles', gradient: ['#F59E0B', '#EAB308'] },
-  { key: 'date', icon: 'heart', gradient: ['#F472B6', '#EC4899'] },
-  { key: 'travel', icon: 'airplane', gradient: ['#38BDF8', '#6366F1'] },
-  { key: 'purchase', icon: 'cart', gradient: ['#34D399', '#10B981'] },
-  { key: 'health', icon: 'fitness', gradient: ['#FB7185', '#EF4444'] },
-  { key: 'custom', icon: 'sparkles', gradient: ['#A78BFA', '#6366F1'] },
+  {
+    key: 'contract',
+    icon: 'document',
+    gradient: ['#5EEAD4', '#0EA5E9'],
+    borderGradient: ['rgba(23, 175, 224, 0.7)', 'rgba(23, 175, 224, 0.05)'],
+    borderHighlight: 'rgba(23, 175, 224, 0.5)',
+    borderBase: 'rgba(23, 175, 224, 0.05)',
+    accent: 'rgba(23, 175, 224, 0.7)',
+    background: 'rgba(23, 175, 224, 0.05)',
+    bubbleBackground: 'rgba(23, 175, 224, 0.1)',
+  },
+  {
+    key: 'meeting',
+    icon: 'people',
+    gradient: ['#FB7185', '#F97316'],
+    borderGradient: ['rgba(250, 114, 38, 0.7)', 'rgba(250, 114, 38, 0.05)'],
+    borderHighlight: 'rgba(250, 114, 38, 0.5)',
+    borderBase: 'rgba(250, 114, 38, 0.05)',
+    accent: 'rgba(250, 114, 38, 0.7)',
+    background: 'rgba(250, 114, 38, 0.1)',
+    bubbleBackground: 'rgba(250, 114, 38, 0.1)',
+  },
+  {
+    key: 'negotiation',
+    icon: 'chatbubble',
+    gradient: ['#F59E0B', '#EAB308'],
+    borderGradient: ['rgba(250, 153, 21, 0.7)', 'rgba(250, 153, 21, 0.05)'],
+    borderHighlight: 'rgba(250, 153, 21, 0.5)',
+    borderBase: 'rgba(250, 153, 21, 0.05)',
+    accent: 'rgba(250, 153, 21, 0.7)',
+    background: 'rgba(250, 153, 21, 0.1)',
+    bubbleBackground: 'rgba(250, 153, 21, 0.1)',
+  },
+  {
+    key: 'date',
+    icon: 'heart',
+    gradient: ['#F472B6', '#EC4899'],
+    borderGradient: ['rgba(239, 76, 157, 0.7)', 'rgba(239, 76, 157, 0.05)'],
+    borderHighlight: 'rgba(239, 76, 157, 0.5)',
+    borderBase: 'rgba(239, 76, 157, 0.05)',
+    accent: 'rgba(239, 76, 157, 0.7)',
+    background: 'rgba(239, 76, 157, 0.1)',
+    bubbleBackground: 'rgba(239, 76, 157, 0.1)',
+  },
+  {
+    key: 'travel',
+    icon: 'airplane',
+    gradient: ['#38BDF8', '#6366F1'],
+    borderGradient: ['rgba(90, 113, 241, 0.7)', 'rgba(90, 113, 241, 0.05)'],
+    borderHighlight: 'rgba(90, 113, 241, 0.5)',
+    borderBase: 'rgba(90, 113, 241, 0.05)',
+    accent: 'rgba(90, 113, 241, 0.7)',
+    background: 'rgba(90, 113, 241, 0.05)',
+    bubbleBackground: 'rgba(90, 113, 241, 0.1)',
+  },
+  {
+    key: 'purchase',
+    icon: 'cart',
+    gradient: ['#34D399', '#10B981'],
+    borderGradient: ['rgba(30, 183, 129, 0.7)', 'rgba(30, 183, 129, 0.05)'],
+    borderHighlight: 'rgba(30, 183, 129, 0.5)',
+    borderBase: 'rgba(30, 183, 129, 0.05)',
+    accent: 'rgba(30, 183, 129, 0.7)',
+    background: 'rgba(30, 183, 129, 0.05)',
+    bubbleBackground: 'rgba(30, 183, 129, 0.1)',
+  },
+  {
+    key: 'health',
+    icon: 'medkit',
+    gradient: ['#FB7185', '#EF4444'],
+    borderGradient: ['rgba(248, 74, 73, 0.7)', 'rgba(248, 74, 73, 0.05)'],
+    borderHighlight: 'rgba(248, 74, 73, 0.5)',
+    borderBase: 'rgba(248, 74, 73, 0.05)',
+    accent: 'rgba(248, 74, 73, 0.7)',
+    background: 'rgba(248, 74, 73, 0.1)',
+    bubbleBackground: 'rgba(248, 74, 73, 0.1)',
+  },
+  {
+    key: 'custom',
+    icon: 'sparkles',
+    gradient: ['#A78BFA', '#6366F1'],
+    borderGradient: ['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.05)'],
+    borderHighlight: 'rgba(255, 255, 255, 0.5)',
+    borderBase: 'rgba(255, 255, 255, 0.05)',
+    accent: 'rgba(255, 255, 255, 0.7)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    bubbleBackground: 'rgba(255, 255, 255, 0.1)',
+  },
 ];
+
+const advisorBackground = require('../../assets/advisor-bg.png');
 
 const LOCALE_BY_LANGUAGE: Record<string, string> = {
   ru: 'ru-RU',
@@ -128,6 +226,7 @@ const AdvisorScreen: React.FC = () => {
   }, [i18n.language]);
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const { height: screenHeight } = useWindowDimensions();
   const navigation = useNavigation();
   const { user } = useAuth();
   const { isPremium } = useSubscription();
@@ -145,6 +244,8 @@ const AdvisorScreen: React.FC = () => {
   >({});
   const historyHydratedRef = useRef(false);
   const [showHistoryNotice, setShowHistoryNotice] = useState(false);
+  const [backgroundOpacity, setBackgroundOpacity] = useState(0.9);
+  const backgroundOpacityRef = useRef(0.9);
 
   const timezone = useMemo(() => {
     try {
@@ -171,6 +272,11 @@ const AdvisorScreen: React.FC = () => {
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
     [activeSessionId, sessions]
   );
+
+  const displayName = useMemo(() => {
+    const name = user?.name?.trim();
+    return name ? name.split(/\s+/)[0] : 'there';
+  }, [user?.name]);
 
   const transcriptSignature = useMemo(
     () =>
@@ -211,21 +317,46 @@ const AdvisorScreen: React.FC = () => {
     scrollRef.current?.scrollToEnd({ animated });
   }, []);
 
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const scrollY = Math.max(0, event.nativeEvent.contentOffset.y);
+      const fadeDistance = Math.max(1, screenHeight / 3);
+      const progress = Math.min(1, scrollY / fadeDistance);
+      const nextOpacity = Math.max(0.3, 0.9 - progress * 0.6);
+
+      if (Math.abs(backgroundOpacityRef.current - nextOpacity) < 0.015) {
+        return;
+      }
+
+      backgroundOpacityRef.current = nextOpacity;
+      setBackgroundOpacity(nextOpacity);
+    },
+    [screenHeight]
+  );
+
   useEffect(() => {
+    if (activeSession && !activeSession.topic && sessions.length === 1) {
+      return undefined;
+    }
+
     const timeout = setTimeout(() => {
       scrollToBottom(true);
     }, 80);
 
     return () => clearTimeout(timeout);
-  }, [scrollToBottom, transcriptSignature]);
+  }, [activeSession, scrollToBottom, sessions.length, transcriptSignature]);
 
   useEffect(() => {
+    if (activeSession && !activeSession.topic && sessions.length === 1) {
+      return undefined;
+    }
+
     const timeout = setTimeout(() => {
       scrollToBottom(true);
     }, 80);
 
     return () => clearTimeout(timeout);
-  }, [revealSignature, scrollToBottom]);
+  }, [activeSession, revealSignature, scrollToBottom, sessions.length]);
 
   useEffect(() => {
     const showEvent =
@@ -671,13 +802,21 @@ const AdvisorScreen: React.FC = () => {
         scrollable={false}
         edges={['left', 'right']}
         contentContainerStyle={styles.layoutContent}
+        showCosmicBackground={false}
       >
         <View style={styles.screen}>
+          <Image
+            source={advisorBackground}
+            resizeMode="cover"
+            style={[styles.advisorBackground, { opacity: backgroundOpacity }]}
+          />
           <ScrollView
             ref={scrollRef}
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
             keyboardDismissMode={
               Platform.OS === 'ios' ? 'interactive' : 'on-drag'
             }
@@ -690,12 +829,6 @@ const AdvisorScreen: React.FC = () => {
               },
             ]}
           >
-            <CompactScreenHeader
-              title="Astro advisor"
-              description={advisorHeaderDescription}
-              icon={<Ionicons name="sparkles" size={22} color="#FFFFFF" />}
-            />
-
             {showHistoryNotice && (
               <AssistantCard>
                 <Text style={styles.widgetTitle}>
@@ -731,51 +864,39 @@ const AdvisorScreen: React.FC = () => {
                   />
                 ) : (
                   <View key={session.id} style={styles.sessionBlock}>
-                    <AssistantBubble text={t('advisor.chat.intro')} />
-
-                    {!session.topic && (
-                      <AssistantCard>
-                        <Text style={styles.widgetTitle}>
-                          {t('advisor.selectTopic')}
-                        </Text>
-                        <Text style={styles.widgetSubtitle}>
-                          {t('advisor.chat.topicHelp')}
-                        </Text>
-                        <View style={styles.chipsWrap}>
-                          {topics.map((topic) => (
-                            <GradientChip
-                              key={topic.key}
-                              label={topic.label}
-                              icon={topic.icon}
-                              colors={topic.gradient}
-                              onPress={() => handleTopicSelect(topic.key)}
-                            />
-                          ))}
-                        </View>
-                      </AssistantCard>
+                    {session.id === activeSessionId && (
+                      <InitialAdvisorState
+                        displayName={displayName}
+                        height={
+                          session.topic
+                            ? Math.max(360, Math.min(430, screenHeight * 0.48))
+                            : Math.max(
+                                520,
+                                screenHeight - insets.top - tabBarHeight - 40
+                              )
+                        }
+                        topics={topics}
+                        selectedTopic={session.topic}
+                        onTopicSelect={handleTopicSelect}
+                      />
                     )}
 
                     {session.topic && (
                       <>
-                        <UserBubble
-                          icon={
-                            getTopicOption(session.topic)?.icon || 'sparkles'
-                          }
-                          title={t('advisor.chat.selectedTopic')}
-                          text={
-                            getTopicOption(session.topic)?.label ||
-                            session.topic
-                          }
+                        <TopicSelectionBubble
+                          topicOption={getTopicOption(session.topic)}
+                          fallbackLabel={session.topic}
                         />
                         {reveal.topicAck && (
-                          <AssistantBubble
+                          <AssistantPlainText
                             text={t(
                               `advisor.chat.topicAcknowledgements.${session.topic}`
                             )}
                           />
                         )}
                         {reveal.datePrompt && (
-                          <AssistantBubble
+                          <AssistantPlainText
+                            muted
                             text={t('advisor.chat.datePrompt')}
                           />
                         )}
@@ -783,10 +904,7 @@ const AdvisorScreen: React.FC = () => {
                     )}
 
                     {session.topic && !session.date && reveal.dateChoices && (
-                      <AssistantCard>
-                        <Text style={styles.widgetTitleWithSpacing}>
-                          {t('advisor.dateAnalysis')}
-                        </Text>
+                      <View style={styles.dateChoicesBlock}>
                         <View style={styles.chipsWrap}>
                           <OutlineChip
                             label={t('advisor.quickDates.today')}
@@ -836,25 +954,24 @@ const AdvisorScreen: React.FC = () => {
                             </TouchableOpacity>
                           </View>
                         )}
-                      </AssistantCard>
+                      </View>
                     )}
 
                     {session.date && (
                       <>
-                        <UserBubble
-                          icon="calendar"
-                          title={t('advisor.chat.selectedDate')}
-                          text={formatDisplayDate(session.date)}
+                        <DateSelectionBubble
+                          label={formatDisplayDate(session.date)}
                         />
                         {reveal.dateAck && (
-                          <AssistantBubble
+                          <AssistantPlainText
                             text={t('advisor.chat.dateAcknowledgement', {
                               date: formatDisplayDate(session.date),
                             })}
                           />
                         )}
                         {reveal.promptRequest && (
-                          <AssistantBubble
+                          <AssistantPlainText
+                            muted
                             text={t('advisor.chat.promptRequest')}
                           />
                         )}
@@ -866,7 +983,6 @@ const AdvisorScreen: React.FC = () => {
                       session.status === 'write_prompt' &&
                       reveal.promptInput && (
                         <InlinePromptCard
-                          title={t('advisor.chat.inputTitle')}
                           placeholder={t('advisor.chat.promptPlaceholder')}
                           value={session.promptDraft}
                           onChangeText={handlePromptDraftChange}
@@ -877,12 +993,7 @@ const AdvisorScreen: React.FC = () => {
                       )}
 
                     {session.prompt && (
-                      <UserBubble
-                        icon="send"
-                        title={t('advisor.chat.yourMessage')}
-                        text={session.prompt}
-                        wide
-                      />
+                      <PromptSelectionBubble text={session.prompt} />
                     )}
 
                     {session.status === 'loading' && (
@@ -932,6 +1043,266 @@ const AdvisorScreen: React.FC = () => {
   );
 };
 
+function InitialAdvisorState({
+  displayName,
+  height,
+  topics,
+  selectedTopic,
+  onTopicSelect,
+}: {
+  displayName: string;
+  height: number;
+  topics: TopicOption[];
+  selectedTopic?: AdvisorTopic;
+  onTopicSelect: (topic: AdvisorTopic) => void;
+}) {
+  return (
+    <View
+      style={[
+        styles.initialHero,
+        selectedTopic && styles.initialHeroCompact,
+        { minHeight: height },
+      ]}
+    >
+      <GradientBorderView
+        colors={[
+          'rgba(255, 255, 255, 0.08)',
+          'rgba(255, 255, 255, 0.55)',
+          'rgba(255, 255, 255, 0.1)',
+        ]}
+        gradientProps={{
+          locations: [0, 0.32, 1],
+          start: { x: 1, y: 0 },
+          end: { x: 0, y: 1 },
+        }}
+        style={styles.initialBadgeBorder}
+        contentStyle={styles.initialBadgeContent}
+      >
+        <BlurView
+          intensity={24}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={styles.initialBadgeBlur}
+        >
+          <Text style={styles.initialBadgeText}>Advisor Ai</Text>
+          <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+        </BlurView>
+      </GradientBorderView>
+
+      <Text style={styles.initialTitle}>Hey {displayName}!</Text>
+      <Text style={styles.initialSubtitle}>
+        Choose a topic and I will guide{'\n'}you through the reading.
+      </Text>
+
+      {!selectedTopic && (
+        <View style={styles.initialChipsWrap}>
+          {topics.map((topic) => (
+            <InitialTopicChip
+              key={topic.key}
+              topic={topic}
+              onPress={() => onTopicSelect(topic.key)}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function InitialTopicChip({
+  topic,
+  onPress,
+}: {
+  topic: TopicOption;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.82}
+      onPress={onPress}
+      style={styles.initialTopicTouchable}
+    >
+      <GradientBorderView
+        colors={topic.borderGradient}
+        gradientProps={{
+          locations: [0.29, 1],
+          start: { x: 0.49, y: 0 },
+          end: { x: 0.51, y: 1 },
+        }}
+        style={styles.initialTopicChipBorder}
+        contentStyle={[
+          styles.initialTopicChipContent,
+          { backgroundColor: topic.background },
+        ]}
+      >
+        <Ionicons name={topic.icon} size={16} color="#FFFFFF" />
+        <Text style={styles.initialTopicText}>{topic.label}</Text>
+      </GradientBorderView>
+    </TouchableOpacity>
+  );
+}
+
+function TopicSelectionBubble({
+  topicOption,
+  fallbackLabel,
+}: {
+  topicOption: TopicOption | null;
+  fallbackLabel: string;
+}) {
+  const label = topicOption?.label || fallbackLabel;
+  const icon = topicOption?.icon || 'sparkles';
+  const borderColors: readonly [string, string, string] = topicOption
+    ? [
+        topicOption.borderGradient[0],
+        topicOption.borderHighlight,
+        topicOption.borderGradient[1],
+      ]
+    : [
+        'rgba(255, 255, 255, 0.7)',
+        'rgba(255, 255, 255, 0.5)',
+        'rgba(255, 255, 255, 0.05)',
+      ];
+  const baseBorderColor =
+    topicOption?.borderBase || 'rgba(255, 255, 255, 0.05)';
+
+  return (
+    <Reanimated.View
+      entering={FadeInDown.duration(240)}
+      style={styles.topicBubbleRow}
+    >
+      <View
+        style={[styles.topicBubbleBaseBorder, { borderColor: baseBorderColor }]}
+      >
+        <GradientBorderView
+          colors={borderColors}
+          gradientProps={{
+            locations: [0, 0.5, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.topicBubbleBorder}
+          contentStyle={[
+            styles.topicBubbleInner,
+            {
+              backgroundColor:
+                topicOption?.bubbleBackground || 'rgba(255, 255, 255, 0.1)',
+            },
+          ]}
+        >
+          <Text style={styles.topicBubbleLabel}>Topic</Text>
+          <View style={styles.topicBubbleContent}>
+            <Ionicons name={icon} size={14} color="#FFFFFF" />
+            <Text style={styles.topicBubbleText}>{label}</Text>
+          </View>
+        </GradientBorderView>
+      </View>
+    </Reanimated.View>
+  );
+}
+
+function DateSelectionBubble({ label }: { label: string }) {
+  return (
+    <Reanimated.View
+      entering={FadeInDown.duration(240)}
+      style={styles.topicBubbleRow}
+    >
+      <View
+        style={[
+          styles.topicBubbleBaseBorder,
+          { borderColor: 'rgba(255, 255, 255, 0.05)' },
+        ]}
+      >
+        <GradientBorderView
+          colors={[
+            'rgba(255, 255, 255, 0.7)',
+            'rgba(255, 255, 255, 0.5)',
+            'rgba(255, 255, 255, 0.05)',
+          ]}
+          gradientProps={{
+            locations: [0, 0.5, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.topicBubbleBorder}
+          contentStyle={[
+            styles.topicBubbleInner,
+            { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
+          ]}
+        >
+          <Text style={styles.topicBubbleLabel}>Date</Text>
+          <View style={styles.topicBubbleContent}>
+            <Text style={styles.topicBubbleText}>{label}</Text>
+          </View>
+        </GradientBorderView>
+      </View>
+    </Reanimated.View>
+  );
+}
+
+function PromptSelectionBubble({ text }: { text: string }) {
+  return (
+    <Reanimated.View
+      entering={FadeInDown.duration(240)}
+      style={styles.topicBubbleRow}
+    >
+      <View
+        style={[
+          styles.topicBubbleBaseBorder,
+          styles.promptBubbleBaseBorder,
+          { borderColor: 'rgba(255, 255, 255, 0.05)' },
+        ]}
+      >
+        <GradientBorderView
+          colors={[
+            'rgba(255, 255, 255, 0.7)',
+            'rgba(255, 255, 255, 0.5)',
+            'rgba(255, 255, 255, 0.05)',
+          ]}
+          gradientProps={{
+            locations: [0, 0.5, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.topicBubbleBorder}
+          contentStyle={[
+            styles.topicBubbleInner,
+            styles.promptBubbleInner,
+            { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
+          ]}
+        >
+          <Text style={[styles.topicBubbleText, styles.promptBubbleText]}>
+            {text}
+          </Text>
+        </GradientBorderView>
+      </View>
+    </Reanimated.View>
+  );
+}
+
+function AssistantPlainText({
+  text,
+  muted = false,
+}: {
+  text: string;
+  muted?: boolean;
+}) {
+  return (
+    <Reanimated.View
+      entering={FadeInDown.duration(260)}
+      style={styles.assistantPlainRow}
+    >
+      <Text
+        style={[
+          styles.assistantPlainText,
+          muted && styles.assistantPlainTextMuted,
+        ]}
+      >
+        {text}
+      </Text>
+    </Reanimated.View>
+  );
+}
+
 function AssistantBubble({
   text,
   tone = 'default',
@@ -945,7 +1316,7 @@ function AssistantBubble({
     tone === 'error' ? 'rgba(127, 29, 29, 0.55)' : 'rgba(15, 23, 42, 0.9)';
 
   return (
-    <Animated.View
+    <Reanimated.View
       entering={FadeInDown.duration(260)}
       style={styles.assistantRow}
     >
@@ -966,13 +1337,13 @@ function AssistantBubble({
       <View style={[styles.assistantBubble, { borderColor, backgroundColor }]}>
         <Text style={styles.assistantText}>{text}</Text>
       </View>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
 function AssistantCard({ children }: { children: React.ReactNode }) {
   return (
-    <Animated.View
+    <Reanimated.View
       entering={FadeInDown.duration(280)}
       style={styles.assistantRow}
     >
@@ -987,13 +1358,13 @@ function AssistantCard({ children }: { children: React.ReactNode }) {
       <BlurView intensity={18} tint="dark" style={styles.assistantCard}>
         {children}
       </BlurView>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
 function AssistantLoadingBubble({ text }: { text: string }) {
   return (
-    <Animated.View
+    <Reanimated.View
       entering={FadeInDown.duration(260)}
       style={styles.assistantRow}
     >
@@ -1009,7 +1380,7 @@ function AssistantLoadingBubble({ text }: { text: string }) {
         <ActivityIndicator color="#E2E8F0" size="small" />
         <Text style={styles.loadingText}>{text}</Text>
       </View>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
@@ -1025,7 +1396,7 @@ function UserBubble({
   wide?: boolean;
 }) {
   return (
-    <Animated.View entering={FadeInDown.duration(240)} style={styles.userRow}>
+    <Reanimated.View entering={FadeInDown.duration(240)} style={styles.userRow}>
       <LinearGradient
         colors={['#1D4ED8', '#7C3AED']}
         start={{ x: 0, y: 0 }}
@@ -1038,12 +1409,11 @@ function UserBubble({
         </View>
         <Text style={styles.userText}>{text}</Text>
       </LinearGradient>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
 function InlinePromptCard({
-  title,
   placeholder,
   value,
   onChangeText,
@@ -1051,7 +1421,6 @@ function InlinePromptCard({
   onSend,
   buttonLabel,
 }: {
-  title: string;
   placeholder: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -1062,34 +1431,59 @@ function InlinePromptCard({
   const disabled = !value.trim();
 
   return (
-    <Animated.View entering={FadeInDown.duration(280)} style={styles.userRow}>
-      <BlurView intensity={16} tint="dark" style={styles.promptCard}>
-        <View style={styles.userMeta}>
-          <Ionicons name="create-outline" size={14} color="#BFDBFE" />
-          <Text style={styles.userTitle}>{title}</Text>
-        </View>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={onFocus}
-          placeholder={placeholder}
-          placeholderTextColor="rgba(191, 219, 254, 0.45)"
-          multiline
-          style={styles.promptInput}
-        />
-        <TouchableOpacity
-          onPress={onSend}
-          disabled={disabled}
-          style={[
-            styles.inlineSendButton,
-            disabled && styles.inlineSendButtonDisabled,
+    <Reanimated.View
+      entering={FadeInDown.duration(280)}
+      style={styles.promptRow}
+    >
+      <View style={styles.promptBaseBorder}>
+        <GradientBorderView
+          colors={[
+            'rgba(255, 255, 255, 0.7)',
+            'rgba(255, 255, 255, 0.5)',
+            'rgba(255, 255, 255, 0.05)',
           ]}
+          gradientProps={{
+            locations: [0, 0.5, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.promptCardBorder}
+          contentStyle={styles.promptCardContent}
         >
-          <Ionicons name="send" size={16} color="#FFFFFF" />
-          <Text style={styles.inlineSendText}>{buttonLabel}</Text>
-        </TouchableOpacity>
-      </BlurView>
-    </Animated.View>
+          <Text style={styles.promptLabel}>Input</Text>
+          <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            onFocus={onFocus}
+            placeholder={placeholder}
+            placeholderTextColor="rgba(255, 255, 255, 0.35)"
+            multiline
+            style={styles.promptInput}
+          />
+          <TouchableOpacity
+            onPress={onSend}
+            disabled={disabled}
+            style={styles.inlineSendTouchable}
+          >
+            <GradientBorderView
+              colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.05)']}
+              gradientProps={{
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              }}
+              style={styles.inlineSendBorder}
+              contentStyle={[
+                styles.inlineSendContent,
+                disabled && styles.inlineSendContentDisabled,
+              ]}
+            >
+              <Ionicons name="send" size={16} color="#FFFFFF" />
+              <Text style={styles.inlineSendText}>{buttonLabel}</Text>
+            </GradientBorderView>
+          </TouchableOpacity>
+        </GradientBorderView>
+      </View>
+    </Reanimated.View>
   );
 }
 
@@ -1109,7 +1503,7 @@ function SessionSummaryCard({
   }
 
   return (
-    <Animated.View entering={FadeInDown.duration(240)}>
+    <Reanimated.View entering={FadeInDown.duration(240)}>
       <BlurView intensity={14} tint="dark" style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
           <View style={styles.summaryTitleRow}>
@@ -1138,7 +1532,7 @@ function SessionSummaryCard({
           {t(`advisor.chat.summary.verdicts.${session.result.verdict}`)}
         </Text>
       </BlurView>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
@@ -1154,7 +1548,7 @@ function AdvisorResultMessage({
   }
 
   return (
-    <Animated.View
+    <Reanimated.View
       entering={FadeInDown.duration(300)}
       style={styles.assistantRow}
     >
@@ -1198,7 +1592,7 @@ function AdvisorResultMessage({
           />
         )}
       </View>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
@@ -1238,15 +1632,33 @@ function OutlineChip({
   active?: boolean;
 }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.outlineChip, active && styles.outlineChipActive]}
-    >
-      <Text
-        style={[styles.outlineChipText, active && styles.outlineChipTextActive]}
+    <TouchableOpacity onPress={onPress} style={styles.outlineChipTouchable}>
+      <GradientBorderView
+        colors={
+          active
+            ? ['rgba(34, 211, 238, 0.7)', 'rgba(34, 211, 238, 0.05)']
+            : ['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.05)']
+        }
+        gradientProps={{
+          locations: [0.29, 1],
+          start: { x: 0.49, y: 0 },
+          end: { x: 0.51, y: 1 },
+        }}
+        style={styles.outlineChipBorder}
+        contentStyle={[
+          styles.outlineChipContent,
+          active && styles.outlineChipContentActive,
+        ]}
       >
-        {label}
-      </Text>
+        <Text
+          style={[
+            styles.outlineChipText,
+            active && styles.outlineChipTextActive,
+          ]}
+        >
+          {label}
+        </Text>
+      </GradientBorderView>
     </TouchableOpacity>
   );
 }
@@ -1288,6 +1700,12 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
+    backgroundColor: '#080E1C',
+  },
+  advisorBackground: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   scrollView: {
     flex: 1,
@@ -1301,6 +1719,165 @@ const styles = StyleSheet.create({
   },
   sessionBlock: {
     gap: 14,
+  },
+  initialHero: {
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    paddingHorizontal: 8,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  initialHeroCompact: {
+    paddingBottom: 8,
+  },
+  initialBadgeBorder: {
+    borderRadius: 44,
+    borderWidth: 1,
+  },
+  initialBadgeContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  initialBadgeBlur: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 44,
+    overflow: 'hidden',
+  },
+  initialBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 24,
+    letterSpacing: 0,
+  },
+  initialTitle: {
+    color: '#FFFFFF',
+    fontSize: 36,
+    fontWeight: '500',
+    lineHeight: 40,
+    letterSpacing: 0,
+    marginTop: 16,
+  },
+  initialSubtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+    letterSpacing: 0,
+    marginTop: 14,
+  },
+  initialChipsWrap: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 24,
+  },
+  initialTopicTouchable: {
+    maxWidth: '100%',
+  },
+  initialTopicChipBorder: {
+    height: 36,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  initialTopicChipContent: {
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingBottom: 2,
+  },
+  initialTopicText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 18,
+    letterSpacing: 0,
+  },
+  topicBubbleRow: {
+    alignItems: 'flex-end',
+    paddingRight: 8,
+  },
+  topicBubbleBaseBorder: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 2,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  promptBubbleBaseBorder: {
+    maxWidth: '92%',
+  },
+  topicBubbleBorder: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 2,
+    borderWidth: 1,
+    margin: -1,
+  },
+  topicBubbleInner: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
+    borderBottomLeftRadius: 11,
+    borderBottomRightRadius: 2,
+  },
+  promptBubbleInner: {
+    paddingVertical: 10,
+  },
+  topicBubbleLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 10,
+    fontWeight: '400',
+    lineHeight: 14,
+    height: 16,
+  },
+  topicBubbleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  topicBubbleText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  promptBubbleText: {
+    maxWidth: '100%',
+  },
+  assistantPlainRow: {
+    alignItems: 'flex-start',
+    paddingHorizontal: 8,
+  },
+  assistantPlainText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  assistantPlainTextMuted: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  dateChoicesBlock: {
+    alignItems: 'flex-start',
+    paddingHorizontal: 8,
+    paddingTop: 10,
   },
   assistantRow: {
     flexDirection: 'row',
@@ -1391,22 +1968,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  outlineChip: {
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(30, 41, 59, 0.7)',
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.22)',
+  outlineChipTouchable: {
+    maxWidth: '100%',
   },
-  outlineChipActive: {
-    borderColor: 'rgba(34, 211, 238, 0.55)',
-    backgroundColor: 'rgba(8, 47, 73, 0.85)',
+  outlineChipBorder: {
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  outlineChipContent: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  outlineChipContentActive: {
+    backgroundColor: 'rgba(34, 211, 238, 0.1)',
   },
   outlineChipText: {
-    color: '#E2E8F0',
-    fontSize: 13,
-    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   outlineChipTextActive: {
     color: '#CFFAFE',
@@ -1461,40 +2045,82 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
-  promptCard: {
-    width: '92%',
-    borderRadius: 24,
-    padding: 16,
-    overflow: 'hidden',
+  promptRow: {
+    alignItems: 'flex-end',
+    paddingHorizontal: 8,
+  },
+  promptBaseBorder: {
+    width: '100%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 2,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.25)',
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  promptCardBorder: {
+    width: '100%',
+    minHeight: 128,
+    margin: -1,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 2,
+    borderWidth: 1,
+  },
+  promptCardContent: {
+    minHeight: 126,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    position: 'relative',
+  },
+  promptLabel: {
+    width: 40,
+    height: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 10,
+    fontWeight: '400',
+    lineHeight: 14,
   },
   promptInput: {
-    minHeight: 90,
+    minHeight: 64,
+    marginTop: 4,
+    padding: 0,
     color: '#FFFFFF',
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 20,
     textAlignVertical: 'top',
   },
-  inlineSendButton: {
-    marginTop: 14,
-    alignSelf: 'flex-end',
+  inlineSendTouchable: {
+    position: 'absolute',
+    right: 16,
+    bottom: 8,
+    borderRadius: 24,
+  },
+  inlineSendBorder: {
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  inlineSendContent: {
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563EB',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  inlineSendButtonDisabled: {
-    backgroundColor: 'rgba(59, 130, 246, 0.35)',
+  inlineSendContentDisabled: {
+    opacity: 0.45,
   },
   inlineSendText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   loadingBubble: {
     flex: 1,
