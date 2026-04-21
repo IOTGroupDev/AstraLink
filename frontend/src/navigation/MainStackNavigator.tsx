@@ -57,7 +57,7 @@ export default function MainStackNavigator() {
         },
         gestureDirection: 'horizontal',
         contentStyle: {
-          backgroundColor: '#0F172A',
+          backgroundColor: '#080E1C',
         },
         freezeOnBlur: true,
         headerShadowVisible: false,

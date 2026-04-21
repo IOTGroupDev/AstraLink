@@ -9,8 +9,8 @@ export const NavigationTheme = {
   colors: {
     ...DefaultTheme.colors,
     primary: '#8B5CF6',
-    background: '#0F172A', // КРИТИЧНО: тот же цвет везде
-    card: '#0F172A',
+    background: '#080E1C', // КРИТИЧНО: тот же цвет везде
+    card: '#080E1C',
     text: '#FFFFFF',
     border: 'rgba(139, 92, 246, 0.3)',
     notification: '#EF4444',

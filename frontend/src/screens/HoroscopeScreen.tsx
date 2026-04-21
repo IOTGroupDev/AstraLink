@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   TouchableOpacity,
@@ -20,17 +21,17 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import HoroscopeSvg from '../components/svg/tabs/HoroscopeSvg';
+import { useQuery } from '@tanstack/react-query';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 import EnergyWidget from '../components/horoscope/EnergyWidget';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
-import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import MainTransitWidget from '../components/horoscope/MainTransitWidget';
 import BiorhythmsWidget from '../components/horoscope/BiorhythmsWidget';
 import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
 import { HoroscopeWidgetSkeleton } from '../components/horoscope/HoroscopeSkeletons';
 import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecommendationWidget';
-import { chartAPI } from '../services/api';
+import { chartAPI, userAPI } from '../services/api';
 import type {
   BiorhythmPhase,
   BiorhythmResponse,
@@ -56,12 +57,50 @@ import {
   getBirthDateParts,
   normalizeBirthDateValue,
 } from '../utils/birthDate';
+import { StarSvg } from '../components/svg/moon-phase/Star';
+import { HouseSvg } from '../components/svg/moon-phase/House';
+import {
+  getCachedPrimaryPhoto,
+  setCachedPrimaryPhoto,
+} from '../services/profile-photo-cache';
+import { GradientBorderView } from '../components/shared';
 
 const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
   const normalized = String(locale || 'en').toLowerCase();
   if (normalized.startsWith('ru')) return 'ru';
   if (normalized.startsWith('es')) return 'es';
   return 'en';
+};
+
+const normalizeZodiacKey = (sign: string): string => {
+  const raw = (sign || '').trim();
+  if (!raw) return '';
+  return raw.toLowerCase();
+};
+
+const getInitials = (name?: string, email?: string): string => {
+  const source = (name || email || 'A').trim();
+  const words = source.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+};
+
+const HeroMetricIcon = ({ type }: { type: 'sign' | 'house' }) => {
+  const Icon = type === 'sign' ? StarSvg : HouseSvg;
+
+  return (
+    <View style={styles.heroMetricIconWrap}>
+      <MaskedView
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        maskElement={<Icon width={36} height={36} />}
+      >
+        <View style={styles.heroMetricIconFill} />
+      </MaskedView>
+    </View>
+  );
 };
 
 const HoroscopeScreen: React.FC = () => {
@@ -79,25 +118,20 @@ const HoroscopeScreen: React.FC = () => {
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     return appLocale;
   }, [appLocale]);
-  const horoscopeHeaderDescription = React.useMemo(() => {
-    const locale = appLocale;
-
-    if (locale === 'ru') {
-      return 'Ежедневный обзор';
-    }
-
-    if (locale === 'es') {
-      return 'Resumen diario';
-    }
-
-    return 'Daily overview';
-  }, [appLocale]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const {
     subscription,
     refetch: refetchSubscription,
     hasFeature,
   } = useSubscription();
+  const { data: moonPhase } = useQuery({
+    queryKey: ['moonPhase', i18n.language],
+    queryFn: () => chartAPI.getMoonPhase(undefined, getApiLocale()),
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24,
+    retry: 2,
+    enabled: isAuthenticated,
+  });
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const syncingRef = useRef(false);
 
@@ -112,6 +146,7 @@ const HoroscopeScreen: React.FC = () => {
   const [transitModalVisible, setTransitModalVisible] = useState(false);
   const [transitModalLoading, setTransitModalLoading] = useState(false);
   const [transitModalText, setTransitModalText] = useState('');
+  const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const predictionsAttemptedRef = useRef(false);
   const predictionsLoadingRef = useRef(false);
   const predictionsLocaleRef = useRef<string | null>(null);
@@ -124,6 +159,49 @@ const HoroscopeScreen: React.FC = () => {
   const hasLoadedOnceRef = useRef(false);
   const lastLoadedBucketRef = useRef<string | null>(null);
   const mainTransitInterpretationCacheRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPrimaryPhoto = async () => {
+      const userId = user?.id;
+      if (!userId) {
+        setPrimaryPhotoUrl(null);
+        return;
+      }
+
+      const cachedPhoto = await getCachedPrimaryPhoto(userId);
+      if (isMounted && cachedPhoto?.url) {
+        setPrimaryPhotoUrl(cachedPhoto.url);
+      }
+
+      try {
+        const profile = await userAPI.getProfile();
+        if (!isMounted) return;
+
+        const nextPhotoUrl = profile.primaryPhotoUrl || null;
+        setPrimaryPhotoUrl(nextPhotoUrl);
+
+        if (profile.primaryPhotoUrl && profile.primaryPhotoPath) {
+          await setCachedPrimaryPhoto(profile.id, {
+            url: profile.primaryPhotoUrl,
+            path: profile.primaryPhotoPath,
+            expiresAt: profile.primaryPhotoExpiresAt ?? null,
+          });
+        } else {
+          await setCachedPrimaryPhoto(profile.id, null);
+        }
+      } catch {
+        // Avatar is decorative here, so cached/fallback initials are enough.
+      }
+    };
+
+    void loadPrimaryPhoto();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const extractHoroscopeContent = React.useCallback(
     (response: any): HoroscopeContent => {
@@ -844,6 +922,40 @@ const HoroscopeScreen: React.FC = () => {
     }
   }, [currentPlanets]);
 
+  const moonPlanet = React.useMemo(() => {
+    if (Array.isArray(currentPlanets)) {
+      return currentPlanets.find(
+        (planet: any) => String(planet?.name || '').toLowerCase() === 'moon'
+      );
+    }
+
+    return currentPlanets?.moon ?? null;
+  }, [currentPlanets]);
+
+  const displayMoonSign = React.useMemo(() => {
+    const rawSign = String(moonPlanet?.sign || moonPhase?.sign || '');
+    const zodiacKey = normalizeZodiacKey(rawSign);
+    return zodiacKey
+      ? t(`common.zodiacSigns.${zodiacKey}`, { defaultValue: rawSign })
+      : '-';
+  }, [moonPhase?.sign, moonPlanet?.sign, t]);
+
+  const displayMoonHouse = String(moonPhase?.house || '-');
+  const greetingName = user?.name?.trim() || 'there';
+  const avatarInitials = getInitials(user?.name, user?.email);
+  const positionsDate = new Date().toLocaleDateString(
+    appLocale === 'ru' ? 'ru-RU' : appLocale === 'es' ? 'es-ES' : 'en-US',
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }
+  );
+
+  const openProfile = React.useCallback(() => {
+    (navigation as any).navigate('Profile');
+  }, [navigation]);
+
   // Логирование для отладки
   chartLogger.log('Данные виджетов', {
     energyValue,
@@ -860,6 +972,7 @@ const HoroscopeScreen: React.FC = () => {
         scrollable={false}
         edges={['left', 'right']}
         contentContainerStyle={styles.layoutContent}
+        showCosmicBackground={false}
       >
         <View style={styles.screen}>
           <ScrollView
@@ -881,36 +994,82 @@ const HoroscopeScreen: React.FC = () => {
               />
             }
           >
-            {/* Заголовок с размытием */}
-            <CompactScreenHeader
-              style={styles.compactHeader}
-              title={t('horoscope.title')}
-              description={horoscopeHeaderDescription}
-              icon={<HoroscopeSvg size={26} color="#FFFFFF" />}
-            />
-            <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
-              <Text style={styles.headerSubtitle}>
-                {t('horoscope.subtitle', {
-                  name: user?.name ? `\n${user.name}` : '',
-                })}
+            <View style={styles.heroContainer}>
+              <View style={styles.heroTopRow}>
+                <TouchableOpacity
+                  activeOpacity={0.82}
+                  onPress={openProfile}
+                  style={styles.avatarButton}
+                >
+                  {primaryPhotoUrl ? (
+                    <Image
+                      source={{ uri: primaryPhotoUrl }}
+                      style={styles.avatarImage}
+                      onError={() => setPrimaryPhotoUrl(null)}
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitials}>{avatarInitials}</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => undefined}
+                  style={styles.premiumButton}
+                >
+                  <GradientBorderView
+                    colors={[
+                      'rgba(255, 255, 255, 0.35)',
+                      'rgba(255, 255, 255, 0.025)',
+                    ]}
+                    gradientProps={{
+                      locations: [0.29, 1],
+                      start: { x: 0.49, y: 0 },
+                      end: { x: 0.51, y: 1 },
+                    }}
+                    style={styles.premiumBorder}
+                    contentStyle={styles.premiumBorderContent}
+                  >
+                    <BlurView
+                      intensity={15}
+                      tint="dark"
+                      experimentalBlurMethod="dimezisBlurView"
+                      style={styles.premiumBlur}
+                    >
+                      <Text style={styles.premiumText}>👑 Get premium</Text>
+                    </BlurView>
+                  </GradientBorderView>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.heroGreeting} numberOfLines={1}>
+                Hello {greetingName} 👋
               </Text>
-              <Text style={styles.headerDate}>
-                {t('horoscope.positionsOn', {
-                  date: new Date().toLocaleDateString(
-                    appLocale === 'ru'
-                      ? 'ru-RU'
-                      : appLocale === 'es'
-                        ? 'es-ES'
-                        : 'en-US',
-                    {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    }
-                  ),
-                })}
-              </Text>
-            </BlurView>
+              <Text style={styles.heroTitle}>The cosmos for you</Text>
+              <Text style={styles.heroDate}>Posotions on {positionsDate}</Text>
+
+              <View style={styles.heroMetricRow}>
+                <View style={styles.heroMetric}>
+                  <HeroMetricIcon type="sign" />
+                  <View style={styles.heroMetricText}>
+                    <Text style={styles.heroMetricLabel}>Sign</Text>
+                    <Text style={styles.heroMetricValue} numberOfLines={1}>
+                      {displayMoonSign}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.heroMetric}>
+                  <HeroMetricIcon type="house" />
+                  <View style={styles.heroMetricText}>
+                    <Text style={styles.heroMetricLabel}>House</Text>
+                    <Text style={styles.heroMetricValue} numberOfLines={1}>
+                      {displayMoonHouse}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
 
             {/* Основной контент */}
             <View style={styles.contentContainer}>
@@ -1065,9 +1224,9 @@ const HoroscopeScreen: React.FC = () => {
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(15, 23, 42, 0.98)',
-              'rgba(15, 23, 42, 0.65)',
-              'rgba(15, 23, 42, 0)',
+              'rgba(8, 14, 28, 0.98)',
+              'rgba(8, 14, 28, 0.65)',
+              'rgba(8, 14, 28, 0)',
             ]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -1134,6 +1293,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
+    backgroundColor: '#080E1C',
   },
   scrollView: {
     flex: 1,
@@ -1148,34 +1308,123 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  // Заголовок
-  compactHeader: {
-    marginBottom: 12,
+  heroContainer: {
+    gap: 2,
   },
-  headerContainer: {
-    marginHorizontal: 0,
-    borderRadius: 16,
-    padding: 20,
+  heroTopRow: {
+    height: 64,
+    paddingVertical: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  avatarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0.88,
+    borderColor: 'rgba(124, 119, 153, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarInitials: {
+    color: '#080E1C',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  premiumButton: {
+    height: 40,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  premiumBorder: {
+    height: 40,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 24,
   },
-  headerSubtitle: {
-    fontSize: 20,
-    fontWeight: '400',
+  premiumBorderContent: {
+    borderRadius: 23,
+    overflow: 'hidden',
+  },
+  premiumBlur: {
+    height: 38,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  premiumText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  heroGreeting: {
+    color: '#FFFFFF',
+    fontSize: 36,
+    fontWeight: '500',
+  },
+  heroTitle: {
     color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 10,
-    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '400',
+    letterSpacing: 0.24,
   },
-  headerDate: {
+  heroDate: {
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 16,
     fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 10,
-    textAlign: 'center',
+    letterSpacing: 0.16,
   },
-
+  heroMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 20,
+  },
+  heroMetric: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderRadius: 12,
+  },
+  heroMetricIconWrap: {
+    width: 36,
+    height: 36,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  heroMetricIconFill: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  heroMetricText: {
+    flex: 1,
+    minWidth: 0,
+    height: 44,
+    justifyContent: 'center',
+  },
+  heroMetricLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    fontWeight: '400',
+  },
+  heroMetricValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '500',
+  },
   // Контент
   contentContainer: {
     marginTop: 20,

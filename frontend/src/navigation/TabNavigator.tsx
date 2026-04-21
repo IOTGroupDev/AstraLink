@@ -181,7 +181,7 @@ export default function TabNavigator() {
       detachInactiveScreens: true,
       freezeOnBlur: true,
       sceneContainerStyle: {
-        backgroundColor: '#0F172A',
+        backgroundColor: '#080E1C',
       },
       tabBarActiveTintColor: '#F8FAFC',
       tabBarInactiveTintColor: 'rgba(226, 232, 240, 0.54)',
