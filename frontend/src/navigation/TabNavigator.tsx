@@ -9,14 +9,14 @@ import DatingScreen from '../screens/DatingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 import HoroscopeScreen from '../screens/HoroscopeScreen';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import ChatListScreen from '../screens/ChatListScreen';
 import { useNavigation } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
 import ProfileCompletionModal from '../components/modals/ProfileCompletionModal';
 import { userAPI } from '../services/api/user.api';
 import { userExtendedProfileAPI } from '../services/api/user-extended-profile.api';
 import { calculateProfileCompletion } from '../screens/Auth/utils/onboardingutils';
+import { GradientBorderView } from '../components/shared';
 
 const Tab = createBottomTabNavigator();
 const PROFILE_COMPLETION_HIDE_KEY = 'profile_completion_hide_popup';
@@ -68,50 +68,21 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
 
 const TabBarBackground = React.memo(() => (
   <View pointerEvents="none" style={styles.tabBarShell}>
-    <LinearGradient
-      colors={[
-        'rgba(226, 203, 255, 0.28)',
-        'rgba(168, 120, 255, 0.2)',
-        'rgba(255,255,255,0.08)',
-      ]}
-      start={{ x: 0.08, y: 0 }}
-      end={{ x: 0.92, y: 1 }}
+    <BlurView
+      intensity={28}
+      tint="dark"
+      experimentalBlurMethod="dimezisBlurView"
       style={StyleSheet.absoluteFill}
     />
-    <BlurView intensity={28} tint="dark" style={styles.tabBarBlur} />
-    <LinearGradient
-      colors={[
-        'rgba(36, 29, 58, 0.9)',
-        'rgba(34, 28, 55, 0.9)',
-        'rgba(31, 27, 50, 0.9)',
-      ]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
-      style={styles.tabBarFill}
-    />
-    <LinearGradient
-      pointerEvents="none"
-      colors={[
-        'rgba(247, 240, 255, 0)',
-        'rgba(236, 223, 255, 0.22)',
-        'rgba(210, 178, 255, 0.42)',
-        'rgba(236, 223, 255, 0.22)',
-        'rgba(247, 240, 255, 0)',
-      ]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 1, y: 0.5 }}
-      style={styles.tabBarTopBorder}
-    />
-    <LinearGradient
-      pointerEvents="none"
-      colors={[
-        'rgba(255,255,255,0.08)',
-        'rgba(196, 168, 255, 0.04)',
-        'rgba(255,255,255,0)',
-      ]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      style={styles.tabBarHighlight}
+    <View style={styles.tabBarTint} />
+    <GradientBorderView
+      colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.025)']}
+      gradientProps={{
+        locations: [0.29, 1],
+        start: { x: 0.49, y: 0 },
+        end: { x: 0.51, y: 1 },
+      }}
+      style={styles.tabBarBorder}
     />
   </View>
 ));
@@ -399,33 +370,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
-  tabBarBlur: {
+  tabBarBorder: {
     ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
     borderRadius: 999,
   },
-  tabBarFill: {
-    position: 'absolute',
-    top: 1,
-    right: 1,
-    bottom: 1,
-    left: 1,
-    borderRadius: 999,
-  },
-  tabBarTopBorder: {
-    position: 'absolute',
-    top: 0.75,
-    left: 14,
-    right: 14,
-    height: 1,
-    borderRadius: 999,
-  },
-  tabBarHighlight: {
-    position: 'absolute',
-    top: 1,
-    left: 1,
-    right: 1,
-    height: 14,
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
+  tabBarTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(32, 28, 55, 0.5)',
   },
 });
