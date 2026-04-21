@@ -9,7 +9,9 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Animated,
   Image,
+  useWindowDimensions,
   Modal,
   Pressable,
   TouchableOpacity,
@@ -59,6 +61,14 @@ import {
 } from '../utils/birthDate';
 import { StarSvg } from '../components/svg/moon-phase/Star';
 import { HouseSvg } from '../components/svg/moon-phase/House';
+import Svg, {
+  Defs,
+  Ellipse,
+  FeGaussianBlur,
+  Filter,
+  RadialGradient,
+  Stop,
+} from 'react-native-svg';
 import {
   getCachedPrimaryPhoto,
   setCachedPrimaryPhoto,
@@ -103,11 +113,47 @@ const HeroMetricIcon = ({ type }: { type: 'sign' | 'house' }) => {
   );
 };
 
+const ScrollTopGlow = () => (
+  <Svg
+    pointerEvents="none"
+    viewBox="0 0 1352 1352"
+    preserveAspectRatio="none"
+    style={styles.topGlow}
+  >
+    <Defs>
+      <RadialGradient id="scrollTopGlowGradient" cx="50%" cy="18%" r="72%">
+        <Stop offset="0" stopColor="#6F38A6" stopOpacity="0.95" />
+        <Stop offset="0.48" stopColor="#2E2457" stopOpacity="0.64" />
+        <Stop offset="1" stopColor="#080E1C" stopOpacity="0" />
+      </RadialGradient>
+      <Filter
+        id="scrollTopGlowBlur"
+        x="-35%"
+        y="-35%"
+        width="170%"
+        height="170%"
+      >
+        <FeGaussianBlur stdDeviation="109" />
+      </Filter>
+    </Defs>
+    <Ellipse
+      cx="676"
+      cy="676"
+      rx="624"
+      ry="624"
+      fill="url(#scrollTopGlowGradient)"
+      filter="url(#scrollTopGlowBlur)"
+    />
+  </Svg>
+);
+
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
+  const scrollY = useRef(new Animated.Value(0)).current;
   const completedLessonIds = useCompletedLessonIds();
   const appLocale = React.useMemo((): 'ru' | 'en' | 'es' => {
     return normalizeAppLocale(i18n.language);
@@ -955,6 +1001,11 @@ const HoroscopeScreen: React.FC = () => {
   const openProfile = React.useCallback(() => {
     (navigation as any).navigate('Profile');
   }, [navigation]);
+  const topFadeOpacity = scrollY.interpolate({
+    inputRange: [0, windowHeight / 3],
+    outputRange: [0.1, 1],
+    extrapolate: 'clamp',
+  });
 
   // Логирование для отладки
   chartLogger.log('Данные виджетов', {
@@ -975,7 +1026,7 @@ const HoroscopeScreen: React.FC = () => {
         showCosmicBackground={false}
       >
         <View style={styles.screen}>
-          <ScrollView
+          <Animated.ScrollView
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
@@ -984,6 +1035,11 @@ const HoroscopeScreen: React.FC = () => {
                 paddingBottom: Math.max(72, tabBarHeight + 44),
               },
             ]}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+            scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -994,244 +1050,261 @@ const HoroscopeScreen: React.FC = () => {
               />
             }
           >
-            <View style={styles.heroContainer}>
-              <View style={styles.heroTopRow}>
-                <TouchableOpacity
-                  activeOpacity={0.82}
-                  onPress={openProfile}
-                  style={styles.avatarButton}
-                >
-                  {primaryPhotoUrl ? (
-                    <Image
-                      source={{ uri: primaryPhotoUrl }}
-                      style={styles.avatarImage}
-                      onError={() => setPrimaryPhotoUrl(null)}
-                    />
-                  ) : (
-                    <Text style={styles.avatarInitials}>{avatarInitials}</Text>
-                  )}
-                </TouchableOpacity>
+            <View style={styles.scrollInner}>
+              <ScrollTopGlow />
+              <View style={styles.heroContainer}>
+                <View style={styles.heroTopRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.82}
+                    onPress={openProfile}
+                    style={styles.avatarButton}
+                  >
+                    {primaryPhotoUrl ? (
+                      <Image
+                        source={{ uri: primaryPhotoUrl }}
+                        style={styles.avatarImage}
+                        onError={() => setPrimaryPhotoUrl(null)}
+                      />
+                    ) : (
+                      <Text style={styles.avatarInitials}>
+                        {avatarInitials}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => undefined}
-                  style={styles.premiumButton}
-                >
-                  <GradientBorderView
-                    colors={[
-                      'rgba(255, 255, 255, 0.35)',
-                      'rgba(255, 255, 255, 0.025)',
-                    ]}
-                    gradientProps={{
-                      locations: [0.29, 1],
-                      start: { x: 0.49, y: 0 },
-                      end: { x: 0.51, y: 1 },
-                    }}
-                    style={styles.premiumBorder}
-                    contentStyle={styles.premiumBorderContent}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => undefined}
+                    style={styles.premiumButton}
+                  >
+                    <GradientBorderView
+                      colors={[
+                        'rgba(255, 255, 255, 0.35)',
+                        'rgba(255, 255, 255, 0.025)',
+                      ]}
+                      gradientProps={{
+                        locations: [0.29, 1],
+                        start: { x: 0.49, y: 0 },
+                        end: { x: 0.51, y: 1 },
+                      }}
+                      style={styles.premiumBorder}
+                      contentStyle={styles.premiumBorderContent}
+                    >
+                      <BlurView
+                        intensity={15}
+                        tint="dark"
+                        experimentalBlurMethod="dimezisBlurView"
+                        style={styles.premiumBlur}
+                      >
+                        <Text style={styles.premiumText}>👑 Get premium</Text>
+                      </BlurView>
+                    </GradientBorderView>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.heroGreeting} numberOfLines={1}>
+                  Hello {greetingName} 👋
+                </Text>
+                <Text style={styles.heroTitle}>The cosmos for you</Text>
+                <Text style={styles.heroDate}>
+                  Posotions on {positionsDate}
+                </Text>
+
+                <View style={styles.heroMetricRow}>
+                  <View style={styles.heroMetric}>
+                    <HeroMetricIcon type="sign" />
+                    <View style={styles.heroMetricText}>
+                      <Text style={styles.heroMetricLabel}>Sign</Text>
+                      <Text style={styles.heroMetricValue} numberOfLines={1}>
+                        {displayMoonSign}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.heroMetric}>
+                    <HeroMetricIcon type="house" />
+                    <View style={styles.heroMetricText}>
+                      <Text style={styles.heroMetricLabel}>House</Text>
+                      <Text style={styles.heroMetricValue} numberOfLines={1}>
+                        {displayMoonHouse}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Основной контент */}
+              <View style={styles.contentContainer}>
+                {syncing && (
+                  <View style={styles.syncBanner}>
+                    <ActivityIndicator size="small" color="#F59E0B" />
+                    <Text style={styles.syncText}>
+                      {t(
+                        'horoscope.syncing',
+                        'Updating horoscope and interpretation...'
+                      )}
+                    </Text>
+                  </View>
+                )}
+                {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
+                <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
+
+                {/* Рекомендация дня (нормализованные данные для виджета) */}
+                {natalPlanetsObj && transitPlanetsArr.length > 0 && (
+                  <PlanetaryRecommendationWidget
+                    natalPlanets={natalPlanetsObj}
+                    transitPlanets={transitPlanetsArr}
+                    navigation={navigation}
+                  />
+                )}
+
+                {/* Виджет энергии */}
+                {!loading && (
+                  <EnergyWidget energy={energyValue} message={energyMessage} />
+                )}
+
+                {/* Виджет главный транзит */}
+                {!loading && mainTransit && (
+                  <MainTransitWidget
+                    transitData={mainTransit}
+                    onPress={openMainTransitDetails}
+                  />
+                )}
+
+                {/* Гороскоп виджет */}
+                {dailyLearningLesson && (
+                  <TouchableOpacity
+                    style={styles.learningCard}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      (navigation as any).navigate('Learning', {
+                        source: 'horoscope',
+                        lessonId: dailyLearningLesson.id,
+                        category: dailyLearningLesson.category,
+                      })
+                    }
                   >
                     <BlurView
-                      intensity={15}
+                      intensity={20}
                       tint="dark"
-                      experimentalBlurMethod="dimezisBlurView"
-                      style={styles.premiumBlur}
+                      style={styles.learningBlur}
                     >
-                      <Text style={styles.premiumText}>👑 Get premium</Text>
-                    </BlurView>
-                  </GradientBorderView>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.heroGreeting} numberOfLines={1}>
-                Hello {greetingName} 👋
-              </Text>
-              <Text style={styles.heroTitle}>The cosmos for you</Text>
-              <Text style={styles.heroDate}>Posotions on {positionsDate}</Text>
-
-              <View style={styles.heroMetricRow}>
-                <View style={styles.heroMetric}>
-                  <HeroMetricIcon type="sign" />
-                  <View style={styles.heroMetricText}>
-                    <Text style={styles.heroMetricLabel}>Sign</Text>
-                    <Text style={styles.heroMetricValue} numberOfLines={1}>
-                      {displayMoonSign}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.heroMetric}>
-                  <HeroMetricIcon type="house" />
-                  <View style={styles.heroMetricText}>
-                    <Text style={styles.heroMetricLabel}>House</Text>
-                    <Text style={styles.heroMetricValue} numberOfLines={1}>
-                      {displayMoonHouse}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Основной контент */}
-            <View style={styles.contentContainer}>
-              {syncing && (
-                <View style={styles.syncBanner}>
-                  <ActivityIndicator size="small" color="#F59E0B" />
-                  <Text style={styles.syncText}>
-                    {t(
-                      'horoscope.syncing',
-                      'Updating horoscope and interpretation...'
-                    )}
-                  </Text>
-                </View>
-              )}
-              {/* Виджет лунного календаря (прокидываем знак Луны из текущих планет) */}
-              <LunarCalendarWidget sign={currentPlanets?.moon?.sign} />
-
-              {/* Рекомендация дня (нормализованные данные для виджета) */}
-              {natalPlanetsObj && transitPlanetsArr.length > 0 && (
-                <PlanetaryRecommendationWidget
-                  natalPlanets={natalPlanetsObj}
-                  transitPlanets={transitPlanetsArr}
-                  navigation={navigation}
-                />
-              )}
-
-              {/* Виджет энергии */}
-              {!loading && (
-                <EnergyWidget energy={energyValue} message={energyMessage} />
-              )}
-
-              {/* Виджет главный транзит */}
-              {!loading && mainTransit && (
-                <MainTransitWidget
-                  transitData={mainTransit}
-                  onPress={openMainTransitDetails}
-                />
-              )}
-
-              {/* Гороскоп виджет */}
-              {dailyLearningLesson && (
-                <TouchableOpacity
-                  style={styles.learningCard}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    (navigation as any).navigate('Learning', {
-                      source: 'horoscope',
-                      lessonId: dailyLearningLesson.id,
-                      category: dailyLearningLesson.category,
-                    })
-                  }
-                >
-                  <BlurView
-                    intensity={20}
-                    tint="dark"
-                    style={styles.learningBlur}
-                  >
-                    <LinearGradient
-                      colors={[
-                        'rgba(139, 92, 246, 0.24)',
-                        'rgba(99, 102, 241, 0.12)',
-                      ]}
-                      style={styles.learningGradient}
-                    >
-                      <View style={styles.learningHeader}>
-                        <View style={styles.learningIconWrap}>
-                          <Text style={styles.learningEmoji}>
-                            {dailyLearningLesson.emoji}
-                          </Text>
+                      <LinearGradient
+                        colors={[
+                          'rgba(139, 92, 246, 0.24)',
+                          'rgba(99, 102, 241, 0.12)',
+                        ]}
+                        style={styles.learningGradient}
+                      >
+                        <View style={styles.learningHeader}>
+                          <View style={styles.learningIconWrap}>
+                            <Text style={styles.learningEmoji}>
+                              {dailyLearningLesson.emoji}
+                            </Text>
+                          </View>
+                          <View style={styles.learningHeaderText}>
+                            <Text style={styles.learningLabel}>
+                              {t('horoscope.learningCard.label')}
+                            </Text>
+                            <Text style={styles.learningTitle}>
+                              {t('horoscope.learningCard.title')}
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={20}
+                            color="#C4B5FD"
+                          />
                         </View>
-                        <View style={styles.learningHeaderText}>
-                          <Text style={styles.learningLabel}>
-                            {t('horoscope.learningCard.label')}
-                          </Text>
-                          <Text style={styles.learningTitle}>
-                            {t('horoscope.learningCard.title')}
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={20}
-                          color="#C4B5FD"
-                        />
-                      </View>
 
-                      <Text style={styles.learningLessonTitle}>
-                        {dailyLearningLesson.title}
-                      </Text>
-                      <Text style={styles.learningLessonText} numberOfLines={3}>
-                        {dailyLearningLesson.shortText}
-                      </Text>
-
-                      <View style={styles.learningFooter}>
-                        <Text style={styles.learningCta}>
-                          {t('horoscope.learningCard.button')}
+                        <Text style={styles.learningLessonTitle}>
+                          {dailyLearningLesson.title}
                         </Text>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={14}
-                          color="#DDD6FE"
-                        />
-                      </View>
-                    </LinearGradient>
-                  </BlurView>
-                </TouchableOpacity>
-              )}
+                        <Text
+                          style={styles.learningLessonText}
+                          numberOfLines={3}
+                        >
+                          {dailyLearningLesson.shortText}
+                        </Text>
 
-              {hasPredictionData ? (
-                <HoroscopeWidget
-                  key={`horoscope-${appLocale}-${predictions?.day?.date || 'empty'}-${predictions?.week?.date || 'empty'}-${predictions?.month?.date || 'empty'}`}
-                  predictions={predictions}
-                />
-              ) : !loading && predictionsAttemptedRef.current ? (
-                <View style={styles.placeholder}>
-                  <Text style={styles.placeholderText}>
-                    {t('horoscope.errors.failedToLoad')}
-                  </Text>
-                </View>
-              ) : (
-                <HoroscopeWidgetSkeleton />
-              )}
+                        <View style={styles.learningFooter}>
+                          <Text style={styles.learningCta}>
+                            {t('horoscope.learningCard.button')}
+                          </Text>
+                          <Ionicons
+                            name="arrow-forward"
+                            size={14}
+                            color="#DDD6FE"
+                          />
+                        </View>
+                      </LinearGradient>
+                    </BlurView>
+                  </TouchableOpacity>
+                )}
 
-              {/* Виджет Биоритмы */}
-              {biorhythms && (
-                <BiorhythmsWidget
-                  physical={biorhythms.physical}
-                  emotional={biorhythms.emotional}
-                  intellectual={biorhythms.intellectual}
-                  physicalPhase={biorhythms.physicalPhase}
-                  emotionalPhase={biorhythms.emotionalPhase}
-                  intellectualPhase={biorhythms.intellectualPhase}
-                  overall={biorhythms.overall}
-                  overallPhase={biorhythms.overallPhase}
-                  summary={biorhythms.summary}
-                  trend={biorhythms.trend}
-                />
-              )}
+                {hasPredictionData ? (
+                  <HoroscopeWidget
+                    key={`horoscope-${appLocale}-${predictions?.day?.date || 'empty'}-${predictions?.week?.date || 'empty'}-${predictions?.month?.date || 'empty'}`}
+                    predictions={predictions}
+                  />
+                ) : !loading && predictionsAttemptedRef.current ? (
+                  <View style={styles.placeholder}>
+                    <Text style={styles.placeholderText}>
+                      {t('horoscope.errors.failedToLoad')}
+                    </Text>
+                  </View>
+                ) : (
+                  <HoroscopeWidgetSkeleton />
+                )}
 
-              {/* Placeholder для будущих виджетов */}
-              {loading && (
-                <View style={styles.placeholder}>
-                  <Text style={styles.placeholderText}>
-                    {t('horoscope.loading')}
-                  </Text>
-                </View>
-              )}
-              {/*<View>*/}
-              {/*  <PersonalCodeScreen />*/}
-              {/*</View>*/}
+                {/* Виджет Биоритмы */}
+                {biorhythms && (
+                  <BiorhythmsWidget
+                    physical={biorhythms.physical}
+                    emotional={biorhythms.emotional}
+                    intellectual={biorhythms.intellectual}
+                    physicalPhase={biorhythms.physicalPhase}
+                    emotionalPhase={biorhythms.emotionalPhase}
+                    intellectualPhase={biorhythms.intellectualPhase}
+                    overall={biorhythms.overall}
+                    overallPhase={biorhythms.overallPhase}
+                    summary={biorhythms.summary}
+                    trend={biorhythms.trend}
+                  />
+                )}
+
+                {/* Placeholder для будущих виджетов */}
+                {loading && (
+                  <View style={styles.placeholder}>
+                    <Text style={styles.placeholderText}>
+                      {t('horoscope.loading')}
+                    </Text>
+                  </View>
+                )}
+                {/*<View>*/}
+                {/*  <PersonalCodeScreen />*/}
+                {/*</View>*/}
+              </View>
             </View>
-          </ScrollView>
-          <LinearGradient
+          </Animated.ScrollView>
+          <Animated.View
             pointerEvents="none"
-            colors={[
-              'rgba(8, 14, 28, 0.98)',
-              'rgba(8, 14, 28, 0.65)',
-              'rgba(8, 14, 28, 0)',
+            style={[
+              styles.topFade,
+              { height: insets.top + 56, opacity: topFadeOpacity },
             ]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={[styles.topFade, { height: insets.top + 56 }]}
-          />
+          >
+            <LinearGradient
+              colors={[
+                'rgba(8, 14, 28, 0.98)',
+                'rgba(8, 14, 28, 0.65)',
+                'rgba(8, 14, 28, 0)',
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
         </View>
       </TabScreenLayout>
 
@@ -1295,11 +1368,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#080E1C',
   },
-  scrollView: {
-    flex: 1,
+  scrollInner: {
+    position: 'relative',
+    overflow: 'visible',
   },
-  scrollContent: {
-    paddingHorizontal: 16,
+  topGlow: {
+    position: 'absolute',
+    top: -499,
+    left: -250,
+    right: -250,
+    height: 1352,
+    opacity: 0.8,
   },
   topFade: {
     position: 'absolute',
@@ -1307,6 +1386,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+  },
+  scrollView: {
+    flex: 1,
+    overflow: 'visible',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
   },
   heroContainer: {
     gap: 2,
