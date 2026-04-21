@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import { userAPI } from '../services/api';
 import { subscriptionAPI } from '../services/api/subscription.api';
 import { SubscriptionTier } from '../types/subscription';
 import { chartAPI } from '../services/api/chart.api';
+import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
 
 type SubscriptionScreenProps = StackScreenProps<
   RootStackParamList,
@@ -36,9 +36,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     React.useState<Subscription | null>(cachedSubscription);
   const [loading, setLoading] = React.useState(!cachedSubscription);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
-  const [purchaseStage, setPurchaseStage] = React.useState<
-    'activating' | 'syncing' | 'natal' | 'horoscope' | 'finalizing' | null
-  >(null);
   const loadingPopupVisible = purchasing !== null;
 
   React.useEffect(() => {
@@ -100,7 +97,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
           onPress: async () => {
             try {
               setPurchasing(tier);
-              setPurchaseStage('activating');
               const locale = getApiLocale();
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
@@ -118,7 +114,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
                   optimisticSubscription
                 );
 
-                setPurchaseStage('syncing');
                 const freshSubscription = await subscriptionAPI.getStatus();
                 setCurrentSubscription(freshSubscription as Subscription);
                 queryClient.setQueryData(['subscription'], freshSubscription);
@@ -130,13 +125,9 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
                   type: 'active',
                 });
 
-                setPurchaseStage('natal');
                 await chartAPI.getNatalChartWithInterpretation(locale);
 
-                setPurchaseStage('horoscope');
                 await chartAPI.getAllHoroscopes(locale);
-
-                setPurchaseStage('finalizing');
 
                 Alert.alert(
                   t('subscription.successTitle', 'Success!'),
@@ -168,7 +159,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
               );
             } finally {
               setPurchasing(null);
-              setPurchaseStage(null);
             }
           },
         },
@@ -177,15 +167,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>
-            {t('common.loading.loading', 'Loading...')}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <FullscreenLoadingScreen />;
   }
 
   return (
@@ -305,64 +287,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
           // Prevent closing while premium assets are being prepared
         }}
       >
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingModal}>
-            <ActivityIndicator size="large" color="#8B5CF6" />
-            <Text style={styles.loadingModalTitle}>
-              {t('subscription.loadingModal.title', 'Preparing your Premium')}
-            </Text>
-            <Text style={styles.loadingModalMessage}>
-              {t(
-                'subscription.loadingModal.message',
-                'Loading premium data and generating your AI interpretations. This can take a little time.'
-              )}
-            </Text>
-            <View style={styles.progressCard}>
-              <Text style={styles.progressTitle}>
-                {t('subscription.loadingModal.progressTitle', 'Current step')}
-              </Text>
-              <Text style={styles.progressValue}>
-                {purchaseStage === 'syncing' &&
-                  t(
-                    'subscription.loadingModal.stages.syncing',
-                    'Syncing premium access...'
-                  )}
-                {purchaseStage === 'natal' &&
-                  t(
-                    'subscription.loadingModal.stages.natal',
-                    'Refreshing natal chart interpretation...'
-                  )}
-                {purchaseStage === 'horoscope' &&
-                  t(
-                    'subscription.loadingModal.stages.horoscope',
-                    'Updating AI horoscope...'
-                  )}
-                {purchaseStage === 'finalizing' &&
-                  t(
-                    'subscription.loadingModal.stages.finalizing',
-                    'Finalizing and updating your screens...'
-                  )}
-                {purchaseStage !== 'syncing' &&
-                  purchaseStage !== 'natal' &&
-                  purchaseStage !== 'horoscope' &&
-                  purchaseStage !== 'finalizing' &&
-                  t(
-                    'subscription.loadingModal.stages.activating',
-                    'Activating subscription...'
-                  )}
-              </Text>
-            </View>
-            <View style={styles.aiRefreshBanner}>
-              <Ionicons name="sparkles-outline" size={18} color="#F59E0B" />
-              <Text style={styles.aiRefreshText}>
-                {t(
-                  'subscription.aiRefreshing',
-                  'Updating AI horoscope and interpretation...'
-                )}
-              </Text>
-            </View>
-          </View>
-        </View>
+        <FullscreenLoadingScreen />
       </Modal>
     </SafeAreaView>
   );
@@ -482,90 +407,6 @@ const styles = StyleSheet.create({
   },
   currentPlanButtonText: {
     color: '#10B981',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-  },
-  loadingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.72)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  loadingModal: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.28)',
-    alignItems: 'center',
-  },
-  loadingModalTitle: {
-    marginTop: 16,
-    color: '#F9FAFB',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  loadingModalMessage: {
-    marginTop: 10,
-    color: '#D1D5DB',
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  progressCard: {
-    marginTop: 16,
-    width: '100%',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  progressTitle: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  progressValue: {
-    marginTop: 6,
-    color: '#F9FAFB',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  aiRefreshBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 18,
-    width: '100%',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-  },
-  aiRefreshText: {
-    color: '#F9FAFB',
-    fontSize: 13,
-    fontWeight: '600',
-    flexShrink: 1,
   },
 });
 

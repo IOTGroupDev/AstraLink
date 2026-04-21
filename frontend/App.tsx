@@ -20,10 +20,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/stores/auth.store';
 import { AuthEngine } from './src/services/authEngine';
 import { notificationService } from './src/services/notifications';
-import SplashScreen from './src/screens/SplashScreen';
 import { logger } from './src/services/logger';
 import { enableScreens } from 'react-native-screens';
 import { TopStatusBarFade } from './src/components/shared/TopStatusBarFade';
+import FullscreenLoadingScreen from './src/components/shared/FullscreenLoadingScreen';
 
 enableScreens(true);
 
@@ -70,8 +70,8 @@ export default function App() {
   if (authState === 'BOOT' || isLoading) {
     return (
       <SafeAreaProvider>
-        <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-        <SplashScreen />
+        <StatusBar barStyle="light-content" backgroundColor="#080E1C" />
+        <FullscreenLoadingScreen />
       </SafeAreaProvider>
     );
   }

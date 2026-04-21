@@ -32,6 +32,7 @@ import {
 import { LessonCard } from '../components/lessons/LessonCard';
 import { ChartVisualization } from '../components/simulator/Chartvisualization';
 import { logger } from '../services/logger';
+import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -607,18 +608,7 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
   };
 
   if (loading) {
-    return (
-      <TabScreenLayout
-        scrollable={false}
-        edges={['left', 'right']}
-        contentContainerStyle={styles.layoutContent}
-      >
-        <View style={styles.loadingContainer}>
-          <Ionicons name="planet" size={64} color="#8B5CF6" />
-          <Text style={styles.loadingText}>{t('cosmicSimulator.loading')}</Text>
-        </View>
-      </TabScreenLayout>
-    );
+    return <FullscreenLoadingScreen />;
   }
 
   return (
@@ -1346,17 +1336,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-  },
-
   // Header
   headerContainer: {
     marginHorizontal: 8,

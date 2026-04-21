@@ -21,7 +21,7 @@ import { chartAPI } from '../services/api';
 import type { ArchetypeResult } from '../types';
 import { useSubscription } from '../hooks/useSubscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
-import LoadingIndicator from '../components/shared/LoadingIndicator';
+import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
 import { logger } from '../services/logger';
 
 interface NatalChartScreenProps {
@@ -250,13 +250,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   );
 
   if (loading) {
-    return (
-      <TabScreenLayout>
-        <View style={styles.loadingContainer}>
-          <LoadingIndicator />
-        </View>
-      </TabScreenLayout>
-    );
+    return <FullscreenLoadingScreen />;
   }
 
   if (!chartData?.data) {
@@ -2412,11 +2406,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
