@@ -26,12 +26,34 @@ interface SendMessageBody {
   mediaPath?: string | null;
 }
 
+interface CreateChatMediaUploadUrlBody {
+  ext?: string;
+}
+
 @ApiTags('Chat')
 @ApiBearerAuth()
 @UseGuards(SupabaseAuthGuard)
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
+
+  @Post('media/upload-url')
+  @ApiOperation({ summary: 'Получить signed upload URL для chat media' })
+  @ApiResponse({ status: 201, description: 'Signed upload URL создан' })
+  async createChatMediaUploadUrl(
+    @Request() req: any,
+    @Body() body?: CreateChatMediaUploadUrlBody,
+  ) {
+    const userId = req?.user?.userId || req?.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('User not resolved from auth context');
+    }
+
+    return await this.chatService.createMediaUploadUrl(
+      String(userId),
+      body?.ext,
+    );
+  }
 
   @Post('messages/send')
   @ApiOperation({ summary: 'Отправить сообщение пользователю' })

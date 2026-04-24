@@ -1,5 +1,6 @@
 /* eslint-disable */
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../redis/redis.service';
 import {
@@ -42,6 +43,9 @@ export interface ChatConversation {
 
 @Injectable()
 export class ChatService {
+  private static readonly USER_PHOTOS_BUCKET = 'user-photos';
+  private static readonly CHAT_MEDIA_BUCKET = 'chat-media';
+  private static readonly CHAT_MEDIA_PREFIX = `${ChatService.CHAT_MEDIA_BUCKET}:`;
   private readonly logger = new Logger(ChatService.name);
   // RPC отключён по умолчанию, включайте через CHAT_PREFER_RPC=true
   private readonly preferRpc = process.env.CHAT_PREFER_RPC === 'true';
@@ -70,6 +74,30 @@ export class ChatService {
       });
   }
 
+  async createMediaUploadUrl(
+    userId: string,
+    ext: string = 'jpg',
+  ): Promise<{ path: string; signedUrl: string; token: string }> {
+    const safeExt =
+      (ext || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+    const rawPath = `${userId}/${randomUUID()}.${safeExt}`;
+    const signedUpload = await this.supabaseService.createSignedUploadUrl(
+      ChatService.CHAT_MEDIA_BUCKET,
+      rawPath,
+    );
+
+    if (!signedUpload) {
+      throw new BadRequestException(
+        'Failed to create signed upload URL for chat media',
+      );
+    }
+
+    return {
+      path: this.encodeChatMediaPath(rawPath),
+      ...signedUpload,
+    };
+  }
+
   /**
    * Отправить сообщение через RPC send_message (SECURITY DEFINER).
    * Требуется пользовательский access token для корректного auth.uid() в RLS.
@@ -91,11 +119,16 @@ export class ChatService {
       throw new Error('send_message failed (no user from token)');
     }
 
+    const normalizedMediaPath = mediaPath?.trim() || null;
+    if (normalizedMediaPath) {
+      this.assertOwnedMediaPath(uid, normalizedMediaPath);
+    }
+
     // 1) RPC (если включено переменной окружения)
     const payload = {
       p_recipient_id: recipientId,
       p_text: (text ?? '').trim(),
-      p_media_path: mediaPath ?? null,
+      p_media_path: normalizedMediaPath,
     };
 
     if (this.preferRpc) {
@@ -132,7 +165,8 @@ export class ChatService {
           })();
 
           const hasMedia =
-            typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+            typeof normalizedMediaPath === 'string' &&
+            normalizedMediaPath.trim().length > 0;
 
           if (hasMedia) {
             let patched = false;
@@ -143,7 +177,7 @@ export class ChatService {
                 const { error: upErr } = await client
                   .from('messages')
                   .update({
-                    [mediaColumns[0]]: mediaPath,
+                    [mediaColumns[0]]: normalizedMediaPath,
                     ...(existingCols.has('type') ? { type: 'image' } : {}),
                   } as Record<string, unknown>)
                   .eq(idK, newId)
@@ -167,7 +201,7 @@ export class ChatService {
                 const { data: upd, error: upErr } = await client
                   .from('messages')
                   .update({
-                    [mediaColumns[0]]: mediaPath,
+                    [mediaColumns[0]]: normalizedMediaPath,
                     ...(existingCols.has('type') ? { type: 'image' } : {}),
                   } as Record<string, unknown>)
                   .or(orExpr)
@@ -191,7 +225,7 @@ export class ChatService {
                   const { error: upErr } = await admin
                     .from('messages')
                     .update({
-                      [mediaColumns[0]]: mediaPath,
+                      [mediaColumns[0]]: normalizedMediaPath,
                       ...(existingCols.has('type') ? { type: 'image' } : {}),
                     } as Record<string, unknown>)
                     .eq(idK, newId)
@@ -209,7 +243,7 @@ export class ChatService {
                   const { data: upd, error: upErr } = await admin
                     .from('messages')
                     .update({
-                      [mediaColumns[0]]: mediaPath,
+                      [mediaColumns[0]]: normalizedMediaPath,
                       ...(existingCols.has('type') ? { type: 'image' } : {}),
                     } as Record<string, unknown>)
                     .or(orExpr)
@@ -234,7 +268,7 @@ export class ChatService {
           senderId: uid,
           recipientId,
           text,
-          mediaPath,
+          mediaPath: normalizedMediaPath,
         });
         return { id: newId };
       }
@@ -262,7 +296,8 @@ export class ChatService {
     const trimmedText = (text ?? '').trim();
     const hasText = trimmedText.length > 0;
     const hasMedia =
-      typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+      typeof normalizedMediaPath === 'string' &&
+      normalizedMediaPath.trim().length > 0;
 
     let firstErr: Error | null = null;
     let lastErr: Error | null = null;
@@ -298,7 +333,7 @@ export class ChatService {
           for (const mc of mediaColumns) {
             const insertCoreWithMedia = {
               ...baseCore,
-              [mc]: mediaPath ?? null,
+              [mc]: normalizedMediaPath,
             };
             const { data: ins01, error: err01 } = await client
               .from('messages')
@@ -317,7 +352,7 @@ export class ChatService {
                   senderId: uid,
                   recipientId,
                   text,
-                  mediaPath,
+                  mediaPath: normalizedMediaPath,
                 });
                 return { id: String(newId01) };
               }
@@ -347,7 +382,7 @@ export class ChatService {
                 senderId: uid,
                 recipientId,
                 text,
-                mediaPath,
+                mediaPath: normalizedMediaPath,
               });
               return { id: String(newId0) };
             }
@@ -370,7 +405,7 @@ export class ChatService {
               for (const mc of mediaColumns) {
                 const insertWithMedia = {
                   ...baseWithSender,
-                  [mc]: mediaPath ?? null,
+                  [mc]: normalizedMediaPath,
                 };
                 const { data: ins2, error: err2 } = await client
                   .from('messages')
@@ -390,7 +425,7 @@ export class ChatService {
                       senderId: uid,
                       recipientId,
                       text,
-                      mediaPath,
+                      mediaPath: normalizedMediaPath,
                     });
                     return { id: String(newId2) };
                   }
@@ -420,7 +455,7 @@ export class ChatService {
                     senderId: uid,
                     recipientId,
                     text,
-                    mediaPath,
+                    mediaPath: normalizedMediaPath,
                   });
                   return { id: String(newId) };
                 }
@@ -561,24 +596,37 @@ export class ChatService {
       } as ChatMessage;
     });
 
-    // Попробуем создать подписанные URL для медиа-путей (bucket user-photos), если URL ещё не задан
-    // Оптимизировано: batch создание signed URLs (N+1 → 1 запрос)
+    // Поддерживаем legacy user-photos и новый chat-media:* формат.
     try {
-      const mediaPaths = result
-        .filter((m) => !m.mediaUrl && m.mediaPath)
-        .map((m) => m.mediaPath!);
+      const refsByBucket = new Map<string, Set<string>>();
 
-      if (mediaPaths.length > 0) {
-        const urlsMap = await this.supabaseService.createSignedUrlsBatch(
-          'user-photos',
-          mediaPaths,
-          900,
-        );
+      for (const message of result) {
+        if (!message.mediaUrl && message.mediaPath) {
+          const target = this.resolveMediaStorageTarget(message.mediaPath);
+          const bucketPaths =
+            refsByBucket.get(target.bucket) ?? new Set<string>();
+          bucketPaths.add(target.path);
+          refsByBucket.set(target.bucket, bucketPaths);
+        }
+      }
 
-        // Проставляем URL из Map с O(1) доступом
+      if (refsByBucket.size > 0) {
+        const urlMaps = new Map<string, Map<string, string | null>>();
+        for (const [bucket, paths] of refsByBucket.entries()) {
+          urlMaps.set(
+            bucket,
+            await this.supabaseService.createSignedUrlsBatch(
+              bucket,
+              Array.from(paths),
+              900,
+            ),
+          );
+        }
+
         result.forEach((m) => {
           if (!m.mediaUrl && m.mediaPath) {
-            m.mediaUrl = urlsMap.get(m.mediaPath) ?? null;
+            const target = this.resolveMediaStorageTarget(m.mediaPath);
+            m.mediaUrl = urlMaps.get(target.bucket)?.get(target.path) ?? null;
           }
         });
       }
@@ -587,6 +635,43 @@ export class ChatService {
     }
 
     return result;
+  }
+
+  private encodeChatMediaPath(path: string): string {
+    return `${ChatService.CHAT_MEDIA_PREFIX}${path}`;
+  }
+
+  private resolveMediaStorageTarget(mediaPath: string): {
+    bucket: string;
+    path: string;
+  } {
+    const trimmed = mediaPath.trim();
+    if (trimmed.startsWith(ChatService.CHAT_MEDIA_PREFIX)) {
+      return {
+        bucket: ChatService.CHAT_MEDIA_BUCKET,
+        path: trimmed.slice(ChatService.CHAT_MEDIA_PREFIX.length),
+      };
+    }
+
+    return {
+      bucket: ChatService.USER_PHOTOS_BUCKET,
+      path: trimmed,
+    };
+  }
+
+  private assertOwnedMediaPath(userId: string, mediaPath: string): void {
+    const { bucket, path } = this.resolveMediaStorageTarget(mediaPath);
+
+    if (
+      bucket !== ChatService.CHAT_MEDIA_BUCKET &&
+      bucket !== ChatService.USER_PHOTOS_BUCKET
+    ) {
+      throw new BadRequestException('Unsupported media storage bucket');
+    }
+
+    if (!path || !path.startsWith(`${userId}/`)) {
+      throw new BadRequestException('Invalid chat media path');
+    }
   }
 
   /**

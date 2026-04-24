@@ -1070,25 +1070,37 @@ export class UserService {
         '✅ Все данные пользователя удалены из БД (в транзакции)',
       );
 
-      const storageCleanup =
-        await this.supabaseService.removeStorageObjectsByPrefix(
+      const [userPhotosCleanup, chatMediaCleanup] = await Promise.all([
+        this.supabaseService.removeStorageObjectsByPrefix(
           'user-photos',
           userId,
-        );
-      if (storageCleanup.error) {
-        const storageCleanupMessage =
-          storageCleanup.error instanceof Error
-            ? storageCleanup.error.message
-            : typeof storageCleanup.error === 'string'
-              ? storageCleanup.error
-              : JSON.stringify(storageCleanup.error);
-        this.logger.warn(
-          `⚠️ Не удалось полностью очистить Storage для пользователя ${userId}: ${storageCleanupMessage}`,
-        );
-      } else {
-        this.logger.log(
-          `✅ Удалено storage-объектов пользователя: ${storageCleanup.removed}`,
-        );
+        ),
+        this.supabaseService.removeStorageObjectsByPrefix('chat-media', userId),
+      ]);
+
+      const describeStorageCleanupError = (error: unknown): string => {
+        if (error instanceof Error) {
+          return error.message;
+        }
+        if (typeof error === 'string') {
+          return error;
+        }
+        return JSON.stringify(error);
+      };
+
+      for (const [bucket, cleanup] of [
+        ['user-photos', userPhotosCleanup],
+        ['chat-media', chatMediaCleanup],
+      ] as const) {
+        if (cleanup.error) {
+          this.logger.warn(
+            `⚠️ Не удалось полностью очистить Storage bucket ${bucket} для пользователя ${userId}: ${describeStorageCleanupError(cleanup.error)}`,
+          );
+        } else {
+          this.logger.log(
+            `✅ Удалено storage-объектов пользователя из ${bucket}: ${cleanup.removed}`,
+          );
+        }
       }
 
       // 6. Удаляем пользователя из Supabase Auth (вне транзакции - внешний API)
