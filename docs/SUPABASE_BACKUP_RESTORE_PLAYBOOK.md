@@ -90,13 +90,14 @@ The script now:
 
 - backs up Redis
 - attempts a logical Supabase database dump if `SUPABASE_DB_URL` is provided
+- exports Supabase Storage objects from `user-photos` and `chat-media` when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided
 - stores `roles.sql`, `schema.sql`, and `data.sql`
+- stores Storage bucket metadata and raw object files
 - writes a manifest with backup status
 - reminds explicitly that Storage objects are not included
 
 The script does not:
 
-- export Supabase Storage objects
 - clone Auth settings or API keys
 - restore anything automatically
 
@@ -160,7 +161,28 @@ For AstraLink, database backup is not enough because private user media is store
 - `user-photos`
 - `chat-media`
 
-These files must be copied separately.
+These files are now exported separately by `backend/src/scripts/backup.storage.ts`, which:
+
+- reads bucket metadata from `storage.buckets`
+- reads object metadata from `storage.objects`
+- downloads raw files into a local backup directory
+- writes bucket manifests for later restore
+
+Example output structure:
+
+```text
+backups/
+  storage/
+    storage_20260424_123456/
+      buckets.json
+      manifest.json
+      user-photos/
+        _objects.json
+        <files...>
+      chat-media/
+        _objects.json
+        <files...>
+```
 
 At the current stage the minimal rule is:
 

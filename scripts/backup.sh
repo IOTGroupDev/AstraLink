@@ -31,6 +31,9 @@ DATE=$(date +%Y-%m-%d)
 DB_DUMP_STATUS="skipped"
 DB_DUMP_REASON="SUPABASE_DB_URL not provided"
 DB_DUMP_PATH=""
+STORAGE_BACKUP_STATUS="skipped"
+STORAGE_BACKUP_REASON="SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not provided"
+STORAGE_BACKUP_PATH=""
 
 # Change to app directory
 cd "$APP_DIR"
@@ -112,6 +115,38 @@ else
   echo "⚠️  Database backup skipped ($DB_DUMP_REASON)"
 fi
 
+# Backup Supabase storage objects when admin credentials are available
+echo ""
+echo "📦 Backing up Supabase storage..."
+
+if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+  if [ ! -d "$APP_DIR/backend" ]; then
+    STORAGE_BACKUP_REASON="backend directory not found"
+    echo "⚠️  Storage backup skipped ($STORAGE_BACKUP_REASON)"
+  else
+    mkdir -p "$BACKUP_DIR/storage"
+    STORAGE_BACKUP_DIR="$BACKUP_DIR/storage/storage_${TIMESTAMP}"
+
+    if (
+      cd "$APP_DIR/backend" &&
+      STORAGE_BACKUP_DIR="$STORAGE_BACKUP_DIR" \
+      STORAGE_BUCKETS="$STORAGE_BUCKETS" \
+      npx ts-node src/scripts/backup.storage.ts
+    ); then
+      STORAGE_BACKUP_STATUS="created"
+      STORAGE_BACKUP_REASON=""
+      STORAGE_BACKUP_PATH="storage/storage_${TIMESTAMP}"
+      STORAGE_SIZE=$(du -sh "$STORAGE_BACKUP_DIR" | cut -f1)
+      echo "✅ Storage backup created: $STORAGE_BACKUP_PATH ($STORAGE_SIZE)"
+    else
+      STORAGE_BACKUP_REASON="storage backup script failed"
+      echo "⚠️  Storage backup failed; see logs above"
+    fi
+  fi
+else
+  echo "⚠️  Storage backup skipped ($STORAGE_BACKUP_REASON)"
+fi
+
 # Create manifest
 echo ""
 echo "📄 Creating backup manifest..."
@@ -129,11 +164,16 @@ cat > "$BACKUP_DIR/manifest_${TIMESTAMP}.json" << EOF
       "status": "$DB_DUMP_STATUS",
       "path": "$DB_DUMP_PATH",
       "reason": "$DB_DUMP_REASON"
+    },
+    "storage": {
+      "status": "$STORAGE_BACKUP_STATUS",
+      "path": "$STORAGE_BACKUP_PATH",
+      "reason": "$STORAGE_BACKUP_REASON"
     }
   },
   "storage": {
     "buckets": ["user-photos", "chat-media"],
-    "note": "Storage objects require a separate export"
+    "note": "Storage objects are exported separately from the database dump"
   }
 }
 EOF
@@ -149,6 +189,7 @@ TOTAL_BEFORE=$(find "$BACKUP_DIR" -type f | wc -l)
 # Delete old files
 find "$BACKUP_DIR/redis" -name "redis_*.rdb" -mtime +$RETENTION_DAYS -delete
 find "$BACKUP_DIR/db" -mindepth 1 -maxdepth 1 -type d -mtime +$RETENTION_DAYS -exec rm -rf {} +
+find "$BACKUP_DIR/storage" -mindepth 1 -maxdepth 1 -type d -mtime +$RETENTION_DAYS -exec rm -rf {} +
 find "$BACKUP_DIR" -name "manifest_*.json" -mtime +$RETENTION_DAYS -delete
 
 # Count after cleanup
@@ -171,6 +212,9 @@ echo ""
 echo "Recent database backups:"
 find "$BACKUP_DIR/db" -mindepth 1 -maxdepth 1 -type d -printf "%TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null | tail -5 || echo "  No backups yet"
 echo ""
+echo "Recent storage backups:"
+find "$BACKUP_DIR/storage" -mindepth 1 -maxdepth 1 -type d -printf "%TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null | tail -5 || echo "  No backups yet"
+echo ""
 
 echo "✅ Backup completed successfully!"
 echo ""
@@ -182,6 +226,11 @@ if [ "$DB_DUMP_STATUS" = "created" ]; then
   echo "To restore the database into a new Supabase project:"
   echo "  1. See docs/SUPABASE_BACKUP_RESTORE_PLAYBOOK.md"
   echo "  2. Use roles.sql + schema.sql + data.sql from $BACKUP_DIR/$DB_DUMP_PATH"
+  echo ""
+fi
+if [ "$STORAGE_BACKUP_STATUS" = "created" ]; then
+  echo "Storage objects were exported to:"
+  echo "  $BACKUP_DIR/$STORAGE_BACKUP_PATH"
   echo ""
 fi
 echo "Supabase dashboard backups:"
