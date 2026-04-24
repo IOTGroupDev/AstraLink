@@ -223,10 +223,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     }
   }, [getChartLocale, t]);
 
-  useEffect(() => {
-    void loadChartData();
-  }, [loadChartData]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     await loadChartData();
@@ -243,10 +239,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (!chartData) return undefined;
       void loadChartData();
       return undefined;
-    }, [chartData, loadChartData])
+    }, [loadChartData])
   );
 
   if (loading) {

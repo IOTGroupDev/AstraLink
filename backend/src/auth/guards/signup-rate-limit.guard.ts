@@ -73,7 +73,7 @@ export class SignupRateLimitGuard implements CanActivate {
 
       if (!emailResult.allowed) {
         this.logger.warn(
-          `Signup rate limit exceeded for email ${email}. Blocked until ${new Date(emailResult.resetTime).toISOString()}`,
+          `Signup rate limit exceeded for email identifier. Blocked until ${new Date(emailResult.resetTime).toISOString()}`,
         );
 
         throw new ForbiddenException({

@@ -157,7 +157,7 @@ export class CompatibilityCalculatorProcessor {
       const progress = Math.round(
         (results.length / candidatesData.length) * 100,
       );
-      job.progress(progress);
+      await job.progress(progress);
     }
 
     this.logger.log(

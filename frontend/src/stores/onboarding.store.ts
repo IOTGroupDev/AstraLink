@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 export interface OnboardingData {
   name?: string;
@@ -42,6 +44,48 @@ const initialState: OnboardingData = {
   isCompleted: false,
 };
 
+const onboardingStorage = createJSONStorage(() => ({
+  getItem: async (name: string) => {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.getItem(name);
+    }
+
+    const secureValue = await SecureStore.getItemAsync(name);
+    if (secureValue != null) {
+      return secureValue;
+    }
+
+    const legacyValue = await AsyncStorage.getItem(name);
+    if (legacyValue != null) {
+      await SecureStore.setItemAsync(name, legacyValue);
+      await AsyncStorage.removeItem(name);
+      return legacyValue;
+    }
+
+    return null;
+  },
+  setItem: async (name: string, value: string) => {
+    if (Platform.OS === 'web') {
+      await AsyncStorage.setItem(name, value);
+      return;
+    }
+
+    await SecureStore.setItemAsync(name, value);
+    await AsyncStorage.removeItem(name);
+  },
+  removeItem: async (name: string) => {
+    if (Platform.OS === 'web') {
+      await AsyncStorage.removeItem(name);
+      return;
+    }
+
+    await Promise.all([
+      SecureStore.deleteItemAsync(name),
+      AsyncStorage.removeItem(name),
+    ]);
+  },
+}));
+
 export const useOnboardingStore = create<OnboardingStore>()(
   persist(
     (set) => ({
@@ -70,7 +114,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
     }),
     {
       name: 'onboarding-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: onboardingStorage,
     }
   )
 );

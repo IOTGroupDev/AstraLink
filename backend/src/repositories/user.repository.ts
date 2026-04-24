@@ -11,7 +11,6 @@ import {
   UserProfile,
   CreateUserDto,
   UpdateUserDto,
-  NotFoundError,
   DataAccessError,
 } from './interfaces';
 

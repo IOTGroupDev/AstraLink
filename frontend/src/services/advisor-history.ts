@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import {
   createInitialAdvisorChatState,
   pruneAdvisorChatState,
@@ -21,6 +22,11 @@ export async function readAdvisorHistory(
   userId: string
 ): Promise<AdvisorChatState> {
   try {
+    if (Platform.OS !== 'web') {
+      await AsyncStorage.removeItem(buildAdvisorHistoryKey(userId));
+      return createInitialAdvisorChatState();
+    }
+
     const raw = await AsyncStorage.getItem(buildAdvisorHistoryKey(userId));
     if (!raw) return createInitialAdvisorChatState();
 
@@ -44,6 +50,11 @@ export async function writeAdvisorHistory(
   userId: string,
   state: AdvisorChatState
 ): Promise<void> {
+  if (Platform.OS !== 'web') {
+    await AsyncStorage.removeItem(buildAdvisorHistoryKey(userId));
+    return;
+  }
+
   const payload = pruneAdvisorChatState(state, ADVISOR_HISTORY_LIMIT);
   await AsyncStorage.setItem(
     buildAdvisorHistoryKey(userId),

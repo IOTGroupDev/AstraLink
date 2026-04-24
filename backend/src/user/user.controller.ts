@@ -11,7 +11,6 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
-  Req,
   Logger,
 } from '@nestjs/common';
 import {
@@ -59,6 +58,17 @@ export class UserController {
     private readonly supabaseService: SupabaseService,
   ) {}
 
+  private resolveLocale(req: AuthenticatedRequest): 'ru' | 'en' | 'es' {
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      req.headers?.['accept-language'];
+    const normalized = localeHeader?.toLowerCase() || '';
+
+    if (normalized.startsWith('es')) return 'es';
+    if (normalized.startsWith('en')) return 'en';
+    return 'ru';
+  }
+
   @Get('profile')
   @ApiOperation({ summary: 'Получить профиль пользователя' })
   @ApiResponse({ status: 200, description: 'Профиль пользователя' })
@@ -75,7 +85,11 @@ export class UserController {
     @Body() updateData: UpdateProfileRequest,
   ) {
     const userId = req.user?.userId || req.user?.id;
-    return this.userService.updateProfile(userId as string, updateData);
+    return this.userService.updateProfile(
+      userId as string,
+      updateData,
+      this.resolveLocale(req),
+    );
   }
 
   @Put('push-token')

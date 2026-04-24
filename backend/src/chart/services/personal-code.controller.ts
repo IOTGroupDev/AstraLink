@@ -193,7 +193,9 @@ export class PersonalCodeController {
   /**
    * Helper: Get user's subscription tier
    */
-  private async getSubscriptionTier(userId: string): Promise<SubscriptionTier> {
+  private async getSubscriptionTier(
+    _userId: string,
+  ): Promise<SubscriptionTier> {
     // This should use your existing SubscriptionService
     // For now, returning default
     return SubscriptionTier.FREE;

@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { userAPI } from './api/user.api';
 import { authLogger } from './logger';
 import { notificationService } from './notifications';
+import { clearAllUserData } from './cleanupService';
 import { useAuthStore, type AuthProfile } from '../stores/auth.store';
 
 export type AuthState = 'BOOT' | 'UNAUTHORIZED' | 'ONBOARDING' | 'AUTHORIZED';
@@ -179,6 +180,7 @@ export const AuthEngine = {
       await notificationService.unregisterCurrentPushToken();
       await supabase.auth.signOut();
     } finally {
+      await clearAllUserData();
       setSession(null);
       setProfile(null);
       setState('UNAUTHORIZED');

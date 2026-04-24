@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 export type PrimaryPhotoSnapshot = {
   url: string;
@@ -23,6 +24,11 @@ export const getCachedPrimaryPhoto = async (
   if (!userId) return null;
 
   try {
+    if (Platform.OS !== 'web') {
+      await AsyncStorage.removeItem(buildProfilePhotoCacheKey(userId));
+      return null;
+    }
+
     const raw = await AsyncStorage.getItem(buildProfilePhotoCacheKey(userId));
     if (!raw) return null;
 
@@ -47,6 +53,11 @@ export const setCachedPrimaryPhoto = async (
   snapshot: PrimaryPhotoSnapshot | null
 ): Promise<void> => {
   if (!userId) return;
+
+  if (Platform.OS !== 'web') {
+    await AsyncStorage.removeItem(buildProfilePhotoCacheKey(userId));
+    return;
+  }
 
   if (!snapshot?.url) {
     await AsyncStorage.removeItem(buildProfilePhotoCacheKey(userId));

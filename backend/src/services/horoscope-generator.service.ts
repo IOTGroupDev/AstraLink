@@ -195,8 +195,16 @@ export class HoroscopeGeneratorService {
 
       const cached = await this.redis.get<HoroscopePrediction>(cacheKey);
       if (cached) {
-        this.logger.debug(`Cache hit: ${cacheKey}`);
-        return cached;
+        const stalePremiumFallback = shouldUseAi && cached.generatedBy !== 'ai';
+        if (stalePremiumFallback) {
+          this.logger.warn(
+            `Ignoring stale premium horoscope cache for ${cacheKey} because generatedBy=${cached.generatedBy}`,
+          );
+          await this.redis.del(cacheKey);
+        } else {
+          this.logger.debug(`Cache hit: ${cacheKey}`);
+          return cached;
+        }
       }
 
       let transits: TransitData;
@@ -313,7 +321,8 @@ export class HoroscopeGeneratorService {
         );
       }
 
-      if (shouldCache) {
+      const cachePremiumResult = !shouldUseAi || result.generatedBy === 'ai';
+      if (shouldCache && cachePremiumResult) {
         await this.redis.set(cacheKey, result, ttlSec);
       }
       return result;
@@ -353,7 +362,7 @@ export class HoroscopeGeneratorService {
 
     // Ежесуточный лимит одного AI-запроса для гороскопов (на пользователя)
     try {
-      const quotaKey = `ai:horoscope:quota:${userId}:${quotaDayKey}:${period}`;
+      const quotaKey = `ai:horoscope:quota:${userId}:${quotaDayKey}:${period}:${locale}`;
       const used = await this.redis.incr(quotaKey);
       if (used != null) {
         if (used === 1) {

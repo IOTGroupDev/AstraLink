@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 export interface SubscriptionLimits {
   natalChart: number | 'full' | 'basic';
@@ -39,6 +40,28 @@ const FREE_LIMITS: SubscriptionLimits = {
   natalChart: 0.2,
   horoscope: 'interpreter',
 };
+
+const subscriptionStorage = createJSONStorage(() => ({
+  getItem: async (name: string) => {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.getItem(name);
+    }
+
+    await AsyncStorage.removeItem(name);
+    return null;
+  },
+  setItem: async (name: string, value: string) => {
+    if (Platform.OS === 'web') {
+      await AsyncStorage.setItem(name, value);
+      return;
+    }
+
+    await AsyncStorage.removeItem(name);
+  },
+  removeItem: async (name: string) => {
+    await AsyncStorage.removeItem(name);
+  },
+}));
 
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
@@ -114,7 +137,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
     }),
     {
       name: 'subscription-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: subscriptionStorage,
       partialize: (state) => ({
         subscription: state.subscription,
       }),

@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { EphemerisService } from './ephemeris.service';
 import { InterpretationService } from './interpretation.service';
 import { HoroscopeGeneratorService } from './horoscope-generator.service';
-import { AIService } from './ai.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { RedisModule } from '../redis/redis.module';

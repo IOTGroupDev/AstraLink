@@ -18,8 +18,6 @@ describe('DatingService', () => {
   };
 
   const mockUserId = 'user-123';
-  const mockCandidateId = 'candidate-456';
-
   const mockChart = {
     id: 'chart-1',
     userId: mockUserId,
@@ -29,24 +27,6 @@ describe('DatingService', () => {
         moon: { sign: 'Taurus', degree: 22.3, house: 2 },
         venus: { sign: 'Pisces', degree: 8.7, house: 12 },
         mars: { sign: 'Gemini', degree: 18.2, house: 3 },
-      },
-      houses: Array.from({ length: 12 }, (_, i) => ({
-        number: i + 1,
-        sign: 'Aries',
-        degree: i * 30,
-      })),
-    },
-  };
-
-  const mockCandidateChart = {
-    id: 'chart-2',
-    userId: mockCandidateId,
-    data: {
-      planets: {
-        sun: { sign: 'Leo', degree: 20.1, house: 5 },
-        moon: { sign: 'Capricorn', degree: 10.5, house: 10 },
-        venus: { sign: 'Cancer', degree: 5.2, house: 4 },
-        mars: { sign: 'Libra', degree: 25.8, house: 7 },
       },
       houses: Array.from({ length: 12 }, (_, i) => ({
         number: i + 1,
@@ -436,22 +416,6 @@ describe('DatingService', () => {
   describe('Compatibility Calculation', () => {
     it('should calculate higher compatibility for harmonious fire-air signs', () => {
       // Aries (fire) - Leo (air) should have good compatibility
-      const userChart = {
-        data: {
-          planets: {
-            sun: { sign: 'Aries', degree: 15, house: 1 },
-          },
-        },
-      };
-
-      const candidateChart = {
-        data: {
-          planets: {
-            sun: { sign: 'Leo', degree: 20, house: 5 },
-          },
-        },
-      };
-
       const userElement = (service as any).elementFromSign('Aries');
       const candidateElement = (service as any).elementFromSign('Leo');
 
@@ -564,7 +528,6 @@ describe('DatingService', () => {
 
   describe('Synastry Caching', () => {
     it('should cache synastry calculation results', async () => {
-      const cacheKey = `synastry:${mockUserId}:${mockCandidateId}`;
       const mockSynastry = {
         compatibility: 85,
         aspects: [],
@@ -580,7 +543,6 @@ describe('DatingService', () => {
     });
 
     it('should return cached synastry if available', async () => {
-      const cacheKey = `synastry:${mockUserId}:${mockCandidateId}`;
       const cachedSynastry = {
         compatibility: 85,
         aspects: [],
@@ -593,9 +555,6 @@ describe('DatingService', () => {
 
     it('should invalidate cache after 7 days', async () => {
       // Test cache TTL
-      const cacheKey = `synastry:${mockUserId}:${mockCandidateId}`;
-      const CACHE_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
-
       // Verify TTL is set correctly
       // Implementation depends on actual caching logic
     });

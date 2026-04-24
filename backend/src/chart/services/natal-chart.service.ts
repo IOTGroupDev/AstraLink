@@ -82,12 +82,12 @@ export class NatalChartService {
 
     return Boolean(
       birthDate &&
-        birthDate === chartData?.birthDate &&
-        birthTime &&
-        birthTime === chartData?.birthTime &&
-        typeof birthDateTimeUtc === 'string' &&
-        !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
-        calculationVersion === 'utc-fixed-v2',
+      birthDate === chartData?.birthDate &&
+      birthTime &&
+      birthTime === chartData?.birthTime &&
+      typeof birthDateTimeUtc === 'string' &&
+      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+      calculationVersion === 'utc-fixed-v2',
     );
   }
 
@@ -114,10 +114,10 @@ export class NatalChartService {
   private hasAiInterpretation(chartData: any): boolean {
     return Boolean(
       chartData?.interpretationVersion === 'v3-ai' ||
-        chartData?.generatedBy === 'ai' ||
-        chartData?.interpretation?.generatedBy === 'ai' ||
-        chartData?.interpretation?.aiNarrative ||
-        chartData?.interpretation?.premiumNarrative,
+      chartData?.generatedBy === 'ai' ||
+      chartData?.interpretation?.generatedBy === 'ai' ||
+      chartData?.interpretation?.aiNarrative ||
+      chartData?.interpretation?.premiumNarrative,
     );
   }
 
@@ -1123,7 +1123,13 @@ export class NatalChartService {
     userId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<void> {
-    await this.forceRecalculateNatalChart(userId, locale);
+    const existingChart = await this.chartRepository.findByUserId(userId);
+
+    if (existingChart) {
+      await this.forceRecalculateNatalChart(userId, locale);
+    } else {
+      await this.createNatalChart(userId, {}, locale);
+    }
 
     const chart = await this.chartRepository.findByUserId(userId);
     if (!chart) {

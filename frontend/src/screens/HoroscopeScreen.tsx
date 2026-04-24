@@ -50,6 +50,7 @@ import { pickDailyLesson } from '../services/daily-lesson';
 import {
   buildHoroscopeDailyBucketKey,
   getHoroscopeChartRevision,
+  readHoroscopeScreenInvalidationMarker,
   readHoroscopeScreenCache,
   writeHoroscopeScreenCache,
 } from '../services/horoscope-cache';
@@ -216,6 +217,7 @@ const HoroscopeScreen: React.FC = () => {
   const dataLoadingRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
   const lastLoadedBucketRef = useRef<string | null>(null);
+  const lastInvalidationMarkerRef = useRef<string | null>(null);
   const mainTransitInterpretationCacheRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
@@ -340,6 +342,29 @@ const HoroscopeScreen: React.FC = () => {
       };
     },
     [extractHoroscopeContent]
+  );
+
+  const hasPendingAiInBundle = React.useCallback(
+    (bundle: HoroscopeBundle | null | undefined): boolean => {
+      if (!bundle) return false;
+
+      return [bundle.day, bundle.tomorrow, bundle.week, bundle.month].some(
+        (item) => item?.status === 'ai_pending'
+      );
+    },
+    []
+  );
+
+  const bundleNeedsAiRefresh = React.useCallback(
+    (bundle: HoroscopeBundle | null | undefined): boolean => {
+      if (!bundle) return false;
+
+      return [bundle.day, bundle.tomorrow, bundle.week, bundle.month].some(
+        (item) =>
+          !!item && (item.status === 'ai_pending' || item.generatedBy !== 'ai')
+      );
+    },
+    []
   );
 
   // Клиентский расчёт биоритмов (fallback), если сервер вернул плоские 50/50/50
@@ -509,12 +534,17 @@ const HoroscopeScreen: React.FC = () => {
 
         if (!forcePredictions && cacheUserId) {
           const cached = await readHoroscopeScreenCache(cacheUserId);
+          const cachedNeedsAiRefresh =
+            hasFeature('aiHoroscope') &&
+            bundleNeedsAiRefresh(cached?.predictions ?? null);
           if (
             cached &&
+            cached.predictions != null &&
             cached.bucketKey === bucketKey &&
             cached.locale === getApiLocale() &&
             cached.tier === tierKey &&
-            cached.chartRevision === chartRevision
+            cached.chartRevision === chartRevision &&
+            !cachedNeedsAiRefresh
           ) {
             chartLogger.log('Использую локальный daily-cache гороскопа', {
               bucketKey,
@@ -529,6 +559,8 @@ const HoroscopeScreen: React.FC = () => {
             predictionsAttemptedRef.current = cached.predictions != null;
             predictionsLocaleRef.current =
               cached.predictions != null ? getApiLocale() : null;
+            lastInvalidationMarkerRef.current =
+              await readHoroscopeScreenInvalidationMarker();
             lastLoadedBucketRef.current = bucketKey;
             return;
           }
@@ -625,6 +657,9 @@ const HoroscopeScreen: React.FC = () => {
         }
 
         if (cacheUserId) {
+          const cacheablePredictions = hasPendingAiInBundle(loadedPredictions)
+            ? null
+            : loadedPredictions;
           await writeHoroscopeScreenCache(cacheUserId, {
             bucketKey,
             locale: getApiLocale(),
@@ -632,11 +667,13 @@ const HoroscopeScreen: React.FC = () => {
             chartRevision,
             chart: chartData,
             currentPlanets: planetsData?.planets ?? null,
-            predictions: loadedPredictions,
+            predictions: cacheablePredictions,
             biorhythms: finalBiorhythms,
             cachedAt: new Date().toISOString(),
           });
         }
+        lastInvalidationMarkerRef.current =
+          await readHoroscopeScreenInvalidationMarker();
         lastLoadedBucketRef.current = bucketKey;
       } catch (error: any) {
         chartLogger.error('Ошибка загрузки данных карты', error);
@@ -720,17 +757,22 @@ const HoroscopeScreen: React.FC = () => {
       predictionsLocaleRef.current = hasPredictionData ? locale : null;
 
       const aiAllowed = hasFeature('aiHoroscope');
+      const hasPendingAi = hasPendingAiInBundle(newPredictions);
       const needsAi =
         hasPredictionData &&
         aiAllowed &&
-        (newPredictions.day?.generatedBy !== 'ai' ||
+        (hasPendingAi ||
+          newPredictions.day?.generatedBy !== 'ai' ||
           newPredictions.tomorrow?.generatedBy !== 'ai' ||
           newPredictions.week?.generatedBy !== 'ai' ||
           newPredictions.month?.generatedBy !== 'ai');
 
       if (needsAi) {
-        if (predictionsRetryCountRef.current < 2) {
-          const delayMs = predictionsRetryCountRef.current === 0 ? 5000 : 10000;
+        const retryPlanMs = hasPendingAi
+          ? [5000, 10000, 15000, 15000, 20000]
+          : [5000, 10000];
+        if (predictionsRetryCountRef.current < retryPlanMs.length) {
+          const delayMs = retryPlanMs[predictionsRetryCountRef.current];
           predictionsRetryCountRef.current += 1;
           if (predictionsRetryRef.current) {
             clearTimeout(predictionsRetryRef.current);
@@ -854,13 +896,37 @@ const HoroscopeScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       if (!isAuthenticated || authLoading) return undefined;
-      if (!hasLoadedOnceRef.current) return undefined;
-      const nextBucket = buildHoroscopeDailyBucketKey();
-      if (lastLoadedBucketRef.current === nextBucket) {
-        return undefined;
-      }
-      void loadData(true);
-      return undefined;
+      let cancelled = false;
+
+      void (async () => {
+        const nextBucket = buildHoroscopeDailyBucketKey();
+        const invalidationMarker =
+          await readHoroscopeScreenInvalidationMarker();
+        const wasInvalidated =
+          invalidationMarker !== null &&
+          invalidationMarker !== lastInvalidationMarkerRef.current;
+        const shouldReload =
+          !hasLoadedOnceRef.current ||
+          wasInvalidated ||
+          lastLoadedBucketRef.current !== nextBucket;
+
+        if (!shouldReload || cancelled) {
+          if (!cancelled) {
+            lastInvalidationMarkerRef.current = invalidationMarker;
+          }
+          return;
+        }
+
+        await loadData(true);
+
+        if (!cancelled) {
+          lastInvalidationMarkerRef.current = invalidationMarker;
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }, [isAuthenticated, authLoading])
   );
 

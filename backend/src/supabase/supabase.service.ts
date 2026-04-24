@@ -17,6 +17,14 @@ export class SupabaseService implements OnModuleInit {
   private supabase!: SupabaseClient;
   private adminSupabase: SupabaseClient | null = null;
 
+  private getSupabaseHost(url: string): string {
+    try {
+      return new URL(url).host;
+    } catch {
+      return 'invalid-url';
+    }
+  }
+
   onModuleInit() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
@@ -31,18 +39,12 @@ export class SupabaseService implements OnModuleInit {
 
     this.supabase = createClient(supabaseUrl, supabaseKey);
     this.logger.log(`✅ Supabase client initialized`);
-    this.logger.debug(`📍 Supabase URL: ${supabaseUrl}`);
-    this.logger.debug(
-      `🔑 Anon Key (first 20 chars): ${supabaseKey.substring(0, 20)}...`,
-    );
+    this.logger.debug(`📍 Supabase host: ${this.getSupabaseHost(supabaseUrl)}`);
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (serviceRoleKey) {
       this.adminSupabase = createClient(supabaseUrl, serviceRoleKey);
       this.logger.log('✅ Supabase admin client initialized');
-      this.logger.debug(
-        `🔑 Service Key (first 20 chars): ${serviceRoleKey.substring(0, 20)}...`,
-      );
     } else {
       this.logger.warn(
         '⚠️  SUPABASE_SERVICE_ROLE_KEY not set. Admin operations will be unavailable and RLS may cause 404.',
@@ -211,6 +213,63 @@ export class SupabaseService implements OnModuleInit {
       .createSignedUploadUrl(path);
     if (error || !data) return null;
     return { signedUrl: data.signedUrl, token: data.token };
+  }
+
+  /**
+   * Remove all storage objects directly under a user-scoped prefix.
+   * Intended for paths like `${userId}/file.ext`.
+   */
+  async removeStorageObjectsByPrefix(
+    bucket: string,
+    prefix: string,
+  ): Promise<{ removed: number; error: unknown | null }> {
+    if (!this.adminSupabase) {
+      return {
+        removed: 0,
+        error: new Error(
+          'SUPABASE_SERVICE_ROLE_KEY is required for storage cleanup',
+        ),
+      };
+    }
+
+    try {
+      const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, '');
+      const { data, error } = await this.adminSupabase.storage
+        .from(bucket)
+        .list(normalizedPrefix, { limit: 1000 });
+
+      if (error) {
+        return { removed: 0, error };
+      }
+
+      const paths = (data ?? [])
+        .filter((item: any) => item?.name && !item.id?.endsWith('/'))
+        .map((item: any) => `${normalizedPrefix}/${item.name}`);
+
+      if (paths.length === 0) {
+        return { removed: 0, error: null };
+      }
+
+      const { error: removeError } = await this.adminSupabase.storage
+        .from(bucket)
+        .remove(paths);
+
+      if (removeError) {
+        return { removed: 0, error: removeError };
+      }
+
+      try {
+        await this.redis.deleteByPattern(
+          `signed-url:${bucket}:${normalizedPrefix}*`,
+        );
+      } catch {
+        // ignore cache cleanup failures
+      }
+
+      return { removed: paths.length, error: null };
+    } catch (error) {
+      return { removed: 0, error };
+    }
   }
 
   // ==================== Passwordless Auth Methods ====================

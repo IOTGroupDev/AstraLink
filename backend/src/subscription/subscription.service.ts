@@ -18,6 +18,18 @@ export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
   private readonly statusCacheTtlSec = 60;
 
+  private getStatusCacheKey(userId: string): string {
+    return `subscription:status:${userId}`;
+  }
+
+  private getRecordCacheKey(userId: string): string {
+    return `subscription:record:${userId}`;
+  }
+
+  private getLegacyCacheKey(userId: string): string {
+    return `subscription:${userId}`;
+  }
+
   constructor(
     private prisma: PrismaService,
     private natalChartService: NatalChartService,
@@ -46,7 +58,7 @@ export class SubscriptionService {
    */
   async getStatus(userId: string): Promise<SubscriptionStatusResponse> {
     try {
-      const cacheKey = `subscription:${userId}`;
+      const cacheKey = this.getStatusCacheKey(userId);
       const cached = await this.redis.get<SubscriptionStatusResponse>(cacheKey);
       if (cached) {
         return cached;
@@ -160,7 +172,7 @@ export class SubscriptionService {
     };
 
     await this.redis.set(
-      `subscription:${userId}`,
+      this.getStatusCacheKey(userId),
       response,
       this.statusCacheTtlSec,
     );
@@ -171,11 +183,10 @@ export class SubscriptionService {
   /**
    * Активировать Trial
    */
-  async activateTrial(userId: string): Promise<{
-    success: boolean;
-    message: string;
-    expiresAt: string;
-  }> {
+  async activateTrial(
+    userId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<{ success: boolean; message: string; expiresAt: string }> {
     // ✅ PRISMA: Получаем подписку
     const subscription = await this.prisma.subscription.findUnique({
       where: { userId },
@@ -209,8 +220,12 @@ export class SubscriptionService {
     });
 
     // ✅ Очистка кэша подписки в Redis
-    const cacheKey = `subscription:${userId}`;
-    await this.redis.del(cacheKey);
+    const cacheKey = this.getStatusCacheKey(userId);
+    await Promise.all([
+      this.redis.del(cacheKey),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
     await this.redis.set(
       cacheKey,
       {
@@ -225,13 +240,7 @@ export class SubscriptionService {
       this.statusCacheTtlSec,
     );
 
-    void this.refreshPremiumAssets(userId).catch((e) => {
-      this.logger.warn(
-        `Deferred premium refresh after trial activation failed for ${userId}: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
-    });
+    await this.refreshPremiumAssetsForUser(userId, locale);
 
     return {
       success: true,
@@ -296,8 +305,12 @@ export class SubscriptionService {
     });
 
     // ✅ Очистка кэша подписки в Redis
-    const cacheKey = `subscription:${userId}`;
-    await this.redis.del(cacheKey);
+    const cacheKey = this.getStatusCacheKey(userId);
+    await Promise.all([
+      this.redis.del(cacheKey),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
 
     // ✅ Очистка кэша гороскопов сразу после апгрейда
     try {
@@ -341,13 +354,7 @@ export class SubscriptionService {
 
     await this.redis.set(cacheKey, statusResponse, this.statusCacheTtlSec);
 
-    void this.refreshPremiumAssets(userId, locale).catch((e) => {
-      this.logger.warn(
-        `Deferred premium refresh failed for ${userId}: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
-    });
+    await this.refreshPremiumAssetsForUser(userId, locale);
 
     return {
       success: true,
@@ -362,7 +369,7 @@ export class SubscriptionService {
   /**
    * Пост-апгрейд: сразу запросить AI-данные (интерпретация + гороскопы)
    */
-  private async refreshPremiumAssets(
+  async refreshPremiumAssetsForUser(
     userId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
@@ -389,8 +396,8 @@ export class SubscriptionService {
       );
     }
 
-    // 2) Сначала синхронно собираем дневной PREMIUM-гороскоп:
-    // именно он нужен сразу после апгрейда вместе с actionable advice.
+    // 2) Синхронно собираем дневной PREMIUM-гороскоп:
+    // он должен быть готов уже к моменту успешного ответа на апгрейд.
     try {
       await this.horoscopeService.generateHoroscope(
         userId,
@@ -398,17 +405,44 @@ export class SubscriptionService {
         true,
         locale,
       );
-      await Promise.all(
-        (['tomorrow', 'week', 'month'] as const).map((p) =>
-          this.horoscopeService.generateHoroscope(userId, p, true, locale),
-        ),
-      );
     } catch (e) {
       this.logger.warn(
-        `Horoscope prewarm failed for ${userId}: ${
+        `Daily horoscope prewarm failed for ${userId}: ${
           e instanceof Error ? e.message : String(e)
         }`,
       );
+    }
+
+    // 3) Остальные периоды догреваем в фоне и последовательно,
+    // чтобы не устраивать 3-4 одновременных тяжелых AI-запроса.
+    void this.prewarmSecondaryHoroscopes(userId, locale).catch((e) => {
+      this.logger.warn(
+        `Secondary horoscope prewarm failed for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    });
+  }
+
+  private async prewarmSecondaryHoroscopes(
+    userId: string,
+    locale: 'ru' | 'en' | 'es',
+  ): Promise<void> {
+    for (const period of ['tomorrow', 'week', 'month'] as const) {
+      try {
+        await this.horoscopeService.generateHoroscope(
+          userId,
+          period,
+          true,
+          locale,
+        );
+      } catch (e) {
+        this.logger.warn(
+          `Horoscope prewarm failed for ${userId} period=${period}: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
     }
   }
 
@@ -423,8 +457,11 @@ export class SubscriptionService {
     });
 
     // ✅ Очистка кэша подписки в Redis
-    const cacheKey = `subscription:${userId}`;
-    await this.redis.del(cacheKey);
+    await Promise.all([
+      this.redis.del(this.getStatusCacheKey(userId)),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
 
     return {
       success: true,
@@ -447,8 +484,11 @@ export class SubscriptionService {
     });
 
     // ✅ Очистка кэша подписки в Redis
-    const cacheKey = `subscription:${userId}`;
-    await this.redis.del(cacheKey);
+    await Promise.all([
+      this.redis.del(this.getStatusCacheKey(userId)),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
   }
 
   /**

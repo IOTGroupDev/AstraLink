@@ -6,14 +6,13 @@ import {
   IsObject,
   IsBoolean,
   ValidateNested,
-  Matches,
   Min,
   Max,
   IsNumber,
   IsArray,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Sanitize } from '@/common/decorators/sanitize.decorator';
 
 /**

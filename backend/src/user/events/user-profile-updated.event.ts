@@ -3,11 +3,13 @@ export class UserProfileUpdatedEvent {
     public readonly userId: string,
     public readonly oldData: {
       name?: string | null;
+      birthDate?: string | null;
       birthPlace?: string | null;
       birthTime?: string | null;
     },
     public readonly newData: {
       name?: string | null;
+      birthDate?: string | null;
       birthPlace?: string | null;
       birthTime?: string | null;
     },

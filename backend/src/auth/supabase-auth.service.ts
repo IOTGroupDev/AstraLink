@@ -164,7 +164,7 @@ export class SupabaseAuthService {
       }
       const birthDateStorageIso = this.birthDateToStorageIso(birthDateOnly);
 
-      this.logger.log('🔍 Starting signup for:', signupDto.email);
+      this.logger.log('🔍 Starting signup request');
 
       // 1) Проверяем, не существует ли уже пользователь в нашей таблице
       const { data: existingProfile } = await this.supabaseService

@@ -19,7 +19,6 @@ import SubscriptionCard from '../components/profile/SubscriptionCard';
 import { userAPI } from '../services/api';
 import { subscriptionAPI } from '../services/api/subscription.api';
 import { SubscriptionTier } from '../types/subscription';
-import { chartAPI } from '../services/api/chart.api';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
 
 type SubscriptionScreenProps = StackScreenProps<
@@ -28,7 +27,7 @@ type SubscriptionScreenProps = StackScreenProps<
 >;
 
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const cachedSubscription =
     queryClient.getQueryData<Subscription>(['subscription']) ?? null;
@@ -41,13 +40,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   React.useEffect(() => {
     fetchSubscription();
   }, []);
-
-  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
-    const locale = String(i18n.language || 'en').toLowerCase();
-    if (locale.startsWith('ru')) return 'ru';
-    if (locale.startsWith('es')) return 'es';
-    return 'en';
-  }, [i18n.language]);
 
   const fetchSubscription = async () => {
     try {
@@ -97,7 +89,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
           onPress: async () => {
             try {
               setPurchasing(tier);
-              const locale = getApiLocale();
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
               if (result.success) {
@@ -124,10 +115,6 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
                   queryKey: ['subscription'],
                   type: 'active',
                 });
-
-                await chartAPI.getNatalChartWithInterpretation(locale);
-
-                await chartAPI.getAllHoroscopes(locale);
 
                 Alert.alert(
                   t('subscription.successTitle', 'Success!'),
