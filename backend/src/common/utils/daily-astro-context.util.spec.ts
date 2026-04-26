@@ -18,6 +18,18 @@ describe('daily-astro-context.util', () => {
     expect(snapshot?.trend).toHaveLength(7);
   });
 
+  it('builds human-readable Russian biorhythm summary with capitalized start', () => {
+    const snapshot = buildBiorhythmSnapshotFromBirthDate(
+      '1990-05-15',
+      new Date('2026-04-03T12:00:00.000Z'),
+      'ru',
+    );
+
+    expect(snapshot?.summary).toMatch(/^Сегодня/);
+    expect(snapshot?.summary).toContain('Сильнее всего поддерживает');
+    expect(snapshot?.summary).toContain('Зона внимания');
+  });
+
   it('keeps daily context mixed when transit momentum is high but reserve is low', () => {
     const supportiveTransit: TransitAspect = {
       transitPlanet: 'jupiter',

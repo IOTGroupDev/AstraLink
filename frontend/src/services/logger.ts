@@ -24,6 +24,78 @@ interface LoggerOptions {
   prefix?: string;
 }
 
+const SENSITIVE_KEYS = new Set([
+  'access_token',
+  'accesstoken',
+  'authorization',
+  'birthdate',
+  'birthplace',
+  'birthtime',
+  'code',
+  'email',
+  'idtoken',
+  'identitytoken',
+  'latitude',
+  'longitude',
+  'password',
+  'refresh_token',
+  'refreshtoken',
+  'session',
+  'token',
+  'userid',
+]);
+
+function redactString(value: string): string {
+  return value
+    .replace(/(Bearer\s+)[^\s,]+/gi, '$1[REDACTED]')
+    .replace(
+      /([?&#](?:access_token|refresh_token|token|code|id_token)=)[^&#\s]+/gi,
+      '$1[REDACTED]'
+    )
+    .replace(
+      /("(?:access_token|refresh_token|token|code|idToken|identityToken|email|birthDate|birthTime|birthPlace|userId)"\s*:\s*")[^"]*(")/gi,
+      '$1[REDACTED]$2'
+    );
+}
+
+function sanitizeLogValue(
+  value: unknown,
+  seen = new WeakSet<object>()
+): unknown {
+  if (typeof value === 'string') {
+    return redactString(value);
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: redactString(value.message),
+    };
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  if (seen.has(value)) {
+    return '[Circular]';
+  }
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLogValue(item, seen));
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      SENSITIVE_KEYS.has(key.toLowerCase())
+        ? '[REDACTED]'
+        : sanitizeLogValue(item, seen),
+    ])
+  );
+}
+
 class Logger {
   private enabled: boolean;
   private prefix: string;
@@ -38,35 +110,35 @@ class Logger {
   /**
    * General log message
    */
-  log(message: string, ...args: any[]): void {
+  log(message: string, ...args: unknown[]): void {
     this.write('log', '📝', message, ...args);
   }
 
   /**
    * Info message (same as log but with blue color)
    */
-  info(message: string, ...args: any[]): void {
+  info(message: string, ...args: unknown[]): void {
     this.write('info', 'ℹ️', message, ...args);
   }
 
   /**
    * Warning message
    */
-  warn(message: string, ...args: any[]): void {
+  warn(message: string, ...args: unknown[]): void {
     this.write('warn', '⚠️', message, ...args);
   }
 
   /**
    * Error message
    */
-  error(message: string, ...args: any[]): void {
+  error(message: string, ...args: unknown[]): void {
     this.write('error', '❌', message, ...args);
   }
 
   /**
    * Debug message (verbose)
    */
-  debug(message: string, ...args: any[]): void {
+  debug(message: string, ...args: unknown[]): void {
     this.write('debug', '🐛', message, ...args);
   }
 
@@ -77,20 +149,21 @@ class Logger {
     level: LogLevel,
     emoji: string,
     message: string,
-    ...args: any[]
+    ...args: unknown[]
   ): void {
     if (!this.enabled) {
       return;
     }
 
     const prefix = this.prefix ? `[${this.prefix}] ` : '';
-    const fullMessage = `${emoji} ${prefix}${message}`;
+    const fullMessage = redactString(`${emoji} ${prefix}${message}`);
+    const safeArgs = args.map((arg) => sanitizeLogValue(arg));
 
     // Use appropriate console method
     const consoleFn = console[level] || console.log;
 
-    if (args.length > 0) {
-      consoleFn(fullMessage, ...args);
+    if (safeArgs.length > 0) {
+      consoleFn(fullMessage, ...safeArgs);
     } else {
       consoleFn(fullMessage);
     }

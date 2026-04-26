@@ -2,7 +2,42 @@
 import axios from 'axios';
 import { api } from '../client';
 
-jest.mock('axios');
+jest.mock('axios', () => ({
+  create: jest.fn(() => ({
+    defaults: {
+      baseURL: 'http://localhost:3001/api/v1',
+      timeout: 10000,
+    },
+    interceptors: {
+      request: {
+        handlers: [{}],
+        use: jest.fn(),
+      },
+      response: {
+        handlers: [{}],
+        use: jest.fn(),
+      },
+    },
+  })),
+}));
+
+jest.mock('../../supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null })
+      ),
+    },
+  },
+}));
+
+jest.mock('../../tokenService', () => ({
+  tokenService: {
+    getToken: jest.fn(() => Promise.resolve(null)),
+    setToken: jest.fn(() => Promise.resolve()),
+  },
+}));
+
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('API Client', () => {

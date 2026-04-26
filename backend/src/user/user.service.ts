@@ -726,8 +726,9 @@ export class UserService {
    * 2. Connections (связи)
    * 3. DatingMatches (данные знакомств)
    * 4. Subscriptions (подписки)
-   * 5. User profile (профиль пользователя)
-   * 6. Auth user (пользователь из Supabase Auth) - вне транзакции
+   * 5. AiContentCache (AI-кэш пользователя)
+   * 6. User profile (профиль пользователя)
+   * 7. Auth user (пользователь из Supabase Auth) - вне транзакции
    *
    * ✅ ИСПРАВЛЕНО: Использует Prisma $transaction для гарантии атомарности
    */
@@ -791,6 +792,7 @@ export class UserService {
         messages: await tableExists('messages'),
         user_devices: await tableExists('user_devices'),
         compatibility_scores: await tableExists('compatibility_scores'),
+        ai_content_cache: await tableExists('ai_content_cache'),
         public_profiles: await tableExists('public_profiles'),
         profiles: await tableExists('profiles'),
       };
@@ -909,6 +911,22 @@ export class UserService {
         } else {
           this.logger.warn(
             '⚠️ Таблица compatibility_scores не найдена — пропускаем',
+          );
+        }
+
+        if (existingTables.ai_content_cache) {
+          this.logger.log(
+            '🗑️ Удаление AI content cache пользователя (ai_content_cache)...',
+          );
+          const aiContentCacheDeleted = await tx.aiContentCache.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(
+            `✅ Удалено записей AI content cache: ${aiContentCacheDeleted.count}`,
+          );
+        } else {
+          this.logger.warn(
+            '⚠️ Таблица ai_content_cache не найдена — пропускаем',
           );
         }
 

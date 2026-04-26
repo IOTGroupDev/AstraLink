@@ -77,7 +77,7 @@ export class SupabaseAuthGuard implements CanActivate {
         throw new UnauthorizedException('Недействительный токен');
       }
 
-      this.logger.debug(`✅ Token validated for user ${user.id}`);
+      this.logger.debug(`✅ Token validated for ${requestLabel}`);
 
       // Normalize user for controllers
       request.user = {
