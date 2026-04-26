@@ -11,6 +11,7 @@ import { calculateAspect } from '../../shared/astro-calculations';
 import { SubscriptionTier, hasAIAccess } from '../../types/subscription';
 import type { TransitAspect } from '../../services/horoscope.types';
 import { RedisService } from '../../redis/redis.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import {
   LIMITS,
   secondsUntilEndOfUTCDate,
@@ -29,6 +30,7 @@ export interface MainTransitInterpretationResult {
   dailyContext: ReturnType<typeof buildDailyAstroContext> | null;
   subscriptionTier: SubscriptionTier;
   hasAIAccess: boolean;
+  generatedBy?: 'ai' | 'interpreter';
   message: string;
 }
 
@@ -46,7 +48,129 @@ export class TransitService {
     private aiService: AIService,
     private lunarService: LunarService,
     private redis: RedisService,
+    private prisma: PrismaService,
   ) {}
+
+  private normalizeChartRevision(value: unknown): string {
+    const raw =
+      value instanceof Date
+        ? value.toISOString()
+        : typeof value === 'string' || typeof value === 'number'
+          ? String(value)
+          : 'unknown';
+
+    return raw.replace(/[^a-zA-Z0-9_-]/g, '-');
+  }
+
+  private getChartRevision(natalChart: any): string {
+    return this.normalizeChartRevision(
+      natalChart?.data?.metadata?.fingerprint ||
+        natalChart?.updatedAt ||
+        natalChart?.updated_at ||
+        natalChart?.id,
+    );
+  }
+
+  private getExpiresAt(ttlSec: number): Date {
+    return new Date(Date.now() + ttlSec * 1000);
+  }
+
+  private async getPersistentMainTransitCache(
+    userId: string,
+    subjectKey: string,
+    locale: 'ru' | 'en' | 'es',
+    chartRevision: string,
+  ): Promise<MainTransitInterpretationResult | null> {
+    try {
+      const cached = await this.prisma.aiContentCache.findUnique({
+        where: {
+          userId_contentType_subjectKey_locale_chartFingerprint_promptVersion: {
+            userId,
+            contentType: 'main_transit',
+            subjectKey,
+            locale,
+            chartFingerprint: chartRevision,
+            promptVersion: this.mainTransitFormatVersion,
+          },
+        },
+      });
+
+      if (!cached) {
+        return null;
+      }
+
+      if (cached.expiresAt && cached.expiresAt.getTime() <= Date.now()) {
+        await this.prisma.aiContentCache
+          .delete({ where: { id: cached.id } })
+          .catch(() => undefined);
+        return null;
+      }
+
+      return cached.contentJson as unknown as MainTransitInterpretationResult;
+    } catch (error) {
+      this.logger.warn(
+        `Persistent main transit cache read failed user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private async setPersistentMainTransitCache(
+    userId: string,
+    subjectKey: string,
+    locale: 'ru' | 'en' | 'es',
+    chartRevision: string,
+    ttlSec: number,
+    result: MainTransitInterpretationResult,
+  ): Promise<void> {
+    if (
+      result.generatedBy !== 'ai' ||
+      !result.aspect ||
+      !result.interpretation
+    ) {
+      return;
+    }
+
+    try {
+      await this.prisma.aiContentCache.upsert({
+        where: {
+          userId_contentType_subjectKey_locale_chartFingerprint_promptVersion: {
+            userId,
+            contentType: 'main_transit',
+            subjectKey,
+            locale,
+            chartFingerprint: chartRevision,
+            promptVersion: this.mainTransitFormatVersion,
+          },
+        },
+        create: {
+          userId,
+          contentType: 'main_transit',
+          subjectKey,
+          locale,
+          chartFingerprint: chartRevision,
+          promptVersion: this.mainTransitFormatVersion,
+          provider: this.aiService.getProvider(),
+          contentJson: result as any,
+          expiresAt: this.getExpiresAt(ttlSec),
+        },
+        update: {
+          provider: this.aiService.getProvider(),
+          contentJson: result as any,
+          generatedAt: new Date(),
+          expiresAt: this.getExpiresAt(ttlSec),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Persistent main transit cache write failed user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
 
   /**
    * Get transits for a date range
@@ -229,7 +353,8 @@ export class TransitService {
       userTzOffsetMinutes,
       date,
     );
-    const cacheKey = `horoscope:${userId}:main-transit:${periodContext.dateKey}:${locale}:${subscriptionTier}:${this.mainTransitFormatVersion}`;
+    const chartRevision = this.getChartRevision(natalChart);
+    const cacheKey = `horoscope:${userId}:main-transit:${periodContext.dateKey}:${locale}:${subscriptionTier}:${chartRevision}:${this.mainTransitFormatVersion}`;
     const ttlSec = periodContext.ttlSec;
 
     const cached =
@@ -237,6 +362,18 @@ export class TransitService {
     if (cached) {
       this.logger.debug(`Main transit AI cache hit: ${cacheKey}`);
       return cached;
+    }
+
+    const persistentCached = await this.getPersistentMainTransitCache(
+      userId,
+      periodContext.dateKey,
+      locale,
+      chartRevision,
+    );
+    if (persistentCached) {
+      this.logger.debug(`Persistent main transit cache hit: ${cacheKey}`);
+      await this.redis.set(cacheKey, persistentCached, ttlSec);
+      return persistentCached;
     }
 
     const inflight = this.inflightMainTransit.get(cacheKey);
@@ -254,6 +391,14 @@ export class TransitService {
     )
       .then(async (result) => {
         await this.redis.set(cacheKey, result, ttlSec);
+        await this.setPersistentMainTransitCache(
+          userId,
+          periodContext.dateKey,
+          locale,
+          chartRevision,
+          ttlSec,
+          result,
+        );
         return result;
       })
       .finally(() => {
@@ -304,6 +449,7 @@ export class TransitService {
         dailyContext: null,
         subscriptionTier,
         hasAIAccess: hasAIAccess(subscriptionTier),
+        generatedBy: 'interpreter',
         message:
           locale === 'en'
             ? 'No significant main transit found'
@@ -343,6 +489,7 @@ export class TransitService {
     }
 
     let interpretation = '';
+    let generatedBy: 'ai' | 'interpreter' = 'interpreter';
     let dailyContext: ReturnType<typeof buildDailyAstroContext> | null = null;
     try {
       const [moonPhase, lunarDay] = await Promise.all([
@@ -378,6 +525,7 @@ export class TransitService {
           locale,
           dailyContext,
         );
+        generatedBy = 'ai';
       } catch (error) {
         this.logger.error('Failed to generate main transit AI:', error);
       }
@@ -388,6 +536,7 @@ export class TransitService {
         `Main transit AI: fallback to rule-based user=${userId} allowAI=${allowAI}`,
       );
       interpretation = this.getRuleBasedInterpretation([mainAspect], locale);
+      generatedBy = 'interpreter';
     }
 
     return {
@@ -397,6 +546,7 @@ export class TransitService {
       dailyContext,
       subscriptionTier,
       hasAIAccess: hasAIAccess(subscriptionTier),
+      generatedBy,
       message: allowAI
         ? locale === 'en'
           ? 'AI main transit interpretation (PREMIUM/MAX)'

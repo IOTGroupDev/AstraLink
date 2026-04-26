@@ -154,6 +154,14 @@ If the project is on a paid plan with eligible backups:
 
 Use in-place restore only when you explicitly accept downtime and database-level data loss between the restore point and now.
 
+## Branch / Dev Data Policy
+
+- Do not use real user data in `branch/dev` environments.
+- For previews and QA, use synthetic seed data only:
+  - `backend/src/scripts/seed.dating.ts`
+  - `backend/prisma/seed.ts`
+- If you temporarily restore a real snapshot for debugging, do it only in an isolated throwaway project and remove it after verification.
+
 ## Storage Backup
 
 For AstraLink, database backup is not enough because private user media is stored in:

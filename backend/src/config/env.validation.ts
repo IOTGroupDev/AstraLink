@@ -64,6 +64,11 @@ export const envSchema = z.object({
           'JWT_SECRET has insufficient entropy. In production, please use a strong random secret (e.g., openssl rand -base64 64)',
       },
     ),
+  DATA_ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'DATA_ENCRYPTION_KEY must be at least 32 characters long')
+    .optional(),
+  BIRTH_DATA_WRITE_PLAINTEXT: z.enum(['true', 'false']).optional(),
 
   // AI Providers (at least one is required)
   ANTHROPIC_API_KEY: z.string().optional(),

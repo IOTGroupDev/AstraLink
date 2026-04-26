@@ -10,6 +10,7 @@ describe('DatingService', () => {
   let service: DatingService;
   let prismaService: jest.Mocked<PrismaService>;
   let ephemerisService: jest.Mocked<EphemerisService>;
+  let supabaseService: jest.Mocked<SupabaseService>;
   let redisService: jest.Mocked<RedisService>;
 
   const mockQueue = {
@@ -59,6 +60,7 @@ describe('DatingService', () => {
     const mockSupabaseService = {
       getUserProfileAdmin: jest.fn(),
       getUserChartsAdmin: jest.fn(),
+      normalizeUserProfileRecord: jest.fn((value: unknown) => value),
     };
 
     const mockRedisService = {
@@ -96,6 +98,7 @@ describe('DatingService', () => {
     service = module.get<DatingService>(DatingService);
     prismaService = module.get(PrismaService);
     ephemerisService = module.get(EphemerisService);
+    supabaseService = module.get(SupabaseService);
     redisService = module.get(RedisService);
   });
 
@@ -605,6 +608,45 @@ describe('DatingService', () => {
   });
 
   describe('Data Validation', () => {
+    it('should sanitize legacy candidate details before returning them', () => {
+      const sanitized = (service as any).sanitizeCandidateData({
+        partnerId: 'candidate-1',
+        partnerName: 'Alice',
+        email: 'alice@example.com',
+        birthDate: '1990-01-01',
+        birthTime: '12:00',
+        birthPlace: 'Moscow',
+        sign: 'Aries',
+      });
+
+      expect(sanitized).toEqual({
+        partnerId: 'candidate-1',
+        partnerName: 'Alice',
+        sign: 'Aries',
+      });
+    });
+
+    it('should normalize sensitive user fields through Supabase helper', () => {
+      const normalized = {
+        birth_date: '1990-05-15T00:00:00.000Z',
+        birth_place: 'Moscow',
+      };
+      supabaseService.normalizeUserProfileRecord.mockReturnValue(normalized);
+
+      const result = (service as any).normalizeSensitiveUserFields({
+        birth_date: null,
+        birth_place: null,
+      });
+
+      expect(
+        supabaseService.normalizeUserProfileRecord.mock.calls[0]?.[0],
+      ).toEqual({
+        birth_date: null,
+        birth_place: null,
+      });
+      expect(result).toEqual(normalized);
+    });
+
     it('should validate chart structure before processing', () => {
       // Test validation logic
     });

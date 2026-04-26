@@ -183,9 +183,6 @@ export class SupabaseAuthService {
       const { data: created, error: createError } =
         await this.supabaseService.createUserWithoutPassword(signupDto.email, {
           name: signupDto.name,
-          birth_date: birthDateStorageIso,
-          birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-          birth_place: signupDto.birthPlace || 'Moscow',
         });
 
       if (createError || !created?.user) {
@@ -199,20 +196,20 @@ export class SupabaseAuthService {
       this.logger.log('✅ User created in auth.users:', userId);
 
       // 3) Создаем профиль пользователя
+      const profilePayload =
+        this.supabaseService.prepareUserProfileWritePayload({
+          id: userId,
+          email: userEmail,
+          name: signupDto.name,
+          birth_date: birthDateStorageIso,
+          birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
+          birth_place: signupDto.birthPlace || 'Moscow',
+          updated_at: new Date().toISOString(),
+        });
+
       const { error: profileError } = await this.supabaseService
         .fromAdmin('users')
-        .upsert(
-          {
-            id: userId,
-            email: userEmail,
-            name: signupDto.name,
-            birth_date: birthDateStorageIso,
-            birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-            birth_place: signupDto.birthPlace || 'Moscow',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' },
-        );
+        .upsert(profilePayload, { onConflict: 'id' });
 
       if (profileError) {
         this.logger.error('Error creating user profile:', profileError);
@@ -350,16 +347,18 @@ export class SupabaseAuthService {
       const { data: newProfile, error: profileError } =
         await this.supabaseService
           .fromAdmin('users')
-          .insert({
-            id: userData.id,
-            email: userData.email,
-            name: userData.name || 'Пользователь',
-            birth_date: null,
-            birth_time: null,
-            birth_place: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          .insert(
+            this.supabaseService.prepareUserProfileWritePayload({
+              id: userData.id,
+              email: userData.email,
+              name: userData.name || 'Пользователь',
+              birth_date: null,
+              birth_time: null,
+              birth_place: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }),
+          )
           .select()
           .single();
 
@@ -407,7 +406,16 @@ export class SupabaseAuthService {
         throw new BadRequestException('User ID is required');
       }
 
-      const { name, birthDate, birthTime, birthPlace } = dto;
+      const {
+        name,
+        birthDate,
+        birthTime,
+        birthPlace,
+        latitude,
+        longitude,
+        timezone,
+        birthTimeKnown,
+      } = dto;
 
       this.logger.log('📝 Completing signup for user:', userId);
       this.logger.log(`📝 Completing signup payload: ${JSON.stringify(dto)}`);
@@ -470,7 +478,7 @@ export class SupabaseAuthService {
           const { error: upsertErr } = await this.supabaseService
             .fromAdmin('users')
             .upsert(
-              {
+              this.supabaseService.prepareUserProfileWritePayload({
                 id: userId,
                 email: authEmail,
                 name: name || authEmail.split('@')[0] || 'User',
@@ -478,7 +486,7 @@ export class SupabaseAuthService {
                 birth_time: null,
                 birth_place: null,
                 updated_at: new Date().toISOString(),
-              },
+              }),
               { onConflict: 'id' },
             );
 
@@ -498,16 +506,18 @@ export class SupabaseAuthService {
 
             const { error: insertErr } = await this.supabaseService
               .fromAdmin('users')
-              .insert({
-                id: userId,
-                email: authEmail,
-                name: name || authEmail.split('@')[0] || 'User',
-                birth_date: null,
-                birth_time: null,
-                birth_place: null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
+              .insert(
+                this.supabaseService.prepareUserProfileWritePayload({
+                  id: userId,
+                  email: authEmail,
+                  name: name || authEmail.split('@')[0] || 'User',
+                  birth_date: null,
+                  birth_time: null,
+                  birth_place: null,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                }),
+              );
 
             if (!insertErr) {
               const retry =
@@ -602,6 +612,10 @@ export class SupabaseAuthService {
             birthDate: birthDateOnly,
             birthTime: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
             birthPlace: birthPlace || 'Moscow',
+            latitude,
+            longitude,
+            timezone,
+            birthTimeKnown,
           }),
         );
         this.logger.log('🛰️ Natal chart creation scheduled in background');
@@ -664,16 +678,18 @@ export class SupabaseAuthService {
       // Create profile in public.users
       const { error: profileError } = await this.supabaseService
         .fromAdmin('users')
-        .insert({
-          id: userId,
-          email: email,
-          name: email.split('@')[0] || 'User',
-          birth_date: null,
-          birth_time: null,
-          birth_place: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+        .insert(
+          this.supabaseService.prepareUserProfileWritePayload({
+            id: userId,
+            email: email,
+            name: email.split('@')[0] || 'User',
+            birth_date: null,
+            birth_time: null,
+            birth_place: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        );
 
       if (profileError) {
         // Ignore duplicate key errors (profile was created by trigger or race condition)

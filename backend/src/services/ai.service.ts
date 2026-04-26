@@ -442,6 +442,7 @@ export class AIService {
         ? {
             day: 'for today',
             tomorrow: 'for tomorrow',
+            daily: 'for this date',
             week: 'for this week',
             month: 'for this month',
           }[context.period] || 'for today'
@@ -449,16 +450,23 @@ export class AIService {
           ? {
               day: 'para hoy',
               tomorrow: 'para mañana',
+              daily: 'para esta fecha',
               week: 'para esta semana',
               month: 'para este mes',
             }[context.period] || 'para hoy'
           : {
               day: 'на сегодня',
               tomorrow: 'на завтра',
+              daily: 'на эту дату',
               week: 'на эту неделю',
               month: 'на этот месяц',
             }[context.period] || 'на сегодня';
 
+    const natalPlacementsDescription = this.formatPlanets(
+      context.planets,
+      locale,
+    );
+    const natalHousesDescription = this.formatHouses(context.houses, locale);
     const transitDescription = this.formatTransits(context.transits, locale);
     const dailyContextDescription = context.dailyContext
       ? locale === 'en'
@@ -559,6 +567,8 @@ NATAL CHART:
 - Sun: ${context.sunSign}
 - Moon: ${context.moonSign}
 - Ascendant: ${context.ascendant}
+- Natal placements: ${natalPlacementsDescription}
+- House cusps: ${natalHousesDescription}
 - Key aspects: ${this.formatAspects(context.aspects, locale)}
 
 CURRENT TRANSITS:
@@ -609,6 +619,8 @@ NATAL CHART:
 - Sun: ${context.sunSign}
 - Moon: ${context.moonSign}
 - Ascendant: ${context.ascendant}
+- Natal placements: ${natalPlacementsDescription}
+- House cusps: ${natalHousesDescription}
 - Key aspects: ${this.formatAspects(context.aspects, locale)}
 
 CURRENT TRANSITS:
@@ -662,6 +674,8 @@ CARTA NATAL:
 - Sol: ${context.sunSign}
 - Luna: ${context.moonSign}
 - Ascendente: ${context.ascendant}
+- Posiciones natales: ${natalPlacementsDescription}
+- Cúspides de casas: ${natalHousesDescription}
 - Aspectos clave: ${this.formatAspects(context.aspects, locale)}
 
 TRÁNSITOS ACTUALES:
@@ -712,6 +726,8 @@ CARTA NATAL:
 - Sol: ${context.sunSign}
 - Luna: ${context.moonSign}
 - Ascendente: ${context.ascendant}
+- Posiciones natales: ${natalPlacementsDescription}
+- Cúspides de casas: ${natalHousesDescription}
 - Aspectos clave: ${this.formatAspects(context.aspects, locale)}
 
 TRÁNSITOS ACTUALES:
@@ -764,6 +780,8 @@ Requisitos de contenido:
 - Солнце: ${context.sunSign}
 - Луна: ${context.moonSign}
 - Асцендент: ${context.ascendant}
+- Натальные положения: ${natalPlacementsDescription}
+- Куспиды домов: ${natalHousesDescription}
 - Ключевые аспекты: ${this.formatAspects(context.aspects, locale)}
 
 ТЕКУЩИЕ ТРАНЗИТЫ:
@@ -813,6 +831,8 @@ ${dailyContextDescription}
 - Солнце: ${context.sunSign}
 - Луна: ${context.moonSign}
 - Асцендент: ${context.ascendant}
+- Натальные положения: ${natalPlacementsDescription}
+- Куспиды домов: ${natalHousesDescription}
 - Ключевые аспекты: ${this.formatAspects(context.aspects, locale)}
 
 ТЕКУЩИЕ ТРАНЗИТЫ:

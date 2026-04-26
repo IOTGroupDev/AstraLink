@@ -693,6 +693,10 @@ export const authAPI = {
     birthDate: string;
     birthTime?: string;
     birthPlace?: string;
+    latitude?: number;
+    longitude?: number;
+    timezone?: string;
+    birthTimeKnown?: boolean;
   }): Promise<void> => {
     try {
       authLogger.log('📝 Завершение регистрации:', data);
@@ -702,6 +706,10 @@ export const authAPI = {
         birthDate: data.birthDate,
         birthTime: data.birthTime || '12:00',
         birthPlace: data.birthPlace || 'Moscow',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        timezone: data.timezone,
+        birthTimeKnown: data.birthTimeKnown,
       });
       authLogger.log('✅ Регистрация завершена');
     } catch (error: any) {

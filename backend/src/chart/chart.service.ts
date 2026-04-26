@@ -99,10 +99,10 @@ export class ChartService {
   private hasPremiumNarrative(chartData: any): boolean {
     return Boolean(
       chartData?.interpretationVersion === 'v3-ai' ||
-      chartData?.generatedBy === 'ai' ||
-      chartData?.interpretation?.generatedBy === 'ai' ||
-      chartData?.interpretation?.aiNarrative ||
-      chartData?.interpretation?.premiumNarrative,
+        chartData?.generatedBy === 'ai' ||
+        chartData?.interpretation?.generatedBy === 'ai' ||
+        chartData?.interpretation?.aiNarrative ||
+        chartData?.interpretation?.premiumNarrative,
     );
   }
 
@@ -500,7 +500,11 @@ export class ChartService {
       }
 
       // 3. Regenerate interpretation with AI
-      await this.natalChartService.regenerateAiInterpretation(userId, locale);
+      await this.natalChartService.regenerateAiInterpretation(
+        userId,
+        locale,
+        true,
+      );
 
       // 4. Update ai_generated_at timestamp using Prisma
       await this.prisma.chart.updateMany({

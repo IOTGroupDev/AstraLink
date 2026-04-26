@@ -113,12 +113,182 @@ export class NatalChartService {
 
   private hasAiInterpretation(chartData: any): boolean {
     return Boolean(
+      Object.values(chartData?.aiInterpretations || {}).some(
+        (entry: any) => entry?.narrative || entry?.premiumNarrative,
+      ) ||
       chartData?.interpretationVersion === 'v3-ai' ||
       chartData?.generatedBy === 'ai' ||
       chartData?.interpretation?.generatedBy === 'ai' ||
       chartData?.interpretation?.aiNarrative ||
       chartData?.interpretation?.premiumNarrative,
     );
+  }
+
+  private getLocalizedInterpretation(
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+  ): any | null {
+    const localized = chartData?.interpretations?.[locale];
+    if (localized && typeof localized === 'object') {
+      return localized;
+    }
+
+    const storedLocale = this.resolveStoredInterpretationLocale(chartData);
+    if (
+      storedLocale === locale &&
+      chartData?.interpretation &&
+      typeof chartData.interpretation === 'object'
+    ) {
+      const {
+        aiNarrative,
+        premiumNarrative,
+        aiGeneratedAt,
+        generatedBy,
+        ...base
+      } = chartData.interpretation;
+      void aiNarrative;
+      void premiumNarrative;
+      void aiGeneratedAt;
+      void generatedBy;
+      return base;
+    }
+
+    return null;
+  }
+
+  private getLocalizedAiInterpretation(
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+  ): {
+    narrative: string;
+    generatedAt?: string;
+    promptVersion?: string;
+  } | null {
+    const localized = chartData?.aiInterpretations?.[locale];
+    const localizedNarrative = this.normalizeNarrativeValue(
+      localized?.narrative ?? localized?.premiumNarrative,
+    );
+    if (localizedNarrative) {
+      return {
+        narrative: localizedNarrative,
+        generatedAt: localized?.generatedAt,
+        promptVersion: localized?.promptVersion,
+      };
+    }
+
+    const storedLocale = this.resolveStoredInterpretationLocale(chartData);
+    const legacyNarrative = this.normalizeNarrativeValue(
+      chartData?.interpretation?.aiNarrative ??
+        chartData?.interpretation?.premiumNarrative,
+    );
+    if (storedLocale === locale && legacyNarrative) {
+      return {
+        narrative: legacyNarrative,
+        generatedAt: chartData?.interpretation?.aiGeneratedAt,
+        promptVersion: chartData?.interpretation?.aiPromptVersion,
+      };
+    }
+
+    return null;
+  }
+
+  private withLocalizedInterpretation<T extends Record<string, any>>(
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+    interpretation: any,
+  ): T {
+    const localized = {
+      ...(chartData?.interpretations || {}),
+      [locale]: interpretation,
+    };
+
+    return this.withInterpretationLocale(
+      {
+        ...chartData,
+        interpretation,
+        interpretations: localized,
+        interpretationVersion: 'v3',
+      },
+      locale,
+    ) as T;
+  }
+
+  private withLocalizedAiInterpretation<T extends Record<string, any>>(
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+    narrative: string,
+    generatedAt: string,
+  ): T {
+    const baseInterpretation =
+      this.getLocalizedInterpretation(chartData, locale) ||
+      chartData?.interpretation ||
+      {};
+    const interpretation = {
+      ...baseInterpretation,
+      aiNarrative: narrative,
+      premiumNarrative: narrative,
+      aiGeneratedAt: generatedAt,
+      aiPromptVersion: 'natal-ai-v1',
+      generatedBy: 'ai',
+    };
+
+    return this.withInterpretationLocale(
+      {
+        ...chartData,
+        interpretation,
+        interpretations: {
+          ...(chartData?.interpretations || {}),
+          [locale]: baseInterpretation,
+        },
+        aiInterpretations: {
+          ...(chartData?.aiInterpretations || {}),
+          [locale]: {
+            narrative,
+            premiumNarrative: narrative,
+            generatedAt,
+            promptVersion: 'natal-ai-v1',
+          },
+        },
+        interpretationVersion: 'v3-ai',
+        generatedBy: 'ai',
+      },
+      locale,
+    ) as T;
+  }
+
+  private toLocalizedChartData<T extends Record<string, any>>(
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+  ): T {
+    const baseInterpretation = this.getLocalizedInterpretation(
+      chartData,
+      locale,
+    );
+    if (!baseInterpretation) {
+      return chartData;
+    }
+
+    const aiEntry = this.getLocalizedAiInterpretation(chartData, locale);
+    const interpretation = aiEntry
+      ? {
+          ...baseInterpretation,
+          aiNarrative: aiEntry.narrative,
+          premiumNarrative: aiEntry.narrative,
+          aiGeneratedAt: aiEntry.generatedAt,
+          aiPromptVersion: aiEntry.promptVersion,
+          generatedBy: 'ai',
+        }
+      : baseInterpretation;
+
+    return this.withInterpretationLocale(
+      {
+        ...chartData,
+        interpretation,
+        interpretationVersion: aiEntry ? 'v3-ai' : 'v3',
+        generatedBy: aiEntry ? 'ai' : chartData?.generatedBy,
+      },
+      locale,
+    ) as T;
   }
 
   private normalizeNarrativeValue(value: unknown): string {
@@ -263,13 +433,10 @@ export class NatalChartService {
       );
 
     // Save chart with interpretation (including version) + metadata (fingerprint)
-    const chartWithInterpretation = this.withInterpretationLocale(
-      {
-        ...natalChartData,
-        interpretation,
-        interpretationVersion: 'v3',
-      },
+    const chartWithInterpretation = this.withLocalizedInterpretation(
+      natalChartData,
       locale,
+      interpretation,
     );
     chartWithInterpretation.metadata = {
       ...chartWithInterpretation.metadata,
@@ -375,13 +542,10 @@ export class NatalChartService {
             locale,
           );
 
-        const updatedData = this.withInterpretationLocale(
-          {
-            ...newNatal,
-            interpretation: newInterp,
-            interpretationVersion: 'v3',
-          },
+        const updatedData = this.withLocalizedInterpretation(
+          newNatal,
           locale,
+          newInterp,
         );
         updatedData.metadata = {
           ...updatedData.metadata,
@@ -435,18 +599,19 @@ export class NatalChartService {
       }
     }
 
-    const storedLocale = this.resolveStoredInterpretationLocale(chartData);
+    const localizedInterpretation = this.getLocalizedInterpretation(
+      chartData,
+      locale,
+    );
     const hasCurrentInterpretationVersion =
       chartData.interpretationVersion === 'v3' ||
       chartData.interpretationVersion === 'v3-ai' ||
-      chartData.interpretationVersion === 'ai-v1';
+      chartData.interpretationVersion === 'ai-v1' ||
+      Boolean(localizedInterpretation);
 
     // 2) If interpretation is missing, outdated, or in a different locale — regenerate
-    if (
-      !chartData.interpretation ||
-      !hasCurrentInterpretationVersion ||
-      storedLocale !== locale
-    ) {
+    if (!localizedInterpretation || !hasCurrentInterpretationVersion) {
+      const storedLocale = this.resolveStoredInterpretationLocale(chartData);
       this.logger.log(
         `Regenerating interpretation for user ${userId} (version: ${chartData.interpretationVersion || 'none'}, storedLocale: ${storedLocale || 'unknown'}, requestedLocale: ${locale})`,
       );
@@ -461,13 +626,10 @@ export class NatalChartService {
       const derivedFingerprint = existingFingerprint;
 
       // Update chart with interpretation and version (preserve metadata)
-      const updatedData = this.withInterpretationLocale(
-        {
-          ...chartData,
-          interpretation,
-          interpretationVersion: 'v3',
-        },
+      const updatedData = this.withLocalizedInterpretation(
+        chartData,
         locale,
+        interpretation,
       );
       updatedData.metadata = {
         ...updatedData.metadata,
@@ -516,7 +678,7 @@ export class NatalChartService {
     return {
       id: chart.id,
       userId: chart.user_id,
-      data: chartData,
+      data: this.toLocalizedChartData(chartData, locale),
       createdAt: chart.created_at,
       updatedAt: chart.updated_at,
     };
@@ -565,6 +727,12 @@ export class NatalChartService {
     if ('interpretation' in sanitizedData) {
       delete sanitizedData.interpretation;
     }
+    if ('interpretations' in sanitizedData) {
+      delete sanitizedData.interpretations;
+    }
+    if ('aiInterpretations' in sanitizedData) {
+      delete sanitizedData.aiInterpretations;
+    }
 
     return {
       id: chart.id,
@@ -602,11 +770,19 @@ export class NatalChartService {
     const payloadLocation =
       typeof data?.latitude === 'number' &&
       typeof data?.longitude === 'number' &&
-      typeof data?.timezone === 'number'
+      (typeof data?.timezone === 'number' || typeof data?.timezone === 'string')
         ? {
             latitude: data.latitude,
             longitude: data.longitude,
-            timezone: data.timezone,
+            timezone:
+              typeof data.timezone === 'number'
+                ? data.timezone
+                : this.parseTimezoneOffset(
+                    data.timezone,
+                    birthPlaceInput ?? undefined,
+                    birthDateInput ?? undefined,
+                    birthTimeInput ?? undefined,
+                  ),
           }
         : null;
 
@@ -671,18 +847,19 @@ export class NatalChartService {
       birthPlaceInput,
     );
 
-    const chartWithInterpretation = this.withInterpretationLocale(
-      {
-        ...natalChartData,
-        interpretation,
-        interpretationVersion: 'v3',
-      },
+    const chartWithInterpretation = this.withLocalizedInterpretation(
+      natalChartData,
       locale,
+      interpretation,
     );
     chartWithInterpretation.metadata = {
       ...chartWithInterpretation.metadata,
       fingerprint,
       calculationVersion: 'utc-fixed-v2',
+      birthTimeKnown: data?.birthTimeKnown !== false,
+      locationSource: payloadLocation
+        ? 'client-selected-city'
+        : 'server-geocode',
     };
 
     // Save chart via repository
@@ -1074,13 +1251,10 @@ export class NatalChartService {
       );
 
     // Update chart with interpretation and version
-    const updatedData = this.withInterpretationLocale(
-      {
-        ...chartData,
-        interpretation,
-        interpretationVersion: 'v3',
-      },
+    const updatedData = this.withLocalizedInterpretation(
+      chartData,
       locale,
+      interpretation,
     );
 
     await this.chartRepository.update(chart.id, { data: updatedData });
@@ -1100,6 +1274,7 @@ export class NatalChartService {
   async regenerateAiInterpretation(
     userId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
+    force = false,
   ): Promise<void> {
     const chart = await this.chartRepository.findByUserId(userId);
 
@@ -1107,7 +1282,13 @@ export class NatalChartService {
       throw new NotFoundException('Natal chart not found');
     }
 
-    await this.attachAiNarrativeToChart(chart.id, chart.data, userId, locale);
+    await this.attachAiNarrativeToChart(
+      chart.id,
+      chart.data,
+      userId,
+      locale,
+      force,
+    );
 
     try {
       await this.redis.deleteByPattern(`horoscope:${userId}:*`);
@@ -1153,13 +1334,24 @@ export class NatalChartService {
     chartData: any,
     userId: string,
     locale: 'ru' | 'en' | 'es',
+    force = false,
   ): Promise<void> {
     if (!this.aiService.isAvailable()) {
       this.logger.warn(`AI not available for chart enhancement user=${userId}`);
       return;
     }
 
-    let baseInterpretation = chartData?.interpretation;
+    const cachedAi = this.getLocalizedAiInterpretation(chartData, locale);
+    if (cachedAi?.narrative && !force) {
+      const updatedData = this.toLocalizedChartData(chartData, locale);
+      await this.chartRepository.update(chartId, { data: updatedData });
+      this.logger.debug(
+        `Using cached AI natal interpretation for user=${userId}, locale=${locale}`,
+      );
+      return;
+    }
+
+    let baseInterpretation = this.getLocalizedInterpretation(chartData, locale);
     if (!baseInterpretation || typeof baseInterpretation !== 'object') {
       baseInterpretation =
         await this.interpretationService.generateNatalChartInterpretation(
@@ -1193,23 +1385,20 @@ export class NatalChartService {
     const aiNarrative = this.normalizeNarrativeValue(rawAiNarrative);
 
     const aiGeneratedAt = new Date().toISOString();
-    const interpretation = {
-      ...baseInterpretation,
+    const chartWithBaseInterpretation = this.withLocalizedInterpretation(
+      chartData,
+      locale,
+      baseInterpretation,
+    );
+    const updatedData = this.withLocalizedAiInterpretation(
+      chartWithBaseInterpretation,
+      locale,
       aiNarrative,
-      premiumNarrative: aiNarrative,
       aiGeneratedAt,
-      generatedBy: 'ai',
-    };
-
-    const updatedData = {
-      ...chartData,
-      interpretation,
-      interpretationVersion: 'v3-ai',
-      generatedBy: 'ai',
-    };
+    );
 
     await this.chartRepository.update(chartId, {
-      data: this.withInterpretationLocale(updatedData, locale),
+      data: updatedData,
     });
   }
 
@@ -1264,13 +1453,10 @@ export class NatalChartService {
       );
 
     const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
-    const updatedData = this.withInterpretationLocale(
-      {
-        ...natalChartData,
-        interpretation,
-        interpretationVersion: 'v3',
-      },
+    const updatedData = this.withLocalizedInterpretation(
+      natalChartData,
       locale,
+      interpretation,
     );
     updatedData.metadata = {
       ...updatedData.metadata,

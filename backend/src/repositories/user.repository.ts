@@ -105,10 +105,12 @@ export class UserRepository implements IUserRepository {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+      const preparedInsertPayload =
+        this.supabase.prepareUserProfileWritePayload(insertPayload);
 
       const { data: created, error } = await admin
         .from('users')
-        .insert(insertPayload)
+        .insert(preparedInsertPayload)
         .select()
         .single();
 
@@ -116,7 +118,9 @@ export class UserRepository implements IUserRepository {
         throw new DataAccessError('Failed to create user', error);
       }
 
-      return this.normalizeUserData(created);
+      return this.normalizeUserData(
+        this.supabase.normalizeUserProfileRecord(created),
+      );
     } catch (error) {
       this.logger.error(`Failed to create user ${data.id}`, error);
       throw error instanceof DataAccessError
@@ -136,10 +140,12 @@ export class UserRepository implements IUserRepository {
         ...data,
         updated_at: new Date().toISOString(),
       };
+      const preparedUpdatePayload =
+        this.supabase.prepareUserProfileWritePayload(updatePayload);
 
       const { data: updated, error } = await admin
         .from('users')
-        .update(updatePayload)
+        .update(preparedUpdatePayload)
         .eq('id', userId)
         .select()
         .single();
@@ -148,7 +154,9 @@ export class UserRepository implements IUserRepository {
         throw new DataAccessError('Failed to update user', error);
       }
 
-      return this.normalizeUserData(updated);
+      return this.normalizeUserData(
+        this.supabase.normalizeUserProfileRecord(updated),
+      );
     } catch (error) {
       this.logger.error(`Failed to update user ${userId}`, error);
       throw error instanceof DataAccessError
@@ -196,6 +204,9 @@ export class UserRepository implements IUserRepository {
       birth_date: raw.birth_date || null,
       birth_time: raw.birth_time || null,
       birth_place: raw.birth_place || null,
+      birth_date_encrypted: raw.birth_date_encrypted || null,
+      birth_time_encrypted: raw.birth_time_encrypted || null,
+      birth_place_encrypted: raw.birth_place_encrypted || null,
       onboarding_completed: raw.onboarding_completed ?? null,
       gender: raw.gender || null,
       city: raw.city || null,

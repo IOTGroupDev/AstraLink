@@ -12,6 +12,7 @@ export class UserSignupCompletedEvent {
       latitude?: number;
       longitude?: number;
       timezone?: string;
+      birthTimeKnown?: boolean;
     },
   ) {}
 }

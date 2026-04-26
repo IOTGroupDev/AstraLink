@@ -72,7 +72,7 @@ export class ChatNotificationsService {
     const admin = this.supabaseService.getAdminClient();
     const { data, error } = await admin
       .from('users')
-      .select('name, email')
+      .select('name')
       .eq('id', senderId)
       .maybeSingle();
 
@@ -83,10 +83,6 @@ export class ChatNotificationsService {
     const name = typeof data.name === 'string' ? data.name.trim() : '';
     if (name) {
       return name;
-    }
-
-    if (typeof data.email === 'string' && data.email.includes('@')) {
-      return data.email.split('@')[0];
     }
 
     return 'AstraLink';

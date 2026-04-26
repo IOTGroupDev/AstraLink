@@ -119,13 +119,12 @@ export default function OnboardingFourthScreen() {
         country: selectedCity.country || '',
         latitude: selectedCity.lat,
         longitude: selectedCity.lon,
+        timezone: selectedCity.tzid,
       });
     } else {
       setBirthPlaceInStore({
         city: placeClean,
         country: '',
-        latitude: 0,
-        longitude: 0,
       });
     }
 
@@ -158,6 +157,10 @@ export default function OnboardingFourthScreen() {
         birthDate,
         birthTime,
         birthPlace: resolvedBirthPlace,
+        latitude: selectedCity?.lat,
+        longitude: selectedCity?.lon,
+        timezone: selectedCity?.tzid,
+        birthTimeKnown: !dontKnowTime,
       });
 
       await authAPI.completeSignup({

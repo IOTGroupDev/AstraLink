@@ -27,6 +27,7 @@ export class UserSignupListener {
         latitude: event.birthData.latitude,
         longitude: event.birthData.longitude,
         timezone: event.birthData.timezone,
+        birthTimeKnown: event.birthData.birthTimeKnown,
       });
 
       this.logger.log(

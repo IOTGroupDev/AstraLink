@@ -45,7 +45,11 @@ export async function readHoroscopeScreenCache(
       buildHoroscopeScreenCacheKey(userId)
     );
     if (!raw) return null;
-    return JSON.parse(raw) as HoroscopeScreenCachePayload;
+    const parsed = JSON.parse(raw) as HoroscopeScreenCachePayload;
+    return {
+      ...parsed,
+      chart: null,
+    };
   } catch {
     return null;
   }
@@ -56,9 +60,13 @@ export async function writeHoroscopeScreenCache(
   payload: HoroscopeScreenCachePayload
 ): Promise<void> {
   if (!canPersistHoroscopeCache) return;
+  const cachePayload: HoroscopeScreenCachePayload = {
+    ...payload,
+    chart: null,
+  };
   await AsyncStorage.setItem(
     buildHoroscopeScreenCacheKey(userId),
-    JSON.stringify(payload)
+    JSON.stringify(cachePayload)
   );
 }
 

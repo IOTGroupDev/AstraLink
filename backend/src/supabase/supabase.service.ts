@@ -1,13 +1,17 @@
 import { Injectable, OnModuleInit, Inject, Logger } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { RedisService } from '../redis/redis.service';
+import { SensitiveProfileEncryptionService } from '@/common/services/sensitive-profile-encryption.service';
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   private readonly logger = new Logger(SupabaseService.name);
   public readonly client: SupabaseClient; // Добавь public
 
-  constructor(@Inject(RedisService) private readonly redis: RedisService) {
+  constructor(
+    @Inject(RedisService) private readonly redis: RedisService,
+    private readonly sensitiveProfileEncryption: SensitiveProfileEncryptionService,
+  ) {
     this.client = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
@@ -435,23 +439,31 @@ export class SupabaseService implements OnModuleInit {
       .select('*')
       .eq('id', userId)
       .single();
-    return { data, error };
+    return {
+      data: data ? this.normalizeUserProfileRecord(data) : data,
+      error,
+    };
   }
 
   /**
    * Обновить профиль пользователя (с учетом RLS)
    */
   async updateUserProfile(userId: string, profileData: any) {
+    const preparedProfileData =
+      this.prepareUserProfileWritePayload(profileData);
     const { data, error } = await this.supabase
       .from('users')
       .update({
-        ...profileData,
+        ...preparedProfileData,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
       .select()
       .single();
-    return { data, error };
+    return {
+      data: data ? this.normalizeUserProfileRecord(data) : data,
+      error,
+    };
   }
 
   // ==================== User Profile Methods (Admin) ====================
@@ -463,27 +475,43 @@ export class SupabaseService implements OnModuleInit {
     const { data, error } = await this.getAdminClient()
       .from('users')
       .select(
-        'id, email, name, birth_date, birth_time, birth_place, onboarding_completed, created_at, updated_at',
+        'id, email, name, birth_date, birth_time, birth_place, birth_date_encrypted, birth_time_encrypted, birth_place_encrypted, onboarding_completed, created_at, updated_at',
       )
       .eq('id', userId)
       .single();
-    return { data, error };
+    return {
+      data: data ? this.normalizeUserProfileRecord(data) : data,
+      error,
+    };
   }
 
   /**
    * Обновить профиль пользователя через админа (обходит RLS)
    */
   async updateUserProfileAdmin(userId: string, profileData: any) {
+    const preparedProfileData =
+      this.prepareUserProfileWritePayload(profileData);
     const { data, error } = await this.getAdminClient()
       .from('users')
       .update({
-        ...profileData,
+        ...preparedProfileData,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
       .select()
       .single();
-    return { data, error };
+    return {
+      data: data ? this.normalizeUserProfileRecord(data) : data,
+      error,
+    };
+  }
+
+  prepareUserProfileWritePayload<T extends Record<string, any>>(payload: T): T {
+    return this.sensitiveProfileEncryption.prepareBirthDataForStorage(payload);
+  }
+
+  normalizeUserProfileRecord<T extends Record<string, any>>(payload: T): T {
+    return this.sensitiveProfileEncryption.hydrateBirthData(payload);
   }
 
   // ==================== Chart Methods (RLS) ====================

@@ -36,6 +36,32 @@ export class DatingService {
     private compatibilityQueue: Queue,
   ) {}
 
+  private normalizeSensitiveUserFields<T extends UserData | null | undefined>(
+    user: T,
+  ): T {
+    if (!user) {
+      return user;
+    }
+
+    return this.supabaseService.normalizeUserProfileRecord(user) as T;
+  }
+
+  private sanitizeCandidateData(candidateData: Record<string, unknown> | null) {
+    return {
+      partnerId:
+        typeof candidateData?.partnerId === 'string'
+          ? candidateData.partnerId
+          : 'unknown',
+      partnerName:
+        typeof candidateData?.partnerName === 'string'
+          ? candidateData.partnerName
+          : typeof candidateData?.name === 'string'
+            ? candidateData.name
+            : 'Кандидат',
+      sign: typeof candidateData?.sign === 'string' ? candidateData.sign : null,
+    };
+  }
+
   // Helpers for improved matching
 
   private getAgeFromBirthDate(birthDate?: string | Date | null): number | null {
@@ -397,13 +423,16 @@ export class DatingService {
       const usersMap = new Map<string, any>(
         users.map((u: any) => [
           u.id,
-          {
+          this.normalizeSensitiveUserFields({
             id: u.id,
             name: u.name,
-            email: u.email,
             birth_date: u.birth_date,
+            birth_time: u.birth_time,
             birth_place: u.birth_place,
-          },
+            birth_date_encrypted: u.birth_date_encrypted,
+            birth_time_encrypted: u.birth_time_encrypted,
+            birth_place_encrypted: u.birth_place_encrypted,
+          }),
         ]),
       );
 
@@ -499,8 +528,7 @@ export class DatingService {
 
         const age = this.getAgeFromBirthDate(u?.birth_date);
 
-        const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
-        const displayName = p?.display_name ?? u?.name ?? emailPrefix ?? null;
+        const displayName = p?.display_name ?? u?.name ?? null;
 
         // Parse interests using utility function
         const interests = parseInterests(p?.preferences);
@@ -515,7 +543,7 @@ export class DatingService {
           zodiacSign: sunSign,
           bio: p?.bio ?? null,
           interests,
-          city: p?.city ?? u?.birth_place ?? null,
+          city: p?.city ?? null,
           lookingFor: p?.lookingFor ?? null,
           lastActive: p?.lastActive ?? null,
         };
@@ -535,9 +563,12 @@ export class DatingService {
           select: {
             id: true,
             name: true,
-            email: true,
             birth_date: true,
+            birth_time: true,
             birth_place: true,
+            birth_date_encrypted: true,
+            birth_time_encrypted: true,
+            birth_place_encrypted: true,
             created_at: true,
           },
         });
@@ -565,7 +596,10 @@ export class DatingService {
           });
 
           const usersById = new Map<string, UserData>(
-            moreUsers.map((u: any) => [u.id, u as UserData]),
+            moreUsers.map((u: any) => [
+              u.id,
+              this.normalizeSensitiveUserFields(u as UserData),
+            ]),
           );
 
           const profilesById = new Map<string, UserProfile>();
@@ -641,9 +675,7 @@ export class DatingService {
             const p = profilesById.get(uid);
             const ch = chartsById.get(uid);
 
-            const emailPrefix = u?.email ? String(u.email).split('@')[0] : null;
-            const displayName =
-              p?.display_name ?? u?.name ?? emailPrefix ?? null;
+            const displayName = p?.display_name ?? u?.name ?? null;
 
             const age = this.getAgeFromBirthDate(u?.birth_date);
             const sunSign =
@@ -665,7 +697,7 @@ export class DatingService {
               zodiacSign: sunSign ?? null,
               bio: p?.bio ?? null,
               interests,
-              city: p?.city ?? u?.birth_place ?? null,
+              city: p?.city ?? null,
               lookingFor: p?.lookingFor ?? null,
               lastActive: p?.lastActive ?? null,
             });
@@ -761,8 +793,6 @@ export class DatingService {
       .add('calculate-synastry', {
         userChartId,
         candidateChartId,
-        userChartData,
-        candidateChartData,
       })
       .catch((err) =>
         this.logger.warn(
@@ -798,19 +828,24 @@ export class DatingService {
       (filters?.city && filters.city.trim().length > 0)
     );
 
-    const mapToResponse = (m: any): DatingMatchResponse => ({
-      id: m.id,
-      partnerId: m.candidateData?.partnerId ?? 'unknown',
-      partnerName:
-        m.candidateData?.partnerName ?? m.candidateData?.name ?? 'Кандидат',
-      compatibility: m.compatibility ?? 0,
-      status: m.rejected ? 'rejected' : m.liked ? 'accepted' : 'pending',
-      details: m.candidateData ?? {},
-      createdAt:
-        typeof m.createdAt === 'string'
-          ? m.createdAt
-          : (m.createdAt as Date).toISOString(),
-    });
+    const mapToResponse = (m: any): DatingMatchResponse => {
+      const details = this.sanitizeCandidateData(
+        (m.candidateData as Record<string, unknown> | null) ?? null,
+      );
+
+      return {
+        id: m.id,
+        partnerId: details.partnerId,
+        partnerName: details.partnerName,
+        compatibility: m.compatibility ?? 0,
+        status: m.rejected ? 'rejected' : m.liked ? 'accepted' : 'pending',
+        details,
+        createdAt:
+          typeof m.createdAt === 'string'
+            ? m.createdAt
+            : (m.createdAt as Date).toISOString(),
+      };
+    };
 
     // 1) Кэш — только если нет фильтров
     if (!hasFilters) {
@@ -872,6 +907,10 @@ export class DatingService {
 
     // ✅ ОПТИМИЗАЦИЯ: Фильтрация ПЕРЕД расчётом совместимости
     const filteredCandidates = candidates.filter((c: any) => {
+      const candidateUser = this.normalizeSensitiveUserFields(
+        c.users as UserData | null | undefined,
+      );
+
       // Фильтр по гендеру (учитываем взаимные предпочтения)
       try {
         const cProfile = c.users?.profile || c.profile;
@@ -885,15 +924,15 @@ export class DatingService {
       // Фильтр по городу
       if (filters?.city) {
         const city = filters.city.trim().toLowerCase();
-        const birthPlace = c.users?.birth_place
-          ? String(c.users.birth_place).trim().toLowerCase()
+        const birthPlace = candidateUser?.birth_place
+          ? String(candidateUser.birth_place).trim().toLowerCase()
           : '';
         if (!birthPlace || birthPlace !== city) return false;
       }
 
       // Фильтр по возрасту
       if (filters?.ageMin != null || filters?.ageMax != null) {
-        const age = this.getAgeFromBirthDate(c.users?.birth_date);
+        const age = this.getAgeFromBirthDate(candidateUser?.birth_date);
         if (age != null) {
           if (filters?.ageMin != null && age < filters.ageMin) return false;
           if (filters?.ageMax != null && age > filters.ageMax) return false;
@@ -920,6 +959,10 @@ export class DatingService {
       // Параллельная обработка батча с Promise.all()
       const batchResults = await Promise.allSettled(
         batch.map(async (c: any) => {
+          const candidateUser = this.normalizeSensitiveUserFields(
+            c.users as UserData | null | undefined,
+          );
+
           // ✅ ОПТИМИЗАЦИЯ: Use cached synastry instead of calculating every time
           const syn = await this.getCachedSynastry(
             selfChart.id,
@@ -941,17 +984,12 @@ export class DatingService {
             c.data as unknown as ChartData,
           );
 
-          const partnerName =
-            c.users?.name || c.users?.email?.split('@')?.[0] || 'Кандидат';
+          const partnerName = candidateUser?.name || 'Кандидат';
           const sunSign = c.data?.planets?.sun?.sign ?? undefined;
 
           const candidateData = {
             partnerId: c.userId,
             partnerName,
-            email: c.users?.email,
-            birthDate: c.users?.birth_date ?? null,
-            birthTime: c.users?.birth_time ?? null,
-            birthPlace: c.users?.birth_place ?? null,
             sign: sunSign,
           };
 
@@ -1074,13 +1112,16 @@ export class DatingService {
       };
     }
 
-    const user = {
+    const user = this.normalizeSensitiveUserFields({
       id: userData.id,
       name: userData.name,
-      email: userData.email,
       birth_date: userData.birth_date,
+      birth_time: userData.birth_time,
       birth_place: userData.birth_place,
-    };
+      birth_date_encrypted: userData.birth_date_encrypted,
+      birth_time_encrypted: userData.birth_time_encrypted,
+      birth_place_encrypted: userData.birth_place_encrypted,
+    });
 
     const profile = userData.profile
       ? {
@@ -1119,10 +1160,8 @@ export class DatingService {
     };
     const age = getAge(user?.birth_date ?? null);
 
-    // Имя: приоритет display_name из профиля, затем users.name, затем email prefix
-    const emailPrefix = user?.email ? String(user.email).split('@')[0] : null;
-    const displayName =
-      profile?.display_name ?? user?.name ?? emailPrefix ?? null;
+    // Имя: приоритет display_name из профиля, затем users.name.
+    const displayName = profile?.display_name ?? user?.name ?? null;
 
     // Знак: приоритет профиля, затем карты
     const chartData = chart?.data;
@@ -1262,7 +1301,7 @@ export class DatingService {
       zodiacSign: sunSign ?? null,
       bio: profile?.bio ?? null,
       interests,
-      city: profile?.city ?? user?.birth_place ?? null,
+      city: profile?.city ?? null,
       lookingFor: profile?.lookingFor ?? null,
       lastActive: profile?.lastActive ?? null,
       primaryPhotoUrl,

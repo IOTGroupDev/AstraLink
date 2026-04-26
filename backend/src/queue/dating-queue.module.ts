@@ -4,6 +4,7 @@ import { QueueModule } from './queue.module';
 import { CompatibilityCalculatorProcessor } from './processors/compatibility-calculator.processor';
 import { RedisModule } from '@/redis/redis.module';
 import { ServicesModule } from '@/services/services.module';
+import { PrismaModule } from '@/prisma/prisma.module';
 
 /**
  * Dating Queue Module
@@ -20,6 +21,7 @@ import { ServicesModule } from '@/services/services.module';
     QueueModule,
     RedisModule,
     ServicesModule,
+    PrismaModule,
     BullModule.registerQueue({
       name: 'compatibility-calculation',
     }),

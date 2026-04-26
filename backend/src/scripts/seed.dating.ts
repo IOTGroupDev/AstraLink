@@ -5,6 +5,7 @@
 import 'dotenv/config';
 import { createClient, User } from '@supabase/supabase-js';
 import * as winston from 'winston';
+import { SensitiveProfileEncryptionService } from '@/common/services/sensitive-profile-encryption.service';
 
 type CityKey = 'Москва' | 'Санкт-Петербург' | 'Екатеринбург' | 'Новосибирск';
 
@@ -29,6 +30,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE) {
 }
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+const sensitiveProfileEncryption = new SensitiveProfileEncryptionService();
 
 // Набор городов должен совпадать с [ChartService.getLocationCoordinates()](../chart/chart.service.ts:856)
 const cities: CityKey[] = [
@@ -194,17 +196,18 @@ async function upsertProfile(
   birthPlace: CityKey,
 ) {
   // upsert профиль в public.users
+  const profilePayload = sensitiveProfileEncryption.prepareBirthDataForStorage({
+    id: user.id,
+    email: user.email,
+    name,
+    birth_date: birthDate,
+    birth_time: birthTime,
+    birth_place: birthPlace,
+    updated_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+  });
   const { error } = await admin.from('users').upsert(
-    {
-      id: user.id,
-      email: user.email,
-      name,
-      birth_date: birthDate,
-      birth_time: birthTime,
-      birth_place: birthPlace,
-      updated_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-    },
+    profilePayload,
     { onConflict: 'id' as any }, // supabase-js v2 тип onConflict: string
   );
 

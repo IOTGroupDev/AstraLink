@@ -782,29 +782,27 @@ export class ChatService {
       // игнорируем — фото опциональны
     }
 
-    // Подтянем имя/емейл собеседника для отображения (admin, обходит RLS)
+    // Подтянем имя собеседника для отображения (admin, обходит RLS)
     try {
       const otherIds = Array.from(map.keys());
       if (otherIds.length > 0) {
         const admin = this.supabaseService.getAdminClient();
         const { data: users, error: usersErr } = await admin
           .from('users')
-          .select('id, name, email')
+          .select('id, name')
           .in('id', otherIds);
 
         if (!usersErr && Array.isArray(users)) {
-          const byUser: Record<string, { name?: string; email?: string }> = {};
+          const byUser: Record<string, { name?: string }> = {};
           for (const u of users as User[]) {
-            if (u?.id) byUser[u.id] = { name: u?.name, email: u?.email };
+            if (u?.id) byUser[u.id] = { name: u?.name };
           }
           otherIds.forEach((uid) => {
             const conv = map.get(uid);
             if (!conv) return;
             const info = byUser[uid];
             if (!info) return;
-            const display =
-              (info.name && String(info.name).trim()) ||
-              (info.email ? String(info.email).split('@')[0] : null);
+            const display = info.name && String(info.name).trim();
             if (display) conv.displayName = display;
           });
         }

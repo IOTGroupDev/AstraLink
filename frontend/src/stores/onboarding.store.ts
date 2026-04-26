@@ -19,8 +19,9 @@ export interface OnboardingData {
   birthPlace?: {
     city: string;
     country: string;
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
+    timezone?: string;
   };
   isCompleted: boolean;
 }
@@ -33,8 +34,9 @@ interface OnboardingStore {
   setBirthPlace: (place: {
     city: string;
     country: string;
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
+    timezone?: string;
   }) => void;
   setCompleted: (completed: boolean) => void;
   reset: () => void;

@@ -3,6 +3,8 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { RedisService } from '@/redis/redis.service';
 import { EphemerisService } from '@/services/ephemeris.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import type { ChartData, SynastryData } from '@/dating/dating.types';
 
 /**
  * Compatibility Calculator Processor
@@ -19,17 +21,28 @@ import { EphemerisService } from '@/services/ephemeris.service';
 export interface CalculateSynastryJob {
   userChartId: string;
   candidateChartId: string;
-  userChartData: any;
-  candidateChartData: any;
   priority?: number;
 }
 
 export interface BatchCalculateJob {
-  userId: string;
-  userChartData: any;
+  userChartId: string;
   candidateChartIds: string[];
-  candidatesData: any[];
 }
+
+type BatchCalculateResult =
+  | {
+      candidateChartId: string;
+      cached: true;
+    }
+  | {
+      candidateChartId: string;
+      calculated: true;
+    }
+  | {
+      candidateChartId: string;
+      failed: true;
+      reason: 'chart_not_found';
+    };
 
 @Processor('compatibility-calculation')
 export class CompatibilityCalculatorProcessor {
@@ -41,7 +54,17 @@ export class CompatibilityCalculatorProcessor {
   constructor(
     private readonly redis: RedisService,
     private readonly ephemerisService: EphemerisService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  private async getChartData(chartId: string): Promise<ChartData | null> {
+    const chart = await this.prisma.chart.findUnique({
+      where: { id: chartId },
+      select: { data: true },
+    });
+
+    return (chart?.data as ChartData | undefined) ?? null;
+  }
 
   /**
    * Calculate synastry between two charts
@@ -49,8 +72,7 @@ export class CompatibilityCalculatorProcessor {
    */
   @Process('calculate-synastry')
   async handleCalculateSynastry(job: Job<CalculateSynastryJob>) {
-    const { userChartId, candidateChartId, userChartData, candidateChartData } =
-      job.data;
+    const { userChartId, candidateChartId } = job.data;
 
     try {
       this.logger.debug(
@@ -63,12 +85,24 @@ export class CompatibilityCalculatorProcessor {
 
       if (cached) {
         this.logger.debug(`Synastry already cached: ${cacheKey}`);
-        return { cached: true, result: cached };
+        return { cached: true, cacheKey };
+      }
+
+      const [userChartData, candidateChartData] = await Promise.all([
+        this.getChartData(userChartId),
+        this.getChartData(candidateChartId),
+      ]);
+
+      if (!userChartData || !candidateChartData) {
+        this.logger.warn(
+          `Cannot calculate synastry; chart data missing for ${userChartId} <-> ${candidateChartId}`,
+        );
+        return { success: false, reason: 'chart_not_found' };
       }
 
       // Calculate synastry
       const startTime = Date.now();
-      const synastry = await this.ephemerisService.getSynastry(
+      const synastry: SynastryData = await this.ephemerisService.getSynastry(
         userChartData,
         candidateChartData,
       );
@@ -85,7 +119,6 @@ export class CompatibilityCalculatorProcessor {
         success: true,
         cacheKey,
         duration,
-        result: synastry,
       };
     } catch (error) {
       this.logger.error(
@@ -102,22 +135,37 @@ export class CompatibilityCalculatorProcessor {
    */
   @Process('batch-calculate')
   async handleBatchCalculate(job: Job<BatchCalculateJob>) {
-    const { userId, userChartData, candidatesData } = job.data;
+    const { userChartId, candidateChartIds } = job.data;
 
     this.logger.log(
-      `Batch calculating synastry for user ${userId} with ${candidatesData.length} candidates`,
+      `Batch calculating synastry for chart ${userChartId} with ${candidateChartIds.length} candidates`,
     );
 
-    const results = [];
+    const results: BatchCalculateResult[] = [];
     let cached = 0;
     let calculated = 0;
     let failed = 0;
 
-    for (const candidate of candidatesData) {
+    const userChartData = await this.getChartData(userChartId);
+    if (!userChartData) {
+      this.logger.warn(
+        `Cannot batch calculate synastry; chart ${userChartId} not found`,
+      );
+      return {
+        success: false,
+        total: candidateChartIds.length,
+        cached,
+        calculated,
+        failed: candidateChartIds.length,
+        results,
+      };
+    }
+
+    for (const candidateChartId of candidateChartIds) {
       try {
         const cacheKey = this.getSynastryCacheKey(
-          userId,
-          candidate.chart_id || candidate.id,
+          userChartId,
+          candidateChartId,
         );
 
         // Check cache first
@@ -125,16 +173,27 @@ export class CompatibilityCalculatorProcessor {
         if (cachedResult) {
           cached++;
           results.push({
-            candidateId: candidate.chart_id || candidate.id,
+            candidateChartId,
             cached: true,
           });
           continue;
         }
 
+        const candidateChartData = await this.getChartData(candidateChartId);
+        if (!candidateChartData) {
+          failed++;
+          results.push({
+            candidateChartId,
+            failed: true,
+            reason: 'chart_not_found',
+          });
+          continue;
+        }
+
         // Calculate synastry
-        const synastry = await this.ephemerisService.getSynastry(
+        const synastry: SynastryData = await this.ephemerisService.getSynastry(
           userChartData,
-          candidate.chart_data || candidate.data,
+          candidateChartData,
         );
 
         // Cache result
@@ -142,32 +201,32 @@ export class CompatibilityCalculatorProcessor {
 
         calculated++;
         results.push({
-          candidateId: candidate.chart_id || candidate.id,
+          candidateChartId,
           calculated: true,
         });
       } catch (error) {
         failed++;
         this.logger.warn(
-          `Failed to calculate synastry for candidate ${candidate.chart_id || candidate.id}:`,
+          `Failed to calculate synastry for candidate chart ${candidateChartId}:`,
           error,
         );
       }
 
       // Update job progress
       const progress = Math.round(
-        (results.length / candidatesData.length) * 100,
+        (results.length / candidateChartIds.length) * 100,
       );
       await job.progress(progress);
     }
 
     this.logger.log(
-      `Batch calculation complete for user ${userId}: ` +
+      `Batch calculation complete for chart ${userChartId}: ` +
         `${cached} cached, ${calculated} calculated, ${failed} failed`,
     );
 
     return {
       success: true,
-      total: candidatesData.length,
+      total: candidateChartIds.length,
       cached,
       calculated,
       failed,

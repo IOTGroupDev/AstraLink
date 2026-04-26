@@ -40,7 +40,7 @@ export const getCachedPrimaryPhoto = async (
 
     return {
       url: parsed.url,
-      path: parsed.path ?? null,
+      path: null,
       expiresAt: parsed.expiresAt ?? null,
     };
   } catch {
@@ -66,7 +66,11 @@ export const setCachedPrimaryPhoto = async (
 
   await AsyncStorage.setItem(
     buildProfilePhotoCacheKey(userId),
-    JSON.stringify(snapshot)
+    JSON.stringify({
+      url: snapshot.url,
+      path: null,
+      expiresAt: snapshot.expiresAt ?? null,
+    })
   );
 };
 

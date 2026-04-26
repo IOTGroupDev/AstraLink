@@ -447,10 +447,12 @@ export class UserService {
         created_at: nowISO,
         updated_at: nowISO,
       };
+      const preparedInsertPayload =
+        this.supabaseService.prepareUserProfileWritePayload(insertPayload);
 
       const { data: inserted, error: insertErr } = await admin
         .from('users')
-        .insert(insertPayload)
+        .insert(preparedInsertPayload)
         .select()
         .single();
 
