@@ -14,7 +14,8 @@ export class AuthMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     // Публичные маршруты, которые не требуют авторизации
-    const publicRoutes = [
+    const exactPublicRoutes = ['/api'];
+    const prefixPublicRoutes = [
       '/api/auth/signup',
       '/api/auth/send-magic-link',
       '/api/auth/verify',
@@ -26,14 +27,14 @@ export class AuthMiddleware implements NestMiddleware {
       '/api/auth/yandex-callback',
       '/api/auth/complete-signup-OAuth',
       '/api/auth/ensure-profile',
-      '/api',
-      '/api/docs',
     ];
 
     // Проверяем, является ли маршрут публичным
-    const isPublicRoute = publicRoutes.some(
-      (route) => req.path === route || req.path.startsWith(route + '/'),
-    );
+    const isPublicRoute =
+      exactPublicRoutes.includes(req.path) ||
+      prefixPublicRoutes.some(
+        (route) => req.path === route || req.path.startsWith(route + '/'),
+      );
 
     if (isPublicRoute) {
       return next();

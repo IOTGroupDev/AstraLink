@@ -18,8 +18,8 @@ import {
 } from '@nestjs/swagger';
 import { ChartService } from './chart.service';
 import type { CreateNatalChartRequest, TransitRequest } from '@/types';
-import { Public } from '@/common/decorators/public.decorator';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { DevOnlyGuard } from '@/common/guards/dev-only.guard';
 import { ArchetypeService } from '@/chart/services/archetype.service';
 import { LunarService } from '@/services/lunar.service';
 import { getHeaderValue } from '@/common/utils/request-headers.util';
@@ -397,7 +397,7 @@ export class ChartController {
   }
 
   @Get('test')
-  @Public()
+  @UseGuards(DevOnlyGuard)
   @ApiOperation({ summary: 'Тестовый эндпоинт для проверки расчетов' })
   @ApiResponse({ status: 200, description: 'Тестовые данные' })
   async testChart() {

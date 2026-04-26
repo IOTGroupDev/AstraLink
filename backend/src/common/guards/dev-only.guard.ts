@@ -15,7 +15,7 @@ export class DevOnlyGuard implements CanActivate {
   constructor(private configService: ConfigService) {}
 
   canActivate(_context: ExecutionContext): boolean {
-    const env = this.configService.get<string>('NODE_ENV', 'development');
+    const env = this.configService.get<string>('NODE_ENV', 'production');
     const isDevelopment = env === 'development' || env === 'dev';
 
     if (!isDevelopment) {

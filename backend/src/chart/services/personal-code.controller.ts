@@ -18,6 +18,7 @@ import {
   CodePurpose,
 } from '../services/personal-code.service';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { DevOnlyGuard } from '@/common/guards/dev-only.guard';
 import { AuthenticatedRequest } from '@/types/auth';
 import { SubscriptionTier } from '@/types';
 import { getHeaderValue } from '@/common/utils/request-headers.util';
@@ -169,6 +170,7 @@ export class PersonalCodeController {
    * DEBUG ENDPOINT - Remove after fixing chart structure issue
    */
   @Get('debug/chart-structure')
+  @UseGuards(DevOnlyGuard)
   @ApiOperation({ summary: '[DEBUG] Показать структуру натальной карты' })
   async debugChartStructure(@Request() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
