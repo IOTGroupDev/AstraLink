@@ -4,6 +4,40 @@
   "positionsOn": "Positions on {{date}}",
   "loading": "Loading data...",
   "syncing": "Updating horoscope and interpretation...",
+  "hero": {
+    "getPremium": "Get premium",
+    "greeting": "Hello {{name}} 👋",
+    "greetingFallback": "Hello there 👋",
+    "title": "The cosmos for you",
+    "positionsOn": "Positions on {{date}}",
+    "todayFocus": "Today’s focus · {{date}}",
+    "summaryFallback": "Loading your personal day from your chart and current transits.",
+    "energy": "Energy",
+    "tone": "Day tone",
+    "tapHint": "Read full view",
+    "detailsTitle": "Day overview",
+    "detailSections": {
+      "focus": "Focus",
+      "summary": "Description",
+      "mainTransit": "Why",
+      "risk": "Watch point",
+      "keyWindow": "Key window"
+    },
+    "sign": "Sign",
+    "house": "House"
+  },
+  "quickHelp": {
+    "title": "How can I help you\ntoday?",
+    "actions": {
+      "dating": "Dating",
+      "advisor": "Advisor",
+      "natalChart": "Natal Chart",
+      "learning": "Learning",
+      "personalCode": "Personal code",
+      "horoscope": "Horoscope",
+      "cosmicSimulator": "Cosmic simulator"
+    }
+  },
   "energy": {
     "veryHigh": "Today is a great day for activity!",
     "high": "Good energy for achieving goals",

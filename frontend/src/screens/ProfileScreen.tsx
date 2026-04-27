@@ -132,20 +132,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     return 'My profile';
   }, [i18n.language]);
   const profileHeaderSubtitle = React.useMemo(() => {
-    const locale = String(i18n.language || 'en').toLowerCase();
-
-    if (locale.startsWith('ru')) {
-      return 'Профиль и карта';
-    }
-
-    if (locale.startsWith('es')) {
-      return 'Perfil y carta';
-    }
-
     return t('profile.headerSubtitle', {
-      defaultValue: 'Profile and chart',
+      defaultValue: 'Your chart, subscription, and cosmic settings.',
     });
-  }, [i18n.language, t]);
+  }, [t]);
 
   const navigateToRootScreen = React.useCallback(
     <T extends keyof RootStackParamList>(

@@ -24,8 +24,6 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
-import MaskedView from '@react-native-masked-view/masked-view';
 import { LunarCalendarWidget } from '../components/horoscope/LunarCalendarWidget';
 import EnergyWidget from '../components/horoscope/EnergyWidget';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
@@ -61,8 +59,6 @@ import {
   getBirthDateParts,
   normalizeBirthDateValue,
 } from '../utils/birthDate';
-import { StarSvg } from '../components/svg/moon-phase/Star';
-import { HouseSvg } from '../components/svg/moon-phase/House';
 import Svg, {
   Defs,
   Ellipse,
@@ -85,12 +81,6 @@ const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
   return 'en';
 };
 
-const normalizeZodiacKey = (sign: string): string => {
-  const raw = (sign || '').trim();
-  if (!raw) return '';
-  return raw.toLowerCase();
-};
-
 const getInitials = (name?: string, email?: string): string => {
   const source = (name || email || 'A').trim();
   const words = source.split(/\s+/).filter(Boolean);
@@ -98,22 +88,6 @@ const getInitials = (name?: string, email?: string): string => {
     return `${words[0][0]}${words[1][0]}`.toUpperCase();
   }
   return source.slice(0, 2).toUpperCase();
-};
-
-const HeroMetricIcon = ({ type }: { type: 'sign' | 'house' }) => {
-  const Icon = type === 'sign' ? StarSvg : HouseSvg;
-
-  return (
-    <View style={styles.heroMetricIconWrap}>
-      <MaskedView
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        maskElement={<Icon width={47} height={47} />}
-      >
-        <View style={styles.heroMetricIconFill} />
-      </MaskedView>
-    </View>
-  );
 };
 
 const ScrollTopGlow = () => (
@@ -151,13 +125,19 @@ const ScrollTopGlow = () => (
 );
 
 const QUICK_ACTIONS = [
-  { label: 'Dating', route: 'Dating' },
-  { label: 'Advisor', route: 'Advisor' },
-  { label: 'Natal Chart', route: 'NatalChart' },
-  { label: 'Learning', route: 'Learning' },
-  { label: 'Personal code', route: 'PersonalCode' },
-  { label: 'Horoscope', route: 'Horoscope' },
-  { label: 'Cosmic simulator', route: 'CosmicSimulator' },
+  { labelKey: 'horoscope.quickHelp.actions.dating', route: 'Dating' },
+  { labelKey: 'horoscope.quickHelp.actions.advisor', route: 'Advisor' },
+  { labelKey: 'horoscope.quickHelp.actions.natalChart', route: 'NatalChart' },
+  { labelKey: 'horoscope.quickHelp.actions.learning', route: 'Learning' },
+  {
+    labelKey: 'horoscope.quickHelp.actions.personalCode',
+    route: 'PersonalCode',
+  },
+  { labelKey: 'horoscope.quickHelp.actions.horoscope', route: 'Horoscope' },
+  {
+    labelKey: 'horoscope.quickHelp.actions.cosmicSimulator',
+    route: 'CosmicSimulator',
+  },
 ] as const;
 
 const HoroscopeScreen: React.FC = () => {
@@ -166,6 +146,8 @@ const HoroscopeScreen: React.FC = () => {
   const { height: windowHeight } = useWindowDimensions();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation();
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const horoscopeAnchorYRef = useRef(0);
   const scrollY = useRef(new Animated.Value(0)).current;
   const completedLessonIds = useCompletedLessonIds();
   const appLocale = React.useMemo((): 'ru' | 'en' | 'es' => {
@@ -183,14 +165,6 @@ const HoroscopeScreen: React.FC = () => {
     refetch: refetchSubscription,
     hasFeature,
   } = useSubscription();
-  const { data: moonPhase } = useQuery({
-    queryKey: ['moonPhase', i18n.language],
-    queryFn: () => chartAPI.getMoonPhase(undefined, getApiLocale()),
-    staleTime: 1000 * 60 * 60,
-    gcTime: 1000 * 60 * 60 * 24,
-    retry: 2,
-    enabled: isAuthenticated,
-  });
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const syncingRef = useRef(false);
 
@@ -205,6 +179,7 @@ const HoroscopeScreen: React.FC = () => {
   const [transitModalVisible, setTransitModalVisible] = useState(false);
   const [transitModalLoading, setTransitModalLoading] = useState(false);
   const [transitModalText, setTransitModalText] = useState('');
+  const [heroModalVisible, setHeroModalVisible] = useState(false);
   const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const predictionsAttemptedRef = useRef(false);
   const predictionsLoadingRef = useRef(false);
@@ -1017,6 +992,8 @@ const HoroscopeScreen: React.FC = () => {
     setTransitModalVisible(false);
     setTransitModalText('');
   };
+  const openHeroDetails = () => setHeroModalVisible(true);
+  const closeHeroDetails = () => setHeroModalVisible(false);
 
   // Нормализация данных для PlanetaryRecommendationWidget
   const natalPlanetsObj = React.useMemo(() => {
@@ -1046,26 +1023,10 @@ const HoroscopeScreen: React.FC = () => {
     }
   }, [currentPlanets]);
 
-  const moonPlanet = React.useMemo(() => {
-    if (Array.isArray(currentPlanets)) {
-      return currentPlanets.find(
-        (planet: any) => String(planet?.name || '').toLowerCase() === 'moon'
-      );
-    }
-
-    return currentPlanets?.moon ?? null;
-  }, [currentPlanets]);
-
-  const displayMoonSign = React.useMemo(() => {
-    const rawSign = String(moonPlanet?.sign || moonPhase?.sign || '');
-    const zodiacKey = normalizeZodiacKey(rawSign);
-    return zodiacKey
-      ? t(`common.zodiacSigns.${zodiacKey}`, { defaultValue: rawSign })
-      : '-';
-  }, [moonPhase?.sign, moonPlanet?.sign, t]);
-
-  const displayMoonHouse = String(moonPhase?.house || '-');
-  const greetingName = user?.name?.trim() || 'there';
+  const greetingName = user?.name?.trim();
+  const heroGreeting = greetingName
+    ? t('horoscope.hero.greeting', { name: greetingName })
+    : t('horoscope.hero.greetingFallback');
   const avatarInitials = getInitials(user?.name, user?.email);
   const positionsDate = new Date().toLocaleDateString(
     appLocale === 'ru' ? 'ru-RU' : appLocale === 'es' ? 'es-ES' : 'en-US',
@@ -1075,15 +1036,73 @@ const HoroscopeScreen: React.FC = () => {
       year: 'numeric',
     }
   );
+  const todayPrediction = predictions?.day;
+  const heroFocus = todayPrediction?.meta?.focus || t('horoscope.hero.title');
+  const heroSummary =
+    todayPrediction?.dailyContext?.summary ||
+    todayPrediction?.general ||
+    t('horoscope.hero.summaryFallback');
+  const heroTone =
+    todayPrediction?.meta?.tone || todayPrediction?.dailyContext?.tone;
+  const heroToneLabel = heroTone
+    ? t(`horoscope.widget.tones.${heroTone}`, { defaultValue: heroTone })
+    : t('horoscope.widget.tones.mixed');
+  const heroEnergyLabel =
+    typeof todayPrediction?.energy === 'number'
+      ? `${todayPrediction.energy}%`
+      : `${energyValue}%`;
+  const heroFullSummary = [
+    todayPrediction?.dailyContext?.summary,
+    todayPrediction?.general,
+    todayPrediction?.advice,
+  ].filter(Boolean);
+  const heroDetails = [
+    {
+      label: t('horoscope.hero.detailSections.focus'),
+      value: todayPrediction?.meta?.focus,
+    },
+    {
+      label: t('horoscope.hero.detailSections.summary'),
+      value: heroFullSummary.join('\n\n'),
+    },
+    {
+      label: t('horoscope.hero.detailSections.mainTransit'),
+      value:
+        todayPrediction?.mainTransit?.description ||
+        todayPrediction?.mainTransit?.name,
+    },
+    {
+      label: t('horoscope.hero.detailSections.risk'),
+      value: todayPrediction?.meta?.risk,
+    },
+    {
+      label: t('horoscope.hero.detailSections.keyWindow'),
+      value: todayPrediction?.meta?.keyWindow,
+    },
+  ].filter((item) => Boolean(item.value));
 
   const openProfile = React.useCallback(() => {
     (navigation as any).navigate('Profile');
   }, [navigation]);
+  const openSubscription = React.useCallback(() => {
+    (navigation as any).navigate('Subscription');
+  }, [navigation]);
+  const scrollToHoroscope = React.useCallback(() => {
+    scrollViewRef.current?.scrollTo?.({
+      y: Math.max(0, horoscopeAnchorYRef.current - 12),
+      animated: true,
+    });
+  }, []);
   const openQuickAction = React.useCallback(
     (route: (typeof QUICK_ACTIONS)[number]['route']) => {
+      if (route === 'Horoscope') {
+        scrollToHoroscope();
+        return;
+      }
+
       (navigation as any).navigate(route);
     },
-    [navigation]
+    [navigation, scrollToHoroscope]
   );
   const topFadeOpacity = scrollY.interpolate({
     inputRange: [0, windowHeight / 3],
@@ -1111,6 +1130,7 @@ const HoroscopeScreen: React.FC = () => {
       >
         <View style={styles.screen}>
           <Animated.ScrollView
+            ref={scrollViewRef}
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
@@ -1158,7 +1178,7 @@ const HoroscopeScreen: React.FC = () => {
 
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => undefined}
+                    onPress={openSubscription}
                     style={styles.premiumButton}
                   >
                     <GradientBorderView
@@ -1180,37 +1200,63 @@ const HoroscopeScreen: React.FC = () => {
                         experimentalBlurMethod="dimezisBlurView"
                         style={styles.premiumBlur}
                       >
-                        <Text style={styles.premiumText}>👑 Get premium</Text>
+                        <Text style={styles.premiumText}>
+                          👑 {t('horoscope.hero.getPremium')}
+                        </Text>
                       </BlurView>
                     </GradientBorderView>
                   </TouchableOpacity>
                 </View>
 
                 <Text style={styles.heroGreeting} numberOfLines={1}>
-                  Hello {greetingName} 👋
+                  {heroGreeting}
                 </Text>
-                <Text style={styles.heroTitle}>The cosmos for you</Text>
                 <Text style={styles.heroDate}>
-                  Posotions on {positionsDate}
+                  {t('horoscope.hero.todayFocus', { date: positionsDate })}
                 </Text>
+                <Pressable
+                  onPress={openHeroDetails}
+                  style={styles.heroFocusButton}
+                >
+                  <Text style={styles.heroTitle} numberOfLines={2}>
+                    {heroFocus}
+                  </Text>
+                  <View style={styles.heroTapHintRow}>
+                    <Text style={styles.heroTapHint}>
+                      {t('horoscope.hero.tapHint')}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={14}
+                      color="rgba(237, 164, 255, 0.9)"
+                    />
+                  </View>
+                </Pressable>
+                <Pressable onPress={openHeroDetails}>
+                  <Text style={styles.heroSummary} numberOfLines={2}>
+                    {heroSummary}
+                  </Text>
+                </Pressable>
 
                 <View style={styles.heroMetricRow}>
                   <View style={styles.heroMetric}>
-                    <HeroMetricIcon type="sign" />
                     <View style={styles.heroMetricText}>
-                      <Text style={styles.heroMetricLabel}>Sign</Text>
+                      <Text style={styles.heroMetricLabel}>
+                        {t('horoscope.hero.energy')}
+                      </Text>
                       <Text style={styles.heroMetricValue} numberOfLines={1}>
-                        {displayMoonSign}
+                        {heroEnergyLabel}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.heroMetric}>
-                    <HeroMetricIcon type="house" />
                     <View style={styles.heroMetricText}>
-                      <Text style={styles.heroMetricLabel}>House</Text>
+                      <Text style={styles.heroMetricLabel}>
+                        {t('horoscope.hero.tone')}
+                      </Text>
                       <Text style={styles.heroMetricValue} numberOfLines={1}>
-                        {displayMoonHouse}
+                        {heroToneLabel}
                       </Text>
                     </View>
                   </View>
@@ -1240,7 +1286,7 @@ const HoroscopeScreen: React.FC = () => {
                   />
                   <View style={styles.quickHelpContent}>
                     <Text style={styles.quickHelpTitle}>
-                      How can i help you{'\n'}today?
+                      {t('horoscope.quickHelp.title')}
                     </Text>
                     <View style={styles.quickActionGrid}>
                       {QUICK_ACTIONS.map((action) => (
@@ -1270,7 +1316,7 @@ const HoroscopeScreen: React.FC = () => {
                               style={styles.quickActionBlur}
                             >
                               <Text style={styles.quickActionText}>
-                                {action.label}
+                                {t(action.labelKey)}
                               </Text>
                             </BlurView>
                           </GradientBorderView>
@@ -1375,20 +1421,26 @@ const HoroscopeScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
 
-                {hasPredictionData ? (
-                  <HoroscopeWidget
-                    key={`horoscope-${appLocale}-${predictions?.day?.date || 'empty'}-${predictions?.week?.date || 'empty'}-${predictions?.month?.date || 'empty'}`}
-                    predictions={predictions}
-                  />
-                ) : !loading && predictionsAttemptedRef.current ? (
-                  <View style={styles.placeholder}>
-                    <Text style={styles.placeholderText}>
-                      {t('horoscope.errors.failedToLoad')}
-                    </Text>
-                  </View>
-                ) : (
-                  <HoroscopeWidgetSkeleton />
-                )}
+                <View
+                  onLayout={(event) => {
+                    horoscopeAnchorYRef.current = event.nativeEvent.layout.y;
+                  }}
+                >
+                  {hasPredictionData ? (
+                    <HoroscopeWidget
+                      key={`horoscope-${appLocale}-${predictions?.day?.date || 'empty'}-${predictions?.week?.date || 'empty'}-${predictions?.month?.date || 'empty'}`}
+                      predictions={predictions}
+                    />
+                  ) : !loading && predictionsAttemptedRef.current ? (
+                    <View style={styles.placeholder}>
+                      <Text style={styles.placeholderText}>
+                        {t('horoscope.errors.failedToLoad')}
+                      </Text>
+                    </View>
+                  ) : (
+                    <HoroscopeWidgetSkeleton />
+                  )}
+                </View>
 
                 {/* Виджет Биоритмы */}
                 {biorhythms && (
@@ -1447,11 +1499,8 @@ const HoroscopeScreen: React.FC = () => {
         visible={transitModalVisible}
         onRequestClose={closeTransitModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={closeTransitModal}>
-          <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             <LinearGradient
               colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
               start={{ x: 0, y: 0.44 }}
@@ -1470,7 +1519,10 @@ const HoroscopeScreen: React.FC = () => {
               <ScrollView
                 style={styles.modalScroll}
                 contentContainerStyle={styles.modalScrollContent}
+                scrollEnabled={true}
                 showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
               >
                 {transitModalLoading ? (
                   <View style={styles.modalLoading}>
@@ -1484,8 +1536,50 @@ const HoroscopeScreen: React.FC = () => {
                 )}
               </ScrollView>
             </LinearGradient>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={heroModalVisible}
+        onRequestClose={closeHeroDetails}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
+              start={{ x: 0, y: 0.44 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.modalGradient}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {t('horoscope.hero.detailsTitle')}
+                </Text>
+                <Pressable onPress={closeHeroDetails}>
+                  <Text style={styles.modalClose}>×</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
+                scrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+              >
+                {heroDetails.map((item) => (
+                  <View key={item.label} style={styles.heroDetailBlock}>
+                    <Text style={styles.heroDetailLabel}>{item.label}</Text>
+                    <Text style={styles.modalText}>{item.value}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </LinearGradient>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -1528,7 +1622,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   heroContainer: {
-    gap: 2,
+    gap: 6,
   },
   heroTopRow: {
     height: 64,
@@ -1585,64 +1679,82 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   heroGreeting: {
+    marginTop: 18,
     color: '#FFFFFF',
-    fontSize: 36,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '500',
   },
   heroTitle: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 24,
-    fontWeight: '400',
-    letterSpacing: 0.24,
+    color: '#FFFFFF',
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: '600',
+    letterSpacing: 0,
+    marginTop: 10,
+  },
+  heroFocusButton: {
+    gap: 4,
+  },
+  heroTapHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  heroTapHint: {
+    color: 'rgba(237, 164, 255, 0.9)',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
   },
   heroDate: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
+    color: 'rgba(237, 164, 255, 0.9)',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  heroSummary: {
+    color: 'rgba(255, 255, 255, 0.76)',
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: '400',
-    letterSpacing: 0.16,
   },
   heroMetricRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingTop: 20,
+    paddingTop: 8,
   },
   heroMetric: {
     flex: 1,
     minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    minHeight: 58,
     borderRadius: 12,
-  },
-  heroMetricIconWrap: {
-    width: 47,
-    height: 47,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-  heroMetricIconFill: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(241, 196, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   heroMetricText: {
     flex: 1,
     minWidth: 0,
-    height: 44,
     justifyContent: 'center',
+    gap: 4,
   },
   heroMetricLabel: {
     color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    fontWeight: '400',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   heroMetricValue: {
     color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22,
   },
   // Контент
   contentContainer: {
@@ -1821,7 +1933,6 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 520,
-    maxHeight: '80%',
     height: '80%',
     minHeight: 260,
     borderRadius: 20,
@@ -1838,13 +1949,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 20,
+    flexShrink: 0,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(237, 164, 255, 0.2)',
   },
   modalTitle: {
+    flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
+    paddingRight: 12,
   },
   modalClose: {
     fontSize: 28,
@@ -1853,16 +1967,28 @@ const styles = StyleSheet.create({
   },
   modalScroll: {
     flex: 1,
+    minHeight: 0,
   },
   modalScrollContent: {
     padding: 20,
     paddingBottom: 28,
-    flexGrow: 1,
   },
   modalText: {
     fontSize: 16,
     lineHeight: 24,
     color: '#FFFFFF',
+  },
+  heroDetailBlock: {
+    marginBottom: 20,
+    gap: 8,
+  },
+  heroDetailLabel: {
+    color: 'rgba(237, 164, 255, 0.9)',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   modalLoading: {
     flexDirection: 'row',
