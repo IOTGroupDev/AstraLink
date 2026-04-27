@@ -1,4 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, Matches } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsNumber,
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import { Sanitize } from '@/common/decorators/sanitize.decorator';
 
 export class CompleteSignupDto {
@@ -29,4 +39,26 @@ export class CompleteSignupDto {
   @IsString()
   @IsOptional()
   birthPlace?: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  @IsOptional()
+  latitude?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  @IsOptional()
+  longitude?: number;
+
+  @IsString()
+  @IsOptional()
+  timezone?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  birthTimeKnown?: boolean;
 }

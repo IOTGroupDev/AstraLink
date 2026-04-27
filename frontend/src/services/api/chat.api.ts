@@ -5,6 +5,15 @@ import type {
 } from '../../types/chat';
 
 export const chatAPI = {
+  getMediaUploadUrl: async (params?: {
+    ext?: string;
+  }): Promise<{ path: string; signedUrl: string; token: string }> => {
+    const response = await api.post('/chat/media/upload-url', {
+      ext: params?.ext,
+    });
+    return response.data;
+  },
+
   listConversations: async (
     limit = 50
   ): Promise<
@@ -35,6 +44,7 @@ export const chatAPI = {
       text: string | null;
       mediaPath: string | null;
       createdAt: string;
+      mediaUrl?: string | null;
     }>
   > => {
     const response = await api.get(

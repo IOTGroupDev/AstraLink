@@ -13,6 +13,7 @@ interface TabScreenLayoutProps {
   scrollable?: boolean;
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
   contentContainerStyle?: any;
+  showCosmicBackground?: boolean;
 }
 
 export const TabScreenLayout = React.memo(function TabScreenLayout({
@@ -20,6 +21,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
   scrollable = true,
   edges = ['top', 'left', 'right'],
   contentContainerStyle,
+  showCosmicBackground = true,
 }: TabScreenLayoutProps) {
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const bottomSpacing = Math.max(56, tabBarHeight + 28);
@@ -60,7 +62,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
 
   return (
     <SafeAreaView style={styles.container} edges={edges}>
-      <CosmicBackground active={isFocused} />
+      {showCosmicBackground && <CosmicBackground active={isFocused} />}
       <Animated.View entering={entering} style={styles.animatedContainer}>
         {content}
       </Animated.View>
@@ -72,6 +74,7 @@ export const TabScreenLayout = React.memo(function TabScreenLayout({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#080E1C',
   },
   animatedContainer: {
     flex: 1,

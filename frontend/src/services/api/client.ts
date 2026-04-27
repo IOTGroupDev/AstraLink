@@ -145,9 +145,21 @@ function getNormalizedLocale(): 'ru' | 'en' | 'es' {
   return 'en';
 }
 
+function getSafeRequestLabel(config: {
+  method?: string;
+  url?: string;
+}): string {
+  const method = config.method?.toUpperCase() ?? 'GET';
+  const path =
+    String(config.url ?? '')
+      .split('?')[0]
+      .split('#')[0] || '/';
+  return `${method} ${path}`;
+}
+
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
-  const fullUrl = `${(config as any).baseURL ?? ''}${config.url ?? ''}`;
+  const requestLabel = getSafeRequestLabel(config);
   const locale = getNormalizedLocale();
 
   (config.headers as any)['x-locale'] = locale;
@@ -160,21 +172,21 @@ api.interceptors.request.use(async (config) => {
 
   // Для публичных эндпоинтов токен не нужен
   if (isPublic) {
-    apiLogger.log('🌐 Public endpoint, no token required:', fullUrl);
+    apiLogger.log('🌐 Public endpoint, no token required:', requestLabel);
     return config;
   }
 
   // Для защищенных эндпоинтов требуем токен
-  apiLogger.log('🔍 Получение токена для запроса:', fullUrl);
+  apiLogger.log('🔍 Получение токена для запроса:', requestLabel);
 
   try {
     const token = await getAccessTokenWithRetry();
 
     if (token) {
       (config.headers as any).Authorization = `Bearer ${token}`;
-      apiLogger.log('🔐 Добавлен токен к запросу:', fullUrl);
+      apiLogger.log('🔐 Добавлен токен к запросу:', requestLabel);
     } else {
-      apiLogger.error('❌ No token for protected endpoint:', fullUrl);
+      apiLogger.error('❌ No token for protected endpoint:', requestLabel);
       // Отменяем запрос, если нет токена для защищенного эндпоинта
       return Promise.reject(
         new Error('Authentication required but no token available')
@@ -192,10 +204,10 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const fullUrl = `${error?.config?.baseURL ?? ''}${error?.config?.url ?? ''}`;
+    const requestLabel = getSafeRequestLabel(error?.config ?? {});
     const status = error?.response?.status ?? 'ERR';
     apiLogger.error(
-      `❌ HTTP ${status} for ${fullUrl}`,
+      `❌ HTTP ${status} for ${requestLabel}`,
       error?.response?.data ?? error?.message
     );
 

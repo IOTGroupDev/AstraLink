@@ -14,8 +14,8 @@ import { ConfigService } from '@nestjs/config';
 export class DevOnlyGuard implements CanActivate {
   constructor(private configService: ConfigService) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const env = this.configService.get<string>('NODE_ENV', 'development');
+  canActivate(_context: ExecutionContext): boolean {
+    const env = this.configService.get<string>('NODE_ENV', 'production');
     const isDevelopment = env === 'development' || env === 'dev';
 
     if (!isDevelopment) {

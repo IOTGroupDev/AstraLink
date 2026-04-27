@@ -24,7 +24,6 @@ import { AdvisorModule } from './advisor/advisor.module';
 import { ChatModule } from './chat/chat.module';
 import { AIModule } from './ai/ai.module';
 import { HealthModule } from '@/health/health.module';
-import { DebugController } from '@/debug/debug.controller';
 import { CommonModule } from './common/common.module';
 import { QueueModule } from './queue/queue.module';
 import { GeoModule } from './modules/geo/geo.module';
@@ -80,7 +79,7 @@ import { GeoModule } from './modules/geo/geo.module';
     HealthModule,
     GeoModule,
   ],
-  controllers: [AppController, DebugController],
+  controllers: [AppController],
   providers: [
     AppService,
     // Global rate limiting guard

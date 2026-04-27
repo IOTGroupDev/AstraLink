@@ -312,7 +312,21 @@ function buildBiorhythmSummaryText(
   const caution = getChannelSummary(weakest[0], weakest[2], locale);
 
   if (locale === 'ru') {
-    return `${phaseLead[locale][values.overallPhase]}: сильнее всего сейчас ${body}, а внимательнее стоит отнестись к тому, что ${caution}.`;
+    const ruLead = {
+      peak: 'Сегодня общий ритм на пике.',
+      high: 'Сегодня общий ритм сильный.',
+      rising: 'Сегодня ритм постепенно набирает силу.',
+      critical: 'Сегодня переходный день: возможны перепады ресурса.',
+      falling: 'Сегодня ритм постепенно снижается.',
+      low: 'Сегодня лучше замедлиться и беречь силы.',
+    } as const;
+    const ruChannelNames = {
+      physical: 'физический ресурс',
+      emotional: 'эмоциональный фон',
+      intellectual: 'умственный фокус',
+    } as const;
+
+    return `${ruLead[values.overallPhase]} Сильнее всего поддерживает ${ruChannelNames[strongest[0]]}: ${body}. Зона внимания: ${ruChannelNames[weakest[0]]}: ${caution}.`;
   }
   if (locale === 'es') {
     return `${phaseLead[locale][values.overallPhase]}: ahora destaca que ${body}, y conviene vigilar que ${caution}.`;

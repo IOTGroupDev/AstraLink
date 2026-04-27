@@ -5,7 +5,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PrismaService
@@ -47,7 +46,7 @@ export class PrismaService
     if (process.env.NODE_ENV === 'development') {
       this.$on('query' as never, (e: any) => {
         this.logger.debug(`Query: ${e.query}`);
-        this.logger.debug(`Params: ${e.params}`);
+        this.logger.debug('Params: [REDACTED]');
         this.logger.debug(`Duration: ${e.duration}ms`);
       });
     }

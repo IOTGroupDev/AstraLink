@@ -77,7 +77,7 @@ model Subscription {
   @@index([expiresAt])
   @@index([isCancelled])
   @@index([userId, expiresAt]) // Composite index для проверки активных подписок
-  @@index([tier, expiresAt])    // Composite index для статистики по тарифам
+  @@index([tier, expiresAt]) // Composite index для статистики по тарифам
   @@map("subscriptions")
   @@schema("public")
 }
@@ -145,6 +145,28 @@ model FeatureUsage {
   @@index([featureName])
   @@index([usedAt])
   @@map("feature_usage")
+  @@schema("public")
+}
+
+model AiContentCache {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  contentType      String    @map("content_type")
+  subjectKey       String    @map("subject_key")
+  locale           String
+  chartFingerprint String    @map("chart_fingerprint")
+  promptVersion    String    @map("prompt_version")
+  provider         String?
+  contentJson      Json      @map("content_json")
+  generatedAt      DateTime  @default(now()) @map("generated_at")
+  expiresAt        DateTime? @map("expires_at")
+
+  @@unique([userId, contentType, subjectKey, locale, chartFingerprint, promptVersion])
+  @@index([userId])
+  @@index([contentType])
+  @@index([expiresAt])
+  @@index([userId, contentType, locale])
+  @@map("ai_content_cache")
   @@schema("public")
 }
 
@@ -515,22 +537,25 @@ model auth_users {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model public_users {
-  id             String        @id
-  email          String        @unique
-  name           String?
-  birth_date     DateTime?
-  birth_time     String?
-  birth_place    String?
-  onboarding_completed Boolean      @default(false)
-  role           String        @default("user")
-  created_at     DateTime      @default(now())
-  updated_at     DateTime      @default(now())
-  charts         Chart[]
-  connections    Connection[]
-  dating_matches DatingMatch[]
-  subscriptions  Subscription?
-  photos         UserPhoto[]
-  profile        UserProfile?
+  id                    String        @id
+  email                 String        @unique
+  name                  String?
+  birth_date            DateTime?
+  birth_time            String?
+  birth_place           String?
+  birth_date_encrypted  String?
+  birth_time_encrypted  String?
+  birth_place_encrypted String?
+  onboarding_completed  Boolean       @default(false)
+  role                  String        @default("user")
+  created_at            DateTime      @default(now())
+  updated_at            DateTime      @default(now())
+  charts                Chart[]
+  connections           Connection[]
+  dating_matches        DatingMatch[]
+  subscriptions         Subscription?
+  photos                UserPhoto[]
+  profile               UserProfile?
 
   @@index([created_at])
   @@index([email])

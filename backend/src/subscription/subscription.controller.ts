@@ -16,7 +16,7 @@ import {
   ApiProperty,
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
-import { IsEnum, IsOptional, IsIn, IsString } from 'class-validator';
+import { IsOptional, IsIn, IsString } from 'class-validator';
 import * as jwt from 'jsonwebtoken';
 import { SubscriptionService } from './subscription.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
@@ -98,6 +98,17 @@ export class UpgradeSubscriptionResponseDto {
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
+  private resolveLocale(req: AuthenticatedRequest): 'ru' | 'en' | 'es' {
+    const localeHeader =
+      (req.headers?.['x-locale'] as string | undefined) ||
+      req.headers?.['accept-language'];
+    const normalized = localeHeader?.toLowerCase() || '';
+
+    if (normalized.startsWith('es')) return 'es';
+    if (normalized.startsWith('en')) return 'en';
+    return 'ru';
+  }
+
   private getUserId(req: AuthenticatedRequest): string {
     // 1) Попробуем взять из guard-а
     const direct = req.user?.userId || req.user?.id;
@@ -157,7 +168,10 @@ export class SubscriptionController {
   @ApiResponse({ status: 200, description: 'Trial активирован' })
   @ApiResponse({ status: 400, description: 'Trial уже был использован' })
   async activateTrial(@Request() req: AuthenticatedRequest) {
-    return this.subscriptionService.activateTrial(this.getUserId(req));
+    return this.subscriptionService.activateTrial(
+      this.getUserId(req),
+      this.resolveLocale(req),
+    );
   }
 
   /**
@@ -186,21 +200,12 @@ export class SubscriptionController {
         ? pmRaw
         : 'mock';
 
-    const localeHeader =
-      (req.headers?.['x-locale'] as string | undefined) ||
-      req.headers?.['accept-language'];
-    const locale = localeHeader?.toLowerCase().startsWith('es')
-      ? 'es'
-      : localeHeader?.toLowerCase().startsWith('en')
-        ? 'en'
-        : 'ru';
-
     return this.subscriptionService.upgrade(
       this.getUserId(req),
       tierStr as SubscriptionTier,
       paymentMethod,
       upgradeData?.transactionId,
-      locale,
+      this.resolveLocale(req),
     );
   }
 

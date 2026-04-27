@@ -27,6 +27,10 @@ export class ChartService {
   // Cache TTL in seconds (5 minutes)
   private readonly SUBSCRIPTION_CACHE_TTL = 5 * 60;
 
+  private getSubscriptionCacheKey(userId: string): string {
+    return `subscription:record:${userId}`;
+  }
+
   constructor(
     private prisma: PrismaService,
     private horoscopeService: HoroscopeGeneratorService,
@@ -50,7 +54,7 @@ export class ChartService {
    * Теперь работает в multi-instance deployment
    */
   private async getCachedSubscription(userId: string) {
-    const cacheKey = `subscription:${userId}`;
+    const cacheKey = this.getSubscriptionCacheKey(userId);
 
     // Try to get from Redis cache
     const cached = await this.redis.get<any>(cacheKey);
@@ -90,6 +94,16 @@ export class ChartService {
     }
 
     return false;
+  }
+
+  private hasPremiumNarrative(chartData: any): boolean {
+    return Boolean(
+      chartData?.interpretationVersion === 'v3-ai' ||
+        chartData?.generatedBy === 'ai' ||
+        chartData?.interpretation?.generatedBy === 'ai' ||
+        chartData?.interpretation?.aiNarrative ||
+        chartData?.interpretation?.premiumNarrative,
+    );
   }
 
   // ============================================================
@@ -135,10 +149,34 @@ export class ChartService {
     userId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
-    return this.natalChartService.getNatalChartWithInterpretation(
+    const chart = await this.natalChartService.getNatalChartWithInterpretation(
       userId,
       locale,
     );
+
+    const subscription = await this.getCachedSubscription(userId);
+    if (!this.isPremiumSubscription(subscription)) {
+      return chart;
+    }
+
+    if (this.hasPremiumNarrative(chart?.data)) {
+      return chart;
+    }
+
+    try {
+      await this.natalChartService.regenerateAiInterpretation(userId, locale);
+      return await this.natalChartService.getNatalChartWithInterpretation(
+        userId,
+        locale,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to ensure premium natal AI narrative for user ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return chart;
+    }
   }
 
   /**
@@ -462,7 +500,11 @@ export class ChartService {
       }
 
       // 3. Regenerate interpretation with AI
-      await this.natalChartService.regenerateAiInterpretation(userId, locale);
+      await this.natalChartService.regenerateAiInterpretation(
+        userId,
+        locale,
+        true,
+      );
 
       // 4. Update ai_generated_at timestamp using Prisma
       await this.prisma.chart.updateMany({

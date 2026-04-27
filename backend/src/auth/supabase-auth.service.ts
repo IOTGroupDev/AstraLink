@@ -20,6 +20,26 @@ import { UserSignupCompletedEvent } from '@/auth/events';
 const DEFAULT_UNKNOWN_BIRTH_TIME = '12:00';
 const DEFAULT_YANDEX_OAUTH_PROVIDER = 'custom:yandex';
 
+function toSafeLogMeta(error: unknown): Record<string, unknown> {
+  if (!error || typeof error !== 'object') {
+    return { message: String(error) };
+  }
+
+  const source = error as {
+    name?: unknown;
+    message?: unknown;
+    status?: unknown;
+    code?: unknown;
+  };
+
+  return {
+    name: source.name,
+    message: typeof source.message === 'string' ? source.message : undefined,
+    status: source.status,
+    code: source.code,
+  };
+}
+
 @Injectable()
 export class SupabaseAuthService {
   private readonly logger = new Logger(SupabaseAuthService.name);
@@ -49,11 +69,14 @@ export class SupabaseAuthService {
     );
 
     if (!url || error) {
-      this.logger.error(`❌ Ошибка генерации ${provider} OAuth ссылки`, error);
+      this.logger.error(
+        `❌ Ошибка генерации ${provider} OAuth ссылки`,
+        toSafeLogMeta(error),
+      );
       throw new BadRequestException('Не удалось создать OAuth ссылку');
     }
 
-    this.logger.log(`🔗 ${provider} OAuth ссылка сгенерирована: ${url}`);
+    this.logger.log(`🔗 ${provider} OAuth ссылка сгенерирована`);
     return { url };
   }
 
@@ -78,7 +101,7 @@ export class SupabaseAuthService {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('Send magic link error:', error);
+      this.logger.error('Send magic link error:', toSafeLogMeta(error));
       throw new BadRequestException('Ошибка отправки магической ссылки');
     }
   }
@@ -120,7 +143,7 @@ export class SupabaseAuthService {
           } catch (error) {
             this.logger.error(
               'Error creating natal chart during login:',
-              error,
+              toSafeLogMeta(error),
             );
           }
         }
@@ -144,7 +167,7 @@ export class SupabaseAuthService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      this.logger.error('Verify magic link error:', error);
+      this.logger.error('Verify magic link error:', toSafeLogMeta(error));
       throw new UnauthorizedException('Ошибка верификации');
     }
   }
@@ -164,7 +187,7 @@ export class SupabaseAuthService {
       }
       const birthDateStorageIso = this.birthDateToStorageIso(birthDateOnly);
 
-      this.logger.log('🔍 Starting signup for:', signupDto.email);
+      this.logger.log('🔍 Starting signup request');
 
       // 1) Проверяем, не существует ли уже пользователь в нашей таблице
       const { data: existingProfile } = await this.supabaseService
@@ -183,39 +206,39 @@ export class SupabaseAuthService {
       const { data: created, error: createError } =
         await this.supabaseService.createUserWithoutPassword(signupDto.email, {
           name: signupDto.name,
-          birth_date: birthDateStorageIso,
-          birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-          birth_place: signupDto.birthPlace || 'Moscow',
         });
 
       if (createError || !created?.user) {
-        this.logger.error('Create user error:', createError);
+        this.logger.error('Create user error:', toSafeLogMeta(createError));
         throw new BadRequestException('Ошибка создания пользователя');
       }
 
       const userId = created.user.id;
       const userEmail = created.user.email || signupDto.email;
 
-      this.logger.log('✅ User created in auth.users:', userId);
+      this.logger.log('✅ User created in auth.users');
 
       // 3) Создаем профиль пользователя
+      const profilePayload =
+        this.supabaseService.prepareUserProfileWritePayload({
+          id: userId,
+          email: userEmail,
+          name: signupDto.name,
+          birth_date: birthDateStorageIso,
+          birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
+          birth_place: signupDto.birthPlace || 'Moscow',
+          updated_at: new Date().toISOString(),
+        });
+
       const { error: profileError } = await this.supabaseService
         .fromAdmin('users')
-        .upsert(
-          {
-            id: userId,
-            email: userEmail,
-            name: signupDto.name,
-            birth_date: birthDateStorageIso,
-            birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-            birth_place: signupDto.birthPlace || 'Moscow',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' },
-        );
+        .upsert(profilePayload, { onConflict: 'id' });
 
       if (profileError) {
-        this.logger.error('Error creating user profile:', profileError);
+        this.logger.error(
+          'Error creating user profile:',
+          toSafeLogMeta(profileError),
+        );
         await this.supabaseService.deleteUser(userId);
         throw new BadRequestException('Ошибка создания профиля пользователя');
       }
@@ -236,7 +259,7 @@ export class SupabaseAuthService {
       } catch (chartError) {
         this.logger.error(
           'Error creating natal chart (non-blocking):',
-          chartError,
+          toSafeLogMeta(chartError),
         );
       }
 
@@ -245,7 +268,10 @@ export class SupabaseAuthService {
         await this.supabaseService.sendVerificationEmail(userEmail);
 
       if (emailError) {
-        this.logger.warn('⚠️ Ошибка отправки verification email:', emailError);
+        this.logger.warn(
+          '⚠️ Ошибка отправки verification email:',
+          toSafeLogMeta(emailError),
+        );
       }
 
       this.logger.log('🎉 Signup completed successfully');
@@ -261,7 +287,7 @@ export class SupabaseAuthService {
       ) {
         throw error;
       }
-      this.logger.error('Signup error:', error);
+      this.logger.error('Signup error:', toSafeLogMeta(error));
       throw new BadRequestException('Ошибка регистрации');
     }
   }
@@ -292,10 +318,7 @@ export class SupabaseAuthService {
     try {
       const { user: userData } = data;
 
-      this.logger.log(
-        `🔍 Обработка ${provider} OAuth callback для:`,
-        userData.email,
-      );
+      this.logger.log(`🔍 Обработка ${provider} OAuth callback`);
 
       // 1. Проверяем существует ли профиль пользователя
       const { data: existingProfile } =
@@ -322,7 +345,10 @@ export class SupabaseAuthService {
                 existingProfile.birth_place,
               );
             } catch (error) {
-              this.logger.error('Error creating natal chart:', error);
+              this.logger.error(
+                'Error creating natal chart:',
+                toSafeLogMeta(error),
+              );
             }
           }
         }
@@ -350,21 +376,26 @@ export class SupabaseAuthService {
       const { data: newProfile, error: profileError } =
         await this.supabaseService
           .fromAdmin('users')
-          .insert({
-            id: userData.id,
-            email: userData.email,
-            name: userData.name || 'Пользователь',
-            birth_date: null,
-            birth_time: null,
-            birth_place: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          .insert(
+            this.supabaseService.prepareUserProfileWritePayload({
+              id: userData.id,
+              email: userData.email,
+              name: userData.name || 'Пользователь',
+              birth_date: null,
+              birth_time: null,
+              birth_place: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }),
+          )
           .select()
           .single();
 
       if (profileError) {
-        this.logger.error('❌ Ошибка создания профиля:', profileError);
+        this.logger.error(
+          '❌ Ошибка создания профиля:',
+          toSafeLogMeta(profileError),
+        );
         throw new BadRequestException('Ошибка создания профиля пользователя');
       }
 
@@ -389,7 +420,7 @@ export class SupabaseAuthService {
         access_token: data.access_token,
       };
     } catch (error) {
-      this.logger.error(`❌ ${provider} callback error:`, error);
+      this.logger.error(`❌ ${provider} callback error:`, toSafeLogMeta(error));
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -407,10 +438,18 @@ export class SupabaseAuthService {
         throw new BadRequestException('User ID is required');
       }
 
-      const { name, birthDate, birthTime, birthPlace } = dto;
+      const {
+        name,
+        birthDate,
+        birthTime,
+        birthPlace,
+        latitude,
+        longitude,
+        timezone,
+        birthTimeKnown,
+      } = dto;
 
-      this.logger.log('📝 Completing signup for user:', userId);
-      this.logger.log(`📝 Completing signup payload: ${JSON.stringify(dto)}`);
+      this.logger.log('📝 Completing signup for authenticated user');
 
       // Валидация даты рождения
       const birthDateOnly = this.normalizeBirthDateInput(birthDate);
@@ -437,7 +476,7 @@ export class SupabaseAuthService {
         } catch (authLookupErr) {
           this.logger.warn(
             '⚠️ Failed to lookup auth user for missing profile',
-            authLookupErr,
+            toSafeLogMeta(authLookupErr),
           );
         }
 
@@ -451,7 +490,7 @@ export class SupabaseAuthService {
           } catch (tokenLookupErr) {
             this.logger.warn(
               '⚠️ Failed to lookup auth user by access token',
-              tokenLookupErr,
+              toSafeLogMeta(tokenLookupErr),
             );
           }
         }
@@ -470,7 +509,7 @@ export class SupabaseAuthService {
           const { error: upsertErr } = await this.supabaseService
             .fromAdmin('users')
             .upsert(
-              {
+              this.supabaseService.prepareUserProfileWritePayload({
                 id: userId,
                 email: authEmail,
                 name: name || authEmail.split('@')[0] || 'User',
@@ -478,7 +517,7 @@ export class SupabaseAuthService {
                 birth_time: null,
                 birth_place: null,
                 updated_at: new Date().toISOString(),
-              },
+              }),
               { onConflict: 'id' },
             );
 
@@ -498,16 +537,18 @@ export class SupabaseAuthService {
 
             const { error: insertErr } = await this.supabaseService
               .fromAdmin('users')
-              .insert({
-                id: userId,
-                email: authEmail,
-                name: name || authEmail.split('@')[0] || 'User',
-                birth_date: null,
-                birth_time: null,
-                birth_place: null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
+              .insert(
+                this.supabaseService.prepareUserProfileWritePayload({
+                  id: userId,
+                  email: authEmail,
+                  name: name || authEmail.split('@')[0] || 'User',
+                  birth_date: null,
+                  birth_time: null,
+                  birth_place: null,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                }),
+              );
 
             if (!insertErr) {
               const retry =
@@ -515,10 +556,16 @@ export class SupabaseAuthService {
               existingProfile = retry.data ?? null;
               checkError = retry.error;
             } else {
-              this.logger.warn('⚠️ Manual profile insert failed:', insertErr);
+              this.logger.warn(
+                '⚠️ Manual profile insert failed:',
+                toSafeLogMeta(insertErr),
+              );
             }
           } else {
-            this.logger.warn('⚠️ Manual profile upsert failed:', upsertErr);
+            this.logger.warn(
+              '⚠️ Manual profile upsert failed:',
+              toSafeLogMeta(upsertErr),
+            );
           }
         }
       }
@@ -538,7 +585,10 @@ export class SupabaseAuthService {
         });
 
       if (updateError) {
-        this.logger.error('Error updating user profile:', updateError);
+        this.logger.error(
+          'Error updating user profile:',
+          toSafeLogMeta(updateError),
+        );
         throw new BadRequestException('Ошибка обновления профиля');
       }
 
@@ -557,7 +607,7 @@ export class SupabaseAuthService {
       if (onboardingFlagError) {
         this.logger.error(
           'Error updating onboarding_completed in public.users:',
-          onboardingFlagError,
+          toSafeLogMeta(onboardingFlagError),
         );
         throw new BadRequestException('Ошибка обновления статуса онбординга');
       }
@@ -575,7 +625,7 @@ export class SupabaseAuthService {
       if (extendedProfileError) {
         this.logger.error(
           'Error updating is_onboarded in public.user_profiles:',
-          extendedProfileError,
+          toSafeLogMeta(extendedProfileError),
         );
         throw new BadRequestException('Ошибка обновления расширенного профиля');
       }
@@ -602,13 +652,17 @@ export class SupabaseAuthService {
             birthDate: birthDateOnly,
             birthTime: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
             birthPlace: birthPlace || 'Moscow',
+            latitude,
+            longitude,
+            timezone,
+            birthTimeKnown,
           }),
         );
         this.logger.log('🛰️ Natal chart creation scheduled in background');
       } catch (scheduleError) {
         this.logger.error(
           'Error scheduling natal chart creation (non-blocking):',
-          scheduleError,
+          toSafeLogMeta(scheduleError),
         );
       }
 
@@ -633,7 +687,7 @@ export class SupabaseAuthService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.error('Complete signup error:', error);
+      this.logger.error('Complete signup error:', toSafeLogMeta(error));
       throw new BadRequestException('Ошибка завершения регистрации');
     }
   }
@@ -648,7 +702,7 @@ export class SupabaseAuthService {
     email: string,
   ): Promise<{ success: boolean }> {
     try {
-      this.logger.log('🔍 Checking if user profile exists:', userId);
+      this.logger.log('🔍 Checking if user profile exists');
 
       // Check if profile exists
       const { data: existingProfile } =
@@ -664,16 +718,18 @@ export class SupabaseAuthService {
       // Create profile in public.users
       const { error: profileError } = await this.supabaseService
         .fromAdmin('users')
-        .insert({
-          id: userId,
-          email: email,
-          name: email.split('@')[0] || 'User',
-          birth_date: null,
-          birth_time: null,
-          birth_place: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+        .insert(
+          this.supabaseService.prepareUserProfileWritePayload({
+            id: userId,
+            email: email,
+            name: email.split('@')[0] || 'User',
+            birth_date: null,
+            birth_time: null,
+            birth_place: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        );
 
       if (profileError) {
         // Ignore duplicate key errors (profile was created by trigger or race condition)
@@ -683,7 +739,10 @@ export class SupabaseAuthService {
           );
           return { success: true };
         }
-        this.logger.error('❌ Error creating user profile:', profileError);
+        this.logger.error(
+          '❌ Error creating user profile:',
+          toSafeLogMeta(profileError),
+        );
         throw new BadRequestException('Failed to create user profile');
       }
 
@@ -694,7 +753,7 @@ export class SupabaseAuthService {
 
       return { success: true };
     } catch (error) {
-      this.logger.error('❌ ensureUserProfile error:', error);
+      this.logger.error('❌ ensureUserProfile error:', toSafeLogMeta(error));
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -773,7 +832,7 @@ export class SupabaseAuthService {
       if (subscriptionError) {
         this.logger.error(
           'Error creating subscription (non-blocking):',
-          subscriptionError,
+          toSafeLogMeta(subscriptionError),
         );
       } else {
         this.logger.log('✅ Free subscription with trial created');
@@ -781,7 +840,7 @@ export class SupabaseAuthService {
     } catch (subscriptionError) {
       this.logger.error(
         'Error creating subscription (non-blocking):',
-        subscriptionError,
+        toSafeLogMeta(subscriptionError),
       );
     }
   }

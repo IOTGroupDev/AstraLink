@@ -11,6 +11,7 @@ import { LunarService, type LunarDay, type MoonPhase } from './lunar.service';
 import { ChartRepository } from '../repositories';
 import { AIService } from './ai.service';
 import { RedisService } from '../redis/redis.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { LIMITS } from '../config/limits.config';
 import {
   PlanetKey,
@@ -102,7 +103,8 @@ export interface HoroscopePrediction {
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
-  private readonly horoscopeFormatVersion = 'fmt-v6';
+  private readonly horoscopeFormatVersion = 'fmt-v7';
+  private readonly rollingMonthTtlSec = 30 * 24 * 60 * 60;
   private readonly inflightPremium = new Map<
     string,
     Promise<HoroscopePrediction>
@@ -114,6 +116,7 @@ export class HoroscopeGeneratorService {
     private lunarService: LunarService,
     private redis: RedisService,
     private chartRepository: ChartRepository,
+    private prisma: PrismaService,
   ) {}
 
   /**
@@ -134,6 +137,9 @@ export class HoroscopeGeneratorService {
         return {
           chartData: chart.data as ChartData,
           foundVia: 'repository',
+          chartRevision: this.normalizeChartRevision(
+            chart.updated_at || chart.created_at || chart.id,
+          ),
         };
       }
 
@@ -145,6 +151,228 @@ export class HoroscopeGeneratorService {
       this.logger.error('ChartRepository lookup failed:', errorMessage);
       return { chartData: null, foundVia: 'none' };
     }
+  }
+
+  private normalizeChartRevision(value: unknown): string {
+    const raw =
+      value instanceof Date
+        ? value.toISOString()
+        : typeof value === 'string' || typeof value === 'number'
+          ? String(value)
+          : 'unknown';
+
+    return raw.replace(/[^a-zA-Z0-9_-]/g, '-');
+  }
+
+  private buildCacheKey(
+    userId: string,
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    dateKey: string,
+    locale: 'ru' | 'en' | 'es',
+    isPremium: boolean,
+    chartRevision = 'unknown',
+  ): string {
+    const cachePeriod =
+      period === 'day' || period === 'tomorrow'
+        ? 'daily'
+        : period === 'month'
+          ? 'month-rolling'
+          : period;
+    const cacheDateKey = period === 'month' ? 'current' : dateKey;
+
+    return [
+      'horoscope',
+      userId,
+      cachePeriod,
+      cacheDateKey,
+      locale,
+      isPremium ? 'premium' : 'free',
+      chartRevision,
+      this.horoscopeFormatVersion,
+    ].join(':');
+  }
+
+  private getCacheTtlSec(
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    periodTtlSec: number,
+  ): number {
+    if (period === 'month') {
+      return this.rollingMonthTtlSec;
+    }
+
+    return periodTtlSec;
+  }
+
+  private getPersistentContentType(
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+  ): string | null {
+    if (period === 'day' || period === 'tomorrow') {
+      return 'horoscope_daily';
+    }
+    if (period === 'month') {
+      return 'horoscope_month';
+    }
+
+    return null;
+  }
+
+  private getPersistentSubjectKey(
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    dateKey: string,
+  ): string {
+    return period === 'month' ? 'rolling-current' : dateKey;
+  }
+
+  private getExpiresAt(ttlSec: number): Date {
+    return new Date(Date.now() + ttlSec * 1000);
+  }
+
+  private async getPersistentAiCache(
+    userId: string,
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    dateKey: string,
+    locale: 'ru' | 'en' | 'es',
+    chartRevision = 'unknown',
+  ): Promise<HoroscopePrediction | null> {
+    const contentType = this.getPersistentContentType(period);
+    if (!contentType) {
+      return null;
+    }
+
+    try {
+      const cached = await this.prisma.aiContentCache.findUnique({
+        where: {
+          userId_contentType_subjectKey_locale_chartFingerprint_promptVersion: {
+            userId,
+            contentType,
+            subjectKey: this.getPersistentSubjectKey(period, dateKey),
+            locale,
+            chartFingerprint: chartRevision,
+            promptVersion: this.horoscopeFormatVersion,
+          },
+        },
+      });
+
+      if (!cached) {
+        return null;
+      }
+
+      if (cached.expiresAt && cached.expiresAt.getTime() <= Date.now()) {
+        await this.prisma.aiContentCache
+          .delete({ where: { id: cached.id } })
+          .catch(() => undefined);
+        return null;
+      }
+
+      return cached.contentJson as unknown as HoroscopePrediction;
+    } catch (error) {
+      this.logger.warn(
+        `Persistent horoscope AI cache read failed for user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private async setPersistentAiCache(
+    userId: string,
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+    dateKey: string,
+    locale: 'ru' | 'en' | 'es',
+    chartRevision = 'unknown',
+    ttlSec: number,
+    prediction: HoroscopePrediction,
+  ): Promise<void> {
+    const contentType = this.getPersistentContentType(period);
+    if (!contentType || prediction.generatedBy !== 'ai') {
+      return;
+    }
+
+    try {
+      const subjectKey = this.getPersistentSubjectKey(period, dateKey);
+      await this.prisma.aiContentCache.upsert({
+        where: {
+          userId_contentType_subjectKey_locale_chartFingerprint_promptVersion: {
+            userId,
+            contentType,
+            subjectKey,
+            locale,
+            chartFingerprint: chartRevision,
+            promptVersion: this.horoscopeFormatVersion,
+          },
+        },
+        create: {
+          userId,
+          contentType,
+          subjectKey,
+          locale,
+          chartFingerprint: chartRevision,
+          promptVersion: this.horoscopeFormatVersion,
+          provider: this.aiService.getProvider(),
+          contentJson: prediction as any,
+          expiresAt: this.getExpiresAt(ttlSec),
+        },
+        update: {
+          provider: this.aiService.getProvider(),
+          contentJson: prediction as any,
+          generatedAt: new Date(),
+          expiresAt: this.getExpiresAt(ttlSec),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Persistent horoscope AI cache write failed for user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private withRequestedPeriod(
+    prediction: HoroscopePrediction,
+    period: 'day' | 'tomorrow' | 'week' | 'month',
+  ): HoroscopePrediction {
+    if (prediction.period === period) {
+      return prediction;
+    }
+
+    return {
+      ...prediction,
+      period,
+    };
+  }
+
+  private getAiPromptPeriod(period: string): string {
+    return period === 'day' || period === 'tomorrow' ? 'daily' : period;
+  }
+
+  private getQuotaPeriod(period: string, targetDate: Date): string {
+    if (period === 'day' || period === 'tomorrow') {
+      return `daily:${targetDate.toISOString().split('T')[0]}`;
+    }
+
+    return period;
+  }
+
+  private scheduleTomorrowPrewarm(
+    userId: string,
+    locale: 'ru' | 'en' | 'es',
+    userTzOffsetMinutes: number,
+  ): void {
+    void this.generateHoroscope(
+      userId,
+      'tomorrow',
+      true,
+      locale,
+      userTzOffsetMinutes,
+    ).catch((error) => {
+      this.logger.warn(
+        `Tomorrow horoscope prewarm failed for user ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
   }
 
   /**
@@ -165,7 +393,8 @@ export class HoroscopeGeneratorService {
     );
 
     // Ищем натальную карту через Supabase
-    const { chartData, foundVia } = await this.findUserChart(userId);
+    const { chartData, foundVia, chartRevision } =
+      await this.findUserChart(userId);
 
     if (!chartData) {
       this.logger.warn(
@@ -188,15 +417,50 @@ export class HoroscopeGeneratorService {
       const targetDate = periodContext.targetDate;
       this.logger.log(`Target date for ${period}: ${targetDate.toISOString()}`);
 
-      // Redis caching: key per userId + period + date bucket
       const dateKey = periodContext.dateKey;
-      const cacheKey = `horoscope:${userId}:${period}:${dateKey}:${locale}:${isPremium ? 'premium' : 'free'}:${this.horoscopeFormatVersion}`;
-      const ttlSec = periodContext.ttlSec;
+      const cacheKey = this.buildCacheKey(
+        userId,
+        period,
+        dateKey,
+        locale,
+        isPremium,
+        chartRevision,
+      );
+      const ttlSec = this.getCacheTtlSec(period, periodContext.ttlSec);
 
       const cached = await this.redis.get<HoroscopePrediction>(cacheKey);
       if (cached) {
-        this.logger.debug(`Cache hit: ${cacheKey}`);
-        return cached;
+        const stalePremiumFallback = shouldUseAi && cached.generatedBy !== 'ai';
+        if (stalePremiumFallback) {
+          this.logger.warn(
+            `Ignoring stale premium horoscope cache for ${cacheKey} because generatedBy=${cached.generatedBy}`,
+          );
+          await this.redis.del(cacheKey);
+        } else {
+          this.logger.debug(`Cache hit: ${cacheKey}`);
+          if (shouldUseAi && period === 'day') {
+            this.scheduleTomorrowPrewarm(userId, locale, userTzOffsetMinutes);
+          }
+          return this.withRequestedPeriod(cached, period);
+        }
+      }
+
+      if (shouldUseAi) {
+        const persistentCached = await this.getPersistentAiCache(
+          userId,
+          period,
+          dateKey,
+          locale,
+          chartRevision,
+        );
+        if (persistentCached) {
+          this.logger.debug(`Persistent AI horoscope cache hit: ${cacheKey}`);
+          await this.redis.set(cacheKey, persistentCached, ttlSec);
+          if (period === 'day') {
+            this.scheduleTomorrowPrewarm(userId, locale, userTzOffsetMinutes);
+          }
+          return this.withRequestedPeriod(persistentCached, period);
+        }
       }
 
       let transits: TransitData;
@@ -254,6 +518,7 @@ export class HoroscopeGeneratorService {
             targetDate,
             periodContext.quotaDayKey,
             periodContext.quotaTtlSec,
+            this.getQuotaPeriod(period, targetDate),
             cacheKey,
             ttlSec,
             userId,
@@ -263,17 +528,35 @@ export class HoroscopeGeneratorService {
           await this.redis.set(pendingKey, '1', 60);
         }
 
-        const awaited = await this.awaitWithTimeout(
-          aiPromise,
-          this.aiSoftTimeoutMs,
-        );
+        let awaited: { timedOut: boolean; value?: HoroscopePrediction };
+        try {
+          awaited = await this.awaitWithTimeout(
+            aiPromise,
+            this.aiSoftTimeoutMs,
+          );
+        } catch (error) {
+          this.inflightPremium.delete(cacheKey);
+          await this.redis.del(pendingKey);
+          throw error;
+        }
         if (awaited.timedOut) {
           shouldCache = false;
           this.logger.warn(
             `AI generation timeout (${this.aiSoftTimeoutMs}ms) for ${cacheKey}`,
           );
           void aiPromise
-            .then((aiResult) => this.redis.set(cacheKey, aiResult, ttlSec))
+            .then(async (aiResult) => {
+              await this.redis.set(cacheKey, aiResult, ttlSec);
+              await this.setPersistentAiCache(
+                userId,
+                period,
+                dateKey,
+                locale,
+                chartRevision,
+                ttlSec,
+                aiResult,
+              );
+            })
             .catch((error) => {
               this.logger.warn(
                 `Background AI cache fill failed for ${cacheKey}: ${
@@ -313,8 +596,23 @@ export class HoroscopeGeneratorService {
         );
       }
 
-      if (shouldCache) {
+      const cachePremiumResult = !shouldUseAi || result.generatedBy === 'ai';
+      if (shouldCache && cachePremiumResult) {
         await this.redis.set(cacheKey, result, ttlSec);
+        if (shouldUseAi) {
+          await this.setPersistentAiCache(
+            userId,
+            period,
+            dateKey,
+            locale,
+            chartRevision,
+            ttlSec,
+            result,
+          );
+        }
+      }
+      if (shouldUseAi && period === 'day') {
+        this.scheduleTomorrowPrewarm(userId, locale, userTzOffsetMinutes);
       }
       return result;
     } catch (error) {
@@ -344,6 +642,7 @@ export class HoroscopeGeneratorService {
     targetDate: Date,
     quotaDayKey: string,
     quotaTtlSec: number,
+    quotaPeriod: string,
     _cacheKey: string,
     _ttlSec: number,
     userId: string,
@@ -353,7 +652,7 @@ export class HoroscopeGeneratorService {
 
     // Ежесуточный лимит одного AI-запроса для гороскопов (на пользователя)
     try {
-      const quotaKey = `ai:horoscope:quota:${userId}:${quotaDayKey}:${period}`;
+      const quotaKey = `ai:horoscope:quota:${userId}:${quotaDayKey}:${quotaPeriod}:${locale}`;
       const used = await this.redis.incr(quotaKey);
       if (used != null) {
         if (used === 1) {
@@ -408,7 +707,7 @@ export class HoroscopeGeneratorService {
         houses: chartData.houses,
         aspects: chartData.aspects || [],
         transits: transitAspects,
-        period,
+        period: this.getAiPromptPeriod(period),
         locale,
         dailyContext: {
           energy: dailyContext.energy,

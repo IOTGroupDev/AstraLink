@@ -28,7 +28,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { chatAPI, userPhotosAPI } from '../services/api';
+import { chatAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,6 +44,26 @@ type Message = {
   mediaPath: string | null;
   createdAt: string;
   mediaUrl?: string | null;
+};
+
+const USER_PHOTOS_BUCKET = 'user-photos';
+const CHAT_MEDIA_BUCKET = 'chat-media';
+const CHAT_MEDIA_PREFIX = `${CHAT_MEDIA_BUCKET}:`;
+
+const resolveMediaStorageTarget = (
+  mediaPath: string
+): { bucket: string; path: string } => {
+  if (mediaPath.startsWith(CHAT_MEDIA_PREFIX)) {
+    return {
+      bucket: CHAT_MEDIA_BUCKET,
+      path: mediaPath.slice(CHAT_MEDIA_PREFIX.length),
+    };
+  }
+
+  return {
+    bucket: USER_PHOTOS_BUCKET,
+    path: mediaPath,
+  };
 };
 
 export default function ChatDialogScreen() {
@@ -304,6 +324,12 @@ export default function ChatDialogScreen() {
                   next.push(newMessage);
                 }
 
+                if (mp && !newMessage.mediaUrl) {
+                  setTimeout(() => {
+                    fetchMessages().catch(() => void 0);
+                  }, 300);
+                }
+
                 next.sort(
                   (a, b) =>
                     new Date(a.createdAt).getTime() -
@@ -357,6 +383,10 @@ export default function ChatDialogScreen() {
                 if (copy[idx].mediaPath && copy[idx].mediaUrl) {
                   mediaUrlCacheRef.current[copy[idx].mediaPath!] =
                     copy[idx].mediaUrl!;
+                } else if (copy[idx].mediaPath) {
+                  setTimeout(() => {
+                    fetchMessages().catch(() => void 0);
+                  }, 300);
                 }
                 return copy;
               });
@@ -401,6 +431,11 @@ export default function ChatDialogScreen() {
                     mediaUrl: mu0 ?? null,
                   } as Message,
                 ];
+                if (mp0 && !mu0) {
+                  setTimeout(() => {
+                    fetchMessages().catch(() => void 0);
+                  }, 300);
+                }
                 next.sort(
                   (a, b) =>
                     new Date(a.createdAt).getTime() -
@@ -439,9 +474,10 @@ export default function ChatDialogScreen() {
 
         const updates: Record<string, string> = {};
         for (const m of needs) {
+          const target = resolveMediaStorageTarget(m.mediaPath as string);
           const { data, error } = await supabase.storage
-            .from('user-photos')
-            .createSignedUrl(m.mediaPath as string, 900);
+            .from(target.bucket)
+            .createSignedUrl(target.path, 900);
           if (!error && data?.signedUrl) {
             updates[m.id] = data.signedUrl;
             mediaUrlCacheRef.current[m.mediaPath!] = data.signedUrl;
@@ -536,7 +572,7 @@ export default function ChatDialogScreen() {
       const ext: 'jpg' | 'jpeg' | 'png' | 'webp' =
         mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpeg';
 
-      const { path, signedUrl } = await userPhotosAPI.getUploadUrl({ ext });
+      const { path, signedUrl } = await chatAPI.getMediaUploadUrl({ ext });
 
       // Загружаем файл на подписанный URL
       await FileSystem.uploadAsync(signedUrl, uri, {
@@ -547,9 +583,10 @@ export default function ChatDialogScreen() {
       // Сразу создадим подписанный URL для чтения и положим его в кэш и оптимистичное сообщение
       let localSignedUrl: string | null = null;
       try {
+        const target = resolveMediaStorageTarget(path);
         const { data, error } = await supabase.storage
-          .from('user-photos')
-          .createSignedUrl(path, 900);
+          .from(target.bucket)
+          .createSignedUrl(target.path, 900);
         if (!error && data?.signedUrl) {
           localSignedUrl = data.signedUrl;
           mediaUrlCacheRef.current[path] = data.signedUrl;

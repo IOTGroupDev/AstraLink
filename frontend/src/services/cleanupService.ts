@@ -2,9 +2,35 @@
 // Service for complete cleanup of user data on account deletion
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { tokenService } from './tokenService';
-import { supabase } from './supabase';
 import { storageLogger } from './logger';
+
+const getSupabaseSecureKeys = (): string[] => {
+  const env: any =
+    (typeof process !== 'undefined' ? (process as any).env : {}) || {};
+  const expoExtra: any = Constants?.expoConfig?.extra || {};
+  const supabaseUrl =
+    env.EXPO_PUBLIC_SUPABASE_URL || expoExtra.SUPABASE_URL || env.SUPABASE_URL;
+
+  if (!supabaseUrl) {
+    return [];
+  }
+
+  try {
+    const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
+    if (!projectRef) {
+      return [];
+    }
+
+    const baseKey = `sb-${projectRef}-auth-token`;
+    return [baseKey, `${baseKey}-code-verifier`, `${baseKey}-user`];
+  } catch {
+    return [];
+  }
+};
 
 /**
  * Performs complete cleanup of all user data from local storage
@@ -27,22 +53,46 @@ export const clearAllUserData = async (): Promise<void> => {
 
     await AsyncStorage.multiRemove(zustandKeys);
 
-    // 3. Clear all AsyncStorage keys (including any legacy keys)
+    // 3. Clear all user-scoped AsyncStorage keys (including legacy keys)
     const allKeys = await AsyncStorage.getAllKeys();
+    const removablePrefixes = [
+      'auth-',
+      'onboarding-',
+      'chart-',
+      'subscription-',
+      'al_',
+      'horoscope-screen:',
+      'advisor-history:',
+      'advisor-history-hint:',
+      '@astralink/profile-photo:',
+      'notifications:',
+    ];
     const keysToRemove = allKeys.filter(
       (key) =>
-        key.startsWith('auth-') ||
-        key.startsWith('onboarding-') ||
-        key.startsWith('chart-') ||
-        key.startsWith('subscription-') ||
-        key.startsWith('al_')
+        removablePrefixes.some((prefix) => key.startsWith(prefix)) ||
+        key === 'auth-storage' ||
+        key === 'chart-storage' ||
+        key === 'subscription-storage' ||
+        key === 'onboarding-storage'
     );
     if (keysToRemove.length > 0) {
       await AsyncStorage.multiRemove(keysToRemove);
     }
 
-    // 4. Sign out from Supabase (clears session)
-    await supabase.auth.signOut();
+    // 4. Clear known secure native keys that do not live in AsyncStorage
+    if (Platform.OS !== 'web') {
+      const secureKeys = [
+        'onboarding-storage',
+        'notifications:last-expo-push-token',
+        'notifications:last-user-id',
+        ...getSupabaseSecureKeys(),
+      ];
+      await Promise.all(
+        secureKeys.map((key) =>
+          SecureStore.deleteItemAsync(key).catch(() => undefined)
+        )
+      );
+    }
 
     storageLogger.log('✅ Complete user data cleanup successful');
   } catch (error) {

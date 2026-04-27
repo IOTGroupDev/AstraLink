@@ -424,11 +424,8 @@ export class NatalService {
     }
 
     // Получаем данные пользователя
-    const { data: user } = await this.supabaseService
-      .from('users')
-      .select('id, birth_date, birth_time, birth_place')
-      .eq('id', userId)
-      .single();
+    const { data: user } =
+      await this.supabaseService.getUserProfileAdmin(userId);
 
     if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
       // Fallback данные для демонстрации

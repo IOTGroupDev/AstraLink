@@ -20,6 +20,7 @@ export class SupabaseAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+    const requestLabel = `${request.method} ${request.path}`;
 
     // Разрешаем CORS preflight без проверки токена
     if (request.method === 'OPTIONS') {
@@ -57,16 +58,13 @@ export class SupabaseAuthGuard implements CanActivate {
 
     if (!token) {
       this.logger.warn(
-        `❌ No or invalid Authorization header for ${request.method} ${request.path}`,
+        `❌ Missing or invalid Authorization header for ${requestLabel}`,
       );
-      this.logger.debug(`Raw header: ${rawHeader}`);
       throw new UnauthorizedException('Токен авторизации не предоставлен');
     }
 
     try {
-      this.logger.debug(
-        `🔐 Validating token for ${request.method} ${request.path}`,
-      );
+      this.logger.debug(`🔐 Validating token for ${requestLabel}`);
 
       const { data, error } = await this.supabaseService.getUser(token);
 
@@ -76,16 +74,10 @@ export class SupabaseAuthGuard implements CanActivate {
         this.logger.warn(
           `❌ Supabase getUser failed for ${request.path}: ${(error as any)?.message || 'no user'}`,
         );
-        this.logger.debug(
-          `Token (first 20 chars): ${token.substring(0, 20)}...`,
-        );
-        this.logger.debug(`Error details: ${JSON.stringify(error)}`);
         throw new UnauthorizedException('Недействительный токен');
       }
 
-      this.logger.debug(
-        `✅ Token validated for user ${user.email} (${user.id})`,
-      );
+      this.logger.debug(`✅ Token validated for ${requestLabel}`);
 
       // Normalize user for controllers
       request.user = {

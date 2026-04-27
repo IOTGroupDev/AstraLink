@@ -442,6 +442,7 @@ export class AIService {
         ? {
             day: 'for today',
             tomorrow: 'for tomorrow',
+            daily: 'for this date',
             week: 'for this week',
             month: 'for this month',
           }[context.period] || 'for today'
@@ -449,16 +450,23 @@ export class AIService {
           ? {
               day: 'para hoy',
               tomorrow: 'para mañana',
+              daily: 'para esta fecha',
               week: 'para esta semana',
               month: 'para este mes',
             }[context.period] || 'para hoy'
           : {
               day: 'на сегодня',
               tomorrow: 'на завтра',
+              daily: 'на эту дату',
               week: 'на эту неделю',
               month: 'на этот месяц',
             }[context.period] || 'на сегодня';
 
+    const natalPlacementsDescription = this.formatPlanets(
+      context.planets,
+      locale,
+    );
+    const natalHousesDescription = this.formatHouses(context.houses, locale);
     const transitDescription = this.formatTransits(context.transits, locale);
     const dailyContextDescription = context.dailyContext
       ? locale === 'en'
@@ -559,6 +567,8 @@ NATAL CHART:
 - Sun: ${context.sunSign}
 - Moon: ${context.moonSign}
 - Ascendant: ${context.ascendant}
+- Natal placements: ${natalPlacementsDescription}
+- House cusps: ${natalHousesDescription}
 - Key aspects: ${this.formatAspects(context.aspects, locale)}
 
 CURRENT TRANSITS:
@@ -573,18 +583,18 @@ LANGUAGE: English only.
 
 JSON format:
 {
-  "general": "Holistic summary of the whole period (3-4 sentences, specific and human)",
-  "love": "Love and relationships (2-3 sentences with concrete recommendations)",
-  "career": "Career and business (2-3 sentences with practical advice)",
-  "health": "Health and energy (2-3 sentences)",
-  "finance": "Finance and material matters (2-3 sentences with grounded guidance)",
-  "advice": "Main advice (2-3 sentences that explicitly say what to do and what to avoid)",
-  "challenges": ["specific risk 1", "specific risk 2", "specific risk 3"],
-  "opportunities": ["specific action 1", "specific action 2", "specific action 3"]
+  "general": "Holistic summary of the whole period (2-3 sentences, specific and human)",
+  "love": "Love and relationships (1-2 sentences with concrete recommendations)",
+  "career": "Career and business (1-2 sentences with practical advice)",
+  "health": "Health and energy (1-2 sentences)",
+  "finance": "Finance and material matters (1-2 sentences with grounded guidance)",
+  "advice": "Main advice (1-2 sentences that explicitly say what to do and what to avoid)",
+  "challenges": ["specific risk 1", "specific risk 2"],
+  "opportunities": ["specific action 1", "specific action 2"]
 }
 
 Style and content requirements:
-- This is PREMIUM analysis — be as detailed and personalized as possible
+- This is PREMIUM analysis — be highly personalized within a compact format
 - Write warm, human, empathetic prose (avoid robotic phrasing)
 - ${humanVoiceLine}
 - Consider interactions between transits and natal placements
@@ -600,14 +610,17 @@ Style and content requirements:
 - ${opportunitiesLine}
 - ${challengesLine}
 - Keep each field compact; avoid long introductions and repetition
-- Target ~350-500 words total
-- Do not exceed 4 sentences in any prose field`
+- Target ~220-320 words total
+- Do not exceed 3 sentences in "general"
+- Do not exceed 2 sentences in any other prose field`
         : `Create a personalized PREMIUM horoscope ${periodText} for a person with the following natal chart:
 
 NATAL CHART:
 - Sun: ${context.sunSign}
 - Moon: ${context.moonSign}
 - Ascendant: ${context.ascendant}
+- Natal placements: ${natalPlacementsDescription}
+- House cusps: ${natalHousesDescription}
 - Key aspects: ${this.formatAspects(context.aspects, locale)}
 
 CURRENT TRANSITS:
@@ -661,6 +674,8 @@ CARTA NATAL:
 - Sol: ${context.sunSign}
 - Luna: ${context.moonSign}
 - Ascendente: ${context.ascendant}
+- Posiciones natales: ${natalPlacementsDescription}
+- Cúspides de casas: ${natalHousesDescription}
 - Aspectos clave: ${this.formatAspects(context.aspects, locale)}
 
 TRÁNSITOS ACTUALES:
@@ -675,18 +690,18 @@ IDIOMA: Español solamente.
 
 Formato JSON:
 {
-  "general": "Resumen integral de todo el período (3-4 frases, específico y humano)",
-  "love": "Amor y relaciones (2-3 frases con recomendaciones concretas)",
-  "career": "Carrera y negocios (2-3 frases con consejos prácticos)",
-  "health": "Salud y energía (2-3 frases)",
-  "finance": "Finanzas y lo material (2-3 frases con guía realista)",
-  "advice": "Consejo principal (2-3 frases que indiquen claramente qué hacer y qué evitar)",
-  "challenges": ["riesgo concreto 1", "riesgo concreto 2", "riesgo concreto 3"],
-  "opportunities": ["acción concreta 1", "acción concreta 2", "acción concreta 3"]
+  "general": "Resumen integral de todo el período (2-3 frases, específico y humano)",
+  "love": "Amor y relaciones (1-2 frases con recomendaciones concretas)",
+  "career": "Carrera y negocios (1-2 frases con consejos prácticos)",
+  "health": "Salud y energía (1-2 frases)",
+  "finance": "Finanzas y lo material (1-2 frases con guía realista)",
+  "advice": "Consejo principal (1-2 frases que indiquen claramente qué hacer y qué evitar)",
+  "challenges": ["riesgo concreto 1", "riesgo concreto 2"],
+  "opportunities": ["acción concreta 1", "acción concreta 2"]
 }
 
 Requisitos de estilo y contenido:
-- Esto es análisis PREMIUM: sé lo más detallado y personalizado posible
+- Esto es análisis PREMIUM: sé muy personalizado dentro de un formato compacto
 - Escribe de forma cálida, humana y empática (evita frases robóticas)
 - ${humanVoiceLine}
 - Considera la interacción de los tránsitos con posiciones natales
@@ -702,14 +717,17 @@ Requisitos de estilo y contenido:
 - ${opportunitiesLine}
 - ${challengesLine}
 - Mantén cada campo compacto; evita introducciones largas y repeticiones
-- Objetivo ~350-500 palabras
-- No superes 4 frases en ningún campo de prosa`
+- Objetivo ~220-320 palabras
+- No superes 3 frases en "general"
+- No superes 2 frases en cualquier otro campo de prosa`
         : `Crea un horóscopo PREMIUM personalizado ${periodText} para una persona con la siguiente carta natal:
 
 CARTA NATAL:
 - Sol: ${context.sunSign}
 - Luna: ${context.moonSign}
 - Ascendente: ${context.ascendant}
+- Posiciones natales: ${natalPlacementsDescription}
+- Cúspides de casas: ${natalHousesDescription}
 - Aspectos clave: ${this.formatAspects(context.aspects, locale)}
 
 TRÁNSITOS ACTUALES:
@@ -762,6 +780,8 @@ Requisitos de contenido:
 - Солнце: ${context.sunSign}
 - Луна: ${context.moonSign}
 - Асцендент: ${context.ascendant}
+- Натальные положения: ${natalPlacementsDescription}
+- Куспиды домов: ${natalHousesDescription}
 - Ключевые аспекты: ${this.formatAspects(context.aspects, locale)}
 
 ТЕКУЩИЕ ТРАНЗИТЫ:
@@ -775,18 +795,18 @@ ${dailyContextDescription}
 
 Формат JSON:
 {
-  "general": "Цельное резюме всего периода (3-4 предложения, конкретно и по-человечески)",
-  "love": "Любовь и отношения (2-3 предложения с конкретными рекомендациями)",
-  "career": "Карьера и бизнес (2-3 предложения с практичными советами)",
-  "health": "Здоровье и энергия (2-3 предложения)",
-  "finance": "Финансы и материальное (2-3 предложения с приземленными советами)",
-  "advice": "Главный совет (2-3 предложения, где прямо сказано что делать и чего лучше избегать)",
-  "challenges": ["конкретный риск 1", "конкретный риск 2", "конкретный риск 3"],
-  "opportunities": ["конкретное действие 1", "конкретное действие 2", "конкретное действие 3"]
+  "general": "Цельное резюме всего периода (2-3 предложения, конкретно и по-человечески)",
+  "love": "Любовь и отношения (1-2 предложения с конкретными рекомендациями)",
+  "career": "Карьера и бизнес (1-2 предложения с практичными советами)",
+  "health": "Здоровье и энергия (1-2 предложения)",
+  "finance": "Финансы и материальное (1-2 предложения с приземленными советами)",
+  "advice": "Главный совет (1-2 предложения, где прямо сказано что делать и чего лучше избегать)",
+  "challenges": ["конкретный риск 1", "конкретный риск 2"],
+  "opportunities": ["конкретное действие 1", "конкретное действие 2"]
 }
 
 Требования к стилю и контенту:
-- Это PREMIUM анализ - будьте максимально детальны и персонализированы
+- Это PREMIUM анализ - будьте очень персонализированы, но держите компактную форму
 - Пишите тепло, по‑человечески, эмпатично (без «роботности»)
 - ${humanVoiceLine}
 - Учитывайте взаимодействие транзитов с натальными планетами
@@ -802,14 +822,17 @@ ${dailyContextDescription}
 - ${opportunitiesLine}
 - ${challengesLine}
 - Держите каждый раздел компактным; без длинных вступлений и повторов
-- Ориентир ~350-500 слов
-- Не превышайте 4 предложения в одном текстовом поле`
+- Ориентир ~220-320 слов
+- Не превышайте 3 предложения в поле "general"
+- Не превышайте 2 предложения в остальных текстовых полях`
       : `Создайте персонализированный PREMIUM гороскоп ${periodText} для человека со следующей натальной картой:
 
 НАТАЛЬНАЯ КАРТА:
 - Солнце: ${context.sunSign}
 - Луна: ${context.moonSign}
 - Асцендент: ${context.ascendant}
+- Натальные положения: ${natalPlacementsDescription}
+- Куспиды домов: ${natalHousesDescription}
 - Ключевые аспекты: ${this.formatAspects(context.aspects, locale)}
 
 ТЕКУЩИЕ ТРАНЗИТЫ:
@@ -1200,7 +1223,11 @@ ${aspectsDesc}
 
       return this.normalizeHoroscopeResponse(parsed, locale);
     } catch (error) {
-      this.logger.error('JSON parsing failed, attempting text parsing:', error);
+      this.logger.warn(
+        `JSON parsing failed, attempting recovery: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
 
       // Fallback to regex extraction if JSON parsing fails
       try {
@@ -1209,7 +1236,21 @@ ${aspectsDesc}
           return this.normalizeHoroscopeResponse(JSON.parse(extracted), locale);
         }
       } catch (regexError) {
-        this.logger.error('Regex extraction also failed:', regexError);
+        this.logger.warn(
+          `Regex extraction also failed: ${
+            regexError instanceof Error
+              ? regexError.message
+              : String(regexError)
+          }`,
+        );
+      }
+
+      const partialRecord = this.extractPartialHoroscopeRecord(response);
+      if (partialRecord && Object.keys(partialRecord).length > 0) {
+        this.logger.warn(
+          `Recovered partial horoscope JSON fields: ${Object.keys(partialRecord).join(', ')}`,
+        );
+        return this.normalizeHoroscopeResponse(partialRecord, locale);
       }
 
       // Final fallback to text parsing
@@ -1627,8 +1668,8 @@ ${aspectsDesc}
 
     return {
       timeoutMs,
-      maxTokens: provider === 'deepseek' ? 900 : 1100,
-      temperature: provider === 'deepseek' ? 0.55 : 0.6,
+      maxTokens: provider === 'deepseek' ? 1000 : 1100,
+      temperature: provider === 'deepseek' ? 0.45 : 0.6,
       responseFormat: 'json_object',
     };
   }
@@ -1679,6 +1720,144 @@ ${aspectsDesc}
     }
 
     return null;
+  }
+
+  private extractPartialHoroscopeRecord(
+    input: string,
+  ): Partial<Record<keyof HoroscopeResponse, unknown>> | null {
+    const text = this.stripCodeFences(input);
+    const result: Partial<Record<keyof HoroscopeResponse, unknown>> = {};
+    const textFields: Array<
+      'general' | 'love' | 'career' | 'health' | 'finance' | 'advice'
+    > = ['general', 'love', 'career', 'health', 'finance', 'advice'];
+
+    for (const field of textFields) {
+      const extracted = this.extractLooseJsonStringField(text, field);
+      if (extracted) {
+        result[field] = extracted;
+      }
+    }
+
+    const challenges = this.extractLooseJsonArrayField(text, 'challenges');
+    if (challenges.length > 0) {
+      result.challenges = challenges;
+    }
+
+    const opportunities = this.extractLooseJsonArrayField(
+      text,
+      'opportunities',
+    );
+    if (opportunities.length > 0) {
+      result.opportunities = opportunities;
+    }
+
+    return Object.keys(result).length > 0 ? result : null;
+  }
+
+  private extractLooseJsonStringField(
+    input: string,
+    field: string,
+  ): string | null {
+    const keyPattern = new RegExp(
+      `"${this.escapeRegex(field)}"\\s*:\\s*"`,
+      'i',
+    );
+    const match = keyPattern.exec(input);
+    if (!match) {
+      return null;
+    }
+
+    const start = match.index + match[0].length;
+    const { value } = this.readLooseJsonString(input, start);
+    const normalized = this.decodeLooseJsonString(value).trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private extractLooseJsonArrayField(input: string, field: string): string[] {
+    const keyPattern = new RegExp(
+      `"${this.escapeRegex(field)}"\\s*:\\s*\\[`,
+      'i',
+    );
+    const match = keyPattern.exec(input);
+    if (!match) {
+      return [];
+    }
+
+    let cursor = match.index + match[0].length;
+    const items: string[] = [];
+
+    while (cursor < input.length) {
+      while (cursor < input.length && /[\s,\n\r\t]/.test(input[cursor])) {
+        cursor += 1;
+      }
+
+      if (cursor >= input.length || input[cursor] === ']') {
+        break;
+      }
+
+      if (input[cursor] !== '"') {
+        const nextBoundary = input.slice(cursor).search(/[,\]]/);
+        if (nextBoundary === -1) {
+          break;
+        }
+        cursor += nextBoundary + 1;
+        continue;
+      }
+
+      const { value, endIndex } = this.readLooseJsonString(input, cursor + 1);
+      const normalized = this.decodeLooseJsonString(value).trim();
+      if (normalized.length > 0) {
+        items.push(normalized);
+      }
+      cursor = endIndex;
+    }
+
+    return items;
+  }
+
+  private readLooseJsonString(
+    input: string,
+    startIndex: number,
+  ): { value: string; endIndex: number } {
+    let value = '';
+    let escaping = false;
+
+    for (let i = startIndex; i < input.length; i += 1) {
+      const ch = input[i];
+
+      if (escaping) {
+        value += ch;
+        escaping = false;
+        continue;
+      }
+
+      if (ch === '\\') {
+        value += ch;
+        escaping = true;
+        continue;
+      }
+
+      if (ch === '"') {
+        return { value, endIndex: i + 1 };
+      }
+
+      value += ch;
+    }
+
+    return { value, endIndex: input.length };
+  }
+
+  private decodeLooseJsonString(value: string): string {
+    return value
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex: string) =>
+        String.fromCharCode(parseInt(hex, 16)),
+      )
+      .replace(/\\"/g, '"')
+      .replace(/\\n/g, ' ')
+      .replace(/\\r/g, ' ')
+      .replace(/\\t/g, ' ')
+      .replace(/\\\\/g, '\\')
+      .trim();
   }
 
   private getSignRuler(sign: string): string {

@@ -14,7 +14,7 @@ export const theme = {
     primaryLight: '#A78BFA',
 
     // Background colors
-    background: '#0F172A', // Dark blue
+    background: '#080E1C', // Dark blue
     backgroundLight: '#1E293B',
     backgroundLighter: '#334155',
 
@@ -53,7 +53,7 @@ export const theme = {
    */
   gradients: {
     primary: ['#8B5CF6', '#7C3AED'],
-    cosmic: ['#0F172A', '#1E293B', '#334155'],
+    cosmic: ['#080E1C', '#1E293B', '#334155'],
     fire: ['#FF6B6B', '#EE5A6F'],
     earth: ['#4ECDC4', '#44A08D'],
     air: ['#F7B731', '#FED330'],

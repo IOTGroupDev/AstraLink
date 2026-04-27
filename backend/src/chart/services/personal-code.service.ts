@@ -760,12 +760,12 @@ ${breakdownText}
     return map[planet] || planet;
   }
 
-  private getPlanetMeaning(planet: string, purpose: CodePurpose): string {
+  private getPlanetMeaning(planet: string, _purpose: CodePurpose): string {
     // Simplified - expand as needed
     return `Энергия планеты ${this.translatePlanet(planet)}`;
   }
 
-  private getHouseMeaning(house: number, purpose: CodePurpose): string {
+  private getHouseMeaning(house: number, _purpose: CodePurpose): string {
     return `Энергия ${house}-го дома`;
   }
 
@@ -804,8 +804,8 @@ ${breakdownText}
   }
 
   private getReducedNumberInterpretation(
-    num: number,
-    purpose: CodePurpose,
+    _num: number,
+    _purpose: CodePurpose,
   ): string {
     return `завершает энергетическую формулу, создавая мощный резонанс для вашей цели`;
   }

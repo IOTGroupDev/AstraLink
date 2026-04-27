@@ -11,6 +11,39 @@ import {
 } from '../types/subscription';
 import { logger } from '../services/logger';
 
+const normalizeSubscription = (
+  subscription: Subscription | null | undefined
+): Subscription | null => {
+  if (!subscription) return null;
+
+  const tier = subscription.tier || SubscriptionTier.FREE;
+  const now = new Date();
+  const trialEndsAt = subscription.trialEndsAt;
+  const expiresAt = subscription.expiresAt;
+  const derivedIsTrial =
+    Boolean(trialEndsAt) &&
+    new Date(trialEndsAt as string).getTime() > now.getTime();
+  const derivedIsActive =
+    tier === SubscriptionTier.FREE ||
+    derivedIsTrial ||
+    (Boolean(expiresAt) &&
+      new Date(expiresAt as string).getTime() > now.getTime());
+
+  return {
+    ...subscription,
+    tier,
+    isTrial:
+      typeof subscription.isTrial === 'boolean'
+        ? subscription.isTrial
+        : derivedIsTrial,
+    isActive:
+      typeof subscription.isActive === 'boolean'
+        ? subscription.isActive
+        : derivedIsActive,
+    features: Array.isArray(subscription.features) ? subscription.features : [],
+  };
+};
+
 /**
  * Главный хук для работы с подписками
  * Кеширует данные на 5 минут, автоматически обновляет при изменениях
@@ -33,6 +66,8 @@ export const useSubscription = () => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });
+
+  const normalizedSubscription = normalizeSubscription(subscription);
 
   // Активация Trial
   const activateTrialMutation = useMutation({
@@ -70,31 +105,36 @@ export const useSubscription = () => {
    * Проверить, есть ли доступ к функции
    */
   const hasFeature = (feature: keyof typeof FEATURE_REQUIREMENTS): boolean => {
-    if (!subscription?.isActive && !subscription?.isTrial) return false;
+    if (!normalizedSubscription?.isActive && !normalizedSubscription?.isTrial)
+      return false;
 
     const requiredTiers = getRequiredTiers(feature);
     if (requiredTiers.length === 0) return true; // Нет требований = доступно всем
 
-    return requiredTiers.includes(subscription.tier);
+    return requiredTiers.includes(normalizedSubscription.tier);
   };
 
   /**
    * Проверить доступ по списку тиров
    */
   const hasTier = (requiredTiers: SubscriptionTier[]): boolean => {
-    if (!subscription?.isActive && !subscription?.isTrial) return false;
-    return requiredTiers.includes(subscription.tier);
+    if (!normalizedSubscription?.isActive && !normalizedSubscription?.isTrial)
+      return false;
+    return requiredTiers.includes(normalizedSubscription.tier);
   };
 
   /**
    * Текущий уровень подписки
    */
-  const tier = subscription?.tier || SubscriptionTier.FREE;
+  const tier = normalizedSubscription?.tier || SubscriptionTier.FREE;
 
   /**
    * Является ли подписка активной (включая Trial)
    */
-  const isActive = subscription?.isActive || subscription?.isTrial || false;
+  const isActive =
+    normalizedSubscription?.isActive ||
+    normalizedSubscription?.isTrial ||
+    false;
 
   /**
    * Является ли подписка платной (Premium или MAX)
@@ -123,12 +163,12 @@ export const useSubscription = () => {
   /**
    * Активен ли сейчас Trial
    */
-  const isTrial = subscription?.isTrial || false;
+  const isTrial = normalizedSubscription?.isTrial || false;
 
   /**
    * Сколько дней осталось до конца подписки/trial
    */
-  const daysRemaining = subscription?.daysRemaining;
+  const daysRemaining = normalizedSubscription?.daysRemaining;
 
   /**
    * Нужно ли показать предупреждение об истечении
@@ -141,7 +181,7 @@ export const useSubscription = () => {
   /**
    * Получить список функций текущей подписки
    */
-  const features = subscription?.features || [];
+  const features = normalizedSubscription?.features || [];
 
   /**
    * Активировать Trial
@@ -206,7 +246,7 @@ export const useSubscription = () => {
   // ========================================
   return {
     // Data
-    subscription,
+    subscription: normalizedSubscription,
     tier,
     isActive,
     isTrial,

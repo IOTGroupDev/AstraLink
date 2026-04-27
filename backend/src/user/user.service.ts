@@ -14,6 +14,8 @@ import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
 import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
 import { UpdatePushTokenDto } from './dto/update-push-token.dto';
+import { SubscriptionService } from '@/subscription/subscription.service';
+import { SubscriptionTier, hasAIAccess } from '@/types/subscription';
 
 const PROFILE_PRIMARY_PHOTO_TTL_SEC = 60 * 60 * 24;
 
@@ -24,10 +26,43 @@ export class UserService {
   constructor(
     private supabaseService: SupabaseService,
     private chartService: ChartService,
+    private subscriptionService: SubscriptionService,
     private userRepository: UserRepository,
     private eventEmitter: EventEmitter2,
     private prisma: PrismaService,
   ) {}
+
+  private async getActiveSubscriptionTier(
+    userId: string,
+  ): Promise<SubscriptionTier> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+      select: {
+        tier: true,
+        expiresAt: true,
+        trialEndsAt: true,
+      },
+    });
+
+    if (!subscription) {
+      return SubscriptionTier.FREE;
+    }
+
+    const tier = (subscription.tier ||
+      SubscriptionTier.FREE) as SubscriptionTier;
+    if (!hasAIAccess(tier)) {
+      return SubscriptionTier.FREE;
+    }
+
+    const now = new Date();
+    const hasActiveTrial =
+      subscription.trialEndsAt instanceof Date &&
+      subscription.trialEndsAt > now;
+    const hasActivePaid =
+      subscription.expiresAt instanceof Date && subscription.expiresAt > now;
+
+    return hasActiveTrial || hasActivePaid ? tier : SubscriptionTier.FREE;
+  }
 
   private asJsonObject(value: unknown): Record<string, unknown> {
     if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -349,7 +384,11 @@ export class UserService {
     };
   }
 
-  async updateProfile(userId: string, updateData: UpdateProfileRequest) {
+  async updateProfile(
+    userId: string,
+    updateData: UpdateProfileRequest,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     // Подготовка данных для users
     const patch: any = {};
     if (updateData.name !== undefined) patch.name = updateData.name;
@@ -380,6 +419,7 @@ export class UserService {
     let profile: any | null = null;
     const oldData = {
       name: null as string | null,
+      birthDate: null as string | null,
       birthPlace: null as string | null,
       birthTime: null as string | null,
     };
@@ -388,6 +428,7 @@ export class UserService {
       profile = data ?? null;
       if (profile) {
         oldData.name = profile.name;
+        oldData.birthDate = this.formatBirthDate(profile.birth_date);
         oldData.birthPlace = profile.birth_place;
         oldData.birthTime = profile.birth_time;
       }
@@ -406,10 +447,12 @@ export class UserService {
         created_at: nowISO,
         updated_at: nowISO,
       };
+      const preparedInsertPayload =
+        this.supabaseService.prepareUserProfileWritePayload(insertPayload);
 
       const { data: inserted, error: insertErr } = await admin
         .from('users')
-        .insert(insertPayload)
+        .insert(preparedInsertPayload)
         .select()
         .single();
 
@@ -450,6 +493,7 @@ export class UserService {
     // 🎯 Emit events для изменений профиля
     const newData = {
       name: profile.name,
+      birthDate: this.formatBirthDate(profile.birth_date),
       birthPlace: profile.birth_place,
       birthTime: profile.birth_time,
     };
@@ -462,6 +506,16 @@ export class UserService {
 
     // Проверяем изменения birth data для специального события
     const birthDataChanges: BirthDataChangedEvent['changes'] = {};
+
+    if (
+      patch.birth_date !== undefined &&
+      oldData.birthDate !== this.formatBirthDate(patch.birth_date)
+    ) {
+      birthDataChanges.birthDate = {
+        old: oldData.birthDate,
+        new: this.formatBirthDate(patch.birth_date),
+      };
+    }
 
     if (
       patch.birth_place !== undefined &&
@@ -504,6 +558,10 @@ export class UserService {
         | undefined;
 
       const hasAll = !!birthDateOnly && !!birthTime && !!birthPlace;
+      const birthDataChanged =
+        patch.birth_date !== undefined ||
+        patch.birth_time !== undefined ||
+        patch.birth_place !== undefined;
 
       if (hasAll) {
         // есть ли карты?
@@ -515,31 +573,39 @@ export class UserService {
         } catch {
           charts = null;
         }
+        const hasExistingChart = !!charts && charts.length > 0;
+        const premiumTier = await this.getActiveSubscriptionTier(userId);
+        const hasPremiumAi = hasAIAccess(premiumTier);
 
-        // 🎯 Проверка: изменились ли данные рождения?
-        const birthDataChanged =
-          patch.birth_date !== undefined ||
-          patch.birth_time !== undefined ||
-          patch.birth_place !== undefined;
-
-        const needsRecreate = charts && charts.length > 0 && birthDataChanged;
-
-        if (!charts || charts.length === 0 || needsRecreate) {
-          // Удаляем старую карту если пересоздаём
-          if (needsRecreate && charts && charts.length > 0) {
-            this.logger.log(
-              `🔄 Данные рождения изменились, пересоздаём натальную карту для пользователя ${userId}`,
+        if (birthDataChanged || !hasExistingChart) {
+          if (hasPremiumAi) {
+            await this.subscriptionService.refreshPremiumAssetsForUser(
+              userId,
+              locale,
             );
-            const adminClient = this.supabaseService.getAdminClient();
-            await adminClient.from('charts').delete().eq('user_id', userId);
-          }
+          } else {
+            if (hasExistingChart && birthDataChanged) {
+              this.logger.log(
+                `Birth data changed, recalculating natal chart for user ${userId}`,
+              );
+              await this.chartService.forceRecalculateNatalChart(
+                userId,
+                locale,
+              );
+            } else if (!hasExistingChart) {
+              await this.chartService.createNatalChart(
+                userId,
+                {
+                  birthDate: birthDateOnly,
+                  birthTime,
+                  birthPlace,
+                },
+                locale,
+              );
+            }
 
-          await this.chartService.createNatalChartWithInterpretation(
-            userId,
-            birthDateOnly,
-            birthTime,
-            birthPlace,
-          );
+            await this.chartService.getHoroscope(userId, 'day', locale);
+          }
         }
       }
     } catch (_e) {
@@ -660,8 +726,9 @@ export class UserService {
    * 2. Connections (связи)
    * 3. DatingMatches (данные знакомств)
    * 4. Subscriptions (подписки)
-   * 5. User profile (профиль пользователя)
-   * 6. Auth user (пользователь из Supabase Auth) - вне транзакции
+   * 5. AiContentCache (AI-кэш пользователя)
+   * 6. User profile (профиль пользователя)
+   * 7. Auth user (пользователь из Supabase Auth) - вне транзакции
    *
    * ✅ ИСПРАВЛЕНО: Использует Prisma $transaction для гарантии атомарности
    */
@@ -676,7 +743,7 @@ export class UserService {
         throw new NotFoundException(`Пользователь с ID ${userId} не найден`);
       }
 
-      this.logger.log(`✅ Пользователь найден: ${user.email}`);
+      this.logger.log(`✅ Пользователь найден: ${user.id}`);
 
       // Некоторые окружения могут быть “урезаны” (таблицы ещё не раскатаны миграциями).
       // Важно: любые ошибки SQL внутри транзакции Postgres «убивают» транзакцию целиком,
@@ -720,6 +787,12 @@ export class UserService {
         feature_usage: await tableExists('feature_usage'),
         user_blocks: await tableExists('user_blocks'),
         user_reports: await tableExists('user_reports'),
+        likes: await tableExists('likes'),
+        matches: await tableExists('matches'),
+        messages: await tableExists('messages'),
+        user_devices: await tableExists('user_devices'),
+        compatibility_scores: await tableExists('compatibility_scores'),
+        ai_content_cache: await tableExists('ai_content_cache'),
         public_profiles: await tableExists('public_profiles'),
         profiles: await tableExists('profiles'),
       };
@@ -742,6 +815,121 @@ export class UserService {
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
       // Если хотя бы одна операция упадёт - всё откатится автоматически
       await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        if (existingTables.messages) {
+          this.logger.log('🗑️ Удаление сообщений пользователя (messages)...');
+          const messagesDeleted = existingTables.matches
+            ? await tx.$executeRaw(
+                Prisma.sql`
+                  DELETE FROM public.messages
+                  WHERE sender_id = ${userId}::uuid
+                     OR recipient_id = ${userId}::uuid
+                     OR match_id IN (
+                       SELECT id
+                       FROM public.matches
+                       WHERE user_a = ${userId}::uuid
+                          OR user_b = ${userId}::uuid
+                     )
+                `,
+              )
+            : await tx.$executeRaw(
+                Prisma.sql`
+                  DELETE FROM public.messages
+                  WHERE sender_id = ${userId}::uuid
+                     OR recipient_id = ${userId}::uuid
+                `,
+              );
+          this.logger.log(
+            `✅ Удалено сообщений: ${Number(messagesDeleted) || 0}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица messages не найдена — пропускаем');
+        }
+
+        if (existingTables.likes) {
+          this.logger.log('🗑️ Удаление лайков пользователя (likes)...');
+          const likesDeleted = await tx.$executeRaw(
+            Prisma.sql`
+              DELETE FROM public.likes
+              WHERE user_id = ${userId}::uuid
+                 OR target_user_id = ${userId}::uuid
+            `,
+          );
+          this.logger.log(`✅ Удалено лайков: ${Number(likesDeleted) || 0}`);
+        } else {
+          this.logger.warn('⚠️ Таблица likes не найдена — пропускаем');
+        }
+
+        if (existingTables.matches) {
+          this.logger.log('🗑️ Удаление мэтчей пользователя (matches)...');
+          const relationMatchesDeleted = await tx.$executeRaw(
+            Prisma.sql`
+              DELETE FROM public.matches
+              WHERE user_a = ${userId}::uuid
+                 OR user_b = ${userId}::uuid
+            `,
+          );
+          this.logger.log(
+            `✅ Удалено мэтчей: ${Number(relationMatchesDeleted) || 0}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица matches не найдена — пропускаем');
+        }
+
+        if (existingTables.user_devices) {
+          this.logger.log(
+            '🗑️ Удаление устройств пользователя (user_devices)...',
+          );
+          const devicesDeleted = await tx.$executeRaw(
+            Prisma.sql`
+              DELETE FROM public.user_devices
+              WHERE user_id = ${userId}::uuid
+            `,
+          );
+          this.logger.log(
+            `✅ Удалено устройств: ${Number(devicesDeleted) || 0}`,
+          );
+        } else {
+          this.logger.warn('⚠️ Таблица user_devices не найдена — пропускаем');
+        }
+
+        if (existingTables.compatibility_scores) {
+          this.logger.log(
+            '🗑️ Удаление кэша совместимости пользователя (compatibility_scores)...',
+          );
+          const compatibilityDeleted = await tx.$executeRaw(
+            Prisma.sql`
+              DELETE FROM public.compatibility_scores
+              WHERE person_a = ${userId}::uuid
+                 OR person_b = ${userId}::uuid
+                 OR norm_a = ${userId}::uuid
+                 OR norm_b = ${userId}::uuid
+            `,
+          );
+          this.logger.log(
+            `✅ Удалено записей compatibility cache: ${Number(compatibilityDeleted) || 0}`,
+          );
+        } else {
+          this.logger.warn(
+            '⚠️ Таблица compatibility_scores не найдена — пропускаем',
+          );
+        }
+
+        if (existingTables.ai_content_cache) {
+          this.logger.log(
+            '🗑️ Удаление AI content cache пользователя (ai_content_cache)...',
+          );
+          const aiContentCacheDeleted = await tx.aiContentCache.deleteMany({
+            where: { userId },
+          });
+          this.logger.log(
+            `✅ Удалено записей AI content cache: ${aiContentCacheDeleted.count}`,
+          );
+        } else {
+          this.logger.warn(
+            '⚠️ Таблица ai_content_cache не найдена — пропускаем',
+          );
+        }
+
         // 1. Удаляем Charts (натальные карты)
         this.logger.log('🗑️ Удаление натальных карт...');
         const chartsDeleted = await tx.chart.deleteMany({
@@ -901,6 +1089,39 @@ export class UserService {
       this.logger.log(
         '✅ Все данные пользователя удалены из БД (в транзакции)',
       );
+
+      const [userPhotosCleanup, chatMediaCleanup] = await Promise.all([
+        this.supabaseService.removeStorageObjectsByPrefix(
+          'user-photos',
+          userId,
+        ),
+        this.supabaseService.removeStorageObjectsByPrefix('chat-media', userId),
+      ]);
+
+      const describeStorageCleanupError = (error: unknown): string => {
+        if (error instanceof Error) {
+          return error.message;
+        }
+        if (typeof error === 'string') {
+          return error;
+        }
+        return JSON.stringify(error);
+      };
+
+      for (const [bucket, cleanup] of [
+        ['user-photos', userPhotosCleanup],
+        ['chat-media', chatMediaCleanup],
+      ] as const) {
+        if (cleanup.error) {
+          this.logger.warn(
+            `⚠️ Не удалось полностью очистить Storage bucket ${bucket} для пользователя ${userId}: ${describeStorageCleanupError(cleanup.error)}`,
+          );
+        } else {
+          this.logger.log(
+            `✅ Удалено storage-объектов пользователя из ${bucket}: ${cleanup.removed}`,
+          );
+        }
+      }
 
       // 6. Удаляем пользователя из Supabase Auth (вне транзакции - внешний API)
       this.logger.log('🗑️ Удаление пользователя из Supabase Auth...');

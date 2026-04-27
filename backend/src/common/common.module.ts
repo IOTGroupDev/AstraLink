@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { RedisModule } from '@/redis/redis.module';
+import { SensitiveProfileEncryptionService } from './services/sensitive-profile-encryption.service';
 
 /**
  * Global common module
@@ -9,7 +10,7 @@ import { RedisModule } from '@/redis/redis.module';
 @Global()
 @Module({
   imports: [RedisModule],
-  providers: [RateLimiterService],
-  exports: [RateLimiterService],
+  providers: [RateLimiterService, SensitiveProfileEncryptionService],
+  exports: [RateLimiterService, SensitiveProfileEncryptionService],
 })
 export class CommonModule {}

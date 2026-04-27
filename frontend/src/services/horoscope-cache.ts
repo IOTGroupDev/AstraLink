@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import type { Chart } from '../types';
 import type { BiorhythmResponse, HoroscopeBundle } from './api/chart.api';
 
 const HOROSCOPE_SCREEN_CACHE_VERSION = 'v1';
 const HOROSCOPE_SCREEN_CACHE_PREFIX = `horoscope-screen:${HOROSCOPE_SCREEN_CACHE_VERSION}:`;
+const HOROSCOPE_SCREEN_INVALIDATION_KEY = `${HOROSCOPE_SCREEN_CACHE_PREFIX}invalidate`;
+const canPersistHoroscopeCache = Platform.OS === 'web';
 
 export interface HoroscopeScreenCachePayload {
   bucketKey: string;
@@ -36,12 +39,17 @@ const buildHoroscopeScreenCacheKey = (userId: string): string =>
 export async function readHoroscopeScreenCache(
   userId: string
 ): Promise<HoroscopeScreenCachePayload | null> {
+  if (!canPersistHoroscopeCache) return null;
   try {
     const raw = await AsyncStorage.getItem(
       buildHoroscopeScreenCacheKey(userId)
     );
     if (!raw) return null;
-    return JSON.parse(raw) as HoroscopeScreenCachePayload;
+    const parsed = JSON.parse(raw) as HoroscopeScreenCachePayload;
+    return {
+      ...parsed,
+      chart: null,
+    };
   } catch {
     return null;
   }
@@ -51,9 +59,14 @@ export async function writeHoroscopeScreenCache(
   userId: string,
   payload: HoroscopeScreenCachePayload
 ): Promise<void> {
+  if (!canPersistHoroscopeCache) return;
+  const cachePayload: HoroscopeScreenCachePayload = {
+    ...payload,
+    chart: null,
+  };
   await AsyncStorage.setItem(
     buildHoroscopeScreenCacheKey(userId),
-    JSON.stringify(payload)
+    JSON.stringify(cachePayload)
   );
 }
 
@@ -62,6 +75,10 @@ export async function clearHoroscopeScreenCache(
 ): Promise<void> {
   if (userId) {
     await AsyncStorage.removeItem(buildHoroscopeScreenCacheKey(userId));
+    await AsyncStorage.setItem(
+      HOROSCOPE_SCREEN_INVALIDATION_KEY,
+      Date.now().toString()
+    );
     return;
   }
 
@@ -71,5 +88,20 @@ export async function clearHoroscopeScreenCache(
   );
   if (horoscopeKeys.length) {
     await AsyncStorage.multiRemove(horoscopeKeys);
+  }
+  await AsyncStorage.setItem(
+    HOROSCOPE_SCREEN_INVALIDATION_KEY,
+    Date.now().toString()
+  );
+}
+
+export async function readHoroscopeScreenInvalidationMarker(): Promise<
+  string | null
+> {
+  if (!canPersistHoroscopeCache) return null;
+  try {
+    return await AsyncStorage.getItem(HOROSCOPE_SCREEN_INVALIDATION_KEY);
+  } catch {
+    return null;
   }
 }

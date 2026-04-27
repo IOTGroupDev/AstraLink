@@ -273,7 +273,7 @@ export class AuthController {
           ? rawAuth.replace(/^Bearer\s+/i, '').trim()
           : undefined;
 
-      this.logger.log(`Complete signup request for user: ${userId}`);
+      this.logger.log('Complete signup request');
 
       const result = await this.supabaseAuthService.completeSignup(
         userId,
@@ -286,7 +286,10 @@ export class AuthController {
         user: result.user,
       };
     } catch (error) {
-      this.logger.error('Complete signup error:', error);
+      this.logger.error(
+        'Complete signup error:',
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }
@@ -312,7 +315,7 @@ export class AuthController {
   })
   async ensureUserProfile(@Body() dto: EnsureUserProfileDto) {
     try {
-      this.logger.log(`Ensure profile request for user: ${dto.userId}`);
+      this.logger.log('Ensure profile request');
 
       const result = await this.supabaseAuthService.ensureUserProfile(
         dto.userId,
@@ -321,7 +324,10 @@ export class AuthController {
 
       return result;
     } catch (error) {
-      this.logger.error('Ensure profile error:', error);
+      this.logger.error(
+        'Ensure profile error:',
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }

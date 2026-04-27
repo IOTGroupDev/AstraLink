@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as https from 'https';
 
@@ -242,6 +238,19 @@ export class GeoService {
     return false;
   }
 
+  private approximateTimezoneFromLongitude(lon: number): string {
+    if (typeof lon !== 'number' || Number.isNaN(lon)) {
+      return 'UTC';
+    }
+
+    const offset = Math.max(-12, Math.min(14, Math.round(lon / 15)));
+    if (offset === 0) {
+      return 'UTC+0';
+    }
+
+    return `UTC${offset > 0 ? '+' : ''}${offset}`;
+  }
+
   private async lookupTimezone(lat: number, lon: number): Promise<string> {
     const cacheKey = this.timezoneCacheKey(lat, lon);
     const cached = this.timezoneCache.get(cacheKey);
@@ -289,7 +298,7 @@ export class GeoService {
       }
     }
 
-    const fallback = 'UTC';
+    const fallback = this.approximateTimezoneFromLongitude(lon);
     this.timezoneCache.set(cacheKey, {
       tzid: fallback,
       expiresAt: Date.now() + this.timezoneFailureCacheTtlMs,

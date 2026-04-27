@@ -1,18 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { SupabaseService } from '../../supabase/supabase.service';
+import { RedisService } from '../../redis/redis.service';
 import { BirthDataChangedEvent } from '../../user/events';
 
 @Injectable()
 export class ChartEventListener {
   private readonly logger = new Logger(ChartEventListener.name);
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(private readonly redis: RedisService) {}
 
   /**
-   * Handles birth data changes by invalidating cached charts
-   * When a user's birth data changes, all their cached natal charts
-   * must be deleted to force recalculation with new birth information
+   * Handles birth data changes by invalidating derived caches.
+   * The actual natal chart recalculation is handled in UserService, so
+   * this listener must never delete chart rows and race with that flow.
    */
   @OnEvent('user.birthData.changed')
   async handleBirthDataChanged(event: BirthDataChangedEvent) {
@@ -24,25 +24,21 @@ export class ChartEventListener {
     );
 
     try {
-      // Delete all cached charts for this user using admin client
-      const adminClient = this.supabaseService.getAdminClient();
-      const { error, count } = await adminClient
-        .from('charts')
-        .delete({ count: 'exact' })
-        .eq('user_id', userId);
-
-      if (error) {
-        this.logger.error(
-          `Failed to invalidate charts for user ${userId}: ${error.message}`,
-        );
-        return;
-      }
+      const [horoscopeDeleted, transitDeleted] = await Promise.all([
+        this.redis.deleteByPattern(`horoscope:${userId}:*`),
+        this.redis.deleteByPattern(`ephe:transits:${userId}:*`),
+      ]);
 
       this.logger.log(
-        `Invalidated ${count || 0} chart(s) for user ${userId} due to birth data change`,
+        `Invalidated caches for user ${userId} due to birth data change: horoscopes=${horoscopeDeleted}, transits=${transitDeleted}`,
       );
 
       // Log the specific changes for audit purposes
+      if (changes.birthDate) {
+        this.logger.debug(
+          `Birth date changed from "${changes.birthDate.old}" to "${changes.birthDate.new}"`,
+        );
+      }
       if (changes.birthPlace) {
         this.logger.debug(
           `Birth place changed from "${changes.birthPlace.old}" to "${changes.birthPlace.new}"`,
@@ -55,7 +51,7 @@ export class ChartEventListener {
       }
     } catch (error: any) {
       this.logger.error(
-        `Failed to invalidate charts for user ${userId}: ${error?.message || String(error)}`,
+        `Failed to invalidate derived caches for user ${userId}: ${error?.message || String(error)}`,
         error?.stack,
       );
       // Don't throw - this is a background operation

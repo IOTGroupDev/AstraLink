@@ -174,6 +174,30 @@ describe('AIService', () => {
       expect(typeof result).toBe('object');
     });
 
+    it('should recover complete fields from truncated JSON', () => {
+      const truncatedJSON = `{
+        "general": "This week asks for calmer pacing and better boundaries around your attention.",
+        "love": "In relationships, honesty works better than trying to smooth everything over too quickly.",
+        "career": "Work becomes easier when you narrow the scope and finish what is already in motion.",
+        "health": "Energy improves when you reduce background stress and protect your sleep rhythm.",
+        "finance": "Money is steadier when you delay impulse decisions and review the small leaks first.",
+        "advice": "Pick one clear priority and let the rest wait until your head is clearer`;
+      const result = service['parseAIResponse'](truncatedJSON, 'en');
+
+      expect(result.general).toContain(
+        'This week asks for calmer pacing and better boundaries around your attention.',
+      );
+      expect(result.love).toContain(
+        'In relationships, honesty works better than trying to smooth everything over too quickly.',
+      );
+      expect(result.career).toContain(
+        'Work becomes easier when you narrow the scope and finish what is already in motion.',
+      );
+      expect(result.advice).toContain(
+        'Pick one clear priority and let the rest wait until your head is clearer',
+      );
+    });
+
     it('should clean labeled text fallback into readable prose', () => {
       const rawText = `General: This day is less about speed and more about emotional calibration. Once you stop pushing, you begin to notice which conversations and tasks really matter.
 Love: In relationships, warmth works better than pressure today.

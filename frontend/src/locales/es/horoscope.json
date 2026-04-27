@@ -4,6 +4,40 @@
   "positionsOn": "Posiciones en {{date}}",
   "loading": "Cargando datos...",
   "syncing": "Actualizando el horóscopo y la interpretación...",
+  "hero": {
+    "getPremium": "Obtener Premium",
+    "greeting": "Hola {{name}} 👋",
+    "greetingFallback": "Hola 👋",
+    "title": "El cosmos para ti",
+    "positionsOn": "Posiciones en {{date}}",
+    "todayFocus": "Foco del día · {{date}}",
+    "summaryFallback": "Cargando tu día personal desde tu carta y los tránsitos actuales.",
+    "energy": "Energía",
+    "tone": "Tono del día",
+    "tapHint": "Leer completo",
+    "detailsTitle": "Panorama del día",
+    "detailSections": {
+      "focus": "Foco",
+      "summary": "Descripción",
+      "mainTransit": "Por qué",
+      "risk": "Punto de atención",
+      "keyWindow": "Ventana clave"
+    },
+    "sign": "Signo",
+    "house": "Casa"
+  },
+  "quickHelp": {
+    "title": "¿Cómo puedo ayudarte\nhoy?",
+    "actions": {
+      "dating": "Citas",
+      "advisor": "Asesor",
+      "natalChart": "Carta natal",
+      "learning": "Aprendizaje",
+      "personalCode": "Código personal",
+      "horoscope": "Horóscopo",
+      "cosmicSimulator": "Simulador cósmico"
+    }
+  },
   "energy": {
     "veryHigh": "¡Hoy es un gran día para la actividad!",
     "high": "Buena energía para lograr objetivos",
@@ -34,6 +68,7 @@
   },
   "widget": {
     "loading": "Cargando horóscopo...",
+    "syncing": "Actualizando el horóscopo y la interpretación...",
     "periodInsights": "Guía del período",
     "pendingHint": "La versión con IA aún se está completando. Mientras tanto mostramos una interpretación natal fiable y actualizaremos el contenido automáticamente.",
     "categories": {

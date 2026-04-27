@@ -155,8 +155,7 @@ function getRedirectUri(): string {
         });
 
     authLogger.log(
-      `🔗 ${expoGo ? 'Expo Go' : 'Native'} redirect URI via makeRedirectUri:`,
-      url
+      `🔗 ${expoGo ? 'Expo Go' : 'Native'} redirect URI generated`
     );
     return url;
   } catch (error) {
@@ -193,7 +192,7 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   accessToken: string;
   refreshToken: string;
 }> {
-  authLogger.log('↩️ OAuth redirect URL received:', redirectedUrl);
+  authLogger.log('↩️ OAuth redirect received');
   const { accessToken, refreshToken, code } =
     extractFromRedirectUrl(redirectedUrl);
 
@@ -327,7 +326,6 @@ export const authAPI = {
         err.status = 429;
 
         authLogger.warn('⏳ OTP client-side throttle hit:', {
-          email: normalizedEmail,
           retryAfterSec,
           backoffSec: stored.backoffSec,
         });
@@ -335,13 +333,8 @@ export const authAPI = {
         throw err;
       }
 
-      authLogger.log(
-        '📧 Отправка OTP через Backend → Supabase на:',
-        normalizedEmail
-      );
-      authLogger.log('➡️ POST /auth/send-magic-link', {
-        email: normalizedEmail,
-      });
+      authLogger.log('📧 Отправка OTP через Backend → Supabase');
+      authLogger.log('➡️ POST /auth/send-magic-link');
 
       const response = await api.post('/auth/send-magic-link', {
         email: normalizedEmail,
@@ -465,7 +458,7 @@ export const authAPI = {
   appleSignIn: async (): Promise<AuthResponse> => {
     try {
       const redirectUri = getRedirectUri();
-      authLogger.log('🍎 Apple sign in start. Redirect URI:', redirectUri);
+      authLogger.log('🍎 Apple sign in start');
 
       if (Platform.OS === 'ios') {
         // Dynamic import to avoid bundling issues on non-iOS platforms
@@ -572,7 +565,7 @@ export const authAPI = {
     try {
       authLogger.log('🔐 Начало Google OAuth');
       const redirectUri = getRedirectUri();
-      authLogger.log('🔗 Google Redirect URI:', redirectUri);
+      authLogger.log('🔗 Google redirect URI prepared');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -632,7 +625,7 @@ export const authAPI = {
         YANDEX_OAUTH_PROVIDER
       );
       const redirectUri = getRedirectUri();
-      authLogger.log('🔗 Yandex Redirect URI:', redirectUri);
+      authLogger.log('🔗 Yandex redirect URI prepared');
 
       const credentials = {
         // `custom:*` identifier must match the provider configured in Supabase Auth.
@@ -693,15 +686,23 @@ export const authAPI = {
     birthDate: string;
     birthTime?: string;
     birthPlace?: string;
+    latitude?: number;
+    longitude?: number;
+    timezone?: string;
+    birthTimeKnown?: boolean;
   }): Promise<void> => {
     try {
-      authLogger.log('📝 Завершение регистрации:', data);
+      authLogger.log('📝 Завершение регистрации');
       await api.post('/auth/complete-signup', {
         userId: data.userId,
         name: data.name,
         birthDate: data.birthDate,
         birthTime: data.birthTime || '12:00',
         birthPlace: data.birthPlace || 'Moscow',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        timezone: data.timezone,
+        birthTimeKnown: data.birthTimeKnown,
       });
       authLogger.log('✅ Регистрация завершена');
     } catch (error: any) {

@@ -10,6 +10,7 @@ describe('DatingService', () => {
   let service: DatingService;
   let prismaService: jest.Mocked<PrismaService>;
   let ephemerisService: jest.Mocked<EphemerisService>;
+  let supabaseService: jest.Mocked<SupabaseService>;
   let redisService: jest.Mocked<RedisService>;
 
   const mockQueue = {
@@ -18,8 +19,6 @@ describe('DatingService', () => {
   };
 
   const mockUserId = 'user-123';
-  const mockCandidateId = 'candidate-456';
-
   const mockChart = {
     id: 'chart-1',
     userId: mockUserId,
@@ -29,24 +28,6 @@ describe('DatingService', () => {
         moon: { sign: 'Taurus', degree: 22.3, house: 2 },
         venus: { sign: 'Pisces', degree: 8.7, house: 12 },
         mars: { sign: 'Gemini', degree: 18.2, house: 3 },
-      },
-      houses: Array.from({ length: 12 }, (_, i) => ({
-        number: i + 1,
-        sign: 'Aries',
-        degree: i * 30,
-      })),
-    },
-  };
-
-  const mockCandidateChart = {
-    id: 'chart-2',
-    userId: mockCandidateId,
-    data: {
-      planets: {
-        sun: { sign: 'Leo', degree: 20.1, house: 5 },
-        moon: { sign: 'Capricorn', degree: 10.5, house: 10 },
-        venus: { sign: 'Cancer', degree: 5.2, house: 4 },
-        mars: { sign: 'Libra', degree: 25.8, house: 7 },
       },
       houses: Array.from({ length: 12 }, (_, i) => ({
         number: i + 1,
@@ -79,6 +60,7 @@ describe('DatingService', () => {
     const mockSupabaseService = {
       getUserProfileAdmin: jest.fn(),
       getUserChartsAdmin: jest.fn(),
+      normalizeUserProfileRecord: jest.fn((value: unknown) => value),
     };
 
     const mockRedisService = {
@@ -116,6 +98,7 @@ describe('DatingService', () => {
     service = module.get<DatingService>(DatingService);
     prismaService = module.get(PrismaService);
     ephemerisService = module.get(EphemerisService);
+    supabaseService = module.get(SupabaseService);
     redisService = module.get(RedisService);
   });
 
@@ -436,22 +419,6 @@ describe('DatingService', () => {
   describe('Compatibility Calculation', () => {
     it('should calculate higher compatibility for harmonious fire-air signs', () => {
       // Aries (fire) - Leo (air) should have good compatibility
-      const userChart = {
-        data: {
-          planets: {
-            sun: { sign: 'Aries', degree: 15, house: 1 },
-          },
-        },
-      };
-
-      const candidateChart = {
-        data: {
-          planets: {
-            sun: { sign: 'Leo', degree: 20, house: 5 },
-          },
-        },
-      };
-
       const userElement = (service as any).elementFromSign('Aries');
       const candidateElement = (service as any).elementFromSign('Leo');
 
@@ -564,7 +531,6 @@ describe('DatingService', () => {
 
   describe('Synastry Caching', () => {
     it('should cache synastry calculation results', async () => {
-      const cacheKey = `synastry:${mockUserId}:${mockCandidateId}`;
       const mockSynastry = {
         compatibility: 85,
         aspects: [],
@@ -580,7 +546,6 @@ describe('DatingService', () => {
     });
 
     it('should return cached synastry if available', async () => {
-      const cacheKey = `synastry:${mockUserId}:${mockCandidateId}`;
       const cachedSynastry = {
         compatibility: 85,
         aspects: [],
@@ -593,9 +558,6 @@ describe('DatingService', () => {
 
     it('should invalidate cache after 7 days', async () => {
       // Test cache TTL
-      const cacheKey = `synastry:${mockUserId}:${mockCandidateId}`;
-      const CACHE_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
-
       // Verify TTL is set correctly
       // Implementation depends on actual caching logic
     });
@@ -646,6 +608,45 @@ describe('DatingService', () => {
   });
 
   describe('Data Validation', () => {
+    it('should sanitize legacy candidate details before returning them', () => {
+      const sanitized = (service as any).sanitizeCandidateData({
+        partnerId: 'candidate-1',
+        partnerName: 'Alice',
+        email: 'alice@example.com',
+        birthDate: '1990-01-01',
+        birthTime: '12:00',
+        birthPlace: 'Moscow',
+        sign: 'Aries',
+      });
+
+      expect(sanitized).toEqual({
+        partnerId: 'candidate-1',
+        partnerName: 'Alice',
+        sign: 'Aries',
+      });
+    });
+
+    it('should normalize sensitive user fields through Supabase helper', () => {
+      const normalized = {
+        birth_date: '1990-05-15T00:00:00.000Z',
+        birth_place: 'Moscow',
+      };
+      supabaseService.normalizeUserProfileRecord.mockReturnValue(normalized);
+
+      const result = (service as any).normalizeSensitiveUserFields({
+        birth_date: null,
+        birth_place: null,
+      });
+
+      expect(
+        supabaseService.normalizeUserProfileRecord.mock.calls[0]?.[0],
+      ).toEqual({
+        birth_date: null,
+        birth_place: null,
+      });
+      expect(result).toEqual(normalized);
+    });
+
     it('should validate chart structure before processing', () => {
       // Test validation logic
     });

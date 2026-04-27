@@ -30,7 +30,6 @@ import NatalChartWidget from '../components/profile/NatalChartWidget';
 import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
 import { userAPI, chartAPI } from '../services/api';
-import { clearAllUserData } from '../services/cleanupService';
 import { AuthEngine } from '../services/authEngine';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
@@ -116,6 +115,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const requestIdRef = useRef(0);
   const profileRef = useRef<UserProfile | null>(null);
+  const subscriptionRef = useRef<Subscription | null>(subscription);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const profileHeaderTitle = React.useMemo(() => {
@@ -132,20 +132,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     return 'My profile';
   }, [i18n.language]);
   const profileHeaderSubtitle = React.useMemo(() => {
-    const locale = String(i18n.language || 'en').toLowerCase();
-
-    if (locale.startsWith('ru')) {
-      return 'Профиль и карта';
-    }
-
-    if (locale.startsWith('es')) {
-      return 'Perfil y carta';
-    }
-
     return t('profile.headerSubtitle', {
-      defaultValue: 'Profile and chart',
+      defaultValue: 'Your chart, subscription, and cosmic settings.',
     });
-  }, [i18n.language, t]);
+  }, [t]);
 
   const navigateToRootScreen = React.useCallback(
     <T extends keyof RootStackParamList>(
@@ -185,6 +175,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+
+  useEffect(() => {
+    subscriptionRef.current = subscription;
+  }, [subscription]);
 
   const buildProfileFromAuth = React.useCallback((): UserProfile | null => {
     if (!authProfile?.id || !authProfile.email || !authProfile.birthDate) {
@@ -244,8 +238,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         if (st === 401) {
           Alert.alert(
-            t('common.errors.sessionExpired'),
-            t('common.errors.pleaseLoginAgain')
+            i18n.t('common.errors.sessionExpired'),
+            i18n.t('common.errors.pleaseLoginAgain')
           );
           await AuthEngine.signOut();
           return;
@@ -262,7 +256,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       const resolvedSubscription =
         subscriptionRes.status === 'fulfilled'
           ? subscriptionRes.value
-          : (queryClient.getQueryData<Subscription>(['subscription']) ??
+          : (subscriptionRef.current ??
+            queryClient.getQueryData<Subscription>(['subscription']) ??
             DEFAULT_SUBSCRIPTION);
       const resolvedChart =
         chartRes.status === 'fulfilled' ? chartRes.value : null;
@@ -282,7 +277,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       setChart(resolvedChart);
       setPrimaryPhotoUrl(nextPrimaryPhotoUrl);
       setLoading(false);
-      queryClient.setQueryData(['subscription'], resolvedSubscription);
+
+      if (subscriptionRes.status === 'fulfilled') {
+        queryClient.setQueryData(['subscription'], resolvedSubscription);
+      }
 
       if (hasFreshServerPhoto) {
         await setCachedPrimaryPhoto(resolvedProfile.id, {
@@ -315,15 +313,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       const data = error?.response?.data;
       logger.error('Ошибка загрузки данных профиля', st, data, error?.message);
       Alert.alert(
-        t('common.errors.generic'),
-        data?.message || t('profile.errors.failedToLoad')
+        i18n.t('common.errors.generic'),
+        data?.message || i18n.t('profile.errors.failedToLoad')
       );
     } finally {
       if (requestId === requestIdRef.current) {
         setLoading(false);
       }
     }
-  }, [authProfile?.id, buildProfileFromAuth, queryClient, t]);
+  }, [authProfile?.id, buildProfileFromAuth, i18n, queryClient]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -337,7 +335,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
       setShowDeleteModal(false);
 
-      await clearAllUserData();
       await AuthEngine.signOut();
 
       navigation.reset({

@@ -91,6 +91,7 @@ export interface LuckyElements {
 export interface ChartLookupResult {
   chartData: ChartData | null;
   foundVia: 'admin' | 'regular' | 'prisma' | 'repository' | 'none';
+  chartRevision?: string;
 }
 
 // Aspect calculation result

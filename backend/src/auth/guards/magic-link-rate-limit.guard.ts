@@ -71,7 +71,7 @@ export class MagicLinkRateLimitGuard implements CanActivate {
 
       if (!emailResult.allowed) {
         this.logger.warn(
-          `Magic link rate limit exceeded for email ${email}. Blocked until ${new Date(emailResult.resetTime).toISOString()}`,
+          `Magic link rate limit exceeded for email identifier. Blocked until ${new Date(emailResult.resetTime).toISOString()}`,
         );
 
         throw new ForbiddenException({

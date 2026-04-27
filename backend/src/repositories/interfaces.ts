@@ -13,6 +13,9 @@ export interface UserProfile {
   birth_date?: string | null;
   birth_time?: string | null;
   birth_place?: string | null;
+  birth_date_encrypted?: string | null;
+  birth_time_encrypted?: string | null;
+  birth_place_encrypted?: string | null;
   onboarding_completed?: boolean | null;
   gender?: string | null;
   city?: string | null;
@@ -32,6 +35,9 @@ export interface CreateUserDto {
   birth_date?: string;
   birth_time?: string;
   birth_place?: string;
+  birth_date_encrypted?: string | null;
+  birth_time_encrypted?: string | null;
+  birth_place_encrypted?: string | null;
   gender?: string;
   city?: string;
 }
@@ -44,6 +50,9 @@ export interface UpdateUserDto {
   birth_date?: string;
   birth_time?: string;
   birth_place?: string;
+  birth_date_encrypted?: string | null;
+  birth_time_encrypted?: string | null;
+  birth_place_encrypted?: string | null;
   gender?: string;
   city?: string;
   interests?: string | string[];

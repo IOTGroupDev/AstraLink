@@ -55,13 +55,13 @@ describe('Auth Store', () => {
     expect(result.current.isAuthenticated).toBe(false);
   });
 
-  it('should update onboarding completion status', () => {
+  it('should update onboarding completion status', async () => {
     const { result } = renderHook(() => useAuthStore());
 
     expect(result.current.onboardingCompleted).toBe(false);
 
-    act(() => {
-      result.current.setOnboardingCompleted(true);
+    await act(async () => {
+      await result.current.setOnboardingCompleted(true);
     });
 
     expect(result.current.onboardingCompleted).toBe(true);

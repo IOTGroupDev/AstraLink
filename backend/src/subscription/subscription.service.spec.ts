@@ -9,8 +9,6 @@ import { SubscriptionTier } from '../types';
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
   let prismaService: jest.Mocked<PrismaService>;
-  let aiService: jest.Mocked<AIService>;
-  let horoscopeService: jest.Mocked<HoroscopeGeneratorService>;
 
   const mockUserId = 'test-user-123';
   const mockDate = new Date('2025-11-23T00:00:00Z');
@@ -57,8 +55,6 @@ describe('SubscriptionService', () => {
 
     service = module.get<SubscriptionService>(SubscriptionService);
     prismaService = module.get(PrismaService);
-    aiService = module.get(AIService);
-    horoscopeService = module.get(HoroscopeGeneratorService);
   });
 
   afterEach(() => {

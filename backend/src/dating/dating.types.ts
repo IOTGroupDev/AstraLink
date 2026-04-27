@@ -105,11 +105,15 @@ export interface SynastryData {
 // Database entity types
 export interface UserData {
   id: string;
-  name?: string;
-  email?: string;
-  birth_date?: string | Date;
-  birth_place?: string;
-  created_at?: string;
+  name?: string | null;
+  email?: string | null;
+  birth_date?: string | Date | null;
+  birth_time?: string | null;
+  birth_place?: string | null;
+  birth_date_encrypted?: string | null;
+  birth_time_encrypted?: string | null;
+  birth_place_encrypted?: string | null;
+  created_at?: string | null;
 }
 
 export interface UserProfile {

@@ -10,7 +10,6 @@ import {
   IChartRepository,
   NatalChart,
   CreateChartDto,
-  NotFoundError,
   DataAccessError,
 } from './interfaces';
 

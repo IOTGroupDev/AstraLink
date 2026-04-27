@@ -128,11 +128,10 @@ export const useChartStore = create<ChartState>()(
     {
       name: 'chart-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        natalChart: state.natalChart,
-        currentTransits: state.currentTransits,
-        predictions: state.predictions,
-      }),
+      version: 2,
+      migrate: () => ({}),
+      // Natal chart payloads and predictions are sensitive and should not persist on device.
+      partialize: () => ({}),
     }
   )
 );

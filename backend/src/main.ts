@@ -147,15 +147,21 @@ async function bootstrap() {
   // CORS configuration - environment-aware
   app.enableCors(getCorsConfig());
 
-  // Swagger документация
-  const config = new DocumentBuilder()
-    .setTitle('AstraLink API')
-    .setDescription('API для астрологического приложения AstraLink')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  const nodeEnv = process.env.NODE_ENV || 'production';
+  const swaggerEnabled =
+    (nodeEnv === 'development' || nodeEnv === 'dev') &&
+    process.env.ENABLE_SWAGGER === 'true';
+
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('AstraLink API')
+      .setDescription('API для астрологического приложения AstraLink')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT || 3000;
   const localIP = getLocalIP();
@@ -166,7 +172,11 @@ async function bootstrap() {
   logger.log('🚀 AstraLink Backend successfully started!');
   logger.log('='.repeat(60));
   logger.log(`📱 For Expo use: http://${localIP}:${port}/api`);
-  logger.log(`📚 Swagger: http://localhost:${port}/api/docs`);
+  logger.log(
+    swaggerEnabled
+      ? `📚 Swagger: http://localhost:${port}/api/docs`
+      : '📚 Swagger: disabled',
+  );
   logger.log(`🌐 Local IP: ${localIP}`);
   logger.log(`🔌 Port: ${port}`);
   logger.log('='.repeat(60) + '\n');
