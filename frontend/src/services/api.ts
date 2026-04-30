@@ -14,6 +14,7 @@ export { connectionsAPI } from './api/connections.api';
 export { datingAPI } from './api/dating.api';
 export { advisorAPI } from './api/advisor.api';
 export { subscriptionAPI } from './api/subscription.api';
+export { compatibilityAPI } from './api/compatibility.api';
 export { chatAPI } from './api/chat.api';
 export { userPhotosAPI, type UserPhotoItem } from './api/user-photos.api';
 export { userExtendedProfileAPI } from './api/user-extended-profile.api';

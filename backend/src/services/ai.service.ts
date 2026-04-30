@@ -256,6 +256,150 @@ export class AIService {
     }
   }
 
+  async generateCompatibilityInterpretation(context: {
+    score: number;
+    categories: Record<
+      string,
+      { score: number; title: string; description: string }
+    >;
+    keyAspects: Array<{
+      planetA: string;
+      planetB: string;
+      aspect: string;
+      orb?: number;
+      strength?: number;
+    }>;
+    synastrySummary?: string;
+    locale?: AILocale;
+  }): Promise<string> {
+    if (!this.isAvailable()) {
+      throw new Error('AI service unavailable');
+    }
+
+    const locale = context.locale ?? 'ru';
+    const prompt = this.buildCompatibilityPrompt(context, locale);
+    const provider = this.providers.get(this.primaryProvider);
+    if (!provider) {
+      throw new Error(`Provider ${this.primaryProvider} not found`);
+    }
+
+    try {
+      const response = await provider.generate(prompt, undefined, locale, {
+        temperature: 0.7,
+        maxTokens: 900,
+      });
+      return this.normalizeCompatibilityNarrative(response);
+    } catch (error) {
+      this.logger.error(
+        `❌ Compatibility interpretation error via ${this.primaryProvider}:`,
+        error,
+      );
+
+      const availableProviders = this.getAvailableProviders().filter(
+        (p) => p !== this.primaryProvider,
+      );
+
+      for (const fallbackProvider of availableProviders) {
+        try {
+          const fallback = this.providers.get(fallbackProvider);
+          if (!fallback) continue;
+
+          const response = await fallback.generate(prompt, undefined, locale, {
+            temperature: 0.7,
+            maxTokens: 900,
+          });
+          return this.normalizeCompatibilityNarrative(response);
+        } catch (fallbackError) {
+          this.logger.error(
+            `❌ Compatibility fallback to ${fallbackProvider} failed:`,
+            fallbackError,
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  private normalizeCompatibilityNarrative(response: string): string {
+    const text = response.trim();
+    if (!text) {
+      return text;
+    }
+
+    const fencedJson = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+    const candidate = fencedJson?.trim() || text;
+
+    if (!candidate.startsWith('{') && !candidate.startsWith('[')) {
+      return text;
+    }
+
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      return this.formatCompatibilityNarrativeValue(parsed) || text;
+    } catch {
+      return text;
+    }
+  }
+
+  private formatCompatibilityNarrativeValue(value: unknown): string {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this.formatCompatibilityNarrativeValue(item))
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
+    if (!value || typeof value !== 'object') {
+      return '';
+    }
+
+    const record = value as Record<string, unknown>;
+    const preferredKeys = [
+      'overallDynamic',
+      'overall_dynamic',
+      'overall',
+      'summary',
+      'strengths',
+      'risks',
+      'practicalAdvice',
+      'practical_advice',
+      'advice',
+      'text',
+      'narrative',
+      'interpretation',
+    ];
+    const entries = Object.entries(record).sort(([a], [b]) => {
+      const ai = preferredKeys.indexOf(a);
+      const bi = preferredKeys.indexOf(b);
+      return (
+        (ai === -1 ? preferredKeys.length : ai) -
+        (bi === -1 ? preferredKeys.length : bi)
+      );
+    });
+
+    return entries
+      .map(([key, item]) => {
+        const body = this.formatCompatibilityNarrativeValue(item);
+        if (!body) {
+          return '';
+        }
+
+        const title = key
+          .replace(/_/g, ' ')
+          .replace(/([a-zа-яё])([A-ZА-ЯЁ])/g, '$1 $2')
+          .replace(/^./, (char) => char.toUpperCase());
+
+        return `${title}\n${body}`;
+      })
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
   /**
    * Stream horoscope generation
    */
@@ -880,6 +1024,69 @@ ${dailyContextDescription}
   /**
    * Build chart interpretation prompt
    */
+  private buildCompatibilityPrompt(
+    context: {
+      score: number;
+      categories: Record<
+        string,
+        { score: number; title: string; description: string }
+      >;
+      keyAspects: Array<{
+        planetA: string;
+        planetB: string;
+        aspect: string;
+        orb?: number;
+        strength?: number;
+      }>;
+      synastrySummary?: string;
+    },
+    locale: AILocale = 'ru',
+  ): string {
+    const categories = Object.values(context.categories)
+      .map((category) => `- ${category.title}: ${category.score}/100`)
+      .join('\n');
+    const aspects = context.keyAspects
+      .map(
+        (aspect) =>
+          `- ${aspect.planetA} ${aspect.aspect} ${aspect.planetB}, orb=${aspect.orb ?? 'n/a'}, strength=${aspect.strength ?? 'n/a'}`,
+      )
+      .join('\n');
+
+    if (locale === 'en') {
+      return `Write a private astrology compatibility interpretation.
+Do not mention names or identify the partner. Do not make deterministic promises.
+Use the calculated synastry only, keep it practical and respectful.
+
+Overall score: ${context.score}/100
+Categories:
+${categories}
+
+Key aspects:
+${aspects || '- none'}
+
+Existing technical summary: ${context.synastrySummary ?? 'not available'}
+
+Return plain text only, not JSON and not Markdown code fences.
+Use 4 short sections: overall dynamic, strengths, risks, practical advice.`;
+    }
+
+    return `Напиши приватную интерпретацию астрологической совместимости.
+Не упоминай имена и не идентифицируй партнера. Не обещай судьбу и не делай категоричных выводов.
+Опирайся только на рассчитанную синастрию, пиши уважительно и практично.
+
+Общий балл: ${context.score}/100
+Категории:
+${categories}
+
+Ключевые аспекты:
+${aspects || '- нет'}
+
+Техническое резюме: ${context.synastrySummary ?? 'недоступно'}
+
+Верни только обычный текст, без JSON и без Markdown-блоков кода.
+Используй 4 коротких раздела: общий динамический фон, сильные стороны, риски, практический совет.`;
+  }
+
   private buildInterpretationPrompt(
     context: {
       planets: any;

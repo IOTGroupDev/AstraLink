@@ -196,6 +196,25 @@ model UserReport {
   @@schema("public")
 }
 
+model CompatibilityReport {
+  id               String       @id @default(uuid())
+  userId           String       @map("user_id") @db.Uuid
+  partnerBirthData Json         @map("partner_birth_data") @db.JsonB
+  partnerChartData Json         @map("partner_chart_data") @db.JsonB
+  result           Json         @db.JsonB
+  score            Int
+  aiProvider       String?      @map("ai_provider")
+  aiGeneratedAt    DateTime?    @map("ai_generated_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  users            public_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([score])
+  @@map("compatibility_reports")
+  @@schema("public")
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model audit_log_entries {
@@ -552,6 +571,7 @@ model public_users {
   updated_at            DateTime      @default(now())
   charts                Chart[]
   connections           Connection[]
+  compatibility_reports CompatibilityReport[]
   dating_matches        DatingMatch[]
   subscriptions         Subscription?
   photos                UserPhoto[]

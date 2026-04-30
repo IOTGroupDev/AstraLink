@@ -18,6 +18,7 @@ import ChatDialogScreen from '../screens/ChatDialogScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
 import PersonalCodeScreen from '../screens/PersonalCodeScreen';
+import CompatibilityScreen from '../screens/CompatibilityScreen';
 import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import LearningScreen from '../screens/LearningScreen';
 import DatingProfileScreen from '../screens/DatingProfileScreen';
@@ -112,6 +113,7 @@ export default function MainStackNavigator() {
           <Stack.Screen name="ChatList" component={ChatListScreen} />
           <Stack.Screen name="NatalChart" component={NatalChartScreen} />
           <Stack.Screen name="PersonalCode" component={PersonalCodeScreen} />
+          <Stack.Screen name="Compatibility" component={CompatibilityScreen} />
         </>
       )}
     </Stack.Navigator>
