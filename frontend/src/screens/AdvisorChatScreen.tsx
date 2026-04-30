@@ -28,6 +28,15 @@ import { useTranslation } from 'react-i18next';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Reanimated, { FadeInDown } from 'react-native-reanimated';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Path,
+  RadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
@@ -41,10 +50,6 @@ import type {
   AdvisorEvaluateResponse,
   AdvisorTopic,
 } from '../services/api/advisor.api';
-import AdvisorAspectsWidget from '../components/advisor/AdvisorAspectsWidget';
-import AdvisorRecommendationsWidget from '../components/advisor/AdvisorRecommendationsWidget';
-import AdvisorResultWidget from '../components/advisor/AdvisorResultWidget';
-import BestWindowsWidget from '../components/advisor/BestWindowsWidget';
 import DateWheelPicker from '../components/shared/DateWheelPicker';
 import { GradientBorderView } from '../components/shared';
 import { logger } from '../services/logger';
@@ -1505,55 +1510,279 @@ function AdvisorResultMessage({
   result: AdvisorEvaluateResponse;
   topicOption: TopicOption | null;
 }) {
+  const { t, i18n } = useTranslation();
+
   if (!topicOption) {
     return null;
   }
 
+  const verdictLabel = t(`advisor.resultWidget.verdict.${result.verdict}`);
+  const visibleRisks =
+    result.risks?.filter(Boolean).slice(0, 4) ??
+    result.recommendations
+      ?.filter((item) => item.category !== 'action')
+      .map((item) => item.text)
+      .slice(0, 4) ??
+    [];
+  const topWindows = [...(result.bestWindows ?? [])]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+  const topFactors = [...(result.factors ?? [])]
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, 2);
+  const scoreWidth: `${number}%` = `${Math.max(
+    0,
+    Math.min(100, result.score)
+  )}%`;
+  const locale =
+    i18n.language === 'ru'
+      ? 'ru-RU'
+      : i18n.language === 'es'
+        ? 'es-ES'
+        : 'en-US';
+
+  const formatTime = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--:--';
+
+    return date.toLocaleTimeString(locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const primaryInfluence = topFactors[0];
+  const signedContribution = (value: number) =>
+    value > 0 ? `+${value}` : String(value);
+
   return (
     <Reanimated.View
       entering={FadeInDown.duration(300)}
-      style={styles.assistantRow}
+      style={styles.finalResult}
     >
-      <View style={styles.avatar}>
-        <LinearGradient
-          colors={['#22D3EE', '#6366F1']}
-          style={styles.avatarGradient}
-        >
-          <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-        </LinearGradient>
+      <View style={styles.finalHeader}>
+        <Text style={styles.finalScoreTitle}>
+          {result.score}% • {verdictLabel}
+        </Text>
       </View>
-      <View style={styles.resultStack}>
-        <AdvisorResultWidget
-          verdict={result.verdict}
-          score={result.score}
-          color={result.color}
-          directAnswer={result.directAnswer}
-          explanation={result.explanation}
-          risks={result.risks}
-          clarifyingQuestion={result.clarifyingQuestion}
-          alternativeDate={result.alternativeDate}
-          topic={topicOption.label}
-          topicIcon={topicOption.icon}
-        />
-        {result.recommendations && result.recommendations.length > 0 && (
-          <AdvisorRecommendationsWidget
-            recommendations={result.recommendations}
-            verdict={result.verdict}
+
+      {result.topicDescription ? (
+        <Text style={styles.finalText}>
+          {t('advisor.analysisFor')} "{result.topicDescription}".
+        </Text>
+      ) : (
+        <Text style={styles.finalText}>
+          {t('advisor.analysisFor')} "{topicOption.label}".
+        </Text>
+      )}
+
+      {result.directAnswer ? (
+        <Text style={styles.finalText}>{result.directAnswer}</Text>
+      ) : null}
+
+      <Text style={styles.finalText}>{result.explanation}</Text>
+
+      {primaryInfluence ? (
+        <Text style={styles.finalText}>
+          Key influences: {primaryInfluence.label}{' '}
+          {signedContribution(primaryInfluence.contribution)}.{' '}
+          {primaryInfluence.description}
+        </Text>
+      ) : null}
+
+      <Text style={styles.finalText}>Overall score: {result.score}/100</Text>
+
+      <View style={styles.energyBlock}>
+        <Text style={styles.energyLevelLabel}>
+          {t('advisor.resultWidget.energyLabel')}
+        </Text>
+        <View style={styles.figmaEnergyTrack}>
+          <LinearGradient
+            colors={['#5F2999', '#9F45FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.figmaEnergyFill, { width: scoreWidth }]}
           />
-        )}
-        {result.bestWindows?.length > 0 && (
-          <BestWindowsWidget
-            windows={result.bestWindows}
-            verdict={result.verdict}
-          />
-        )}
-        {result.aspects?.length > 0 && (
-          <AdvisorAspectsWidget
-            aspects={result.aspects}
-            factors={result.factors}
-          />
-        )}
+        </View>
+        <View style={styles.figmaEnergyScale}>
+          {[0, 25, 50, 75, 100].map((marker) => (
+            <Text key={marker} style={styles.figmaEnergyMarker}>
+              {marker}
+            </Text>
+          ))}
+        </View>
       </View>
+
+      {visibleRisks.length > 0 ? (
+        <View style={styles.finalSection}>
+          <View style={styles.finalSectionHeader}>
+            <Ionicons name="warning-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.finalSectionTitle}>
+              {t('advisor.recommendationsWidget.title.neutral')}
+            </Text>
+          </View>
+          {visibleRisks.map((risk, index) => (
+            <View key={`${risk}-${index}`} style={styles.finalBulletRow}>
+              <Text style={styles.finalBullet}>•</Text>
+              <Text
+                style={[
+                  styles.finalBulletText,
+                  index > 0 && styles.finalBulletTextMuted,
+                ]}
+              >
+                {risk}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {topWindows.length > 0 ? (
+        <View style={styles.finalSection}>
+          <View style={styles.finalSectionHeader}>
+            <Ionicons name="time-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.finalSectionTitle}>
+              {t('advisor.bestWindowsWidget.title')}
+            </Text>
+          </View>
+          <View style={styles.timeChart}>
+            <Svg width="100%" height="144" viewBox="0 0 382 144">
+              <Defs>
+                <SvgLinearGradient
+                  id="advisorChartLine"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <Stop offset="0" stopColor="#C77DFF" stopOpacity="0.9" />
+                  <Stop offset="1" stopColor="#9F45FF" stopOpacity="0.1" />
+                </SvgLinearGradient>
+                <SvgLinearGradient
+                  id="advisorChartStroke"
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="0"
+                >
+                  <Stop offset="0" stopColor="#7B3FE4" stopOpacity="0.95" />
+                  <Stop offset="0.24" stopColor="#9F45FF" stopOpacity="1" />
+                  <Stop offset="0.33" stopColor="#F1C5FF" stopOpacity="1" />
+                  <Stop offset="0.4" stopColor="#C77DFF" stopOpacity="1" />
+                  <Stop offset="0.56" stopColor="#9F45FF" stopOpacity="0.95" />
+                  <Stop offset="1" stopColor="#8B4DDB" stopOpacity="0.8" />
+                </SvgLinearGradient>
+                <SvgLinearGradient
+                  id="advisorWindowGlow"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <Stop offset="0" stopColor="#9F45FF" stopOpacity="0" />
+                  <Stop offset="1" stopColor="#9F45FF" stopOpacity="0.7" />
+                </SvgLinearGradient>
+                <RadialGradient id="advisorPeakGlow" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.95" />
+                  <Stop offset="0.38" stopColor="#F1C5FF" stopOpacity="0.85" />
+                  <Stop offset="1" stopColor="#F1C5FF" stopOpacity="0" />
+                </RadialGradient>
+              </Defs>
+              <Path
+                d="M18 96 C54 74 64 58 96 52 C118 48 118 28 127 18 C136 36 132 74 158 92 C188 110 218 113 364 112"
+                fill="none"
+                stroke="url(#advisorChartStroke)"
+                strokeWidth="2"
+              />
+              <Path
+                d="M18 96 C54 74 64 58 96 52 C118 48 118 28 127 18 C136 36 132 74 158 92 C188 110 218 113 364 112 L364 126 L18 126 Z"
+                fill="url(#advisorChartLine)"
+                opacity="0.35"
+              />
+              <Rect
+                x="112"
+                y="18"
+                width="30"
+                height="108"
+                rx="6"
+                fill="url(#advisorWindowGlow)"
+              />
+              <Circle cx="127" cy="18" r="15" fill="url(#advisorPeakGlow)" />
+              <Circle cx="127" cy="18" r="3" fill="#FFFFFF" opacity="0.9" />
+            </Svg>
+            <View style={styles.timeChartLabels}>
+              {['12 PM', '6 AM', '12 AM', '6 PM', '12 PM'].map((label) => (
+                <Text key={label} style={styles.timeChartLabel}>
+                  {label}
+                </Text>
+              ))}
+            </View>
+          </View>
+          <View style={styles.finalWindowsList}>
+            {topWindows.map((window, index) => (
+              <LinearGradient
+                key={`${window.startISO}-${window.endISO}`}
+                colors={[
+                  index === 0
+                    ? 'rgba(159, 69, 255, 0.9)'
+                    : 'rgba(159, 69, 255, 0.3)',
+                  'rgba(8, 13, 27, 0)',
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.finalWindowRow}
+              >
+                <Text style={styles.finalWindowRank}>{index + 1}</Text>
+                <Text style={styles.finalWindowTime}>
+                  {formatTime(window.startISO)} – {formatTime(window.endISO)}
+                </Text>
+                <View style={styles.finalWindowScore}>
+                  <Text style={styles.finalWindowScoreText}>
+                    {window.score}
+                  </Text>
+                </View>
+              </LinearGradient>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {topFactors.length > 0 ? (
+        <View style={styles.finalSection}>
+          <View style={styles.finalSectionHeader}>
+            <Ionicons name="analytics-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.finalSectionTitle}>
+              {t('advisor.aspectsWidget.title')}
+            </Text>
+          </View>
+          <Text style={styles.finalSubhead}>
+            {t('advisor.aspectsWidget.sections.factors')}
+          </Text>
+          <View style={styles.factorList}>
+            {topFactors.map((factor, index) => (
+              <View key={`${factor.label}-${index}`} style={styles.factorRow}>
+                <Text style={styles.factorTitle}>
+                  {factor.label}{' '}
+                  <Text
+                    style={[
+                      styles.factorScore,
+                      factor.contribution < 0 && styles.factorScoreNegative,
+                    ]}
+                  >
+                    {signedContribution(factor.contribution)}
+                  </Text>
+                </Text>
+                {factor.description ? (
+                  <Text style={styles.factorDescription}>
+                    {factor.description}{' '}
+                    {signedContribution(factor.contribution)}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </Reanimated.View>
   );
 }
@@ -1637,19 +1866,24 @@ function FooterAction({
   subtle?: boolean;
 }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.footerAction, subtle && styles.footerActionSubtle]}
-    >
-      <Ionicons name={icon} size={16} color={subtle ? '#CBD5E1' : '#FFFFFF'} />
-      <Text
-        style={[
-          styles.footerActionText,
-          subtle && styles.footerActionTextSubtle,
-        ]}
+    <TouchableOpacity onPress={onPress} style={styles.footerActionTouchable}>
+      <GradientBorderView
+        colors={
+          subtle
+            ? ['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.05)']
+            : ['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.1)']
+        }
+        gradientProps={{
+          locations: [0.29, 1],
+          start: { x: 0.49, y: 0 },
+          end: { x: 0.51, y: 1 },
+        }}
+        style={styles.footerActionBorder}
+        contentStyle={styles.footerAction}
       >
-        {label}
-      </Text>
+        <Ionicons name={icon} size={16} color="rgba(255, 255, 255, 0.9)" />
+        <Text style={styles.footerActionText}>{label}</Text>
+      </GradientBorderView>
     </TouchableOpacity>
   );
 }
@@ -2073,35 +2307,216 @@ const styles = StyleSheet.create({
   loadingDots: {
     color: 'rgba(255, 255, 255, 0.7)',
   },
-  resultStack: {
+  finalResult: {
+    width: '100%',
+    alignItems: 'stretch',
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  finalHeader: {
+    width: '100%',
+    overflow: 'hidden',
+  },
+  finalScoreTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '500',
+    lineHeight: 30,
+  },
+  finalText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  energyBlock: {
+    gap: 8,
+    marginTop: 2,
+  },
+  energyLevelLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  figmaEnergyTrack: {
+    height: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+  },
+  figmaEnergyFill: {
+    height: 8,
+    borderRadius: 10,
+    opacity: 0.7,
+  },
+  figmaEnergyScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 2,
+  },
+  figmaEnergyMarker: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  finalSection: {
+    gap: 6,
+    paddingTop: 14,
+  },
+  finalSectionHeader: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  finalSectionTitle: {
     flex: 1,
-    gap: 12,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 24,
+  },
+  finalBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  finalBullet: {
+    width: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  finalBulletText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  finalBulletTextMuted: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  timeChart: {
+    height: 180,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+  },
+  timeChartLabels: {
+    height: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  timeChartLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  finalWindowsList: {
+    gap: 8,
+    marginTop: 2,
+  },
+  finalWindowRow: {
+    minHeight: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 8,
+    padding: 4,
+  },
+  finalWindowRank: {
+    width: 20,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  finalWindowTime: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  finalWindowScore: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  finalWindowScoreText: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  finalSubhead: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  factorList: {
+    gap: 6,
+  },
+  factorRow: {
+    borderLeftWidth: 2,
+    borderLeftColor: 'rgba(255, 255, 255, 0.7)',
+    paddingLeft: 10,
+  },
+  factorTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  factorScore: {
+    color: '#1AB58E',
+  },
+  factorScoreNegative: {
+    color: '#EC484C',
+  },
+  factorDescription: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    lineHeight: 20,
   },
   actionsRow: {
     alignItems: 'flex-end',
     minHeight: 16,
   },
+  footerActionTouchable: {
+    maxWidth: '100%',
+  },
+  footerActionBorder: {
+    borderRadius: 24,
+    borderWidth: 1,
+  },
   footerAction: {
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(99, 102, 241, 0.9)',
-  },
-  footerActionSubtle: {
-    backgroundColor: 'rgba(30, 41, 59, 0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.18)',
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   footerActionText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  footerActionTextSubtle: {
-    color: '#CBD5E1',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   summaryCard: {
     borderRadius: 20,
