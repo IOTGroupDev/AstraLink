@@ -6,7 +6,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Keyboard,
   NativeScrollEvent,
@@ -35,9 +34,7 @@ import { useSubscription } from '../hooks/useSubscription';
 import { advisorAPI } from '../services/api';
 import {
   ADVISOR_HISTORY_LIMIT,
-  hideAdvisorHistoryHint,
   readAdvisorHistory,
-  shouldShowAdvisorHistoryHint,
   writeAdvisorHistory,
 } from '../services/advisor-history';
 import type {
@@ -243,7 +240,6 @@ const AdvisorScreen: React.FC = () => {
     Record<string, AdvisorSessionRevealState>
   >({});
   const historyHydratedRef = useRef(false);
-  const [showHistoryNotice, setShowHistoryNotice] = useState(false);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.9);
   const backgroundOpacityRef = useRef(0.9);
 
@@ -410,16 +406,12 @@ const AdvisorScreen: React.FC = () => {
     if (!userId) {
       setChatState(createInitialAdvisorChatState());
       setReveals({});
-      setShowHistoryNotice(false);
       historyHydratedRef.current = true;
       return undefined;
     }
 
     void (async () => {
-      const [storedState, shouldShowHint] = await Promise.all([
-        readAdvisorHistory(userId),
-        shouldShowAdvisorHistoryHint(userId),
-      ]);
+      const storedState = await readAdvisorHistory(userId);
 
       if (cancelled) return;
 
@@ -437,7 +429,6 @@ const AdvisorScreen: React.FC = () => {
           ])
         )
       );
-      setShowHistoryNotice(shouldShowHint);
       historyHydratedRef.current = true;
     })();
 
@@ -464,13 +455,6 @@ const AdvisorScreen: React.FC = () => {
 
     void writeAdvisorHistory(user.id, state);
   }, [activeSessionId, sessions, user?.id]);
-
-  const dismissHistoryNotice = useCallback(() => {
-    const userId = user?.id;
-    setShowHistoryNotice(false);
-    if (!userId) return;
-    void hideAdvisorHistoryHint(userId);
-  }, [user?.id]);
 
   const formatDisplayDate = useCallback(
     (value?: string) => {
@@ -829,40 +813,15 @@ const AdvisorScreen: React.FC = () => {
               },
             ]}
           >
-            {showHistoryNotice && (
-              <AssistantCard>
-                <Text style={styles.widgetTitle}>
-                  {t('advisor.history.title')}
-                </Text>
-                <Text style={styles.widgetSubtitle}>
-                  {t('advisor.history.message', {
-                    count: ADVISOR_HISTORY_LIMIT,
-                  })}
-                </Text>
-                <TouchableOpacity
-                  onPress={dismissHistoryNotice}
-                  style={styles.historyNoticeButton}
-                >
-                  <Text style={styles.historyNoticeButtonText}>
-                    {t('advisor.history.confirm')}
-                  </Text>
-                </TouchableOpacity>
-              </AssistantCard>
-            )}
-
             <View style={styles.transcript}>
               {sessions.map((session) => {
                 const reveal = getSessionReveal(session.id);
 
-                return session.collapsed ? (
-                  <SessionSummaryCard
-                    key={session.id}
-                    session={session}
-                    topicOption={getTopicOption(session.topic)}
-                    formatDisplayDate={formatDisplayDate}
-                    t={t}
-                  />
-                ) : (
+                if (session.collapsed) {
+                  return null;
+                }
+
+                return (
                   <View key={session.id} style={styles.sessionBlock}>
                     {session.id === activeSessionId && (
                       <InitialAdvisorState
@@ -1363,23 +1322,26 @@ function AssistantCard({ children }: { children: React.ReactNode }) {
 }
 
 function AssistantLoadingBubble({ text }: { text: string }) {
+  const [dotCount, setDotCount] = useState(1);
+  const baseText = useMemo(() => text.trim().replace(/[.]+$/, ''), [text]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDotCount((current) => (current % 3) + 1);
+    }, 420);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Reanimated.View
       entering={FadeInDown.duration(260)}
-      style={styles.assistantRow}
+      style={styles.assistantPlainRow}
     >
-      <View style={styles.avatar}>
-        <LinearGradient
-          colors={['#22D3EE', '#6366F1']}
-          style={styles.avatarGradient}
-        >
-          <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-        </LinearGradient>
-      </View>
-      <View style={styles.loadingBubble}>
-        <ActivityIndicator color="#E2E8F0" size="small" />
-        <Text style={styles.loadingText}>{text}</Text>
-      </View>
+      <Text style={[styles.assistantPlainText, styles.assistantPlainTextMuted]}>
+        {baseText}
+        <Text style={styles.loadingDots}>{'.'.repeat(dotCount)}</Text>
+      </Text>
     </Reanimated.View>
   );
 }
@@ -1933,20 +1895,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 14,
   },
-  historyNoticeButton: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(34, 211, 238, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(34, 211, 238, 0.35)',
-  },
-  historyNoticeButtonText: {
-    color: '#CFFAFE',
-    fontSize: 13,
-    fontWeight: '700',
-  },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2122,22 +2070,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 20,
   },
-  loadingBubble: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-  },
-  loadingText: {
-    color: '#E2E8F0',
-    fontSize: 14,
-    fontWeight: '600',
+  loadingDots: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   resultStack: {
     flex: 1,
