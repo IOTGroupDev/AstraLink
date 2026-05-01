@@ -328,32 +328,19 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>✨ {t('horoscope.title')}</Text>
+      </View>
+
       <LinearGradient
-        colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-        start={{ x: 0, y: 0.44 }}
-        end={{ x: 0, y: 1 }}
+        colors={['rgba(97, 32, 129, 0)', 'rgba(173, 58, 231, 0.2)']}
+        locations={[0.3032, 0.83719]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.card}
       >
-        <View style={styles.header}>
+        <View style={styles.cardHeaderHidden}>
           <Text style={styles.title}>✨ {t('horoscope.title')}</Text>
-          <View style={styles.headerBadges}>
-            {statusLabel ? (
-              <View
-                style={[
-                  styles.sourceBadge,
-                  currentHoroscope?.status === 'ai_pending' &&
-                    styles.statusBadgePending,
-                ]}
-              >
-                <Text style={styles.sourceBadgeText}>{statusLabel}</Text>
-              </View>
-            ) : null}
-            {sourceLabel ? (
-              <View style={styles.sourceBadge}>
-                <Text style={styles.sourceBadgeText}>{sourceLabel}</Text>
-              </View>
-            ) : null}
-          </View>
         </View>
 
         <ScrollView
@@ -381,54 +368,6 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
         </ScrollView>
 
         <View style={styles.contentContainer}>
-          {currentHoroscope?.meta ? (
-            <View style={styles.metaCard}>
-              <View style={styles.metaHeader}>
-                <Text style={styles.metaTitle}>
-                  {t('horoscope.widget.periodInsights')}
-                </Text>
-                {toneLabel ? (
-                  <View style={styles.toneChip}>
-                    <Text style={styles.toneChipText}>{toneLabel}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>
-                  {t('horoscope.widget.meta.focus')}
-                </Text>
-                <Text style={styles.metaValue}>
-                  {currentHoroscope.meta.focus}
-                </Text>
-              </View>
-
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>
-                  {t('horoscope.widget.meta.risk')}
-                </Text>
-                <Text style={styles.metaValue}>
-                  {currentHoroscope.meta.risk}
-                </Text>
-              </View>
-
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>
-                  {t('horoscope.widget.meta.keyWindow')}
-                </Text>
-                <Text style={styles.metaValue}>
-                  {currentHoroscope.meta.keyWindow}
-                </Text>
-              </View>
-
-              {currentHoroscope.status === 'ai_pending' ? (
-                <Text style={styles.pendingHint}>
-                  {t('horoscope.widget.pendingHint')}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
-
           {categories.map((category) => {
             const content = getCategoryContent(category.dataKey);
             if (!content) return null;
@@ -436,7 +375,10 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             return (
               <Pressable
                 key={category.id}
-                style={styles.categoryCard}
+                style={[
+                  styles.categoryCard,
+                  category.border && styles.featuredCategoryCard,
+                ]}
                 onPress={() => handleCategoryPress(category)}
               >
                 <View style={styles.categoryHeader}>
@@ -532,6 +474,59 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             </View>
           )}
 
+          {currentHoroscope?.meta ? (
+            <LinearGradient
+              colors={['rgba(89, 2, 114, 0.35)', 'rgba(21, 8, 25, 0.35)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.metaCard}
+            >
+              <View style={styles.metaHeader}>
+                <Text style={styles.metaTitle}>
+                  {t('horoscope.widget.periodInsights')}
+                </Text>
+                {toneLabel ? (
+                  <View style={styles.toneChip}>
+                    <Text style={styles.toneChipText}>{toneLabel}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>
+                  {t('horoscope.widget.meta.focus')}
+                </Text>
+                <Text style={styles.metaValue}>
+                  {currentHoroscope.meta.focus}
+                </Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>
+                  {t('horoscope.widget.meta.risk')}
+                </Text>
+                <Text style={styles.metaValue}>
+                  {currentHoroscope.meta.risk}
+                </Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>
+                  {t('horoscope.widget.meta.keyWindow')}
+                </Text>
+                <Text style={styles.metaValue}>
+                  {currentHoroscope.meta.keyWindow}
+                </Text>
+              </View>
+
+              {currentHoroscope.status === 'ai_pending' ? (
+                <Text style={styles.pendingHint}>
+                  {t('horoscope.widget.pendingHint')}
+                </Text>
+              ) : null}
+            </LinearGradient>
+          ) : null}
+
           {/*    <TouchableOpacity style={styles.aiButton}>*/}
           {/*      <LinearGradient*/}
           {/*        colors={['#8B5CF6', '#EC4899']}*/}
@@ -600,13 +595,14 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 15,
+    gap: 10,
   },
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(237, 164, 255, 0.1)',
+    borderColor: 'rgba(135, 98, 154, 0.1)',
     overflow: 'hidden',
+    paddingVertical: 12,
   },
   loadingCard: {
     borderRadius: 12,
@@ -623,15 +619,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 0,
+    marginBottom: 10,
+  },
+  cardHeaderHidden: {
+    display: 'none',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: -1.1,
   },
   headerBadges: {
     flexDirection: 'row',
@@ -642,9 +641,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: 'rgba(243, 200, 255, 0.16)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(237, 164, 255, 0.24)',
+    borderColor: 'rgba(124, 119, 153, 0.7)',
   },
   sourceBadgeText: {
     color: '#F5D6FF',
@@ -655,42 +654,51 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.28)',
   },
   tabsContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   tabsContent: {
-    gap: 15,
-    paddingHorizontal: 20,
+    gap: 10,
+    paddingLeft: 10,
+    paddingRight: 10,
   },
   tab: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 59,
-    backgroundColor: 'rgba(243, 200, 255, 1)',
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.7)',
   },
   tabActive: {
-    backgroundColor: '#8D26A9',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: '#7C7799',
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8D26A9',
+    fontSize: 16,
+    lineHeight: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: -0.8,
   },
   tabTextActive: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   contentContainer: {
     gap: 10,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 10,
+    paddingBottom: 0,
   },
   metaCard: {
-    backgroundColor: 'rgba(243, 200, 255, 0.09)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(10, 10, 10, 0.35)',
+    borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(237, 164, 255, 0.22)',
-    gap: 12,
+    borderColor: 'rgba(135, 98, 154, 0.7)',
+    gap: 8,
+    overflow: 'hidden',
   },
   metaHeader: {
     flexDirection: 'row',
@@ -701,8 +709,8 @@ const styles = StyleSheet.create({
   metaTitle: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '500',
   },
   toneChip: {
     borderRadius: 999,
@@ -719,16 +727,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaLabel: {
-    color: '#D8B4FE',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    color: '#F1C5FF',
+    fontSize: 14,
+    fontWeight: '500',
   },
   metaValue: {
-    color: '#FFFFFF',
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   pendingHint: {
     color: '#E9D5FF',
@@ -740,13 +746,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(237, 164, 255, 0.2)',
+    borderColor: 'rgba(135, 98, 154, 0.7)',
+    gap: 8,
+    overflow: 'hidden',
+  },
+  featuredCategoryCard: {
+    backgroundColor: 'rgba(89, 2, 114, 0.35)',
   },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
   },
   categoryTitle: {
     fontSize: 18,
@@ -756,7 +766,7 @@ const styles = StyleSheet.create({
   },
   categoryContent: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
     color: '#FFFFFF',
     fontWeight: '400',
   },
@@ -777,7 +787,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   categoryActive: {
-    borderColor: '#EDA4FF',
+    borderColor: 'rgba(135, 98, 154, 0.7)',
   },
   luckyNumbersContainer: {
     flexDirection: 'row',

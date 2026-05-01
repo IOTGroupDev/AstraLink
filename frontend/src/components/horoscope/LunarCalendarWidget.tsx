@@ -1,54 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { MoonPhaseVisual } from './MoonPhaseVisual';
 import { chartAPI } from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
-import { LunaSvg } from '../svg/moon-phase/Luna';
-import { StarSvg } from '../svg/moon-phase/Star';
-import { HouseSvg } from '../svg/moon-phase/House';
-import { CaseSvg } from '../svg/moon-phase/Case';
-
-const SMALL_CARD_GRADIENT_COLORS = [
-  'rgba(138, 48, 186, 0.42)',
-  'rgba(69, 13, 92, 0.92)',
-  'rgba(35, 0, 45, 1)',
-] as const;
+import { GradientBorderView } from '../shared';
 
 type LunarCalendarWidgetProps = {
-  // Позволяет переопределить знак Луны извне (например, из текущих планет)
   sign?: string;
 };
 
-const normalizeZodiacKey = (sign: string): string => {
-  const map: Record<string, string> = {
-    aries: 'aries',
-    taurus: 'taurus',
-    gemini: 'gemini',
-    cancer: 'cancer',
-    leo: 'leo',
-    virgo: 'virgo',
-    libra: 'libra',
-    scorpio: 'scorpio',
-    sagittarius: 'sagittarius',
-    capricorn: 'capricorn',
-    aquarius: 'aquarius',
-    pisces: 'pisces',
-  };
-
-  const raw = (sign || '').trim();
-  if (!raw) return '';
-
-  const lower = raw.toLowerCase();
-  return map[lower] ?? lower;
-};
-
-export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
-  sign,
-}) => {
+export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = () => {
   const { t, i18n } = useTranslation();
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     const lang = String(i18n.language || 'en').toLowerCase();
@@ -81,17 +45,23 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
 
   if (authLoading || isLoading) {
     return (
-      <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
-        <LinearGradient
-          colors={SMALL_CARD_GRADIENT_COLORS}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          locations={[0, 0.38, 1]}
-          style={styles.gradient}
+      <View style={styles.container}>
+        <Text style={styles.title}>
+          🌙 {t('horoscope.lunarCalendar.title')}
+        </Text>
+        <GradientBorderView
+          colors={['rgba(135, 98, 154, 0.3)', 'rgba(135, 98, 154, 0.08)']}
+          gradientProps={{
+            locations: [0, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.phaseCardBorder}
+          contentStyle={styles.phaseCardContent}
         >
           <ActivityIndicator size="small" color="rgba(191, 158, 207, 1)" />
-        </LinearGradient>
-      </BlurView>
+        </GradientBorderView>
+      </View>
     );
   }
 
@@ -99,192 +69,143 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = ({
     return null;
   }
 
-  // Нормализуем и локализуем знак Луны:
-  const rawSign = (sign ?? moonPhase.sign ?? '') as string;
-  const zodiacKey = normalizeZodiacKey(rawSign);
-  const displaySign = zodiacKey
-    ? t(`common.zodiacSigns.${zodiacKey}`, { defaultValue: rawSign })
-    : '-';
-  const energyLabel = lunarDay
-    ? t(`horoscope.lunarCalendar.energy.${lunarDay.energy}`, {
-        defaultValue: lunarDay.energy,
-      })
-    : '';
+  const lunarAdvice = (
+    lunarDay?.summary ||
+    lunarDay?.bestFor?.[0] ||
+    lunarDay?.recommendations?.[0] ||
+    t('horoscope.lunarCalendar.adviceFallback')
+  )
+    .replace(/\\n/g, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r\n/g, '\n');
 
   return (
     <View style={styles.container}>
-      {/* Большая карточка с фазой луны */}
-      <BlurView intensity={10} tint="dark" style={styles.cardLarge}>
+      <Text style={styles.title}>🌙 {t('horoscope.lunarCalendar.title')}</Text>
+
+      {lunarDay ? (
+        <GradientBorderView
+          colors={[
+            'rgba(255, 255, 255, 0.3)',
+            'rgba(255, 255, 255, 0)',
+            'rgba(255, 255, 255, 0)',
+          ]}
+          gradientProps={{
+            locations: [0, 0.67, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.lunarDayBorder}
+          contentStyle={styles.lunarDayContent}
+        >
+          <Text style={styles.lunarDayLine}>
+            <Text style={styles.lunarDayLabel}>
+              {t('horoscope.lunarCalendar.labels.lunarDay')}{' '}
+            </Text>
+            <Text style={styles.lunarDayNumber}>{lunarDay.number}</Text>
+          </Text>
+          <Text style={styles.lunarAdvice} numberOfLines={2}>
+            {lunarAdvice}
+          </Text>
+        </GradientBorderView>
+      ) : null}
+
+      <GradientBorderView
+        colors={['rgba(135, 98, 154, 0.3)', 'rgba(135, 98, 154, 0.08)']}
+        gradientProps={{
+          locations: [0, 1],
+          start: { x: 0, y: 0 },
+          end: { x: 1, y: 1 },
+        }}
+        style={styles.phaseCardBorder}
+        contentStyle={styles.phaseCardContent}
+      >
         <LinearGradient
-          colors={SMALL_CARD_GRADIENT_COLORS}
+          colors={['rgba(173, 58, 231, 0.2)', 'rgba(97, 32, 129, 0.05)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          locations={[0, 0.38, 1]}
-          style={styles.gradient}
+          style={styles.phaseGradient}
         >
-          <Text style={styles.title}>
-            🌙 {t('horoscope.lunarCalendar.title')}
-          </Text>
-
           <View style={styles.moonRow}>
             <View style={styles.moonWrapper}>
               <MoonPhaseVisual phase={moonPhase.phase} size={80} />
             </View>
 
             <View style={styles.phaseInfo}>
-              <Text style={styles.phaseName}>{moonPhase.phaseName}</Text>
+              <Text style={styles.phaseName} numberOfLines={1}>
+                {moonPhase.phaseName}
+              </Text>
               <Text style={styles.illumination}>
                 {t('horoscope.lunarCalendar.illuminated', {
                   percent: moonPhase.illumination,
                 })}
               </Text>
-              {!!lunarDay?.summary && (
-                <Text style={styles.phaseSummary} numberOfLines={3}>
-                  {lunarDay.summary}
-                </Text>
-              )}
             </View>
           </View>
         </LinearGradient>
-      </BlurView>
-
-      {/* Карточки со знаком и домом */}
-      {(sign || moonPhase.sign || moonPhase.house) && (
-        <View style={styles.row}>
-          <LinearGradient
-            colors={SMALL_CARD_GRADIENT_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            locations={[0, 0.38, 1]}
-            style={[styles.smallCard, { marginRight: 8 }]}
-          >
-            <View style={styles.cardContent}>
-              <View style={styles.infoLeft}>
-                <Text style={styles.label}>
-                  {t('horoscope.lunarCalendar.labels.sign')}
-                </Text>
-                <Text
-                  style={[styles.value, styles.signValue]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {displaySign}
-                </Text>
-              </View>
-              <View style={styles.iconRight}>
-                <StarSvg width={38} height={38} style={styles.iconGlow} />
-              </View>
-            </View>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={SMALL_CARD_GRADIENT_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            locations={[0, 0.38, 1]}
-            style={[styles.smallCard, { marginLeft: 8 }]}
-          >
-            <View style={styles.cardContent}>
-              <View style={styles.infoLeft}>
-                <Text style={styles.label}>
-                  {t('horoscope.lunarCalendar.labels.house')}
-                </Text>
-                <Text style={styles.value}>{moonPhase.house || '-'}</Text>
-              </View>
-              <View style={styles.iconRight}>
-                <HouseSvg width={38} height={38} style={styles.iconGlow} />
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-      )}
-
-      {/* Карточки с лунным днем и советом дня */}
-      {lunarDay && (
-        <View style={styles.row}>
-          <LinearGradient
-            colors={SMALL_CARD_GRADIENT_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            locations={[0, 0.38, 1]}
-            style={[styles.smallCard, { marginRight: 8 }]}
-          >
-            <View style={styles.cardContent}>
-              <View style={styles.infoLeft}>
-                <Text style={styles.label}>
-                  {t('horoscope.lunarCalendar.labels.lunarDay')}
-                </Text>
-                <Text style={styles.value}>{lunarDay.number}</Text>
-                <Text style={styles.dayMeta}>
-                  {lunarDay.energyScore}% · {energyLabel}
-                </Text>
-              </View>
-              <View style={styles.iconRight}>
-                <LunaSvg width={38} height={38} style={styles.iconGlow} />
-              </View>
-            </View>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={SMALL_CARD_GRADIENT_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            locations={[0, 0.38, 1]}
-            style={[styles.smallCard, { marginLeft: 8 }]}
-          >
-            <View style={styles.cardContent}>
-              <View style={styles.infoLeft}>
-                <Text style={styles.label}>
-                  {t('horoscope.lunarCalendar.dayNumber', {
-                    number: lunarDay.number,
-                  })}
-                </Text>
-                <Text
-                  style={styles.adviceText}
-                  numberOfLines={2}
-                  ellipsizeMode="tail"
-                >
-                  {(
-                    lunarDay.bestFor?.[0] ||
-                    lunarDay.recommendations?.[0] ||
-                    t('horoscope.lunarCalendar.adviceFallback')
-                  )
-                    .replace(/\\n/g, '\n')
-                    .replace(/<br\s*\/?>/gi, '\n')
-                    .replace(/\r\n/g, '\n')}
-                </Text>
-              </View>
-              <View style={styles.iconRight}>
-                <CaseSvg width={38} height={38} style={styles.iconGlow} />
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-      )}
+      </GradientBorderView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    gap: 16,
-  },
-  cardLarge: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  gradient: {
-    padding: 20,
+    gap: 10,
+    width: '100%',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
     color: '#FFFFFF',
-    marginBottom: 20,
+    fontSize: 22,
+    fontWeight: '500',
+    lineHeight: 24,
+    letterSpacing: -1.1,
+  },
+  lunarDayBorder: {
+    width: '100%',
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  lunarDayContent: {
+    gap: 10,
+    borderRadius: 5,
+    padding: 8,
+    backgroundColor: 'transparent',
+  },
+  lunarDayLine: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 20,
+    fontWeight: '400',
+    lineHeight: 22,
+  },
+  lunarDayLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '400',
+  },
+  lunarDayNumber: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  lunarAdvice: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 18,
+  },
+  phaseCardBorder: {
+    width: '100%',
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  phaseCardContent: {
+    borderRadius: 11,
+    overflow: 'hidden',
+  },
+  phaseGradient: {
+    padding: 20,
   },
   moonRow: {
+    minHeight: 80,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 24,
@@ -295,77 +216,22 @@ const styles = StyleSheet.create({
   },
   phaseInfo: {
     flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    gap: 10,
   },
   phaseName: {
-    fontSize: 20,
-    fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 22,
+    letterSpacing: -1,
   },
   illumination: {
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  phaseSummary: {
-    marginTop: 10,
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.76)',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  smallCard: {
-    flex: 1,
-    height: 96,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoLeft: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  label: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 8,
-  },
-  value: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  signValue: {
-    fontSize: 15,
-  },
-  dayMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.64)',
-  },
-  iconRight: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconGlow: {
-    shadowColor: '#E9B8FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.95,
-    shadowRadius: 14,
-    elevation: 10,
-  },
-  adviceText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 18,
+    fontWeight: '400',
+    lineHeight: 22,
+    letterSpacing: -1,
   },
 });
