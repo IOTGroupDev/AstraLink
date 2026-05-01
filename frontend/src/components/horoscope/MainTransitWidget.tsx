@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 import PlanetIcon from '../svg/planets/PlanetIcon';
 
 interface MainTransitWidgetProps {
@@ -25,33 +25,25 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
   onPress,
 }) => {
   const { t } = useTranslation();
+  const planetIconName =
+    transitData?.transitPlanetKey ||
+    transitData?.natalPlanetKey ||
+    transitData?.targetPlanet ||
+    transitData?.name ||
+    'sun';
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <BlurView intensity={10} style={styles.blurContainer}>
-          <LinearGradient
-            colors={['rgba(35, 0, 45, 1)', 'rgba(88, 1, 114, 1)']}
-            start={{ x: 0, y: 0.44 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.gradient}
-          >
-            <LinearGradient
-              colors={['rgba(237, 164, 255, 1)', 'rgba(241, 197, 255, 1)']}
-              start={{ x: 0.5, y: 1 }}
-              end={{ x: 0.5, y: 0 }}
-              style={styles.border}
-            />
-            <View style={styles.content}>
-              <Text style={styles.title}>
-                🪐 {t('horoscope.mainTransitWidget.title')}
-              </Text>
-              <Text style={styles.loadingText}>
-                {t('horoscope.mainTransitWidget.loading')}
-              </Text>
-            </View>
-          </LinearGradient>
-        </BlurView>
+        <View style={styles.content}>
+          <View style={styles.iconContainer} />
+          <Text style={styles.caption}>
+            {t('horoscope.mainTransitWidget.title')}
+          </Text>
+          <Text style={styles.loadingText}>
+            {t('horoscope.mainTransitWidget.loading')}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -66,60 +58,58 @@ const MainTransitWidget: React.FC<MainTransitWidgetProps> = ({
 
   return (
     <Pressable style={styles.container} onPress={onPress} disabled={!onPress}>
-      <BlurView intensity={10} style={styles.blurContainer}>
-        <LinearGradient
-          colors={['rgba(35, 0, 46, 0.4)', 'rgba(89, 1, 114, 0.4)']}
-          start={{ x: 0.5, y: 1 }}
-          end={{ x: 0.5, y: 0 }}
-          style={styles.gradient}
-        >
-          <LinearGradient
-            colors={['rgba(237, 164, 255, 1)', 'rgba(241, 197, 255, 1)']}
-            start={{ x: 0.5, y: 1 }}
-            end={{ x: 0.5, y: 0 }}
-            style={styles.border}
-          />
-
-          <View style={styles.content}>
-            <Text style={styles.title}>
-              🪐 {t('horoscope.mainTransitWidget.title')}
-            </Text>
-
-            <View style={styles.mainContent}>
-              <Text style={styles.transitName}>{transitData.description}</Text>
-
-              <View style={styles.detailsRow}>
-                <View style={styles.iconContainer}>
-                  <View style={styles.iconFrame}>
-                    <PlanetIcon
-                      name={
-                        transitData.transitPlanetKey ||
-                        transitData.natalPlanetKey ||
-                        transitData.targetPlanet ||
-                        transitData.name
-                      }
-                      size={62}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.metaContainer}>
-                  <Text style={styles.transitStrength}>
-                    {t('horoscope.mainTransitWidget.strength', {
-                      percent: strengthPercent,
-                    })}
-                  </Text>
-                  {!!onPress && (
-                    <Text style={styles.transitHint}>
-                      {t('horoscope.mainTransitWidget.openDetails')}
-                    </Text>
-                  )}
-                </View>
-              </View>
+      <View style={styles.content}>
+        <View style={styles.visualBlock}>
+          <View style={styles.iconContainer}>
+            <View style={styles.iconGlow} />
+            <View style={styles.iconFrame}>
+              <PlanetIcon name={planetIconName} size={68} />
             </View>
           </View>
-        </LinearGradient>
-      </BlurView>
+          <Text style={styles.caption}>
+            {t('horoscope.mainTransitWidget.title')}
+          </Text>
+        </View>
+
+        <View style={styles.textBlock}>
+          <Text style={styles.transitStrength}>
+            {t('horoscope.mainTransitWidget.strength', {
+              percent: strengthPercent,
+            })}
+          </Text>
+          <Text style={styles.transitName} numberOfLines={2}>
+            {transitData.name || transitData.description}
+          </Text>
+          {!!onPress && (
+            <View style={styles.detailsCta}>
+              <Svg width={180} height={70} style={styles.detailsGlowSvg}>
+                <Defs>
+                  <RadialGradient id="detailsGlow" cx="50%" cy="50%" r="50%">
+                    <Stop offset="0" stopColor="#8D26A9" stopOpacity="0.55" />
+                    <Stop
+                      offset="0.35"
+                      stopColor="#8D26A9"
+                      stopOpacity="0.26"
+                    />
+                    <Stop offset="1" stopColor="#8D26A9" stopOpacity="0" />
+                  </RadialGradient>
+                </Defs>
+                <Ellipse
+                  cx="90"
+                  cy="35"
+                  rx="88"
+                  ry="28"
+                  fill="url(#detailsGlow)"
+                />
+              </Svg>
+              <Text style={styles.transitHint}>
+                {t('horoscope.mainTransitWidget.openDetails')}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+            </View>
+          )}
+        </View>
+      </View>
     </Pressable>
   );
 };
@@ -129,84 +119,97 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginBottom: 20,
   },
-  blurContainer: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  gradient: {
-    borderRadius: 12,
-    position: 'relative',
-  },
-  border: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 12,
-    opacity: 0.1,
-  },
   content: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
     padding: 20,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'left',
-    marginBottom: 20,
-    letterSpacing: 0,
-    lineHeight: 19.5,
-  },
-  loadingText: {
-    color: '#A78BFA',
-    textAlign: 'center',
-  },
-  mainContent: {
-    gap: 16,
-  },
-  detailsRow: {
-    flexDirection: 'row',
+  visualBlock: {
     alignItems: 'center',
-    gap: 24,
+    gap: 4,
   },
   iconContainer: {
-    width: 72,
-    height: 72,
-    justifyContent: 'center',
+    width: 100,
+    height: 100,
     alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  iconGlow: {
+    position: 'absolute',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: 'rgba(141, 38, 169, 0.16)',
+    shadowColor: '#8D26A9',
+    shadowOpacity: 0.6,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 0 },
   },
   iconFrame: {
-    width: 72,
-    height: 72,
-    justifyContent: 'center',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  metaContainer: {
-    flex: 1,
+  caption: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  textBlock: {
+    width: '100%',
+    alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
-  transitName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0,
-    lineHeight: 19.5,
-    textAlign: 'left',
-  },
   transitStrength: {
-    fontSize: 13,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
     letterSpacing: 0,
-    lineHeight: 15.85,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  transitName: {
+    minWidth: '100%',
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontWeight: '400',
+    letterSpacing: 0,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  detailsCta: {
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    marginTop: 12,
+    position: 'relative',
+  },
+  detailsGlowSvg: {
+    position: 'absolute',
+    top: -24,
+    alignSelf: 'center',
   },
   transitHint: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(237, 164, 255, 0.9)',
-    marginTop: 6,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });
 
