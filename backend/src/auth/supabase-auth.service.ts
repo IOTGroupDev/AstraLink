@@ -704,13 +704,31 @@ export class SupabaseAuthService {
     try {
       this.logger.log('🔍 Checking if user profile exists');
 
-      // Check if profile exists
+      // Check if profile exists by userId
       const { data: existingProfile } =
         await this.supabaseService.getUserProfileAdmin(userId);
 
       if (existingProfile) {
         this.logger.log('✅ User profile already exists');
         return { success: true };
+      }
+
+      // Check if email is already used by another userId (cross-provider check)
+      const { data: existingByEmail } = await this.supabaseService
+        .fromAdmin('users')
+        .select('id, email')
+        .eq('email', email)
+        .single();
+
+      if (existingByEmail && existingByEmail.id !== userId) {
+        this.logger.log(
+          '⚠️ Email already used by another user, linking accounts',
+        );
+        // For now, throw error to prevent duplicate emails
+        // TODO: Implement account linking logic if needed
+        throw new BadRequestException(
+          'Этот email уже используется другим аккаунтом',
+        );
       }
 
       this.logger.log('📝 Creating missing user profile');

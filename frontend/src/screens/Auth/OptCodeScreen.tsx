@@ -194,9 +194,11 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       const nextState = useAuthStore.getState().authState;
+      setSubmitting(false); // Stop loading before navigation
       if (nextState === 'AUTHORIZED') {
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-      } else if (nextState === 'ONBOARDING') {
+      } else {
+        // Default to onboarding for new users or if state is unclear
         navigation.reset({ index: 0, routes: [{ name: 'Onboarding1' }] });
       }
     } catch (err: any) {

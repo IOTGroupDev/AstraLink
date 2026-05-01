@@ -570,10 +570,18 @@ export const authAPI = {
 
       authLogger.log('✅ Код подтвержден');
 
-      ensureUserProfileInBackground({
-        userId: data.user!.id,
-        email: data.user!.email!,
-      });
+      try {
+        await authAPI.ensureUserProfile({
+          userId: data.user!.id,
+          email: data.user!.email!,
+        });
+      } catch (ensureError: any) {
+        authLogger.error(
+          '❌ ensureUserProfile failed after OTP verification:',
+          ensureError
+        );
+        throw new Error('Не удалось создать профиль пользователя');
+      }
 
       return {
         access_token: data.session.access_token,
