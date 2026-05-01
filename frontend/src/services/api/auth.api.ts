@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SignInWithOAuthCredentials } from '@supabase/supabase-js';
 import { api } from './client';
@@ -169,23 +169,127 @@ function extractFromRedirectUrl(redirectedUrl: string): {
   accessToken: string | null;
   refreshToken: string | null;
   code: string | null;
+  error: string | null;
+  errorDescription: string | null;
 } {
-  try {
-    const parsed = new URL(redirectedUrl);
+  const empty = {
+    accessToken: null,
+    refreshToken: null,
+    code: null,
+    error: null,
+    errorDescription: null,
+  };
+
+  const nestedUrlParamNames = [
+    'redirect_to',
+    'redirectTo',
+    'return_to',
+    'returnTo',
+    'url',
+    'link',
+    'next',
+  ];
+
+  const parseUrl = (
+    url: string,
+    visited: Set<string>
+  ): ReturnType<typeof extractFromRedirectUrl> => {
+    if (!url || visited.has(url)) return empty;
+    visited.add(url);
+
+    const parsed = new URL(url);
     const search = parsed.searchParams;
     const hashString = parsed.hash?.startsWith('#')
       ? parsed.hash.slice(1)
       : parsed.hash || '';
     const hash = new URLSearchParams(hashString);
     const get = (k: string) => search.get(k) || hash.get(k);
-    return {
+
+    const direct = {
       accessToken: get('access_token'),
       refreshToken: get('refresh_token'),
       code: get('code'),
+      error: get('error'),
+      errorDescription: get('error_description'),
     };
+
+    if (
+      direct.accessToken ||
+      direct.refreshToken ||
+      direct.code ||
+      direct.error ||
+      direct.errorDescription
+    ) {
+      return direct;
+    }
+
+    for (const paramName of nestedUrlParamNames) {
+      const nestedUrl = get(paramName);
+      if (!nestedUrl) continue;
+
+      try {
+        const nested = parseUrl(decodeURIComponent(nestedUrl), visited);
+        if (
+          nested.accessToken ||
+          nested.refreshToken ||
+          nested.code ||
+          nested.error ||
+          nested.errorDescription
+        ) {
+          return nested;
+        }
+      } catch (_nestedError) {
+        // Continue checking other params.
+      }
+    }
+
+    return empty;
+  };
+
+  try {
+    return parseUrl(redirectedUrl, new Set<string>());
   } catch {
-    return { accessToken: null, refreshToken: null, code: null };
+    return empty;
   }
+}
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+async function getExistingOAuthSession(): Promise<{
+  accessToken: string;
+  refreshToken: string;
+} | null> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const { data: existingSessionData, error: sessionError } =
+      await supabase.auth.getSession();
+    if (sessionError) {
+      authLogger.warn(
+        '⚠️ Failed to inspect Supabase session after OAuth:',
+        sessionError
+      );
+      return null;
+    }
+
+    const existingAccessToken =
+      existingSessionData.session?.access_token ?? null;
+    const existingRefreshToken =
+      existingSessionData.session?.refresh_token ?? null;
+
+    if (existingAccessToken && existingRefreshToken) {
+      authLogger.log(
+        '✅ OAuth session recovered from existing Supabase session'
+      );
+      return {
+        accessToken: existingAccessToken,
+        refreshToken: existingRefreshToken,
+      };
+    }
+
+    await wait(250);
+  }
+
+  return null;
 }
 
 async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
@@ -193,8 +297,12 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   refreshToken: string;
 }> {
   authLogger.log('↩️ OAuth redirect received');
-  const { accessToken, refreshToken, code } =
+  const { accessToken, refreshToken, code, error, errorDescription } =
     extractFromRedirectUrl(redirectedUrl);
+
+  if (error || errorDescription) {
+    throw new Error(errorDescription || error || 'OAuth authorization failed');
+  }
 
   if (accessToken && refreshToken) {
     const { error: setErr } = await supabase.auth.setSession({
@@ -232,25 +340,56 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   // Some providers can return control to the app without preserving query/hash
   // params on the native deep link. In that case, try the current Supabase session
   // before failing hard.
-  const { data: existingSessionData, error: sessionError } =
-    await supabase.auth.getSession();
-  if (sessionError) {
-    authLogger.warn(
-      '⚠️ Failed to inspect Supabase session after OAuth:',
-      sessionError
-    );
+  const existingSession = await getExistingOAuthSession();
+  if (existingSession) {
+    return existingSession;
   }
 
-  const existingAccessToken = existingSessionData.session?.access_token ?? null;
-  const existingRefreshToken =
-    existingSessionData.session?.refresh_token ?? null;
+  let initialUrl: string | null = null;
+  try {
+    initialUrl = await Linking.getInitialURL();
+  } catch (linkingError) {
+    authLogger.warn('⚠️ Failed to inspect initial OAuth URL:', linkingError);
+  }
 
-  if (existingAccessToken && existingRefreshToken) {
-    authLogger.log('✅ OAuth session recovered from existing Supabase session');
-    return {
-      accessToken: existingAccessToken,
-      refreshToken: existingRefreshToken,
-    };
+  if (initialUrl && initialUrl !== redirectedUrl) {
+    const parsedInitialUrl = extractFromRedirectUrl(initialUrl);
+    if (parsedInitialUrl.error || parsedInitialUrl.errorDescription) {
+      throw new Error(
+        parsedInitialUrl.errorDescription ||
+          parsedInitialUrl.error ||
+          'OAuth authorization failed'
+      );
+    }
+
+    if (parsedInitialUrl.accessToken && parsedInitialUrl.refreshToken) {
+      const { error: setErr } = await supabase.auth.setSession({
+        access_token: parsedInitialUrl.accessToken,
+        refresh_token: parsedInitialUrl.refreshToken,
+      });
+
+      if (setErr) {
+        throw setErr;
+      }
+
+      return {
+        accessToken: parsedInitialUrl.accessToken,
+        refreshToken: parsedInitialUrl.refreshToken,
+      };
+    }
+
+    if (parsedInitialUrl.code) {
+      const { error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(parsedInitialUrl.code);
+      if (exchangeError) {
+        throw exchangeError;
+      }
+
+      const exchangedSession = await getExistingOAuthSession();
+      if (exchangedSession) {
+        return exchangedSession;
+      }
+    }
   }
 
   throw new Error('Токены или code не получены из OAuth потока');

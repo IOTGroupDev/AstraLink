@@ -32,6 +32,31 @@ interface CosmicChatProps {
   onSendMessage: (text: string) => Promise<void>;
 }
 
+const normalizeZodiacKey = (sign: string): string => {
+  const map: Record<string, string> = {
+    aries: 'aries',
+    taurus: 'taurus',
+    gemini: 'gemini',
+    cancer: 'cancer',
+    leo: 'leo',
+    virgo: 'virgo',
+    libra: 'libra',
+    scorpio: 'scorpio',
+    sagittarius: 'sagittarius',
+    capricorn: 'capricorn',
+    aquarius: 'aquarius',
+    pisces: 'pisces',
+  };
+
+  return (
+    map[
+      String(sign || '')
+        .trim()
+        .toLowerCase()
+    ] ?? String(sign || '')
+  );
+};
+
 const CosmicChat: React.FC<CosmicChatProps> = ({
   visible,
   user,
@@ -81,12 +106,17 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
   );
 
   const sheetBottom = keyboardHeight > 0 ? keyboardHeight + 12 : restingBottom;
+  const zodiacLabel = user.zodiacSign
+    ? t(`common.zodiacSigns.${normalizeZodiacKey(user.zodiacSign)}`, {
+        defaultValue: user.zodiacSign,
+      })
+    : null;
 
   const astroSuggestions = [
-    user.zodiacSign
+    zodiacLabel
       ? t('dating.cosmicChat.suggestions.greeting', {
-          zodiacSign: user.zodiacSign,
-          defaultValue: `Hi! I see you're ${user.zodiacSign} ✨`,
+          zodiacSign: zodiacLabel,
+          defaultValue: `Hi! I see you're ${zodiacLabel} ✨`,
         })
       : t('dating.cosmicChat.suggestions.aboutMe', {
           name: user.name,
@@ -158,7 +188,7 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{user.name}</Text>
                 <Text style={styles.userZodiac}>
-                  {user.zodiacSign ? `${user.zodiacSign} • ` : ''}
+                  {zodiacLabel ? `${zodiacLabel} • ` : ''}
                   {t('dating.cosmicChat.compatibilityLabel', {
                     percent: user.compatibility,
                     defaultValue: `${user.compatibility}% compatibility`,

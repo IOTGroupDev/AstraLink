@@ -103,7 +103,7 @@ export interface HoroscopePrediction {
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
-  private readonly horoscopeFormatVersion = 'fmt-v7';
+  private readonly horoscopeFormatVersion = 'fmt-v8';
   private readonly rollingMonthTtlSec = 30 * 24 * 60 * 60;
   private readonly inflightPremium = new Map<
     string,
@@ -1178,59 +1178,224 @@ export class HoroscopeGeneratorService {
     const domHealth = this.getDominantTransit(transitAspects, 'health');
     const domFinance = this.getDominantTransit(transitAspects, 'finance');
 
-    return {
-      general: this.generateGeneralPrediction(
-        sunSign,
-        dominantTransit,
-        transitAspects,
-        timeFrame,
-        targetDate,
-        variationSeed,
-        locale,
-      ),
-      love: this.generateLovePrediction(
-        sunSign,
-        moonSign,
-        transitAspects,
-        timeFrame,
-        domLove,
-        variationSeed,
-        locale,
-      ),
-      career: this.generateCareerPrediction(
-        sunSign,
-        transitAspects,
-        timeFrame,
-        domCareer,
-        variationSeed,
-        locale,
-      ),
-      health: this.generateHealthPrediction(
-        sunSign,
-        transitAspects,
-        timeFrame,
-        domHealth,
-        variationSeed,
-        locale,
-      ),
-      finance: this.generateFinancePrediction(
-        sunSign,
-        transitAspects,
-        timeFrame,
-        domFinance,
-        variationSeed,
-        locale,
-      ),
-      advice: this.generateAdvice(
-        sunSign,
-        dominantTransit,
-        timeFrame,
-        targetDate,
-        chartData,
-        variationSeed,
-        locale,
-      ),
+    return this.polishFreePredictions(
+      {
+        general: this.generateGeneralPrediction(
+          sunSign,
+          dominantTransit,
+          transitAspects,
+          timeFrame,
+          targetDate,
+          variationSeed,
+          locale,
+        ),
+        love: this.generateLovePrediction(
+          sunSign,
+          moonSign,
+          transitAspects,
+          timeFrame,
+          domLove,
+          variationSeed,
+          locale,
+        ),
+        career: this.generateCareerPrediction(
+          sunSign,
+          transitAspects,
+          timeFrame,
+          domCareer,
+          variationSeed,
+          locale,
+        ),
+        health: this.generateHealthPrediction(
+          sunSign,
+          transitAspects,
+          timeFrame,
+          domHealth,
+          variationSeed,
+          locale,
+        ),
+        finance: this.generateFinancePrediction(
+          sunSign,
+          transitAspects,
+          timeFrame,
+          domFinance,
+          variationSeed,
+          locale,
+        ),
+        advice: this.generateAdvice(
+          sunSign,
+          dominantTransit,
+          timeFrame,
+          targetDate,
+          chartData,
+          variationSeed,
+          locale,
+        ),
+      },
+      locale,
+      [variationSeed, sunSign, moonSign],
+    );
+  }
+
+  private polishFreePredictions(
+    predictions: RuleBasedPredictions,
+    locale: 'ru' | 'en' | 'es',
+    seed: Array<string | number>,
+  ): RuleBasedPredictions {
+    const fields: Array<keyof RuleBasedPredictions> = [
+      'general',
+      'love',
+      'career',
+      'health',
+      'finance',
+      'advice',
+    ];
+    const seen = new Set<string>();
+    const result = { ...predictions };
+
+    for (const field of fields) {
+      const text = this.deduplicateSentences(result[field], seen, locale);
+      result[field] = this.addHumanFreeBridge(text, field, locale, [
+        ...seed,
+        field,
+      ]);
+    }
+
+    return result;
+  }
+
+  private deduplicateSentences(
+    text: string,
+    seen: Set<string>,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const sentences = text
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    const kept: string[] = [];
+
+    for (const sentence of sentences) {
+      const normalized = sentence
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      kept.push(sentence);
+    }
+
+    if (kept.length > 0) {
+      return kept.join(' ');
+    }
+
+    if (locale === 'en')
+      return 'Keep a simple rhythm and choose one useful step.';
+    if (locale === 'es') return 'Mantén un ritmo simple y elige un paso útil.';
+    return 'Держите простой ритм и выберите один полезный шаг.';
+  }
+
+  private addHumanFreeBridge(
+    text: string,
+    field: keyof RuleBasedPredictions,
+    locale: 'ru' | 'en' | 'es',
+    seed: Array<string | number>,
+  ): string {
+    if (!text || field === 'advice') return text;
+
+    const bridges: Record<
+      'ru' | 'en' | 'es',
+      Record<Exclude<keyof RuleBasedPredictions, 'advice'>, string[]>
+    > = {
+      ru: {
+        general: [
+          'Если коротко:',
+          'Главная нить периода такая:',
+          'По ощущениям дня:',
+        ],
+        love: [
+          'В отношениях это звучит мягче:',
+          'В личном общении лучше так:',
+          'Для близости важнее всего:',
+        ],
+        career: [
+          'В рабочих делах ставка на практичность:',
+          'По работе лучше без рывков:',
+          'В деловой части дня:',
+        ],
+        health: [
+          'По самочувствию ориентир простой:',
+          'Телу сейчас полезнее:',
+          'В ресурсе важно:',
+        ],
+        finance: [
+          'С деньгами лучше спокойнее:',
+          'В финансовой части:',
+          'По расходам и решениям:',
+        ],
+      },
+      en: {
+        general: [
+          'In short:',
+          'The main thread of the period:',
+          'The day feels like this:',
+        ],
+        love: [
+          'In relationships, keep it softer:',
+          'For closeness, focus here:',
+          'In personal contact:',
+        ],
+        career: [
+          'At work, stay practical:',
+          'Professionally, avoid rushing:',
+          'For work matters:',
+        ],
+        health: [
+          'For your body, keep it simple:',
+          'Energy-wise:',
+          'For wellbeing:',
+        ],
+        finance: [
+          'With money, stay measured:',
+          'Financially:',
+          'For spending and decisions:',
+        ],
+      },
+      es: {
+        general: [
+          'En resumen:',
+          'El hilo principal del período:',
+          'La sensación del día:',
+        ],
+        love: [
+          'En relaciones, mejor con suavidad:',
+          'Para la cercanía, enfócate aquí:',
+          'En el contacto personal:',
+        ],
+        career: [
+          'En el trabajo, mantén lo práctico:',
+          'Profesionalmente, sin prisa:',
+          'Para asuntos laborales:',
+        ],
+        health: [
+          'Para el cuerpo, lo simple ayuda:',
+          'En energía:',
+          'Para el bienestar:',
+        ],
+        finance: [
+          'Con el dinero, mejor con calma:',
+          'Financieramente:',
+          'Para gastos y decisiones:',
+        ],
+      },
     };
+    const bridgePool = bridges[locale][field];
+    const bridge =
+      bridgePool[Math.abs(hashSignature(seed)) % bridgePool.length];
+
+    if (text.startsWith(bridge)) return text;
+    return `${bridge} ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
   }
 
   /**
@@ -2582,20 +2747,8 @@ export class HoroscopeGeneratorService {
 
     const pool = pools[locale]?.[category] || [];
     if (!pool.length) return base;
-    const idx1 = Math.abs(hashSignature([...seed, category])) % pool.length;
-    const idx2 =
-      pool.length > 1
-        ? Math.abs(hashSignature([...seed, category, 'b'])) % pool.length
-        : idx1;
-    const idx3 =
-      pool.length > 2
-        ? Math.abs(hashSignature([...seed, category, 'c'])) % pool.length
-        : idx1;
-    const first = pool[idx1];
-    const second = pool[idx2] && idx2 !== idx1 ? pool[idx2] : '';
-    const third =
-      pool[idx3] && idx3 !== idx1 && idx3 !== idx2 ? pool[idx3] : '';
-    const extra = [first, second, third].filter(Boolean).join(' ');
+    const idx = Math.abs(hashSignature([...seed, category])) % pool.length;
+    const extra = pool[idx];
     if (!extra) return base;
     return `${base} ${extra}`;
   }

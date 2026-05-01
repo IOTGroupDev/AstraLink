@@ -7,6 +7,8 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ChartRepository } from '@/repositories/chart.repository';
 import { AIService } from '@/services/ai.service';
+import { getSignNameLocalized } from '@/modules/shared/astro-text';
+import type { Sign } from '@/modules/shared/types';
 
 /**
  * Subscription tiers
@@ -608,10 +610,19 @@ export class PersonalCodeService {
       )
       .join('\n');
 
-    const sunSign = chartData.planets?.sun?.sign || 'неизвестно';
-    const moonSign = chartData.planets?.moon?.sign || 'неизвестно';
-    const ascSign =
-      chartData.ascendant?.sign || chartData.houses?.[1]?.sign || 'неизвестно';
+    const unknown =
+      locale === 'en'
+        ? 'unknown'
+        : locale === 'es'
+          ? 'desconocido'
+          : 'неизвестно';
+    const localizeSign = (sign?: string | null): string =>
+      sign ? getSignNameLocalized(sign as Sign, locale) : unknown;
+    const sunSign = localizeSign(chartData.planets?.sun?.sign);
+    const moonSign = localizeSign(chartData.planets?.moon?.sign);
+    const ascSign = localizeSign(
+      chartData.ascendant?.sign || chartData.houses?.[1]?.sign,
+    );
 
     const prompt =
       locale === 'en'

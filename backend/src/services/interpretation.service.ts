@@ -12,6 +12,7 @@ import {
   getHouseTheme,
   getAscendantText,
   getPlanetNameLocalized,
+  getSignNameLocalized,
   getAspectInterpretation,
   getAscendantMeta,
 } from '../modules/shared/astro-text';
@@ -321,17 +322,18 @@ export class InterpretationService {
       locale,
     );
 
-    const interpretation: NatalChartInterpretation = {
-      overview,
-      sunSign: planetsInterpretation[0],
-      moonSign: planetsInterpretation[1],
-      ascendant,
-      planets: planetsInterpretation,
-      aspects: aspectsInterpretation,
-      houses: housesInterpretation,
-      patterns: patternInterpretation,
-      summary,
-    };
+    const interpretation: NatalChartInterpretation =
+      this.polishNatalInterpretation({
+        overview,
+        sunSign: planetsInterpretation[0],
+        moonSign: planetsInterpretation[1],
+        ascendant,
+        planets: planetsInterpretation,
+        aspects: aspectsInterpretation,
+        houses: housesInterpretation,
+        patterns: patternInterpretation,
+        summary,
+      });
 
     // Сохраняем интерпретацию в базу данных
     await this.saveInterpretation(userId, interpretation, locale);
@@ -356,6 +358,170 @@ export class InterpretationService {
 
     const chartData = chart.data as any;
     return chartData.interpretation || null;
+  }
+
+  private polishNatalInterpretation(
+    interpretation: NatalChartInterpretation,
+  ): NatalChartInterpretation {
+    const polishPlanet = (
+      planet: PlanetInterpretation,
+    ): PlanetInterpretation => ({
+      ...planet,
+      interpretation: this.polishText(planet.interpretation),
+      keywords: this.dedupeStrings(planet.keywords),
+      strengths: this.dedupeStrings(planet.strengths),
+      challenges: this.dedupeStrings(planet.challenges),
+    });
+    const polishAspect = (
+      aspect: AspectInterpretation,
+    ): AspectInterpretation => ({
+      ...aspect,
+      interpretation: this.polishText(aspect.interpretation),
+    });
+    const polishHouse = (house: HouseInterpretation): HouseInterpretation => ({
+      ...house,
+      interpretation: this.polishText(house.interpretation),
+      keywords: this.dedupeStrings(house.keywords),
+      strengths: this.dedupeStrings(house.strengths),
+      challenges: this.dedupeStrings(house.challenges),
+      planets: this.dedupeStrings(house.planets),
+    });
+
+    return {
+      ...interpretation,
+      overview: this.polishText(interpretation.overview),
+      sunSign: polishPlanet(interpretation.sunSign),
+      moonSign: polishPlanet(interpretation.moonSign),
+      ascendant: polishPlanet(interpretation.ascendant),
+      planets: interpretation.planets.map(polishPlanet),
+      aspects: interpretation.aspects.map(polishAspect),
+      houses: interpretation.houses.map(polishHouse),
+      patterns: interpretation.patterns?.map((pattern) => ({
+        ...pattern,
+        description: this.polishText(pattern.description),
+        interpretation: this.polishText(pattern.interpretation),
+        planets: this.dedupeStrings(pattern.planets),
+      })),
+      summary: {
+        ...interpretation.summary,
+        personalityTraits: this.dedupeStrings(
+          interpretation.summary.personalityTraits,
+        ),
+        lifeThemes: this.dedupeStrings(interpretation.summary.lifeThemes),
+        karmaLessons: this.dedupeStrings(interpretation.summary.karmaLessons),
+        talents: this.dedupeStrings(interpretation.summary.talents),
+        recommendations: this.dedupeStrings(
+          interpretation.summary.recommendations,
+        ),
+        uniqueFeatures: this.dedupeStrings(
+          interpretation.summary.uniqueFeatures,
+        ).map((item) => this.polishText(item)),
+        dominantElements: this.dedupeStrings(
+          interpretation.summary.dominantElements,
+        ),
+        dominantQualities: this.dedupeStrings(
+          interpretation.summary.dominantQualities,
+        ),
+        lifePurpose: this.polishText(interpretation.summary.lifePurpose),
+        relationships: this.polishText(interpretation.summary.relationships),
+        careerPath: this.polishText(interpretation.summary.careerPath),
+        spiritualPath: this.polishText(interpretation.summary.spiritualPath),
+        healthFocus: this.polishText(interpretation.summary.healthFocus),
+        financialApproach: this.polishText(
+          interpretation.summary.financialApproach,
+        ),
+        chartRuler: interpretation.summary.chartRuler
+          ? {
+              ...interpretation.summary.chartRuler,
+              interpretation: this.polishText(
+                interpretation.summary.chartRuler.interpretation,
+              ),
+            }
+          : undefined,
+        sect: interpretation.summary.sect
+          ? {
+              ...interpretation.summary.sect,
+              interpretation: this.polishText(
+                interpretation.summary.sect.interpretation,
+              ),
+            }
+          : undefined,
+        lunarNodes: interpretation.summary.lunarNodes
+          ? {
+              ...interpretation.summary.lunarNodes,
+              axisInterpretation: this.polishText(
+                interpretation.summary.lunarNodes.axisInterpretation,
+              ),
+              northNode: interpretation.summary.lunarNodes.northNode
+                ? {
+                    ...interpretation.summary.lunarNodes.northNode,
+                    interpretation: this.polishText(
+                      interpretation.summary.lunarNodes.northNode
+                        .interpretation,
+                    ),
+                  }
+                : undefined,
+              southNode: interpretation.summary.lunarNodes.southNode
+                ? {
+                    ...interpretation.summary.lunarNodes.southNode,
+                    interpretation: this.polishText(
+                      interpretation.summary.lunarNodes.southNode
+                        .interpretation,
+                    ),
+                  }
+                : undefined,
+            }
+          : undefined,
+        dispositors: interpretation.summary.dispositors
+          ? {
+              ...interpretation.summary.dispositors,
+              chainSummary: this.polishText(
+                interpretation.summary.dispositors.chainSummary,
+              ),
+            }
+          : undefined,
+        strongestAspects: interpretation.summary.strongestAspects?.map(
+          (aspect) => ({
+            ...aspect,
+            interpretation: this.polishText(aspect.interpretation),
+          }),
+        ),
+      },
+    };
+  }
+
+  private polishText(text: string): string {
+    if (!text) return text;
+    const paragraphs = text.split(/\n{2,}/).map((paragraph) => {
+      const seen = new Set<string>();
+      return paragraph
+        .split(/(?<=[.!?])\s+/)
+        .map((sentence) => sentence.trim())
+        .filter((sentence) => {
+          if (!sentence) return false;
+          const normalized = sentence
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (seen.has(normalized)) return false;
+          seen.add(normalized);
+          return true;
+        })
+        .join(' ');
+    });
+
+    return paragraphs.filter(Boolean).join('\n\n');
+  }
+
+  private dedupeStrings(values: string[]): string[] {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+      const normalized = String(value).trim().toLowerCase();
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
   }
 
   /**
@@ -401,13 +567,14 @@ export class InterpretationService {
     isRetrograde: boolean,
     locale: 'ru' | 'en' | 'es',
   ): string {
+    const localizedSign = this.getLocalizedSign(sign, locale);
     const base =
       getPlanetInSignText(planet as PlanetKey, sign as Sign, locale) ||
       (locale === 'en'
-        ? `${this.getPlanetName(planet)} in ${sign} influences your life uniquely.`
+        ? `${this.getPlanetName(planet)} in ${localizedSign} influences your life uniquely.`
         : locale === 'es'
-          ? `${this.getPlanetName(planet)} en ${sign} influye de manera única en tu vida.`
-          : `${this.getPlanetName(planet)} в ${sign} влияет на вашу жизнь уникальным образом.`);
+          ? `${this.getPlanetName(planet)} en ${localizedSign} influye de manera única en tu vida.`
+          : `${this.getPlanetName(planet)} в ${localizedSign} влияет на вашу жизнь уникальным образом.`);
     const area = this.getHouseLifeArea(houseNum, locale);
     const dignityMap =
       locale === 'en'
@@ -439,16 +606,16 @@ export class InterpretationService {
 
     const areaText =
       locale === 'en'
-        ? ` Focus: ${area}.`
+        ? ` In everyday life, this is most visible through ${area}.`
         : locale === 'es'
-          ? ` Área: ${area}.`
-          : ` Сфера: ${area}.`;
+          ? ` En la vida cotidiana, esto se nota sobre todo en ${area}.`
+          : ` В повседневной жизни это заметнее всего через сферу ${area}.`;
     const dignityText =
       locale === 'en'
-        ? ` Dignity: ${dignityMap[dignity]}.`
+        ? ` The position itself works as a ${dignityMap[dignity]}.`
         : locale === 'es'
-          ? ` Dignidad: ${dignityMap[dignity]}.`
-          : ` Достоинство: ${dignityMap[dignity]}.`;
+          ? ` La posición funciona como ${dignityMap[dignity]}.`
+          : ` Само положение работает как ${dignityMap[dignity]}.`;
     const retroText = isRetrograde
       ? locale === 'en'
         ? ' Retrograde — expression is more inward and reflective.'
@@ -489,6 +656,9 @@ export class InterpretationService {
     const sunSign = (sun?.sign || 'Aries') as Sign;
     const moonSign = (moon?.sign || 'Cancer') as Sign;
     const ascSign = (asc?.sign || 'Libra') as Sign;
+    const localizedSunSign = this.getLocalizedSign(sunSign, locale);
+    const localizedMoonSign = this.getLocalizedSign(moonSign, locale);
+    const localizedAscSign = this.getLocalizedSign(ascSign, locale);
     const sunText = getPlanetInSignText('sun', sunSign, locale);
     const moonText = getPlanetInSignText('moon', moonSign, locale);
     const ascText = getAscendantText(ascSign, locale);
@@ -532,7 +702,7 @@ export class InterpretationService {
           : 'сбалансированных качеств');
 
     if (locale === 'en') {
-      return `Your natal chart is built around a distinct Big Three: Sun in ${sunSign}, Moon in ${moonSign}, and Ascendant in ${ascSign}. This combination describes your core identity, your emotional nature, and the way you enter the world.
+      return `Your natal chart is built around a distinct Big Three: Sun in ${localizedSunSign}, Moon in ${localizedMoonSign}, and Ascendant in ${localizedAscSign}. This combination describes your core identity, your emotional nature, and the way you enter the world.
 
 ${sunText}
 ${moonText}
@@ -543,7 +713,7 @@ Together these positions create a layered personality structure: the Sun defines
 The strongest development path in this chart is to align what you want, what you feel, and how you act. When your Sun, Moon, and Ascendant work in one direction, your choices become clearer, relationships become more coherent, and your life path gains momentum.`;
     }
     if (locale === 'es') {
-      return `Tu carta natal se organiza alrededor de una Gran Tríada muy clara: Sol en ${sunSign}, Luna en ${moonSign} y Ascendente en ${ascSign}. Esta combinación describe tu identidad central, tu mundo emocional y la manera en que entras en relación con el entorno.
+      return `Tu carta natal se organiza alrededor de una Gran Tríada muy clara: Sol en ${localizedSunSign}, Luna en ${localizedMoonSign} y Ascendente en ${localizedAscSign}. Esta combinación describe tu identidad central, tu mundo emocional y la manera en que entras en relación con el entorno.
 
 ${sunText}
 ${moonText}
@@ -554,7 +724,7 @@ Juntas, estas posiciones forman una estructura compleja: el Sol marca la direcci
 La tarea clave de esta carta es unir deseo, emoción y acción. Cuando Sol, Luna y Ascendente cooperan, tus decisiones se vuelven más claras, tus relaciones más coherentes y tu camino vital más sólido.`;
     }
 
-    return `Ваша натальная карта строится вокруг ярко выраженной большой тройки: Солнце в ${sunSign}, Луна в ${moonSign} и Асцендент в ${ascSign}. Именно эта связка показывает ваш внутренний стержень, эмоциональную природу и тот образ, через который вы входите в контакт с миром.
+    return `Ваша натальная карта строится вокруг ярко выраженной большой тройки: Солнце в ${localizedSunSign}, Луна в ${localizedMoonSign} и Асцендент в ${localizedAscSign}. Именно эта связка показывает ваш внутренний стержень, эмоциональную природу и тот образ, через который вы входите в контакт с миром.
 
 ${sunText}
 ${moonText}
@@ -679,6 +849,17 @@ ${ascText}
     return getPlanetNameLocalized(key as PlanetKey, locale) || key;
   }
 
+  private getLocalizedSign(
+    sign: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): string {
+    try {
+      return getSignNameLocalized(sign as Sign, locale) || sign;
+    } catch {
+      return sign;
+    }
+  }
+
   private getAspectName(aspect: string, locale: 'ru' | 'en' | 'es'): string {
     return getATAspectName(aspect, locale) || aspect;
   }
@@ -732,13 +913,14 @@ ${ascText}
   }
 
   private interpretAscendant(sign: string, locale: 'ru' | 'en' | 'es'): string {
+    const localizedSign = this.getLocalizedSign(sign, locale);
     return (
       getAscendantText(sign as Sign, locale) ||
       (locale === 'en'
-        ? `Ascendant in ${sign} shapes your outer image.`
+        ? `Ascendant in ${localizedSign} shapes your outer image.`
         : locale === 'es'
-          ? `El ascendente en ${sign} moldea tu imagen exterior.`
-          : `Асцендент в ${sign} формирует ваш внешний образ.`)
+          ? `El ascendente en ${localizedSign} moldea tu imagen exterior.`
+          : `Асцендент в ${localizedSign} формирует ваш внешний образ.`)
     );
   }
 
@@ -747,13 +929,14 @@ ${ascText}
     sign: string,
     locale: 'ru' | 'en' | 'es',
   ): string {
+    const localizedSign = this.getLocalizedSign(sign, locale);
     return (
       getHouseSignInterpretation(houseNum, sign as Sign, locale) ||
       (locale === 'en'
-        ? `${houseNum} house in ${sign} influences an important life area.`
+        ? `${houseNum} house in ${localizedSign} influences an important life area.`
         : locale === 'es'
-          ? `${houseNum} casa en ${sign} influye en un área importante de la vida.`
-          : `${houseNum}-й дом в ${sign} влияет на важную жизненную сферу.`)
+          ? `${houseNum} casa en ${localizedSign} influye en un área importante de la vida.`
+          : `${houseNum}-й дом в ${localizedSign} влияет на важную жизненную сферу.`)
     );
   }
 
@@ -1033,13 +1216,14 @@ ${ascText}
         : this.getPlanetHouse(rulerPlanet.longitude, houses);
     const rulerSign = rulerPlanet.sign || ascSign;
     const localizedRuler = this.getPlanetName(rulerKey, locale);
+    const localizedRulerSign = this.getLocalizedSign(rulerSign, locale);
 
     const interpretation =
       locale === 'en'
-        ? `Chart ruler: ${localizedRuler} in ${rulerSign}, house ${rulerHouse}. This shows where your initiative, identity, and personal style naturally seek expression.`
+        ? `Chart ruler: ${localizedRuler} in ${localizedRulerSign}, house ${rulerHouse}. This shows where your initiative, identity, and personal style naturally seek expression.`
         : locale === 'es'
-          ? `Regente de la carta: ${localizedRuler} en ${rulerSign}, casa ${rulerHouse}. Esto muestra dónde tu iniciativa, identidad y estilo personal buscan expresarse con naturalidad.`
-          : `Управитель карты: ${localizedRuler} в знаке ${rulerSign}, в ${rulerHouse}-м доме. Это показывает, через какую сферу жизни естественно раскрываются ваша инициатива, личный стиль и жизненный вектор.`;
+          ? `Regente de la carta: ${localizedRuler} en ${localizedRulerSign}, casa ${rulerHouse}. Esto muestra dónde tu iniciativa, identidad y estilo personal buscan expresarse con naturalidad.`
+          : `Управитель карты: ${localizedRuler} в знаке ${localizedRulerSign}, в ${rulerHouse}-м доме. Это показывает, через какую сферу жизни естественно раскрываются ваша инициатива, личный стиль и жизненный вектор.`;
 
     return {
       ruler: localizedRuler,
@@ -1079,12 +1263,14 @@ ${ascText}
             : this.getPlanetHouse(rulerPlanet.longitude, houses);
         const rulerSign = rulerPlanet.sign || houseSign;
         const ruler = this.getPlanetName(rulerKey, locale);
+        const localizedHouseSign = this.getLocalizedSign(houseSign, locale);
+        const localizedRulerSign = this.getLocalizedSign(rulerSign, locale);
         const interpretation =
           locale === 'en'
-            ? `House ${houseNum} begins in ${houseSign}; its ruler is ${ruler} in ${rulerSign}, house ${rulerHouse}. This links the themes of this house with the life area of house ${rulerHouse}.`
+            ? `House ${houseNum} begins in ${localizedHouseSign}; its ruler is ${ruler} in ${localizedRulerSign}, house ${rulerHouse}. This links the themes of this house with the life area of house ${rulerHouse}.`
             : locale === 'es'
-              ? `La casa ${houseNum} comienza en ${houseSign}; su regente es ${ruler} en ${rulerSign}, casa ${rulerHouse}. Esto conecta los temas de esta casa con la esfera vital de la casa ${rulerHouse}.`
-              : `${houseNum}-й дом начинается в знаке ${houseSign}; его управитель ${ruler} стоит в знаке ${rulerSign} и в ${rulerHouse}-м доме. Это связывает темы этого дома со сферой жизни ${rulerHouse}-го дома.`;
+              ? `La casa ${houseNum} comienza en ${localizedHouseSign}; su regente es ${ruler} en ${localizedRulerSign}, casa ${rulerHouse}. Esto conecta los temas de esta casa con la esfera vital de la casa ${rulerHouse}.`
+              : `${houseNum}-й дом начинается в знаке ${localizedHouseSign}; его управитель ${ruler} стоит в знаке ${localizedRulerSign} и в ${rulerHouse}-м доме. Это связывает темы этого дома со сферой жизни ${rulerHouse}-го дома.`;
 
         return {
           house: houseNum,
@@ -1138,32 +1324,38 @@ ${ascText}
       (typeof southNode.house === 'number'
         ? southNode.house
         : this.getPlanetHouse(southNode.longitude, houses));
+    const northSignLabel = northNode?.sign
+      ? this.getLocalizedSign(northNode.sign, locale)
+      : '';
+    const southSignLabel = southNode?.sign
+      ? this.getLocalizedSign(southNode.sign, locale)
+      : '';
 
     const northInterpretation =
       northNode?.sign && typeof northHouse === 'number'
         ? locale === 'en'
-          ? `North Node in ${northNode.sign}, house ${northHouse}, shows the direction of growth, discomfort, and long-term development.`
+          ? `North Node in ${northSignLabel}, house ${northHouse}, shows the direction of growth, discomfort, and long-term development.`
           : locale === 'es'
-            ? `El Nodo Norte en ${northNode.sign}, casa ${northHouse}, muestra la dirección de crecimiento, incomodidad fértil y desarrollo a largo plazo.`
-            : `Северный узел в ${northNode.sign}, в ${northHouse}-м доме, показывает направление роста, зоны продуктивного дискомфорта и долгосрочного развития.`
+            ? `El Nodo Norte en ${northSignLabel}, casa ${northHouse}, muestra la dirección de crecimiento, incomodidad fértil y desarrollo a largo plazo.`
+            : `Северный узел в ${northSignLabel}, в ${northHouse}-м доме, показывает направление роста, зоны продуктивного дискомфорта и долгосрочного развития.`
         : '';
 
     const southInterpretation =
       southNode?.sign && typeof southHouse === 'number'
         ? locale === 'en'
-          ? `South Node in ${southNode.sign}, house ${southHouse}, reflects familiar patterns, inherited strengths, and habits that are easy to fall back on.`
+          ? `South Node in ${southSignLabel}, house ${southHouse}, reflects familiar patterns, inherited strengths, and habits that are easy to fall back on.`
           : locale === 'es'
-            ? `El Nodo Sur en ${southNode.sign}, casa ${southHouse}, refleja patrones familiares, talentos heredados y hábitos a los que es fácil volver.`
-            : `Южный узел в ${southNode.sign}, в ${southHouse}-м доме, отражает привычные сценарии, врожденные навыки и формы поведения, в которые легко скатиться.`
+            ? `El Nodo Sur en ${southSignLabel}, casa ${southHouse}, refleja patrones familiares, talentos heredados y hábitos a los que es fácil volver.`
+            : `Южный узел в ${southSignLabel}, в ${southHouse}-м доме, отражает привычные сценарии, врожденные навыки и формы поведения, в которые легко скатиться.`
         : '';
 
     const axisInterpretation =
       northNode?.sign && southNode?.sign
         ? locale === 'en'
-          ? `The nodal axis moves from ${southNode.sign}${typeof southHouse === 'number' ? `, house ${southHouse}` : ''} toward ${northNode.sign}${typeof northHouse === 'number' ? `, house ${northHouse}` : ''}: growth comes through leaving automatic competence behind and choosing conscious development.`
+          ? `The nodal axis moves from ${southSignLabel}${typeof southHouse === 'number' ? `, house ${southHouse}` : ''} toward ${northSignLabel}${typeof northHouse === 'number' ? `, house ${northHouse}` : ''}: growth comes through leaving automatic competence behind and choosing conscious development.`
           : locale === 'es'
-            ? `El eje nodal va de ${southNode.sign}${typeof southHouse === 'number' ? `, casa ${southHouse}` : ''} hacia ${northNode.sign}${typeof northHouse === 'number' ? `, casa ${northHouse}` : ''}: el crecimiento llega al dejar atrás la competencia automática y elegir un desarrollo más consciente.`
-            : `Ось узлов идет от ${southNode.sign}${typeof southHouse === 'number' ? `, ${southHouse}-й дом` : ''} к ${northNode.sign}${typeof northHouse === 'number' ? `, ${northHouse}-й дом` : ''}: рост приходит через выход из автоматических навыков в сторону более осознанного развития.`
+            ? `El eje nodal va de ${southSignLabel}${typeof southHouse === 'number' ? `, casa ${southHouse}` : ''} hacia ${northSignLabel}${typeof northHouse === 'number' ? `, casa ${northHouse}` : ''}: el crecimiento llega al dejar atrás la competencia automática y elegir un desarrollo más consciente.`
+            : `Ось узлов идет от ${southSignLabel}${typeof southHouse === 'number' ? `, ${southHouse}-й дом` : ''} к ${northSignLabel}${typeof northHouse === 'number' ? `, ${northHouse}-й дом` : ''}: рост приходит через выход из автоматических навыков в сторону более осознанного развития.`
         : locale === 'en'
           ? 'The nodal axis indicates a shift from familiar patterns toward conscious growth.'
           : locale === 'es'
@@ -1275,13 +1467,14 @@ ${ascText}
         ? finalPlanet.house
         : this.getPlanetHouse(finalPlanet.longitude, houses);
     const localizedPlanet = this.getPlanetName(finalKey, locale);
+    const localizedFinalSign = this.getLocalizedSign(finalPlanet.sign, locale);
     const finalDispositorKey = this.resolveFinalDispositorKey(planets);
     const interpretation =
       locale === 'en'
-        ? `${localizedPlanet} acts as the main dispositor focus in ${finalPlanet.sign}, house ${finalHouse}. Many chart themes ultimately report to this planet, so it becomes a strategic center of motivation and expression.`
+        ? `${localizedPlanet} acts as the main dispositor focus in ${localizedFinalSign}, house ${finalHouse}. Many chart themes ultimately report to this planet, so it becomes a strategic center of motivation and expression.`
         : locale === 'es'
-          ? `${localizedPlanet} funciona como foco dispositor principal en ${finalPlanet.sign}, casa ${finalHouse}. Muchos temas de la carta terminan reportando a este planeta, por lo que se convierte en un centro estratégico de motivación y expresión.`
-          : `${localizedPlanet} выступает главным диспозиторным центром в ${finalPlanet.sign}, в ${finalHouse}-м доме. Многие темы карты в итоге сходятся к этой планете, поэтому она становится стратегическим центром мотивации и самовыражения.`;
+          ? `${localizedPlanet} funciona como foco dispositor principal en ${localizedFinalSign}, casa ${finalHouse}. Muchos temas de la carta terminan reportando a este planeta, por lo que se convierte en un centro estratégico de motivación y expresión.`
+          : `${localizedPlanet} выступает главным диспозиторным центром в ${localizedFinalSign}, в ${finalHouse}-м доме. Многие темы карты в итоге сходятся к этой планете, поэтому она становится стратегическим центром мотивации и самовыражения.`;
 
     const chainSummary =
       locale === 'en'
@@ -1617,14 +1810,15 @@ ${ascText}
         ? rulerPlanet.house
         : this.getPlanetHouse(rulerPlanet.longitude, houses);
     const rulerName = this.getPlanetName(rulerKey, locale);
+    const localizedHouseSign = this.getLocalizedSign(houseSign, locale);
 
     if (locale === 'en') {
-      return `House ${houseNum} starts in ${houseSign}, and its ruler ${rulerName} is placed in house ${rulerHouse}. This means the topics of house ${houseNum} tend to unfold through the sphere of house ${rulerHouse}.`;
+      return `House ${houseNum} starts in ${localizedHouseSign}, and its ruler ${rulerName} is placed in house ${rulerHouse}. This means the topics of house ${houseNum} tend to unfold through the sphere of house ${rulerHouse}.`;
     }
     if (locale === 'es') {
-      return `La casa ${houseNum} comienza en ${houseSign}, y su regente ${rulerName} está en la casa ${rulerHouse}. Esto significa que los temas de la casa ${houseNum} suelen desplegarse a través de la esfera de la casa ${rulerHouse}.`;
+      return `La casa ${houseNum} comienza en ${localizedHouseSign}, y su regente ${rulerName} está en la casa ${rulerHouse}. Esto significa que los temas de la casa ${houseNum} suelen desplegarse a través de la esfera de la casa ${rulerHouse}.`;
     }
-    return `${houseNum}-й дом начинается в знаке ${houseSign}, а его управитель ${rulerName} расположен в ${rulerHouse}-м доме. Это означает, что темы ${houseNum}-го дома обычно реализуются через сферу ${rulerHouse}-го дома.`;
+    return `${houseNum}-й дом начинается в знаке ${localizedHouseSign}, а его управитель ${rulerName} расположен в ${rulerHouse}-м доме. Это означает, что темы ${houseNum}-го дома обычно реализуются через сферу ${rulerHouse}-го дома.`;
   }
 
   private describeMoneyAxis(
@@ -2021,12 +2215,13 @@ ${ascText}
           : 'Ваша жизненная цель связана с ';
 
     if (sun) {
+      const localizedSunSign = this.getLocalizedSign(sun.sign, locale);
       purpose +=
         locale === 'en'
-          ? `expressing your ${sun.sign} essence through leadership and creativity`
+          ? `expressing your ${localizedSunSign} essence through leadership and creativity`
           : locale === 'es'
-            ? `expresar tu esencia de ${sun.sign} mediante liderazgo y creatividad`
-            : `выражением своей ${sun.sign} сущности через лидерство и творчество`;
+            ? `expresar tu esencia de ${localizedSunSign} mediante liderazgo y creatividad`
+            : `выражением своей ${localizedSunSign} сущности через лидерство и творчество`;
     }
 
     if (tenthHouse && tenthHouse.planets.length > 0) {

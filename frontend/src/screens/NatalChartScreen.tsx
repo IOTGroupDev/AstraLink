@@ -121,6 +121,31 @@ const formatDegree = (deg?: number): string => {
   return `${d}°${m}'`;
 };
 
+const normalizeZodiacKey = (sign?: string): string => {
+  const map: Record<string, string> = {
+    aries: 'aries',
+    taurus: 'taurus',
+    gemini: 'gemini',
+    cancer: 'cancer',
+    leo: 'leo',
+    virgo: 'virgo',
+    libra: 'libra',
+    scorpio: 'scorpio',
+    sagittarius: 'sagittarius',
+    capricorn: 'capricorn',
+    aquarius: 'aquarius',
+    pisces: 'pisces',
+  };
+
+  return (
+    map[
+      String(sign || '')
+        .trim()
+        .toLowerCase()
+    ] ?? String(sign || '')
+  );
+};
+
 const getHouseForLongitude = (
   longitude: number,
   houses: Record<number, HouseData>
@@ -170,6 +195,17 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     if (rawLocale === 'es' || rawLocale.startsWith('es-')) return 'es';
     return 'ru';
   }, [i18n.language]);
+
+  const getZodiacLabel = useCallback(
+    (sign?: string): string => {
+      const raw = String(sign || '').trim();
+      if (!raw || raw === 'N/A') return raw || 'N/A';
+      return t(`common.zodiacSigns.${normalizeZodiacKey(raw)}`, {
+        defaultValue: raw,
+      });
+    },
+    [t]
+  );
 
   const loadChartData = useCallback(async () => {
     try {
@@ -390,7 +426,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     }[angle];
 
     setAngleModalTitle(`${config.symbol} · ${config.title}`);
-    setAngleModalSubtitle(`${config.sign} ${formatDegree(config.degree)}`);
+    setAngleModalSubtitle(
+      `${getZodiacLabel(config.sign)} ${formatDegree(config.degree)}`
+    );
     setAngleModalSummary(config.summary);
     setAngleModalLines([]);
     setAngleModalVisible(true);
@@ -551,9 +589,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   // Основная информация
   const renderOverview = () => {
-    const sunSign = planets?.sun?.sign || 'N/A';
-    const moonSign = planets?.moon?.sign || 'N/A';
-    const ascSign = resolvedAscendant.sign || 'N/A';
+    const sunSign = getZodiacLabel(planets?.sun?.sign || 'N/A');
+    const moonSign = getZodiacLabel(planets?.moon?.sign || 'N/A');
+    const ascSign = getZodiacLabel(resolvedAscendant.sign || 'N/A');
     const premiumNarrative =
       interpretation?.aiNarrative || interpretation?.premiumNarrative || '';
     const premiumNarrativeParagraphs =
@@ -878,7 +916,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.angleValue}>
-                {resolvedAscendant.sign}{' '}
+                {getZodiacLabel(resolvedAscendant.sign)}{' '}
                 {formatDegree(resolvedAscendant.degree || 0)}
               </Text>
               <Text style={styles.angleHint}>
@@ -900,7 +938,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.angleValue}>
-                {resolvedMidheaven.sign}{' '}
+                {getZodiacLabel(resolvedMidheaven.sign)}{' '}
                 {formatDegree(resolvedMidheaven.degree || 0)}
               </Text>
               <Text style={styles.angleHint}>
@@ -982,7 +1020,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                     <View>
                       <Text style={styles.planetName}>{name}</Text>
                       <Text style={styles.planetSign}>
-                        {t('common.in')} {planet.sign || 'N/A'}{' '}
+                        {t('common.in')} {getZodiacLabel(planet.sign || 'N/A')}{' '}
                         {formatDegree(planet.degree)}
                       </Text>
                     </View>
@@ -1087,7 +1125,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       {t('natalChart.houses.house', { num })}
                     </Text>
                     <Text style={styles.houseSign}>
-                      {house.sign || 'N/A'}{' '}
+                      {getZodiacLabel(house.sign || 'N/A')}{' '}
                       {house.cusp ? formatDegree(house.cusp % 30) : ''}
                     </Text>
                   </View>
@@ -1423,7 +1461,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               onPress={() =>
                 openSummaryModal({
                   title: t('natalChart.summary.chartRuler', 'Управитель карты'),
-                  subtitle: `${summary.chartRuler.ruler} · ${summary.chartRuler.sign} · ${summary.chartRuler.house}${t('natalChart.summary.houseShort', ' дом')}`,
+                  subtitle: `${summary.chartRuler.ruler} · ${getZodiacLabel(summary.chartRuler.sign)} · ${summary.chartRuler.house}${t('natalChart.summary.houseShort', ' дом')}`,
                   summary: summary.chartRuler.interpretation,
                   lines: summary.keyHouseRulers?.length
                     ? summary.keyHouseRulers
@@ -1442,7 +1480,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               <Text style={styles.summaryText}>
                 {summary.chartRuler.ruler}
                 {' · '}
-                {summary.chartRuler.sign}
+                {getZodiacLabel(summary.chartRuler.sign)}
                 {' · '}
                 {summary.chartRuler.house}
                 {t('natalChart.summary.houseShort', ' дом')}
@@ -1495,10 +1533,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   title: t('natalChart.summary.lunarNodes', 'Лунные узлы'),
                   subtitle: [
                     summary.lunarNodes.northNode
-                      ? `NN · ${summary.lunarNodes.northNode.sign} · ${summary.lunarNodes.northNode.house}${t('natalChart.summary.houseShort', ' дом')}`
+                      ? `NN · ${getZodiacLabel(summary.lunarNodes.northNode.sign)} · ${summary.lunarNodes.northNode.house}${t('natalChart.summary.houseShort', ' дом')}`
                       : '',
                     summary.lunarNodes.southNode
-                      ? `SN · ${summary.lunarNodes.southNode.sign} · ${summary.lunarNodes.southNode.house}${t('natalChart.summary.houseShort', ' дом')}`
+                      ? `SN · ${getZodiacLabel(summary.lunarNodes.southNode.sign)} · ${summary.lunarNodes.southNode.house}${t('natalChart.summary.houseShort', ' дом')}`
                       : '',
                   ]
                     .filter(Boolean)
@@ -1551,9 +1589,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                     'Диспозиторный центр'
                   ),
                   subtitle: summary.dispositors.finalDispositor
-                    ? `${summary.dispositors.finalDispositor.planet} · ${summary.dispositors.finalDispositor.sign} · ${summary.dispositors.finalDispositor.house}${t('natalChart.summary.houseShort', ' дом')}`
+                    ? `${summary.dispositors.finalDispositor.planet} · ${getZodiacLabel(summary.dispositors.finalDispositor.sign)} · ${summary.dispositors.finalDispositor.house}${t('natalChart.summary.houseShort', ' дом')}`
                     : summary.dispositors.dominantDispositor
-                      ? `${summary.dispositors.dominantDispositor.planet} · ${summary.dispositors.dominantDispositor.sign} · ${summary.dispositors.dominantDispositor.house}${t('natalChart.summary.houseShort', ' дом')}`
+                      ? `${summary.dispositors.dominantDispositor.planet} · ${getZodiacLabel(summary.dispositors.dominantDispositor.sign)} · ${summary.dispositors.dominantDispositor.house}${t('natalChart.summary.houseShort', ' дом')}`
                       : '',
                   summary:
                     summary.dispositors.finalDispositor?.interpretation ||
@@ -1578,7 +1616,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 <Text style={styles.summaryText}>
                   {summary.dispositors.finalDispositor.planet}
                   {' · '}
-                  {summary.dispositors.finalDispositor.sign}
+                  {getZodiacLabel(summary.dispositors.finalDispositor.sign)}
                   {' · '}
                   {summary.dispositors.finalDispositor.house}
                   {t('natalChart.summary.houseShort', ' дом')}
@@ -1594,7 +1632,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   <Text style={styles.summaryText}>
                     {summary.dispositors.dominantDispositor.planet}
                     {' · '}
-                    {summary.dispositors.dominantDispositor.sign}
+                    {getZodiacLabel(
+                      summary.dispositors.dominantDispositor.sign
+                    )}
                     {' · '}
                     {summary.dispositors.dominantDispositor.house}
                     {t('natalChart.summary.houseShort', ' дом')}

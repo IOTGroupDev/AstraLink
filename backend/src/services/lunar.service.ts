@@ -5,6 +5,8 @@ import {
   normalizeBirthDateValue,
   normalizeBirthTimeValue,
 } from '@/common/utils/birth-data.util';
+import { getSignNameLocalized } from '@/modules/shared/astro-text';
+import type { Sign } from '@/modules/shared/types';
 
 export interface MoonPhase {
   phase: number; // 0-1 (0 = новолуние, 0.5 = полнолуние)
@@ -582,12 +584,13 @@ export class LunarService {
 
     // Добавляем рекомендации по знаку Луны
     const signAdvice = this.getSignRecommendations(moonSign, locale);
+    const localizedMoonSign = getSignNameLocalized(moonSign as Sign, locale);
     const signPrefix =
       locale === 'en'
-        ? ` Moon in ${moonSign}: ${signAdvice}`
+        ? ` Moon in ${localizedMoonSign}: ${signAdvice}`
         : locale === 'es'
-          ? ` Luna en ${moonSign}: ${signAdvice}`
-          : ` Луна в ${moonSign}: ${signAdvice}`;
+          ? ` Luna en ${localizedMoonSign}: ${signAdvice}`
+          : ` Луна в ${localizedMoonSign}: ${signAdvice}`;
     general += signPrefix;
 
     return { general, emotional, practical, avoid };

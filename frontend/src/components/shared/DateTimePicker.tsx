@@ -306,6 +306,8 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
                 onChange={handleDateChange}
                 locale="ru-RU"
                 textColor="#FFFFFF"
+                themeVariant="dark"
+                style={styles.picker}
               />
               <TouchableOpacity
                 style={styles.modalButton}
@@ -369,6 +371,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     width: '90%',
     maxWidth: 360,
+  },
+  picker: {
+    width: '100%',
+    height: Platform.OS === 'ios' ? 216 : 'auto',
   },
   modalButton: {
     marginTop: 12,

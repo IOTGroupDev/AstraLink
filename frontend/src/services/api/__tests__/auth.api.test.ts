@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { authAPI } from '../auth.api';
 import { api } from '../client';
@@ -43,6 +44,7 @@ jest.mock('../../supabase', () => ({
     auth: {
       verifyOtp: jest.fn(),
       setSession: jest.fn(),
+      exchangeCodeForSession: jest.fn(),
       signInWithOAuth: jest.fn(),
       getSession: jest.fn(),
       getUser: jest.fn(),
@@ -57,6 +59,9 @@ const mockedOpenAuthSessionAsync =
   WebBrowser.openAuthSessionAsync as jest.MockedFunction<
     typeof WebBrowser.openAuthSessionAsync
   >;
+const mockedGetInitialURL = Linking.getInitialURL as jest.MockedFunction<
+  typeof Linking.getInitialURL
+>;
 
 const mockUser = {
   id: 'user-1',
@@ -88,6 +93,13 @@ beforeEach(() => {
     },
     error: null,
   });
+  mockedSupabaseAuth.getSession.mockResolvedValue({
+    data: {
+      session: null,
+    },
+    error: null,
+  });
+  mockedGetInitialURL.mockResolvedValue(null);
 });
 
 describe('authAPI authorization methods', () => {
@@ -191,4 +203,41 @@ describe('authAPI authorization methods', () => {
       });
     }
   );
+
+  it('completes Yandex OAuth when the code is nested in a redirect URL param', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/custom:yandex' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: `astralink://auth/callback?redirect_to=${encodeURIComponent(
+        'astralink://auth/callback?code=oauth-code'
+      )}`,
+    } as any);
+    mockedSupabaseAuth.exchangeCodeForSession.mockResolvedValueOnce({
+      data: {
+        user: null,
+        session: null,
+      },
+      error: null,
+    } as any);
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: 'oauth-access',
+          refresh_token: 'oauth-refresh',
+        },
+      },
+      error: null,
+    } as any);
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.yandexSignIn();
+
+    expect(mockedSupabaseAuth.exchangeCodeForSession).toHaveBeenCalledWith(
+      'oauth-code'
+    );
+    expect(result.access_token).toBe('oauth-access');
+  });
 });

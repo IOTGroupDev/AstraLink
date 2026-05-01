@@ -125,6 +125,16 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
     [t]
   );
 
+  const getZodiacLabel = useCallback(
+    (sign: string): string => {
+      const key = String(sign || '')
+        .trim()
+        .toLowerCase();
+      return t(`common.zodiacSigns.${key}`, { defaultValue: sign });
+    },
+    [t]
+  );
+
   const getInterpretationLocale = useCallback((): 'ru' | 'en' | 'es' => {
     const lang = String(i18n.language || 'en').toLowerCase();
     if (lang === 'ru' || lang === 'en' || lang === 'es') return lang;
@@ -965,7 +975,7 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
                       )}
                     </View>
                     <Text style={styles.planetPosition}>
-                      {planet.sign} {planet.degree.toFixed(1)}°
+                      {getZodiacLabel(planet.sign)} {planet.degree.toFixed(1)}°
                     </Text>
                   </View>
                 ))}

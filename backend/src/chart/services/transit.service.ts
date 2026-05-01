@@ -22,6 +22,8 @@ import {
   extractChartBirthDate,
 } from '@/common/utils/daily-astro-context.util';
 import { buildUserLocalPeriodContext } from '@/common/utils/user-local-date.util';
+import { getSignNameLocalized } from '@/modules/shared/astro-text';
+import type { Sign } from '@/modules/shared/types';
 
 export interface MainTransitInterpretationResult {
   date: string;
@@ -622,12 +624,19 @@ export class TransitService {
       })
       .join('\n');
 
-    const sunSign = natalChart.data?.planets?.sun?.sign || 'неизвестно';
-    const moonSign = natalChart.data?.planets?.moon?.sign || 'неизвестно';
-    const ascendant =
-      natalChart.data?.ascendant?.sign ||
-      natalChart.data?.houses?.[1]?.sign ||
-      'неизвестно';
+    const unknown =
+      locale === 'en'
+        ? 'unknown'
+        : locale === 'es'
+          ? 'desconocido'
+          : 'неизвестно';
+    const localizeSign = (sign?: string | null): string =>
+      sign ? getSignNameLocalized(sign as Sign, locale) : unknown;
+    const sunSign = localizeSign(natalChart.data?.planets?.sun?.sign);
+    const moonSign = localizeSign(natalChart.data?.planets?.moon?.sign);
+    const ascendant = localizeSign(
+      natalChart.data?.ascendant?.sign || natalChart.data?.houses?.[1]?.sign,
+    );
     const dailyContextBlock = dailyContext
       ? locale === 'en'
         ? `DAILY CONTEXT:

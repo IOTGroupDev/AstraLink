@@ -60,6 +60,31 @@ const DEFAULT_SUBSCRIPTION = {
   features: [],
 } as any;
 
+const normalizeZodiacKey = (sign: string): string => {
+  const map: Record<string, string> = {
+    aries: 'aries',
+    taurus: 'taurus',
+    gemini: 'gemini',
+    cancer: 'cancer',
+    leo: 'leo',
+    virgo: 'virgo',
+    libra: 'libra',
+    scorpio: 'scorpio',
+    sagittarius: 'sagittarius',
+    capricorn: 'capricorn',
+    aquarius: 'aquarius',
+    pisces: 'pisces',
+  };
+
+  return (
+    map[
+      String(sign || '')
+        .trim()
+        .toLowerCase()
+    ] ?? String(sign || '')
+  );
+};
+
 // Темы по стихиям (названия будут переведены в компоненте)
 const ELEMENT_THEMES = {
   fire: {
@@ -406,6 +431,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const zodiacSignRaw =
     chart?.data?.planets?.sun?.sign || getZodiacSign(profile.birthDate);
   const zodiacSign = zodiacSignRaw || 'Aquarius';
+  const zodiacSignLabel = t(
+    `common.zodiacSigns.${normalizeZodiacKey(zodiacSign)}`,
+    { defaultValue: zodiacSign }
+  );
   const elementTheme = getElementTheme(zodiacSign);
   const themePrimary = elementTheme.colors[0];
 
@@ -482,7 +511,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
             <View style={styles.zodiacInfo}>
               <Text style={[styles.zodiacSign, { color: themePrimary }]}>
-                {zodiacSign}
+                {zodiacSignLabel}
               </Text>
               <Text style={styles.elementName}>
                 {t(`common.elements.${elementTheme.key}`)}
