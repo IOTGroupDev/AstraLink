@@ -106,14 +106,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 supabaseLogger.log('🔐 Инициализация Supabase клиента');
 
+const isValidSecureKey = (key: string | null | undefined): key is string =>
+  typeof key === 'string' && key.trim().length > 0;
+
 const supabaseAuthStorage = {
   async getItem(key: string): Promise<string | null> {
+    if (!isValidSecureKey(key)) {
+      return null;
+    }
+
     if (Platform.OS === 'web') {
       return AsyncStorage.getItem(key);
     }
     return SecureStore.getItemAsync(key);
   },
   async setItem(key: string, value: string): Promise<void> {
+    if (!isValidSecureKey(key)) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       await AsyncStorage.setItem(key, value);
       return;
@@ -121,6 +132,10 @@ const supabaseAuthStorage = {
     await SecureStore.setItemAsync(key, value);
   },
   async removeItem(key: string): Promise<void> {
+    if (!isValidSecureKey(key)) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       await AsyncStorage.removeItem(key);
       return;

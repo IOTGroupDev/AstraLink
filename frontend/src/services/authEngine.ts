@@ -159,6 +159,18 @@ export const AuthEngine = {
       const profile = await fetchProfile();
       setProfile(profile);
       resolveState(profile);
+    } catch (err) {
+      authLogger.error('Profile refresh failed', err);
+      const { data } = await supabase.auth.getSession();
+      const session = data.session ?? null;
+      if (session) {
+        applyFallbackProfileState(session);
+      } else {
+        setProfile(null);
+        setError('profile_load_failed');
+        setState('UNAUTHORIZED');
+      }
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -172,6 +184,11 @@ export const AuthEngine = {
       resolveState(profile);
     } catch (err) {
       authLogger.warn('Background profile refresh failed', err);
+      const { data } = await supabase.auth.getSession();
+      const session = data.session ?? null;
+      if (session) {
+        applyFallbackProfileState(session);
+      }
     }
   },
 

@@ -86,7 +86,7 @@ export const clearAllUserData = async (): Promise<void> => {
         'notifications:last-expo-push-token',
         'notifications:last-user-id',
         ...getSupabaseSecureKeys(),
-      ];
+      ].filter((key) => typeof key === 'string' && key.trim().length > 0);
       await Promise.all(
         secureKeys.map((key) =>
           SecureStore.deleteItemAsync(key).catch(() => undefined)

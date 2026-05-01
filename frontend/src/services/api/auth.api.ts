@@ -27,6 +27,37 @@ const YANDEX_OAUTH_PROVIDER =
   runtimeEnv.SUPABASE_YANDEX_PROVIDER ||
   'custom:yandex';
 
+function getUserEmailFromProvider(user: any): string | null {
+  if (!user) return null;
+  if (typeof user.email === 'string' && user.email.trim()) {
+    return user.email.trim();
+  }
+  const metadataEmail = user.user_metadata?.email;
+  if (typeof metadataEmail === 'string' && metadataEmail.trim()) {
+    return metadataEmail.trim();
+  }
+  const identities = Array.isArray(user.identities) ? user.identities : [];
+  for (const identity of identities) {
+    const identityEmail = identity?.identity_data?.email;
+    if (typeof identityEmail === 'string' && identityEmail.trim()) {
+      return identityEmail.trim();
+    }
+  }
+  return null;
+}
+
+function getUserNameFromProvider(user: any): string {
+  if (!user) return '';
+  const metadataName = user.user_metadata?.name;
+  if (typeof metadataName === 'string' && metadataName.trim()) {
+    return metadataName.trim();
+  }
+  if (typeof user.email === 'string' && user.email.includes('@')) {
+    return user.email.split('@')[0];
+  }
+  return '';
+}
+
 // Persisted backoff for Supabase email OTP rate limits.
 // We can't bypass server limits; this only prevents hammering /otp and makes UX messaging accurate across app restarts.
 type OtpRateLimitState = { lastAtMs: number; backoffSec: number };
@@ -639,17 +670,22 @@ export const authAPI = {
             'Не удалось получить пользователя после Apple sign in'
           );
 
+        const email = getUserEmailFromProvider(user);
+        if (!email) {
+          throw new Error('Email не получен от Apple провайдера');
+        }
+
         ensureUserProfileInBackground({
           userId: user.id,
-          email: user.email || '',
+          email,
         });
 
         return {
           access_token: accessToken || '',
           user: {
             id: user.id,
-            email: user.email || '',
-            name: (user.user_metadata as any)?.name || '',
+            email,
+            name: getUserNameFromProvider(user),
           },
         };
       }
@@ -684,17 +720,22 @@ export const authAPI = {
               'Не удалось получить пользователя после Apple OAuth'
             );
 
+          const email = getUserEmailFromProvider(user);
+          if (!email) {
+            throw new Error('Email не получен от Apple провайдера');
+          }
+
           ensureUserProfileInBackground({
             userId: user.id,
-            email: user.email || '',
+            email,
           });
 
           return {
             access_token: accessToken || '',
             user: {
               id: user.id,
-              email: user.email || '',
-              name: (user.user_metadata as any)?.name || '',
+              email,
+              name: getUserNameFromProvider(user),
             },
           };
         }
@@ -741,17 +782,22 @@ export const authAPI = {
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
 
+          const email = getUserEmailFromProvider(user);
+          if (!email) {
+            throw new Error('Email не получен от OAuth провайдера');
+          }
+
           ensureUserProfileInBackground({
             userId: user.id,
-            email: user.email || '',
+            email,
           });
 
           return {
             access_token: accessToken || '',
             user: {
               id: user.id,
-              email: user.email!,
-              name: (user.user_metadata as any)?.name || '',
+              email,
+              name: getUserNameFromProvider(user),
             },
           };
         }
@@ -780,6 +826,9 @@ export const authAPI = {
         options: {
           redirectTo: redirectUri,
           skipBrowserRedirect: true,
+          queryParams: {
+            scope: 'openid email profile',
+          },
         },
       } as unknown as SignInWithOAuthCredentials;
 
@@ -803,17 +852,22 @@ export const authAPI = {
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
 
+          const email = getUserEmailFromProvider(user);
+          if (!email) {
+            throw new Error('Email не получен от Yandex провайдера');
+          }
+
           ensureUserProfileInBackground({
             userId: user.id,
-            email: user.email || '',
+            email,
           });
 
           return {
             access_token: accessToken || '',
             user: {
               id: user.id,
-              email: user.email || '',
-              name: (user.user_metadata as any)?.name || '',
+              email,
+              name: getUserNameFromProvider(user),
             },
           };
         }

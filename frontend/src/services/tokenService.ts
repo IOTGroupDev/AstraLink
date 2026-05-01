@@ -173,7 +173,15 @@ class TokenService {
   // ============ SECURE STORAGE HELPERS ============
   // Use SecureStore on iOS/Android, AsyncStorage on web
 
+  private isValidSecureKey(key: string | null | undefined): key is string {
+    return typeof key === 'string' && key.trim().length > 0;
+  }
+
   private async getSecureItem(key: string): Promise<string | null> {
+    if (!this.isValidSecureKey(key)) {
+      return null;
+    }
+
     if (Platform.OS === 'web') {
       return AsyncStorage.getItem(key);
     }
@@ -181,6 +189,11 @@ class TokenService {
   }
 
   private async setSecureItem(key: string, value: string): Promise<void> {
+    if (!this.isValidSecureKey(key)) {
+      storageLogger.warn('Skipped SecureStore.setItemAsync with invalid key');
+      return;
+    }
+
     if (Platform.OS === 'web') {
       return AsyncStorage.setItem(key, value);
     }
@@ -188,6 +201,10 @@ class TokenService {
   }
 
   private async deleteSecureItem(key: string): Promise<void> {
+    if (!this.isValidSecureKey(key)) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       return AsyncStorage.removeItem(key);
     }

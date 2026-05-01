@@ -185,6 +185,11 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
       setShowPicker(false);
     }
 
+    if (Platform.OS !== 'android' && event?.type === 'dismissed') {
+      setShowPicker(false);
+      return;
+    }
+
     if (selectedDate) {
       setDate(selectedDate);
 
@@ -295,7 +300,14 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
       {showPicker && (
-        <Modal transparent animationType="fade" visible={showPicker}>
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showPicker}
+          presentationStyle="overFullScreen"
+          supportedOrientations={['portrait', 'landscape']}
+          onRequestClose={() => setShowPicker(false)}
+        >
           <View style={styles.modalBackdrop}>
             <View style={styles.modalContent}>
               <DateTimePicker
@@ -309,12 +321,20 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
                 themeVariant="dark"
                 style={styles.picker}
               />
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowPicker(false)}
-              >
-                <Text style={styles.modalButtonText}>OK</Text>
-              </TouchableOpacity>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalCancelButton]}
+                  onPress={() => setShowPicker(false)}
+                >
+                  <Text style={styles.modalButtonText}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setShowPicker(false)}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -376,13 +396,21 @@ const styles = StyleSheet.create({
     width: '100%',
     height: Platform.OS === 'ios' ? 216 : 'auto',
   },
-  modalButton: {
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     marginTop: 12,
-    alignSelf: 'flex-end',
+    gap: 10,
+  },
+  modalButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: '#8B5CF6',
+  },
+  modalCancelButton: {
+    backgroundColor: '#374151',
   },
   modalButtonText: {
     color: '#FFFFFF',
