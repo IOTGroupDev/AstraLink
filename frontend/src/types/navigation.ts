@@ -58,6 +58,7 @@ export type RootStackParamList = {
 
   NatalChart: undefined;
   PersonalCode: undefined;
+  Compatibility: undefined;
 };
 
 declare global {

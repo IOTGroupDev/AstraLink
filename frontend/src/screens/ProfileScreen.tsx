@@ -358,6 +358,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigateToRootScreen('PersonalCode');
   };
 
+  const handleOpenCompatibility = () => {
+    navigateToRootScreen('Compatibility');
+  };
+
   const handleOpenCosmicSimulator = () => {
     navigateToRootScreen('CosmicSimulator');
   };
@@ -536,6 +540,30 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       <Ionicons name="code-outline" size={28} color="#fff" />
                       <Text style={styles.natalActionText}>
                         {t('profile.natalChart.viewPersonalCode')}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.natalActionCard}
+                    onPress={handleOpenCompatibility}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={['#BE185D', '#7C2D12']}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons
+                        name="heart-circle-outline"
+                        size={28}
+                        color="#fff"
+                      />
+                      <Text style={styles.natalActionText}>
+                        {i18n.language.toLowerCase().startsWith('ru')
+                          ? 'Совместимость'
+                          : i18n.language.toLowerCase().startsWith('es')
+                            ? 'Compatibilidad'
+                            : 'Compatibility'}
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>

@@ -27,6 +27,7 @@ import { HealthModule } from '@/health/health.module';
 import { CommonModule } from './common/common.module';
 import { QueueModule } from './queue/queue.module';
 import { GeoModule } from './modules/geo/geo.module';
+import { CompatibilityModule } from './compatibility/compatibility.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { GeoModule } from './modules/geo/geo.module';
     AIModule,
     HealthModule,
     GeoModule,
+    CompatibilityModule,
   ],
   controllers: [AppController],
   providers: [

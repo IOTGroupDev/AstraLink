@@ -6,3 +6,4 @@ export * from './profile';
 export * from './subscription';
 export * from './lunar';
 export * from './archetype';
+export * from './compatibility';

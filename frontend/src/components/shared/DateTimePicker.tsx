@@ -31,6 +31,7 @@ interface DateTimePickerProps {
   errorMessage?: string;
   animationValue: SharedValue<number>;
   isFocused?: boolean;
+  compact?: boolean;
 }
 
 /**
@@ -63,6 +64,46 @@ const parseDateStringToLocalDate = (input: string): Date | null => {
   return new Date(year, month - 1, day);
 };
 
+const getDefaultPickerDate = (mode: DateTimePickerProps['mode']): Date => {
+  const d = new Date();
+  if (mode === 'time') {
+    d.setHours(12, 0, 0, 0);
+  }
+  return d;
+};
+
+const getPickerDateFromValue = (
+  value: string,
+  mode: DateTimePickerProps['mode']
+): Date => {
+  if (value) {
+    if (mode === 'date') {
+      const parsed = parseDateStringToLocalDate(value);
+      if (parsed && !Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
+
+      const fallback = new Date(value);
+      if (!Number.isNaN(fallback.getTime())) {
+        return fallback;
+      }
+    } else {
+      const match = value.match(/^(\d{1,2}):(\d{2})/);
+      if (match) {
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+          const d = new Date();
+          d.setHours(hours, minutes, 0, 0);
+          return d;
+        }
+      }
+    }
+  }
+
+  return getDefaultPickerDate(mode);
+};
+
 const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   value,
   onChangeText,
@@ -73,38 +114,15 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
   error = false,
   errorMessage,
   animationValue,
+  compact = false,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const labelAnimation = useSharedValue(0);
-  const [date, setDate] = useState(() => {
-    if (value) {
-      if (mode === 'date') {
-        const parsed = parseDateStringToLocalDate(value);
-        return parsed || new Date(value);
-      } else {
-        const [hours, minutes] = value.split(':');
-        const d = new Date();
-        d.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
-        return d;
-      }
-    }
-    return new Date();
-  });
+  const [date, setDate] = useState(() => getPickerDateFromValue(value, mode));
 
   useEffect(() => {
     // Update date when value changes
-    if (value) {
-      if (mode === 'date') {
-        // Безопасный парсинг даты (YYYY-MM-DD и ISO) без сдвига таймзоны
-        const parsed = parseDateStringToLocalDate(value);
-        setDate(parsed || new Date(value));
-      } else {
-        const [hours, minutes] = value.split(':');
-        const newDate = new Date();
-        newDate.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
-        setDate(newDate);
-      }
-    }
+    setDate(getPickerDateFromValue(value, mode));
 
     // Update label animation (без Easing для совместимости)
     if (value) {
@@ -112,7 +130,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     } else {
       labelAnimation.value = withTiming(0, { duration: 200 });
     }
-  }, [value]);
+  }, [mode, value]);
 
   const animatedInputStyle = useAnimatedStyle(() => {
     const scale = animationValue.value;
@@ -123,11 +141,11 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
       opacity,
       borderColor: error ? '#FF6B6B' : 'rgba(255, 255, 255, 0.2)',
       borderWidth: 1.5,
-      borderRadius: 15,
+      borderRadius: compact ? 12 : 15,
       backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      paddingVertical: 20,
-      paddingHorizontal: 20,
-      minHeight: 80,
+      paddingVertical: compact ? 0 : 20,
+      paddingHorizontal: compact ? 14 : 20,
+      minHeight: compact ? 58 : 80,
       flexDirection: 'row',
       alignItems: 'center',
       shadowColor: error ? '#FF6B6B' : '#8B5CF6',
@@ -212,6 +230,23 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
     };
   });
 
+  const openPicker = () => {
+    const pickerDate = getPickerDateFromValue(value, mode);
+    setDate(pickerDate);
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: pickerDate,
+        mode,
+        is24Hour: true,
+        onChange: handleDateChange,
+      });
+      return;
+    }
+
+    setShowPicker(true);
+  };
+
   return (
     <View style={styles.container}>
       <Animated.View style={animatedInputStyle}>
@@ -225,27 +260,34 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
 
         <TouchableOpacity
           style={styles.inputWrapper}
-          onPress={() => {
-            if (Platform.OS === 'android') {
-              DateTimePickerAndroid.open({
-                value: date,
-                mode,
-                is24Hour: true,
-                onChange: handleDateChange,
-              });
-            } else {
-              setShowPicker(true);
-            }
-          }}
+          onPress={openPicker}
           activeOpacity={0.7}
         >
-          <Animated.Text style={animatedLabelStyle}>
-            {placeholder} {required && '*'}
-          </Animated.Text>
-          {value && (
-            <Animated.Text style={[styles.inputText, animatedValueTextStyle]}>
-              {formatDisplayValue()}
-            </Animated.Text>
+          {compact ? (
+            <Text
+              style={[
+                styles.inputText,
+                styles.compactInputText,
+                !value && styles.compactPlaceholderText,
+              ]}
+            >
+              {value
+                ? formatDisplayValue()
+                : `${placeholder}${required ? ' *' : ''}`}
+            </Text>
+          ) : (
+            <>
+              <Animated.Text style={animatedLabelStyle}>
+                {placeholder} {required && '*'}
+              </Animated.Text>
+              {value && (
+                <Animated.Text
+                  style={[styles.inputText, animatedValueTextStyle]}
+                >
+                  {formatDisplayValue()}
+                </Animated.Text>
+              )}
+            </>
           )}
         </TouchableOpacity>
       </Animated.View>
@@ -298,6 +340,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginTop: 20,
+  },
+  compactInputText: {
+    marginTop: 0,
+    fontWeight: '600',
+  },
+  compactPlaceholderText: {
+    color: 'rgba(226, 232, 240, 0.42)',
+    fontWeight: '500',
   },
   errorText: {
     color: '#FF6B6B',
