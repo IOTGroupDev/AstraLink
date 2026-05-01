@@ -1381,6 +1381,153 @@ ${aspectsDesc}
 Итоговый текст должен читаться как дорогая персональная консультация по натальной карте, а не как шаблонный гороскоп.`;
   }
 
+  private buildCompatibilityInterpretationPrompt(
+    context: {
+      score: number;
+      categories: {
+        emotional: { score: number; title: string; description: string };
+        attraction: { score: number; title: string; description: string };
+        communication: { score: number; title: string; description: string };
+        stability: { score: number; title: string; description: string };
+      };
+      keyAspects: Array<{
+        planetA: string;
+        planetB: string;
+        aspect: string;
+        orb?: number;
+        strength?: number;
+      }>;
+      synastrySummary?: string;
+    },
+    locale: AILocale = 'ru',
+  ): string {
+    const categoriesBlock = Object.values(context.categories)
+      .map(
+        (category) =>
+          `- ${category.title}: ${category.score}/100. ${category.description}`,
+      )
+      .join('\n');
+
+    const aspectsBlock =
+      context.keyAspects.length > 0
+        ? context.keyAspects
+            .slice(0, 8)
+            .map((aspect) => {
+              const orb =
+                typeof aspect.orb === 'number'
+                  ? locale === 'en'
+                    ? `, orb ${Math.abs(aspect.orb).toFixed(1)}°`
+                    : locale === 'es'
+                      ? `, orbe ${Math.abs(aspect.orb).toFixed(1)}°`
+                      : `, орб ${Math.abs(aspect.orb).toFixed(1)}°`
+                  : '';
+              const strength =
+                typeof aspect.strength === 'number'
+                  ? locale === 'en'
+                    ? `, strength ${Math.round(aspect.strength * 100)}%`
+                    : locale === 'es'
+                      ? `, fuerza ${Math.round(aspect.strength * 100)}%`
+                      : `, сила ${Math.round(aspect.strength * 100)}%`
+                  : '';
+              return `- ${this.getPlanetName(aspect.planetA, locale)} ${this.getAspectName(aspect.aspect, locale)} ${this.getPlanetName(aspect.planetB, locale)}${orb}${strength}`;
+            })
+            .join('\n')
+        : locale === 'en'
+          ? '- No major aspects provided'
+          : locale === 'es'
+            ? '- No se proporcionaron aspectos principales'
+            : '- Ключевые аспекты не переданы';
+
+    const synastrySummary =
+      context.synastrySummary ??
+      (locale === 'en'
+        ? 'No synastry summary provided.'
+        : locale === 'es'
+          ? 'No se proporcionó resumen de sinastría.'
+          : 'Сводка синастрии не передана.');
+
+    if (locale === 'en') {
+      return `Create a personalized compatibility interpretation for two people based strictly on the provided synastry data.
+
+LANGUAGE: English only.
+FORMAT: plain text only, no JSON, no markdown headings, no bullet lists.
+LENGTH: 4-6 concise but substantial paragraphs.
+
+OVERALL COMPATIBILITY SCORE:
+${context.score}/100
+
+CATEGORY SCORES:
+${categoriesBlock}
+
+SYNASTRY SUMMARY:
+${synastrySummary}
+
+KEY ASPECTS:
+${aspectsBlock}
+
+Requirements:
+- Explain the dynamics of attraction, emotions, communication, and long-term potential.
+- Base the interpretation only on the provided scores and aspects.
+- Highlight both strengths and friction points without fatalism.
+- Be warm, psychologically precise, and practical.
+- Do not invent birth details, placements, or extra aspects.
+- End with grounded relationship guidance.`;
+    }
+
+    if (locale === 'es') {
+      return `Crea una interpretación personalizada de compatibilidad para dos personas basándote estrictamente en los datos de sinastría proporcionados.
+
+IDIOMA: Español solamente.
+FORMATO: solo texto plano, sin JSON, sin encabezados markdown, sin listas.
+LONGITUD: 4-6 párrafos breves pero sustanciales.
+
+PUNTUACIÓN GENERAL DE COMPATIBILIDAD:
+${context.score}/100
+
+PUNTUACIONES POR CATEGORÍA:
+${categoriesBlock}
+
+RESUMEN DE SINASTRÍA:
+${synastrySummary}
+
+ASPECTOS CLAVE:
+${aspectsBlock}
+
+Requisitos:
+- Explica la dinámica de atracción, emociones, comunicación y potencial a largo plazo.
+- Basa la interpretación solo en las puntuaciones y aspectos proporcionados.
+- Señala fortalezas y fricciones sin fatalismo.
+- Mantén un tono cálido, psicológicamente preciso y práctico.
+- No inventes datos de nacimiento, posiciones ni aspectos extra.
+- Termina con una orientación realista para la relación.`;
+    }
+
+    return `Создайте персональную интерпретацию совместимости двух людей, строго опираясь только на переданные данные синастрии.
+
+ФОРМАТ: только сплошной текст, без JSON, без markdown-заголовков, без списков.
+ОБЪЕМ: 4-6 коротких, но содержательных абзацев.
+
+ОБЩИЙ БАЛЛ СОВМЕСТИМОСТИ:
+${context.score}/100
+
+ОЦЕНКИ ПО КАТЕГОРИЯМ:
+${categoriesBlock}
+
+СВОДКА СИНАСТРИИ:
+${synastrySummary}
+
+КЛЮЧЕВЫЕ АСПЕКТЫ:
+${aspectsBlock}
+
+Требования:
+- Объясните динамику притяжения, эмоций, общения и долгосрочного потенциала.
+- Опирайтесь только на переданные оценки и аспекты.
+- Покажите сильные стороны и точки напряжения без фатализма.
+- Тон должен быть теплым, психологически точным и практичным.
+- Ничего не выдумывайте: никаких дополнительных данных рождения, положений или аспектов.
+- Завершите текст реалистичной рекомендацией для пары.`;
+  }
+
   private getAscendantFromHouses(houses: any, locale: AILocale): string {
     const firstHouse = houses?.[1] ?? houses?.['1'];
     if (!firstHouse?.sign) {

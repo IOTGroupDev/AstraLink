@@ -1042,15 +1042,6 @@ const HoroscopeScreen: React.FC = () => {
     todayPrediction?.dailyContext?.summary ||
     todayPrediction?.general ||
     t('horoscope.hero.summaryFallback');
-  const heroTone =
-    todayPrediction?.meta?.tone || todayPrediction?.dailyContext?.tone;
-  const heroToneLabel = heroTone
-    ? t(`horoscope.widget.tones.${heroTone}`, { defaultValue: heroTone })
-    : t('horoscope.widget.tones.mixed');
-  const heroEnergyLabel =
-    typeof todayPrediction?.energy === 'number'
-      ? `${todayPrediction.energy}%`
-      : `${energyValue}%`;
   const heroFullSummary = [
     todayPrediction?.dailyContext?.summary,
     todayPrediction?.general,
@@ -1237,30 +1228,6 @@ const HoroscopeScreen: React.FC = () => {
                     {heroSummary}
                   </Text>
                 </Pressable>
-
-                <View style={styles.heroMetricRow}>
-                  <View style={styles.heroMetric}>
-                    <View style={styles.heroMetricText}>
-                      <Text style={styles.heroMetricLabel}>
-                        {t('horoscope.hero.energy')}
-                      </Text>
-                      <Text style={styles.heroMetricValue} numberOfLines={1}>
-                        {heroEnergyLabel}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.heroMetric}>
-                    <View style={styles.heroMetricText}>
-                      <Text style={styles.heroMetricLabel}>
-                        {t('horoscope.hero.tone')}
-                      </Text>
-                      <Text style={styles.heroMetricValue} numberOfLines={1}>
-                        {heroToneLabel}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
               </View>
 
               {/* Основной контент */}
@@ -1353,7 +1320,7 @@ const HoroscopeScreen: React.FC = () => {
                 {/* Гороскоп виджет */}
                 {dailyLearningLesson && (
                   <TouchableOpacity
-                    style={styles.learningCard}
+                    style={styles.learningCardTouchable}
                     activeOpacity={0.85}
                     onPress={() =>
                       (navigation as any).navigate('Learning', {
@@ -1363,61 +1330,79 @@ const HoroscopeScreen: React.FC = () => {
                       })
                     }
                   >
-                    <BlurView
-                      intensity={20}
-                      tint="dark"
-                      style={styles.learningBlur}
+                    <GradientBorderView
+                      colors={[
+                        'rgba(237, 164, 255, 0.85)',
+                        'rgba(141, 38, 169, 0.28)',
+                        'rgba(237, 164, 255, 0)',
+                      ]}
+                      gradientProps={{
+                        locations: [0, 0.44, 1],
+                        start: { x: 0.08, y: 0 },
+                        end: { x: 0.92, y: 1 },
+                      }}
+                      style={styles.learningCardBorder}
+                      contentStyle={styles.learningCardContent}
                     >
-                      <LinearGradient
-                        colors={[
-                          'rgba(139, 92, 246, 0.24)',
-                          'rgba(99, 102, 241, 0.12)',
-                        ]}
-                        style={styles.learningGradient}
+                      <BlurView
+                        intensity={20}
+                        tint="dark"
+                        experimentalBlurMethod="dimezisBlurView"
+                        style={styles.learningBlur}
                       >
-                        <View style={styles.learningHeader}>
-                          <View style={styles.learningIconWrap}>
-                            <Text style={styles.learningEmoji}>
-                              {dailyLearningLesson.emoji}
-                            </Text>
-                          </View>
-                          <View style={styles.learningHeaderText}>
-                            <Text style={styles.learningLabel}>
-                              {t('horoscope.learningCard.label')}
-                            </Text>
-                            <Text style={styles.learningTitle}>
-                              {t('horoscope.learningCard.title')}
-                            </Text>
-                          </View>
-                          <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#C4B5FD"
-                          />
-                        </View>
-
-                        <Text style={styles.learningLessonTitle}>
-                          {dailyLearningLesson.title}
-                        </Text>
-                        <Text
-                          style={styles.learningLessonText}
-                          numberOfLines={3}
+                        <LinearGradient
+                          colors={[
+                            'rgba(89, 2, 114, 0.35)',
+                            'rgba(21, 8, 25, 0.35)',
+                          ]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.learningGradient}
                         >
-                          {dailyLearningLesson.shortText}
-                        </Text>
+                          <View style={styles.learningHeader}>
+                            <View style={styles.learningIconWrap}>
+                              <Text style={styles.learningEmoji}>
+                                {dailyLearningLesson.emoji}
+                              </Text>
+                            </View>
+                            <View style={styles.learningHeaderText}>
+                              <Text style={styles.learningLabel}>
+                                {t('horoscope.learningCard.label')}
+                              </Text>
+                              <Text style={styles.learningTitle}>
+                                {t('horoscope.learningCard.title')}
+                              </Text>
+                            </View>
+                            <Ionicons
+                              name="chevron-forward"
+                              size={20}
+                              color="#C4B5FD"
+                            />
+                          </View>
 
-                        <View style={styles.learningFooter}>
-                          <Text style={styles.learningCta}>
-                            {t('horoscope.learningCard.button')}
+                          <Text style={styles.learningLessonTitle}>
+                            {dailyLearningLesson.title}
                           </Text>
-                          <Ionicons
-                            name="arrow-forward"
-                            size={14}
-                            color="#DDD6FE"
-                          />
-                        </View>
-                      </LinearGradient>
-                    </BlurView>
+                          <Text
+                            style={styles.learningLessonText}
+                            numberOfLines={3}
+                          >
+                            {dailyLearningLesson.shortText}
+                          </Text>
+
+                          <View style={styles.learningFooter}>
+                            <Text style={styles.learningCta}>
+                              {t('horoscope.learningCard.button')}
+                            </Text>
+                            <Ionicons
+                              name="arrow-forward"
+                              size={14}
+                              color="#DDD6FE"
+                            />
+                          </View>
+                        </LinearGradient>
+                      </BlurView>
+                    </GradientBorderView>
                   </TouchableOpacity>
                 )}
 
@@ -1681,17 +1666,17 @@ const styles = StyleSheet.create({
   heroGreeting: {
     marginTop: 18,
     color: '#FFFFFF',
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 40,
+    lineHeight: 46,
     fontWeight: '500',
   },
   heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '600',
-    letterSpacing: 0,
-    marginTop: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '400',
+    letterSpacing: 0.24,
+    marginTop: 4,
   },
   heroFocusButton: {
     gap: 4,
@@ -1702,17 +1687,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   heroTapHint: {
-    color: 'rgba(237, 164, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.45)',
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   heroDate: {
-    color: 'rgba(237, 164, 255, 0.9)',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '400',
+    letterSpacing: 0.16,
+    textTransform: 'none',
   },
   heroSummary: {
     color: 'rgba(255, 255, 255, 0.76)',
@@ -1724,18 +1710,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingTop: 8,
+    paddingTop: 20,
   },
   heroMetric: {
     flex: 1,
     minWidth: 0,
-    minHeight: 58,
+    minHeight: 44,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(241, 196, 255, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   heroMetricText: {
     flex: 1,
@@ -1745,21 +1730,21 @@ const styles = StyleSheet.create({
   },
   heroMetricLabel: {
     color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
+    fontSize: 16,
+    fontWeight: '400',
+    letterSpacing: 0,
+    textTransform: 'none',
   },
   heroMetricValue: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 22,
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 24,
   },
   // Контент
   contentContainer: {
     marginTop: 36,
-    gap: 36,
+    gap: 28,
   },
   placeholder: {
     padding: 32,
@@ -1854,19 +1839,26 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     textAlign: 'center',
   },
-  learningCard: {
-    borderRadius: 20,
+  learningCardTouchable: {
+    borderRadius: 12,
     overflow: 'hidden',
+  },
+  learningCardBorder: {
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.28)',
+  },
+  learningCardContent: {
+    borderRadius: 11,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(10, 10, 10, 0.35)',
   },
   learningBlur: {
-    borderRadius: 20,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   learningGradient: {
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 12,
+    padding: 14,
   },
   learningHeader: {
     flexDirection: 'row',
@@ -1874,43 +1866,41 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   learningIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3C8FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   learningEmoji: {
-    fontSize: 22,
+    fontSize: 19,
   },
   learningHeaderText: {
     flex: 1,
   },
   learningLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: '#C4B5FD',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#F1C5FF',
   },
   learningTitle: {
-    marginTop: 4,
+    marginTop: 2,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#FFFFFF',
   },
   learningLessonTitle: {
     marginTop: 14,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#FFFFFF',
   },
   learningLessonText: {
     marginTop: 8,
-    fontSize: 13,
-    lineHeight: 19,
-    color: 'rgba(255,255,255,0.74)',
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(255,255,255,0.7)',
   },
   learningFooter: {
     marginTop: 14,
@@ -1919,9 +1909,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   learningCta: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#DDD6FE',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#F1C5FF',
   },
   modalOverlay: {
     flex: 1,
