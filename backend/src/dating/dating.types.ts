@@ -100,6 +100,7 @@ export interface ChartData {
 export interface SynastryData {
   aspects: ChartAspect[];
   compatibility?: number;
+  summary?: string;
 }
 
 // Database entity types
