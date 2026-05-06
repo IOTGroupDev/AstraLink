@@ -5,6 +5,7 @@ export interface User {
   birthDate?: string;
   birthTime?: string;
   birthPlace?: string;
+  onboardingCompleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -7,6 +7,7 @@ import type { SignInWithOAuthCredentials } from '@supabase/supabase-js';
 import { api } from './client';
 import { supabase } from '../supabase';
 import { authLogger } from '../logger';
+import { tokenService } from '../tokenService';
 import type { SignupRequest, AuthResponse } from '../../types';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -27,22 +28,99 @@ const YANDEX_OAUTH_PROVIDER =
   runtimeEnv.SUPABASE_YANDEX_PROVIDER ||
   'custom:yandex';
 
+type EnsureUserProfileResult = {
+  success: boolean;
+  created?: boolean;
+  existing?: boolean;
+  linkedByEmail?: boolean;
+  user?: {
+    id: string;
+    email: string | null;
+    name?: string | null;
+    birthDate?: string | null;
+    birthTime?: string | null;
+    birthPlace?: string | null;
+    onboardingCompleted?: boolean;
+  };
+  onboardingCompleted?: boolean;
+};
+
+function collectEmailLikeValues(value: unknown, out: string[] = []): string[] {
+  if (!value) return out;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      out.push(trimmed);
+    }
+    return out;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectEmailLikeValues(item, out));
+    return out;
+  }
+
+  if (typeof value === 'object') {
+    Object.values(value as Record<string, unknown>).forEach((item) =>
+      collectEmailLikeValues(item, out)
+    );
+  }
+
+  return out;
+}
+
 function getUserEmailFromProvider(user: any): string | null {
   if (!user) return null;
-  if (typeof user.email === 'string' && user.email.trim()) {
-    return user.email.trim();
-  }
-  const metadataEmail = user.user_metadata?.email;
-  if (typeof metadataEmail === 'string' && metadataEmail.trim()) {
-    return metadataEmail.trim();
-  }
-  const identities = Array.isArray(user.identities) ? user.identities : [];
-  for (const identity of identities) {
-    const identityEmail = identity?.identity_data?.email;
-    if (typeof identityEmail === 'string' && identityEmail.trim()) {
-      return identityEmail.trim();
+  const candidateStrings: Array<string | null | undefined> = [
+    user.email,
+    user.user_metadata?.email,
+    user.user_metadata?.login,
+    user.user_metadata?.sub,
+    user.user_metadata?.preferred_username,
+    user.app_metadata?.email,
+    user.app_metadata?.login,
+    user.raw_user_meta_data?.email,
+  ];
+
+  for (const candidate of candidateStrings) {
+    if (
+      typeof candidate === 'string' &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.trim())
+    ) {
+      return candidate.trim();
     }
   }
+
+  const nestedEmails = collectEmailLikeValues({
+    user_metadata: user.user_metadata,
+    app_metadata: user.app_metadata,
+    raw_user_meta_data: user.raw_user_meta_data,
+    identities: user.identities,
+  });
+
+  if (nestedEmails[0]) {
+    return nestedEmails[0];
+  }
+
+  const identities = Array.isArray(user.identities) ? user.identities : [];
+  for (const identity of identities) {
+    const identity1 = identity?.identity_data?.email;
+    if (
+      typeof identity1 === 'string' &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity1.trim())
+    ) {
+      return identity1.trim();
+    }
+    const identity2 = identity?.identity_data?.login;
+    if (
+      typeof identity2 === 'string' &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity2.trim())
+    ) {
+      return identity2.trim();
+    }
+  }
+
   return null;
 }
 
@@ -55,7 +133,86 @@ function getUserNameFromProvider(user: any): string {
   if (typeof user.email === 'string' && user.email.includes('@')) {
     return user.email.split('@')[0];
   }
+  if (typeof user.user_metadata?.login === 'string') {
+    return user.user_metadata.login;
+  }
   return '';
+}
+
+function optionalOnboardingCompleted(ensured: EnsureUserProfileResult): {
+  onboardingCompleted?: boolean;
+} {
+  return typeof ensured.onboardingCompleted === 'boolean'
+    ? { onboardingCompleted: ensured.onboardingCompleted }
+    : {};
+}
+
+async function syncAccessToken(accessToken: string | null): Promise<void> {
+  try {
+    await tokenService.setToken(accessToken);
+  } catch (error) {
+    authLogger.warn('⚠️ Failed to sync auth token after sign in:', error);
+  }
+}
+
+function getEmailFromYandexInfo(data: unknown): string | null {
+  const value = data as Record<string, unknown> | null;
+  if (!value || typeof value !== 'object') return null;
+
+  const direct = [
+    value.default_email,
+    value.email,
+    value.defaultEmail,
+    value.login,
+  ];
+
+  for (const candidate of direct) {
+    if (
+      typeof candidate === 'string' &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.trim())
+    ) {
+      return candidate.trim();
+    }
+  }
+
+  const emails = collectEmailLikeValues(value.emails);
+  return emails[0] ?? null;
+}
+
+async function getYandexEmailFromProviderToken(
+  explicitProviderToken?: string | null
+): Promise<string | null> {
+  try {
+    let providerToken = explicitProviderToken ?? null;
+    if (!providerToken) {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        authLogger.warn('⚠️ Failed to read session for Yandex email:', error);
+        return null;
+      }
+      providerToken = (data.session as any)?.provider_token ?? null;
+    }
+
+    if (typeof providerToken !== 'string' || !providerToken.trim()) {
+      return null;
+    }
+
+    const response = await fetch('https://login.yandex.ru/info?format=json', {
+      headers: {
+        Authorization: `OAuth ${providerToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      authLogger.warn('⚠️ Yandex userinfo request failed:', response.status);
+      return null;
+    }
+
+    return getEmailFromYandexInfo(await response.json());
+  } catch (error) {
+    authLogger.warn('⚠️ Failed to fetch Yandex userinfo:', error);
+    return null;
+  }
 }
 
 // Persisted backoff for Supabase email OTP rate limits.
@@ -199,6 +356,7 @@ function getRedirectUri(): string {
 function extractFromRedirectUrl(redirectedUrl: string): {
   accessToken: string | null;
   refreshToken: string | null;
+  providerToken: string | null;
   code: string | null;
   error: string | null;
   errorDescription: string | null;
@@ -206,6 +364,7 @@ function extractFromRedirectUrl(redirectedUrl: string): {
   const empty = {
     accessToken: null,
     refreshToken: null,
+    providerToken: null,
     code: null,
     error: null,
     errorDescription: null,
@@ -239,6 +398,7 @@ function extractFromRedirectUrl(redirectedUrl: string): {
     const direct = {
       accessToken: get('access_token'),
       refreshToken: get('refresh_token'),
+      providerToken: get('provider_token'),
       code: get('code'),
       error: get('error'),
       errorDescription: get('error_description'),
@@ -247,6 +407,7 @@ function extractFromRedirectUrl(redirectedUrl: string): {
     if (
       direct.accessToken ||
       direct.refreshToken ||
+      direct.providerToken ||
       direct.code ||
       direct.error ||
       direct.errorDescription
@@ -263,6 +424,7 @@ function extractFromRedirectUrl(redirectedUrl: string): {
         if (
           nested.accessToken ||
           nested.refreshToken ||
+          nested.providerToken ||
           nested.code ||
           nested.error ||
           nested.errorDescription
@@ -326,10 +488,17 @@ async function getExistingOAuthSession(): Promise<{
 async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   accessToken: string;
   refreshToken: string;
+  providerToken?: string | null;
 }> {
   authLogger.log('↩️ OAuth redirect received');
-  const { accessToken, refreshToken, code, error, errorDescription } =
-    extractFromRedirectUrl(redirectedUrl);
+  const {
+    accessToken,
+    refreshToken,
+    providerToken,
+    code,
+    error,
+    errorDescription,
+  } = extractFromRedirectUrl(redirectedUrl);
 
   if (error || errorDescription) {
     throw new Error(errorDescription || error || 'OAuth authorization failed');
@@ -345,7 +514,8 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
       throw setErr;
     }
 
-    return { accessToken, refreshToken };
+    await syncAccessToken(accessToken);
+    return { accessToken, refreshToken, providerToken };
   }
 
   if (code) {
@@ -362,9 +532,11 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
       throw new Error('Не удалось получить сессию после OAuth code exchange');
     }
 
+    await syncAccessToken(exchangedAccessToken);
     return {
       accessToken: exchangedAccessToken,
       refreshToken: exchangedRefreshToken,
+      providerToken: (sessionData.session as any)?.provider_token ?? null,
     };
   }
 
@@ -373,6 +545,7 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   // before failing hard.
   const existingSession = await getExistingOAuthSession();
   if (existingSession) {
+    await syncAccessToken(existingSession.accessToken);
     return existingSession;
   }
 
@@ -403,9 +576,11 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
         throw setErr;
       }
 
+      await syncAccessToken(parsedInitialUrl.accessToken);
       return {
         accessToken: parsedInitialUrl.accessToken,
         refreshToken: parsedInitialUrl.refreshToken,
+        providerToken: parsedInitialUrl.providerToken,
       };
     }
 
@@ -418,21 +593,16 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
 
       const exchangedSession = await getExistingOAuthSession();
       if (exchangedSession) {
-        return exchangedSession;
+        await syncAccessToken(exchangedSession.accessToken);
+        return {
+          ...exchangedSession,
+          providerToken: parsedInitialUrl.providerToken,
+        };
       }
     }
   }
 
   throw new Error('Токены или code не получены из OAuth потока');
-}
-
-function ensureUserProfileInBackground(data: {
-  userId: string;
-  email: string;
-}): void {
-  void authAPI.ensureUserProfile(data).catch((ensureError: any) => {
-    authLogger.warn('⚠️ ensure-profile failed (background):', ensureError);
-  });
 }
 
 export const authAPI = {
@@ -595,14 +765,16 @@ export const authAPI = {
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
+        await syncAccessToken(data.session.access_token);
       } catch (setErr) {
         authLogger.warn('⚠️ Failed to set Supabase session after OTP:', setErr);
       }
 
       authLogger.log('✅ Код подтвержден');
 
+      let ensured: EnsureUserProfileResult;
       try {
-        await authAPI.ensureUserProfile({
+        ensured = await authAPI.ensureUserProfile({
           userId: data.user!.id,
           email: data.user!.email!,
         });
@@ -620,6 +792,7 @@ export const authAPI = {
           id: data.user!.id,
           email: data.user!.email!,
           name: (data.user!.user_metadata as any)?.name || '',
+          ...optionalOnboardingCompleted(ensured),
         },
       };
     } catch (error: any) {
@@ -662,6 +835,7 @@ export const authAPI = {
 
         const { data: s } = await supabase.auth.getSession();
         const accessToken = s.session?.access_token ?? null;
+        await syncAccessToken(accessToken);
 
         const { data: userRes } = await supabase.auth.getUser();
         const user = userRes?.user;
@@ -675,7 +849,7 @@ export const authAPI = {
           throw new Error('Email не получен от Apple провайдера');
         }
 
-        ensureUserProfileInBackground({
+        const ensured = await authAPI.ensureUserProfile({
           userId: user.id,
           email,
         });
@@ -686,6 +860,7 @@ export const authAPI = {
             id: user.id,
             email,
             name: getUserNameFromProvider(user),
+            ...optionalOnboardingCompleted(ensured),
           },
         };
       }
@@ -725,7 +900,7 @@ export const authAPI = {
             throw new Error('Email не получен от Apple провайдера');
           }
 
-          ensureUserProfileInBackground({
+          const ensured = await authAPI.ensureUserProfile({
             userId: user.id,
             email,
           });
@@ -736,6 +911,7 @@ export const authAPI = {
               id: user.id,
               email,
               name: getUserNameFromProvider(user),
+              ...optionalOnboardingCompleted(ensured),
             },
           };
         }
@@ -787,7 +963,7 @@ export const authAPI = {
             throw new Error('Email не получен от OAuth провайдера');
           }
 
-          ensureUserProfileInBackground({
+          const ensured = await authAPI.ensureUserProfile({
             userId: user.id,
             email,
           });
@@ -798,6 +974,7 @@ export const authAPI = {
               id: user.id,
               email,
               name: getUserNameFromProvider(user),
+              ...optionalOnboardingCompleted(ensured),
             },
           };
         }
@@ -820,14 +997,16 @@ export const authAPI = {
       const redirectUri = getRedirectUri();
       authLogger.log('🔗 Yandex redirect URI prepared');
 
+      const yandexScope = 'login:email login:info';
       const credentials = {
         // `custom:*` identifier must match the provider configured in Supabase Auth.
         provider: YANDEX_OAUTH_PROVIDER,
         options: {
           redirectTo: redirectUri,
           skipBrowserRedirect: true,
+          scopes: yandexScope,
           queryParams: {
-            scope: 'openid email profile',
+            scope: yandexScope,
           },
         },
       } as unknown as SignInWithOAuthCredentials;
@@ -844,20 +1023,21 @@ export const authAPI = {
           }
         );
         if (result.type === 'success' && result.url) {
-          const { accessToken } = await establishSessionFromRedirectUrl(
-            result.url
-          );
+          const { accessToken, providerToken } =
+            await establishSessionFromRedirectUrl(result.url);
 
           const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
           if (!user) throw new Error('Не удалось получить данные пользователя');
 
-          const email = getUserEmailFromProvider(user);
+          const email =
+            getUserEmailFromProvider(user) ||
+            (await getYandexEmailFromProviderToken(providerToken));
           if (!email) {
             throw new Error('Email не получен от Yandex провайдера');
           }
 
-          ensureUserProfileInBackground({
+          const ensured = await authAPI.ensureUserProfile({
             userId: user.id,
             email,
           });
@@ -868,6 +1048,7 @@ export const authAPI = {
               id: user.id,
               email,
               name: getUserNameFromProvider(user),
+              ...optionalOnboardingCompleted(ensured),
             },
           };
         }
@@ -915,12 +1096,13 @@ export const authAPI = {
   ensureUserProfile: async (data: {
     userId: string;
     email: string;
-  }): Promise<void> => {
+  }): Promise<EnsureUserProfileResult> => {
     try {
-      await api.post('/auth/ensure-profile', {
+      const response = await api.post('/auth/ensure-profile', {
         userId: data.userId,
         email: data.email,
       });
+      return response.data;
     } catch (error: any) {
       authLogger.error('❌ ensure profile failed:', error);
       throw error;

@@ -83,7 +83,6 @@ const PUBLIC_ENDPOINTS = [
   '/auth/magic-link',
   '/auth/send-magic-link',
   '/auth/complete-signup',
-  '/auth/ensure-profile',
   '/geo/cities',
 ];
 
@@ -92,18 +91,6 @@ async function sleep(ms: number): Promise<void> {
 }
 
 async function getAccessTokenWithRetry(): Promise<string | null> {
-  try {
-    const cachedToken = await tokenService.getToken();
-    if (cachedToken) {
-      return cachedToken;
-    }
-  } catch (error) {
-    apiLogger.warn(
-      '⚠️ tokenService.getToken failed, falling back to Supabase:',
-      error
-    );
-  }
-
   const maxAttempts = 6;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -135,7 +122,12 @@ async function getAccessTokenWithRetry(): Promise<string | null> {
     }
   }
 
-  return null;
+  try {
+    return await tokenService.getToken();
+  } catch (error) {
+    apiLogger.warn('⚠️ tokenService.getToken failed:', error);
+    return null;
+  }
 }
 
 function getNormalizedLocale(): 'ru' | 'en' | 'es' {

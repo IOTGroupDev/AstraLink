@@ -1182,8 +1182,8 @@ ${aspects || '- нет'}
     if (locale === 'en') {
       return `Create an extended PREMIUM natal-chart interpretation based strictly on the provided chart data.
 LANGUAGE: English only.
-FORMAT: plain text only, no JSON, no markdown headings, no bullet lists.
-LENGTH: 7-10 substantial paragraphs.
+FORMAT: plain text only, no JSON. Short section titles are allowed; avoid table-like lists.
+LENGTH: 900-1300 words.
 
 ASCENDANT:
 ${ascendantDesc}
@@ -1244,14 +1244,14 @@ Hard requirements:
 - Pay special attention to the user's real chart anchors: big three, angular houses, dominant houses, repeated elements, and strongest aspects.
 - Give special weight to the tightest aspects by orb/strength and to the rulers of houses 7, 10, 2, and 8 when discussing relationships, career, and money.
 
-The result must read like a high-end personalized astrological consultation, not a template.`;
+The result must read like a high-end personalized astrological consultation, not a template. Open with a confident synthesis of the whole chart before moving into details.`;
     }
 
     if (locale === 'es') {
       return `Crea una interpretación PREMIUM ampliada de la carta natal basándote estrictamente en los datos proporcionados.
 IDIOMA: Español solamente.
-FORMATO: solo texto plano, sin JSON, sin encabezados markdown, sin viñetas.
-LONGITUD: 7-10 párrafos sustanciales.
+FORMATO: solo texto plano, sin JSON. Se permiten títulos breves de sección; evita listas con aspecto de tabla.
+LONGITUD: 900-1300 palabras.
 
 ASCENDENTE:
 ${ascendantDesc}
@@ -1312,12 +1312,12 @@ Requisitos estrictos:
 - Da atención especial a los anclajes reales de la carta: gran tríada, casas angulares, casas dominantes, elementos repetidos y aspectos fuertes.
 - Da peso especial a los aspectos más cerrados por orbe/fuerza y a los regentes de las casas 7, 10, 2 y 8 al hablar de relaciones, carrera y dinero.
 
-El resultado debe sentirse como una consulta astrológica personalizada de alto nivel, no como una plantilla.`;
+El resultado debe sentirse como una consulta astrológica personalizada de alto nivel, no como una plantilla. Abre con una síntesis segura de toda la carta antes de pasar a los detalles.`;
     }
 
     return `Создайте расширенную PREMIUM-интерпретацию натальной карты, строго опираясь на переданные данные.
-ФОРМАТ: только сплошной текст, без JSON, без markdown-заголовков, без списков.
-ОБЪЕМ: 7-10 содержательных абзацев.
+ФОРМАТ: только текст, без JSON. Можно использовать короткие смысловые подзаголовки; избегайте табличных списков.
+ОБЪЕМ: 900-1300 слов.
 
 АСЦЕНДЕНТ:
 ${ascendantDesc}
@@ -1378,7 +1378,7 @@ ${aspectsDesc}
 - Особое внимание уделяйте нашим главным якорям: большая тройка, угловые дома, повтор элементов, доминанты по домам и сильнейшие аспекты.
 - Отдельно учитывайте самые точные аспекты по орбу/силе и управителей 7, 10, 2 и 8 домов, когда говорите про отношения, карьеру и деньги.
 
-Итоговый текст должен читаться как дорогая персональная консультация по натальной карте, а не как шаблонный гороскоп.`;
+Итоговый текст должен читаться как дорогая персональная консультация по натальной карте, а не как шаблонный гороскоп. Начните с уверенного синтеза всей карты, а уже потом переходите к деталям.`;
   }
 
   private buildCompatibilityInterpretationPrompt(

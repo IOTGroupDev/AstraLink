@@ -9,6 +9,7 @@ import {
   HttpCode,
   Query,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -301,7 +302,7 @@ export class AuthController {
    * Workaround for missing database trigger on auth.users
    * Creates public.users record if it doesn't exist after OTP verification
    */
-  @Public()
+  @UseGuards(SupabaseAuthGuard)
   @Post('ensure-profile')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -313,13 +314,22 @@ export class AuthController {
     status: 200,
     description: 'Profile ensured successfully',
   })
-  async ensureUserProfile(@Body() dto: EnsureUserProfileDto) {
+  async ensureUserProfile(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: EnsureUserProfileDto,
+  ) {
     try {
       this.logger.log('Ensure profile request');
+      const authUserId = req.user?.userId || req.user?.id || dto.userId;
+      const email = (dto.email || req.user?.email || '').trim().toLowerCase();
+
+      if (!authUserId) {
+        throw new UnauthorizedException('Пользователь не аутентифицирован');
+      }
 
       const result = await this.supabaseAuthService.ensureUserProfile(
-        dto.userId,
-        dto.email,
+        authUserId,
+        email,
       );
 
       return result;

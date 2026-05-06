@@ -32,7 +32,7 @@ const resolveRoute = (state: string) => {
     case 'AUTHORIZED':
       return 'MainTabs';
     case 'ONBOARDING':
-      return 'Onboarding1';
+      return 'Onboarding2';
     case 'UNAUTHORIZED':
     default:
       return 'SignUp';

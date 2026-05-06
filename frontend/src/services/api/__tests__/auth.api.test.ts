@@ -33,6 +33,12 @@ jest.mock('../../logger', () => ({
   },
 }));
 
+jest.mock('../../tokenService', () => ({
+  tokenService: {
+    setToken: jest.fn(),
+  },
+}));
+
 jest.mock('../client', () => ({
   api: {
     post: jest.fn(),
@@ -62,6 +68,7 @@ const mockedOpenAuthSessionAsync =
 const mockedGetInitialURL = Linking.getInitialURL as jest.MockedFunction<
   typeof Linking.getInitialURL
 >;
+const mockedFetch = jest.fn();
 
 const mockUser = {
   id: 'user-1',
@@ -80,6 +87,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  global.fetch = mockedFetch as any;
   mockedSupabaseAuth.setSession.mockResolvedValue({
     data: {
       user: null,
@@ -100,6 +108,7 @@ beforeEach(() => {
     error: null,
   });
   mockedGetInitialURL.mockResolvedValue(null);
+  mockedFetch.mockReset();
 });
 
 describe('authAPI authorization methods', () => {
@@ -243,7 +252,8 @@ describe('authAPI authorization methods', () => {
         options: expect.objectContaining({
           redirectTo: 'astralink://auth/callback',
           skipBrowserRedirect: true,
-          queryParams: { scope: 'openid email profile' },
+          scopes: 'login:email login:info',
+          queryParams: { scope: 'login:email login:info' },
         }),
       })
     );
@@ -256,6 +266,47 @@ describe('authAPI authorization methods', () => {
       user: {
         id: 'user-1',
         email: 'yandex@example.com',
+        name: 'Yandex User',
+      },
+    });
+  });
+
+  it('uses email fallback from Yandex login metadata when user.email is missing', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/custom:yandex' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+    } as any);
+    mockedSupabaseAuth.getUser.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: 'user-1',
+          email: null,
+          user_metadata: {
+            name: 'Yandex User',
+            login: 'yandex-login@example.com',
+          },
+          identities: [],
+        },
+      },
+      error: null,
+    } as any);
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.yandexSignIn();
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
+      userId: 'user-1',
+      email: 'yandex-login@example.com',
+    });
+    expect(result).toEqual({
+      access_token: 'oauth-access',
+      user: {
+        id: 'user-1',
+        email: 'yandex-login@example.com',
         name: 'Yandex User',
       },
     });
@@ -305,6 +356,62 @@ describe('authAPI authorization methods', () => {
         name: 'Yandex User',
       },
     });
+  });
+
+  it('uses Yandex userinfo when Supabase metadata does not include email', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/custom:yandex' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+    } as any);
+    mockedSupabaseAuth.getUser.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: 'user-1',
+          email: null,
+          user_metadata: {
+            name: 'Yandex User',
+            login: 'yandex-login',
+          },
+          identities: [],
+        },
+      },
+      error: null,
+    } as any);
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: 'oauth-access',
+          refresh_token: 'oauth-refresh',
+          provider_token: 'yandex-provider-token',
+        },
+      },
+      error: null,
+    } as any);
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ default_email: 'userinfo-yandex@example.com' }),
+    });
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.yandexSignIn();
+
+    expect(mockedFetch).toHaveBeenCalledWith(
+      'https://login.yandex.ru/info?format=json',
+      {
+        headers: {
+          Authorization: 'OAuth yandex-provider-token',
+        },
+      }
+    );
+    expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
+      userId: 'user-1',
+      email: 'userinfo-yandex@example.com',
+    });
+    expect(result.user.email).toBe('userinfo-yandex@example.com');
   });
 
   it('completes Yandex OAuth when the code is nested in a redirect URL param', async () => {

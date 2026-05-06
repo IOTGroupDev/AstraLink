@@ -146,8 +146,13 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
     setError(null);
 
     try {
+      let verifiedUser: Awaited<ReturnType<typeof authAPI.verifyCode>>['user'];
       try {
-        await authAPI.verifyCode(String(email).trim().toLowerCase(), code);
+        const verified = await authAPI.verifyCode(
+          String(email).trim().toLowerCase(),
+          code
+        );
+        verifiedUser = verified.user;
       } catch (verifyErr: any) {
         const msg = verifyErr?.message ?? '';
         const isExpired = /код истек|expired/i.test(msg);
@@ -195,11 +200,11 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
       const nextState = useAuthStore.getState().authState;
       setSubmitting(false); // Stop loading before navigation
-      if (nextState === 'AUTHORIZED') {
+      if (nextState === 'AUTHORIZED' || verifiedUser?.onboardingCompleted) {
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       } else {
         // Default to onboarding for new users or if state is unclear
-        navigation.reset({ index: 0, routes: [{ name: 'Onboarding1' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'Onboarding2' }] });
       }
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

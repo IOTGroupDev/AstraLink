@@ -34,7 +34,9 @@ const SignUpScreen = () => {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { reset } = useOnboardingStore();
 
-  const routeAfterOAuth = async () => {
+  const routeAfterOAuth = async (
+    user?: Awaited<ReturnType<typeof authAPI.googleSignIn>>['user']
+  ) => {
     try {
       await AuthEngine.refreshProfile();
     } catch {
@@ -42,7 +44,7 @@ const SignUpScreen = () => {
     }
 
     const nextState = useAuthStore.getState().authState;
-    if (nextState === 'AUTHORIZED') {
+    if (nextState === 'AUTHORIZED' || user?.onboardingCompleted) {
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' as never }],
@@ -53,7 +55,7 @@ const SignUpScreen = () => {
     if (nextState === 'ONBOARDING') {
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Onboarding1' as never }],
+        routes: [{ name: 'Onboarding2' as never }],
       });
     }
   };
@@ -66,9 +68,12 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('google');
-      await withBiometricProtection(() => authAPI.googleSignIn(), 'Google');
+      const result = await withBiometricProtection(
+        () => authAPI.googleSignIn(),
+        'Google'
+      );
       reset();
-      await routeAfterOAuth();
+      await routeAfterOAuth(result.user);
     } catch (error: unknown) {
       handleOAuthError(error, 'Google');
     } finally {
@@ -81,9 +86,12 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('apple');
-      await withBiometricProtection(() => authAPI.appleSignIn(), 'Apple');
+      const result = await withBiometricProtection(
+        () => authAPI.appleSignIn(),
+        'Apple'
+      );
       reset();
-      await routeAfterOAuth();
+      await routeAfterOAuth(result.user);
     } catch (error: unknown) {
       handleOAuthError(error, 'Apple');
     } finally {
@@ -96,9 +104,12 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('yandex');
-      await withBiometricProtection(() => authAPI.yandexSignIn(), 'Yandex');
+      const result = await withBiometricProtection(
+        () => authAPI.yandexSignIn(),
+        'Yandex'
+      );
       reset();
-      await routeAfterOAuth();
+      await routeAfterOAuth(result.user);
     } catch (error: unknown) {
       handleOAuthError(error, 'Yandex');
     } finally {

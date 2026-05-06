@@ -700,9 +700,36 @@ export class SupabaseAuthService {
   async ensureUserProfile(
     userId: string,
     email: string,
-  ): Promise<{ success: boolean }> {
+  ): Promise<{
+    success: boolean;
+    existing?: boolean;
+    created?: boolean;
+    linkedByEmail?: boolean;
+    onboardingCompleted: boolean;
+  }> {
     try {
       this.logger.log('🔍 Checking if user profile exists');
+      const normalizedEmail = email.trim().toLowerCase();
+      const toResult = (
+        profile: any,
+        flags: {
+          existing?: boolean;
+          created?: boolean;
+          linkedByEmail?: boolean;
+        },
+      ) => {
+        const onboardingCompleted =
+          profile?.onboarding_completed === true ||
+          (!!profile?.birth_date &&
+            !!profile?.birth_time &&
+            !!profile?.birth_place);
+
+        return {
+          success: true,
+          ...flags,
+          onboardingCompleted,
+        };
+      };
 
       // Check if profile exists by userId
       const { data: existingProfile } =
@@ -710,25 +737,26 @@ export class SupabaseAuthService {
 
       if (existingProfile) {
         this.logger.log('✅ User profile already exists');
-        return { success: true };
+        return toResult(existingProfile, { existing: true });
       }
 
       // Check if email is already used by another userId (cross-provider check)
       const { data: existingByEmail } = await this.supabaseService
         .fromAdmin('users')
-        .select('id, email')
-        .eq('email', email)
+        .select(
+          'id, email, name, birth_date, birth_time, birth_place, onboarding_completed',
+        )
+        .eq('email', normalizedEmail)
         .single();
 
       if (existingByEmail && existingByEmail.id !== userId) {
         this.logger.log(
-          '⚠️ Email already used by another user, linking accounts',
+          '⚠️ Email already used by another auth identity; returning existing profile state',
         );
-        // For now, throw error to prevent duplicate emails
-        // TODO: Implement account linking logic if needed
-        throw new BadRequestException(
-          'Этот email уже используется другим аккаунтом',
-        );
+        return toResult(existingByEmail, {
+          existing: true,
+          linkedByEmail: true,
+        });
       }
 
       this.logger.log('📝 Creating missing user profile');
@@ -739,11 +767,12 @@ export class SupabaseAuthService {
         .insert(
           this.supabaseService.prepareUserProfileWritePayload({
             id: userId,
-            email: email,
-            name: email.split('@')[0] || 'User',
+            email: normalizedEmail,
+            name: normalizedEmail.split('@')[0] || 'User',
             birth_date: null,
             birth_time: null,
             birth_place: null,
+            onboarding_completed: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }),
@@ -755,7 +784,15 @@ export class SupabaseAuthService {
           this.logger.log(
             '✅ Profile created by another process (race condition)',
           );
-          return { success: true };
+          const retry = await this.supabaseService.getUserProfileAdmin(userId);
+          if (retry.data) {
+            return toResult(retry.data, { existing: true });
+          }
+          return {
+            success: true,
+            existing: true,
+            onboardingCompleted: false,
+          };
         }
         this.logger.error(
           '❌ Error creating user profile:',
@@ -769,7 +806,16 @@ export class SupabaseAuthService {
       // Create subscription for new user
       await this.createUserSubscription(userId);
 
-      return { success: true };
+      const { data: createdProfile } =
+        await this.supabaseService.getUserProfileAdmin(userId);
+
+      return createdProfile
+        ? toResult(createdProfile, { created: true })
+        : {
+            success: true,
+            created: true,
+            onboardingCompleted: false,
+          };
     } catch (error) {
       this.logger.error('❌ ensureUserProfile error:', toSafeLogMeta(error));
       if (error instanceof BadRequestException) {

@@ -662,6 +662,59 @@ export class InterpretationService {
     const sunText = getPlanetInSignText('sun', sunSign, locale);
     const moonText = getPlanetInSignText('moon', moonSign, locale);
     const ascText = getAscendantText(ascSign, locale);
+    const planetLabel = (key: string) => this.getPlanetName(key, locale);
+    const houseLabel = (houseNum?: number) =>
+      typeof houseNum === 'number' && Number.isFinite(houseNum)
+        ? locale === 'en'
+          ? `house ${houseNum}`
+          : locale === 'es'
+            ? `casa ${houseNum}`
+            : `${houseNum}-м доме`
+        : '';
+    const degreeLabel = (planet?: Planet | House | any) =>
+      typeof planet?.longitude === 'number'
+        ? `${Math.round(planet.longitude % 30)}°`
+        : typeof planet?.degree === 'number'
+          ? `${Math.round(planet.degree)}°`
+          : '';
+    const placementLine = (planetKey: string, planet?: Planet | any) => {
+      if (!planet?.sign) return '';
+      const house =
+        typeof planet.house === 'number'
+          ? planet.house
+          : typeof planet.longitude === 'number'
+            ? this.getPlanetHouse(planet.longitude, chartData.houses || {})
+            : undefined;
+      const parts = [
+        planetLabel(planetKey),
+        locale === 'en'
+          ? `in ${this.getLocalizedSign(planet.sign, locale)}`
+          : locale === 'es'
+            ? `en ${this.getLocalizedSign(planet.sign, locale)}`
+            : `в ${this.getLocalizedSign(planet.sign, locale)}`,
+        degreeLabel(planet),
+        houseLabel(house),
+      ].filter(Boolean);
+
+      return parts.join(' ');
+    };
+    const sunPlacement = placementLine('sun', sun);
+    const moonPlacement = placementLine('moon', moon);
+    const ascPlacement = [
+      locale === 'en'
+        ? 'Ascendant'
+        : locale === 'es'
+          ? 'Ascendente'
+          : 'Асцендент',
+      locale === 'en'
+        ? `in ${localizedAscSign}`
+        : locale === 'es'
+          ? `en ${localizedAscSign}`
+          : `в ${localizedAscSign}`,
+      degreeLabel(asc),
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     const synthesizedPlanets: PlanetInterpretation[] = Object.entries(
       chartData.planets || {},
@@ -700,39 +753,163 @@ export class InterpretationService {
         : locale === 'es'
           ? 'cualidades equilibradas'
           : 'сбалансированных качеств');
+    const loadedHouses = this.getLoadedHouseHighlights(chartData, locale);
+    const strongAspects = this.getOverviewAspectHighlights(chartData, locale);
+    const privatePublicAxis = this.describeOverviewAxis(chartData, locale);
 
     if (locale === 'en') {
-      return `Your natal chart is built around a distinct Big Three: Sun in ${localizedSunSign}, Moon in ${localizedMoonSign}, and Ascendant in ${localizedAscSign}. This combination describes your core identity, your emotional nature, and the way you enter the world.
+      return `I start this reading from the real anchors of the chart: ${[sunPlacement, moonPlacement, ascPlacement].filter(Boolean).join('; ')}. The picture is not just a list of placements: it shows how your will, emotional reflexes, and visible presence try to work together.
 
-${sunText}
-${moonText}
-${ascText}
+${sunText} ${moonText} ${ascText}
 
-Together these positions create a layered personality structure: the Sun defines conscious direction and self-expression, the Moon shows emotional needs and instinctive reactions, and the Ascendant turns all of this into visible behavior, first impressions, and personal style. The chart background is colored by ${dominantElement} and ${dominantQuality}, so your temperament carries both core and supporting tones.
+The chart background is colored by ${dominantElement} and ${dominantQuality}. This gives the temperament a recognizable rhythm: not one simple archetype, but a living mixture of impulse, defense mechanisms, habits, and ways of choosing.
+
+${loadedHouses} ${privatePublicAxis} ${strongAspects}
 
 The strongest development path in this chart is to align what you want, what you feel, and how you act. When your Sun, Moon, and Ascendant work in one direction, your choices become clearer, relationships become more coherent, and your life path gains momentum.`;
     }
     if (locale === 'es') {
-      return `Tu carta natal se organiza alrededor de una Gran Tríada muy clara: Sol en ${localizedSunSign}, Luna en ${localizedMoonSign} y Ascendente en ${localizedAscSign}. Esta combinación describe tu identidad central, tu mundo emocional y la manera en que entras en relación con el entorno.
+      return `Empiezo esta lectura por los anclajes reales de la carta: ${[sunPlacement, moonPlacement, ascPlacement].filter(Boolean).join('; ')}. No es solo una lista de posiciones: aquí se ve cómo tu voluntad, tus reflejos emocionales y tu presencia visible intentan trabajar juntos.
 
-${sunText}
-${moonText}
-${ascText}
+${sunText} ${moonText} ${ascText}
 
-Juntas, estas posiciones forman una estructura compleja: el Sol marca la dirección consciente y la autoexpresión, la Luna revela necesidades afectivas y reacciones internas, y el Ascendente convierte todo eso en presencia visible, comportamiento y estilo personal. El trasfondo de la carta está teñido por ${dominantElement} y ${dominantQuality}, así que tu temperamento tiene varias capas.
+El trasfondo de la carta está teñido por ${dominantElement} y ${dominantQuality}. Esto da al temperamento un ritmo reconocible: no un arquetipo simple, sino una mezcla viva de impulso, mecanismos de defensa, hábitos y formas de elegir.
+
+${loadedHouses} ${privatePublicAxis} ${strongAspects}
 
 La tarea clave de esta carta es unir deseo, emoción y acción. Cuando Sol, Luna y Ascendente cooperan, tus decisiones se vuelven más claras, tus relaciones más coherentes y tu camino vital más sólido.`;
     }
 
-    return `Ваша натальная карта строится вокруг ярко выраженной большой тройки: Солнце в ${localizedSunSign}, Луна в ${localizedMoonSign} и Асцендент в ${localizedAscSign}. Именно эта связка показывает ваш внутренний стержень, эмоциональную природу и тот образ, через который вы входите в контакт с миром.
+    return `Начинаю разбор с настоящих опор карты: ${[sunPlacement, moonPlacement, ascPlacement].filter(Boolean).join('; ')}. Это не просто набор положений, а связка, через которую видно, как воля, эмоциональная реакция и внешняя подача пытаются договориться между собой.
 
-${sunText}
-${moonText}
-${ascText}
+${sunText} ${moonText} ${ascText}
 
-Вместе эти положения создают многослойную структуру личности: Солнце описывает волю, осознанные цели и способ самореализации, Луна отвечает за чувства, привязанности и внутреннее ощущение безопасности, а Асцендент переводит всё это в манеру поведения, первое впечатление и жизненный стиль. Фон карты окрашен влиянием ${dominantElement} и ${dominantQuality}, поэтому ваш характер нельзя свести к одному-единственному архетипу.
+Фон карты окрашен влиянием ${dominantElement} и ${dominantQuality}. Поэтому характер нельзя свести к одному архетипу: здесь есть свой ритм, свои способы защищаться, проявляться, выбирать людей и реагировать на давление.
+
+${loadedHouses} ${privatePublicAxis} ${strongAspects}
 
 Ключевая задача этой карты — согласовать желания, чувства и действия. Когда энергия Солнца, Луны и Асцендента работает в одном направлении, вы точнее понимаете себя, увереннее строите отношения и быстрее находите собственную траекторию развития.`;
+  }
+
+  private getLoadedHouseHighlights(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const houses = chartData.houses || {};
+    const houseCounts = new Map<number, string[]>();
+
+    for (const [planetKey, planet] of Object.entries(chartData.planets || {})) {
+      if (typeof planet?.longitude !== 'number') continue;
+      const house =
+        typeof planet.house === 'number'
+          ? planet.house
+          : this.getPlanetHouse(planet.longitude, houses);
+      const planets = houseCounts.get(house) || [];
+      planets.push(this.getPlanetName(planetKey, locale));
+      houseCounts.set(house, planets);
+    }
+
+    const loaded = Array.from(houseCounts.entries())
+      .filter(([, planets]) => planets.length >= 2)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 2);
+
+    if (!loaded.length) {
+      return locale === 'en'
+        ? 'The planets are distributed rather evenly, so the chart does not reduce itself to one obsessive life topic.'
+        : locale === 'es'
+          ? 'Los planetas están distribuidos con bastante equilibrio, así que la carta no se reduce a un único tema dominante.'
+          : 'Планеты распределены достаточно ровно, поэтому карта не сводится к одной навязчивой теме.';
+    }
+
+    const details = loaded.map(([house, planets]) => {
+      const area = this.getHouseLifeArea(house, locale);
+      return locale === 'en'
+        ? `house ${house} (${area}: ${planets.join(', ')})`
+        : locale === 'es'
+          ? `casa ${house} (${area}: ${planets.join(', ')})`
+          : `${house}-й дом (${area}: ${planets.join(', ')})`;
+    });
+
+    return locale === 'en'
+      ? `A clear emphasis falls on ${details.join(' and ')}. These areas will not stay secondary: they repeatedly pull attention, decisions, and emotional investment.`
+      : locale === 'es'
+        ? `Hay un énfasis claro en ${details.join(' y ')}. Estas áreas no quedan en segundo plano: atraen repetidamente atención, decisiones e inversión emocional.`
+        : `В карте заметен акцент на ${details.join(' и ')}. Эти сферы не остаются второстепенными: они снова и снова забирают внимание, решения и эмоциональную вовлеченность.`;
+  }
+
+  private getOverviewAspectHighlights(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const aspects = [...(chartData.aspects || [])]
+      .sort((a, b) => {
+        const strengthDiff = (b.strength || 0) - (a.strength || 0);
+        if (strengthDiff !== 0) return strengthDiff;
+        return (a.orb || 99) - (b.orb || 99);
+      })
+      .slice(0, 2);
+
+    if (!aspects.length) return '';
+
+    const labels = aspects.map((aspect) => {
+      const aspectName = this.getAspectName(aspect.aspect, locale);
+      return `${this.getPlanetName(aspect.planetA, locale)} ${aspectName} ${this.getPlanetName(aspect.planetB, locale)}`;
+    });
+
+    return locale === 'en'
+      ? `The strongest aspect dynamics include ${labels.join(' and ')}; these are not decorative details, but inner mechanisms that shape reactions and choices.`
+      : locale === 'es'
+        ? `Entre las dinámicas aspectuales más fuertes están ${labels.join(' y ')}; no son detalles decorativos, sino mecanismos internos que moldean reacciones y decisiones.`
+        : `Среди самых сильных аспектных динамик выделяются ${labels.join(' и ')}. Это не декоративные детали, а внутренние механизмы, которые формируют реакции и выбор.`;
+  }
+
+  private describeOverviewAxis(
+    chartData: ChartData,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    const ascSign = chartData.ascendant?.sign || chartData.houses?.[1]?.sign;
+    const mcSign = chartData.midheaven?.sign || chartData.houses?.[10]?.sign;
+    const icSign = chartData.houses?.[4]?.sign;
+    const dscSign = chartData.houses?.[7]?.sign;
+    const parts = [
+      ascSign
+        ? locale === 'en'
+          ? `self-presentation begins through ${this.getLocalizedSign(ascSign, locale)}`
+          : locale === 'es'
+            ? `la presencia personal empieza desde ${this.getLocalizedSign(ascSign, locale)}`
+            : `личная подача начинается через ${this.getLocalizedSign(ascSign, locale)}`
+        : '',
+      icSign
+        ? locale === 'en'
+          ? `inner roots are colored by ${this.getLocalizedSign(icSign, locale)}`
+          : locale === 'es'
+            ? `las raíces internas están teñidas por ${this.getLocalizedSign(icSign, locale)}`
+            : `внутренние корни окрашены знаком ${this.getLocalizedSign(icSign, locale)}`
+        : '',
+      dscSign
+        ? locale === 'en'
+          ? `partnership mirrors ${this.getLocalizedSign(dscSign, locale)} themes`
+          : locale === 'es'
+            ? `la pareja refleja temas de ${this.getLocalizedSign(dscSign, locale)}`
+            : `партнерство отражает темы ${this.getLocalizedSign(dscSign, locale)}`
+        : '',
+      mcSign
+        ? locale === 'en'
+          ? `public realization moves through ${this.getLocalizedSign(mcSign, locale)}`
+          : locale === 'es'
+            ? `la realización pública se mueve por ${this.getLocalizedSign(mcSign, locale)}`
+            : `социальная реализация идет через ${this.getLocalizedSign(mcSign, locale)}`
+        : '',
+    ].filter(Boolean);
+
+    if (!parts.length) return '';
+
+    return locale === 'en'
+      ? `The angular axis adds another layer: ${parts.join('; ')}.`
+      : locale === 'es'
+        ? `El eje angular añade otra capa: ${parts.join('; ')}.`
+        : `Угловая ось добавляет еще один слой: ${parts.join('; ')}.`;
   }
 
   /**

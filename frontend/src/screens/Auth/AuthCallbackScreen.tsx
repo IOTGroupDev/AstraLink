@@ -34,7 +34,7 @@ const AuthCallbackScreen: React.FC = () => {
     }
 
     if (nextState === 'ONBOARDING') {
-      navigation.reset({ index: 0, routes: [{ name: 'Onboarding1' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Onboarding2' }] });
       return;
     }
 

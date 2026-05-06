@@ -13,10 +13,16 @@
     "lint": "npm run backend:lint",
     "backend:lint": "cd backend && npm run lint",
     "frontend:lint": "cd frontend && npm run lint",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report",
+    "playwright:install": "playwright install",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "concurrently": "^8.2.2",
