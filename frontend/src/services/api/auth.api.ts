@@ -467,6 +467,15 @@ async function openOAuthSession(
 ): Promise<string> {
   let linkingSubscription: EmitterSubscription | undefined;
   let stopInitialUrlPolling = false;
+  let stopSessionPolling = false;
+
+  let previousAccessToken: string | null = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    previousAccessToken = data.session?.access_token ?? null;
+  } catch {
+    previousAccessToken = null;
+  }
 
   const linkingUrl = new Promise<string>((resolve) => {
     linkingSubscription = Linking.addEventListener('url', ({ url }) => {
@@ -495,6 +504,42 @@ async function openOAuthSession(
     void poll();
   });
 
+  const sessionEstablished = new Promise<string>((resolve, reject) => {
+    const startedAt = Date.now();
+    const timeoutMs = 120_000;
+
+    const poll = async () => {
+      while (!stopSessionPolling) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          const session = data.session;
+          const accessToken = session?.access_token ?? null;
+          const refreshToken = session?.refresh_token ?? null;
+
+          if (
+            accessToken &&
+            refreshToken &&
+            accessToken !== previousAccessToken
+          ) {
+            resolve(`${redirectUri}?session_established=1`);
+            return;
+          }
+        } catch {
+          // Keep waiting for browser, deep link, or timeout.
+        }
+
+        if (Date.now() - startedAt > timeoutMs) {
+          reject(new Error('OAuth авторизация не завершилась'));
+          return;
+        }
+
+        await wait(350);
+      }
+    };
+
+    void poll();
+  });
+
   try {
     const browserUrl = WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
       preferEphemeralSession: true,
@@ -505,9 +550,15 @@ async function openOAuthSession(
       throw new Error('Авторизация отменена или не завершена');
     });
 
-    return await Promise.race([browserUrl, linkingUrl, initialUrl]);
+    return await Promise.race([
+      browserUrl,
+      linkingUrl,
+      initialUrl,
+      sessionEstablished,
+    ]);
   } finally {
     stopInitialUrlPolling = true;
+    stopSessionPolling = true;
     linkingSubscription?.remove();
   }
 }
@@ -1042,7 +1093,7 @@ export const authAPI = {
       const redirectUri = getRedirectUri();
       authLogger.log('🔗 Yandex redirect URI prepared');
 
-      const yandexScope = 'login:email,login:info';
+      const yandexScope = 'login:info login:email';
       const credentials = {
         // `custom:*` identifier must match the provider configured in Supabase Auth.
         provider: YANDEX_OAUTH_PROVIDER,

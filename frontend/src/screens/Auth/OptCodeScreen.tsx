@@ -158,31 +158,10 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
         const isExpired = /код истек|expired/i.test(msg);
 
         if (isExpired) {
-          try {
-            await authAPI.sendVerificationCode(
-              String(email).trim().toLowerCase()
-            );
-
-            setError(t('auth.otp.errors.expired'));
-            setDigits(Array(CODE_LENGTH).fill(''));
-            userStartedEditingRef.current = false;
-            setResendIn(RESEND_SECONDS);
-            lastSubmittedCode.current = null;
-          } catch (reErr: any) {
-            const reMsg =
-              reErr?.message || t('auth.otp.errors.expiredResendFailed');
-
-            // Handle rate limit when auto-resending expired code
-            const isRateLimit =
-              reErr?.code === 'email_rate_limit_exceeded' ||
-              /rate limit/i.test(String(reMsg));
-
-            if (isRateLimit && typeof reErr?.retryAfterSec === 'number') {
-              setResendIn(reErr.retryAfterSec);
-            }
-
-            setError(reMsg);
-          }
+          setError(t('auth.otp.errors.expired'));
+          setDigits(Array(CODE_LENGTH).fill(''));
+          userStartedEditingRef.current = false;
+          lastSubmittedCode.current = null;
           return;
         }
 
