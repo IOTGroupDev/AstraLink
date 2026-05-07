@@ -128,6 +128,24 @@ const ZODIAC_ELEMENTS = {
   Aquarius: 'air',
 };
 
+const isMissingProfileSessionError = (error: any): boolean => {
+  const status = Number(error?.response?.status ?? error?.status ?? 0);
+  const raw = JSON.stringify({
+    message: error?.message,
+    data: error?.response?.data,
+  }).toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    status === 404 ||
+    raw.includes('user not found') ||
+    raw.includes('profile not found') ||
+    raw.includes('пользователь не найден') ||
+    raw.includes('профиль не найден')
+  );
+};
+
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -143,6 +161,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const requestIdRef = useRef(0);
   const isDeletingAccountRef = useRef(false);
+  const isSigningOutRef = useRef(false);
   const profileRef = useRef<UserProfile | null>(null);
   const subscriptionRef = useRef<Subscription | null>(subscription);
   const tabBarHeight = useBottomTabBarHeight();
@@ -182,6 +201,39 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     },
     [navigation]
   );
+
+  const resetToSignUp = React.useCallback(() => {
+    const rootNavigation = navigation.getParent?.() ?? navigation;
+    try {
+      rootNavigation.reset({
+        index: 0,
+        routes: [{ name: 'SignUp' }],
+      });
+    } catch (navigationError) {
+      logger.warn('Navigation reset to SignUp failed', navigationError);
+    }
+  }, [navigation]);
+
+  const clearProfileAndRouteToAuth = React.useCallback(async () => {
+    isSigningOutRef.current = true;
+    requestIdRef.current += 1;
+    setShowDeleteModal(false);
+    setProfile(null);
+    setSubscription(null);
+    setChart(null);
+    setPrimaryPhotoUrl(null);
+    setLoading(false);
+    queryClient.clear();
+
+    try {
+      await AuthEngine.clearLocalSession();
+    } catch (cleanupError) {
+      logger.warn('Local auth cleanup failed', cleanupError);
+      useAuthStore.getState().resetAuth();
+    }
+
+    resetToSignUp();
+  }, [queryClient, resetToSignUp]);
 
   // Animations
   const fadeAnim = useSharedValue(0);
@@ -229,7 +281,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   }, [authProfile]);
 
   const fetchProfileData = React.useCallback(async () => {
-    if (isDeletingAccountRef.current) {
+    if (isDeletingAccountRef.current || isSigningOutRef.current) {
       return;
     }
 
@@ -251,6 +303,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       void getCachedPrimaryPhoto(fallbackUserId).then((cachedPhoto) => {
         if (
           isDeletingAccountRef.current ||
+          isSigningOutRef.current ||
           requestId !== requestIdRef.current ||
           !cachedPhoto?.url
         ) {
@@ -267,7 +320,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         chartAPI.getNatalChart(),
       ]);
 
-      if (isDeletingAccountRef.current) {
+      if (isDeletingAccountRef.current || isSigningOutRef.current) {
         return;
       }
 
@@ -277,12 +330,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         const data = profileError?.response?.data;
         logger.warn('getProfile failed', st, data);
 
-        if (st === 401) {
-          Alert.alert(
-            i18n.t('common.errors.sessionExpired'),
-            i18n.t('common.errors.pleaseLoginAgain')
-          );
-          await AuthEngine.signOut();
+        if (isMissingProfileSessionError(profileError)) {
+          await clearProfileAndRouteToAuth();
           return;
         }
 
@@ -345,11 +394,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         logger.info('getNatalChart failed (optional)', st, data);
       }
     } catch (error: any) {
-      if (isDeletingAccountRef.current) {
+      if (isDeletingAccountRef.current || isSigningOutRef.current) {
         return;
       }
 
       if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      if (isMissingProfileSessionError(error)) {
+        await clearProfileAndRouteToAuth();
         return;
       }
 
@@ -362,7 +416,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         data?.message || i18n.t('profile.errors.failedToLoad')
       );
     } finally {
-      if (isDeletingAccountRef.current) {
+      if (isDeletingAccountRef.current || isSigningOutRef.current) {
         return;
       }
 
@@ -370,7 +424,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         setLoading(false);
       }
     }
-  }, [authProfile?.id, buildProfileFromAuth, i18n, queryClient]);
+  }, [
+    authProfile?.id,
+    buildProfileFromAuth,
+    clearProfileAndRouteToAuth,
+    i18n,
+    queryClient,
+  ]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -420,18 +480,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       logger.warn('Local cleanup after account deletion failed', cleanupError);
     }
 
-    const rootNavigation = navigation.getParent?.() ?? navigation;
-    try {
-      rootNavigation.reset({
-        index: 0,
-        routes: [{ name: 'SignUp' }],
-      });
-    } catch (navigationError) {
-      logger.warn(
-        'Navigation reset after account deletion failed',
-        navigationError
-      );
-    }
+    resetToSignUp();
   };
 
   const handleUpgradeSubscription = () => {

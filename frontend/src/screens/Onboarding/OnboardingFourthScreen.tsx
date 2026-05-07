@@ -45,7 +45,7 @@ type NavigationProp = NativeStackNavigationProp<
 >;
 
 const isStaleAuthSessionError = (error: unknown): boolean => {
-  const status = (error as any)?.response?.status;
+  const status = Number((error as any)?.response?.status ?? 0);
   const responseMessage = (error as any)?.response?.data?.message;
   const message = Array.isArray(responseMessage)
     ? responseMessage.join(' ')
@@ -59,8 +59,11 @@ const isStaleAuthSessionError = (error: unknown): boolean => {
   return (
     status === 401 ||
     status === 403 ||
+    status === 404 ||
     normalized.includes('пользователь не найден') ||
-    normalized.includes('user not found')
+    normalized.includes('профиль не найден') ||
+    normalized.includes('user not found') ||
+    normalized.includes('profile not found')
   );
 };
 
@@ -221,7 +224,7 @@ export default function OnboardingFourthScreen() {
       authLogger.error('Onboarding completion failed', error);
       if (isStaleAuthSessionError(error)) {
         resetOnboarding();
-        await AuthEngine.signOut();
+        await AuthEngine.clearLocalSession();
         navigation.reset({ index: 0, routes: [{ name: 'SignUp' }] });
         return;
       }

@@ -14,6 +14,8 @@ WebBrowser.maybeCompleteAuthSession();
 
 const OAUTH_REDIRECT_PATH = 'auth/callback';
 const OAUTH_NATIVE_REDIRECT_URI = 'astralink://auth/callback';
+const OAUTH_SESSION_TIMEOUT_MS = 60_000;
+const OAUTH_SESSION_RECOVERY_MS = 10_000;
 const runtimeEnv: Record<string, string | undefined> =
   typeof process !== 'undefined'
     ? ((process as { env?: Record<string, string | undefined> }).env ?? {})
@@ -466,6 +468,16 @@ async function openOAuthSession(
   redirectUri: string
 ): Promise<string> {
   let linkingSubscription: EmitterSubscription | undefined;
+  let stopSessionRecovery = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  let previousAccessToken: string | null = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    previousAccessToken = data.session?.access_token ?? null;
+  } catch {
+    previousAccessToken = null;
+  }
 
   const linkingUrl = new Promise<string>((resolve) => {
     linkingSubscription = Linking.addEventListener('url', ({ url }) => {
@@ -475,18 +487,57 @@ async function openOAuthSession(
     });
   });
 
+  const sessionEstablished = getExistingOAuthSession({
+    previousAccessToken,
+    timeoutMs: OAUTH_SESSION_TIMEOUT_MS,
+    allowCurrentSession: false,
+    initialDelayMs: 250,
+    shouldStop: () => stopSessionRecovery,
+  }).then((session) => {
+    if (session) {
+      return buildSessionEstablishedRedirectUrl(redirectUri);
+    }
+
+    return new Promise<string>(() => {
+      // Keep this branch pending; the explicit timeout below owns the error.
+    });
+  });
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('OAuth авторизация не завершилась'));
+    }, OAUTH_SESSION_TIMEOUT_MS);
+  });
+
   try {
     const browserUrl = WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
       preferEphemeralSession: true,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.type === 'success' && result.url) {
         return result.url;
       }
+
+      const recoveredSession = await getExistingOAuthSession({
+        previousAccessToken,
+        timeoutMs: 2500,
+        allowCurrentSession: false,
+      });
+      if (recoveredSession) {
+        return buildSessionEstablishedRedirectUrl(redirectUri);
+      }
+
       throw new Error('Авторизация отменена или не завершена');
     });
 
-    return await Promise.race([browserUrl, linkingUrl]);
+    return await Promise.race([
+      browserUrl,
+      linkingUrl,
+      sessionEstablished,
+      timeout,
+    ]);
   } finally {
+    stopSessionRecovery = true;
+    if (timeoutId) clearTimeout(timeoutId);
     linkingSubscription?.remove();
   }
 }
@@ -494,19 +545,55 @@ async function openOAuthSession(
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-async function getExistingOAuthSession(): Promise<{
+function buildSessionEstablishedRedirectUrl(redirectUri: string): string {
+  return `${redirectUri}${redirectUri.includes('?') ? '&' : '?'}session_established=1`;
+}
+
+async function getExistingOAuthSession(
+  options: {
+    previousAccessToken?: string | null;
+    timeoutMs?: number;
+    allowCurrentSession?: boolean;
+    initialDelayMs?: number;
+    shouldStop?: () => boolean;
+  } = {}
+): Promise<{
   accessToken: string;
   refreshToken: string;
 } | null> {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const { data: existingSessionData, error: sessionError } =
-      await supabase.auth.getSession();
-    if (sessionError) {
+  const {
+    previousAccessToken = null,
+    timeoutMs = OAUTH_SESSION_RECOVERY_MS,
+    allowCurrentSession = true,
+    initialDelayMs = 0,
+    shouldStop = () => false,
+  } = options;
+  const startedAt = Date.now();
+
+  if (initialDelayMs > 0) {
+    await wait(initialDelayMs);
+  }
+
+  while (!shouldStop()) {
+    let existingSessionData: Awaited<
+      ReturnType<typeof supabase.auth.getSession>
+    >['data'];
+
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        authLogger.warn(
+          '⚠️ Failed to inspect Supabase session after OAuth:',
+          sessionError
+        );
+      }
+      existingSessionData = data;
+    } catch (sessionError) {
       authLogger.warn(
         '⚠️ Failed to inspect Supabase session after OAuth:',
         sessionError
       );
-      return null;
+      existingSessionData = { session: null };
     }
 
     const existingAccessToken =
@@ -514,7 +601,10 @@ async function getExistingOAuthSession(): Promise<{
     const existingRefreshToken =
       existingSessionData.session?.refresh_token ?? null;
 
-    if (existingAccessToken && existingRefreshToken) {
+    const isExpectedSession =
+      allowCurrentSession || existingAccessToken !== previousAccessToken;
+
+    if (existingAccessToken && existingRefreshToken && isExpectedSession) {
       authLogger.log(
         '✅ OAuth session recovered from existing Supabase session'
       );
@@ -522,6 +612,10 @@ async function getExistingOAuthSession(): Promise<{
         accessToken: existingAccessToken,
         refreshToken: existingRefreshToken,
       };
+    }
+
+    if (Date.now() - startedAt >= timeoutMs) {
+      break;
     }
 
     await wait(250);
@@ -592,59 +686,6 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
   if (existingSession) {
     await syncAccessToken(existingSession.accessToken);
     return existingSession;
-  }
-
-  let initialUrl: string | null = null;
-  try {
-    initialUrl = await Linking.getInitialURL();
-  } catch (linkingError) {
-    authLogger.warn('⚠️ Failed to inspect initial OAuth URL:', linkingError);
-  }
-
-  if (initialUrl && initialUrl !== redirectedUrl) {
-    const parsedInitialUrl = extractFromRedirectUrl(initialUrl);
-    if (parsedInitialUrl.error || parsedInitialUrl.errorDescription) {
-      throw new Error(
-        parsedInitialUrl.errorDescription ||
-          parsedInitialUrl.error ||
-          'OAuth authorization failed'
-      );
-    }
-
-    if (parsedInitialUrl.accessToken && parsedInitialUrl.refreshToken) {
-      const { error: setErr } = await supabase.auth.setSession({
-        access_token: parsedInitialUrl.accessToken,
-        refresh_token: parsedInitialUrl.refreshToken,
-      });
-
-      if (setErr) {
-        throw setErr;
-      }
-
-      await syncAccessToken(parsedInitialUrl.accessToken);
-      return {
-        accessToken: parsedInitialUrl.accessToken,
-        refreshToken: parsedInitialUrl.refreshToken,
-        providerToken: parsedInitialUrl.providerToken,
-      };
-    }
-
-    if (parsedInitialUrl.code) {
-      const { error: exchangeError } =
-        await supabase.auth.exchangeCodeForSession(parsedInitialUrl.code);
-      if (exchangeError) {
-        throw exchangeError;
-      }
-
-      const exchangedSession = await getExistingOAuthSession();
-      if (exchangedSession) {
-        await syncAccessToken(exchangedSession.accessToken);
-        return {
-          ...exchangedSession,
-          providerToken: parsedInitialUrl.providerToken,
-        };
-      }
-    }
   }
 
   throw new Error('Токены или code не получены из OAuth потока');

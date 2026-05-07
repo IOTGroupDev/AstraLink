@@ -23,6 +23,7 @@ import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
 import { AuthEngine } from '../../services/authEngine';
+import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../../stores/auth.store';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
@@ -170,21 +171,43 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Ensure profile is loaded and route based on existing data
+      const authStore = useAuthStore.getState();
+      const onboardingCompleted = !!verifiedUser?.onboardingCompleted;
+
       try {
-        await AuthEngine.refreshProfile();
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          authStore.setSession(data.session);
+        }
       } catch {
-        // ignore: we'll fallback to onboarding below
+        // Session was already written by authAPI; do not block routing here.
       }
 
-      const nextState = useAuthStore.getState().authState;
-      setSubmitting(false); // Stop loading before navigation
-      if (nextState === 'AUTHORIZED' || verifiedUser?.onboardingCompleted) {
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-      } else {
-        // Default to onboarding for new users or if state is unclear
-        navigation.reset({ index: 0, routes: [{ name: 'Onboarding2' }] });
+      if (verifiedUser) {
+        authStore.setProfile({
+          id: verifiedUser.id,
+          email: verifiedUser.email,
+          name: verifiedUser.name,
+          onboardingCompleted,
+        });
+        authStore.setAuthState(
+          onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING'
+        );
+        authStore.setLoading(false);
+        authStore.setError(null);
       }
+
+      setSubmitting(false);
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: (onboardingCompleted ? 'MainTabs' : 'Onboarding2') as never,
+          },
+        ],
+      });
+
+      void AuthEngine.refreshProfileInBackground();
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.message ?? '';

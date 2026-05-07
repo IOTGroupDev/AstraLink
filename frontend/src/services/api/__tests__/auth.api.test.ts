@@ -260,6 +260,83 @@ describe('authAPI authorization methods', () => {
     }
   });
 
+  it('completes Google OAuth when Supabase session appears without a callback URL', async () => {
+    jest.useFakeTimers();
+
+    try {
+      mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+        data: { url: 'https://auth.example.com/google' },
+        error: null,
+      });
+      mockedOpenAuthSessionAsync.mockImplementationOnce(
+        () => new Promise(() => {}) as any
+      );
+      mockedSupabaseAuth.getSession
+        .mockResolvedValueOnce({
+          data: {
+            session: null,
+          },
+          error: null,
+        })
+        .mockResolvedValue({
+          data: {
+            session: {
+              access_token: 'oauth-access',
+              refresh_token: 'oauth-refresh',
+            },
+          },
+          error: null,
+        } as any);
+      mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+      const resultPromise = authAPI.googleSignIn();
+      await flushPromises();
+      await jest.advanceTimersByTimeAsync(300);
+
+      const result = await resultPromise;
+
+      expect(mockedSupabaseAuth.setSession).not.toHaveBeenCalled();
+      expect(result.access_token).toBe('oauth-access');
+      expect(result.user.email).toBe('person@example.com');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not fail Google OAuth when session recovery hits a transient storage error', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/google' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: 'astralink://auth/callback?session_established=1',
+    } as any);
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({
+        data: {
+          session: null,
+        },
+        error: null,
+      })
+      .mockRejectedValueOnce(new Error('SecureStore key is invalid'))
+      .mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'oauth-access',
+            refresh_token: 'oauth-refresh',
+          },
+        },
+        error: null,
+      } as any);
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.googleSignIn();
+
+    expect(result.access_token).toBe('oauth-access');
+    expect(result.user.email).toBe('person@example.com');
+  });
+
   it('uses email fallback from Yandex provider metadata when user.email is missing', async () => {
     mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
       data: { url: 'https://auth.example.com/custom:yandex' },
@@ -490,16 +567,23 @@ describe('authAPI authorization methods', () => {
       },
       error: null,
     } as any);
-    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-      data: {
-        session: {
-          access_token: 'oauth-access',
-          refresh_token: 'oauth-refresh',
-          provider_token: 'yandex-provider-token',
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({
+        data: {
+          session: null,
         },
-      },
-      error: null,
-    } as any);
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'oauth-access',
+            refresh_token: 'oauth-refresh',
+            provider_token: 'yandex-provider-token',
+          },
+        },
+        error: null,
+      } as any);
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ default_email: 'userinfo-yandex@example.com' }),
@@ -541,15 +625,22 @@ describe('authAPI authorization methods', () => {
       },
       error: null,
     } as any);
-    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-      data: {
-        session: {
-          access_token: 'oauth-access',
-          refresh_token: 'oauth-refresh',
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({
+        data: {
+          session: null,
         },
-      },
-      error: null,
-    } as any);
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'oauth-access',
+            refresh_token: 'oauth-refresh',
+          },
+        },
+        error: null,
+      } as any);
     mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
 
     const result = await authAPI.yandexSignIn();

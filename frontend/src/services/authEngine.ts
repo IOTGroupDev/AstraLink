@@ -68,6 +68,62 @@ const fetchProfile = async (): Promise<AuthProfile | null> => {
   return normalizeProfile(profile);
 };
 
+const isStaleAuthSessionError = (err: unknown): boolean => {
+  const error = err as {
+    message?: unknown;
+    response?: { status?: unknown; data?: unknown };
+    status?: unknown;
+  };
+  const status = Number(error?.response?.status ?? error?.status ?? 0);
+  const raw = JSON.stringify({
+    message: error?.message,
+    data: error?.response?.data,
+  }).toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    status === 404 ||
+    raw.includes('user not found') ||
+    raw.includes('profile not found') ||
+    raw.includes('пользователь не найден') ||
+    raw.includes('профиль не найден')
+  );
+};
+
+const clearLocalAuthSession = async () => {
+  authLogger.warn('Clearing local auth session');
+
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    authLogger.warn('Local Supabase sign out failed', err);
+  }
+
+  await clearAllUserData();
+  setSession(null);
+  setProfile(null);
+  setError(null);
+  setState('UNAUTHORIZED');
+  setLoading(false);
+  await notificationService.clearCachedPushToken();
+};
+
+const getCurrentSessionSafely = async (
+  context: string
+): Promise<Session | null> => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      authLogger.warn(`${context}: session lookup failed`, error);
+    }
+    return data.session ?? null;
+  } catch (err) {
+    authLogger.warn(`${context}: session lookup threw`, err);
+    return null;
+  }
+};
+
 const applyFallbackProfileState = (session: Session) => {
   const fallbackProfile = profileFromSession(session);
   setProfile(fallbackProfile);
@@ -80,12 +136,19 @@ const bootstrap = async () => {
   setError(null);
   setState('BOOT');
 
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    authLogger.error('Session restore error', error);
+  let session: Session | null = null;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      authLogger.error('Session restore error', error);
+    }
+    session = data.session ?? null;
+  } catch (err) {
+    authLogger.error('Session restore threw', err);
+    await clearLocalAuthSession();
+    return;
   }
 
-  const session = data.session ?? null;
   setSession(session);
 
   if (!session) {
@@ -101,6 +164,10 @@ const bootstrap = async () => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed during boot', err);
+    if (isStaleAuthSessionError(err)) {
+      await clearLocalAuthSession();
+      return;
+    }
     applyFallbackProfileState(session);
   } finally {
     setLoading(false);
@@ -161,8 +228,7 @@ export const AuthEngine = {
       resolveState(profile);
     } catch (err) {
       authLogger.error('Profile refresh failed', err);
-      const { data } = await supabase.auth.getSession();
-      const session = data.session ?? null;
+      const session = await getCurrentSessionSafely('Profile refresh failed');
       if (session) {
         applyFallbackProfileState(session);
       } else {
@@ -184,8 +250,9 @@ export const AuthEngine = {
       resolveState(profile);
     } catch (err) {
       authLogger.warn('Background profile refresh failed', err);
-      const { data } = await supabase.auth.getSession();
-      const session = data.session ?? null;
+      const session = await getCurrentSessionSafely(
+        'Background profile refresh failed'
+      );
       if (session) {
         applyFallbackProfileState(session);
       }
@@ -203,6 +270,10 @@ export const AuthEngine = {
       setState('UNAUTHORIZED');
       await notificationService.clearCachedPushToken();
     }
+  },
+
+  async clearLocalSession() {
+    await clearLocalAuthSession();
   },
 
   async deleteAccount() {

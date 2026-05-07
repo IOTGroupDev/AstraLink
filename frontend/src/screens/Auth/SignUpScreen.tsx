@@ -38,6 +38,42 @@ const SignUpScreen = () => {
   const routeAfterOAuth = async (
     user?: Awaited<ReturnType<typeof authAPI.googleSignIn>>['user']
   ) => {
+    if (user) {
+      const authStore = useAuthStore.getState();
+      const onboardingCompleted = !!user.onboardingCompleted;
+
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          authStore.setSession(data.session);
+        }
+      } catch {
+        // Session was already written by authAPI; do not block routing here.
+      }
+
+      authStore.setProfile({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        onboardingCompleted,
+      });
+      authStore.setAuthState(onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING');
+      authStore.setLoading(false);
+      authStore.setError(null);
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: (onboardingCompleted ? 'MainTabs' : 'Onboarding2') as never,
+          },
+        ],
+      });
+
+      void AuthEngine.refreshProfileInBackground();
+      return;
+    }
+
     let profileRefreshed = false;
     try {
       await AuthEngine.refreshProfile();
@@ -47,7 +83,7 @@ const SignUpScreen = () => {
     }
 
     const nextState = useAuthStore.getState().authState;
-    if (nextState === 'AUTHORIZED' || user?.onboardingCompleted) {
+    if (nextState === 'AUTHORIZED') {
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' as never }],
@@ -59,38 +95,6 @@ const SignUpScreen = () => {
       navigation.reset({
         index: 0,
         routes: [{ name: 'Onboarding2' as never }],
-      });
-      return;
-    }
-
-    if (user) {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session ?? null;
-      const authStore = useAuthStore.getState();
-
-      if (session) {
-        authStore.setSession(session);
-      }
-
-      authStore.setProfile({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        onboardingCompleted: !!user.onboardingCompleted,
-      });
-      authStore.setAuthState(
-        user.onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING'
-      );
-
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: (user.onboardingCompleted
-              ? 'MainTabs'
-              : 'Onboarding2') as never,
-          },
-        ],
       });
       return;
     }
