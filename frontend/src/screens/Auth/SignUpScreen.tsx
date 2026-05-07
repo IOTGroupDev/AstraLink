@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
+import { supabase } from '../../services/supabase';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import {
   withBiometricProtection,
@@ -37,8 +38,10 @@ const SignUpScreen = () => {
   const routeAfterOAuth = async (
     user?: Awaited<ReturnType<typeof authAPI.googleSignIn>>['user']
   ) => {
+    let profileRefreshed = false;
     try {
       await AuthEngine.refreshProfile();
+      profileRefreshed = true;
     } catch {
       // ignore and fallback to current store state below
     }
@@ -57,6 +60,43 @@ const SignUpScreen = () => {
         index: 0,
         routes: [{ name: 'Onboarding2' as never }],
       });
+      return;
+    }
+
+    if (user) {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session ?? null;
+      const authStore = useAuthStore.getState();
+
+      if (session) {
+        authStore.setSession(session);
+      }
+
+      authStore.setProfile({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        onboardingCompleted: !!user.onboardingCompleted,
+      });
+      authStore.setAuthState(
+        user.onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING'
+      );
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: (user.onboardingCompleted
+              ? 'MainTabs'
+              : 'Onboarding2') as never,
+          },
+        ],
+      });
+      return;
+    }
+
+    if (!profileRefreshed) {
+      await AuthEngine.refreshProfileInBackground();
     }
   };
 

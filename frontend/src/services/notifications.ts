@@ -20,14 +20,14 @@ const getStoredNotificationValue = async (
     return AsyncStorage.getItem(key);
   }
 
-  const secureValue = await SecureStore.getItemAsync(key);
+  const secureValue = await SecureStore.getItemAsync(key).catch(() => null);
   if (secureValue != null) {
     return secureValue;
   }
 
   const legacyValue = await AsyncStorage.getItem(key);
   if (legacyValue != null) {
-    await SecureStore.setItemAsync(key, legacyValue);
+    await SecureStore.setItemAsync(key, legacyValue).catch(() => undefined);
     await AsyncStorage.removeItem(key);
     return legacyValue;
   }
@@ -44,7 +44,7 @@ const setStoredNotificationValue = async (
     return;
   }
 
-  await SecureStore.setItemAsync(key, value);
+  await SecureStore.setItemAsync(key, value).catch(() => undefined);
   await AsyncStorage.removeItem(key);
 };
 
@@ -55,7 +55,7 @@ const removeStoredNotificationValue = async (key: string): Promise<void> => {
   }
 
   await Promise.all([
-    SecureStore.deleteItemAsync(key),
+    SecureStore.deleteItemAsync(key).catch(() => undefined),
     AsyncStorage.removeItem(key),
   ]);
 };

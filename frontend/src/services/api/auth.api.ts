@@ -1021,7 +1021,7 @@ export const authAPI = {
       const redirectUri = getRedirectUri();
       authLogger.log('🔗 Yandex redirect URI prepared');
 
-      const yandexScope = 'login:email login:info';
+      const yandexScope = 'openid login:email login:info';
       const credentials = {
         // `custom:*` identifier must match the provider configured in Supabase Auth.
         provider: YANDEX_OAUTH_PROVIDER,
@@ -1031,6 +1031,7 @@ export const authAPI = {
           scopes: yandexScope,
           queryParams: {
             scope: yandexScope,
+            force_confirm: 'yes',
           },
         },
       } as unknown as SignInWithOAuthCredentials;

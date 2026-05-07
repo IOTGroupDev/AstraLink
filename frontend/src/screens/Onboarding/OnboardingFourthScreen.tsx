@@ -36,12 +36,33 @@ import type { CityOption } from '../../services/api/geo.api';
 type RootStackParamList = {
   Onboarding4: undefined;
   AuthEmail: undefined;
+  SignUp: undefined;
   MainTabs: undefined;
 };
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Onboarding4'
 >;
+
+const isStaleAuthSessionError = (error: unknown): boolean => {
+  const status = (error as any)?.response?.status;
+  const responseMessage = (error as any)?.response?.data?.message;
+  const message = Array.isArray(responseMessage)
+    ? responseMessage.join(' ')
+    : typeof responseMessage === 'string'
+      ? responseMessage
+      : error instanceof Error
+        ? error.message
+        : '';
+  const normalized = message.toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    normalized.includes('пользователь не найден') ||
+    normalized.includes('user not found')
+  );
+};
 
 export default function OnboardingFourthScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -56,6 +77,7 @@ export default function OnboardingFourthScreen() {
   const setBirthTimeInStore = useOnboardingStore((s) => s.setBirthTime);
   const setBirthPlaceInStore = useOnboardingStore((s) => s.setBirthPlace);
   const setCompleted = useOnboardingStore((s) => s.setCompleted);
+  const resetOnboarding = useOnboardingStore((s) => s.reset);
   const authSession = useAuthStore((s) => s.session);
   const authProfile = useAuthStore((s) => s.profile);
   const setAuthState = useAuthStore((s) => s.setAuthState);
@@ -197,6 +219,13 @@ export default function OnboardingFourthScreen() {
       void AuthEngine.refreshProfileInBackground();
     } catch (error) {
       authLogger.error('Onboarding completion failed', error);
+      if (isStaleAuthSessionError(error)) {
+        resetOnboarding();
+        await AuthEngine.signOut();
+        navigation.reset({ index: 0, routes: [{ name: 'SignUp' }] });
+        return;
+      }
+
       const responseMessage = (error as any)?.response?.data?.message;
       const serverMessage = Array.isArray(responseMessage)
         ? responseMessage.join('\n')
@@ -225,6 +254,7 @@ export default function OnboardingFourthScreen() {
     setBirthTimeInStore,
     setBirthPlaceInStore,
     setCompleted,
+    resetOnboarding,
     setAuthState,
     setAuthProfile,
     navigation,

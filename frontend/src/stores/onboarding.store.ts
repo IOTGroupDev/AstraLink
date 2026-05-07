@@ -52,7 +52,7 @@ const onboardingStorage = createJSONStorage(() => ({
       return AsyncStorage.getItem(name);
     }
 
-    const secureValue = await SecureStore.getItemAsync(name);
+    const secureValue = await SecureStore.getItemAsync(name).catch(() => null);
     if (secureValue != null) {
       return secureValue;
     }
@@ -72,7 +72,7 @@ const onboardingStorage = createJSONStorage(() => ({
       return;
     }
 
-    await SecureStore.setItemAsync(name, value);
+    await SecureStore.setItemAsync(name, value).catch(() => undefined);
     await AsyncStorage.removeItem(name);
   },
   removeItem: async (name: string) => {
@@ -82,7 +82,7 @@ const onboardingStorage = createJSONStorage(() => ({
     }
 
     await Promise.all([
-      SecureStore.deleteItemAsync(name),
+      SecureStore.deleteItemAsync(name).catch(() => undefined),
       AsyncStorage.removeItem(name),
     ]);
   },

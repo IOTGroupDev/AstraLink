@@ -31,6 +31,9 @@ import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
 import { userAPI, chartAPI } from '../services/api';
 import { AuthEngine } from '../services/authEngine';
+import { clearAllUserData } from '../services/cleanupService';
+import { notificationService } from '../services/notifications';
+import { supabase } from '../services/supabase';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   useSafeAreaInsets,
@@ -359,8 +362,26 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       await userAPI.deleteAccount();
 
       setShowDeleteModal(false);
+      requestIdRef.current += 1;
+      setProfile(null);
+      setSubscription(null);
+      setChart(null);
+      setPrimaryPhotoUrl(null);
+      setLoading(false);
+      queryClient.clear();
 
-      await AuthEngine.signOut();
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (signOutError) {
+        logger.warn(
+          'Local Supabase sign out after account deletion failed',
+          signOutError
+        );
+      }
+
+      await notificationService.clearCachedPushToken();
+      await clearAllUserData();
+      useAuthStore.getState().resetAuth();
 
       navigation.reset({
         index: 0,
