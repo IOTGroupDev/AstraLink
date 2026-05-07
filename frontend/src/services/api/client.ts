@@ -82,7 +82,6 @@ const PUBLIC_ENDPOINTS = [
   '/auth/verify',
   '/auth/magic-link',
   '/auth/send-magic-link',
-  '/auth/complete-signup',
   '/geo/cities',
 ];
 

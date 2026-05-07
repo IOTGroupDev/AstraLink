@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform, type EmitterSubscription } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SignInWithOAuthCredentials } from '@supabase/supabase-js';
 import { api } from './client';
@@ -446,6 +446,51 @@ function extractFromRedirectUrl(redirectedUrl: string): {
   }
 }
 
+function isOAuthRedirectUrl(url: string, redirectUri: string): boolean {
+  if (url.startsWith(redirectUri)) return true;
+  if (url.includes(OAUTH_REDIRECT_PATH)) return true;
+
+  const parsed = extractFromRedirectUrl(url);
+  return Boolean(
+    parsed.accessToken ||
+      parsed.refreshToken ||
+      parsed.providerToken ||
+      parsed.code ||
+      parsed.error ||
+      parsed.errorDescription
+  );
+}
+
+async function openOAuthSession(
+  authUrl: string,
+  redirectUri: string
+): Promise<string> {
+  let linkingSubscription: EmitterSubscription | undefined;
+
+  const linkingUrl = new Promise<string>((resolve) => {
+    linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      if (url && isOAuthRedirectUrl(url, redirectUri)) {
+        resolve(url);
+      }
+    });
+  });
+
+  try {
+    const browserUrl = WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
+      preferEphemeralSession: true,
+    }).then((result) => {
+      if (result.type === 'success' && result.url) {
+        return result.url;
+      }
+      throw new Error('Авторизация отменена или не завершена');
+    });
+
+    return await Promise.race([browserUrl, linkingUrl]);
+  } finally {
+    linkingSubscription?.remove();
+  }
+}
+
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -876,46 +921,35 @@ export const authAPI = {
       if (error) throw error;
 
       if (data.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUri,
-          {
-            preferEphemeralSession: true,
-          }
-        );
-        if (result.type === 'success' && result.url) {
-          const { accessToken } = await establishSessionFromRedirectUrl(
-            result.url
-          );
+        const redirectedUrl = await openOAuthSession(data.url, redirectUri);
+        const { accessToken } =
+          await establishSessionFromRedirectUrl(redirectedUrl);
 
-          const { data: userRes } = await supabase.auth.getUser();
-          const user = userRes.user;
-          if (!user)
-            throw new Error(
-              'Не удалось получить пользователя после Apple OAuth'
-            );
-
-          const email = getUserEmailFromProvider(user);
-          if (!email) {
-            throw new Error('Email не получен от Apple провайдера');
-          }
-
-          const ensured = await authAPI.ensureUserProfile({
-            userId: user.id,
-            email,
-          });
-
-          return {
-            access_token: accessToken || '',
-            user: {
-              id: user.id,
-              email,
-              name: getUserNameFromProvider(user),
-              ...optionalOnboardingCompleted(ensured),
-            },
-          };
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+        if (!user) {
+          throw new Error('Не удалось получить пользователя после Apple OAuth');
         }
-        throw new Error('Авторизация отменена или не завершена');
+
+        const email = getUserEmailFromProvider(user);
+        if (!email) {
+          throw new Error('Email не получен от Apple провайдера');
+        }
+
+        const ensured = await authAPI.ensureUserProfile({
+          userId: user.id,
+          email,
+        });
+
+        return {
+          access_token: accessToken || '',
+          user: {
+            id: user.id,
+            email,
+            name: getUserNameFromProvider(user),
+            ...optionalOnboardingCompleted(ensured),
+          },
+        };
       }
 
       throw new Error('Не удалось инициировать Apple OAuth');
@@ -942,43 +976,33 @@ export const authAPI = {
       if (error) throw error;
 
       if (data.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUri,
-          {
-            preferEphemeralSession: true,
-          }
-        );
-        if (result.type === 'success' && result.url) {
-          const { accessToken } = await establishSessionFromRedirectUrl(
-            result.url
-          );
+        const redirectedUrl = await openOAuthSession(data.url, redirectUri);
+        const { accessToken } =
+          await establishSessionFromRedirectUrl(redirectedUrl);
 
-          const { data: userRes } = await supabase.auth.getUser();
-          const user = userRes.user;
-          if (!user) throw new Error('Не удалось получить данные пользователя');
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+        if (!user) throw new Error('Не удалось получить данные пользователя');
 
-          const email = getUserEmailFromProvider(user);
-          if (!email) {
-            throw new Error('Email не получен от OAuth провайдера');
-          }
-
-          const ensured = await authAPI.ensureUserProfile({
-            userId: user.id,
-            email,
-          });
-
-          return {
-            access_token: accessToken || '',
-            user: {
-              id: user.id,
-              email,
-              name: getUserNameFromProvider(user),
-              ...optionalOnboardingCompleted(ensured),
-            },
-          };
+        const email = getUserEmailFromProvider(user);
+        if (!email) {
+          throw new Error('Email не получен от OAuth провайдера');
         }
-        throw new Error('Авторизация отменена или не завершена');
+
+        const ensured = await authAPI.ensureUserProfile({
+          userId: user.id,
+          email,
+        });
+
+        return {
+          access_token: accessToken || '',
+          user: {
+            id: user.id,
+            email,
+            name: getUserNameFromProvider(user),
+            ...optionalOnboardingCompleted(ensured),
+          },
+        };
       }
 
       throw new Error('Не удалось инициировать OAuth');
@@ -1015,44 +1039,35 @@ export const authAPI = {
       if (error) throw error;
 
       if (data.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUri,
-          {
-            preferEphemeralSession: true,
-          }
-        );
-        if (result.type === 'success' && result.url) {
-          const { accessToken, providerToken } =
-            await establishSessionFromRedirectUrl(result.url);
+        const redirectedUrl = await openOAuthSession(data.url, redirectUri);
+        const { accessToken, providerToken } =
+          await establishSessionFromRedirectUrl(redirectedUrl);
 
-          const { data: userRes } = await supabase.auth.getUser();
-          const user = userRes.user;
-          if (!user) throw new Error('Не удалось получить данные пользователя');
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+        if (!user) throw new Error('Не удалось получить данные пользователя');
 
-          const email =
-            getUserEmailFromProvider(user) ||
-            (await getYandexEmailFromProviderToken(providerToken));
-          if (!email) {
-            throw new Error('Email не получен от Yandex провайдера');
-          }
-
-          const ensured = await authAPI.ensureUserProfile({
-            userId: user.id,
-            email,
-          });
-
-          return {
-            access_token: accessToken || '',
-            user: {
-              id: user.id,
-              email,
-              name: getUserNameFromProvider(user),
-              ...optionalOnboardingCompleted(ensured),
-            },
-          };
+        const email =
+          getUserEmailFromProvider(user) ||
+          (await getYandexEmailFromProviderToken(providerToken));
+        if (!email) {
+          throw new Error('Email не получен от Yandex провайдера');
         }
-        throw new Error('Авторизация отменена или не завершена');
+
+        const ensured = await authAPI.ensureUserProfile({
+          userId: user.id,
+          email,
+        });
+
+        return {
+          access_token: accessToken || '',
+          user: {
+            id: user.id,
+            email,
+            name: getUserNameFromProvider(user),
+            ...optionalOnboardingCompleted(ensured),
+          },
+        };
       }
 
       throw new Error('Не удалось инициировать OAuth');

@@ -1178,12 +1178,30 @@ ${aspects || '- нет'}
         : locale === 'es'
           ? 'Haz que la lectura se sienta vivida: muestra cómo la persona puede experimentar estos patrones en la vida diaria, en los vínculos y en sus decisiones.'
           : 'Сделайте текст прожитым: показывайте, как эти паттерны могут реально ощущаться в повседневной жизни, отношениях и выборе.';
+    const humanNatalReadingLine =
+      locale === 'en'
+        ? 'Use simple, vivid language: explain astrology through recognizable human behavior, not technical jargon.'
+        : locale === 'es'
+          ? 'Usa un lenguaje sencillo y vivo: explica la astrología a través de comportamientos humanos reconocibles, no con jerga técnica.'
+          : 'Пишите простым, живым языком: объясняйте астрологию через понятное человеческое поведение, а не через сухие термины.';
+    const placementDepthLine =
+      locale === 'en'
+        ? 'For each major placement, combine sign + house + degree into one paragraph of 3-6 sentences: what it feels like, where it appears in life, the gift, the risk, and the growth task.'
+        : locale === 'es'
+          ? 'Para cada posición importante, une signo + casa + grado en un párrafo de 3-6 frases: cómo se vive, dónde aparece, el don, el riesgo y la tarea de crecimiento.'
+          : 'Для каждого важного положения соединяйте знак + дом + градус в один абзац на 3-6 предложений: как это ощущается, где проявляется в жизни, в чем дар, риск и задача роста.';
+    const requiredStructureLine =
+      locale === 'en'
+        ? 'Structure the reading like a full consultation: opening synthesis, Ascendant, Sun, Moon, personal planets, Mars/Saturn/outer planets, lunar nodes, Lilith and Chiron if present, then final synthesis and main life tasks.'
+        : locale === 'es'
+          ? 'Construye la lectura como una consulta completa: síntesis inicial, Ascendente, Sol, Luna, planetas personales, Marte/Saturno/planetas exteriores, nodos lunares, Lilith y Quirón si aparecen, y síntesis final con tareas principales.'
+          : 'Стройте ответ как полноценную консультацию: вводный синтез, Асцендент, Солнце, Луна, личные планеты, Марс/Сатурн/высшие планеты, Лунные узлы, Лилит и Хирон при наличии, затем финальный синтез и главные задачи.';
 
     if (locale === 'en') {
       return `Create an extended PREMIUM natal-chart interpretation based strictly on the provided chart data.
 LANGUAGE: English only.
-FORMAT: plain text only, no JSON. Short section titles are allowed; avoid table-like lists.
-LENGTH: 900-1300 words.
+FORMAT: plain text only, no JSON. Use readable section headings; avoid table-like lists and code fences.
+LENGTH: 1400-2200 words.
 
 ASCENDANT:
 ${ascendantDesc}
@@ -1240,9 +1258,14 @@ Hard requirements:
 - ${antiAstroClicheLine}
 - ${emotionalSpecificityLine}
 - ${synthesisLine}
+- ${humanNatalReadingLine}
+- ${placementDepthLine}
+- ${requiredStructureLine}
 - Explain synthesis: show how placements work together, not just one-by-one.
 - Pay special attention to the user's real chart anchors: big three, angular houses, dominant houses, repeated elements, and strongest aspects.
 - Give special weight to the tightest aspects by orb/strength and to the rulers of houses 7, 10, 2, and 8 when discussing relationships, career, and money.
+- If Lilith, Chiron, or Lunar Nodes are present, interpret them in the same detailed, practical style as the planets.
+- Do not end with a generic invitation to ask another question; end with a concise final synthesis.
 
 The result must read like a high-end personalized astrological consultation, not a template. Open with a confident synthesis of the whole chart before moving into details.`;
     }
@@ -1250,8 +1273,8 @@ The result must read like a high-end personalized astrological consultation, not
     if (locale === 'es') {
       return `Crea una interpretación PREMIUM ampliada de la carta natal basándote estrictamente en los datos proporcionados.
 IDIOMA: Español solamente.
-FORMATO: solo texto plano, sin JSON. Se permiten títulos breves de sección; evita listas con aspecto de tabla.
-LONGITUD: 900-1300 palabras.
+FORMATO: solo texto plano, sin JSON. Usa títulos de sección legibles; evita listas con aspecto de tabla y bloques de código.
+LONGITUD: 1400-2200 palabras.
 
 ASCENDENTE:
 ${ascendantDesc}
@@ -1308,16 +1331,21 @@ Requisitos estrictos:
 - ${antiAstroClicheLine}
 - ${emotionalSpecificityLine}
 - ${synthesisLine}
+- ${humanNatalReadingLine}
+- ${placementDepthLine}
+- ${requiredStructureLine}
 - Haz síntesis: muestra cómo los factores trabajan juntos, no solo uno por uno.
 - Da atención especial a los anclajes reales de la carta: gran tríada, casas angulares, casas dominantes, elementos repetidos y aspectos fuertes.
 - Da peso especial a los aspectos más cerrados por orbe/fuerza y a los regentes de las casas 7, 10, 2 y 8 al hablar de relaciones, carrera y dinero.
+- Si Lilith, Quirón o los Nodos Lunares están presentes, interprétalos con el mismo detalle práctico que los planetas.
+- No termines con una invitación genérica a hacer otra pregunta; termina con una síntesis final concisa.
 
 El resultado debe sentirse como una consulta astrológica personalizada de alto nivel, no como una plantilla. Abre con una síntesis segura de toda la carta antes de pasar a los detalles.`;
     }
 
     return `Создайте расширенную PREMIUM-интерпретацию натальной карты, строго опираясь на переданные данные.
-ФОРМАТ: только текст, без JSON. Можно использовать короткие смысловые подзаголовки; избегайте табличных списков.
-ОБЪЕМ: 900-1300 слов.
+ФОРМАТ: только текст, без JSON. Используйте понятные подзаголовки и разделители; избегайте таблиц и блоков кода.
+ОБЪЕМ: 1400-2200 слов.
 
 АСЦЕНДЕНТ:
 ${ascendantDesc}
@@ -1374,9 +1402,15 @@ ${aspectsDesc}
 - ${antiAstroClicheLine}
 - ${emotionalSpecificityLine}
 - ${synthesisLine}
+- ${humanNatalReadingLine}
+- ${placementDepthLine}
+- ${requiredStructureLine}
 - Делайте синтез: показывайте, как факторы карты работают вместе.
 - Особое внимание уделяйте нашим главным якорям: большая тройка, угловые дома, повтор элементов, доминанты по домам и сильнейшие аспекты.
 - Отдельно учитывайте самые точные аспекты по орбу/силе и управителей 7, 10, 2 и 8 домов, когда говорите про отношения, карьеру и деньги.
+- Если в данных есть Лилит, Хирон или Лунные узлы, разбирайте их так же подробно и понятно, как планеты.
+- Можно использовать живые подзаголовки в стиле «🌞 Солнце в Овне 18°40′ в IX доме», если данные положения есть.
+- Не завершайте текст общей фразой «если хотите углубиться»; завершите сильным финальным синтезом и главной задачей карты.
 
 Итоговый текст должен читаться как дорогая персональная консультация по натальной карте, а не как шаблонный гороскоп. Начните с уверенного синтеза всей карты, а уже потом переходите к деталям.`;
   }
@@ -2638,21 +2672,27 @@ ${aspectsBlock}
     }
 
     const planetList = [
-      'sun',
-      'moon',
-      'mercury',
-      'venus',
-      'mars',
-      'jupiter',
-      'saturn',
-      'uranus',
-      'neptune',
-      'pluto',
+      { labelKey: 'sun', dataKeys: ['sun'] },
+      { labelKey: 'moon', dataKeys: ['moon'] },
+      { labelKey: 'mercury', dataKeys: ['mercury'] },
+      { labelKey: 'venus', dataKeys: ['venus'] },
+      { labelKey: 'mars', dataKeys: ['mars'] },
+      { labelKey: 'jupiter', dataKeys: ['jupiter'] },
+      { labelKey: 'saturn', dataKeys: ['saturn'] },
+      { labelKey: 'uranus', dataKeys: ['uranus'] },
+      { labelKey: 'neptune', dataKeys: ['neptune'] },
+      { labelKey: 'pluto', dataKeys: ['pluto'] },
+      { labelKey: 'northNode', dataKeys: ['northNode', 'north_node'] },
+      { labelKey: 'southNode', dataKeys: ['southNode', 'south_node'] },
+      { labelKey: 'lilith', dataKeys: ['lilith', 'blackMoonLilith'] },
+      { labelKey: 'chiron', dataKeys: ['chiron'] },
     ];
 
     return planetList
-      .map((key) => {
-        const planet = planets[key];
+      .map(({ labelKey, dataKeys }) => {
+        const planet = dataKeys
+          .map((key) => planets[key])
+          .find((value) => value);
         if (!planet) return null;
         const fallbackSign =
           locale === 'en'
@@ -2684,7 +2724,7 @@ ${aspectsBlock}
               ? ', retrógrado'
               : ', ретроградный'
           : '';
-        return `${this.getPlanetName(key, locale)}: ${sign}${degree ? ` ${degree}` : ''}${house}${retrograde}`;
+        return `${this.getPlanetName(labelKey, locale)}: ${sign}${degree ? ` ${degree}` : ''}${house}${retrograde}`;
       })
       .filter(Boolean)
       .join(', ');
@@ -2845,7 +2885,11 @@ ${aspectsBlock}
         neptune: 'Нептун',
         pluto: 'Плутон',
         northNode: 'Северный Узел',
+        north_node: 'Северный Узел',
         southNode: 'Южный Узел',
+        south_node: 'Южный Узел',
+        lilith: 'Лилит',
+        blackMoonLilith: 'Лилит',
         chiron: 'Хирон',
       },
       en: {
@@ -2860,7 +2904,11 @@ ${aspectsBlock}
         neptune: 'Neptune',
         pluto: 'Pluto',
         northNode: 'North Node',
+        north_node: 'North Node',
         southNode: 'South Node',
+        south_node: 'South Node',
+        lilith: 'Lilith',
+        blackMoonLilith: 'Lilith',
         chiron: 'Chiron',
       },
       es: {
@@ -2875,7 +2923,11 @@ ${aspectsBlock}
         neptune: 'Neptuno',
         pluto: 'Plutón',
         northNode: 'Nodo Norte',
+        north_node: 'Nodo Norte',
         southNode: 'Nodo Sur',
+        south_node: 'Nodo Sur',
+        lilith: 'Lilith',
+        blackMoonLilith: 'Lilith',
         chiron: 'Quirón',
       },
     };

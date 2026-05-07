@@ -78,6 +78,11 @@ const mockUser = {
   },
 };
 
+const flushPromises = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 beforeAll(() => {
   Object.defineProperty(Platform, 'OS', {
     configurable: true,
@@ -213,6 +218,48 @@ describe('authAPI authorization methods', () => {
     }
   );
 
+  it('completes Google OAuth from native Linking callback when browser promise stays pending', async () => {
+    let linkingHandler: ((event: { url: string }) => void) | null = null;
+    const remove = jest.fn();
+    const addEventListenerSpy = jest
+      .spyOn(Linking, 'addEventListener')
+      .mockImplementation((_type, handler) => {
+        linkingHandler = handler as (event: { url: string }) => void;
+        return { remove } as any;
+      });
+
+    try {
+      mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+        data: { url: 'https://auth.example.com/google' },
+        error: null,
+      });
+      mockedOpenAuthSessionAsync.mockImplementationOnce(
+        () => new Promise(() => {}) as any
+      );
+      mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+      const resultPromise = authAPI.googleSignIn();
+      await flushPromises();
+
+      expect(linkingHandler).toBeTruthy();
+      linkingHandler?.({
+        url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+      });
+
+      const result = await resultPromise;
+
+      expect(mockedSupabaseAuth.setSession).toHaveBeenCalledWith({
+        access_token: 'oauth-access',
+        refresh_token: 'oauth-refresh',
+      });
+      expect(remove).toHaveBeenCalled();
+      expect(result.access_token).toBe('oauth-access');
+      expect(result.user.email).toBe('person@example.com');
+    } finally {
+      addEventListenerSpy.mockRestore();
+    }
+  });
+
   it('uses email fallback from Yandex provider metadata when user.email is missing', async () => {
     mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
       data: { url: 'https://auth.example.com/custom:yandex' },
@@ -269,6 +316,66 @@ describe('authAPI authorization methods', () => {
         name: 'Yandex User',
       },
     });
+  });
+
+  it('completes Yandex OAuth from native Linking callback when browser promise stays pending', async () => {
+    let linkingHandler: ((event: { url: string }) => void) | null = null;
+    const remove = jest.fn();
+    const addEventListenerSpy = jest
+      .spyOn(Linking, 'addEventListener')
+      .mockImplementation((_type, handler) => {
+        linkingHandler = handler as (event: { url: string }) => void;
+        return { remove } as any;
+      });
+
+    try {
+      mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+        data: { url: 'https://auth.example.com/custom:yandex' },
+        error: null,
+      });
+      mockedOpenAuthSessionAsync.mockImplementationOnce(
+        () => new Promise(() => {}) as any
+      );
+      mockedSupabaseAuth.getUser.mockResolvedValueOnce({
+        data: {
+          user: {
+            id: 'user-1',
+            email: null,
+            user_metadata: {
+              name: 'Yandex User',
+              email: 'yandex-linking@example.com',
+            },
+            identities: [],
+          },
+        },
+        error: null,
+      } as any);
+      mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+      const resultPromise = authAPI.yandexSignIn();
+      await flushPromises();
+
+      expect(linkingHandler).toBeTruthy();
+      linkingHandler?.({
+        url: 'astralink://auth/callback#access_token=yandex-access&refresh_token=yandex-refresh',
+      });
+
+      const result = await resultPromise;
+
+      expect(mockedSupabaseAuth.setSession).toHaveBeenCalledWith({
+        access_token: 'yandex-access',
+        refresh_token: 'yandex-refresh',
+      });
+      expect(remove).toHaveBeenCalled();
+      expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
+        userId: 'user-1',
+        email: 'yandex-linking@example.com',
+      });
+      expect(result.access_token).toBe('yandex-access');
+      expect(result.user.email).toBe('yandex-linking@example.com');
+    } finally {
+      addEventListenerSpy.mockRestore();
+    }
   });
 
   it('uses email fallback from Yandex login metadata when user.email is missing', async () => {
