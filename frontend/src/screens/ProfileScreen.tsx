@@ -142,6 +142,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const requestIdRef = useRef(0);
+  const isDeletingAccountRef = useRef(false);
   const profileRef = useRef<UserProfile | null>(null);
   const subscriptionRef = useRef<Subscription | null>(subscription);
   const tabBarHeight = useBottomTabBarHeight();
@@ -228,6 +229,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   }, [authProfile]);
 
   const fetchProfileData = React.useCallback(async () => {
+    if (isDeletingAccountRef.current) {
+      return;
+    }
+
     const requestId = ++requestIdRef.current;
     const shouldBlockScreen = !profileRef.current;
     const fallbackUserId = authProfile?.id || profileRef.current?.id;
@@ -244,7 +249,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
     if (fallbackUserId) {
       void getCachedPrimaryPhoto(fallbackUserId).then((cachedPhoto) => {
-        if (requestId !== requestIdRef.current || !cachedPhoto?.url) {
+        if (
+          isDeletingAccountRef.current ||
+          requestId !== requestIdRef.current ||
+          !cachedPhoto?.url
+        ) {
           return;
         }
         setPrimaryPhotoUrl((current) => current ?? cachedPhoto.url);
@@ -257,6 +266,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         userAPI.getSubscription(),
         chartAPI.getNatalChart(),
       ]);
+
+      if (isDeletingAccountRef.current) {
+        return;
+      }
 
       if (profileRes.status === 'rejected') {
         const profileError: any = profileRes.reason;
@@ -332,6 +345,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         logger.info('getNatalChart failed (optional)', st, data);
       }
     } catch (error: any) {
+      if (isDeletingAccountRef.current) {
+        return;
+      }
+
       if (requestId !== requestIdRef.current) {
         return;
       }
@@ -345,6 +362,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         data?.message || i18n.t('profile.errors.failedToLoad')
       );
     } finally {
+      if (isDeletingAccountRef.current) {
+        return;
+      }
+
       if (requestId === requestIdRef.current) {
         setLoading(false);
       }
@@ -358,40 +379,57 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   );
 
   const handleDeleteAccount = async () => {
+    isDeletingAccountRef.current = true;
+    requestIdRef.current += 1;
+
     try {
       await userAPI.deleteAccount();
-
-      setShowDeleteModal(false);
-      requestIdRef.current += 1;
-      setProfile(null);
-      setSubscription(null);
-      setChart(null);
-      setPrimaryPhotoUrl(null);
-      setLoading(false);
-      queryClient.clear();
-
-      try {
-        await supabase.auth.signOut({ scope: 'local' });
-      } catch (signOutError) {
-        logger.warn(
-          'Local Supabase sign out after account deletion failed',
-          signOutError
-        );
-      }
-
-      await notificationService.clearCachedPushToken();
-      await clearAllUserData();
-      useAuthStore.getState().resetAuth();
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'SignUp' }],
-      });
     } catch (error: any) {
+      isDeletingAccountRef.current = false;
       logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(
         t('common.errors.generic'),
         error.message || t('profile.errors.failedToDelete')
+      );
+      return;
+    }
+
+    setShowDeleteModal(false);
+    requestIdRef.current += 1;
+    setProfile(null);
+    setSubscription(null);
+    setChart(null);
+    setPrimaryPhotoUrl(null);
+    setLoading(false);
+    queryClient.clear();
+    useAuthStore.getState().resetAuth();
+
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (signOutError) {
+      logger.warn(
+        'Local Supabase sign out after account deletion failed',
+        signOutError
+      );
+    }
+
+    try {
+      await notificationService.clearCachedPushToken();
+      await clearAllUserData();
+    } catch (cleanupError) {
+      logger.warn('Local cleanup after account deletion failed', cleanupError);
+    }
+
+    const rootNavigation = navigation.getParent?.() ?? navigation;
+    try {
+      rootNavigation.reset({
+        index: 0,
+        routes: [{ name: 'SignUp' }],
+      });
+    } catch (navigationError) {
+      logger.warn(
+        'Navigation reset after account deletion failed',
+        navigationError
       );
     }
   };

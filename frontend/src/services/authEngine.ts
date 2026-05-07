@@ -68,46 +68,6 @@ const fetchProfile = async (): Promise<AuthProfile | null> => {
   return normalizeProfile(profile);
 };
 
-const isStaleAuthSessionError = (err: unknown): boolean => {
-  const error = err as {
-    message?: unknown;
-    response?: { status?: unknown; data?: unknown };
-    status?: unknown;
-  };
-  const status = Number(error?.response?.status ?? error?.status ?? 0);
-  const raw = JSON.stringify({
-    message: error?.message,
-    data: error?.response?.data,
-  }).toLowerCase();
-
-  return (
-    status === 401 ||
-    status === 403 ||
-    status === 404 ||
-    raw.includes('user not found') ||
-    raw.includes('profile not found') ||
-    raw.includes('пользователь не найден')
-  );
-};
-
-const clearStaleAuthSession = async () => {
-  authLogger.warn('Clearing stale auth session');
-
-  try {
-    await supabase.auth.signOut({ scope: 'local' });
-  } catch (err) {
-    authLogger.warn('Local Supabase sign out failed for stale session', err);
-  }
-
-  await clearAllUserData();
-  setSession(null);
-  setProfile(null);
-  setError(null);
-  setState('UNAUTHORIZED');
-  setLoading(false);
-  await notificationService.clearCachedPushToken();
-};
-
 const applyFallbackProfileState = (session: Session) => {
   const fallbackProfile = profileFromSession(session);
   setProfile(fallbackProfile);
@@ -141,10 +101,6 @@ const bootstrap = async () => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed during boot', err);
-    if (isStaleAuthSessionError(err)) {
-      await clearStaleAuthSession();
-      return;
-    }
     applyFallbackProfileState(session);
   } finally {
     setLoading(false);
@@ -170,10 +126,6 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed after auth event', err);
-    if (isStaleAuthSessionError(err)) {
-      await clearStaleAuthSession();
-      return;
-    }
     if (session) {
       applyFallbackProfileState(session);
     } else {
@@ -209,10 +161,6 @@ export const AuthEngine = {
       resolveState(profile);
     } catch (err) {
       authLogger.error('Profile refresh failed', err);
-      if (isStaleAuthSessionError(err)) {
-        await clearStaleAuthSession();
-        throw err;
-      }
       const { data } = await supabase.auth.getSession();
       const session = data.session ?? null;
       if (session) {
@@ -236,10 +184,6 @@ export const AuthEngine = {
       resolveState(profile);
     } catch (err) {
       authLogger.warn('Background profile refresh failed', err);
-      if (isStaleAuthSessionError(err)) {
-        await clearStaleAuthSession();
-        return;
-      }
       const { data } = await supabase.auth.getSession();
       const session = data.session ?? null;
       if (session) {

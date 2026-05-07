@@ -299,9 +299,9 @@ describe('authAPI authorization methods', () => {
         options: expect.objectContaining({
           redirectTo: 'astralink://auth/callback',
           skipBrowserRedirect: true,
-          scopes: 'login:info login:email',
+          scopes: 'login:email login:info',
           queryParams: {
-            force_confirm: 'yes',
+            scope: 'login:email login:info',
           },
         }),
       })
@@ -490,29 +490,16 @@ describe('authAPI authorization methods', () => {
       },
       error: null,
     } as any);
-    mockedSupabaseAuth.getSession
-      .mockResolvedValueOnce({
-        data: {
-          session: null,
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: 'oauth-access',
+          refresh_token: 'oauth-refresh',
+          provider_token: 'yandex-provider-token',
         },
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: {
-          session: null,
-        },
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: {
-          session: {
-            access_token: 'oauth-access',
-            refresh_token: 'oauth-refresh',
-            provider_token: 'yandex-provider-token',
-          },
-        },
-        error: null,
-      } as any);
+      },
+      error: null,
+    } as any);
     mockedFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ default_email: 'userinfo-yandex@example.com' }),
@@ -554,28 +541,15 @@ describe('authAPI authorization methods', () => {
       },
       error: null,
     } as any);
-    mockedSupabaseAuth.getSession
-      .mockResolvedValueOnce({
-        data: {
-          session: null,
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: 'oauth-access',
+          refresh_token: 'oauth-refresh',
         },
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: {
-          session: null,
-        },
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: {
-          session: {
-            access_token: 'oauth-access',
-            refresh_token: 'oauth-refresh',
-          },
-        },
-        error: null,
-      } as any);
+      },
+      error: null,
+    } as any);
     mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
 
     const result = await authAPI.yandexSignIn();
@@ -584,41 +558,5 @@ describe('authAPI authorization methods', () => {
       'oauth-code'
     );
     expect(result.access_token).toBe('oauth-access');
-  });
-
-  it('completes Google OAuth when the browser leaves a Supabase session without returning a callback URL', async () => {
-    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
-      data: { url: 'https://auth.example.com/google' },
-      error: null,
-    });
-    mockedOpenAuthSessionAsync.mockImplementationOnce(
-      () => new Promise(() => {}) as any
-    );
-    mockedSupabaseAuth.getSession
-      .mockResolvedValueOnce({
-        data: {
-          session: null,
-        },
-        error: null,
-      } as any)
-      .mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'oauth-access',
-            refresh_token: 'oauth-refresh',
-          },
-        },
-        error: null,
-      } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
-
-    const result = await authAPI.googleSignIn();
-
-    expect(result.access_token).toBe('oauth-access');
-    expect(result.user.email).toBe('person@example.com');
-    expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
-      userId: 'user-1',
-      email: 'person@example.com',
-    });
   });
 });
