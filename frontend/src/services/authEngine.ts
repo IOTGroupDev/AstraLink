@@ -5,6 +5,7 @@ import { authLogger } from './logger';
 import { notificationService } from './notifications';
 import { clearAllUserData } from './cleanupService';
 import { useAuthStore, type AuthProfile } from '../stores/auth.store';
+import { tokenService } from './tokenService';
 
 export type AuthState = 'BOOT' | 'UNAUTHORIZED' | 'ONBOARDING' | 'AUTHORIZED';
 
@@ -21,6 +22,14 @@ const setState = (state: AuthState) => {
 
 const setSession = (session: Session | null) => {
   useAuthStore.getState().setSession(session);
+};
+
+const syncRuntimeToken = async (session: Session | null) => {
+  try {
+    await tokenService.setToken(session?.access_token ?? null);
+  } catch (err) {
+    authLogger.warn('Runtime token sync failed', err);
+  }
 };
 
 const setProfile = (profile: AuthProfile | null) => {
@@ -124,6 +133,13 @@ const getCurrentSessionSafely = async (
   }
 };
 
+const syncCurrentSession = async (context: string): Promise<Session | null> => {
+  const session = await getCurrentSessionSafely(context);
+  setSession(session);
+  await syncRuntimeToken(session);
+  return session;
+};
+
 const applyFallbackProfileState = (session: Session) => {
   const fallbackProfile = profileFromSession(session);
   setProfile(fallbackProfile);
@@ -150,6 +166,7 @@ const bootstrap = async () => {
   }
 
   setSession(session);
+  await syncRuntimeToken(session);
 
   if (!session) {
     setProfile(null);
@@ -179,6 +196,7 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
 
   setError(null);
   setSession(session);
+  await syncRuntimeToken(session);
 
   if (!session) {
     setProfile(null);
@@ -223,6 +241,12 @@ export const AuthEngine = {
     try {
       setLoading(true);
       setError(null);
+      const session = await syncCurrentSession('Profile refresh');
+      if (!session) {
+        setProfile(null);
+        setState('UNAUTHORIZED');
+        throw new Error('No active auth session');
+      }
       const profile = await fetchProfile();
       setProfile(profile);
       resolveState(profile);
@@ -245,6 +269,14 @@ export const AuthEngine = {
   async refreshProfileInBackground() {
     try {
       setError(null);
+      const session = await getCurrentSessionSafely(
+        'Background profile refresh'
+      );
+      if (!session) {
+        return;
+      }
+      setSession(session);
+      await syncRuntimeToken(session);
       const profile = await fetchProfile();
       setProfile(profile);
       resolveState(profile);

@@ -5,6 +5,7 @@ import { supabase } from '../supabase';
 import { apiLogger } from '../logger';
 import { tokenService } from '../tokenService';
 import i18n from '../../i18n';
+import { invalidateLocalAuthSession } from '../authInvalidation';
 
 // Ensure base URL ends with /api/v1 (API versioning)
 function ensureApiBase(url: string): string {
@@ -178,6 +179,7 @@ api.interceptors.request.use(async (config) => {
       apiLogger.log('🔐 Добавлен токен к запросу:', requestLabel);
     } else {
       apiLogger.error('❌ No token for protected endpoint:', requestLabel);
+      await invalidateLocalAuthSession(`missing token for ${requestLabel}`);
       // Отменяем запрос, если нет токена для защищенного эндпоинта
       return Promise.reject(
         new Error('Authentication required but no token available')
@@ -202,8 +204,13 @@ api.interceptors.response.use(
       error?.response?.data ?? error?.message
     );
 
-    if (error.response?.status === 401) {
-      apiLogger.error('❌ 401 Unauthorized - токен истек или недействителен');
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      apiLogger.error(
+        `❌ HTTP ${error.response.status} auth failure - resetting local session`
+      );
+      await invalidateLocalAuthSession(
+        `${error.response.status} from ${requestLabel}`
+      );
     }
     return Promise.reject(error);
   }

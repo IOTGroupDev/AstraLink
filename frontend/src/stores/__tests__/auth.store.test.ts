@@ -33,6 +33,24 @@ describe('Auth Store', () => {
     expect(result.current.isAuthenticated).toBe(true);
   });
 
+  it('should mark authenticated when auth state changes after OTP sign-in', () => {
+    const { result } = renderHook(() => useAuthStore());
+
+    act(() => {
+      result.current.setSession({
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+        user: {
+          id: '123',
+          email: 'test@example.com',
+        },
+      } as any);
+      result.current.setAuthState('ONBOARDING');
+    });
+
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+
   it('should clear user on logout', () => {
     const { result } = renderHook(() => useAuthStore());
     const mockUser = {

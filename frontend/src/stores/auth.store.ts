@@ -71,21 +71,22 @@ export const useAuthStore = create<AuthStateStore>()(
       biometricType: null,
       rememberMe: true,
 
-      setAuthState: (state) => set({ authState: state }),
+      setAuthState: (state) =>
+        set({
+          authState: state,
+          isAuthenticated: state === 'AUTHORIZED' || state === 'ONBOARDING',
+        }),
       setSession: (session) =>
-        set((state) => ({
+        set(() => ({
           session,
-          isAuthenticated: !!session && state.authState !== 'UNAUTHORIZED',
+          isAuthenticated: !!session,
         })),
       setProfile: (profile) =>
         set((state) => ({
           profile,
           user: profile,
           onboardingCompleted: !!profile?.onboardingCompleted,
-          isAuthenticated:
-            !!profile && state.authState !== 'UNAUTHORIZED'
-              ? true
-              : state.isAuthenticated,
+          isAuthenticated: !!profile || state.isAuthenticated,
         })),
       setUser: (user) =>
         set((state) => ({

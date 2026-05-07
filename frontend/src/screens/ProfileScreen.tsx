@@ -139,6 +139,9 @@ const isMissingProfileSessionError = (error: any): boolean => {
     status === 401 ||
     status === 403 ||
     status === 404 ||
+    raw.includes('unauthorized') ||
+    raw.includes('session expired') ||
+    raw.includes('сессия истекла') ||
     raw.includes('user not found') ||
     raw.includes('profile not found') ||
     raw.includes('пользователь не найден') ||
@@ -232,6 +235,38 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       useAuthStore.getState().resetAuth();
     }
 
+    resetToSignUp();
+  }, [queryClient, resetToSignUp]);
+
+  const finishAccountDeletionLocally = React.useCallback(async () => {
+    isDeletingAccountRef.current = true;
+    isSigningOutRef.current = true;
+    requestIdRef.current += 1;
+    setShowDeleteModal(false);
+    setProfile(null);
+    setSubscription(null);
+    setChart(null);
+    setPrimaryPhotoUrl(null);
+    setLoading(false);
+    queryClient.clear();
+
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (signOutError) {
+      logger.warn(
+        'Local Supabase sign out after account deletion failed',
+        signOutError
+      );
+    }
+
+    try {
+      await notificationService.clearCachedPushToken();
+      await clearAllUserData();
+    } catch (cleanupError) {
+      logger.warn('Local cleanup after account deletion failed', cleanupError);
+    }
+
+    useAuthStore.getState().resetAuth();
     resetToSignUp();
   }, [queryClient, resetToSignUp]);
 
@@ -445,6 +480,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       await userAPI.deleteAccount();
     } catch (error: any) {
+      if (isMissingProfileSessionError(error)) {
+        logger.warn(
+          'Account delete returned missing auth/profile; routing to auth',
+          error
+        );
+        await finishAccountDeletionLocally();
+        return;
+      }
+
       isDeletingAccountRef.current = false;
       logger.error('Ошибка удаления аккаунта', error);
       Alert.alert(
@@ -454,33 +498,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       return;
     }
 
-    setShowDeleteModal(false);
-    requestIdRef.current += 1;
-    setProfile(null);
-    setSubscription(null);
-    setChart(null);
-    setPrimaryPhotoUrl(null);
-    setLoading(false);
-    queryClient.clear();
-    useAuthStore.getState().resetAuth();
-
-    try {
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch (signOutError) {
-      logger.warn(
-        'Local Supabase sign out after account deletion failed',
-        signOutError
-      );
-    }
-
-    try {
-      await notificationService.clearCachedPushToken();
-      await clearAllUserData();
-    } catch (cleanupError) {
-      logger.warn('Local cleanup after account deletion failed', cleanupError);
-    }
-
-    resetToSignUp();
+    await finishAccountDeletionLocally();
   };
 
   const handleUpgradeSubscription = () => {

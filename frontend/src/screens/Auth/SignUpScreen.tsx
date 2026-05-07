@@ -61,15 +61,6 @@ const SignUpScreen = () => {
       authStore.setLoading(false);
       authStore.setError(null);
 
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: (onboardingCompleted ? 'MainTabs' : 'Onboarding2') as never,
-          },
-        ],
-      });
-
       void AuthEngine.refreshProfileInBackground();
       return;
     }
@@ -83,19 +74,7 @@ const SignUpScreen = () => {
     }
 
     const nextState = useAuthStore.getState().authState;
-    if (nextState === 'AUTHORIZED') {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' as never }],
-      });
-      return;
-    }
-
-    if (nextState === 'ONBOARDING') {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Onboarding2' as never }],
-      });
+    if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
       return;
     }
 

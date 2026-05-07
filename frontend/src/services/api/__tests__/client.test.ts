@@ -1,24 +1,35 @@
 // API Client tests
 import axios from 'axios';
 import { api } from '../client';
+import { invalidateLocalAuthSession } from '../../authInvalidation';
+import { supabase } from '../../supabase';
 
 jest.mock('axios', () => ({
-  create: jest.fn(() => ({
-    defaults: {
-      baseURL: 'http://localhost:3001/api/v1',
-      timeout: 10000,
-    },
-    interceptors: {
-      request: {
-        handlers: [{}],
-        use: jest.fn(),
+  create: jest.fn(() => {
+    const requestHandlers: any[] = [];
+    const responseHandlers: any[] = [];
+
+    return {
+      defaults: {
+        baseURL: 'http://localhost:3001/api/v1',
+        timeout: 10000,
       },
-      response: {
-        handlers: [{}],
-        use: jest.fn(),
+      interceptors: {
+        request: {
+          handlers: requestHandlers,
+          use: jest.fn((fulfilled, rejected) => {
+            requestHandlers.push({ fulfilled, rejected });
+          }),
+        },
+        response: {
+          handlers: responseHandlers,
+          use: jest.fn((fulfilled, rejected) => {
+            responseHandlers.push({ fulfilled, rejected });
+          }),
+        },
       },
-    },
-  })),
+    };
+  }),
 }));
 
 jest.mock('../../supabase', () => ({
@@ -38,7 +49,16 @@ jest.mock('../../tokenService', () => ({
   },
 }));
 
+jest.mock('../../authInvalidation', () => ({
+  invalidateLocalAuthSession: jest.fn(() => Promise.resolve()),
+}));
+
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedSupabaseAuth = supabase.auth as jest.Mocked<typeof supabase.auth>;
+const mockedInvalidateLocalAuthSession =
+  invalidateLocalAuthSession as jest.MockedFunction<
+    typeof invalidateLocalAuthSession
+  >;
 
 describe('API Client', () => {
   beforeEach(() => {
@@ -64,12 +84,50 @@ describe('API Client', () => {
       // For now, just verify the interceptor exists
       expect(api.interceptors.request.handlers.length).toBeGreaterThan(0);
     });
+
+    it('should attach Authorization to ensure-profile because backend guard protects it', async () => {
+      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'access-token',
+          },
+        },
+        error: null,
+      } as any);
+
+      const fulfilled = api.interceptors.request.handlers[0].fulfilled;
+      const config = await fulfilled({
+        method: 'post',
+        url: '/auth/ensure-profile',
+        headers: {},
+      });
+
+      expect(config.headers.Authorization).toBe('Bearer access-token');
+      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
+    });
   });
 
   describe('Response Interceptor', () => {
     it('should handle 401 errors', async () => {
       // Verify error interceptor exists
       expect(api.interceptors.response.handlers.length).toBeGreaterThan(0);
+    });
+
+    it('should reset local auth on unauthorized responses', async () => {
+      const rejected = api.interceptors.response.handlers[0].rejected;
+
+      await expect(
+        rejected({
+          config: { method: 'get', url: '/user/profile' },
+          response: { status: 401, data: { message: 'Unauthorized' } },
+        })
+      ).rejects.toMatchObject({
+        response: { status: 401 },
+      });
+
+      expect(mockedInvalidateLocalAuthSession).toHaveBeenCalledWith(
+        '401 from GET /user/profile'
+      );
     });
   });
 });

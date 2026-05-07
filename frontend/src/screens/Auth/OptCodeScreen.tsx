@@ -198,14 +198,6 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       setSubmitting(false);
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: (onboardingCompleted ? 'MainTabs' : 'Onboarding2') as never,
-          },
-        ],
-      });
 
       void AuthEngine.refreshProfileInBackground();
     } catch (err: any) {

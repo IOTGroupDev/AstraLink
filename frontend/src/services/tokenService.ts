@@ -26,6 +26,7 @@ class TokenService {
   private ready = false;
   private readyPromise: Promise<void> | null = null;
   private currentToken: string | null = null;
+  private tokenWriteVersion = 0;
   private listeners = new Set<TokenListener>();
 
   private constructor() {}
@@ -42,11 +43,16 @@ class TokenService {
     if (this.readyPromise) return this.readyPromise;
 
     this.readyPromise = (async () => {
+      const initVersion = this.tokenWriteVersion;
       try {
         const stored = await this.getSecureItem(TokenService.SECURE_KEY);
-        this.currentToken = stored || null;
+        if (this.tokenWriteVersion === initVersion) {
+          this.currentToken = stored || null;
+        }
       } catch {
-        this.currentToken = null;
+        if (this.tokenWriteVersion === initVersion) {
+          this.currentToken = null;
+        }
       } finally {
         this.ready = true;
         this.notify(this.currentToken);
@@ -69,7 +75,9 @@ class TokenService {
 
   /** Установить (или очистить) токен и сохранить его в SecureStore/AsyncStorage + уведомить подписчиков */
   async setToken(token: string | null): Promise<void> {
+    this.tokenWriteVersion += 1;
     this.currentToken = token;
+    this.ready = true;
 
     try {
       if (token) {

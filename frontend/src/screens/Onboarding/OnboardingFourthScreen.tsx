@@ -218,7 +218,6 @@ export default function OnboardingFourthScreen() {
         onboardingCompleted: true,
       });
       setAuthState('AUTHORIZED');
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       void AuthEngine.refreshProfileInBackground();
     } catch (error) {
       authLogger.error('Onboarding completion failed', error);
