@@ -1,8 +1,8 @@
 import React from 'react';
 import {
+  Dimensions,
   ImageBackground,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
@@ -11,6 +11,8 @@ import LottieView from 'lottie-react-native';
 
 const loadingBackground = require('../../../assets/loading-bg.png');
 const loadingAnimation = require('../../../assets/loading-lottie.json');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const animationSize = Math.min(screenWidth * 0.92, screenHeight * 0.68);
 
 interface FullscreenLoadingScreenProps {
   style?: StyleProp<ViewStyle>;
@@ -32,9 +34,6 @@ export default function FullscreenLoadingScreen({
         imageStyle={styles.backgroundImage}
       >
         <View style={styles.content}>
-          <Text style={styles.text}>
-            Please wait while{'\n'}we align your stars
-          </Text>
           <LottieView
             source={loadingAnimation}
             autoPlay
@@ -65,18 +64,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    gap: 4,
-  },
-  text: {
-    color: '#FFFFFF',
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 18,
-    fontWeight: '400',
-    lineHeight: 20,
-    textAlign: 'center',
   },
   animation: {
-    width: 168,
-    height: 138,
+    width: animationSize,
+    height: animationSize,
   },
 });

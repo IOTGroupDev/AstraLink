@@ -466,6 +466,7 @@ async function openOAuthSession(
   redirectUri: string
 ): Promise<string> {
   let linkingSubscription: EmitterSubscription | undefined;
+  let stopInitialUrlPolling = false;
 
   const linkingUrl = new Promise<string>((resolve) => {
     linkingSubscription = Linking.addEventListener('url', ({ url }) => {
@@ -473,6 +474,25 @@ async function openOAuthSession(
         resolve(url);
       }
     });
+  });
+
+  const initialUrl = new Promise<string>((resolve) => {
+    const poll = async () => {
+      while (!stopInitialUrlPolling) {
+        try {
+          const url = await Linking.getInitialURL();
+          if (url && isOAuthRedirectUrl(url, redirectUri)) {
+            resolve(url);
+            return;
+          }
+        } catch {
+          // Keep waiting for browser or Linking event.
+        }
+        await wait(300);
+      }
+    };
+
+    void poll();
   });
 
   try {
@@ -485,8 +505,9 @@ async function openOAuthSession(
       throw new Error('Авторизация отменена или не завершена');
     });
 
-    return await Promise.race([browserUrl, linkingUrl]);
+    return await Promise.race([browserUrl, linkingUrl, initialUrl]);
   } finally {
+    stopInitialUrlPolling = true;
     linkingSubscription?.remove();
   }
 }
@@ -1021,7 +1042,7 @@ export const authAPI = {
       const redirectUri = getRedirectUri();
       authLogger.log('🔗 Yandex redirect URI prepared');
 
-      const yandexScope = 'openid login:email login:info';
+      const yandexScope = 'login:email,login:info';
       const credentials = {
         // `custom:*` identifier must match the provider configured in Supabase Auth.
         provider: YANDEX_OAUTH_PROVIDER,
@@ -1030,7 +1051,6 @@ export const authAPI = {
           skipBrowserRedirect: true,
           scopes: yandexScope,
           queryParams: {
-            scope: yandexScope,
             force_confirm: 'yes',
           },
         },

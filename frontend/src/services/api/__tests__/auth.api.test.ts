@@ -299,9 +299,8 @@ describe('authAPI authorization methods', () => {
         options: expect.objectContaining({
           redirectTo: 'astralink://auth/callback',
           skipBrowserRedirect: true,
-          scopes: 'openid login:email login:info',
+          scopes: 'login:email,login:info',
           queryParams: {
-            scope: 'openid login:email login:info',
             force_confirm: 'yes',
           },
         }),
