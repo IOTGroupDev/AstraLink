@@ -205,18 +205,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     [navigation]
   );
 
-  const resetToSignUp = React.useCallback(() => {
-    const rootNavigation = navigation.getParent?.() ?? navigation;
-    try {
-      rootNavigation.reset({
-        index: 0,
-        routes: [{ name: 'SignUp' }],
-      });
-    } catch (navigationError) {
-      logger.warn('Navigation reset to SignUp failed', navigationError);
-    }
-  }, [navigation]);
-
   const clearProfileAndRouteToAuth = React.useCallback(async () => {
     isSigningOutRef.current = true;
     requestIdRef.current += 1;
@@ -234,9 +222,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       logger.warn('Local auth cleanup failed', cleanupError);
       useAuthStore.getState().resetAuth();
     }
-
-    resetToSignUp();
-  }, [queryClient, resetToSignUp]);
+  }, [queryClient]);
 
   const finishAccountDeletionLocally = React.useCallback(async () => {
     isDeletingAccountRef.current = true;
@@ -267,8 +253,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
 
     useAuthStore.getState().resetAuth();
-    resetToSignUp();
-  }, [queryClient, resetToSignUp]);
+  }, [queryClient]);
 
   // Animations
   const fadeAnim = useSharedValue(0);
