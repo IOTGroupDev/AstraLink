@@ -1,10 +1,17 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
+    presets: [
+      [
+        'babel-preset-expo',
+        {
+          native: {
+            unstable_transformImportMeta: true,
+          },
+        },
+      ],
+    ],
     plugins: [
-      // Enable import.meta syntax for ESM compatibility
-      '@babel/plugin-syntax-import-meta',
       // Required for react-native-reanimated (must be last)
       'react-native-reanimated/plugin',
     ],
