@@ -16,6 +16,7 @@ const OAUTH_REDIRECT_PATH = 'auth/callback';
 const OAUTH_NATIVE_REDIRECT_URI = 'astralink://auth/callback';
 const OAUTH_SESSION_TIMEOUT_MS = 60_000;
 const OAUTH_SESSION_RECOVERY_MS = 10_000;
+const ENSURE_PROFILE_TIMEOUT_MS = 10_000;
 const runtimeEnv: Record<string, string | undefined> =
   typeof process !== 'undefined'
     ? ((process as { env?: Record<string, string | undefined> }).env ?? {})
@@ -46,6 +47,55 @@ type EnsureUserProfileResult = {
   };
   onboardingCompleted?: boolean;
 };
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${label}_timeout`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function ensureUserProfileWithTimeout(data: {
+  userId: string;
+  email: string;
+}): Promise<EnsureUserProfileResult> {
+  try {
+    return await withTimeout(
+      authAPI.ensureUserProfile(data),
+      ENSURE_PROFILE_TIMEOUT_MS,
+      'ensure_profile'
+    );
+  } catch (error) {
+    authLogger.warn(
+      '⚠️ ensureUserProfile did not finish in time; continuing with Supabase session',
+      error
+    );
+    return {
+      success: false,
+      user: {
+        id: data.userId,
+        email: data.email,
+        onboardingCompleted: false,
+      },
+      onboardingCompleted: false,
+    };
+  }
+}
 
 function collectEmailLikeValues(value: unknown, out: string[] = []): string[] {
   if (!value) return out;
@@ -295,22 +345,61 @@ async function saveOtpRateLimitState(state: OtpRateLimitState): Promise<void> {
   }
 }
 
-function computeNextOtpRetryAfterSec(
-  nowMs: number,
-  prev: OtpRateLimitState
-): OtpRateLimitState {
-  const next: OtpRateLimitState = { ...prev };
+async function clearOtpRateLimitState(): Promise<void> {
+  otpRateLimitState.lastAtMs = 0;
+  otpRateLimitState.backoffSec = 60;
 
-  // If last rate-limit was long ago, reset backoff.
-  if (nowMs - next.lastAtMs > 15 * 60 * 1000) {
-    next.backoffSec = 60;
-  } else {
-    // Exponential backoff up to 1 hour.
-    next.backoffSec = Math.min(next.backoffSec * 2, 3600);
+  if (Platform.OS === 'web') {
+    try {
+      // eslint-disable-next-line no-undef
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(OTP_RATE_LIMIT_STORAGE_KEY);
+      }
+    } catch (_error) {
+      return;
+    }
+    return;
   }
 
-  next.lastAtMs = nowMs;
-  return next;
+  try {
+    await AsyncStorage.removeItem(OTP_RATE_LIMIT_STORAGE_KEY);
+  } catch (_error) {
+    return;
+  }
+}
+
+function getOtpErrorDetails(error: any): {
+  message: string;
+  status?: number;
+  retryAfterSec?: number;
+} {
+  const status =
+    typeof error?.response?.status === 'number'
+      ? error.response.status
+      : typeof error?.status === 'number'
+        ? error.status
+        : undefined;
+  const responseData = error?.response?.data;
+  const responseMessage =
+    typeof responseData?.message === 'string'
+      ? responseData.message
+      : Array.isArray(responseData?.message)
+        ? responseData.message.join(' ')
+        : '';
+  const message = responseMessage || String(error?.message || '');
+
+  const retryAfterHeader =
+    error?.response?.headers?.['retry-after'] ??
+    error?.response?.headers?.['Retry-After'];
+  const retryAfterFromHeader = Number(retryAfterHeader);
+  const retryAfterValue = Number(responseData?.retryAfter);
+  const retryAfterSec = Number.isFinite(retryAfterFromHeader)
+    ? Math.max(1, Math.ceil(retryAfterFromHeader))
+    : Number.isFinite(retryAfterValue)
+      ? Math.max(1, Math.ceil((retryAfterValue - Date.now()) / 1000))
+      : undefined;
+
+  return { message, status, retryAfterSec };
 }
 
 // Redirect URI helper for OTP/Magic Link/OAuth
@@ -510,9 +599,25 @@ async function openOAuthSession(
   });
 
   try {
+    try {
+      WebBrowser.dismissBrowser();
+    } catch {
+      // No browser session is open. Continue with a fresh OAuth attempt.
+    }
+
+    authLogger.log('🔗 Opening OAuth browser session', {
+      redirectUri,
+      hasAuthUrl: !!authUrl,
+    });
+
     const browserUrl = WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
       preferEphemeralSession: true,
     }).then(async (result) => {
+      authLogger.log('🔗 OAuth browser session result', {
+        type: result.type,
+        hasUrl: 'url' in result ? !!result.url : false,
+      });
+
       if (result.type === 'success' && result.url) {
         return result.url;
       }
@@ -742,7 +847,7 @@ export const authAPI = {
       const stored = await loadOtpRateLimitState();
       const waitMs = stored.lastAtMs + stored.backoffSec * 1000 - nowMs;
 
-      if (waitMs > 0) {
+      if (waitMs > 0 && stored.backoffSec <= 60) {
         const retryAfterSec = Math.max(1, Math.ceil(waitMs / 1000));
         const err: any = new Error(
           `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`
@@ -757,6 +862,10 @@ export const authAPI = {
         });
 
         throw err;
+      }
+
+      if (waitMs > 0) {
+        await clearOtpRateLimitState();
       }
 
       authLogger.log('📧 Отправка OTP через Backend → Supabase');
@@ -785,34 +894,28 @@ export const authAPI = {
 
       return { success: true, message, flow };
     } catch (error: any) {
-      const rawMsg = String(error?.message || '');
+      const details = getOtpErrorDetails(error);
+      const rawMsg = details.message;
 
       // Supabase can return: "email rate limit exceeded"
       const isEmailRateLimit =
-        /email rate limit exceeded/i.test(rawMsg) || /rate limit/i.test(rawMsg);
+        details.status === 429 ||
+        ((details.status === 403 || details.status === 400) &&
+          /too many|rate limit|лимит/i.test(rawMsg)) ||
+        /email rate limit exceeded/i.test(rawMsg) ||
+        /rate limit/i.test(rawMsg);
 
       if (isEmailRateLimit) {
-        const nowMs = Date.now();
-
-        // If Supabase doesn't provide Retry-After (usually it doesn't via supabase-js),
-        // we persist an exponential backoff to reflect that the server window can be > 60s
-        // and to keep it consistent across app reloads.
-        const stored = await loadOtpRateLimitState();
-        const nextState = computeNextOtpRetryAfterSec(nowMs, stored);
-
-        // keep in-memory in sync too
-        otpRateLimitState.lastAtMs = nextState.lastAtMs;
-        otpRateLimitState.backoffSec = nextState.backoffSec;
-
-        await saveOtpRateLimitState(nextState);
-
         const retryAfterSec =
-          Number((error as any)?.retryAfterSec) || nextState.backoffSec;
+          Number((error as any)?.retryAfterSec) || details.retryAfterSec || 60;
+
+        await clearOtpRateLimitState();
 
         // attach metadata for UI (screens can read it to disable button / show countdown)
         (error as any).code =
           (error as any)?.code || 'email_rate_limit_exceeded';
         (error as any).retryAfterSec = retryAfterSec;
+        (error as any).status = 429;
 
         // Don't overpromise 60s; show the computed backoff.
         error.message = `Лимит отправки писем исчерпан. Подождите ${retryAfterSec} секунд и попробуйте снова.`;
@@ -825,7 +928,7 @@ export const authAPI = {
       // Логируем нормализованную ошибку + статус, чтобы было видно 429 и backoff
       authLogger.error('❌ Ошибка отправки OTP:', {
         message: String(error?.message || ''),
-        status: (error as any)?.status,
+        status: (error as any)?.status ?? details.status,
         code: (error as any)?.code,
         retryAfterSec: (error as any)?.retryAfterSec,
         rawMessage: rawMsg,
@@ -860,7 +963,7 @@ export const authAPI = {
 
       let ensured: EnsureUserProfileResult;
       try {
-        ensured = await authAPI.ensureUserProfile({
+        ensured = await ensureUserProfileWithTimeout({
           userId: data.user!.id,
           email: data.user!.email!,
         });
@@ -935,7 +1038,7 @@ export const authAPI = {
           throw new Error('Email не получен от Apple провайдера');
         }
 
-        const ensured = await authAPI.ensureUserProfile({
+        const ensured = await ensureUserProfileWithTimeout({
           userId: user.id,
           email,
         });
@@ -977,7 +1080,7 @@ export const authAPI = {
           throw new Error('Email не получен от Apple провайдера');
         }
 
-        const ensured = await authAPI.ensureUserProfile({
+        const ensured = await ensureUserProfileWithTimeout({
           userId: user.id,
           email,
         });
@@ -1030,7 +1133,7 @@ export const authAPI = {
           throw new Error('Email не получен от OAuth провайдера');
         }
 
-        const ensured = await authAPI.ensureUserProfile({
+        const ensured = await ensureUserProfileWithTimeout({
           userId: user.id,
           email,
         });
@@ -1095,7 +1198,7 @@ export const authAPI = {
           throw new Error('Email не получен от Yandex провайдера');
         }
 
-        const ensured = await authAPI.ensureUserProfile({
+        const ensured = await ensureUserProfileWithTimeout({
           userId: user.id,
           email,
         });
@@ -1128,10 +1231,13 @@ export const authAPI = {
     longitude?: number;
     timezone?: string;
     birthTimeKnown?: boolean;
-  }): Promise<void> => {
+  }): Promise<{
+    success: boolean;
+    user?: AuthResponse['user'];
+  }> => {
     try {
       authLogger.log('📝 Завершение регистрации');
-      await api.post('/auth/complete-signup', {
+      const response = await api.post('/auth/complete-signup', {
         userId: data.userId,
         name: data.name,
         birthDate: data.birthDate,
@@ -1143,6 +1249,7 @@ export const authAPI = {
         birthTimeKnown: data.birthTimeKnown,
       });
       authLogger.log('✅ Регистрация завершена');
+      return response.data;
     } catch (error: any) {
       authLogger.error('❌ Complete signup failed:', error);
       throw error;

@@ -2,7 +2,8 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -14,8 +15,8 @@ import { RateLimiterService } from '@/common/services/rate-limiter.service';
  * Prevents spam and abuse of the passwordless login system
  *
  * Limits:
- * - 3 magic link requests per hour per IP address
- * - 10 requests per hour per email address
+ * - 20 magic link requests per hour per IP address
+ * - 30 requests per hour per email address
  *
  * This prevents:
  * - Email bombing attacks
@@ -41,10 +42,11 @@ export class MagicLinkRateLimitGuard implements CanActivate {
     // Get email from request body
     const email = request.body?.email;
 
-    // Rate limit by IP (3 per hour)
+    // Rate limit by IP. Keep this above normal human resend/testing flows;
+    // the stricter per-email limit below still protects a single mailbox.
     const ipKey = `magic-link:ip:${ip}`;
     const ipResult = await this.rateLimiter.consume(ipKey, {
-      points: 3,
+      points: 20,
       duration: 3600, // 1 hour
     });
 
@@ -53,19 +55,29 @@ export class MagicLinkRateLimitGuard implements CanActivate {
         `Magic link rate limit exceeded for IP ${ip}. Blocked until ${new Date(ipResult.resetTime).toISOString()}`,
       );
 
-      throw new ForbiddenException({
-        message:
-          'Too many magic link requests from this IP. Please try again later.',
-        retryAfter: ipResult.resetTime,
-        remaining: 0,
-      });
+      response.setHeader(
+        'Retry-After',
+        Math.max(
+          1,
+          Math.ceil((ipResult.resetTime - Date.now()) / 1000),
+        ).toString(),
+      );
+      throw new HttpException(
+        {
+          message:
+            'Too many magic link requests from this IP. Please try again later.',
+          retryAfter: ipResult.resetTime,
+          remaining: 0,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
-    // Rate limit by email if provided (10 per hour)
+    // Rate limit by email if provided.
     if (email) {
       const emailKey = `magic-link:email:${email.toLowerCase()}`;
       const emailResult = await this.rateLimiter.consume(emailKey, {
-        points: 10,
+        points: 30,
         duration: 3600, // 1 hour
       });
 
@@ -74,12 +86,22 @@ export class MagicLinkRateLimitGuard implements CanActivate {
           `Magic link rate limit exceeded for email identifier. Blocked until ${new Date(emailResult.resetTime).toISOString()}`,
         );
 
-        throw new ForbiddenException({
-          message:
-            'Too many magic link requests for this email. Please check your inbox or try again later.',
-          retryAfter: emailResult.resetTime,
-          remaining: 0,
-        });
+        response.setHeader(
+          'Retry-After',
+          Math.max(
+            1,
+            Math.ceil((emailResult.resetTime - Date.now()) / 1000),
+          ).toString(),
+        );
+        throw new HttpException(
+          {
+            message:
+              'Too many magic link requests for this email. Please check your inbox or try again later.',
+            retryAfter: emailResult.resetTime,
+            remaining: 0,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
       }
 
       // Add email rate limit headers

@@ -7,29 +7,65 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { tokenService } from './tokenService';
 import { storageLogger } from './logger';
+import { useAuthStore } from '../stores/auth.store';
+import { useOnboardingStore } from '../stores/onboarding.store';
+import { useChartStore } from '../stores/chart.store';
+import { useSubscriptionStore } from '../stores/subscription.store';
 
-const getSupabaseSecureKeys = (): string[] => {
+const getSupabaseUrlCandidates = (): string[] => {
   const env: any =
     (typeof process !== 'undefined' ? (process as any).env : {}) || {};
   const expoExtra: any = Constants?.expoConfig?.extra || {};
-  const supabaseUrl =
-    env.EXPO_PUBLIC_SUPABASE_URL || expoExtra.SUPABASE_URL || env.SUPABASE_URL;
 
-  if (!supabaseUrl) {
-    return [];
+  return [
+    env.EXPO_PUBLIC_SUPABASE_URL,
+    expoExtra.EXPO_PUBLIC_SUPABASE_URL,
+    expoExtra.SUPABASE_URL,
+    env.SUPABASE_URL,
+  ].filter(
+    (value): value is string =>
+      typeof value === 'string' && value.trim().length > 0
+  );
+};
+
+export const getSupabaseSecureKeysForCleanup = (
+  urlCandidates: string[] = getSupabaseUrlCandidates()
+): string[] => {
+  const projectRefs = new Set<string>();
+
+  for (const supabaseUrl of urlCandidates) {
+    try {
+      const host = new URL(supabaseUrl).hostname;
+      const projectRef = host.split('.')[0];
+      if (projectRef) {
+        projectRefs.add(projectRef);
+      }
+    } catch {
+      // Ignore invalid URL candidates.
+    }
   }
 
-  try {
-    const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
-    if (!projectRef) {
-      return [];
-    }
-
+  return Array.from(projectRefs).flatMap((projectRef) => {
     const baseKey = `sb-${projectRef}-auth-token`;
     return [baseKey, `${baseKey}-code-verifier`, `${baseKey}-user`];
-  } catch {
-    return [];
-  }
+  });
+};
+
+export const resetInMemoryUserState = (): void => {
+  useAuthStore.getState().resetAuth();
+  useOnboardingStore.getState().reset();
+  useChartStore.setState({
+    natalChart: null,
+    currentTransits: null,
+    predictions: null,
+    isLoading: false,
+    error: null,
+  });
+  useSubscriptionStore.setState({
+    subscription: null,
+    isLoading: false,
+    error: null,
+  });
 };
 
 /**
@@ -39,6 +75,10 @@ const getSupabaseSecureKeys = (): string[] => {
 export const clearAllUserData = async (): Promise<void> => {
   try {
     storageLogger.log('Starting complete user data cleanup...');
+
+    // 0. Clear current in-memory Zustand state. Removing storage is not enough
+    // while the app process keeps running after account deletion.
+    resetInMemoryUserState();
 
     // 1. Clear tokenService data (token + settings)
     await tokenService.clearAll();
@@ -56,6 +96,7 @@ export const clearAllUserData = async (): Promise<void> => {
     // 3. Clear all user-scoped AsyncStorage keys (including legacy keys)
     const allKeys = await AsyncStorage.getAllKeys();
     const removablePrefixes = [
+      'sb-',
       'auth-',
       'onboarding-',
       'chart-',
@@ -82,10 +123,11 @@ export const clearAllUserData = async (): Promise<void> => {
     // 4. Clear known secure native keys that do not live in AsyncStorage
     if (Platform.OS !== 'web') {
       const secureKeys = [
+        'al_token_secure',
         'onboarding-storage',
         'notifications:last-expo-push-token',
         'notifications:last-user-id',
-        ...getSupabaseSecureKeys(),
+        ...getSupabaseSecureKeysForCleanup(),
       ].filter((key) => typeof key === 'string' && key.trim().length > 0);
       await Promise.all(
         secureKeys.map((key) =>

@@ -235,6 +235,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     setPrimaryPhotoUrl(null);
     setLoading(false);
     queryClient.clear();
+    useAuthStore.getState().resetAuth();
 
     try {
       await supabase.auth.signOut({ scope: 'local' });
@@ -251,8 +252,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     } catch (cleanupError) {
       logger.warn('Local cleanup after account deletion failed', cleanupError);
     }
-
-    useAuthStore.getState().resetAuth();
   }, [queryClient]);
 
   // Animations

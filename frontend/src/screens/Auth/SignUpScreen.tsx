@@ -13,7 +13,6 @@ import { useTranslation } from 'react-i18next';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
-import { supabase } from '../../services/supabase';
 import { useOnboardingStore } from '../../stores/onboarding.store';
 import {
   withBiometricProtection,
@@ -21,6 +20,7 @@ import {
 } from '../../services/oauthHelper';
 import { AuthEngine } from '../../services/authEngine';
 import { useAuthStore } from '../../stores/auth.store';
+import { applyOAuthSessionToAuthStore } from '../../services/oauthSessionRouting';
 import type { RootStackParamList } from '../../types/navigation';
 import {
   AUTH_COLORS,
@@ -38,30 +38,14 @@ const SignUpScreen = () => {
   const routeAfterOAuth = async (
     user?: Awaited<ReturnType<typeof authAPI.googleSignIn>>['user']
   ) => {
-    if (user) {
-      const authStore = useAuthStore.getState();
-      const onboardingCompleted = !!user.onboardingCompleted;
-
+    const applied = await applyOAuthSessionToAuthStore(user);
+    if (applied) {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          authStore.setSession(data.session);
-        }
+        await AuthEngine.refreshProfile();
       } catch {
-        // Session was already written by authAPI; do not block routing here.
+        // Keep the provisional ONBOARDING route only if the backend profile
+        // cannot be confirmed right now.
       }
-
-      authStore.setProfile({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        onboardingCompleted,
-      });
-      authStore.setAuthState(onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING');
-      authStore.setLoading(false);
-      authStore.setError(null);
-
-      void AuthEngine.refreshProfileInBackground();
       return;
     }
 
@@ -98,6 +82,12 @@ const SignUpScreen = () => {
       reset();
       await routeAfterOAuth(result.user);
     } catch (error: unknown) {
+      await routeAfterOAuth();
+      const nextState = useAuthStore.getState().authState;
+      if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
+        reset();
+        return;
+      }
       handleOAuthError(error, 'Google');
     } finally {
       setLoading(false);
@@ -116,6 +106,12 @@ const SignUpScreen = () => {
       reset();
       await routeAfterOAuth(result.user);
     } catch (error: unknown) {
+      await routeAfterOAuth();
+      const nextState = useAuthStore.getState().authState;
+      if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
+        reset();
+        return;
+      }
       handleOAuthError(error, 'Apple');
     } finally {
       setLoading(false);
@@ -134,6 +130,12 @@ const SignUpScreen = () => {
       reset();
       await routeAfterOAuth(result.user);
     } catch (error: unknown) {
+      await routeAfterOAuth();
+      const nextState = useAuthStore.getState().authState;
+      if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
+        reset();
+        return;
+      }
       handleOAuthError(error, 'Yandex');
     } finally {
       setLoading(false);

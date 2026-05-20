@@ -176,6 +176,15 @@ export default function OnboardingFourthScreen() {
 
       const birthTime = `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
       const resolvedBirthPlace = selectedCity?.city || placeClean;
+      const completedProfile = {
+        id: userId,
+        email: session?.user.email || authProfile?.email || '',
+        name: nameClean,
+        birthDate,
+        birthTime,
+        birthPlace: resolvedBirthPlace,
+        onboardingCompleted: true,
+      };
 
       authLogger.log('Submitting onboarding completion', {
         userId,
@@ -188,13 +197,30 @@ export default function OnboardingFourthScreen() {
         birthTimeKnown: !dontKnowTime,
       });
 
-      await authAPI.completeSignup({
+      const completed = await authAPI.completeSignup({
         userId,
         name: nameClean,
         birthDate,
         birthTime,
         birthPlace: resolvedBirthPlace,
+        latitude: selectedCity?.lat,
+        longitude: selectedCity?.lon,
+        timezone: selectedCity?.tzid,
+        birthTimeKnown: !dontKnowTime,
       });
+
+      const serverUser = completed.user;
+      setCompleted(true);
+      setAuthProfile({
+        ...completedProfile,
+        name: serverUser?.name || completedProfile.name,
+        birthDate: serverUser?.birthDate || completedProfile.birthDate,
+        birthTime: serverUser?.birthTime || completedProfile.birthTime,
+        birthPlace: serverUser?.birthPlace || completedProfile.birthPlace,
+        onboardingCompleted: true,
+      });
+      setAuthState('AUTHORIZED');
+      void AuthEngine.refreshProfileInBackground();
 
       void userExtendedProfileAPI
         .updateUserProfile({
@@ -206,19 +232,6 @@ export default function OnboardingFourthScreen() {
             extendedProfileError
           );
         });
-
-      setCompleted(true);
-      setAuthProfile({
-        id: userId,
-        email: session?.user.email || authProfile?.email || '',
-        name: nameClean,
-        birthDate,
-        birthTime,
-        birthPlace: resolvedBirthPlace,
-        onboardingCompleted: true,
-      });
-      setAuthState('AUTHORIZED');
-      void AuthEngine.refreshProfileInBackground();
     } catch (error) {
       authLogger.error('Onboarding completion failed', error);
       if (isStaleAuthSessionError(error)) {

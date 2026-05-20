@@ -69,13 +69,7 @@ export const userAPI = {
       return response.data;
     } catch (error: any) {
       apiLogger.error('Ошибка удаления аккаунта', error);
-      if (error.response?.status === 401)
-        throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
-      else if (error.response?.status === 404)
-        throw new Error('Пользователь не найден.');
-      else if (error.response?.data?.message)
-        throw new Error(error.response.data.message);
-      else throw new Error('Не удалось удалить аккаунт. Попробуйте позже.');
+      throw error;
     }
   },
 };

@@ -140,6 +140,29 @@ const QUICK_ACTIONS = [
   },
 ] as const;
 
+const withTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${label} timeout`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
 const HoroscopeScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -560,6 +583,8 @@ const HoroscopeScreen: React.FC = () => {
         chartLogger.log('Получены текущие планеты', planetsData);
 
         setCurrentPlanets(planetsData?.planets ?? null);
+        setLoading(false);
+        hasLoadedOnceRef.current = true;
 
         const loadedPredictions = await loadAllPredictions(forcePredictions);
 
@@ -697,7 +722,11 @@ const HoroscopeScreen: React.FC = () => {
       }
       predictionsLoadingRef.current = true;
 
-      const response = await chartAPI.getAllHoroscopes(locale);
+      const response = await withTimeout(
+        chartAPI.getAllHoroscopes(locale),
+        20_000,
+        'getAllHoroscopes'
+      );
       chartLogger.log('Получены прогнозы bundle', response);
 
       const newPredictions = normalizeHoroscopeBundle(response);

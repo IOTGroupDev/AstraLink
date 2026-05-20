@@ -11,6 +11,29 @@ export type AuthState = 'BOOT' | 'UNAUTHORIZED' | 'ONBOARDING' | 'AUTHORIZED';
 
 let engineInitialized = false;
 let authSubscription: { unsubscribe: () => void } | null = null;
+const PROFILE_LOOKUP_TIMEOUT_MS = 10_000;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${label}_timeout`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 const needsOnboarding = (profile: AuthProfile | null): boolean => {
   return !profile?.birthDate || !profile?.birthTime || !profile?.birthPlace;
@@ -51,7 +74,7 @@ const normalizeProfile = (raw: any): AuthProfile => ({
   birthDate: raw.birthDate || undefined,
   birthTime: raw.birthTime || undefined,
   birthPlace: raw.birthPlace || undefined,
-  onboardingCompleted: !needsOnboarding(raw),
+  onboardingCompleted: !!raw.birthDate && !!raw.birthTime && !!raw.birthPlace,
 });
 
 const profileFromSession = (session: Session): AuthProfile => ({
@@ -73,7 +96,11 @@ const resolveState = (profile: AuthProfile | null) => {
 };
 
 const fetchProfile = async (): Promise<AuthProfile | null> => {
-  const profile = await userAPI.getProfile();
+  const profile = await withTimeout(
+    userAPI.getProfile(),
+    PROFILE_LOOKUP_TIMEOUT_MS,
+    'profile_lookup'
+  );
   return normalizeProfile(profile);
 };
 
@@ -141,6 +168,19 @@ const syncCurrentSession = async (context: string): Promise<Session | null> => {
 };
 
 const applyFallbackProfileState = (session: Session) => {
+  const current = useAuthStore.getState();
+  const currentProfile = current.profile;
+
+  if (
+    current.session?.user?.id === session.user.id &&
+    currentProfile?.id === session.user.id &&
+    !needsOnboarding(currentProfile)
+  ) {
+    setError('profile_load_failed');
+    setState('AUTHORIZED');
+    return;
+  }
+
   const fallbackProfile = profileFromSession(session);
   setProfile(fallbackProfile);
   setError('profile_load_failed');
@@ -193,6 +233,18 @@ const bootstrap = async () => {
 
 const handleAuthEvent = async (event: string, session: Session | null) => {
   authLogger.log('Auth event', event);
+
+  if (!session) {
+    const currentSession = await getCurrentSessionSafely(
+      `Auth event ${event} without session`
+    );
+    if (currentSession) {
+      authLogger.warn(
+        `Ignoring ${event} without session because a current session exists`
+      );
+      session = currentSession;
+    }
+  }
 
   setError(null);
   setSession(session);

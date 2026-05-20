@@ -1,12 +1,14 @@
 import { Platform } from 'react-native';
 import { Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../auth.api';
 import { api } from '../client';
 import { supabase } from '../../supabase';
 
 jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
+  dismissBrowser: jest.fn(),
   openAuthSessionAsync: jest.fn(),
 }));
 
@@ -90,8 +92,9 @@ beforeAll(() => {
   });
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  await AsyncStorage.clear();
   global.fetch = mockedFetch as any;
   mockedSupabaseAuth.setSession.mockResolvedValue({
     data: {
@@ -127,6 +130,50 @@ describe('authAPI authorization methods', () => {
       message: 'Код отправлен на email',
       flow: 'signup',
     });
+    expect(mockedApi.post).toHaveBeenCalledWith('/auth/send-magic-link', {
+      email: 'person@example.com',
+    });
+  });
+
+  it('normalizes backend OTP rate limits instead of surfacing a raw 403', async () => {
+    const error: any = new Error('Request failed with status code 403');
+    error.response = {
+      status: 403,
+      data: {
+        message:
+          'Too many magic link requests from this IP. Please try again later.',
+        retryAfter: Date.now() + 90_000,
+      },
+      headers: {},
+    };
+    mockedApi.post.mockRejectedValueOnce(error);
+
+    await expect(
+      authAPI.sendVerificationCode('person@example.com')
+    ).rejects.toMatchObject({
+      code: 'email_rate_limit_exceeded',
+      status: 429,
+      retryAfterSec: expect.any(Number),
+      message: expect.stringContaining('Лимит отправки писем исчерпан'),
+    });
+  });
+
+  it('clears stale long OTP backoff and still calls backend', async () => {
+    await AsyncStorage.setItem(
+      'al_otp_rate_limit_v1',
+      JSON.stringify({
+        lastAtMs: Date.now(),
+        backoffSec: 1200,
+      })
+    );
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    await expect(
+      authAPI.sendVerificationCode('person@example.com')
+    ).resolves.toMatchObject({
+      success: true,
+    });
+
     expect(mockedApi.post).toHaveBeenCalledWith('/auth/send-magic-link', {
       email: 'person@example.com',
     });
@@ -257,6 +304,40 @@ describe('authAPI authorization methods', () => {
       expect(result.user.email).toBe('person@example.com');
     } finally {
       addEventListenerSpy.mockRestore();
+    }
+  });
+
+  it('completes Google OAuth even when backend ensure-profile hangs', async () => {
+    jest.useFakeTimers();
+
+    try {
+      mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+        data: { url: 'https://auth.example.com/google' },
+        error: null,
+      });
+      mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+        type: 'success',
+        url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+      } as any);
+      mockedApi.post.mockReturnValueOnce(new Promise(() => undefined));
+
+      const resultPromise = authAPI.googleSignIn();
+      await flushPromises();
+      await jest.advanceTimersByTimeAsync(10_000);
+
+      const result = await resultPromise;
+
+      expect(result).toEqual({
+        access_token: 'oauth-access',
+        user: {
+          id: 'user-1',
+          email: 'person@example.com',
+          name: 'Person',
+          onboardingCompleted: false,
+        },
+      });
+    } finally {
+      jest.useRealTimers();
     }
   });
 

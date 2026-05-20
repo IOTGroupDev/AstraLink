@@ -105,6 +105,25 @@ describe('API Client', () => {
       expect(config.headers.Authorization).toBe('Bearer access-token');
       expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
     });
+
+    it('should not reset local auth when token lookup races during startup', async () => {
+      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+        data: { session: null },
+        error: null,
+      } as any);
+
+      const fulfilled = api.interceptors.request.handlers[0].fulfilled;
+
+      await expect(
+        fulfilled({
+          method: 'get',
+          url: '/user/profile',
+          headers: {},
+        })
+      ).rejects.toThrow('Authentication required');
+
+      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
+    });
   });
 
   describe('Response Interceptor', () => {
@@ -114,6 +133,10 @@ describe('API Client', () => {
     });
 
     it('should reset local auth on unauthorized responses', async () => {
+      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+        data: { session: null },
+        error: null,
+      } as any);
       const rejected = api.interceptors.response.handlers[0].rejected;
 
       await expect(
@@ -128,6 +151,106 @@ describe('API Client', () => {
       expect(mockedInvalidateLocalAuthSession).toHaveBeenCalledWith(
         '401 from GET /user/profile'
       );
+    });
+
+    it('should not reset local auth when a stale request gets 401 after a new session exists', async () => {
+      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'new-token',
+          },
+        },
+        error: null,
+      } as any);
+      const rejected = api.interceptors.response.handlers[0].rejected;
+
+      await expect(
+        rejected({
+          config: {
+            method: 'get',
+            url: '/user/profile',
+            headers: {
+              Authorization: 'Bearer old-token',
+            },
+          },
+          response: { status: 401, data: { message: 'Unauthorized' } },
+        })
+      ).rejects.toMatchObject({
+        response: { status: 401 },
+      });
+
+      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
+    });
+
+    it('should not reset local auth when an unauthenticated stale request gets 401 after sign-in', async () => {
+      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'new-token',
+          },
+        },
+        error: null,
+      } as any);
+      const rejected = api.interceptors.response.handlers[0].rejected;
+
+      await expect(
+        rejected({
+          config: {
+            method: 'get',
+            url: '/user/profile',
+            headers: {},
+          },
+          response: { status: 401, data: { message: 'Unauthorized' } },
+        })
+      ).rejects.toMatchObject({
+        response: { status: 401 },
+      });
+
+      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
+    });
+
+    it('should not reset local auth when current Supabase session gets a backend 401', async () => {
+      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'current-token',
+          },
+        },
+        error: null,
+      } as any);
+      const rejected = api.interceptors.response.handlers[0].rejected;
+
+      await expect(
+        rejected({
+          config: {
+            method: 'get',
+            url: '/user/profile',
+            headers: {
+              Authorization: 'Bearer current-token',
+            },
+          },
+          response: { status: 401, data: { message: 'Unauthorized' } },
+        })
+      ).rejects.toMatchObject({
+        response: { status: 401 },
+      });
+
+      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
+    });
+
+    it('should not reset local auth on forbidden responses', async () => {
+      const rejected = api.interceptors.response.handlers[0].rejected;
+
+      await expect(
+        rejected({
+          config: { method: 'get', url: '/subscription/status' },
+          response: { status: 403, data: { message: 'Forbidden' } },
+        })
+      ).rejects.toMatchObject({
+        response: { status: 403 },
+      });
+
+      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
     });
   });
 });

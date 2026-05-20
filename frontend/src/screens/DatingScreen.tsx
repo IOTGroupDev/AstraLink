@@ -404,7 +404,14 @@ export default function DatingScreen() {
   // Загрузка кандидатов
   // ===============================
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) return;
+
+    if (!user) {
+      setCandidates([]);
+      setCurrentIndex(0);
+      setLoadingCards(false);
+      return;
+    }
 
     (async () => {
       setLoadingCards(true);

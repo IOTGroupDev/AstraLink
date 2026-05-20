@@ -84,13 +84,15 @@ export default function MainStackNavigator() {
 
   if (authState === 'ONBOARDING') {
     return (
-      <Stack.Navigator key="onboarding" screenOptions={defaultScreenOptions}>
+      <Stack.Navigator
+        key="onboarding"
+        initialRouteName="Onboarding2"
+        screenOptions={defaultScreenOptions}
+      >
         <Stack.Screen name="Onboarding2" component={OnboardingSecondScreen} />
         <Stack.Screen name="Onboarding3" component={OnboardingThirdScreen} />
         <Stack.Screen name="Onboarding4" component={OnboardingFourthScreen} />
         <Stack.Screen name="Onboarding1" component={OnboardingFirstScreen} />
-        <Stack.Screen name="AuthEmail" component={AuthEmailScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
       </Stack.Navigator>
     );
   }

@@ -22,9 +22,9 @@ import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
-import { AuthEngine } from '../../services/authEngine';
 import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../../stores/auth.store';
+import { AuthEngine } from '../../services/authEngine';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import {
@@ -188,18 +188,24 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           id: verifiedUser.id,
           email: verifiedUser.email,
           name: verifiedUser.name,
-          onboardingCompleted,
+          onboardingCompleted: false,
         });
-        authStore.setAuthState(
-          onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING'
-        );
+        authStore.setAuthState('ONBOARDING');
         authStore.setLoading(false);
         authStore.setError(null);
       }
 
-      setSubmitting(false);
+      if (onboardingCompleted) {
+        try {
+          await AuthEngine.refreshProfile();
+        } catch {
+          authStore.setAuthState('ONBOARDING');
+        }
+      } else if (verifiedUser) {
+        authStore.setAuthState('ONBOARDING');
+      }
 
-      void AuthEngine.refreshProfileInBackground();
+      setSubmitting(false);
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.message ?? '';

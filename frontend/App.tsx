@@ -44,6 +44,7 @@ export default function App() {
   const authState = useAuthStore((s) => s.authState);
   const isLoading = useAuthStore((s) => s.isLoading);
   const session = useAuthStore((s) => s.session);
+  const authSceneVersion = useAuthStore((s) => s.authSceneVersion);
   const [startupSplashReady, setStartupSplashReady] = useState(false);
   const prefetchedUserIdRef = useRef<string | null>(null);
 
@@ -146,7 +147,10 @@ export default function App() {
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <QueryClientProvider client={queryClient}>
         <View style={styles.root}>
-          <NavigationContainer theme={NavigationTheme}>
+          <NavigationContainer
+            key={`auth-scene-${authSceneVersion}`}
+            theme={NavigationTheme}
+          >
             <MainStackNavigator />
           </NavigationContainer>
           <TopStatusBarFade />

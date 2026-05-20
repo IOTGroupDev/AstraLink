@@ -750,13 +750,46 @@ export class SupabaseAuthService {
         .single();
 
       if (existingByEmail && existingByEmail.id !== userId) {
-        this.logger.log(
-          '⚠️ Email already used by another auth identity; returning existing profile state',
+        let staleAuthUserStillExists = false;
+        try {
+          const admin = this.supabaseService.getAdminClient();
+          const { data: staleAuthData, error: staleAuthError } =
+            await admin.auth.admin.getUserById(existingByEmail.id);
+          staleAuthUserStillExists = Boolean(
+            !staleAuthError && staleAuthData?.user,
+          );
+        } catch (staleAuthLookupError) {
+          this.logger.warn(
+            '⚠️ Failed to lookup auth user for email-matched stale profile',
+            toSafeLogMeta(staleAuthLookupError),
+          );
+        }
+
+        if (staleAuthUserStillExists) {
+          this.logger.warn(
+            '⚠️ Email belongs to another active auth user; refusing to reuse profile data',
+          );
+          throw new ConflictException(
+            'Пользователь с таким email уже существует',
+          );
+        }
+
+        this.logger.warn(
+          '⚠️ Email is attached to a different public.users id; removing stale profile before creating current auth profile',
         );
-        return toResult(existingByEmail, {
-          existing: true,
-          linkedByEmail: true,
-        });
+
+        const { error: staleDeleteError } = await this.supabaseService
+          .fromAdmin('users')
+          .delete()
+          .eq('id', existingByEmail.id);
+
+        if (staleDeleteError) {
+          this.logger.error(
+            '❌ Failed to remove stale profile by email:',
+            toSafeLogMeta(staleDeleteError),
+          );
+          throw new BadRequestException('Failed to replace stale profile');
+        }
       }
 
       this.logger.log('📝 Creating missing user profile');
@@ -818,7 +851,10 @@ export class SupabaseAuthService {
           };
     } catch (error) {
       this.logger.error('❌ ensureUserProfile error:', toSafeLogMeta(error));
-      if (error instanceof BadRequestException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to ensure user profile');

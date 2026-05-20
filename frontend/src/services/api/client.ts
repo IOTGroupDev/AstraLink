@@ -149,6 +149,46 @@ function getSafeRequestLabel(config: {
   return `${method} ${path}`;
 }
 
+function getBearerTokenFromHeader(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.replace(/^Bearer%20/i, 'Bearer ').trim();
+  const match = normalized.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+async function shouldInvalidateAuthFor401(error: any): Promise<boolean> {
+  const requestToken =
+    getBearerTokenFromHeader(error?.config?.headers?.Authorization) ??
+    getBearerTokenFromHeader(error?.config?.headers?.authorization);
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    const currentToken = data.session?.access_token ?? null;
+
+    // Supabase Auth is the source of truth on the client. A protected backend
+    // request can return 401 while the local Supabase session is still valid
+    // (profile race, stale request, backend/profile mismatch). Do not let one
+    // failed API call tear down a live mobile session.
+    if (currentToken) {
+      apiLogger.warn(
+        requestToken && requestToken !== currentToken
+          ? 'Ignoring 401 from stale request token:'
+          : 'Ignoring 401 while Supabase session exists:',
+        getSafeRequestLabel(error?.config ?? {})
+      );
+      return false;
+    }
+
+    return true;
+  } catch (sessionError) {
+    apiLogger.warn(
+      'Failed to compare session token for 401 handling:',
+      sessionError
+    );
+    return true;
+  }
+}
+
 // Request interceptor - add auth token
 api.interceptors.request.use(async (config) => {
   const requestLabel = getSafeRequestLabel(config);
@@ -179,8 +219,9 @@ api.interceptors.request.use(async (config) => {
       apiLogger.log('🔐 Добавлен токен к запросу:', requestLabel);
     } else {
       apiLogger.error('❌ No token for protected endpoint:', requestLabel);
-      await invalidateLocalAuthSession(`missing token for ${requestLabel}`);
-      // Отменяем запрос, если нет токена для защищенного эндпоинта
+      // Отменяем запрос, но не сбрасываем auth state здесь: на старте приложения
+      // protected prefetch может стартовать раньше, чем Supabase восстановит session.
+      // Реальную невалидную сессию обрабатывает 401 от backend ниже.
       return Promise.reject(
         new Error('Authentication required but no token available')
       );
@@ -204,13 +245,12 @@ api.interceptors.response.use(
       error?.response?.data ?? error?.message
     );
 
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      apiLogger.error(
-        `❌ HTTP ${error.response.status} auth failure - resetting local session`
-      );
-      await invalidateLocalAuthSession(
-        `${error.response.status} from ${requestLabel}`
-      );
+    if (
+      error.response?.status === 401 &&
+      (await shouldInvalidateAuthFor401(error))
+    ) {
+      apiLogger.error(`❌ HTTP 401 auth failure - resetting local session`);
+      await invalidateLocalAuthSession(`401 from ${requestLabel}`);
     }
     return Promise.reject(error);
   }

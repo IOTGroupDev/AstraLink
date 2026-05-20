@@ -78,6 +78,16 @@ describe('Auth Store', () => {
 
     expect(result.current.onboardingCompleted).toBe(false);
 
+    act(() => {
+      result.current.setProfile({
+        id: '123',
+        email: 'test@example.com',
+        birthDate: '1990-01-01',
+        birthTime: '12:00',
+        birthPlace: 'Moscow',
+      });
+    });
+
     await act(async () => {
       await result.current.setOnboardingCompleted(true);
     });
