@@ -21,6 +21,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { chartAPI } from '../services/api';
 import type { ArchetypeResult } from '../types';
 import { useSubscription } from '../hooks/useSubscription';
+import {
+  normalizeSubscriptionTier,
+  SubscriptionTier,
+} from '../types/subscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
 import { GradientBorderView } from '../components/shared';
@@ -210,6 +214,38 @@ const normalizeNarrativeValue = (value: unknown): string => {
       const normalized = normalizeNarrativeValue(record[key]);
       if (normalized) return normalized;
     }
+  }
+
+  return '';
+};
+
+const getPremiumNarrativeFromChart = (
+  chart: ChartData | null,
+  locale: 'ru' | 'en' | 'es'
+): string => {
+  const data = (chart?.data || {}) as Record<string, any>;
+  const root = (chart || {}) as Record<string, any>;
+  const interpretation = data?.interpretation;
+  const candidates = [
+    interpretation?.premiumSummary,
+    interpretation?.freeformSummary,
+    interpretation?.aiNarrative,
+    interpretation?.premiumNarrative,
+    data?.interpretation?.premiumSummary,
+    data?.interpretation?.freeformSummary,
+    data?.aiInterpretations?.[locale]?.narrative,
+    data?.aiInterpretations?.[locale]?.premiumNarrative,
+    data?.aiInterpretations?.ru?.narrative,
+    data?.aiInterpretations?.ru?.premiumNarrative,
+    data?.interpretation?.aiNarrative,
+    data?.interpretation?.premiumNarrative,
+    root?.aiInterpretations?.[locale]?.narrative,
+    root?.aiInterpretations?.[locale]?.premiumNarrative,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeNarrativeValue(candidate);
+    if (normalized) return normalized;
   }
 
   return '';
@@ -482,6 +518,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     'default' | 'lesson'
   >('default');
 
+  const hasPremiumSubscription =
+    normalizeSubscriptionTier(subscription?.tier) ===
+      SubscriptionTier.PREMIUM &&
+    Boolean(subscription?.isActive || subscription?.isTrial);
+
   const getChartLocale = useCallback((): 'ru' | 'en' | 'es' => {
     const rawLocale = String(i18n.language || 'en').toLowerCase();
     if (rawLocale === 'en' || rawLocale.startsWith('en-')) return 'en';
@@ -599,6 +640,45 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       };
     }, [loadChartData])
   );
+
+  const isPremiumNarrativePending = useCallback(
+    (): boolean =>
+      hasPremiumSubscription &&
+      !getPremiumNarrativeFromChart(chartData, getChartLocale()),
+    [chartData, getChartLocale, hasPremiumSubscription]
+  );
+
+  useEffect(() => {
+    if (!chartData?.data || !isPremiumNarrativePending()) {
+      return;
+    }
+
+    let cancelled = false;
+    const retryDelays = [7000, 15000, 30000];
+    const timers = retryDelays.map((delay) =>
+      setTimeout(() => {
+        if (!cancelled) {
+          void (async () => {
+            try {
+              const locale = getChartLocale();
+              const rawData =
+                await chartAPI.getNatalChartWithInterpretation(locale);
+              if (!cancelled) {
+                setChartData(normalizeNatalChartResponse(rawData));
+              }
+            } catch (error) {
+              logger.info('AI natal summary is still pending', error);
+            }
+          })();
+        }
+      }, delay)
+    );
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [chartData, getChartLocale, isPremiumNarrativePending]);
 
   if (loading) {
     return <FullscreenLoadingScreen />;
@@ -894,38 +974,79 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   };
 
   const getPremiumNarrative = (): string => {
-    const locale = getChartLocale();
-    const data = (chartData?.data || {}) as Record<string, any>;
-    const root = (chartData || {}) as Record<string, any>;
-    const candidates = [
-      interpretation?.premiumSummary,
-      interpretation?.freeformSummary,
-      interpretation?.aiNarrative,
-      interpretation?.premiumNarrative,
-      data?.interpretation?.premiumSummary,
-      data?.interpretation?.freeformSummary,
-      data?.aiInterpretations?.[locale]?.narrative,
-      data?.aiInterpretations?.[locale]?.premiumNarrative,
-      data?.aiInterpretations?.ru?.narrative,
-      data?.aiInterpretations?.ru?.premiumNarrative,
-      data?.interpretation?.aiNarrative,
-      data?.interpretation?.premiumNarrative,
-      root?.aiInterpretations?.[locale]?.narrative,
-      root?.aiInterpretations?.[locale]?.premiumNarrative,
-    ];
+    return getPremiumNarrativeFromChart(chartData, getChartLocale());
+  };
 
-    for (const candidate of candidates) {
-      const normalized = normalizeNarrativeValue(candidate);
-      if (normalized) return normalized;
+  const renderPremiumNarrativePendingCard = () => {
+    if (!isPremiumNarrativePending()) {
+      return null;
     }
 
-    return '';
+    return (
+      <View style={styles.premiumNarrativeTouchable}>
+        <GradientBorderView
+          colors={[
+            'rgba(237, 164, 255, 0.65)',
+            'rgba(141, 38, 169, 0.22)',
+            'rgba(237, 164, 255, 0)',
+          ]}
+          gradientProps={{
+            locations: [0, 0.44, 1],
+            start: { x: 0.08, y: 0 },
+            end: { x: 0.92, y: 1 },
+          }}
+          style={styles.premiumNarrativeBorder}
+          contentStyle={styles.premiumNarrativeContent}
+        >
+          <BlurView
+            intensity={20}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+            style={styles.premiumNarrativeBlur}
+          >
+            <LinearGradient
+              colors={['rgba(89, 2, 114, 0.25)', 'rgba(21, 8, 25, 0.35)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.premiumNarrativeGradient}
+            >
+              <View style={styles.premiumNarrativeHeader}>
+                <View style={styles.premiumNarrativeIconWrap}>
+                  <ActivityIndicator size="small" color="#4C1D95" />
+                </View>
+                <View style={styles.premiumNarrativeHeaderText}>
+                  <Text style={styles.premiumNarrativeLabel}>
+                    {t(
+                      'natalChart.premiumNarrative.pendingLabel',
+                      'Premium AI'
+                    )}
+                  </Text>
+                  <Text style={styles.premiumNarrativeTitle}>
+                    {t(
+                      'natalChart.premiumNarrative.pendingTitle',
+                      'AI-резюме готовится'
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.premiumNarrativeLessonText}>
+                {t(
+                  'natalChart.premiumNarrative.pendingText',
+                  'Пока показываем базовую натальную интерпретацию. AI-синтез догружается и появится здесь автоматически.'
+                )}
+              </Text>
+            </LinearGradient>
+          </BlurView>
+        </GradientBorderView>
+      </View>
+    );
   };
 
   const renderPremiumNarrativeCard = () => {
     const premiumNarrative = getPremiumNarrative();
     if (!premiumNarrative) {
-      return null;
+      return renderPremiumNarrativePendingCard();
     }
 
     const premiumNarrativeParagraphs =

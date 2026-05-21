@@ -24,7 +24,10 @@
   },
   "premiumNarrative": {
     "title": "Resumen de IA",
-    "subtitle": "Síntesis ampliada de la carta"
+    "subtitle": "Síntesis ampliada de la carta",
+    "pendingLabel": "Premium AI",
+    "pendingTitle": "El resumen de IA se está preparando",
+    "pendingText": "Por ahora mostramos la interpretación natal base. La síntesis de IA sigue cargándose y aparecerá aquí automáticamente."
   },
   "sources": {
     "base": "Nuestro intérprete",

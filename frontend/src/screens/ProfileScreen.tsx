@@ -62,6 +62,13 @@ const DEFAULT_SUBSCRIPTION = {
   features: [],
 } as any;
 
+const DELETE_ACCOUNT_MODAL_DISMISS_MS = 180;
+
+const waitForDeleteAccountModalDismiss = (): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, DELETE_ACCOUNT_MODAL_DISMISS_MS);
+  });
+
 const normalizeZodiacKey = (sign: string): string => {
   const map: Record<string, string> = {
     aries: 'aries',
@@ -234,6 +241,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     setPrimaryPhotoUrl(null);
     setLoading(false);
     queryClient.clear();
+
+    await waitForDeleteAccountModalDismiss();
+
     useAuthStore.getState().resetAuth();
 
     try {

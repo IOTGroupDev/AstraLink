@@ -37,10 +37,10 @@ export class NatalChartService {
   private readonly natalAiPromptVersion = 'natal-ai-v10-clean-text-format';
   private readonly natalAiContentType = 'natal_ai_interpretation';
   private readonly natalAiSubjectKey = 'natal';
-  private readonly natalAiTextLimit = 900;
-  private readonly natalAiPremiumSummaryLimit = 2800;
-  private readonly natalAiArrayItemLimit = 260;
-  private readonly natalAiStringArrayLimit = 5;
+  private readonly natalAiTextLimit = 720;
+  private readonly natalAiPremiumSummaryLimit = 3200;
+  private readonly natalAiArrayItemLimit = 210;
+  private readonly natalAiStringArrayLimit = 4;
 
   constructor(
     private supabaseService: SupabaseService,
@@ -80,6 +80,87 @@ export class NatalChartService {
     );
   }
 
+  private getNatalAiGenerationLockKey(
+    userId: string,
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+  ): string {
+    return [
+      'lock',
+      'natal-ai',
+      userId,
+      locale,
+      this.getChartFingerprint(chartData),
+      this.natalAiPromptVersion,
+    ].join(':');
+  }
+
+  private async acquireNatalAiGenerationLock(
+    userId: string,
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+  ): Promise<string | null> {
+    const client =
+      typeof this.redis.getClient === 'function'
+        ? this.redis.getClient()
+        : null;
+    if (!client) {
+      return 'redis-unavailable';
+    }
+
+    const key = this.getNatalAiGenerationLockKey(userId, chartData, locale);
+    const token = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    try {
+      const result = await client.set(key, token, 'EX', 10 * 60, 'NX');
+      return result === 'OK' ? token : null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to acquire natal AI generation lock for user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return 'redis-error';
+    }
+  }
+
+  private async releaseNatalAiGenerationLock(
+    userId: string,
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+    token: string | null,
+  ): Promise<void> {
+    if (!token || token === 'redis-unavailable' || token === 'redis-error') {
+      return;
+    }
+
+    const client =
+      typeof this.redis.getClient === 'function'
+        ? this.redis.getClient()
+        : null;
+    if (!client) {
+      return;
+    }
+
+    const key = this.getNatalAiGenerationLockKey(userId, chartData, locale);
+    try {
+      await client.eval(
+        `if redis.call("get", KEYS[1]) == ARGV[1] then
+          return redis.call("del", KEYS[1])
+        end
+        return 0`,
+        1,
+        key,
+        token,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to release natal AI generation lock for user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   private normalizeBirthDateInput(input?: string | null): string | null {
     if (typeof input !== 'string') return null;
     const trimmed = input.trim();
@@ -103,12 +184,12 @@ export class NatalChartService {
 
     return Boolean(
       birthDate &&
-      birthDate === chartData?.birthDate &&
-      birthTime &&
-      birthTime === chartData?.birthTime &&
-      typeof birthDateTimeUtc === 'string' &&
-      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
-      calculationVersion === 'utc-fixed-v2',
+        birthDate === chartData?.birthDate &&
+        birthTime &&
+        birthTime === chartData?.birthTime &&
+        typeof birthDateTimeUtc === 'string' &&
+        !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+        calculationVersion === 'utc-fixed-v2',
     );
   }
 
@@ -137,11 +218,11 @@ export class NatalChartService {
       Object.values(chartData?.aiInterpretations || {}).some(
         (entry: any) => entry?.narrative || entry?.premiumNarrative,
       ) ||
-      chartData?.interpretationVersion === 'v3-ai' ||
-      chartData?.generatedBy === 'ai' ||
-      chartData?.interpretation?.generatedBy === 'ai' ||
-      chartData?.interpretation?.aiNarrative ||
-      chartData?.interpretation?.premiumNarrative,
+        chartData?.interpretationVersion === 'v3-ai' ||
+        chartData?.generatedBy === 'ai' ||
+        chartData?.interpretation?.generatedBy === 'ai' ||
+        chartData?.interpretation?.aiNarrative ||
+        chartData?.interpretation?.premiumNarrative,
     );
   }
 
@@ -1945,78 +2026,109 @@ export class NatalChartService {
       }
     }
 
-    let baseInterpretation = this.getLocalizedInterpretation(chartData, locale);
-    if (!baseInterpretation || typeof baseInterpretation !== 'object') {
-      baseInterpretation =
-        await this.interpretationService.generateNatalChartInterpretation(
-          userId,
-          chartData,
-          locale,
-        );
-    }
-
-    let userProfile: any;
-    try {
-      const profileResponse =
-        await this.supabaseService.getUserProfileAdmin(userId);
-      userProfile = profileResponse?.data;
-    } catch (error) {
-      this.logger.warn(
-        `Failed to load user profile for AI chart enhancement ${userId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
-
-    const structuredAi = this.limitStructuredAiPayload(
-      await this.aiService.generateStructuredChartInterpretation({
-        chartData,
-        baseInterpretation,
-        userProfile,
-        locale,
-      }),
-    );
-    const rawAiNarrative =
-      structuredAi?.premiumSummary ||
-      structuredAi?.freeformSummary ||
-      structuredAi?.summaryText ||
-      structuredAi?.overview;
-
-    const aiNarrative = this.normalizeNarrativeValue(rawAiNarrative);
-    if (!aiNarrative) {
-      this.logger.error(
-        `AI natal interpretation returned empty text for user=${userId}, locale=${locale}, rawType=${typeof rawAiNarrative}`,
-      );
-      throw new InternalServerErrorException(
-        'AI natal interpretation returned empty text',
-      );
-    }
-
-    const aiGeneratedAt = new Date().toISOString();
-    const chartWithBaseInterpretation = this.withLocalizedInterpretation(
+    const generationLockToken = await this.acquireNatalAiGenerationLock(
+      userId,
       chartData,
       locale,
-      baseInterpretation,
     );
-    const updatedData = this.withLocalizedAiInterpretation(
-      chartWithBaseInterpretation,
-      locale,
-      aiNarrative,
-      aiGeneratedAt,
-      structuredAi,
-    );
+    if (!generationLockToken) {
+      this.logger.debug(
+        `Natal AI generation already in progress for user=${userId}, locale=${locale}; skipping duplicate request`,
+      );
+      return;
+    }
 
-    await this.chartRepository.update(chartId, {
-      data: updatedData,
-    });
-    await this.setPersistentAiNarrative(
-      userId,
-      updatedData,
-      locale,
-      aiNarrative,
-      aiGeneratedAt,
-      structuredAi,
-    );
+    try {
+      let baseInterpretation = this.getLocalizedInterpretation(
+        chartData,
+        locale,
+      );
+      if (!baseInterpretation || typeof baseInterpretation !== 'object') {
+        baseInterpretation =
+          await this.interpretationService.generateNatalChartInterpretation(
+            userId,
+            chartData,
+            locale,
+          );
+      }
+
+      let userProfile: any;
+      try {
+        const profileResponse =
+          await this.supabaseService.getUserProfileAdmin(userId);
+        userProfile = profileResponse?.data;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to load user profile for AI chart enhancement ${userId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+
+      const aiPayload = force
+        ? await this.aiService.generateStructuredChartInterpretation({
+            chartData,
+            baseInterpretation,
+            userProfile,
+            locale,
+          })
+        : await this.aiService.generatePremiumNatalSummaryInterpretation({
+            chartData,
+            baseInterpretation,
+            userProfile,
+            locale,
+          });
+
+      const structuredAi = this.limitStructuredAiPayload(aiPayload);
+      const rawAiNarrative =
+        structuredAi?.premiumSummary ||
+        structuredAi?.freeformSummary ||
+        structuredAi?.summaryText ||
+        structuredAi?.overview;
+
+      const aiNarrative = this.normalizeNarrativeValue(rawAiNarrative);
+      if (!aiNarrative) {
+        this.logger.error(
+          `AI natal interpretation returned empty text for user=${userId}, locale=${locale}, rawType=${typeof rawAiNarrative}`,
+        );
+        throw new InternalServerErrorException(
+          'AI natal interpretation returned empty text',
+        );
+      }
+
+      const aiGeneratedAt = new Date().toISOString();
+      const chartWithBaseInterpretation = this.withLocalizedInterpretation(
+        chartData,
+        locale,
+        baseInterpretation,
+      );
+      const updatedData = this.withLocalizedAiInterpretation(
+        chartWithBaseInterpretation,
+        locale,
+        aiNarrative,
+        aiGeneratedAt,
+        structuredAi,
+      );
+
+      await this.chartRepository.update(chartId, {
+        data: updatedData,
+      });
+      await this.setPersistentAiNarrative(
+        userId,
+        updatedData,
+        locale,
+        aiNarrative,
+        aiGeneratedAt,
+        structuredAi,
+      );
+    } finally {
+      await this.releaseNatalAiGenerationLock(
+        userId,
+        chartData,
+        locale,
+        generationLockToken,
+      );
+    }
   }
 
   /**

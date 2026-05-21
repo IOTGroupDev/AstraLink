@@ -154,6 +154,9 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
           code
         );
         verifiedUser = verified.user;
+        if (verified.session) {
+          useAuthStore.getState().setSession(verified.session);
+        }
       } catch (verifyErr: any) {
         const msg = verifyErr?.message ?? '';
         const isExpired = /код истек|expired/i.test(msg);

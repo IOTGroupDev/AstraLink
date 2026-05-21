@@ -288,7 +288,37 @@ export class AIService {
 
     const response = await provider.generate(prompt, undefined, locale, {
       responseFormat: 'json_object',
-      maxTokens: 8000,
+      maxTokens: 6400,
+      temperature: 0.45,
+    });
+
+    return this.parseJsonObjectResponse(response);
+  }
+
+  async generatePremiumNatalSummaryInterpretation(context: {
+    chartData: any;
+    baseInterpretation: any;
+    userProfile?: any;
+    locale?: AILocale;
+  }): Promise<any> {
+    if (!this.isAvailable()) {
+      throw new Error('AI service unavailable');
+    }
+
+    this.logger.log(
+      `🤖 Generating fast PREMIUM natal summary via ${this.primaryProvider.toUpperCase()}`,
+    );
+
+    const locale = context.locale ?? 'ru';
+    const prompt = this.buildPremiumNatalSummaryPrompt(context, locale);
+    const provider = this.providers.get(this.primaryProvider);
+    if (!provider) {
+      throw new Error(`Provider ${this.primaryProvider} not found`);
+    }
+
+    const response = await provider.generate(prompt, undefined, locale, {
+      responseFormat: 'json_object',
+      maxTokens: 2600,
       temperature: 0.45,
     });
 
@@ -299,15 +329,41 @@ export class AIService {
     const text = response.trim();
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
     const candidate = fenced || text;
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      const extracted = candidate.match(/\{[\s\S]*\}/)?.[0];
-      if (extracted) {
-        return JSON.parse(extracted);
+    const extracted = candidate.match(/\{[\s\S]*\}/)?.[0];
+    const candidates = [candidate, extracted].filter((value): value is string =>
+      Boolean(value),
+    );
+    let lastError: unknown;
+
+    for (const value of candidates) {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        lastError = error;
       }
-      throw new Error('AI returned invalid JSON');
+
+      const repaired = this.repairJsonObjectResponse(value);
+      if (repaired !== value) {
+        try {
+          return JSON.parse(repaired);
+        } catch (error) {
+          lastError = error;
+        }
+      }
     }
+
+    const details = lastError instanceof Error ? `: ${lastError.message}` : '';
+    throw new Error(`AI returned invalid JSON${details}`);
+  }
+
+  private repairJsonObjectResponse(value: string): string {
+    return value
+      .replace(/^\uFEFF/, '')
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(
+        /("(?:\\.|[^"\\])*"|\d+(?:\.\d+)?|true|false|null|[}\]])\s+(?="[^"\\]+"\s*:)/g,
+        '$1,',
+      );
   }
 
   private buildStructuredInterpretationPrompt(
@@ -339,34 +395,29 @@ Audience:
 - 30% beginners: they need clear explanations.
 
 Style:
-- Use astrological terms, but after a complex term add a short explanation in parentheses.
-- Write short readable paragraphs: 1-3 sentences.
-- Use neutral, useful wording: "you are given", "your task", "this manifests as", "this means" or the natural equivalent in ${language}.
-- Avoid slang, judgment, excessive enthusiasm, fatalism, and vague spiritual abstractions.
-- Do not use markdown heading syntax. Never output lines starting with "#", "##", or "###".
-- Do not output markdown separators such as "---", "***", or "___".
-- Do not prefix blocks, headings, or paragraphs with "№", "1.", "1.1.", "1.2.", or any other section numbering. Use plain localized titles only.
-- In premiumSummary, do not create separate Sun/Moon/Ascendant or Big Three descriptions. Big Three descriptions belong to the Overview tab. Mention chart anchors only as part of the overall synthesis.
-- For every generated item, include a final subsection inside the same text with a localized heading. In Russian use exactly "👉 Ключевая мысль:". The subsection must contain 2-3 useful, specific sentences in a businesslike tone.
-- The first block, premiumSummary, must end with a localized "📋 Итоговый синтез" section: 3-4 mobile-friendly paragraphs covering the main conflict of the chart, the main gift/strength, and the karmic task/what needs to be accepted.
-- Keep item texts concise enough for JSON, but preserve the requested structure: 1-2 short paragraphs plus the "👉 Ключевая мысль:" subsection with 2-3 sentences.
+- Use astrological terms with short explanations when needed.
+- Write short mobile-friendly paragraphs: 1-3 sentences.
+- Keep the tone useful, precise, warm, non-fatalistic, and not slangy.
+- No markdown headings, markdown separators, numbered headings, or code fences.
+- In premiumSummary, synthesize the chart; do not create separate Big Three blocks.
+- For each generated prose item, include a localized final subsection. In Russian use exactly "👉 Ключевая мысль:".
+- premiumSummary must end with a localized final synthesis. In Russian use "📋 Итоговый синтез".
 
 Output limits:
-- Total JSON should fit within 30,000 characters.
-- premiumSummary: maximum 2,800 characters.
-- Any interpretation/overview/axisInterpretation/chainSummary/lifePurpose/relationships/careerPath/spiritualPath/healthFocus/financialApproach text: maximum 900 characters.
-- Each array of strings: maximum 5 items.
-- Each string array item: maximum 260 characters.
+- Total JSON should fit within 24,000 characters.
+- premiumSummary: maximum 2,200 characters.
+- Any interpretation/overview/axisInterpretation/chainSummary/lifePurpose/relationships/careerPath/spiritualPath/healthFocus/financialApproach text: maximum 720 characters.
+- Each array of strings: maximum 4 items.
+- Each string array item: maximum 210 characters.
 - keywords, strengths, challenges: maximum 3 items each.
 
 Hard rules:
 - The natal chart is calculated by our backend. Do not invent placements, houses, aspects, planets, degrees, rulers, or signs.
 - Keep the same structure and identifiers from baseInterpretation.
-- Improve text quality: make it human, deep, specific, warm, psychologically precise.
+- Improve text quality: make it human, specific, warm, and psychologically precise.
 - Do not write a long house-by-house essay in premiumSummary. Houses have a separate app tab.
 - Replace only text fields. Preserve numbers, planet names, signs, houses, arrays order, and calculated metadata.
-- For aspects, keep the same planetA, planetB, and aspect identifiers. Replace only interpretation/significance text.
-- Each interpretation text should be meaningfully richer than the base text, not just rephrased.
+- For aspects, preserve planetA, planetB, and aspect identifiers. Replace only interpretation/significance text.
 - Return complete valid JSON. Do not stop mid-object. Do not include fields not shown in the schema.
 
 Generate premium text for these app blocks:
@@ -423,6 +474,81 @@ NATAL CHART DATA:
 ${chartJson}
 
 BASE INTERPRETATION STRUCTURE TO PRESERVE AND ENRICH:
+${baseJson}`;
+  }
+
+  private buildPremiumNatalSummaryPrompt(
+    context: {
+      chartData: any;
+      baseInterpretation: any;
+      userProfile?: any;
+    },
+    locale: AILocale,
+  ): string {
+    const language =
+      locale === 'en' ? 'English' : locale === 'es' ? 'Spanish' : 'Russian';
+    const chartJson = JSON.stringify(
+      this.buildCompactNatalChartContext(
+        context.chartData,
+        context.baseInterpretation,
+      ),
+    );
+    const baseJson = JSON.stringify({
+      overview: context.baseInterpretation?.overview,
+      sunSign: context.baseInterpretation?.sunSign,
+      moonSign: context.baseInterpretation?.moonSign,
+      ascendant: context.baseInterpretation?.ascendant,
+      summary: {
+        chartRuler: context.baseInterpretation?.summary?.chartRuler,
+        sect: context.baseInterpretation?.summary?.sect,
+        lunarNodes: context.baseInterpretation?.summary?.lunarNodes,
+        strongestAspects:
+          context.baseInterpretation?.summary?.strongestAspects?.slice?.(0, 4),
+        lifePurpose: context.baseInterpretation?.summary?.lifePurpose,
+        relationships: context.baseInterpretation?.summary?.relationships,
+        careerPath: context.baseInterpretation?.summary?.careerPath,
+      },
+    });
+
+    return `You are a professional astrologer and writer for a premium astrology app.
+LANGUAGE: ${language}. Return ONLY valid JSON. No markdown, no commentary.
+
+Generate only the first-screen premium natal narrative. Do not generate planets, houses, or aspects arrays.
+
+Hard rules:
+- Use only the provided natal chart and base interpretation. Do not invent placements, houses, aspects, planets, degrees, rulers, or signs.
+- Keep the text mobile-friendly, but preserve a rich premium narrative voice: layered, warm, psychologically precise, and specific.
+- Write like a professional astrologer speaking to one real person, not like a short UI summary.
+- Avoid generic coaching phrases, dry labels, bullet-like prose, and overly compressed conclusions.
+- Do not use markdown headings, markdown separators, numbered headings, or code fences.
+- In Russian, include the exact subsection heading "👉 Ключевая мысль:" inside premiumSummary with 2-3 substantial sentences.
+- premiumSummary must end with a localized final synthesis section. In Russian use "📋 Итоговый синтез" with 3 mobile-friendly paragraphs.
+- Return complete valid JSON with only the fields shown below.
+
+Output limits:
+- Total JSON: maximum 6,200 characters.
+- premiumSummary: 2,400-3,000 characters.
+- overview, sunSign.interpretation, moonSign.interpretation, ascendant.interpretation: maximum 400 characters each.
+- summary.lifePurpose, summary.relationships, summary.careerPath: maximum 520 characters each.
+
+Return JSON with this shape:
+{
+  "premiumSummary": "Main premium synthesis for the Summary tab.",
+  "overview": "Improved short overview.",
+  "sunSign": { "interpretation": "Improved short Sun text." },
+  "moonSign": { "interpretation": "Improved short Moon text." },
+  "ascendant": { "interpretation": "Improved short Ascendant text." },
+  "summary": {
+    "lifePurpose": "...",
+    "relationships": "...",
+    "careerPath": "..."
+  }
+}
+
+NATAL CHART DATA:
+${chartJson}
+
+BASE INTERPRETATION CONTEXT:
 ${baseJson}`;
   }
 

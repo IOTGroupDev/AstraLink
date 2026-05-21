@@ -29,12 +29,14 @@ describe('NatalChartService locale handling', () => {
     };
     const aiService = {
       isAvailable: jest.fn().mockReturnValue(false),
+      generatePremiumNatalSummaryInterpretation: jest.fn(),
       generateStructuredChartInterpretation: jest.fn(),
       generateChartInterpretation: jest.fn(),
       getProvider: jest.fn().mockReturnValue('test'),
     };
     const redis = {
       deleteByPattern: jest.fn().mockResolvedValue(undefined),
+      getClient: jest.fn().mockReturnValue(null),
     };
     const chartRepository = {
       findByUserId: jest.fn(),
@@ -68,6 +70,7 @@ describe('NatalChartService locale handling', () => {
       aiService,
       chartRepository,
       prisma,
+      redis,
     };
   };
 
@@ -230,7 +233,7 @@ describe('NatalChartService locale handling', () => {
   it('regenerates AI when cached narrative has no structured payload', async () => {
     const { service, aiService, chartRepository } = createService();
     aiService.isAvailable.mockReturnValue(true);
-    aiService.generateStructuredChartInterpretation.mockResolvedValue({
+    aiService.generatePremiumNatalSummaryInterpretation.mockResolvedValue({
       premiumSummary: 'Новый структурный AI текст',
     });
 
@@ -255,7 +258,9 @@ describe('NatalChartService locale handling', () => {
 
     await service.regenerateAiInterpretation(userId, 'ru', false);
 
-    expect(aiService.generateStructuredChartInterpretation).toHaveBeenCalled();
+    expect(
+      aiService.generatePremiumNatalSummaryInterpretation,
+    ).toHaveBeenCalled();
     expect(chartRepository.update).toHaveBeenCalledWith(
       'chart-1',
       expect.objectContaining({
@@ -266,6 +271,38 @@ describe('NatalChartService locale handling', () => {
         }),
       }),
     );
+  });
+
+  it('skips duplicate AI generation while another natal AI request is running', async () => {
+    const { service, aiService, chartRepository, redis } = createService();
+    aiService.isAvailable.mockReturnValue(true);
+    const redisClient = {
+      set: jest.fn().mockResolvedValue(null),
+      eval: jest.fn(),
+    };
+    redis.getClient.mockReturnValue(redisClient);
+
+    chartRepository.findByUserId.mockResolvedValue({
+      id: 'chart-1',
+      user_id: userId,
+      data: baseChartData,
+      created_at: '2026-04-02T00:00:00.000Z',
+      updated_at: '2026-04-02T00:00:00.000Z',
+    });
+
+    await service.regenerateAiInterpretation(userId, 'ru', false);
+
+    expect(redisClient.set).toHaveBeenCalledWith(
+      expect.stringContaining(`lock:natal-ai:${userId}:ru:`),
+      expect.any(String),
+      'EX',
+      600,
+      'NX',
+    );
+    expect(
+      aiService.generateStructuredChartInterpretation,
+    ).not.toHaveBeenCalled();
+    expect(chartRepository.update).not.toHaveBeenCalled();
   });
 
   it('uses persistent natal AI cache before calling AI', async () => {
@@ -326,7 +363,7 @@ describe('NatalChartService locale handling', () => {
   it('merges structured AI text into the existing interpretation shape', async () => {
     const { service, aiService, chartRepository, prisma } = createService();
     aiService.isAvailable.mockReturnValue(true);
-    aiService.generateStructuredChartInterpretation.mockResolvedValue({
+    aiService.generatePremiumNatalSummaryInterpretation.mockResolvedValue({
       premiumSummary:
         '# Живой премиальный синтез карты.\n\n---\n\n№ 1 Итоговый вывод.',
       overview: 'AI обзор по нашей структуре.',
@@ -372,6 +409,9 @@ describe('NatalChartService locale handling', () => {
     await service.regenerateAiInterpretation(userId, 'ru', false);
 
     expect(aiService.generateChartInterpretation).not.toHaveBeenCalled();
+    expect(
+      aiService.generatePremiumNatalSummaryInterpretation,
+    ).toHaveBeenCalled();
     expect(chartRepository.update).toHaveBeenCalledWith(
       'chart-1',
       expect.objectContaining({

@@ -34,6 +34,11 @@ const YANDEX_OAUTH_PROVIDER =
   expoExtra.SUPABASE_YANDEX_PROVIDER ||
   runtimeEnv.SUPABASE_YANDEX_PROVIDER ||
   'custom:yandex';
+const YANDEX_FALLBACK_EMAIL_DOMAIN =
+  runtimeEnv.EXPO_PUBLIC_YANDEX_FALLBACK_EMAIL_DOMAIN ||
+  expoExtra.YANDEX_FALLBACK_EMAIL_DOMAIN ||
+  runtimeEnv.YANDEX_FALLBACK_EMAIL_DOMAIN ||
+  'oauth.astralink.local';
 
 type EnsureUserProfileResult = {
   success: boolean;
@@ -180,6 +185,20 @@ function getUserEmailFromProvider(user: any): string | null {
   return null;
 }
 
+async function getUserEmailFromCurrentSession(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      authLogger.warn('⚠️ Failed to read session email after OAuth:', error);
+    }
+
+    return getUserEmailFromProvider(data.session?.user);
+  } catch (error) {
+    authLogger.warn('⚠️ Failed to read session email after OAuth:', error);
+    return null;
+  }
+}
+
 function getUserNameFromProvider(user: any): string {
   if (!user) return '';
   const metadataName = user.user_metadata?.name;
@@ -232,7 +251,28 @@ function getEmailFromYandexInfo(data: unknown): string | null {
   }
 
   const emails = collectEmailLikeValues(value.emails);
-  return emails[0] ?? null;
+  if (emails[0]) {
+    return emails[0];
+  }
+
+  const id =
+    typeof value.id === 'string' && value.id.trim()
+      ? value.id.trim()
+      : typeof value.psuid === 'string' && value.psuid.trim()
+        ? value.psuid.trim()
+        : null;
+
+  if (!id) {
+    return null;
+  }
+
+  const safeId =
+    id
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, '-')
+      .replace(/^-+|-+$/g, '') || 'unknown';
+
+  return `yandex-${safeId}@${YANDEX_FALLBACK_EMAIL_DOMAIN}`;
 }
 
 async function getYandexEmailFromProviderToken(
@@ -245,6 +285,10 @@ async function getYandexEmailFromProviderToken(
       if (error) {
         authLogger.warn('⚠️ Failed to read session for Yandex email:', error);
         return null;
+      }
+      const sessionEmail = getUserEmailFromProvider(data.session?.user);
+      if (sessionEmail) {
+        return sessionEmail;
       }
       providerToken = (data.session as any)?.provider_token ?? null;
     }
@@ -978,6 +1022,8 @@ export const authAPI = {
 
       return {
         access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        session: data.session,
         user: {
           id: data.user!.id,
           email: data.user!.email!,
@@ -1114,6 +1160,7 @@ export const authAPI = {
         provider: 'google',
         options: {
           redirectTo: redirectUri,
+          scopes: 'email profile',
           skipBrowserRedirect: true, // RN: prevent SDK from opening its own browser
           queryParams: { prompt: 'select_account' },
         },
@@ -1129,7 +1176,9 @@ export const authAPI = {
         const user = userRes.user;
         if (!user) throw new Error('Не удалось получить данные пользователя');
 
-        const email = getUserEmailFromProvider(user);
+        const email =
+          getUserEmailFromProvider(user) ||
+          (await getUserEmailFromCurrentSession());
         if (!email) {
           throw new Error('Email не получен от OAuth провайдера');
         }

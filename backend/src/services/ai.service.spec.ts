@@ -222,6 +222,40 @@ Advice: Slow the pace, name what matters, and act from clarity.`;
     });
   });
 
+  describe('parseJsonObjectResponse', () => {
+    it('should recover JSON object when AI omits a comma between properties', () => {
+      const malformedJSON = `{
+        "premiumSummary": "Strong opening synthesis."
+        "overview": "Readable overview.",
+        "summary": {
+          "lifePurpose": "Develop clarity."
+          "relationships": "Practice honest dialogue."
+        }
+      }`;
+
+      const result = service['parseJsonObjectResponse'](malformedJSON);
+
+      expect(result.premiumSummary).toBe('Strong opening synthesis.');
+      expect(result.overview).toBe('Readable overview.');
+      expect(result.summary.lifePurpose).toBe('Develop clarity.');
+      expect(result.summary.relationships).toBe('Practice honest dialogue.');
+    });
+
+    it('should recover fenced JSON with trailing commas', () => {
+      const malformedJSON = `\`\`\`json
+      {
+        "premiumSummary": "Strong opening synthesis.",
+        "overview": "Readable overview.",
+      }
+      \`\`\``;
+
+      const result = service['parseJsonObjectResponse'](malformedJSON);
+
+      expect(result.premiumSummary).toBe('Strong opening synthesis.');
+      expect(result.overview).toBe('Readable overview.');
+    });
+  });
+
   describe('helper methods', () => {
     it('should translate planet names correctly', () => {
       expect(service['getPlanetName']('sun')).toBe('Солнце');

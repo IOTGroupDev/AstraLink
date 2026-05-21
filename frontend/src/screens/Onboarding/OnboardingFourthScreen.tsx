@@ -44,6 +44,26 @@ type NavigationProp = NativeStackNavigationProp<
   'Onboarding4'
 >;
 
+const COMPLETE_SIGNUP_TIMEOUT_MS = 20_000;
+
+async function withCompleteSignupTimeout<T>(promise: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('complete_signup_timeout'));
+        }, COMPLETE_SIGNUP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 const isStaleAuthSessionError = (error: unknown): boolean => {
   const status = Number((error as any)?.response?.status ?? 0);
   const responseMessage = (error as any)?.response?.data?.message;
@@ -197,17 +217,19 @@ export default function OnboardingFourthScreen() {
         birthTimeKnown: !dontKnowTime,
       });
 
-      const completed = await authAPI.completeSignup({
-        userId,
-        name: nameClean,
-        birthDate,
-        birthTime,
-        birthPlace: resolvedBirthPlace,
-        latitude: selectedCity?.lat,
-        longitude: selectedCity?.lon,
-        timezone: selectedCity?.tzid,
-        birthTimeKnown: !dontKnowTime,
-      });
+      const completed = await withCompleteSignupTimeout(
+        authAPI.completeSignup({
+          userId,
+          name: nameClean,
+          birthDate,
+          birthTime,
+          birthPlace: resolvedBirthPlace,
+          latitude: selectedCity?.lat,
+          longitude: selectedCity?.lon,
+          timezone: selectedCity?.tzid,
+          birthTimeKnown: !dontKnowTime,
+        })
+      );
 
       const serverUser = completed.user;
       setCompleted(true);
@@ -220,6 +242,7 @@ export default function OnboardingFourthScreen() {
         onboardingCompleted: true,
       });
       setAuthState('AUTHORIZED');
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       void AuthEngine.refreshProfileInBackground();
 
       void userExtendedProfileAPI

@@ -23,7 +23,7 @@ import CosmicSimulatorScreen from '../screens/CosmicSimulatorScreen';
 import LearningScreen from '../screens/LearningScreen';
 import DatingProfileScreen from '../screens/DatingProfileScreen';
 
-import { useAuthState } from '../stores/auth.store';
+import { useAuthSession, useAuthState } from '../stores/auth.store';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -46,6 +46,8 @@ const defaultScreenOptions = {
 
 export default function MainStackNavigator() {
   const authState = useAuthState();
+  const session = useAuthSession();
+  const hasSession = Boolean(session?.access_token);
 
   if (authState === 'AUTHORIZED') {
     return (
@@ -82,7 +84,7 @@ export default function MainStackNavigator() {
     );
   }
 
-  if (authState === 'ONBOARDING') {
+  if (authState === 'ONBOARDING' && hasSession) {
     return (
       <Stack.Navigator
         key="onboarding"

@@ -30,7 +30,7 @@ export async function applyOAuthSessionToAuthStore(
     session = null;
   }
 
-  if (user) {
+  if (user && session) {
     const onboardingCompleted = !!user.onboardingCompleted;
 
     authStore.setProfile({

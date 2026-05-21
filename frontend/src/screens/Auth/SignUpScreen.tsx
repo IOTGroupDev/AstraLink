@@ -73,12 +73,7 @@ const SignUpScreen = () => {
   ) => {
     const applied = await applyOAuthSessionToAuthStore(user);
     if (applied) {
-      try {
-        await AuthEngine.refreshProfile();
-      } catch {
-        // Keep the provisional ONBOARDING route only if the backend profile
-        // cannot be confirmed right now.
-      }
+      void AuthEngine.refreshProfileInBackground();
       return;
     }
 

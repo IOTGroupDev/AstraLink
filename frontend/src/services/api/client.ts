@@ -6,6 +6,7 @@ import { apiLogger } from '../logger';
 import { tokenService } from '../tokenService';
 import i18n from '../../i18n';
 import { invalidateLocalAuthSession } from '../authInvalidation';
+import { useAuthStore } from '../../stores/auth.store';
 
 // Ensure base URL ends with /api/v1 (API versioning)
 function ensureApiBase(url: string): string {
@@ -91,6 +92,16 @@ async function sleep(ms: number): Promise<void> {
 }
 
 async function getAccessTokenWithRetry(): Promise<string | null> {
+  const storeToken = useAuthStore.getState().session?.access_token ?? null;
+  if (storeToken) {
+    try {
+      await tokenService.setToken(storeToken);
+    } catch {
+      // token cache sync failure should not block the request
+    }
+    return storeToken;
+  }
+
   const maxAttempts = 6;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {

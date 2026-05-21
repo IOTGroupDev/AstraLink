@@ -90,7 +90,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
 
               if (result.success) {
                 const locale = getApiLocale();
-                await Promise.allSettled([
+                void Promise.allSettled([
                   chartAPI.getNatalChartWithInterpretation(locale),
                   chartAPI.getHoroscope('day', locale),
                 ]);

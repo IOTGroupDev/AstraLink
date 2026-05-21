@@ -184,7 +184,7 @@ const applyFallbackProfileState = (session: Session) => {
   const fallbackProfile = profileFromSession(session);
   setProfile(fallbackProfile);
   setError('profile_load_failed');
-  resolveState(fallbackProfile);
+  setState('ONBOARDING');
 };
 
 const bootstrap = async () => {

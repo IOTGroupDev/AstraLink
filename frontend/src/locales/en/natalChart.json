@@ -24,7 +24,10 @@
   },
   "premiumNarrative": {
     "title": "AI Summary",
-    "subtitle": "Extended chart synthesis"
+    "subtitle": "Extended chart synthesis",
+    "pendingLabel": "Premium AI",
+    "pendingTitle": "AI summary is preparing",
+    "pendingText": "For now we show the base natal interpretation. The AI synthesis is still loading and will appear here automatically."
   },
   "sources": {
     "base": "Our interpreter",

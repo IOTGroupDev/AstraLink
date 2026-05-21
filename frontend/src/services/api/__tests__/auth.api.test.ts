@@ -209,6 +209,11 @@ describe('authAPI authorization methods', () => {
     });
     expect(result).toEqual({
       access_token: 'access-token',
+      refresh_token: 'refresh-token',
+      session: {
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+      },
       user: {
         id: 'user-1',
         email: 'person@example.com',
@@ -416,6 +421,67 @@ describe('authAPI authorization methods', () => {
 
     expect(result.access_token).toBe('oauth-access');
     expect(result.user.email).toBe('person@example.com');
+  });
+
+  it('uses Google email from the current Supabase session when getUser metadata is incomplete', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/google' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+    } as any);
+    mockedSupabaseAuth.getUser.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: 'user-1',
+          email: null,
+          user_metadata: {},
+          app_metadata: {},
+          identities: [],
+        } as any,
+      },
+      error: null,
+    });
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({
+        data: {
+          session: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'oauth-access',
+            refresh_token: 'oauth-refresh',
+            user: {
+              id: 'user-1',
+              email: 'session-google@example.com',
+              user_metadata: {},
+            },
+          },
+        },
+        error: null,
+      } as any);
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.googleSignIn();
+
+    expect(mockedSupabaseAuth.signInWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'google',
+        options: expect.objectContaining({
+          scopes: 'email profile',
+        }),
+      })
+    );
+    expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
+      userId: 'user-1',
+      email: 'session-google@example.com',
+    });
+    expect(result.user.email).toBe('session-google@example.com');
   });
 
   it('uses email fallback from Yandex provider metadata when user.email is missing', async () => {
@@ -686,6 +752,113 @@ describe('authAPI authorization methods', () => {
       email: 'userinfo-yandex@example.com',
     });
     expect(result.user.email).toBe('userinfo-yandex@example.com');
+  });
+
+  it('uses Yandex email from current Supabase session when provider metadata is incomplete', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/custom:yandex' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+    } as any);
+    mockedSupabaseAuth.getUser.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: 'user-1',
+          email: null,
+          user_metadata: { name: 'Yandex User' },
+          identities: [],
+        },
+      },
+      error: null,
+    } as any);
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({
+        data: {
+          session: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'oauth-access',
+            refresh_token: 'oauth-refresh',
+            user: {
+              id: 'user-1',
+              email: 'session-yandex@example.com',
+              user_metadata: {},
+            },
+          },
+        },
+        error: null,
+      } as any);
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.yandexSignIn();
+
+    expect(mockedFetch).not.toHaveBeenCalled();
+    expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
+      userId: 'user-1',
+      email: 'session-yandex@example.com',
+    });
+    expect(result.user.email).toBe('session-yandex@example.com');
+  });
+
+  it('uses a Yandex fallback email when userinfo returns id without email', async () => {
+    mockedSupabaseAuth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: 'https://auth.example.com/custom:yandex' },
+      error: null,
+    });
+    mockedOpenAuthSessionAsync.mockResolvedValueOnce({
+      type: 'success',
+      url: 'astralink://auth/callback#access_token=oauth-access&refresh_token=oauth-refresh',
+    } as any);
+    mockedSupabaseAuth.getUser.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: 'user-1',
+          email: null,
+          user_metadata: { name: 'Yandex User' },
+          identities: [],
+        },
+      },
+      error: null,
+    } as any);
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({
+        data: {
+          session: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session: {
+            access_token: 'oauth-access',
+            refresh_token: 'oauth-refresh',
+            provider_token: 'yandex-provider-token',
+          },
+        },
+        error: null,
+      } as any);
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'Yandex User 42' }),
+    });
+    mockedApi.post.mockResolvedValueOnce({ data: { success: true } });
+
+    const result = await authAPI.yandexSignIn();
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/auth/ensure-profile', {
+      userId: 'user-1',
+      email: 'yandex-yandex-user-42@oauth.astralink.local',
+    });
+    expect(result.user.email).toBe(
+      'yandex-yandex-user-42@oauth.astralink.local'
+    );
   });
 
   it('completes Yandex OAuth when the code is nested in a redirect URL param', async () => {
