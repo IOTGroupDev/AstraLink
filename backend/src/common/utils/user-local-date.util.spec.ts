@@ -23,14 +23,14 @@ describe('user-local-date.util', () => {
   it('uses monday start for weekly buckets in user local time', () => {
     const context = buildUserLocalPeriodContext('week', 180, now);
 
-    expect(context.dateKey).toBe('2026-04-06');
-    expect(context.targetDate.toISOString()).toBe('2026-04-08T21:30:00.000Z');
+    expect(context.dateKey).toBe('2026-03-30');
+    expect(context.targetDate.toISOString()).toBe('2026-04-01T21:30:00.000Z');
   });
 
   it('uses the user-local month bucket for monthly cache keys', () => {
     const context = buildUserLocalPeriodContext('month', 180, now);
 
-    expect(context.dateKey).toBe('2026-05');
-    expect(context.targetDate.toISOString()).toBe('2026-05-01T21:30:00.000Z');
+    expect(context.dateKey).toBe('2026-04');
+    expect(context.targetDate.toISOString()).toBe('2026-04-01T21:30:00.000Z');
   });
 });

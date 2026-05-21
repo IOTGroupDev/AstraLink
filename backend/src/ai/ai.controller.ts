@@ -142,7 +142,7 @@ export class AIController {
   @ApiResponse({ status: 400, description: 'Недоступный провайдер' })
   @ApiResponse({
     status: 403,
-    description: 'Требуется PREMIUM или MAX подписка',
+    description: 'Требуется PREMIUM подписка',
   })
   async generateHoroscopeDirect(
     @Request() req: AuthenticatedRequest,
@@ -210,7 +210,7 @@ export class AIController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Требуется PREMIUM или MAX подписка',
+    description: 'Требуется PREMIUM подписка',
   })
   async streamHoroscope(
     @Request() req: AuthenticatedRequest,

@@ -23,8 +23,12 @@
     "ascendant": "Асцендент"
   },
   "premiumNarrative": {
-    "title": "AI Premium",
+    "title": "Резюме от AI",
     "subtitle": "Расширенный синтез карты"
+  },
+  "sources": {
+    "base": "Наш интерпретатор",
+    "ai": "AI"
   },
   "statistics": {
     "title": "Статистика карты",
@@ -101,18 +105,15 @@
     "dispositors": "Диспозиторный центр",
     "keyHouseRulers": "Управители ключевых домов",
     "keyHouseRulersHint": "Это показывает, через какие реальные сферы жизни раскрываются главные оси карты.",
-    "relationshipMechanics": "Механика отношений",
-    "careerMechanics": "Механика карьеры",
-    "financeMechanics": "Механика денег",
-    "strongestAspects": "Сильнейшие аспекты",
+    "strongestAspects": "Сильные аспекты",
     "strongestAspectsHint": "Это самые влиятельные связи карты, которые сильнее всего окрашивают характер и сценарии.",
     "uniqueFeatures": "Что выделяет эту карту",
     "uniqueFeaturesHint": "Ниже собраны самые характерные астрологические особенности именно этой карты.",
-    "lifePurpose": "Жизненная цель",
+    "lifePurpose": "Жизненный цикл",
     "personalityTraits": "Личностные качества",
     "talents": "Таланты и дары",
     "lifeThemes": "Жизненные темы",
-    "karmaLessons": "Кармические уроки",
+    "karmaLessons": "Кармический урок",
     "relationships": "Отношения",
     "careerPath": "Карьерный путь",
     "spiritualPath": "Духовный путь",
@@ -122,6 +123,15 @@
     "dominantElementsHint": "Эти элементы показывают, какая энергия проявляется в карте естественнее и чаще.",
     "dominantQualities": "Доминирующие качества",
     "dominantQualitiesHint": "Эти качества показывают, как карта запускает, удерживает и меняет процессы.",
+    "retrogradePlanets": "Ретроградные планеты",
+    "stellium": "Стеллиум",
+    "chartPatterns": "Фигуры карты",
+    "dignityHighlights": "Достоинства планет",
+    "retrogradeList": "Ретроградные планеты: кратко",
+    "houseAccents": "Дома-акценты",
+    "emptyHouses": "Пустые дома",
+    "retrogradeHouses": "Дома с ретроградными планетами",
+    "topAspectsDetailed": "Топ сильных аспектов",
     "elementDetails": {
       "fire": {
         "overview": "Огонь даёт прямую, инициативную и быстро загорающуюся энергию. Вам легче действовать, чем долго раскачиваться.",

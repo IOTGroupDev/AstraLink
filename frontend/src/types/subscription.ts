@@ -99,12 +99,25 @@
 // frontend/src/types/subscription.ts
 
 // ========================================
-// SUBSCRIPTION TIERS (3 уровня)
+// SUBSCRIPTION TIERS
 // ========================================
 export enum SubscriptionTier {
   FREE = 'free',
   PREMIUM = 'premium',
+  // Legacy value from old builds/backend records. Treat as Premium in UI.
   MAX = 'max',
+}
+
+export function normalizeSubscriptionTier(
+  tier?: SubscriptionTier | string | null
+): SubscriptionTier {
+  if (tier === SubscriptionTier.MAX) {
+    return SubscriptionTier.PREMIUM;
+  }
+
+  return tier === SubscriptionTier.PREMIUM
+    ? SubscriptionTier.PREMIUM
+    : SubscriptionTier.FREE;
 }
 
 // ========================================
@@ -158,7 +171,7 @@ export interface TrialActivationResponse {
 }
 
 // ========================================
-// SUBSCRIPTION PLANS (3 уровня)
+// SUBSCRIPTION PLANS
 // ========================================
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -187,7 +200,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     tier: SubscriptionTier.PREMIUM,
     name: 'Premium',
-    price: 599,
+    price: 999,
     currency: 'RUB',
     period: 'month',
     features: [
@@ -200,26 +213,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       'Cosmic Dating',
       'Кто лайкнул',
       'Лунный календарь (месяц)',
-    ],
-    limits: {
-      natalChart: 'full',
-      horoscope: 'ai',
-      transits: 'detailed',
-      connections: Infinity,
-      dating: Infinity,
-      lunarCalendar: 'month',
-    },
-    isPopular: true,
-    colors: ['#8B5CF6', '#A855F7'],
-  },
-  {
-    tier: SubscriptionTier.MAX,
-    name: 'Cosmic MAX',
-    price: 999,
-    currency: 'RUB',
-    period: 'month',
-    features: [
-      'Все функции Premium',
       '2 консультации астролога/год',
       'Эксклюзивные прогнозы',
       'Ранний доступ',
@@ -237,7 +230,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       astrologerConsultations: 2,
       priority: true,
     },
-    colors: ['#FBBF24', '#F59E0B'],
+    isPopular: true,
+    colors: ['#8B5CF6', '#A855F7'],
   },
 ];
 
@@ -246,40 +240,40 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 // ========================================
 export const FEATURE_REQUIREMENTS: Record<string, SubscriptionTier[]> = {
   // Натальная карта
-  fullNatalChart: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  natalInterpretation: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  fullNatalChart: [SubscriptionTier.PREMIUM],
+  natalInterpretation: [SubscriptionTier.PREMIUM],
 
   // Гороскопы
-  aiHoroscope: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  aiHoroscope: [SubscriptionTier.PREMIUM],
 
   // Транзиты
-  detailedTransits: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  astroSimulator: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  detailedTransits: [SubscriptionTier.PREMIUM],
+  astroSimulator: [SubscriptionTier.PREMIUM],
 
   // Связи
-  unlimitedConnections: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  detailedSynastry: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  unlimitedConnections: [SubscriptionTier.PREMIUM],
+  detailedSynastry: [SubscriptionTier.PREMIUM],
 
   // Dating
-  cosmicDating: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  unlimitedLikes: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
-  seeWhoLiked: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  cosmicDating: [SubscriptionTier.PREMIUM],
+  unlimitedLikes: [SubscriptionTier.PREMIUM],
+  seeWhoLiked: [SubscriptionTier.PREMIUM],
 
   // Лунный календарь
-  fullLunarCalendar: [SubscriptionTier.PREMIUM, SubscriptionTier.MAX],
+  fullLunarCalendar: [SubscriptionTier.PREMIUM],
 
-  // Только MAX
-  astrologerConsultations: [SubscriptionTier.MAX],
-  vipSupport: [SubscriptionTier.MAX],
-  exclusiveContent: [SubscriptionTier.MAX],
+  astrologerConsultations: [SubscriptionTier.PREMIUM],
+  vipSupport: [SubscriptionTier.PREMIUM],
+  exclusiveContent: [SubscriptionTier.PREMIUM],
 };
 
 // ========================================
 // HELPER FUNCTIONS
 // ========================================
 export function getPlanByTier(tier: SubscriptionTier): SubscriptionPlan {
+  const normalizedTier = normalizeSubscriptionTier(tier);
   return (
-    SUBSCRIPTION_PLANS.find((plan) => plan.tier === tier) ||
+    SUBSCRIPTION_PLANS.find((plan) => plan.tier === normalizedTier) ||
     SUBSCRIPTION_PLANS[0]
   );
 }
@@ -289,7 +283,12 @@ export function requiresTier(
   currentTier: SubscriptionTier
 ): boolean {
   const requiredTiers = FEATURE_REQUIREMENTS[feature];
-  return requiredTiers ? requiredTiers.includes(currentTier) : true;
+  const normalizedTier = normalizeSubscriptionTier(currentTier);
+  return requiredTiers
+    ? requiredTiers.some(
+        (tier) => normalizeSubscriptionTier(tier) === normalizedTier
+      )
+    : true;
 }
 
 export function getRequiredTiers(
@@ -354,7 +353,7 @@ export const UPGRADE_SUGGESTIONS: Record<string, UpgradeSuggestion> = {
   },
   astrologerConsultations: {
     featureName: 'Консультации астролога',
-    requiredTier: SubscriptionTier.MAX,
+    requiredTier: SubscriptionTier.PREMIUM,
     benefit: 'Персональные сессии с профессиональным астрологом',
     icon: 'person',
   },

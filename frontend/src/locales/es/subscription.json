@@ -35,20 +35,25 @@
       "name": "Premium",
       "features": [
         "Cartas natales completas",
-        "Tránsitos y predicciones",
-        "Compatibilidad",
-        "10 me gusta por día",
-        "2 súper me gusta por semana"
+        "Horóscopos con IA",
+        "Tránsitos detallados",
+        "Compatibilidad ilimitada",
+        "Cosmic Dating",
+        "Quién te dio me gusta",
+        "2 consultas astrológicas/año",
+        "Soporte VIP"
       ]
     },
     "max": {
-      "name": "Cosmic Max",
+      "name": "Premium",
       "features": [
-        "Todo de AstraPlus",
-        "Me gusta ilimitados",
-        "Súper me gusta ilimitados",
+        "Cartas natales completas",
+        "Horóscopos con IA",
+        "Tránsitos detallados",
+        "Compatibilidad ilimitada",
+        "Cosmic Dating",
         "Quién te dio me gusta",
-        "Prioridad en búsqueda",
+        "2 consultas astrológicas/año",
         "Soporte VIP"
       ]
     }

@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import type { Chart } from '../types';
 import type { BiorhythmResponse, HoroscopeBundle } from './api/chart.api';
 
 const HOROSCOPE_SCREEN_CACHE_VERSION = 'v1';
 const HOROSCOPE_SCREEN_CACHE_PREFIX = `horoscope-screen:${HOROSCOPE_SCREEN_CACHE_VERSION}:`;
 const HOROSCOPE_SCREEN_INVALIDATION_KEY = `${HOROSCOPE_SCREEN_CACHE_PREFIX}invalidate`;
-const canPersistHoroscopeCache = Platform.OS === 'web';
+// AsyncStorage работает на всех платформах
+const canPersistHoroscopeCache = true;
 
 export interface HoroscopeScreenCachePayload {
   bucketKey: string;
@@ -29,6 +29,11 @@ export const buildHoroscopeDailyBucketKey = (date = new Date()): string => {
 
 export const getHoroscopeChartRevision = (chart: Chart | null): string => {
   if (!chart) return 'no-chart';
+  const chartData = (chart as any)?.data || {};
+  const stableFingerprint =
+    chartData?.metadata?.fingerprint || chartData?.birthDateTimeUtc;
+  if (stableFingerprint) return String(stableFingerprint);
+
   const maybeRecord = chart as Chart & { updated_at?: string };
   return String(chart.updatedAt || maybeRecord.updated_at || 'unknown');
 };
@@ -98,10 +103,20 @@ export async function clearHoroscopeScreenCache(
 export async function readHoroscopeScreenInvalidationMarker(): Promise<
   string | null
 > {
-  if (!canPersistHoroscopeCache) return null;
   try {
     return await AsyncStorage.getItem(HOROSCOPE_SCREEN_INVALIDATION_KEY);
   } catch {
     return null;
+  }
+}
+
+export async function writeHoroscopeScreenInvalidationMarker(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      HOROSCOPE_SCREEN_INVALIDATION_KEY,
+      Date.now().toString()
+    );
+  } catch {
+    // ignore — не критично
   }
 }

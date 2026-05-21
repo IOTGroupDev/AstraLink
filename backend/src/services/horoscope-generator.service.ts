@@ -99,12 +99,15 @@ export interface HoroscopePrediction {
   };
 }
 
+type HoroscopeGenerationOptions = {
+  allowAiGeneration?: boolean;
+};
+
 @Injectable()
 export class HoroscopeGeneratorService {
   private readonly logger = new Logger(HoroscopeGeneratorService.name);
   private readonly aiSoftTimeoutMs = 12000;
-  private readonly horoscopeFormatVersion = 'fmt-v8';
-  private readonly rollingMonthTtlSec = 30 * 24 * 60 * 60;
+  private readonly horoscopeFormatVersion = 'fmt-v9-human';
   private readonly inflightPremium = new Map<
     string,
     Promise<HoroscopePrediction>
@@ -138,7 +141,10 @@ export class HoroscopeGeneratorService {
           chartData: chart.data as ChartData,
           foundVia: 'repository',
           chartRevision: this.normalizeChartRevision(
-            chart.updated_at || chart.created_at || chart.id,
+            chart.data?.metadata?.fingerprint ||
+              chart.data?.birthDateTimeUtc ||
+              chart.created_at ||
+              chart.id,
           ),
         };
       }
@@ -173,18 +179,13 @@ export class HoroscopeGeneratorService {
     chartRevision = 'unknown',
   ): string {
     const cachePeriod =
-      period === 'day' || period === 'tomorrow'
-        ? 'daily'
-        : period === 'month'
-          ? 'month-rolling'
-          : period;
-    const cacheDateKey = period === 'month' ? 'current' : dateKey;
+      period === 'day' || period === 'tomorrow' ? 'daily' : period;
 
     return [
       'horoscope',
       userId,
       cachePeriod,
-      cacheDateKey,
+      dateKey,
       locale,
       isPremium ? 'premium' : 'free',
       chartRevision,
@@ -193,13 +194,9 @@ export class HoroscopeGeneratorService {
   }
 
   private getCacheTtlSec(
-    period: 'day' | 'tomorrow' | 'week' | 'month',
+    _period: 'day' | 'tomorrow' | 'week' | 'month',
     periodTtlSec: number,
   ): number {
-    if (period === 'month') {
-      return this.rollingMonthTtlSec;
-    }
-
     return periodTtlSec;
   }
 
@@ -208,6 +205,9 @@ export class HoroscopeGeneratorService {
   ): string | null {
     if (period === 'day' || period === 'tomorrow') {
       return 'horoscope_daily';
+    }
+    if (period === 'week') {
+      return 'horoscope_week';
     }
     if (period === 'month') {
       return 'horoscope_month';
@@ -220,7 +220,7 @@ export class HoroscopeGeneratorService {
     period: 'day' | 'tomorrow' | 'week' | 'month',
     dateKey: string,
   ): string {
-    return period === 'month' ? 'rolling-current' : dateKey;
+    return dateKey;
   }
 
   private getExpiresAt(ttlSec: number): Date {
@@ -355,26 +355,6 @@ export class HoroscopeGeneratorService {
     return period;
   }
 
-  private scheduleTomorrowPrewarm(
-    userId: string,
-    locale: 'ru' | 'en' | 'es',
-    userTzOffsetMinutes: number,
-  ): void {
-    void this.generateHoroscope(
-      userId,
-      'tomorrow',
-      true,
-      locale,
-      userTzOffsetMinutes,
-    ).catch((error) => {
-      this.logger.warn(
-        `Tomorrow horoscope prewarm failed for user ${userId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    });
-  }
-
   /**
    * Генерация гороскопа с четким разделением:
    * FREE = Интерпретатор (правила)
@@ -386,10 +366,12 @@ export class HoroscopeGeneratorService {
     isPremium: boolean = false,
     locale: 'ru' | 'en' | 'es' = 'ru',
     userTzOffsetMinutes = 0,
+    options: HoroscopeGenerationOptions = {},
   ): Promise<HoroscopePrediction> {
     const shouldUseAi = isPremium;
+    const allowAiGeneration = options.allowAiGeneration !== false;
     this.logger.log(
-      `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}, ai: ${shouldUseAi}`,
+      `Генерация гороскопа для ${userId}, период: ${period}, premium: ${isPremium}, ai: ${shouldUseAi}, allowAiGeneration: ${allowAiGeneration}`,
     );
 
     // Ищем натальную карту через Supabase
@@ -438,9 +420,6 @@ export class HoroscopeGeneratorService {
           await this.redis.del(cacheKey);
         } else {
           this.logger.debug(`Cache hit: ${cacheKey}`);
-          if (shouldUseAi && period === 'day') {
-            this.scheduleTomorrowPrewarm(userId, locale, userTzOffsetMinutes);
-          }
           return this.withRequestedPeriod(cached, period);
         }
       }
@@ -456,9 +435,6 @@ export class HoroscopeGeneratorService {
         if (persistentCached) {
           this.logger.debug(`Persistent AI horoscope cache hit: ${cacheKey}`);
           await this.redis.set(cacheKey, persistentCached, ttlSec);
-          if (period === 'day') {
-            this.scheduleTomorrowPrewarm(userId, locale, userTzOffsetMinutes);
-          }
           return this.withRequestedPeriod(persistentCached, period);
         }
       }
@@ -491,6 +467,20 @@ export class HoroscopeGeneratorService {
       let shouldCache = true;
 
       if (shouldUseAi) {
+        if (!allowAiGeneration) {
+          this.logger.debug(
+            `Skipping fresh AI horoscope generation for ${cacheKey}; returning interpreter fallback`,
+          );
+          return await this.buildInterpreterFallback(
+            chartData,
+            transits,
+            transitAspects,
+            period,
+            targetDate,
+            locale,
+          );
+        }
+
         const pendingKey = `${cacheKey}:pending`;
         const pending = await this.redis.get<string>(pendingKey);
         if (pending) {
@@ -612,7 +602,9 @@ export class HoroscopeGeneratorService {
         }
       }
       if (shouldUseAi && period === 'day') {
-        this.scheduleTomorrowPrewarm(userId, locale, userTzOffsetMinutes);
+        this.logger.debug(
+          `Fresh daily AI horoscope generated for ${userId}; secondary periods are generated on demand`,
+        );
       }
       return result;
     } catch (error) {

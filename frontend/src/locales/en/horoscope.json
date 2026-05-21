@@ -5,6 +5,7 @@
   "loading": "Loading data...",
   "syncing": "Updating horoscope and interpretation...",
   "hero": {
+    "premium": "Premium",
     "getPremium": "Get premium",
     "greeting": "Hello {{name}} 👋",
     "greetingFallback": "Hello there 👋",

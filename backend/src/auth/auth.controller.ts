@@ -8,6 +8,7 @@ import {
   HttpStatus,
   HttpCode,
   Query,
+  Headers,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -159,6 +160,28 @@ export class AuthController {
     @Query('redirectUri') redirectUri?: string,
   ): Promise<{ url: string }> {
     return this.supabaseAuthService.getYandexOAuthUrl(redirectUri);
+  }
+
+  /**
+   * 🟡 Yandex userinfo proxy for Supabase custom OAuth.
+   * Yandex requires "Authorization: OAuth <token>", while generic OAuth
+   * clients often call userinfo with "Bearer <token>". This endpoint normalizes
+   * the response to standard OIDC-like claims: sub, email, name.
+   */
+  @Public()
+  @Get('yandex-userinfo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Yandex userinfo proxy',
+    description:
+      'Normalizes Yandex ID userinfo response for Supabase custom OAuth provider.',
+  })
+  @ApiResponse({ status: 200, description: 'Yandex userinfo returned' })
+  @ApiResponse({ status: 401, description: 'Yandex token is missing/invalid' })
+  async getYandexUserInfo(
+    @Headers('authorization') authorization?: string,
+  ): Promise<unknown> {
+    return this.supabaseAuthService.getYandexUserInfo(authorization);
   }
 
   /**

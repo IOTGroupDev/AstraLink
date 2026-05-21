@@ -16,6 +16,7 @@ import type { Sign } from '@/modules/shared/types';
 export enum SubscriptionTier {
   FREE = 'free',
   PREMIUM = 'premium',
+  // Legacy value: treated as Premium.
   MAX = 'max',
 }
 

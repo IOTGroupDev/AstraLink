@@ -17,7 +17,7 @@ import {
   CodePurpose,
   PersonalCodeService,
 } from '@/chart/services/personal-code.service';
-import { SubscriptionTier } from '@/types';
+import { normalizeSubscriptionTier, SubscriptionTier } from '@/types';
 import { hasAIAccess } from '@/types/subscription';
 
 @Injectable()
@@ -96,16 +96,6 @@ export class ChartService {
     return false;
   }
 
-  private hasPremiumNarrative(chartData: any): boolean {
-    return Boolean(
-      chartData?.interpretationVersion === 'v3-ai' ||
-        chartData?.generatedBy === 'ai' ||
-        chartData?.interpretation?.generatedBy === 'ai' ||
-        chartData?.interpretation?.aiNarrative ||
-        chartData?.interpretation?.premiumNarrative,
-    );
-  }
-
   // ============================================================
   // UTILITY METHODS (Backward Compatibility)
   // ============================================================
@@ -159,16 +149,36 @@ export class ChartService {
       return chart;
     }
 
-    if (this.hasPremiumNarrative(chart?.data)) {
-      return chart;
+    if (this.natalChartService.hasCurrentAiNarrative(chart?.data, locale)) {
+      return {
+        ...chart,
+        data: await this.natalChartService.withPremiumAiNarrativeForResponse(
+          userId,
+          chart.data,
+          locale,
+        ),
+      };
     }
 
     try {
-      await this.natalChartService.regenerateAiInterpretation(userId, locale);
-      return await this.natalChartService.getNatalChartWithInterpretation(
+      await this.natalChartService.regenerateAiInterpretation(
         userId,
         locale,
+        false,
       );
+      const refreshed =
+        await this.natalChartService.getNatalChartWithInterpretation(
+          userId,
+          locale,
+        );
+      return {
+        ...refreshed,
+        data: await this.natalChartService.withPremiumAiNarrativeForResponse(
+          userId,
+          refreshed.data,
+          locale,
+        ),
+      };
     } catch (error) {
       this.logger.warn(
         `Failed to ensure premium natal AI narrative for user ${userId}: ${
@@ -292,6 +302,7 @@ export class ChartService {
         isPremium,
         locale,
         userTzOffsetMinutes,
+        { allowAiGeneration: false },
       ),
       this.horoscopeService.generateHoroscope(
         userId,
@@ -299,6 +310,7 @@ export class ChartService {
         isPremium,
         locale,
         userTzOffsetMinutes,
+        { allowAiGeneration: false },
       ),
       this.horoscopeService.generateHoroscope(
         userId,
@@ -306,6 +318,7 @@ export class ChartService {
         isPremium,
         locale,
         userTzOffsetMinutes,
+        { allowAiGeneration: false },
       ),
     ]);
 
@@ -352,7 +365,10 @@ export class ChartService {
     const rawTier = (subscription?.tier || SubscriptionTier.FREE) as
       | SubscriptionTier
       | 'basic';
-    const tier = rawTier === 'basic' ? SubscriptionTier.PREMIUM : rawTier;
+    const tier =
+      rawTier === 'basic'
+        ? SubscriptionTier.PREMIUM
+        : normalizeSubscriptionTier(rawTier);
 
     this.logger.debug(
       `Transit interpretation for user ${userId}, tier: ${tier}, subscription: ${JSON.stringify(subscription)}`,
@@ -385,7 +401,10 @@ export class ChartService {
     const rawTier = (subscription?.tier || SubscriptionTier.FREE) as
       | SubscriptionTier
       | 'basic';
-    const tier = rawTier === 'basic' ? SubscriptionTier.PREMIUM : rawTier;
+    const tier =
+      rawTier === 'basic'
+        ? SubscriptionTier.PREMIUM
+        : normalizeSubscriptionTier(rawTier);
 
     this.logger.log(
       `Main transit interpretation user=${userId} tier=${String(rawTier)} normalized=${tier} locale=${locale}`,

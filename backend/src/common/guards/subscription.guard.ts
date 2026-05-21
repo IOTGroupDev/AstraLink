@@ -9,7 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { SubscriptionService } from '../../subscription/subscription.service';
 import { AnalyticsService } from '../../analytics/analytics.service';
 import { SUBSCRIPTION_KEY } from '../decorators/requires-subscription.decorator';
-import { SubscriptionTier } from '../../types';
+import { normalizeSubscriptionTier, SubscriptionTier } from '../../types';
 
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
@@ -72,7 +72,14 @@ export class SubscriptionGuard implements CanActivate {
       }
 
       // Проверка 2: Уровень подписки
-      if (!requiredTiers.includes(subscription.tier)) {
+      const normalizedRequiredTiers = requiredTiers.map((tier) =>
+        normalizeSubscriptionTier(tier),
+      );
+      const normalizedCurrentTier = normalizeSubscriptionTier(
+        subscription.tier,
+      );
+
+      if (!normalizedRequiredTiers.includes(normalizedCurrentTier)) {
         // Записываем попытку доступа с недостаточным уровнем
         await this.analyticsService.recordBlockedFeatureAttempt(
           userId,
@@ -87,20 +94,6 @@ export class SubscriptionGuard implements CanActivate {
           currentTier: subscription.tier,
           upgradeUrl: '/api/subscription/plans',
         });
-      }
-
-      // Проверка 3: Лимиты использования (опционально)
-      // Например, для MAX: проверяем, не превышен ли лимит консультаций
-      if (subscription.tier === SubscriptionTier.MAX) {
-        const limits = await this.subscriptionService.checkUsageLimits(userId);
-        if (limits.consultationsUsed >= 2) {
-          throw new ForbiddenException({
-            message: 'Превышен лимит консультаций (2/год)',
-            code: 'LIMIT_EXCEEDED',
-            currentUsage: limits.consultationsUsed,
-            maxUsage: 2,
-          });
-        }
       }
 
       // Записываем успешное использование функции
@@ -133,8 +126,8 @@ export class SubscriptionGuard implements CanActivate {
     const tierNames = {
       [SubscriptionTier.FREE]: 'Free',
       [SubscriptionTier.PREMIUM]: 'Premium',
-      [SubscriptionTier.MAX]: 'MAX',
+      [SubscriptionTier.MAX]: 'Premium',
     };
-    return tiers.map((t) => tierNames[t]).join(' или ');
+    return [...new Set(tiers.map((t) => tierNames[t]))].join(' или ');
   }
 }

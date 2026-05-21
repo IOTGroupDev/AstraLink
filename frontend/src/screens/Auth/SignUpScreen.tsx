@@ -1,5 +1,5 @@
 // src/screens/auth/SignUpScreen.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -21,6 +21,10 @@ import {
 import { AuthEngine } from '../../services/authEngine';
 import { useAuthStore } from '../../stores/auth.store';
 import { applyOAuthSessionToAuthStore } from '../../services/oauthSessionRouting';
+import {
+  clearSupabaseLocalAuthData,
+  waitForUserDataCleanup,
+} from '../../services/cleanupService';
 import type { RootStackParamList } from '../../types/navigation';
 import {
   AUTH_COLORS,
@@ -28,12 +32,41 @@ import {
   AUTH_LAYOUT,
 } from '../../constants/auth.constants';
 
+const AUTH_CLEANUP_TIMEOUT_MS = 800;
+const AUTH_CLEANUP_WAIT_TIMEOUT_MS = 2500;
+const AUTH_ROUTE_FALLBACK_TIMEOUT_MS = 3500;
+
+const withTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T | undefined> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<undefined>((resolve) => {
+        timeoutId = setTimeout(() => resolve(undefined), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
 const SignUpScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { reset } = useOnboardingStore();
+  const authSceneVersion = useAuthStore((state) => state.authSceneVersion);
+
+  useEffect(() => {
+    setLoading(false);
+    setLoadingProvider(null);
+  }, [authSceneVersion]);
 
   const routeAfterOAuth = async (
     user?: Awaited<ReturnType<typeof authAPI.googleSignIn>>['user']
@@ -67,14 +100,35 @@ const SignUpScreen = () => {
     }
   };
 
-  const handleEmailSignUp = () => {
-    navigation.navigate('AuthEmail' as never);
+  const prepareFreshAuthAttempt = async () => {
+    const currentState = useAuthStore.getState().authState;
+    if (currentState === 'UNAUTHORIZED') {
+      await Promise.race([
+        clearSupabaseLocalAuthData(),
+        new Promise<void>((resolve) =>
+          setTimeout(resolve, AUTH_CLEANUP_TIMEOUT_MS)
+        ),
+      ]).catch(() => undefined);
+    }
+  };
+
+  const handleEmailSignUp = async () => {
+    try {
+      setLoading(true);
+      setLoadingProvider('email');
+      await prepareFreshAuthAttempt();
+      navigation.navigate('AuthEmail' as never);
+    } finally {
+      setLoading(false);
+      setLoadingProvider(null);
+    }
   };
 
   const handleGoogleSignUp = async () => {
     try {
       setLoading(true);
       setLoadingProvider('google');
+      await waitForUserDataCleanup(AUTH_CLEANUP_WAIT_TIMEOUT_MS);
       const result = await withBiometricProtection(
         () => authAPI.googleSignIn(),
         'Google'
@@ -82,7 +136,7 @@ const SignUpScreen = () => {
       reset();
       await routeAfterOAuth(result.user);
     } catch (error: unknown) {
-      await routeAfterOAuth();
+      await withTimeout(routeAfterOAuth(), AUTH_ROUTE_FALLBACK_TIMEOUT_MS);
       const nextState = useAuthStore.getState().authState;
       if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
         reset();
@@ -99,6 +153,7 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('apple');
+      await waitForUserDataCleanup(AUTH_CLEANUP_WAIT_TIMEOUT_MS);
       const result = await withBiometricProtection(
         () => authAPI.appleSignIn(),
         'Apple'
@@ -106,7 +161,7 @@ const SignUpScreen = () => {
       reset();
       await routeAfterOAuth(result.user);
     } catch (error: unknown) {
-      await routeAfterOAuth();
+      await withTimeout(routeAfterOAuth(), AUTH_ROUTE_FALLBACK_TIMEOUT_MS);
       const nextState = useAuthStore.getState().authState;
       if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
         reset();
@@ -123,6 +178,7 @@ const SignUpScreen = () => {
     try {
       setLoading(true);
       setLoadingProvider('yandex');
+      await waitForUserDataCleanup(AUTH_CLEANUP_WAIT_TIMEOUT_MS);
       const result = await withBiometricProtection(
         () => authAPI.yandexSignIn(),
         'Yandex'
@@ -130,7 +186,7 @@ const SignUpScreen = () => {
       reset();
       await routeAfterOAuth(result.user);
     } catch (error: unknown) {
-      await routeAfterOAuth();
+      await withTimeout(routeAfterOAuth(), AUTH_ROUTE_FALLBACK_TIMEOUT_MS);
       const nextState = useAuthStore.getState().authState;
       if (nextState === 'AUTHORIZED' || nextState === 'ONBOARDING') {
         reset();
@@ -153,10 +209,13 @@ const SignUpScreen = () => {
 
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
-              style={[styles.emailButton, loading && styles.disabledButton]}
+              style={[
+                styles.emailButton,
+                loadingProvider === 'email' && styles.disabledButton,
+              ]}
               onPress={handleEmailSignUp}
               activeOpacity={0.8}
-              disabled={loading}
+              disabled={loadingProvider === 'email'}
             >
               <Text style={styles.emailButtonText}>
                 {t('auth.signUp.emailButton')}
@@ -167,13 +226,11 @@ const SignUpScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.socialButton,
-                  loading &&
-                    loadingProvider !== 'google' &&
-                    styles.disabledButton,
+                  loadingProvider === 'google' && styles.disabledButton,
                 ]}
                 onPress={handleGoogleSignUp}
                 activeOpacity={0.8}
-                disabled={loading}
+                disabled={loadingProvider === 'google'}
               >
                 {loadingProvider === 'google' ? (
                   <ActivityIndicator color={AUTH_COLORS.border} size="small" />
@@ -189,13 +246,11 @@ const SignUpScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.socialButton,
-                  loading &&
-                    loadingProvider !== 'apple' &&
-                    styles.disabledButton,
+                  loadingProvider === 'apple' && styles.disabledButton,
                 ]}
                 onPress={handleAppleSignUp}
                 activeOpacity={0.8}
-                disabled={loading}
+                disabled={loadingProvider === 'apple'}
               >
                 {loadingProvider === 'apple' ? (
                   <ActivityIndicator color={AUTH_COLORS.border} size="small" />
@@ -211,13 +266,11 @@ const SignUpScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.socialButton,
-                  loading &&
-                    loadingProvider !== 'yandex' &&
-                    styles.disabledButton,
+                  loadingProvider === 'yandex' && styles.disabledButton,
                 ]}
                 onPress={handleYandexSignUp}
                 activeOpacity={0.8}
-                disabled={loading}
+                disabled={loadingProvider === 'yandex'}
               >
                 {loadingProvider === 'yandex' ? (
                   <ActivityIndicator color={AUTH_COLORS.border} size="small" />

@@ -8,6 +8,7 @@ import {
   FEATURE_REQUIREMENTS,
   TRIAL_CONFIG,
   UpgradeSubscriptionRequest,
+  normalizeSubscriptionTier,
 } from '../types/subscription';
 import { logger } from '../services/logger';
 
@@ -16,7 +17,7 @@ const normalizeSubscription = (
 ): Subscription | null => {
   if (!subscription) return null;
 
-  const tier = subscription.tier || SubscriptionTier.FREE;
+  const tier = normalizeSubscriptionTier(subscription.tier);
   const now = new Date();
   const trialEndsAt = subscription.trialEndsAt;
   const expiresAt = subscription.expiresAt;
@@ -111,7 +112,10 @@ export const useSubscription = () => {
     const requiredTiers = getRequiredTiers(feature);
     if (requiredTiers.length === 0) return true; // Нет требований = доступно всем
 
-    return requiredTiers.includes(normalizedSubscription.tier);
+    const normalizedRequiredTiers = requiredTiers.map((tier) =>
+      normalizeSubscriptionTier(tier)
+    );
+    return normalizedRequiredTiers.includes(normalizedSubscription.tier);
   };
 
   /**
@@ -137,20 +141,17 @@ export const useSubscription = () => {
     false;
 
   /**
-   * Является ли подписка платной (Premium или MAX)
+   * Является ли подписка платной
    */
   const isPremium = (): boolean => {
-    return (
-      isActive &&
-      (tier === SubscriptionTier.PREMIUM || tier === SubscriptionTier.MAX)
-    );
+    return isActive && tier === SubscriptionTier.PREMIUM;
   };
 
   /**
-   * Является ли подписка MAX
+   * Legacy helper: old MAX is now Premium.
    */
   const isMax = (): boolean => {
-    return isActive && tier === SubscriptionTier.MAX;
+    return isPremium();
   };
 
   /**
@@ -238,7 +239,7 @@ export const useSubscription = () => {
     if (requiredTiers.includes(SubscriptionTier.PREMIUM)) {
       return SubscriptionTier.PREMIUM;
     }
-    return SubscriptionTier.MAX;
+    return SubscriptionTier.PREMIUM;
   };
 
   // ========================================

@@ -8,7 +8,11 @@ import { EphemerisService } from '../../services/ephemeris.service';
 import { AIService } from '../../services/ai.service';
 import { LunarService } from '../../services/lunar.service';
 import { calculateAspect } from '../../shared/astro-calculations';
-import { SubscriptionTier, hasAIAccess } from '../../types/subscription';
+import {
+  SubscriptionTier,
+  hasAIAccess,
+  normalizeSubscriptionTier,
+} from '../../types/subscription';
 import type { TransitAspect } from '../../services/horoscope.types';
 import { RedisService } from '../../redis/redis.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -24,6 +28,7 @@ import {
 import { buildUserLocalPeriodContext } from '@/common/utils/user-local-date.util';
 import { getSignNameLocalized } from '@/modules/shared/astro-text';
 import type { Sign } from '@/modules/shared/types';
+import { buildPromptStyleGuide } from '@/services/ai/prompt-style';
 
 export interface MainTransitInterpretationResult {
   date: string;
@@ -39,7 +44,7 @@ export interface MainTransitInterpretationResult {
 @Injectable()
 export class TransitService {
   private readonly logger = new Logger(TransitService.name);
-  private readonly mainTransitFormatVersion = 'ai-daily-v1';
+  private readonly mainTransitFormatVersion = 'ai-daily-v2-human';
   private readonly inflightMainTransit = new Map<
     string,
     Promise<MainTransitInterpretationResult>
@@ -248,10 +253,11 @@ export class TransitService {
       try {
         const dayKey = utcDayKey(); // UTC day (now)
         const quotaKey = `ai:time_machine:quota:${userId}:${dayKey}`;
+        const normalizedTier = normalizeSubscriptionTier(subscriptionTier);
         const limit =
-          subscriptionTier === SubscriptionTier.PREMIUM
-            ? LIMITS.TIME_MACHINE.PREMIUM_DAILY
-            : LIMITS.TIME_MACHINE.MAX_DAILY;
+          normalizedTier === SubscriptionTier.PREMIUM
+            ? LIMITS.TIME_MACHINE.MAX_DAILY
+            : LIMITS.TIME_MACHINE.PREMIUM_DAILY;
 
         const used = await this.redis.incr(quotaKey);
         if (used != null) {
@@ -466,10 +472,11 @@ export class TransitService {
       try {
         const dayKey = utcDayKey();
         const quotaKey = `ai:time_machine:quota:${userId}:${dayKey}`;
+        const normalizedTier = normalizeSubscriptionTier(subscriptionTier);
         const limit =
-          subscriptionTier === SubscriptionTier.PREMIUM
-            ? LIMITS.TIME_MACHINE.PREMIUM_DAILY
-            : LIMITS.TIME_MACHINE.MAX_DAILY;
+          normalizedTier === SubscriptionTier.PREMIUM
+            ? LIMITS.TIME_MACHINE.MAX_DAILY
+            : LIMITS.TIME_MACHINE.PREMIUM_DAILY;
 
         const used = await this.redis.incr(quotaKey);
         if (used != null) {
@@ -662,6 +669,12 @@ export class TransitService {
 - Лунный контекст: ${dailyContext.lunarSummary}
 - Якорь главного транзита: ${dailyContext.mainTransit?.description || 'Нет одного доминирующего транзита'}`
       : '';
+    const transitStyleGuide = buildPromptStyleGuide({
+      locale,
+      product: 'mainTransit',
+      format: 'plainText',
+      depth: 'compact',
+    });
 
     const prompt =
       locale === 'en'
@@ -684,6 +697,8 @@ Your interpretation should:
 4. Be written in clear, simple language
 5. Never contradict the daily context. If energy reserve is low, describe the transit as selective and requiring pacing, not as universally favorable.
 
+${transitStyleGuide}
+
 IMPORTANT: Return only the interpretation text, NO JSON, NO structure, plain text paragraphs only.`
         : locale === 'es'
           ? `Eres un astrólogo profesional. Analiza los siguientes tránsitos para la fecha ${date.toLocaleDateString('es-ES')} y ofrece una interpretación concisa (150-200 palabras):
@@ -705,6 +720,8 @@ Tu interpretación debe:
 4. Estar escrita en un lenguaje claro y sencillo
 5. No contradecir el contexto diario. Si la reserva de energía es baja, describe el tránsito como selectivo y dosificado.
 
+${transitStyleGuide}
+
 IMPORTANTE: Devuelve solo el texto de la interpretación, SIN JSON, SIN estructura, solo texto en párrafos.`
           : `Вы профессиональный астролог. Проанализируйте следующие транзиты на дату ${date.toLocaleDateString('ru-RU')} и дайте краткую интерпретацию (150-200 слов):
 
@@ -724,6 +741,8 @@ ${dailyContextBlock}
 3. Указывает на возможности и вызовы дня
 4. Написана простым, понятным языком
 5. Не противоречит дневному контексту. Если запас энергии низкий, описывает транзит как требующий точности и дозировки, а не как безусловно благоприятный.
+
+${transitStyleGuide}
 
 ВАЖНО: Верните только текст интерпретации, БЕЗ JSON, БЕЗ структуры, только простой текст параграфами.`;
 

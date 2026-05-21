@@ -17,7 +17,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { AIService } from '@/services/ai.service';
 import { EphemerisService } from '@/services/ephemeris.service';
 import { SubscriptionService } from '@/subscription/subscription.service';
-import { SubscriptionTier } from '@/types';
+import { normalizeSubscriptionTier, SubscriptionTier } from '@/types';
 import { CreateCompatibilityReportDto } from './dto/create-compatibility-report.dto';
 import {
   COMPATIBILITY_WEEK_SECONDS,
@@ -179,11 +179,10 @@ export class CompatibilityService {
     }
 
     const subscription = await this.subscriptionService.getStatus(userId);
+    const tier = normalizeSubscriptionTier(subscription.tier);
     const limit =
-      subscription.isActive &&
-      (subscription.tier === SubscriptionTier.PREMIUM ||
-        subscription.tier === SubscriptionTier.MAX)
-        ? COMPATIBILITY_WEEKLY_LIMITS[subscription.tier]
+      subscription.isActive && tier === SubscriptionTier.PREMIUM
+        ? COMPATIBILITY_WEEKLY_LIMITS[tier]
         : 0;
 
     if (limit <= 0) {
@@ -214,12 +213,11 @@ export class CompatibilityService {
 
   async getQuotaStatus(userId: string): Promise<CompatibilityQuotaStatus> {
     const subscription = await this.subscriptionService.getStatus(userId);
+    const tier = normalizeSubscriptionTier(subscription.tier);
 
     const limit =
-      subscription.isActive &&
-      (subscription.tier === SubscriptionTier.PREMIUM ||
-        subscription.tier === SubscriptionTier.MAX)
-        ? COMPATIBILITY_WEEKLY_LIMITS[subscription.tier]
+      subscription.isActive && tier === SubscriptionTier.PREMIUM
+        ? COMPATIBILITY_WEEKLY_LIMITS[tier]
         : 0;
 
     if (limit <= 0) {

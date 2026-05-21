@@ -7,16 +7,15 @@ import {
 } from '@nestjs/common';
 import { RateLimiterService } from '@/common/services/rate-limiter.service';
 import { SubscriptionService } from '@/subscription/subscription.service';
-import { SubscriptionTier } from '@/types';
+import { normalizeSubscriptionTier, SubscriptionTier } from '@/types';
 import type { AuthenticatedRequest } from '@/types/auth';
 
 export const COMPATIBILITY_WEEK_SECONDS = 7 * 24 * 60 * 60;
 export const COMPATIBILITY_WEEKLY_LIMITS: Record<
-  SubscriptionTier.PREMIUM | SubscriptionTier.MAX,
+  SubscriptionTier.PREMIUM,
   number
 > = {
-  [SubscriptionTier.PREMIUM]: 3,
-  [SubscriptionTier.MAX]: 10,
+  [SubscriptionTier.PREMIUM]: 10,
 };
 
 @Injectable()
@@ -38,11 +37,10 @@ export class CompatibilityRateLimitGuard implements CanActivate {
     const subscription = await this.subscriptionService.getStatus(userId);
     if (
       !subscription.isActive ||
-      (subscription.tier !== SubscriptionTier.PREMIUM &&
-        subscription.tier !== SubscriptionTier.MAX)
+      normalizeSubscriptionTier(subscription.tier) !== SubscriptionTier.PREMIUM
     ) {
       throw new ForbiddenException(
-        'Проверка совместимости доступна только для Premium и MAX',
+        'Проверка совместимости доступна только для Premium',
       );
     }
 
@@ -55,7 +53,7 @@ export class CompatibilityRateLimitGuard implements CanActivate {
       return true;
     }
 
-    const limit = COMPATIBILITY_WEEKLY_LIMITS[subscription.tier];
+    const limit = COMPATIBILITY_WEEKLY_LIMITS[SubscriptionTier.PREMIUM];
     const response = context.switchToHttp().getResponse();
     const rateLimitConfig = {
       points: limit,

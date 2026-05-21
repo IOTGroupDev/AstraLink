@@ -35,12 +35,25 @@ import { z } from 'zod';
 import { LIMITS } from '../config/limits.config';
 
 // ========================================
-// SUBSCRIPTION TIERS (3 уровня)
+// SUBSCRIPTION TIERS
 // ========================================
 export enum SubscriptionTier {
   FREE = 'free',
-  PREMIUM = 'premium', // $14.99/мес (было AstraPlus + Dating)
-  MAX = 'max', // $19.99/мес
+  PREMIUM = 'premium',
+  // Legacy value: old MAX subscriptions are treated as Premium everywhere.
+  MAX = 'max',
+}
+
+export function normalizeSubscriptionTier(
+  tier?: SubscriptionTier | string | null,
+): SubscriptionTier {
+  if (tier === SubscriptionTier.MAX) {
+    return SubscriptionTier.PREMIUM;
+  }
+
+  return tier === SubscriptionTier.PREMIUM
+    ? SubscriptionTier.PREMIUM
+    : SubscriptionTier.FREE;
 }
 
 // ========================================
@@ -110,7 +123,7 @@ export const FEATURE_MATRIX = {
   },
   [SubscriptionTier.PREMIUM]: {
     name: 'Premium',
-    price: 14.99,
+    price: 19.99,
     features: [
       'Полная натальная карта с AI интерпретацией',
       'AI-генерация персональных гороскопов (1 раз в сутки)',
@@ -121,7 +134,13 @@ export const FEATURE_MATRIX = {
       'Кто лайкнул в Dating',
       'Лунный календарь (полный месяц)',
       'Биоритмы и практики',
-      'AI Советник (30 запросов в сутки)',
+      '2 персональные консультации астролога/год',
+      'Эксклюзивные прогнозы и ритуалы',
+      'Ранний доступ к новым функциям',
+      'VIP поддержка',
+      'Индивидуальный годовой гороскоп (PDF)',
+      'Приоритет в Dating',
+      'AI Советник (50 запросов в сутки)',
     ],
     limits: {
       natalChart: 1,
@@ -131,16 +150,26 @@ export const FEATURE_MATRIX = {
       dating: Infinity,
       lunarCalendar: 'month',
       aiAccess: true,
-      advisorQueries: LIMITS.ADVISOR.PREMIUM_DAILY,
-      timeMachineQueries: LIMITS.TIME_MACHINE.PREMIUM_DAILY,
+      astrologerConsultations: 2,
+      priority: true,
+      advisorQueries: LIMITS.ADVISOR.MAX_DAILY,
+      timeMachineQueries: LIMITS.TIME_MACHINE.MAX_DAILY,
       horoscopeRefresh: 'daily',
     },
   },
   [SubscriptionTier.MAX]: {
-    name: 'Cosmic MAX',
+    name: 'Premium',
     price: 19.99,
     features: [
-      'Все функции Premium',
+      'Полная натальная карта с AI интерпретацией',
+      'AI-генерация персональных гороскопов (1 раз в сутки)',
+      'Детальные транзиты и прогнозы',
+      'Неограниченный анализ совместимости',
+      'Астросимулятор (машина времени)',
+      'Cosmic Dating (неограниченно)',
+      'Кто лайкнул в Dating',
+      'Лунный календарь (полный месяц)',
+      'Биоритмы и практики',
       '2 персональные консультации астролога/год',
       'Эксклюзивные прогнозы и ритуалы',
       'Ранний доступ к новым функциям',
@@ -179,11 +208,11 @@ export const TRIAL_CONFIG = {
 // HELPER FUNCTIONS
 // ========================================
 export function getFeatures(tier: SubscriptionTier): string[] {
-  return FEATURE_MATRIX[tier].features;
+  return FEATURE_MATRIX[normalizeSubscriptionTier(tier)].features;
 }
 
 export function getLimits(tier: SubscriptionTier) {
-  return FEATURE_MATRIX[tier].limits;
+  return FEATURE_MATRIX[normalizeSubscriptionTier(tier)].limits;
 }
 
 export function canAccessFeature(
@@ -203,14 +232,17 @@ export function canAccessFeature(
 }
 
 export function hasAIAccess(tier: SubscriptionTier): boolean {
-  return tier === SubscriptionTier.PREMIUM || tier === SubscriptionTier.MAX;
+  return normalizeSubscriptionTier(tier) === SubscriptionTier.PREMIUM;
 }
 
 export function requiresTier(
   currentTier: SubscriptionTier,
   requiredTiers: SubscriptionTier[],
 ): boolean {
-  return requiredTiers.includes(currentTier);
+  const normalizedCurrentTier = normalizeSubscriptionTier(currentTier);
+  return requiredTiers.some(
+    (tier) => normalizeSubscriptionTier(tier) === normalizedCurrentTier,
+  );
 }
 
 // ========================================

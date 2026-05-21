@@ -45,12 +45,6 @@ export function buildUserLocalPeriodContext(
     case 'tomorrow':
       targetUserDate.setUTCDate(targetUserDate.getUTCDate() + 1);
       break;
-    case 'week':
-      targetUserDate.setUTCDate(targetUserDate.getUTCDate() + 7);
-      break;
-    case 'month':
-      targetUserDate.setUTCDate(targetUserDate.getUTCDate() + 30);
-      break;
     default:
       break;
   }

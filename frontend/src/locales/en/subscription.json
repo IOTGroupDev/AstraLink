@@ -35,20 +35,25 @@
       "name": "Premium",
       "features": [
         "Full natal charts",
-        "Transits and predictions",
-        "Compatibility",
-        "10 likes per day",
-        "2 super-likes per week"
+        "AI horoscopes",
+        "Detailed transits",
+        "Unlimited compatibility",
+        "Cosmic Dating",
+        "See who liked you",
+        "2 astrologer consultations/year",
+        "VIP support"
       ]
     },
     "max": {
-      "name": "Cosmic Max",
+      "name": "Premium",
       "features": [
-        "Everything from AstraPlus",
-        "Unlimited likes",
-        "Unlimited super-likes",
+        "Full natal charts",
+        "AI horoscopes",
+        "Detailed transits",
+        "Unlimited compatibility",
+        "Cosmic Dating",
         "See who liked you",
-        "Priority in search",
+        "2 astrologer consultations/year",
         "VIP support"
       ]
     }

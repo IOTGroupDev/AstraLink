@@ -18,6 +18,7 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { Subscription } from '../../types/index';
+import { normalizeSubscriptionTier } from '../../types/subscription';
 
 type GradientColors = readonly [string, string, ...string[]];
 
@@ -45,9 +46,9 @@ const SUBSCRIPTION_LEVELS = {
     icon: 'star' as const,
   },
   max: {
-    color: '#F59E0B',
-    gradient: ['#F59E0B', '#D97706', '#DC2626'] as GradientColors,
-    icon: 'diamond' as const,
+    color: '#8B5CF6',
+    gradient: ['#8B5CF6', '#7C3AED'] as GradientColors,
+    icon: 'star' as const,
   },
 };
 
@@ -81,8 +82,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   };
 
   const currentLevel: keyof typeof SUBSCRIPTION_LEVELS =
-    (subscription?.tier as keyof typeof SUBSCRIPTION_LEVELS | undefined) ||
-    'free';
+    (normalizeSubscriptionTier(subscription?.tier) as
+      | keyof typeof SUBSCRIPTION_LEVELS
+      | undefined) || 'free';
   const levelConfig =
     SUBSCRIPTION_LEVELS[currentLevel] || SUBSCRIPTION_LEVELS.free;
   const glowGradient: GradientColors = [
@@ -152,8 +154,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
   // Показывать кнопку upgrade только если:
   // 1. showUpgradeButton === true
-  // 2. Подписка не MAX
-  const shouldShowUpgradeButton = showUpgradeButton && currentLevel !== 'max';
+  // 2. Подписка не Premium
+  const shouldShowUpgradeButton =
+    showUpgradeButton && currentLevel !== 'premium';
 
   return (
     <Animated.View style={[styles.container, animatedScaleStyle]}>

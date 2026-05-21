@@ -198,6 +198,9 @@ const HoroscopeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [periodLoading, setPeriodLoading] = useState<
+    Partial<Record<'day' | 'tomorrow' | 'week' | 'month', boolean>>
+  >({});
   const [biorhythms, setBiorhythms] = useState<BiorhythmResponse | null>(null);
   const [transitModalVisible, setTransitModalVisible] = useState(false);
   const [transitModalLoading, setTransitModalLoading] = useState(false);
@@ -357,9 +360,10 @@ const HoroscopeScreen: React.FC = () => {
     (bundle: HoroscopeBundle | null | undefined): boolean => {
       if (!bundle) return false;
 
-      return [bundle.day, bundle.tomorrow, bundle.week, bundle.month].some(
-        (item) =>
-          !!item && (item.status === 'ai_pending' || item.generatedBy !== 'ai')
+      return Boolean(
+        bundle.day &&
+          (bundle.day.status === 'ai_pending' ||
+            bundle.day.generatedBy === 'interpreter')
       );
     },
     []
@@ -762,19 +766,10 @@ const HoroscopeScreen: React.FC = () => {
 
       const aiAllowed = hasFeature('aiHoroscope');
       const hasPendingAi = hasPendingAiInBundle(newPredictions);
-      const needsAi =
-        hasPredictionData &&
-        aiAllowed &&
-        (hasPendingAi ||
-          newPredictions.day?.generatedBy !== 'ai' ||
-          newPredictions.tomorrow?.generatedBy !== 'ai' ||
-          newPredictions.week?.generatedBy !== 'ai' ||
-          newPredictions.month?.generatedBy !== 'ai');
+      const needsAi = hasPredictionData && aiAllowed && hasPendingAi;
 
       if (needsAi) {
-        const retryPlanMs = hasPendingAi
-          ? [5000, 10000, 15000, 15000, 20000]
-          : [5000, 10000];
+        const retryPlanMs = [5000, 10000, 15000, 15000, 20000];
         if (predictionsRetryCountRef.current < retryPlanMs.length) {
           const delayMs = retryPlanMs[predictionsRetryCountRef.current];
           predictionsRetryCountRef.current += 1;
@@ -809,6 +804,75 @@ const HoroscopeScreen: React.FC = () => {
       predictionsLoadingRef.current = false;
     }
   };
+
+  const loadPremiumPeriodOnDemand = React.useCallback(
+    async (period: 'day' | 'tomorrow' | 'week' | 'month') => {
+      if (!isAuthenticated || !hasFeature('aiHoroscope')) return;
+
+      const current = predictions?.[period] as HoroscopeContent | undefined;
+      if (current?.generatedBy === 'ai' && current.status === 'ready') return;
+      if (periodLoading[period]) return;
+
+      const locale = getApiLocale();
+      setPeriodLoading((state) => ({ ...state, [period]: true }));
+
+      try {
+        const response = await withTimeout(
+          chartAPI.getHoroscope(period, locale),
+          25_000,
+          `getHoroscope:${period}`
+        );
+        const loaded = extractHoroscopeContent(response);
+        if (!loaded) return;
+
+        const nextPredictions: HoroscopeBundle = {
+          day: predictions?.day ?? null,
+          tomorrow: predictions?.tomorrow ?? null,
+          week: predictions?.week ?? null,
+          month: predictions?.month ?? null,
+          [period]: loaded,
+        };
+
+        setPredictions(nextPredictions);
+        predictionsAttemptedRef.current = true;
+        predictionsLocaleRef.current = locale;
+
+        if (user?.id && chart) {
+          await writeHoroscopeScreenCache(user.id, {
+            bucketKey: buildHoroscopeDailyBucketKey(),
+            locale,
+            tier: subscription?.tier || 'free',
+            chartRevision: getHoroscopeChartRevision(chart),
+            chart,
+            currentPlanets,
+            predictions: nextPredictions,
+            biorhythms,
+            cachedAt: new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        chartLogger.warn(
+          `Не удалось догрузить premium-гороскоп period=${period}`,
+          error
+        );
+      } finally {
+        setPeriodLoading((state) => ({ ...state, [period]: false }));
+      }
+    },
+    [
+      biorhythms,
+      chart,
+      currentPlanets,
+      extractHoroscopeContent,
+      getApiLocale,
+      hasFeature,
+      isAuthenticated,
+      periodLoading,
+      predictions,
+      subscription?.tier,
+      user?.id,
+    ]
+  );
 
   // Обработчик обновления (pull to refresh)
   const onRefresh = async () => {
@@ -1221,7 +1285,12 @@ const HoroscopeScreen: React.FC = () => {
                         style={styles.premiumBlur}
                       >
                         <Text style={styles.premiumText}>
-                          👑 {t('horoscope.hero.getPremium')}
+                          👑{' '}
+                          {(!subscription?.tier &&
+                            subscription?.tier === null) ||
+                          subscription?.tier === 'free'
+                            ? t('horoscope.hero.getPremium')
+                            : t('horoscope.hero.premium')}
                         </Text>
                       </BlurView>
                     </GradientBorderView>
@@ -1444,6 +1513,7 @@ const HoroscopeScreen: React.FC = () => {
                     <HoroscopeWidget
                       key={`horoscope-${appLocale}-${predictions?.day?.date || 'empty'}-${predictions?.week?.date || 'empty'}-${predictions?.month?.date || 'empty'}`}
                       predictions={predictions}
+                      onPeriodSelect={loadPremiumPeriodOnDemand}
                     />
                   ) : !loading && predictionsAttemptedRef.current ? (
                     <View style={styles.placeholder}>

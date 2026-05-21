@@ -6,6 +6,7 @@ import {
   SubscriptionAnalytics,
   FeatureUsageStats,
   FEATURE_MATRIX,
+  normalizeSubscriptionTier,
 } from '../types';
 
 @Injectable()
@@ -124,7 +125,7 @@ export class AnalyticsService {
       // Подсчет пользователей по тирам
       let freeUsers = 0;
       let premiumUsers = 0;
-      let maxUsers = 0;
+      const maxUsers = 0;
       let activeTrials = 0;
 
       subscriptions?.forEach((sub: any) => {
@@ -142,9 +143,9 @@ export class AnalyticsService {
         }
 
         if (isActive) {
-          if (sub.tier === SubscriptionTier.FREE) freeUsers++;
-          else if (sub.tier === SubscriptionTier.PREMIUM) premiumUsers++;
-          else if (sub.tier === SubscriptionTier.MAX) maxUsers++;
+          const tier = normalizeSubscriptionTier(sub.tier);
+          if (tier === SubscriptionTier.FREE) freeUsers++;
+          else if (tier === SubscriptionTier.PREMIUM) premiumUsers++;
         }
       });
 
@@ -157,7 +158,7 @@ export class AnalyticsService {
       // MRR (Monthly Recurring Revenue)
       const monthlyRecurringRevenue =
         premiumUsers * FEATURE_MATRIX[SubscriptionTier.PREMIUM].price +
-        maxUsers * FEATURE_MATRIX[SubscriptionTier.MAX].price;
+        maxUsers * FEATURE_MATRIX[SubscriptionTier.PREMIUM].price;
 
       // ARPU (Average Revenue Per User)
       const averageRevenuePerUser =
@@ -272,9 +273,9 @@ export class AnalyticsService {
         if (!record.success) {
           stats.blocked++;
         } else {
-          if (record.tier === SubscriptionTier.FREE) stats.free++;
-          else if (record.tier === SubscriptionTier.PREMIUM) stats.premium++;
-          else if (record.tier === SubscriptionTier.MAX) stats.max++;
+          const tier = normalizeSubscriptionTier(record.tier);
+          if (tier === SubscriptionTier.FREE) stats.free++;
+          else if (tier === SubscriptionTier.PREMIUM) stats.premium++;
         }
       });
 

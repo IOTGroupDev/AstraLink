@@ -294,6 +294,8 @@ Advice: Slow the pace, name what matters, and act from clarity.`;
       expect(prompt).toContain('что стоит делать');
       expect(prompt).toContain('чего лучше избегать');
       expect(prompt).toContain('Поле "general" должно быть цельным резюме');
+      expect(prompt).toContain('Общий стиль ответа');
+      expect(prompt).toContain('Строго сохраняйте JSON-схему');
     });
 
     it('should build correct prompt for week period', () => {
@@ -311,6 +313,30 @@ Advice: Slow the pace, name what matters, and act from clarity.`;
       const prompt = service['buildHoroscopePrompt'](context);
 
       expect(prompt).toContain('на эту неделю');
+    });
+
+    it('keeps horoscope JSON contract and human style guide for all locales', () => {
+      const context = {
+        sunSign: 'Aries',
+        moonSign: 'Leo',
+        ascendant: 'Sagittarius',
+        planets: {},
+        houses: {},
+        aspects: [],
+        transits: [],
+        period: 'day' as const,
+      };
+
+      const ruPrompt = service['buildHoroscopePrompt'](context, 'ru');
+      const enPrompt = service['buildHoroscopePrompt'](context, 'en');
+      const esPrompt = service['buildHoroscopePrompt'](context, 'es');
+
+      expect(ruPrompt).toContain('КРИТИЧЕСКИ ВАЖНО');
+      expect(ruPrompt).toContain('Строго сохраняйте JSON-схему');
+      expect(enPrompt).toContain('CRITICALLY IMPORTANT');
+      expect(enPrompt).toContain('Preserve the JSON schema exactly');
+      expect(esPrompt).toContain('CRÍTICAMENTE IMPORTANTE');
+      expect(esPrompt).toContain('Conserva exactamente el esquema JSON');
     });
   });
 });

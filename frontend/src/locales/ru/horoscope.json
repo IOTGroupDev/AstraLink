@@ -5,6 +5,7 @@
   "loading": "Загрузка данных...",
   "syncing": "Обновляем гороскоп и интерпретацию...",
   "hero": {
+    "premium": "Premium",
     "getPremium": "Получить Premium",
     "greeting": "Привет, {{name}} 👋",
     "greetingFallback": "Привет 👋",

@@ -19,6 +19,23 @@ import { UserSignupCompletedEvent } from '@/auth/events';
 
 const DEFAULT_UNKNOWN_BIRTH_TIME = '12:00';
 const DEFAULT_YANDEX_OAUTH_PROVIDER = 'custom:yandex';
+const DEFAULT_YANDEX_FALLBACK_EMAIL_DOMAIN = 'oauth.astralink.local';
+
+type YandexUserInfo = {
+  sub: string;
+  id: string;
+  email?: string;
+  default_email?: string;
+  emails?: string[];
+  name?: string;
+  display_name?: string;
+  real_name?: string;
+  login?: string;
+  first_name?: string;
+  last_name?: string;
+  psuid?: string;
+  client_id?: string;
+};
 
 function toSafeLogMeta(error: unknown): Record<string, unknown> {
   if (!error || typeof error !== 'object') {
@@ -85,6 +102,125 @@ export class SupabaseAuthService {
       process.env.SUPABASE_YANDEX_PROVIDER || DEFAULT_YANDEX_OAUTH_PROVIDER,
       redirectUri,
     );
+  }
+
+  async getYandexUserInfo(authorization?: string): Promise<YandexUserInfo> {
+    const token = this.extractYandexAccessToken(authorization);
+    if (!token) {
+      throw new UnauthorizedException('Yandex access token is required');
+    }
+
+    try {
+      const response = await fetch('https://login.yandex.ru/info?format=json', {
+        headers: {
+          Authorization: `OAuth ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.warn(
+          `Yandex userinfo failed with status ${response.status}`,
+        );
+        throw new UnauthorizedException('Yandex userinfo request failed');
+      }
+
+      const raw = (await response.json()) as Record<string, unknown>;
+      const id = this.readString(raw.id) || this.readString(raw.psuid);
+      if (!id) {
+        throw new BadRequestException('Yandex userinfo did not return id');
+      }
+
+      const email =
+        this.readEmail(raw.default_email) ||
+        this.readEmail(raw.email) ||
+        this.readEmailArray(raw.emails) ||
+        this.buildYandexFallbackEmail(id);
+      const displayName =
+        this.readString(raw.display_name) ||
+        this.readString(raw.real_name) ||
+        [this.readString(raw.first_name), this.readString(raw.last_name)]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        this.readString(raw.login) ||
+        email;
+
+      return {
+        sub: id,
+        id,
+        email: email || undefined,
+        default_email: email || undefined,
+        emails: email ? [email] : undefined,
+        name: displayName || undefined,
+        display_name: displayName || undefined,
+        real_name: this.readString(raw.real_name) || undefined,
+        login: this.readString(raw.login) || undefined,
+        first_name: this.readString(raw.first_name) || undefined,
+        last_name: this.readString(raw.last_name) || undefined,
+        psuid: this.readString(raw.psuid) || undefined,
+        client_id: this.readString(raw.client_id) || undefined,
+      };
+    } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error('Yandex userinfo proxy error:', toSafeLogMeta(error));
+      throw new BadRequestException('Failed to read Yandex userinfo');
+    }
+  }
+
+  private extractYandexAccessToken(authorization?: string): string | null {
+    const value = String(authorization || '').trim();
+    if (!value) {
+      return null;
+    }
+
+    const match = value.match(/^(?:Bearer|OAuth)\s+(.+)$/i);
+    return (match?.[1] || value).trim() || null;
+  }
+
+  private readString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private readEmail(value: unknown): string | null {
+    const candidate = this.readString(value);
+    return candidate && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)
+      ? candidate.toLowerCase()
+      : null;
+  }
+
+  private readEmailArray(value: unknown): string | null {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+
+    for (const item of value) {
+      const email = this.readEmail(item);
+      if (email) {
+        return email;
+      }
+    }
+
+    return null;
+  }
+
+  private buildYandexFallbackEmail(id: string): string {
+    const domain =
+      process.env.YANDEX_FALLBACK_EMAIL_DOMAIN ||
+      DEFAULT_YANDEX_FALLBACK_EMAIL_DOMAIN;
+    const safeId =
+      id
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]/g, '-')
+        .replace(/^-+|-+$/g, '') || 'unknown';
+
+    return `yandex-${safeId}@${domain}`;
   }
 
   /**

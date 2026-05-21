@@ -1,5 +1,4 @@
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 import { Linking, Platform, type EmitterSubscription } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +24,11 @@ const expoExtra = (Constants?.expoConfig?.extra ?? {}) as Record<
   string,
   string | undefined
 >;
+const configuredOAuthRedirectUri =
+  runtimeEnv.EXPO_PUBLIC_AUTH_REDIRECT_URI ||
+  expoExtra.EXPO_PUBLIC_AUTH_REDIRECT_URI ||
+  runtimeEnv.AUTH_REDIRECT_URI ||
+  expoExtra.AUTH_REDIRECT_URI;
 const YANDEX_OAUTH_PROVIDER =
   runtimeEnv.EXPO_PUBLIC_SUPABASE_YANDEX_PROVIDER ||
   expoExtra.SUPABASE_YANDEX_PROVIDER ||
@@ -413,6 +417,11 @@ function isExpoGo(): boolean {
 
 function getRedirectUri(): string {
   try {
+    if (configuredOAuthRedirectUri) {
+      authLogger.log('🔗 Configured redirect URI selected');
+      return configuredOAuthRedirectUri;
+    }
+
     // Web prod: same-origin callback route
     if (
       Platform.OS === 'web' &&
@@ -422,21 +431,13 @@ function getRedirectUri(): string {
       return `${window.location.origin}/${OAUTH_REDIRECT_PATH}`;
     }
 
-    const expoGo = isExpoGo();
-    const url = expoGo
-      ? AuthSession.makeRedirectUri({
-          path: OAUTH_REDIRECT_PATH,
-        })
-      : AuthSession.makeRedirectUri({
-          native: OAUTH_NATIVE_REDIRECT_URI,
-          scheme: 'astralink',
-          path: OAUTH_REDIRECT_PATH,
-        });
-
+    // Native OAuth must use the app scheme. In Expo Go, makeRedirectUri()
+    // produces an exp:// local URL, which can send Supabase/Google back to the
+    // Expo development host instead of the app callback.
     authLogger.log(
-      `🔗 ${expoGo ? 'Expo Go' : 'Native'} redirect URI generated`
+      `🔗 Native redirect URI selected${isExpoGo() ? ' for Expo Go' : ''}`
     );
-    return url;
+    return OAUTH_NATIVE_REDIRECT_URI;
   } catch (error) {
     authLogger.error('❌ Ошибка получения redirect URI:', error);
     return OAUTH_NATIVE_REDIRECT_URI;

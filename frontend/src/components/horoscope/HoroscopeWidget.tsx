@@ -51,6 +51,7 @@ interface HoroscopeWidgetProps {
   predictions: HoroscopeBundle | null;
   currentPlanets?: any;
   isLoading?: boolean;
+  onPeriodSelect?: (period: TabType) => void;
 }
 
 type TabType = 'day' | 'tomorrow' | 'week' | 'month';
@@ -113,6 +114,7 @@ const baseTabs = [
 const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
   predictions,
   isLoading = false,
+  onPeriodSelect,
 }) => {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('day');
@@ -151,6 +153,9 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
 
   const currentHoroscope: HoroscopeContent | null =
     allHoroscopes?.[activeTab] ?? allHoroscopes?.day ?? null;
+  const isAiGenerated =
+    currentHoroscope?.generatedBy === 'ai' ||
+    currentHoroscope?.generatedBy === 'mixed';
 
   const sourceLabel = useMemo(() => {
     if (!currentHoroscope?.generatedBy) return null;
@@ -352,8 +357,16 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
           {availableTabs.map((tab) => (
             <Pressable
               key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
+              style={[
+                styles.tab,
+                activeTab === tab.id && styles.tabActive,
+                tab.id !== availableTabs[availableTabs.length - 1]?.id &&
+                  styles.tabSpaced,
+              ]}
+              onPress={() => {
+                setActiveTab(tab.id);
+                onPeriodSelect?.(tab.id);
+              }}
             >
               <Text
                 style={[
@@ -366,6 +379,36 @@ const HoroscopeWidget: React.FC<HoroscopeWidgetProps> = ({
             </Pressable>
           ))}
         </ScrollView>
+
+        <View style={styles.headerBadges}>
+          {sourceLabel ? (
+            <View
+              style={[
+                styles.sourceBadge,
+                isAiGenerated && styles.sourceBadgeAi,
+              ]}
+            >
+              <Ionicons
+                name={isAiGenerated ? 'sparkles' : 'planet-outline'}
+                size={13}
+                color={isAiGenerated ? '#FFE7A8' : '#F5D6FF'}
+              />
+              <Text
+                style={[
+                  styles.sourceBadgeText,
+                  isAiGenerated && styles.sourceBadgeTextAi,
+                ]}
+              >
+                {sourceLabel}
+              </Text>
+            </View>
+          ) : null}
+          {currentHoroscope?.status === 'ai_pending' && statusLabel ? (
+            <View style={[styles.sourceBadge, styles.statusBadgePending]}>
+              <Text style={styles.sourceBadgeText}>{statusLabel}</Text>
+            </View>
+          ) : null}
+        </View>
 
         <View style={styles.contentContainer}>
           {categories.map((category) => {
@@ -636,19 +679,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 10,
+    marginBottom: 12,
   },
   sourceBadge: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(124, 119, 153, 0.7)',
+  },
+  sourceBadgeAi: {
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderColor: 'rgba(255, 231, 168, 0.55)',
   },
   sourceBadgeText: {
     color: '#F5D6FF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  sourceBadgeTextAi: {
+    color: '#FFE7A8',
   },
   statusBadgePending: {
     backgroundColor: 'rgba(139, 92, 246, 0.28)',
@@ -657,7 +713,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tabsContent: {
-    gap: 10,
     paddingLeft: 10,
     paddingRight: 10,
   },
@@ -670,6 +725,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(124, 119, 153, 0.7)',
+  },
+  tabSpaced: {
+    marginRight: 10,
   },
   tabActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.25)',

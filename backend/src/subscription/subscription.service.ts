@@ -8,6 +8,7 @@ import {
   SubscriptionStatusResponse,
   FEATURE_MATRIX,
   TRIAL_CONFIG,
+  normalizeSubscriptionTier,
 } from '../types';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { RedisService } from '../redis/redis.service';
@@ -61,7 +62,13 @@ export class SubscriptionService {
       const cacheKey = this.getStatusCacheKey(userId);
       const cached = await this.redis.get<SubscriptionStatusResponse>(cacheKey);
       if (cached) {
-        return cached;
+        return {
+          ...cached,
+          tier: normalizeSubscriptionTier(cached.tier),
+          features:
+            FEATURE_MATRIX[normalizeSubscriptionTier(cached.tier)]?.features ||
+            cached.features,
+        };
       }
 
       // ✅ PRISMA: Получаем подписку через Prisma
@@ -73,7 +80,7 @@ export class SubscriptionService {
         return await this.createFreeSubscription(userId);
       }
 
-      const tier = subscription.tier as SubscriptionTier;
+      const tier = normalizeSubscriptionTier(subscription.tier);
       const expiresAt = subscription.expiresAt;
       const trialEndsAt = subscription.trialEndsAt;
       const now = new Date();
@@ -240,8 +247,6 @@ export class SubscriptionService {
       this.statusCacheTtlSec,
     );
 
-    await this.refreshPremiumAssetsForUser(userId, locale);
-
     return {
       success: true,
       message: `Trial активирован на ${TRIAL_CONFIG.duration} дней`,
@@ -259,12 +264,19 @@ export class SubscriptionService {
     transactionId?: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
-    if (tier === SubscriptionTier.FREE) {
+    const normalizedTier = normalizeSubscriptionTier(tier);
+
+    if (normalizedTier === SubscriptionTier.FREE) {
       throw new BadRequestException('Нельзя "улучшить" до Free');
     }
 
     if (paymentMethod === 'mock') {
-      return this.processMockPayment(userId, tier, transactionId, locale);
+      return this.processMockPayment(
+        userId,
+        normalizedTier,
+        transactionId,
+        locale,
+      );
     }
 
     throw new BadRequestException(
@@ -328,7 +340,7 @@ export class SubscriptionService {
       await this.prisma.payment.create({
         data: {
           userId,
-          amount: tier === SubscriptionTier.PREMIUM ? 1499 : 1999,
+          amount: 1999,
           currency: 'RUB',
           status: 'completed',
           stripeSessionId: transactionId,
@@ -353,8 +365,6 @@ export class SubscriptionService {
     };
 
     await this.redis.set(cacheKey, statusResponse, this.statusCacheTtlSec);
-
-    await this.refreshPremiumAssetsForUser(userId, locale);
 
     return {
       success: true,
@@ -384,8 +394,8 @@ export class SubscriptionService {
       );
     }
 
-    // 1) Полный premium refresh натальной карты:
-    // пересчет карты + структурная интерпретация + расширенный AI narrative
+    // 1) Натальная карта неизменна: не пересчитываем ее при покупке.
+    // Только дозаполняем AI narrative для текущего locale/fingerprint, если его нет.
     try {
       await this.natalChartService.refreshPremiumChartAssets(userId, locale);
     } catch (e) {
@@ -413,37 +423,9 @@ export class SubscriptionService {
       );
     }
 
-    // 3) Остальные периоды догреваем в фоне и последовательно,
-    // чтобы не устраивать 3-4 одновременных тяжелых AI-запроса.
-    void this.prewarmSecondaryHoroscopes(userId, locale).catch((e) => {
-      this.logger.warn(
-        `Secondary horoscope prewarm failed for ${userId}: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
-    });
-  }
-
-  private async prewarmSecondaryHoroscopes(
-    userId: string,
-    locale: 'ru' | 'en' | 'es',
-  ): Promise<void> {
-    for (const period of ['tomorrow', 'week', 'month'] as const) {
-      try {
-        await this.horoscopeService.generateHoroscope(
-          userId,
-          period,
-          true,
-          locale,
-        );
-      } catch (e) {
-        this.logger.warn(
-          `Horoscope prewarm failed for ${userId} period=${period}: ${
-            e instanceof Error ? e.message : String(e)
-          }`,
-        );
-      }
-    }
+    // Secondary horoscope periods are intentionally not AI-prewarmed here.
+    // They are slow and costly; the app can show rule-based fallbacks and
+    // generate AI for non-daily periods only from explicit period requests.
   }
 
   /**
@@ -508,20 +490,11 @@ export class SubscriptionService {
         {
           tier: SubscriptionTier.PREMIUM,
           name: 'Premium',
-          price: 1499,
+          price: 1999,
           currency: 'RUB',
           period: 'month',
           features: FEATURE_MATRIX[SubscriptionTier.PREMIUM].features,
           limits: FEATURE_MATRIX[SubscriptionTier.PREMIUM].limits,
-        },
-        {
-          tier: SubscriptionTier.MAX,
-          name: 'MAX',
-          price: 1999,
-          currency: 'RUB',
-          period: 'month',
-          features: FEATURE_MATRIX[SubscriptionTier.MAX].features,
-          limits: FEATURE_MATRIX[SubscriptionTier.MAX].limits,
         },
       ],
       trial: {

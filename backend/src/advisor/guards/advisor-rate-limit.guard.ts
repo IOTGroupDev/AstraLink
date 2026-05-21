@@ -41,7 +41,7 @@ export class AdvisorRateLimitGuard implements CanActivate {
 
     if (advisorLimit === 0 || subscription.tier === SubscriptionTier.FREE) {
       throw new ForbiddenException(
-        'Советник доступен только для подписчиков Premium и Ultra',
+        'Советник доступен только для подписчиков Premium',
       );
     }
 
@@ -62,10 +62,8 @@ export class AdvisorRateLimitGuard implements CanActivate {
     });
 
     if (!result.allowed) {
-      const tierName =
-        subscription.tier === SubscriptionTier.PREMIUM ? 'Premium' : 'Ultra';
       throw new ForbiddenException(
-        `Достигнут лимит запросов к советнику (${advisorLimit} в сутки для ${tierName}). ` +
+        `Достигнут лимит запросов к советнику (${advisorLimit} в сутки для Premium). ` +
           `Попробуйте завтра или обновите подписку.`,
       );
     }

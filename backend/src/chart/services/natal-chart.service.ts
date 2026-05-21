@@ -8,6 +8,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { EphemerisService } from '../../services/ephemeris.service';
@@ -15,6 +16,7 @@ import { InterpretationService } from '../../services/interpretation.service';
 import { AIService } from '../../services/ai.service';
 import { RedisService } from '../../redis/redis.service';
 import { ChartRepository } from '../../repositories/chart.repository';
+import { PrismaService } from '../../prisma/prisma.service';
 import { createHash } from 'crypto';
 import {
   getExtendedPlanetInSign,
@@ -32,6 +34,13 @@ import {
 @Injectable()
 export class NatalChartService {
   private readonly logger = new Logger(NatalChartService.name);
+  private readonly natalAiPromptVersion = 'natal-ai-v10-clean-text-format';
+  private readonly natalAiContentType = 'natal_ai_interpretation';
+  private readonly natalAiSubjectKey = 'natal';
+  private readonly natalAiTextLimit = 900;
+  private readonly natalAiPremiumSummaryLimit = 2800;
+  private readonly natalAiArrayItemLimit = 260;
+  private readonly natalAiStringArrayLimit = 5;
 
   constructor(
     private supabaseService: SupabaseService,
@@ -41,6 +50,7 @@ export class NatalChartService {
     private redis: RedisService,
     private chartRepository: ChartRepository,
     private geoService: GeoService,
+    private prisma: PrismaService,
   ) {}
 
   /**
@@ -57,6 +67,17 @@ export class NatalChartService {
     const place = (birthPlace ?? '').trim();
     const payload = `${date}|${time}|${place}`.toLowerCase();
     return createHash('sha1').update(payload).digest('hex');
+  }
+
+  private getChartFingerprint(chartData: any): string {
+    return (
+      chartData?.metadata?.fingerprint ||
+      chartData?.birthDateTimeUtc ||
+      [chartData?.birthDate, chartData?.birthTime, chartData?.birthPlace]
+        .filter(Boolean)
+        .join('|') ||
+      'unknown'
+    );
   }
 
   private normalizeBirthDateInput(input?: string | null): string | null {
@@ -161,6 +182,7 @@ export class NatalChartService {
     locale: 'ru' | 'en' | 'es',
   ): {
     narrative: string;
+    structured?: any;
     generatedAt?: string;
     promptVersion?: string;
   } | null {
@@ -171,6 +193,7 @@ export class NatalChartService {
     if (localizedNarrative) {
       return {
         narrative: localizedNarrative,
+        structured: localized?.structured,
         generatedAt: localized?.generatedAt,
         promptVersion: localized?.promptVersion,
       };
@@ -184,12 +207,183 @@ export class NatalChartService {
     if (storedLocale === locale && legacyNarrative) {
       return {
         narrative: legacyNarrative,
+        structured: chartData?.interpretation?.structuredAi,
         generatedAt: chartData?.interpretation?.aiGeneratedAt,
         promptVersion: chartData?.interpretation?.aiPromptVersion,
       };
     }
 
     return null;
+  }
+
+  hasCurrentAiNarrative(chartData: any, locale: 'ru' | 'en' | 'es'): boolean {
+    const aiEntry = this.getLocalizedAiInterpretation(chartData, locale);
+    return Boolean(aiEntry?.narrative);
+  }
+
+  async withPremiumAiNarrativeForResponse<T extends Record<string, any>>(
+    userId: string,
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+  ): Promise<T> {
+    const localizedData = this.toLocalizedChartData(chartData, locale);
+    const cachedAi = this.getLocalizedAiInterpretation(localizedData, locale);
+    if (cachedAi?.narrative) {
+      return localizedData;
+    }
+
+    const persistentPayload = await this.getPersistentAiPayload(
+      userId,
+      chartData,
+      locale,
+    );
+
+    if (!persistentPayload) {
+      return localizedData;
+    }
+
+    return this.withLocalizedAiInterpretation(
+      localizedData,
+      locale,
+      persistentPayload.narrative,
+      new Date().toISOString(),
+      persistentPayload.structured,
+    );
+  }
+
+  private withCurrentAiPromptVersion<T extends Record<string, any>>(
+    chartData: T,
+    locale: 'ru' | 'en' | 'es',
+  ): T {
+    const aiEntry = this.getLocalizedAiInterpretation(chartData, locale);
+    if (!aiEntry?.narrative) {
+      return chartData;
+    }
+
+    const generatedAt = aiEntry.generatedAt || new Date().toISOString();
+    const localizedAi = {
+      ...(chartData?.aiInterpretations || {}),
+      [locale]: {
+        ...(chartData?.aiInterpretations?.[locale] || {}),
+        narrative: aiEntry.narrative,
+        premiumNarrative: aiEntry.narrative,
+        structured: aiEntry.structured,
+        generatedAt,
+        promptVersion: this.natalAiPromptVersion,
+      },
+    };
+    const interpretation = {
+      ...(chartData?.interpretation || {}),
+      aiNarrative: aiEntry.narrative,
+      premiumNarrative: aiEntry.narrative,
+      structuredAi: aiEntry.structured,
+      aiGeneratedAt: generatedAt,
+      aiPromptVersion: this.natalAiPromptVersion,
+      generatedBy: 'ai',
+    };
+
+    return this.withInterpretationLocale(
+      {
+        ...chartData,
+        interpretation,
+        aiInterpretations: localizedAi,
+        interpretationVersion: 'v3-ai',
+        generatedBy: 'ai',
+      },
+      locale,
+    ) as T;
+  }
+
+  private async getPersistentAiPayload(
+    userId: string,
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+  ): Promise<{ narrative: string; structured?: any } | null> {
+    try {
+      const cached = await this.prisma.aiContentCache.findUnique({
+        where: {
+          userId_contentType_subjectKey_locale_chartFingerprint_promptVersion: {
+            userId,
+            contentType: this.natalAiContentType,
+            subjectKey: this.natalAiSubjectKey,
+            locale,
+            chartFingerprint: this.getChartFingerprint(chartData),
+            promptVersion: this.natalAiPromptVersion,
+          },
+        },
+      });
+
+      const content = cached?.contentJson as Record<string, unknown> | null;
+      const narrative = this.normalizeNarrativeValue(content?.narrative);
+      if (!narrative || !this.isRecord(content?.structured)) {
+        return null;
+      }
+
+      return {
+        narrative,
+        structured: content?.structured,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Persistent natal AI cache read failed for user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private async setPersistentAiNarrative(
+    userId: string,
+    chartData: any,
+    locale: 'ru' | 'en' | 'es',
+    narrative: string,
+    generatedAt: string,
+    structured?: any,
+  ): Promise<void> {
+    if (!narrative) {
+      return;
+    }
+
+    try {
+      await this.prisma.aiContentCache.upsert({
+        where: {
+          userId_contentType_subjectKey_locale_chartFingerprint_promptVersion: {
+            userId,
+            contentType: this.natalAiContentType,
+            subjectKey: this.natalAiSubjectKey,
+            locale,
+            chartFingerprint: this.getChartFingerprint(chartData),
+            promptVersion: this.natalAiPromptVersion,
+          },
+        },
+        create: {
+          userId,
+          contentType: this.natalAiContentType,
+          subjectKey: this.natalAiSubjectKey,
+          locale,
+          chartFingerprint: this.getChartFingerprint(chartData),
+          promptVersion: this.natalAiPromptVersion,
+          provider: this.aiService.getProvider(),
+          contentJson: { narrative, structured },
+          generatedAt: new Date(generatedAt),
+        },
+        update: {
+          provider: this.aiService.getProvider(),
+          contentJson: { narrative, structured },
+          generatedAt: new Date(generatedAt),
+        },
+      });
+      this.logger.debug(
+        `Saved persistent natal AI cache for user=${userId}, locale=${locale}, fingerprint=${this.getChartFingerprint(chartData)}, chars=${narrative.length}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Persistent natal AI cache write failed for user=${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private withLocalizedInterpretation<T extends Record<string, any>>(
@@ -213,22 +407,359 @@ export class NatalChartService {
     ) as T;
   }
 
+  private isRecord(value: unknown): value is Record<string, any> {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+  }
+
+  private mergeStructuredAiInterpretation(base: any, structured: any): any {
+    if (!this.isRecord(base) || !this.isRecord(structured)) {
+      return base || {};
+    }
+
+    const merged: Record<string, any> = {
+      ...base,
+      overview:
+        this.normalizeNarrativeValue(structured.overview) || base.overview,
+    };
+
+    for (const key of ['sunSign', 'moonSign', 'ascendant'] as const) {
+      if (this.isRecord(base[key]) && this.isRecord(structured[key])) {
+        merged[key] = this.mergeTextFields(base[key], structured[key]);
+      }
+    }
+
+    if (Array.isArray(base.planets) && Array.isArray(structured.planets)) {
+      merged.planets = this.mergeArrayByMatcher(
+        base.planets,
+        structured.planets,
+        (item) => String(item?.planet || '').toLowerCase(),
+      );
+    }
+
+    if (Array.isArray(base.houses) && Array.isArray(structured.houses)) {
+      merged.houses = this.mergeArrayByMatcher(
+        base.houses,
+        structured.houses,
+        (item) => String(item?.house || ''),
+      );
+    }
+
+    if (Array.isArray(base.aspects) && Array.isArray(structured.aspects)) {
+      merged.aspects = this.mergeArrayByMatcher(
+        base.aspects,
+        structured.aspects,
+        (item) =>
+          [
+            String(item?.planetA || '').toLowerCase(),
+            String(item?.planetB || '').toLowerCase(),
+            String(item?.aspect || '').toLowerCase(),
+          ].join('|'),
+      );
+    }
+
+    if (this.isRecord(base.summary) && this.isRecord(structured.summary)) {
+      merged.summary = this.mergeSummaryTextFields(
+        base.summary,
+        structured.summary,
+      );
+    }
+
+    return merged;
+  }
+
+  private limitStructuredAiPayload(value: unknown, key = ''): any {
+    if (typeof value === 'string') {
+      return this.truncateAiText(value, this.getAiTextLimitForKey(key));
+    }
+
+    if (Array.isArray(value)) {
+      const isStringArray = value.every((item) => typeof item === 'string');
+      const items = isStringArray
+        ? value.slice(0, this.getAiArrayLimitForKey(key))
+        : value;
+
+      return items.map((item) => this.limitStructuredAiPayload(item, key));
+    }
+
+    if (!this.isRecord(value)) {
+      return value;
+    }
+
+    return Object.entries(value).reduce<Record<string, any>>(
+      (acc, [entryKey, entryValue]) => {
+        acc[entryKey] = this.limitStructuredAiPayload(entryValue, entryKey);
+        return acc;
+      },
+      {},
+    );
+  }
+
+  private getAiTextLimitForKey(key: string): number {
+    if (key === 'premiumSummary') {
+      return this.natalAiPremiumSummaryLimit;
+    }
+
+    if (
+      [
+        'keywords',
+        'strengths',
+        'challenges',
+        'recommendations',
+        'personalityTraits',
+        'talents',
+        'lifeThemes',
+        'karmaLessons',
+        'uniqueFeatures',
+        'dominantElements',
+        'dominantQualities',
+        'retrogradePlanets',
+        'stellium',
+        'chartPatterns',
+        'dignityHighlights',
+        'retrogradeList',
+        'houseAccents',
+        'emptyHouses',
+        'retrogradeHouses',
+        'topAspectsDetailed',
+        'title',
+      ].includes(key)
+    ) {
+      return this.natalAiArrayItemLimit;
+    }
+
+    return this.natalAiTextLimit;
+  }
+
+  private getAiArrayLimitForKey(key: string): number {
+    if (['keywords', 'strengths', 'challenges'].includes(key)) {
+      return 3;
+    }
+
+    return this.natalAiStringArrayLimit;
+  }
+
+  private truncateAiText(value: string, maxLength: number): string {
+    const normalized = this.normalizeNarrativeValue(value);
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    const cutoff = normalized
+      .slice(0, maxLength)
+      .replace(/\s+\S*$/, '')
+      .trim();
+    return `${cutoff || normalized.slice(0, maxLength).trim()}...`;
+  }
+
+  private mergeTextFields(base: any, ai: any): any {
+    if (!this.isRecord(base) || !this.isRecord(ai)) {
+      return base;
+    }
+
+    const result = { ...base };
+    for (const key of [
+      'interpretation',
+      'axisInterpretation',
+      'chainSummary',
+      'significance',
+      'overview',
+      'lifePurpose',
+      'relationships',
+      'careerPath',
+      'spiritualPath',
+      'healthFocus',
+      'financialApproach',
+      'career',
+      'finances',
+    ]) {
+      const text = this.normalizeNarrativeValue(ai[key]);
+      if (text) {
+        result[key] = text;
+      }
+    }
+
+    for (const key of [
+      'keywords',
+      'strengths',
+      'challenges',
+      'recommendations',
+      'personalityTraits',
+      'talents',
+      'lifeThemes',
+      'karmaLessons',
+      'uniqueFeatures',
+      'dominantElements',
+      'dominantQualities',
+      'retrogradePlanets',
+      'stellium',
+      'chartPatterns',
+      'dignityHighlights',
+      'retrogradeList',
+      'houseAccents',
+      'emptyHouses',
+      'retrogradeHouses',
+      'topAspectsDetailed',
+    ]) {
+      if (
+        Array.isArray(ai[key]) &&
+        ai[key].every((item: unknown) => typeof item === 'string')
+      ) {
+        result[key] = ai[key]
+          .map((item: string) => item.trim())
+          .filter(Boolean);
+      }
+    }
+
+    return result;
+  }
+
+  private mergeArrayByMatcher(
+    baseItems: any[],
+    aiItems: any[],
+    getKey: (item: any) => string,
+  ): any[] {
+    const aiByKey = new Map<string, any>();
+    for (const item of aiItems) {
+      const key = getKey(item);
+      if (key) {
+        aiByKey.set(key, item);
+      }
+    }
+
+    return baseItems.map((item) => {
+      const ai = aiByKey.get(getKey(item));
+      return ai ? this.mergeTextFields(item, ai) : item;
+    });
+  }
+
+  private mergeSummaryTextFields(baseSummary: any, aiSummary: any): any {
+    const merged = this.mergeTextFields(baseSummary, aiSummary);
+
+    for (const key of [
+      'chartRuler',
+      'sect',
+      'finalDispositor',
+      'dominantDispositor',
+    ]) {
+      if (this.isRecord(baseSummary[key]) && this.isRecord(aiSummary[key])) {
+        merged[key] = this.mergeTextFields(baseSummary[key], aiSummary[key]);
+      }
+    }
+
+    if (
+      this.isRecord(baseSummary.lunarNodes) &&
+      this.isRecord(aiSummary.lunarNodes)
+    ) {
+      merged.lunarNodes = this.mergeTextFields(
+        baseSummary.lunarNodes,
+        aiSummary.lunarNodes,
+      );
+      for (const key of ['northNode', 'southNode'] as const) {
+        if (
+          this.isRecord(baseSummary.lunarNodes[key]) &&
+          this.isRecord(aiSummary.lunarNodes[key])
+        ) {
+          merged.lunarNodes[key] = this.mergeTextFields(
+            baseSummary.lunarNodes[key],
+            aiSummary.lunarNodes[key],
+          );
+        }
+      }
+    }
+
+    if (
+      this.isRecord(baseSummary.dispositors) &&
+      this.isRecord(aiSummary.dispositors)
+    ) {
+      merged.dispositors = this.mergeTextFields(
+        baseSummary.dispositors,
+        aiSummary.dispositors,
+      );
+      for (const key of ['finalDispositor', 'dominantDispositor'] as const) {
+        if (
+          this.isRecord(baseSummary.dispositors[key]) &&
+          this.isRecord(aiSummary.dispositors[key])
+        ) {
+          merged.dispositors[key] = this.mergeTextFields(
+            baseSummary.dispositors[key],
+            aiSummary.dispositors[key],
+          );
+        }
+      }
+
+      if (
+        Array.isArray(baseSummary.dispositors.mutualReceptions) &&
+        Array.isArray(aiSummary.dispositors.mutualReceptions)
+      ) {
+        merged.dispositors.mutualReceptions =
+          baseSummary.dispositors.mutualReceptions.map(
+            (item: any, index: number) =>
+              this.mergeTextFields(
+                item,
+                aiSummary.dispositors.mutualReceptions[index],
+              ),
+          );
+      }
+    }
+
+    if (
+      this.isRecord(baseSummary.thematicFocus) &&
+      this.isRecord(aiSummary.thematicFocus)
+    ) {
+      merged.thematicFocus = this.mergeTextFields(
+        baseSummary.thematicFocus,
+        aiSummary.thematicFocus,
+      );
+    }
+
+    if (
+      Array.isArray(baseSummary.keyHouseRulers) &&
+      Array.isArray(aiSummary.keyHouseRulers)
+    ) {
+      merged.keyHouseRulers = this.mergeArrayByMatcher(
+        baseSummary.keyHouseRulers,
+        aiSummary.keyHouseRulers,
+        (item) => String(item?.house || ''),
+      );
+    }
+
+    if (
+      Array.isArray(baseSummary.strongestAspects) &&
+      Array.isArray(aiSummary.strongestAspects)
+    ) {
+      merged.strongestAspects = baseSummary.strongestAspects.map(
+        (item: any, index: number) =>
+          this.mergeTextFields(item, aiSummary.strongestAspects[index]),
+      );
+    }
+
+    return merged;
+  }
+
   private withLocalizedAiInterpretation<T extends Record<string, any>>(
     chartData: T,
     locale: 'ru' | 'en' | 'es',
     narrative: string,
     generatedAt: string,
+    structured?: any,
   ): T {
     const baseInterpretation =
       this.getLocalizedInterpretation(chartData, locale) ||
       chartData?.interpretation ||
       {};
+    const structuredInterpretation = this.mergeStructuredAiInterpretation(
+      baseInterpretation,
+      structured,
+    );
     const interpretation = {
-      ...baseInterpretation,
+      ...structuredInterpretation,
+      premiumSummary:
+        this.normalizeNarrativeValue(structured?.premiumSummary) || narrative,
       aiNarrative: narrative,
       premiumNarrative: narrative,
+      structuredAi: structured,
       aiGeneratedAt: generatedAt,
-      aiPromptVersion: 'natal-ai-v1',
+      aiPromptVersion: this.natalAiPromptVersion,
       generatedBy: 'ai',
     };
 
@@ -245,8 +776,9 @@ export class NatalChartService {
           [locale]: {
             narrative,
             premiumNarrative: narrative,
+            structured,
             generatedAt,
-            promptVersion: 'natal-ai-v1',
+            promptVersion: this.natalAiPromptVersion,
           },
         },
         interpretationVersion: 'v3-ai',
@@ -271,9 +803,16 @@ export class NatalChartService {
     const aiEntry = this.getLocalizedAiInterpretation(chartData, locale);
     const interpretation = aiEntry
       ? {
-          ...baseInterpretation,
+          ...this.mergeStructuredAiInterpretation(
+            baseInterpretation,
+            aiEntry.structured,
+          ),
+          premiumSummary:
+            this.normalizeNarrativeValue(aiEntry.structured?.premiumSummary) ||
+            aiEntry.narrative,
           aiNarrative: aiEntry.narrative,
           premiumNarrative: aiEntry.narrative,
+          structuredAi: aiEntry.structured,
           aiGeneratedAt: aiEntry.generatedAt,
           aiPromptVersion: aiEntry.promptVersion,
           generatedBy: 'ai',
@@ -311,11 +850,11 @@ export class NatalChartService {
         try {
           return this.normalizeNarrativeValue(JSON.parse(cleaned));
         } catch {
-          return cleaned;
+          return this.sanitizeAiTextFormatting(cleaned);
         }
       }
 
-      return cleaned;
+      return this.sanitizeAiTextFormatting(cleaned);
     }
 
     if (Array.isArray(value)) {
@@ -353,6 +892,22 @@ export class NatalChartService {
     }
 
     return '';
+  }
+
+  private sanitizeAiTextFormatting(value: string): string {
+    return value
+      .split(/\r?\n/)
+      .map((line) =>
+        line
+          .replace(/^\s*#{1,6}\s*/g, '')
+          .replace(/^\s*№\s*\d+(?:\.\d+)*[).:\-–—]?\s*/giu, '')
+          .replace(/^\s*\d+(?:\.\d+)*[).:\-–—]\s*/g, '')
+          .trim(),
+      )
+      .filter((line) => !/^[-–—*_]{3,}$/.test(line))
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   private withInterpretationLocale<T extends Record<string, any>>(
@@ -1297,34 +1852,25 @@ export class NatalChartService {
       void 0;
     }
 
-    this.logger.log(`AI interpretation regenerated for user ${userId}`);
+    this.logger.log(`AI interpretation ensured for user ${userId}`);
   }
 
   async refreshPremiumChartAssets(
     userId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<void> {
-    const existingChart = await this.chartRepository.findByUserId(userId);
+    let chart = await this.chartRepository.findByUserId(userId);
 
-    if (existingChart) {
-      await this.forceRecalculateNatalChart(userId, locale);
-    } else {
+    if (!chart) {
       await this.createNatalChart(userId, {}, locale);
+      chart = await this.chartRepository.findByUserId(userId);
     }
 
-    const chart = await this.chartRepository.findByUserId(userId);
     if (!chart) {
       throw new NotFoundException('Natal chart not found');
     }
 
     await this.attachAiNarrativeToChart(chart.id, chart.data, userId, locale);
-
-    try {
-      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
-      await this.redis.deleteByPattern(`ephe:transits:${userId}:*`);
-    } catch (_e) {
-      void 0;
-    }
 
     this.logger.log(`Premium chart assets refreshed for user ${userId}`);
   }
@@ -1343,12 +1889,60 @@ export class NatalChartService {
 
     const cachedAi = this.getLocalizedAiInterpretation(chartData, locale);
     if (cachedAi?.narrative && !force) {
-      const updatedData = this.toLocalizedChartData(chartData, locale);
-      await this.chartRepository.update(chartId, { data: updatedData });
-      this.logger.debug(
-        `Using cached AI natal interpretation for user=${userId}, locale=${locale}`,
+      const hasStructuredAi = this.isRecord(cachedAi.structured);
+      if (
+        cachedAi.promptVersion === this.natalAiPromptVersion &&
+        hasStructuredAi
+      ) {
+        this.logger.debug(
+          `Using current cached AI natal interpretation for user=${userId}, locale=${locale}`,
+        );
+        return;
+      }
+
+      if (!hasStructuredAi) {
+        this.logger.debug(
+          `Cached natal AI narrative lacks structured payload for user=${userId}, locale=${locale}; regenerating structured interpretation`,
+        );
+      } else {
+        const updatedData = this.withCurrentAiPromptVersion(chartData, locale);
+        await this.chartRepository.update(chartId, { data: updatedData });
+        await this.setPersistentAiNarrative(
+          userId,
+          updatedData,
+          locale,
+          cachedAi.narrative,
+          cachedAi.generatedAt || new Date().toISOString(),
+          cachedAi.structured,
+        );
+        this.logger.debug(
+          `Using cached AI natal interpretation for user=${userId}, locale=${locale}, promptVersion=${cachedAi.promptVersion || 'backfilled'}`,
+        );
+        return;
+      }
+    }
+
+    if (!force) {
+      const persistentPayload = await this.getPersistentAiPayload(
+        userId,
+        chartData,
+        locale,
       );
-      return;
+
+      if (persistentPayload) {
+        const updatedData = this.withLocalizedAiInterpretation(
+          chartData,
+          locale,
+          persistentPayload.narrative,
+          new Date().toISOString(),
+          persistentPayload.structured,
+        );
+        await this.chartRepository.update(chartId, { data: updatedData });
+        this.logger.debug(
+          `Using persistent AI natal interpretation cache for user=${userId}, locale=${locale}`,
+        );
+        return;
+      }
     }
 
     let baseInterpretation = this.getLocalizedInterpretation(chartData, locale);
@@ -1374,15 +1968,29 @@ export class NatalChartService {
       );
     }
 
-    const rawAiNarrative = await this.aiService.generateChartInterpretation({
-      planets: chartData?.planets,
-      houses: chartData?.houses,
-      aspects: chartData?.aspects || [],
-      ascendant: chartData?.ascendant,
-      userProfile,
-      locale,
-    });
+    const structuredAi = this.limitStructuredAiPayload(
+      await this.aiService.generateStructuredChartInterpretation({
+        chartData,
+        baseInterpretation,
+        userProfile,
+        locale,
+      }),
+    );
+    const rawAiNarrative =
+      structuredAi?.premiumSummary ||
+      structuredAi?.freeformSummary ||
+      structuredAi?.summaryText ||
+      structuredAi?.overview;
+
     const aiNarrative = this.normalizeNarrativeValue(rawAiNarrative);
+    if (!aiNarrative) {
+      this.logger.error(
+        `AI natal interpretation returned empty text for user=${userId}, locale=${locale}, rawType=${typeof rawAiNarrative}`,
+      );
+      throw new InternalServerErrorException(
+        'AI natal interpretation returned empty text',
+      );
+    }
 
     const aiGeneratedAt = new Date().toISOString();
     const chartWithBaseInterpretation = this.withLocalizedInterpretation(
@@ -1395,11 +2003,20 @@ export class NatalChartService {
       locale,
       aiNarrative,
       aiGeneratedAt,
+      structuredAi,
     );
 
     await this.chartRepository.update(chartId, {
       data: updatedData,
     });
+    await this.setPersistentAiNarrative(
+      userId,
+      updatedData,
+      locale,
+      aiNarrative,
+      aiGeneratedAt,
+      structuredAi,
+    );
   }
 
   /**

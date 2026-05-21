@@ -33,7 +33,6 @@ import { userAPI, chartAPI } from '../services/api';
 import { AuthEngine } from '../services/authEngine';
 import { clearAllUserData } from '../services/cleanupService';
 import { notificationService } from '../services/notifications';
-import { supabase } from '../services/supabase';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   useSafeAreaInsets,
@@ -236,15 +235,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     setLoading(false);
     queryClient.clear();
     useAuthStore.getState().resetAuth();
-
-    try {
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch (signOutError) {
-      logger.warn(
-        'Local Supabase sign out after account deletion failed',
-        signOutError
-      );
-    }
 
     try {
       await notificationService.clearCachedPushToken();
@@ -637,7 +627,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <SubscriptionCard
               subscription={subscription}
               onUpgrade={handleUpgradeSubscription}
-              showUpgradeButton={!!subscription && subscription.tier !== 'max'}
+              showUpgradeButton={!!subscription && subscription.tier === 'free'}
             />
           </View>
 

@@ -3,10 +3,23 @@
  * All per-day limits are UTC-based.
  */
 
+const readPositiveInt = (
+  value: string | undefined,
+  fallback: number,
+): number => {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 export const LIMITS = {
   HOROSCOPE: {
-    // Max AI horoscope generations per user per UTC day
-    AI_DAILY_PER_USER: 1,
+    // Max AI horoscope generations per user/period/locale per UTC day.
+    // Premium upgrade prewarms day, tomorrow, week and month, so "1" blocks
+    // normal paid flow after the first AI call.
+    AI_DAILY_PER_USER: readPositiveInt(
+      process.env.HOROSCOPE_AI_DAILY_PER_USER,
+      8,
+    ),
   },
   ADVISOR: {
     // Daily per user request limits

@@ -23,8 +23,12 @@
     "ascendant": "Ascendant"
   },
   "premiumNarrative": {
-    "title": "AI Premium",
+    "title": "AI Summary",
     "subtitle": "Extended chart synthesis"
+  },
+  "sources": {
+    "base": "Our interpreter",
+    "ai": "AI"
   },
   "statistics": {
     "title": "Chart Statistics",
@@ -101,18 +105,15 @@
     "dispositors": "Dispositor Focus",
     "keyHouseRulers": "Key House Rulers",
     "keyHouseRulersHint": "This shows which real-life areas carry the chart's main axes.",
-    "relationshipMechanics": "Relationship Mechanics",
-    "careerMechanics": "Career Mechanics",
-    "financeMechanics": "Money Mechanics",
-    "strongestAspects": "Strongest Aspects",
+    "strongestAspects": "Strong Aspects",
     "strongestAspectsHint": "These are the most influential links in the chart and the ones that color the life story most strongly.",
     "uniqueFeatures": "What stands out in this chart",
     "uniqueFeaturesHint": "These are the most distinctive astrological features of this particular chart.",
-    "lifePurpose": "Life Purpose",
+    "lifePurpose": "Life Cycle",
     "personalityTraits": "Personality Traits",
     "talents": "Talents and Gifts",
     "lifeThemes": "Life Themes",
-    "karmaLessons": "Karmic Lessons",
+    "karmaLessons": "Karmic Lesson",
     "relationships": "Relationships",
     "careerPath": "Career Path",
     "spiritualPath": "Spiritual Path",
@@ -122,6 +123,15 @@
     "dominantElementsHint": "These elements show which energy in the chart comes through most naturally and repeatedly.",
     "dominantQualities": "Dominant Qualities",
     "dominantQualitiesHint": "These qualities show how the chart initiates, sustains, and changes processes.",
+    "retrogradePlanets": "Retrograde Planets",
+    "stellium": "Stellium",
+    "chartPatterns": "Chart Patterns",
+    "dignityHighlights": "Planetary Dignities",
+    "retrogradeList": "Retrograde Planets: Brief List",
+    "houseAccents": "House Accents",
+    "emptyHouses": "Empty Houses",
+    "retrogradeHouses": "Houses with Retrograde Planets",
+    "topAspectsDetailed": "Top Strong Aspects",
     "elementDetails": {
       "fire": {
         "overview": "Fire gives the chart direct, initiating, fast-rising energy. You tend to move more easily through action than through long hesitation.",

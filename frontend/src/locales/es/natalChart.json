@@ -23,8 +23,12 @@
     "ascendant": "Ascendente"
   },
   "premiumNarrative": {
-    "title": "AI Premium",
+    "title": "Resumen de IA",
     "subtitle": "Síntesis ampliada de la carta"
+  },
+  "sources": {
+    "base": "Nuestro intérprete",
+    "ai": "IA"
   },
   "statistics": {
     "title": "Estadísticas de la Carta",
@@ -101,18 +105,15 @@
     "dispositors": "Centro dispositor",
     "keyHouseRulers": "Regentes de casas clave",
     "keyHouseRulersHint": "Esto muestra qué áreas reales de la vida expresan los ejes principales de la carta.",
-    "relationshipMechanics": "Mecánica de relaciones",
-    "careerMechanics": "Mecánica profesional",
-    "financeMechanics": "Mecánica del dinero",
     "strongestAspects": "Aspectos más fuertes",
     "strongestAspectsHint": "Estos son los vínculos más influyentes de la carta y los que más colorean el carácter y los patrones de vida.",
     "uniqueFeatures": "Qué distingue esta carta",
     "uniqueFeaturesHint": "Aquí se reúnen las características astrológicas más distintivas de esta carta.",
-    "lifePurpose": "Propósito de Vida",
+    "lifePurpose": "Ciclo de Vida",
     "personalityTraits": "Rasgos de Personalidad",
     "talents": "Talentos y Dones",
     "lifeThemes": "Temas de Vida",
-    "karmaLessons": "Lecciones Kármicas",
+    "karmaLessons": "Lección Kármica",
     "relationships": "Relaciones",
     "careerPath": "Camino Profesional",
     "spiritualPath": "Camino Espiritual",
@@ -122,6 +123,15 @@
     "dominantElementsHint": "Estos elementos muestran qué energía de la carta se expresa con más naturalidad y frecuencia.",
     "dominantQualities": "Cualidades Dominantes",
     "dominantQualitiesHint": "Estas cualidades muestran cómo la carta inicia, sostiene y transforma los procesos.",
+    "retrogradePlanets": "Planetas Retrógrados",
+    "stellium": "Stellium",
+    "chartPatterns": "Figuras de la Carta",
+    "dignityHighlights": "Dignidades Planetarias",
+    "retrogradeList": "Planetas Retrógrados: Lista Breve",
+    "houseAccents": "Casas-Acento",
+    "emptyHouses": "Casas Vacías",
+    "retrogradeHouses": "Casas con Planetas Retrógrados",
+    "topAspectsDetailed": "Aspectos Fuertes Principales",
     "elementDetails": {
       "fire": {
         "overview": "El fuego da a la carta una energía directa, iniciadora y de reacción rápida. Te resulta más natural avanzar actuando que quedarte mucho tiempo dudando.",

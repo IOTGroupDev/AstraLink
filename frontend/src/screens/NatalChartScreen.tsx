@@ -14,6 +14,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,7 +23,9 @@ import type { ArchetypeResult } from '../types';
 import { useSubscription } from '../hooks/useSubscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
+import { GradientBorderView } from '../components/shared';
 import { logger } from '../services/logger';
+import { readHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -53,6 +56,8 @@ interface AspectData {
 }
 
 interface ChartData {
+  id?: string;
+  userId?: string;
   data: {
     planets: Record<string, PlanetData>;
     houses: Record<number, HouseData>;
@@ -66,8 +71,10 @@ interface ChartData {
       degree: number;
     };
     interpretation?: any;
+    aiInterpretations?: Record<string, any>;
   };
   interpretation?: any;
+  aiInterpretations?: Record<string, any>;
 }
 
 interface AngleData {
@@ -82,6 +89,23 @@ type SummaryDetailPayload = {
   subtitle?: string;
   summary?: string;
   lines?: string[];
+  variant?: 'default' | 'lesson';
+};
+
+type NarrativeSection = {
+  title?: string;
+  accent?: boolean;
+  paragraphs: string[];
+};
+
+type NarrativeSectionLabels = {
+  overview: string;
+  dynamics: string;
+  keyThought: string;
+  finalSynthesis: string;
+  mainConflict: string;
+  mainGift: string;
+  karmicTask: string;
 };
 
 // Planet symbols remain constant across languages
@@ -146,6 +170,270 @@ const normalizeZodiacKey = (sign?: string): string => {
   );
 };
 
+const hasChartPayload = (value: any): boolean =>
+  Boolean(value && typeof value === 'object' && value.planets && value.houses);
+
+const sanitizeNarrativeFormatting = (value: string): string =>
+  value
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/^\s*#{1,6}\s*/g, '')
+        .replace(/^\s*№\s*\d+(?:\.\d+)*[\).:\-–—]?\s*/giu, '')
+        .replace(/^\s*\d+(?:\.\d+)*[\).:\-–—]\s*/g, '')
+        .trim()
+    )
+    .filter((line) => !/^[-–—*_]{3,}$/.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+const normalizeNarrativeValue = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return sanitizeNarrativeFormatting(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeNarrativeValue).filter(Boolean).join('\n\n');
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    for (const key of [
+      'narrative',
+      'premiumNarrative',
+      'aiNarrative',
+      'text',
+      'content',
+      'summary',
+    ]) {
+      const normalized = normalizeNarrativeValue(record[key]);
+      if (normalized) return normalized;
+    }
+  }
+
+  return '';
+};
+
+const isNarrativeSectionTitle = (value: string): boolean => {
+  const text = value.trim();
+  if (!text) return false;
+  if (/^(👉|📋)\s*/u.test(text)) return true;
+  if (text.endsWith(':') && text.length <= 90) return true;
+  return (
+    text.length <= 70 &&
+    !/[.!?。]$/.test(text) &&
+    !text.includes(',') &&
+    text.split(/\s+/).length <= 7
+  );
+};
+
+const splitHeadingAndBody = (
+  value: string,
+  markers: RegExp[]
+): { heading: string; body: string } | null => {
+  const text = value.trim();
+  for (const marker of markers) {
+    const match = text.match(marker);
+    if (match?.index === 0) {
+      const heading = match[0].trim().replace(/:$/, '');
+      const body = text.slice(match[0].length).trim();
+      return { heading, body };
+    }
+  }
+  return null;
+};
+
+const splitNarrativeIntoSections = (
+  parts: string[],
+  labels: NarrativeSectionLabels
+): NarrativeSection[] => {
+  const normalized = parts
+    .map(normalizeNarrativeValue)
+    .filter(Boolean)
+    .join('\n\n')
+    .replace(/\n(?=(👉|📋)\s*)/gu, '\n\n')
+    .replace(/(👉\s*[^:\n]{1,80}:)/gu, '\n\n$1\n')
+    .replace(/(📋\s*[^\n]{1,80})/gu, '\n\n$1\n');
+
+  const chunks = normalized
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const overviewParagraphs: string[] = [];
+  const explicitSections: NarrativeSection[] = [];
+  const finalParagraphs: string[] = [];
+  let current: NarrativeSection | null = null;
+  let inFinalSynthesis = false;
+
+  const pushCurrent = () => {
+    if (current && current.paragraphs.length) {
+      explicitSections.push(current);
+    }
+    current = null;
+  };
+
+  chunks.forEach((chunk) => {
+    const lines = chunk
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const firstLine = lines[0] || '';
+    const keyThought = splitHeadingAndBody(chunk, [
+      /^👉\s*[^:\n]{1,80}:\s*/u,
+      /^(key thought|idea clave|ключевая мысль)\s*:\s*/iu,
+    ]);
+    if (keyThought) {
+      pushCurrent();
+      explicitSections.push({
+        title: labels.keyThought,
+        accent: true,
+        paragraphs: [keyThought.body || lines.slice(1).join('\n')].filter(
+          Boolean
+        ),
+      });
+      return;
+    }
+
+    const finalHeading = splitHeadingAndBody(chunk, [
+      /^📋\s*[^\n]{1,80}\s*/u,
+      /^(итоговый синтез|final synthesis|síntesis final|sintesis final)\s*:?/iu,
+    ]);
+    if (finalHeading) {
+      pushCurrent();
+      inFinalSynthesis = true;
+      if (finalHeading.body) {
+        finalParagraphs.push(finalHeading.body);
+      }
+      return;
+    }
+
+    if (inFinalSynthesis) {
+      finalParagraphs.push(chunk);
+      return;
+    }
+
+    if (lines.length > 1 && isNarrativeSectionTitle(firstLine)) {
+      pushCurrent();
+      current = {
+        title: firstLine.replace(/:$/, ''),
+        paragraphs: lines.slice(1),
+      };
+      return;
+    }
+
+    if (lines.length === 1 && isNarrativeSectionTitle(firstLine)) {
+      pushCurrent();
+      current = { title: firstLine.replace(/:$/, ''), paragraphs: [] };
+      return;
+    }
+
+    if (!current) {
+      overviewParagraphs.push(chunk);
+      return;
+    }
+    current.paragraphs.push(chunk);
+  });
+
+  pushCurrent();
+
+  const sections: NarrativeSection[] = [];
+  if (overviewParagraphs.length) {
+    sections.push({
+      title: labels.overview,
+      accent: true,
+      paragraphs: overviewParagraphs.slice(0, 2),
+    });
+
+    if (overviewParagraphs.length > 2) {
+      sections.push({
+        title: labels.dynamics,
+        paragraphs: overviewParagraphs.slice(2),
+      });
+    }
+  }
+
+  sections.push(...explicitSections);
+
+  if (finalParagraphs.length) {
+    const finalTitles = [
+      labels.mainConflict,
+      labels.mainGift,
+      labels.karmicTask,
+    ];
+
+    finalParagraphs.slice(0, 3).forEach((paragraph, idx) => {
+      sections.push({
+        title: finalTitles[idx] || labels.finalSynthesis,
+        accent: idx === 0,
+        paragraphs: [paragraph],
+      });
+    });
+
+    if (finalParagraphs.length > 3) {
+      sections.push({
+        title: labels.finalSynthesis,
+        paragraphs: finalParagraphs.slice(3),
+      });
+    }
+  }
+
+  return sections.length ? sections : [{ paragraphs: chunks }];
+};
+
+const normalizeNatalChartResponse = (response: any): ChartData => {
+  if (hasChartPayload(response?.data)) {
+    return response as ChartData;
+  }
+
+  if (hasChartPayload(response?.data?.data)) {
+    return {
+      ...response,
+      data: {
+        ...response.data.data,
+        interpretation:
+          response.data.data.interpretation ??
+          response.data.interpretation ??
+          response.interpretation,
+        aiInterpretations:
+          response.data.data.aiInterpretations ??
+          response.data.aiInterpretations ??
+          response.aiInterpretations,
+      },
+      aiInterpretations:
+        response.data.data.aiInterpretations ??
+        response.data.aiInterpretations ??
+        response.aiInterpretations,
+    };
+  }
+
+  if (hasChartPayload(response?.data?.data?.data)) {
+    return {
+      ...response,
+      data: {
+        ...response.data.data.data,
+        interpretation:
+          response.data.data.data.interpretation ??
+          response.data.data.interpretation ??
+          response.data.interpretation ??
+          response.interpretation,
+        aiInterpretations:
+          response.data.data.data.aiInterpretations ??
+          response.data.data.aiInterpretations ??
+          response.data.aiInterpretations ??
+          response.aiInterpretations,
+      },
+      aiInterpretations:
+        response.data.data.data.aiInterpretations ??
+        response.data.data.aiInterpretations ??
+        response.data.aiInterpretations ??
+        response.aiInterpretations,
+    };
+  }
+
+  return response as ChartData;
+};
+
 const getHouseForLongitude = (
   longitude: number,
   houses: Record<number, HouseData>
@@ -170,13 +458,15 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
+  const hasLoadedOnceRef = useRef(false);
+  const lastInvalidationMarkerRef = useRef<string | null>(null);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [archetype, setArchetype] = useState<ArchetypeResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'planets' | 'houses' | 'aspects' | 'summary'
-  >('overview');
+  >('summary');
   const [angleModalVisible, setAngleModalVisible] = useState(false);
   const [angleModalLoading, setAngleModalLoading] = useState(false);
   const [angleModalTitle, setAngleModalTitle] = useState('');
@@ -188,6 +478,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   const [summaryModalSubtitle, setSummaryModalSubtitle] = useState('');
   const [summaryModalSummary, setSummaryModalSummary] = useState('');
   const [summaryModalLines, setSummaryModalLines] = useState<string[]>([]);
+  const [summaryModalVariant, setSummaryModalVariant] = useState<
+    'default' | 'lesson'
+  >('default');
 
   const getChartLocale = useCallback((): 'ru' | 'en' | 'es' => {
     const rawLocale = String(i18n.language || 'en').toLowerCase();
@@ -220,24 +513,29 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         throw chartResult.reason;
       }
 
-      const data = chartResult.value;
+      const rawData = chartResult.value;
+      const data = normalizeNatalChartResponse(rawData);
 
       // Подробное логирование для отладки структуры
       logger.info('Полная структура данных', {
-        level1Keys: data ? Object.keys(data) : [],
-        level2Keys: data?.data ? Object.keys(data.data) : [],
-        level3Keys: data?.data?.data ? Object.keys(data.data.data) : [],
-        level4Keys: data?.data?.data?.data
-          ? Object.keys(data.data.data.data)
+        level1Keys: rawData ? Object.keys(rawData) : [],
+        level2Keys: rawData?.data ? Object.keys(rawData.data) : [],
+        level3Keys: rawData?.data?.data ? Object.keys(rawData.data.data) : [],
+        level4Keys: rawData?.data?.data?.data
+          ? Object.keys(rawData.data.data.data)
           : [],
 
         // Где находятся planets?
-        hasPlanetsInL2: !!data?.data?.planets,
-        hasPlanetsInL3: !!data?.data?.data?.planets,
-        hasPlanetsInL4: !!data?.data?.data?.data?.planets,
-
-        // Проверка полного пути
-        fullDataStructure: JSON.stringify(data, null, 2).substring(0, 2000),
+        hasPlanetsInL2: !!rawData?.data?.planets,
+        hasPlanetsInL3: !!rawData?.data?.data?.planets,
+        hasPlanetsInL4: !!rawData?.data?.data?.data?.planets,
+        normalizedKeys: data?.data ? Object.keys(data.data) : [],
+        premiumNarrativeLength: normalizeNarrativeValue(
+          data?.data?.interpretation?.aiNarrative ||
+            data?.data?.interpretation?.premiumNarrative ||
+            data?.data?.aiInterpretations?.[locale]?.narrative ||
+            data?.data?.aiInterpretations?.[locale]?.premiumNarrative
+        ).length,
       });
       setChartData(data);
 
@@ -256,6 +554,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       );
     } finally {
       setLoading(false);
+      hasLoadedOnceRef.current = true;
     }
   }, [getChartLocale, t]);
 
@@ -275,8 +574,29 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      void loadChartData();
-      return undefined;
+      let cancelled = false;
+
+      void (async () => {
+        const invalidationMarker =
+          await readHoroscopeScreenInvalidationMarker();
+        const wasInvalidated =
+          invalidationMarker !== null &&
+          invalidationMarker !== lastInvalidationMarkerRef.current;
+
+        if (!hasLoadedOnceRef.current || wasInvalidated) {
+          if (!cancelled) {
+            await loadChartData();
+          }
+        }
+
+        if (!cancelled) {
+          lastInvalidationMarkerRef.current = invalidationMarker;
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }, [loadChartData])
   );
 
@@ -316,7 +636,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   // Вкладки
   const tabs: Array<{
-    id: 'overview' | 'planets' | 'houses' | 'aspects' | 'summary';
+    id: 'summary' | 'planets' | 'houses' | 'aspects' | 'overview';
     label: string;
     icon:
       | 'star-outline'
@@ -325,6 +645,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       | 'git-network-outline'
       | 'document-text-outline';
   }> = [
+    {
+      id: 'summary',
+      label: t('natalChart.tabs.summary'),
+      icon: 'document-text-outline',
+    },
     {
       id: 'overview',
       label: t('natalChart.tabs.overview'),
@@ -340,11 +665,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       id: 'aspects',
       label: t('natalChart.tabs.aspects'),
       icon: 'git-network-outline',
-    },
-    {
-      id: 'summary',
-      label: t('natalChart.tabs.summary'),
-      icon: 'document-text-outline',
     },
   ];
 
@@ -451,6 +771,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     setSummaryModalSubtitle('');
     setSummaryModalSummary('');
     setSummaryModalLines([]);
+    setSummaryModalVariant('default');
   };
 
   const openSummaryModal = ({
@@ -458,11 +779,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     subtitle = '',
     summary = '',
     lines = [],
+    variant = 'default',
   }: SummaryDetailPayload) => {
     setSummaryModalTitle(title);
     setSummaryModalSubtitle(subtitle);
     setSummaryModalSummary(summary);
     setSummaryModalLines(lines.filter(Boolean));
+    setSummaryModalVariant(variant);
     setSummaryModalVisible(true);
   };
 
@@ -486,27 +809,218 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     items: string[],
     bulletStyle?: StyleProp<ViewStyle>,
     previewCount: number = 2
-  ) => (
-    <View style={styles.traitsList}>
-      {items.slice(0, previewCount).map((item, idx) => (
-        <View key={`${item}-${idx}`} style={styles.traitItem}>
-          <View style={[styles.traitBullet, bulletStyle]} />
-          <Text style={styles.traitText} numberOfLines={2}>
-            {item}
-          </Text>
-        </View>
-      ))}
-      {renderSummaryOpenHint(
-        items.length > previewCount ? items.length - previewCount : undefined
-      )}
-    </View>
-  );
+  ) => {
+    const visibleCount = Math.min(previewCount, 1);
+
+    return (
+      <View style={styles.traitsList}>
+        {items.slice(0, visibleCount).map((item, idx) => (
+          <View key={`${item}-${idx}`} style={styles.traitItem}>
+            <View style={[styles.traitBullet, bulletStyle]} />
+            <Text style={styles.traitText} numberOfLines={3}>
+              {item}
+            </Text>
+          </View>
+        ))}
+        {renderSummaryOpenHint(
+          items.length > visibleCount ? items.length - visibleCount : undefined
+        )}
+      </View>
+    );
+  };
 
   const splitNarrativeParagraphs = (text?: string): string[] =>
     (text || '')
       .split(/\n{2,}|\r\n\r\n/)
       .map((part) => part.trim())
       .filter(Boolean);
+
+  const renderLessonModalContent = () => {
+    const sections = splitNarrativeIntoSections(
+      [summaryModalSummary, ...summaryModalLines],
+      {
+        overview: t(
+          'natalChart.premiumNarrative.sections.overview',
+          'Общий портрет'
+        ),
+        dynamics: t(
+          'natalChart.premiumNarrative.sections.dynamics',
+          'Внутренняя динамика'
+        ),
+        keyThought: t(
+          'natalChart.premiumNarrative.sections.keyThought',
+          'Ключевая мысль'
+        ),
+        finalSynthesis: t(
+          'natalChart.premiumNarrative.sections.finalSynthesis',
+          'Итоговый синтез'
+        ),
+        mainConflict: t(
+          'natalChart.premiumNarrative.sections.mainConflict',
+          'Главный конфликт карты'
+        ),
+        mainGift: t(
+          'natalChart.premiumNarrative.sections.mainGift',
+          'Главный дар и сила'
+        ),
+        karmicTask: t(
+          'natalChart.premiumNarrative.sections.karmicTask',
+          'Кармическая задача'
+        ),
+      }
+    );
+
+    return sections.map((section, sectionIdx) => (
+      <View
+        key={`${section.title || 'section'}-${sectionIdx}`}
+        style={[
+          styles.modalLessonSection,
+          section.accent && styles.modalLessonSectionFirst,
+        ]}
+      >
+        {!!section.title && (
+          <Text style={styles.modalLessonSectionTitle}>{section.title}</Text>
+        )}
+        {section.paragraphs.map((paragraph, paragraphIdx) => (
+          <Text
+            key={`${paragraph}-${paragraphIdx}`}
+            style={styles.modalLessonParagraph}
+          >
+            {paragraph}
+          </Text>
+        ))}
+      </View>
+    ));
+  };
+
+  const getPremiumNarrative = (): string => {
+    const locale = getChartLocale();
+    const data = (chartData?.data || {}) as Record<string, any>;
+    const root = (chartData || {}) as Record<string, any>;
+    const candidates = [
+      interpretation?.premiumSummary,
+      interpretation?.freeformSummary,
+      interpretation?.aiNarrative,
+      interpretation?.premiumNarrative,
+      data?.interpretation?.premiumSummary,
+      data?.interpretation?.freeformSummary,
+      data?.aiInterpretations?.[locale]?.narrative,
+      data?.aiInterpretations?.[locale]?.premiumNarrative,
+      data?.aiInterpretations?.ru?.narrative,
+      data?.aiInterpretations?.ru?.premiumNarrative,
+      data?.interpretation?.aiNarrative,
+      data?.interpretation?.premiumNarrative,
+      root?.aiInterpretations?.[locale]?.narrative,
+      root?.aiInterpretations?.[locale]?.premiumNarrative,
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalizeNarrativeValue(candidate);
+      if (normalized) return normalized;
+    }
+
+    return '';
+  };
+
+  const renderPremiumNarrativeCard = () => {
+    const premiumNarrative = getPremiumNarrative();
+    if (!premiumNarrative) {
+      return null;
+    }
+
+    const premiumNarrativeParagraphs =
+      splitNarrativeParagraphs(premiumNarrative);
+    const previewParagraphs = premiumNarrativeParagraphs.slice(0, 2);
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.86}
+        style={styles.premiumNarrativeTouchable}
+        onPress={() =>
+          openSummaryModal({
+            title: t('natalChart.premiumNarrative.title', 'Резюме от AI'),
+            subtitle: t(
+              'natalChart.premiumNarrative.subtitle',
+              'Расширенный синтез карты'
+            ),
+            summary: premiumNarrativeParagraphs[0] || premiumNarrative,
+            lines:
+              premiumNarrativeParagraphs.length > 1
+                ? premiumNarrativeParagraphs.slice(1)
+                : [],
+            variant: 'lesson',
+          })
+        }
+      >
+        <GradientBorderView
+          colors={[
+            'rgba(237, 164, 255, 0.85)',
+            'rgba(141, 38, 169, 0.28)',
+            'rgba(237, 164, 255, 0)',
+          ]}
+          gradientProps={{
+            locations: [0, 0.44, 1],
+            start: { x: 0.08, y: 0 },
+            end: { x: 0.92, y: 1 },
+          }}
+          style={styles.premiumNarrativeBorder}
+          contentStyle={styles.premiumNarrativeContent}
+        >
+          <BlurView
+            intensity={20}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+            style={styles.premiumNarrativeBlur}
+          >
+            <LinearGradient
+              colors={['rgba(89, 2, 114, 0.35)', 'rgba(21, 8, 25, 0.35)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.premiumNarrativeGradient}
+            >
+              <View style={styles.premiumNarrativeHeader}>
+                <View style={styles.premiumNarrativeIconWrap}>
+                  <Ionicons name="sparkles-outline" size={20} color="#4C1D95" />
+                </View>
+                <View style={styles.premiumNarrativeHeaderText}>
+                  <Text style={styles.premiumNarrativeLabel}>
+                    {t(
+                      'natalChart.premiumNarrative.subtitle',
+                      'Расширенный синтез карты'
+                    )}
+                  </Text>
+                  <Text style={styles.premiumNarrativeTitle}>
+                    {t('natalChart.premiumNarrative.title', 'Резюме от AI')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#C4B5FD" />
+              </View>
+
+              <Text style={styles.premiumNarrativeLessonTitle}>
+                {t(
+                  'natalChart.premiumNarrative.cardTitle',
+                  'Ключевой смысл карты'
+                )}
+              </Text>
+              <Text style={styles.premiumNarrativeLessonText} numberOfLines={3}>
+                {(previewParagraphs.length
+                  ? previewParagraphs
+                  : [premiumNarrative]
+                ).join('\n\n')}
+              </Text>
+
+              <View style={styles.premiumNarrativeFooter}>
+                <Text style={styles.premiumNarrativeCta}>
+                  {t('natalChart.summary.openDetails', 'Подробнее')}
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color="#DDD6FE" />
+              </View>
+            </LinearGradient>
+          </BlurView>
+        </GradientBorderView>
+      </TouchableOpacity>
+    );
+  };
 
   const renderArchetypeCard = () => {
     if (!archetype) {
@@ -544,8 +1058,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             </Text>
           </View>
           <Text style={styles.summaryText}>{archetype.title}</Text>
-          <Text style={styles.summarySubtext}>{archetype.subtitle}</Text>
-          <Text style={styles.summarySubtext} numberOfLines={4}>
+          <Text style={styles.summarySubtext} numberOfLines={2}>
+            {archetype.subtitle}
+          </Text>
+          <Text style={styles.summarySubtext} numberOfLines={3}>
             {archetype.essence}
           </Text>
           <View style={[styles.chipContainer, styles.summaryGuideChips]}>
@@ -587,16 +1103,64 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     );
   };
 
+  const renderSummaryListCard = ({
+    title,
+    icon,
+    color,
+    items,
+    hint,
+    bulletStyle,
+  }: {
+    title: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    items?: string[];
+    hint?: string;
+    bulletStyle?: StyleProp<ViewStyle>;
+  }) => {
+    const normalizedItems = (items || [])
+      .map((item) => normalizeNarrativeValue(item))
+      .filter(Boolean);
+
+    if (!normalizedItems.length) {
+      return null;
+    }
+
+    return (
+      <BlurView intensity={20} tint="dark" style={styles.card}>
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={styles.cardInner}
+          onPress={() =>
+            openSummaryModal({
+              title,
+              summary: hint || normalizedItems[0],
+              lines: hint ? normalizedItems : normalizedItems.slice(1),
+            })
+          }
+        >
+          <View style={styles.summaryHeader}>
+            <Ionicons name={icon} size={24} color={color} />
+            <Text style={styles.summaryTitle}>{title}</Text>
+          </View>
+          {hint ? (
+            <Text style={styles.summarySubtext} numberOfLines={3}>
+              {hint}
+            </Text>
+          ) : null}
+          {!hint
+            ? renderPreviewList(normalizedItems, bulletStyle, 1)
+            : renderSummaryOpenHint(normalizedItems.length)}
+        </TouchableOpacity>
+      </BlurView>
+    );
+  };
+
   // Основная информация
   const renderOverview = () => {
     const sunSign = getZodiacLabel(planets?.sun?.sign || 'N/A');
     const moonSign = getZodiacLabel(planets?.moon?.sign || 'N/A');
     const ascSign = getZodiacLabel(resolvedAscendant.sign || 'N/A');
-    const premiumNarrative =
-      interpretation?.aiNarrative || interpretation?.premiumNarrative || '';
-    const premiumNarrativeParagraphs =
-      splitNarrativeParagraphs(premiumNarrative);
-
     // Подсчет элементов и качеств
     const elements = { fire: 0, earth: 0, air: 0, water: 0 };
     const qualities = { cardinal: 0, fixed: 0, mutable: 0 };
@@ -654,12 +1218,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
     return (
       <View style={styles.content}>
-        {/* Основная тройка */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
-            <Text style={styles.cardTitle}>
-              {t('natalChart.bigThree.title')}
-            </Text>
+            <View style={styles.cardTitleRow}>
+              <Text style={[styles.cardTitle, styles.cardTitleInline]}>
+                {t('natalChart.bigThree.title')}
+              </Text>
+            </View>
 
             <View style={styles.bigThreeRow}>
               <View style={styles.bigThreeItem}>
@@ -726,7 +1291,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       </Text>
                       <Text
                         style={styles.bigThreeDescriptionText}
-                        numberOfLines={4}
+                        numberOfLines={3}
                       >
                         {interpretation.sunSign.interpretation}
                       </Text>
@@ -756,7 +1321,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       </Text>
                       <Text
                         style={styles.bigThreeDescriptionText}
-                        numberOfLines={4}
+                        numberOfLines={3}
                       >
                         {interpretation.moonSign.interpretation}
                       </Text>
@@ -786,7 +1351,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                       </Text>
                       <Text
                         style={styles.bigThreeDescriptionText}
-                        numberOfLines={4}
+                        numberOfLines={3}
                       >
                         {interpretation.ascendant.interpretation}
                       </Text>
@@ -799,47 +1364,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           </View>
         </BlurView>
 
-        {!!premiumNarrative && (
-          <BlurView intensity={20} tint="dark" style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.cardInner}
-              onPress={() =>
-                openSummaryModal({
-                  title: t('natalChart.premiumNarrative.title', 'AI Premium'),
-                  subtitle: t(
-                    'natalChart.premiumNarrative.subtitle',
-                    'Расширенный синтез карты'
-                  ),
-                  summary: premiumNarrativeParagraphs[0] || premiumNarrative,
-                  lines:
-                    premiumNarrativeParagraphs.length > 1
-                      ? premiumNarrativeParagraphs.slice(1)
-                      : [],
-                })
-              }
-            >
-              <View style={styles.summaryHeader}>
-                <Ionicons name="sparkles-outline" size={24} color="#FFD700" />
-                <Text style={styles.summaryTitle}>
-                  {t('natalChart.premiumNarrative.title', 'AI Premium')}
-                </Text>
-              </View>
-              <Text style={styles.summarySubtext}>
-                {t(
-                  'natalChart.premiumNarrative.subtitle',
-                  'Расширенный синтез карты'
-                )}
-              </Text>
-              <Text style={styles.interpretationText} numberOfLines={7}>
-                {premiumNarrative}
-              </Text>
-              {renderSummaryOpenHint()}
-            </TouchableOpacity>
-          </BlurView>
-        )}
-
-        {/* Статистика карты */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
             <Text style={styles.cardTitle}>
@@ -899,10 +1423,13 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           </View>
         </BlurView>
 
-        {/* Углы карты */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.cardInner}>
-            <Text style={styles.cardTitle}>{t('natalChart.angles.title')}</Text>
+            <View style={styles.cardTitleRow}>
+              <Text style={[styles.cardTitle, styles.cardTitleInline]}>
+                {t('natalChart.angles.title')}
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={styles.angleItem}
@@ -922,6 +1449,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               <Text style={styles.angleHint}>
                 {t('natalChart.angleModal.openHint')}
               </Text>
+              {!!interpretation?.ascendant?.interpretation && (
+                <Text style={styles.angleDescription} numberOfLines={3}>
+                  {interpretation.ascendant.interpretation}
+                </Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -944,6 +1476,17 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               <Text style={styles.angleHint}>
                 {t('natalChart.angleModal.openHint')}
               </Text>
+              {!!interpretation?.houses?.find(
+                (house: any) => house.house === 10
+              )?.interpretation && (
+                <Text style={styles.angleDescription} numberOfLines={3}>
+                  {
+                    interpretation.houses.find(
+                      (house: any) => house.house === 10
+                    )?.interpretation
+                  }
+                </Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -966,6 +1509,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               <Text style={styles.angleHint}>
                 {t('natalChart.angleModal.openHint')}
               </Text>
+              {!!interpretation?.houses?.find((house: any) => house.house === 7)
+                ?.interpretation && (
+                <Text style={styles.angleDescription} numberOfLines={3}>
+                  {
+                    interpretation.houses.find(
+                      (house: any) => house.house === 7
+                    )?.interpretation
+                  }
+                </Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -988,6 +1541,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               <Text style={styles.angleHint}>
                 {t('natalChart.angleModal.openHint')}
               </Text>
+              {!!interpretation?.houses?.find((house: any) => house.house === 4)
+                ?.interpretation && (
+                <Text style={styles.angleDescription} numberOfLines={3}>
+                  {
+                    interpretation.houses.find(
+                      (house: any) => house.house === 4
+                    )?.interpretation
+                  }
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </BlurView>
@@ -1010,10 +1573,25 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
             planet.longitude || 0,
             houses || {}
           );
+          const planetInterpretation = interpretation?.planets?.find(
+            (p: any) => p.planet === name
+          );
 
           return (
             <BlurView key={key} intensity={20} tint="dark" style={styles.card}>
-              <View style={styles.cardInner}>
+              <TouchableOpacity
+                activeOpacity={planetInterpretation ? 0.86 : 1}
+                disabled={!planetInterpretation}
+                style={styles.cardInner}
+                onPress={() =>
+                  planetInterpretation &&
+                  openSummaryModal({
+                    title: `${symbol} ${name}`,
+                    subtitle: `${getZodiacLabel(planet.sign || 'N/A')} ${formatDegree(planet.degree)} · ${house}${t('natalChart.summary.houseShort', ' дом')}`,
+                    summary: planetInterpretation.interpretation,
+                  })
+                }
+              >
                 <View style={styles.planetHeader}>
                   <View style={styles.planetTitleRow}>
                     <Text style={styles.planetSymbol}>{symbol}</Text>
@@ -1070,22 +1648,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
-                {(() => {
-                  const planetInterpretation = interpretation?.planets?.find(
-                    (p: any) => p.planet === name
-                  );
-                  return planetInterpretation ? (
-                    <>
-                      <View style={styles.divider} />
-                      <View style={styles.interpretationSection}>
-                        <Text style={styles.interpretationText}>
-                          {planetInterpretation.interpretation}
-                        </Text>
-                      </View>
-                    </>
-                  ) : null;
-                })()}
-              </View>
+                {planetInterpretation ? (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.interpretationSection}>
+                      <Text style={styles.interpretationText} numberOfLines={3}>
+                        {planetInterpretation.interpretation}
+                      </Text>
+                    </View>
+                    {renderSummaryOpenHint()}
+                  </>
+                ) : null}
+              </TouchableOpacity>
             </BlurView>
           );
         })}
@@ -1114,10 +1688,25 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   getHouseForLongitude(planet.longitude || 0, houses) === num
               )
             : [];
+          const houseInterpretation = interpretation?.houses?.find(
+            (h: any) => h.house === num
+          );
 
           return (
             <BlurView key={num} intensity={20} tint="dark" style={styles.card}>
-              <View style={styles.cardInner}>
+              <TouchableOpacity
+                activeOpacity={houseInterpretation ? 0.86 : 1}
+                disabled={!houseInterpretation}
+                style={styles.cardInner}
+                onPress={() =>
+                  houseInterpretation &&
+                  openSummaryModal({
+                    title: t('natalChart.houses.house', { num }),
+                    subtitle: `${getZodiacLabel(house.sign || 'N/A')} ${house.cusp ? formatDegree(house.cusp % 30) : ''}`,
+                    summary: houseInterpretation.interpretation,
+                  })
+                }
+              >
                 <View style={styles.houseHeader}>
                   <Text style={styles.houseNumber}>{num}</Text>
                   <View style={styles.houseInfo}>
@@ -1156,22 +1745,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </>
                 )}
 
-                {(() => {
-                  const houseInterpretation = interpretation?.houses?.find(
-                    (h: any) => h.house === num
-                  );
-                  return houseInterpretation ? (
-                    <>
-                      <View style={styles.divider} />
-                      <View style={styles.interpretationSection}>
-                        <Text style={styles.interpretationText}>
-                          {houseInterpretation.interpretation}
-                        </Text>
-                      </View>
-                    </>
-                  ) : null;
-                })()}
-              </View>
+                {houseInterpretation ? (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.interpretationSection}>
+                      <Text style={styles.interpretationText} numberOfLines={3}>
+                        {houseInterpretation.interpretation}
+                      </Text>
+                    </View>
+                    {renderSummaryOpenHint()}
+                  </>
+                ) : null}
+              </TouchableOpacity>
             </BlurView>
           );
         })}
@@ -1181,7 +1766,131 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
   // Аспекты
   const renderAspects = () => {
-    if (!aspects || aspects.length === 0) {
+    const locale = getChartLocale();
+    const chartPayload = (chartData?.data || {}) as Record<string, any>;
+    const rawAiAspectCandidates = [
+      ...(Array.isArray(interpretation?.structuredAi?.aspects)
+        ? interpretation.structuredAi.aspects
+        : []),
+      ...(Array.isArray(
+        chartPayload?.aiInterpretations?.[locale]?.structured?.aspects
+      )
+        ? chartPayload.aiInterpretations[locale].structured.aspects
+        : []),
+      ...(Array.isArray(
+        (chartData as any)?.aiInterpretations?.[locale]?.structured?.aspects
+      )
+        ? (chartData as any).aiInterpretations[locale].structured.aspects
+        : []),
+      ...(Array.isArray(interpretation?.aspects) ? interpretation.aspects : []),
+    ];
+    const aiAspectInterpretations = rawAiAspectCandidates.filter(
+      (item: any) =>
+        normalizeNarrativeValue(item?.interpretation) ||
+        normalizeNarrativeValue(item?.significance)
+    );
+    const normalizeAspectToken = (value?: string) =>
+      String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/[^a-zа-я0-9]+/giu, '');
+    const planetAliasMap: Record<string, string[]> = {
+      sun: ['sun', 'солнце', 'sol'],
+      moon: ['moon', 'луна', 'luna'],
+      mercury: ['mercury', 'меркурий', 'mercurio'],
+      venus: ['venus', 'венера'],
+      mars: ['mars', 'марс', 'marte'],
+      jupiter: ['jupiter', 'юпитер', 'jupiter'],
+      saturn: ['saturn', 'сатурн', 'saturno'],
+      uranus: ['uranus', 'уран', 'urano'],
+      neptune: ['neptune', 'нептун', 'neptuno'],
+      pluto: ['pluto', 'плутон', 'pluton'],
+      chiron: ['chiron', 'хирон', 'quiron'],
+      lilith: ['lilith', 'лилит'],
+      northNode: [
+        'northnode',
+        'north node',
+        'северный узел',
+        'nodo norte',
+        'nn',
+      ],
+      southNode: ['southnode', 'south node', 'южный узел', 'nodo sur', 'sn'],
+    };
+    const aspectAliasMap: Record<string, string[]> = {
+      conjunction: ['conjunction', 'conjunct', 'соединение', 'conjuncion'],
+      opposition: ['opposition', 'opposed', 'оппозиция', 'oposicion'],
+      trine: ['trine', 'трин', 'trigono'],
+      square: ['square', 'квадрат', 'cuadratura'],
+      sextile: ['sextile', 'секстиль', 'sextil'],
+      'semi-sextile': ['semisextile', 'semi sextile', 'полусекстиль'],
+      'semi-square': ['semisquare', 'semi square', 'полуквадрат'],
+      sesquiquadrate: ['sesquiquadrate', 'полутораквадрат'],
+      quincunx: ['quincunx', 'квинконс', 'quincuncio'],
+      quintile: ['quintile', 'квинтиль'],
+      biquintile: ['biquintile', 'биквинтиль'],
+    };
+    const getPlanetTokens = (planetKey: string) =>
+      [
+        normalizeAspectToken(planetKey),
+        normalizeAspectToken(t(`common.planets.${planetKey}`)),
+        ...(planetAliasMap[planetKey] || []).map(normalizeAspectToken),
+      ].filter(Boolean);
+    const getAspectTokens = (aspectKey: string) =>
+      [
+        normalizeAspectToken(aspectKey),
+        normalizeAspectToken(t(`common.aspects.${aspectKey}`)),
+        ...(aspectAliasMap[aspectKey] || []).map(normalizeAspectToken),
+      ].filter(Boolean);
+    const hasTokenMatch = (value: unknown, tokens: string[]) => {
+      const normalized = normalizeAspectToken(String(value || ''));
+      return Boolean(
+        normalized &&
+          tokens.some(
+            (token) => normalized === token || normalized.includes(token)
+          )
+      );
+    };
+    const findAspectInterpretation = (aspect: AspectData) => {
+      const planetATokens = getPlanetTokens(aspect.planetA);
+      const planetBTokens = getPlanetTokens(aspect.planetB);
+      const aspectTokens = getAspectTokens(aspect.aspect);
+
+      return aiAspectInterpretations.find((item: any) => {
+        const combined = [
+          item?.planetA,
+          item?.planetB,
+          item?.aspect,
+          item?.title,
+          item?.name,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const directOrder =
+          (hasTokenMatch(item?.planetA, planetATokens) &&
+            hasTokenMatch(item?.planetB, planetBTokens)) ||
+          (hasTokenMatch(combined, planetATokens) &&
+            hasTokenMatch(combined, planetBTokens));
+        const reverseOrder =
+          hasTokenMatch(item?.planetA, planetBTokens) &&
+          hasTokenMatch(item?.planetB, planetATokens);
+
+        return (
+          (directOrder || reverseOrder) &&
+          (hasTokenMatch(item?.aspect, aspectTokens) ||
+            hasTokenMatch(combined, aspectTokens))
+        );
+      });
+    };
+    const matchedAspects = (aspects || []).filter((aspect) =>
+      findAspectInterpretation(aspect)
+    );
+    const visibleAspects = aiAspectInterpretations.length
+      ? matchedAspects
+      : aspects || [];
+    const statsAspects = aspects || [];
+
+    if (!statsAspects.length) {
       return (
         <View style={styles.content}>
           <BlurView intensity={20} tint="dark" style={styles.card}>
@@ -1197,7 +1906,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 
     // Группируем аспекты по типу
     const groupedAspects: Record<string, AspectData[]> = {};
-    aspects.forEach((aspect) => {
+    statsAspects.forEach((aspect) => {
       if (!groupedAspects[aspect.aspect]) {
         groupedAspects[aspect.aspect] = [];
       }
@@ -1233,8 +1942,31 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           </View>
         </BlurView>
 
+        {aiAspectInterpretations.length > 0 && !visibleAspects.length && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <View style={styles.cardInner}>
+              <View style={styles.summaryHeader}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={24}
+                  color="#8B5CF6"
+                />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.tabs.aspects')}
+                </Text>
+              </View>
+              <Text style={styles.summarySubtext} numberOfLines={3}>
+                {t(
+                  'natalChart.aspectsStats.noAiDescriptions',
+                  'AI-описания аспектов пока не сопоставились с расчетной картой. Обновите натальную карту после регенерации AI-разбора.'
+                )}
+              </Text>
+            </View>
+          </BlurView>
+        )}
+
         {/* Список аспектов */}
-        {aspects.map((aspect, idx) => {
+        {visibleAspects.map((aspect, idx) => {
           if (!aspect) return null;
 
           const planetA = t(`common.planets.${aspect.planetA}`);
@@ -1244,10 +1976,24 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           const symbolB = PLANET_SYMBOLS[aspect.planetB] || '●';
           const aspectSymbol = ASPECT_SYMBOLS[aspect.aspect] || '●';
           const color = ASPECT_COLORS[aspect.aspect] || '#8B5CF6';
+          const aspectInterpretation = findAspectInterpretation(aspect);
 
           return (
             <BlurView key={idx} intensity={20} tint="dark" style={styles.card}>
-              <View style={styles.cardInner}>
+              <TouchableOpacity
+                activeOpacity={aspectInterpretation ? 0.86 : 1}
+                disabled={!aspectInterpretation}
+                style={styles.cardInner}
+                onPress={() =>
+                  aspectInterpretation &&
+                  openSummaryModal({
+                    title: `${planetA} · ${aspectName} · ${planetB}`,
+                    subtitle: `${t('natalChart.aspectDetails.orb')}: ${Math.abs(aspect.orb || 0).toFixed(2)}°`,
+                    summary: aspectInterpretation.interpretation,
+                    lines: [aspectInterpretation.significance].filter(Boolean),
+                  })
+                }
+              >
                 <View style={styles.aspectHeader}>
                   <View style={styles.aspectPlanets}>
                     <Text style={styles.aspectPlanetSymbol}>{symbolA}</Text>
@@ -1306,25 +2052,18 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   </View>
                 </View>
 
-                {(() => {
-                  const aspectInterpretation = interpretation?.aspects?.find(
-                    (a: any) =>
-                      a.planetA === planetA &&
-                      a.planetB === planetB &&
-                      a.aspect === aspectName
-                  );
-                  return aspectInterpretation ? (
-                    <>
-                      <View style={styles.divider} />
-                      <View style={styles.interpretationSection}>
-                        <Text style={styles.interpretationText}>
-                          {aspectInterpretation.interpretation}
-                        </Text>
-                      </View>
-                    </>
-                  ) : null;
-                })()}
-              </View>
+                {aspectInterpretation ? (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.interpretationSection}>
+                      <Text style={styles.interpretationText} numberOfLines={3}>
+                        {aspectInterpretation.interpretation}
+                      </Text>
+                    </View>
+                    {renderSummaryOpenHint()}
+                  </>
+                ) : null}
+              </TouchableOpacity>
             </BlurView>
           );
         })}
@@ -1346,7 +2085,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     if (!interpretation) {
       return (
         <View style={styles.content}>
-          {renderArchetypeCard()}
+          {renderPremiumNarrativeCard()}
           <BlurView intensity={20} tint="dark" style={styles.card}>
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
@@ -1359,7 +2098,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.interpretationUnavailable')}
                 </Text>
               </View>
-              <Text style={styles.summarySubtext}>
+              <Text style={styles.summarySubtext} numberOfLines={3}>
                 {t('natalChart.summary.interpretationNotLoaded')}
                 {'\n\n'}
                 {t('natalChart.summary.tryRefresh')}
@@ -1373,7 +2112,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
     if (!summary) {
       return (
         <View style={styles.content}>
-          {renderArchetypeCard()}
+          {renderPremiumNarrativeCard()}
           <BlurView intensity={20} tint="dark" style={styles.card}>
             <View style={styles.cardInner}>
               <View style={styles.summaryHeader}>
@@ -1386,7 +2125,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.summaryInProgress')}
                 </Text>
               </View>
-              <Text style={styles.summarySubtext}>
+              <Text style={styles.summarySubtext} numberOfLines={3}>
                 {t('natalChart.summary.summaryNotFormed')}
                 {'\n\n'}
                 {t('natalChart.summary.dataAvailableInOtherTabs')}
@@ -1397,60 +2136,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
       );
     }
 
-    const summaryGuideChips = [
-      archetype ? t('natalChart.summary.archetype.title', 'Архетип') : null,
-      summary.chartRuler
-        ? t('natalChart.summary.chartRuler', 'Управитель карты')
-        : null,
-      summary.lunarNodes
-        ? t('natalChart.summary.lunarNodes', 'Лунные узлы')
-        : null,
-      summary.thematicFocus?.relationships
-        ? t('natalChart.summary.relationshipMechanics', 'Механика отношений')
-        : null,
-      summary.thematicFocus?.career
-        ? t('natalChart.summary.careerMechanics', 'Механика карьеры')
-        : null,
-      summary.thematicFocus?.finances
-        ? t('natalChart.summary.financeMechanics', 'Механика денег')
-        : null,
-    ].filter(Boolean) as string[];
-
     return (
       <View style={styles.content}>
-        <BlurView intensity={20} tint="dark" style={styles.card}>
-          <View style={styles.cardInner}>
-            <View style={styles.summaryHeader}>
-              <Ionicons
-                name="layers-outline"
-                size={24}
-                color="rgba(139, 92, 246, 0.95)"
-              />
-              <Text style={styles.summaryTitle}>
-                {t(
-                  'natalChart.summary.summaryGuideTitle',
-                  'Как читать это резюме'
-                )}
-              </Text>
-            </View>
-            <Text style={styles.summarySubtext}>
-              {t(
-                'natalChart.summary.summaryGuideText',
-                'Карточки ниже показывают суть. Нажмите любую, чтобы открыть полный разбор без перегруза экрана.'
-              )}
-            </Text>
-            {!!summaryGuideChips.length && (
-              <View style={[styles.chipContainer, styles.summaryGuideChips]}>
-                {summaryGuideChips.map((chip, idx) => (
-                  <View key={`${chip}-${idx}`} style={styles.summaryGuideChip}>
-                    <Text style={styles.summaryGuideChipText}>{chip}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        </BlurView>
-
+        {renderPremiumNarrativeCard()}
         {renderArchetypeCard()}
 
         {summary.chartRuler && (
@@ -1701,101 +2389,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           </BlurView>
         )}
 
-        {summary.thematicFocus?.relationships && (
-          <BlurView intensity={20} tint="dark" style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.cardInner}
-              onPress={() =>
-                openSummaryModal({
-                  title: t(
-                    'natalChart.summary.relationshipMechanics',
-                    'Механика отношений'
-                  ),
-                  summary: summary.thematicFocus?.relationships,
-                  lines: [summary.relationships].filter(Boolean) as string[],
-                })
-              }
-            >
-              <View style={styles.summaryHeader}>
-                <Ionicons name="heart-outline" size={24} color="#FF6B6B" />
-                <Text style={styles.summaryTitle}>
-                  {t(
-                    'natalChart.summary.relationshipMechanics',
-                    'Механика отношений'
-                  )}
-                </Text>
-              </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.thematicFocus.relationships}
-              </Text>
-              {renderSummaryOpenHint(summary.relationships ? 1 : undefined)}
-            </TouchableOpacity>
-          </BlurView>
-        )}
-
-        {summary.thematicFocus?.career && (
-          <BlurView intensity={20} tint="dark" style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.cardInner}
-              onPress={() =>
-                openSummaryModal({
-                  title: t(
-                    'natalChart.summary.careerMechanics',
-                    'Механика карьеры'
-                  ),
-                  summary: summary.thematicFocus?.career,
-                  lines: [summary.careerPath].filter(Boolean) as string[],
-                })
-              }
-            >
-              <View style={styles.summaryHeader}>
-                <Ionicons name="briefcase-outline" size={24} color="#4ECDC4" />
-                <Text style={styles.summaryTitle}>
-                  {t('natalChart.summary.careerMechanics', 'Механика карьеры')}
-                </Text>
-              </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.thematicFocus.career}
-              </Text>
-              {renderSummaryOpenHint(summary.careerPath ? 1 : undefined)}
-            </TouchableOpacity>
-          </BlurView>
-        )}
-
-        {summary.thematicFocus?.finances && (
-          <BlurView intensity={20} tint="dark" style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.cardInner}
-              onPress={() =>
-                openSummaryModal({
-                  title: t(
-                    'natalChart.summary.financeMechanics',
-                    'Механика денег'
-                  ),
-                  summary: summary.thematicFocus?.finances,
-                  lines: [summary.financialApproach].filter(
-                    Boolean
-                  ) as string[],
-                })
-              }
-            >
-              <View style={styles.summaryHeader}>
-                <Ionicons name="cash-outline" size={24} color="#FFD700" />
-                <Text style={styles.summaryTitle}>
-                  {t('natalChart.summary.financeMechanics', 'Механика денег')}
-                </Text>
-              </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
-                {summary.thematicFocus.finances}
-              </Text>
-              {renderSummaryOpenHint(summary.financialApproach ? 1 : undefined)}
-            </TouchableOpacity>
-          </BlurView>
-        )}
-
         {summary.strongestAspects && summary.strongestAspects.length > 0 && (
           <BlurView intensity={20} tint="dark" style={styles.card}>
             <TouchableOpacity
@@ -1859,7 +2452,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.lifePurpose')}
                 </Text>
               </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
+              <Text style={styles.summaryText} numberOfLines={3}>
                 {summary.lifePurpose}
               </Text>
               {renderSummaryOpenHint()}
@@ -2018,9 +2611,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 openSummaryModal({
                   title: t('natalChart.summary.relationships'),
                   summary: summary.relationships,
-                  lines: summary.thematicFocus?.relationships
-                    ? [summary.thematicFocus.relationships]
-                    : [],
                 })
               }
             >
@@ -2030,12 +2620,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.relationships')}
                 </Text>
               </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
+              <Text style={styles.summaryText} numberOfLines={3}>
                 {summary.relationships}
               </Text>
-              {renderSummaryOpenHint(
-                summary.thematicFocus?.relationships ? 1 : undefined
-              )}
+              {renderSummaryOpenHint()}
             </TouchableOpacity>
           </BlurView>
         )}
@@ -2050,9 +2638,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 openSummaryModal({
                   title: t('natalChart.summary.careerPath'),
                   summary: summary.careerPath,
-                  lines: summary.thematicFocus?.career
-                    ? [summary.thematicFocus.career]
-                    : [],
                 })
               }
             >
@@ -2062,12 +2647,10 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.careerPath')}
                 </Text>
               </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
+              <Text style={styles.summaryText} numberOfLines={3}>
                 {summary.careerPath}
               </Text>
-              {renderSummaryOpenHint(
-                summary.thematicFocus?.career ? 1 : undefined
-              )}
+              {renderSummaryOpenHint()}
             </TouchableOpacity>
           </BlurView>
         )}
@@ -2091,7 +2674,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.spiritualPath')}
                 </Text>
               </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
+              <Text style={styles.summaryText} numberOfLines={3}>
                 {summary.spiritualPath}
               </Text>
               {renderSummaryOpenHint()}
@@ -2118,7 +2701,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.healthFocus')}
                 </Text>
               </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
+              <Text style={styles.summaryText} numberOfLines={3}>
                 {summary.healthFocus}
               </Text>
               {renderSummaryOpenHint()}
@@ -2136,9 +2719,6 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                 openSummaryModal({
                   title: t('natalChart.summary.financialApproach'),
                   summary: summary.financialApproach,
-                  lines: summary.thematicFocus?.finances
-                    ? [summary.thematicFocus.finances]
-                    : [],
                 })
               }
             >
@@ -2148,11 +2728,37 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
                   {t('natalChart.summary.financialApproach')}
                 </Text>
               </View>
-              <Text style={styles.summaryText} numberOfLines={4}>
+              <Text style={styles.summaryText} numberOfLines={3}>
                 {summary.financialApproach}
               </Text>
-              {renderSummaryOpenHint(
-                summary.thematicFocus?.finances ? 1 : undefined
+              {renderSummaryOpenHint()}
+            </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {/* Рекомендации */}
+        {summary.recommendations && summary.recommendations.length > 0 && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.cardInner}
+              onPress={() =>
+                openSummaryModal({
+                  title: t('natalChart.summary.recommendations'),
+                  lines: summary.recommendations,
+                })
+              }
+            >
+              <View style={styles.summaryHeader}>
+                <Ionicons name="bulb-outline" size={24} color="#FFD700" />
+                <Text style={styles.summaryTitle}>
+                  {t('natalChart.summary.recommendations')}
+                </Text>
+              </View>
+              {renderPreviewList(
+                summary.recommendations,
+                styles.recommendationBullet,
+                3
               )}
             </TouchableOpacity>
           </BlurView>
@@ -2232,33 +2838,92 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
           </BlurView>
         )}
 
-        {/* Рекомендации */}
-        {summary.recommendations && summary.recommendations.length > 0 && (
-          <BlurView intensity={20} tint="dark" style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.cardInner}
-              onPress={() =>
-                openSummaryModal({
-                  title: t('natalChart.summary.recommendations'),
-                  lines: summary.recommendations,
-                })
-              }
-            >
-              <View style={styles.summaryHeader}>
-                <Ionicons name="bulb-outline" size={24} color="#FFD700" />
-                <Text style={styles.summaryTitle}>
-                  {t('natalChart.summary.recommendations')}
-                </Text>
-              </View>
-              {renderPreviewList(
-                summary.recommendations,
-                styles.recommendationBullet,
-                3
-              )}
-            </TouchableOpacity>
-          </BlurView>
-        )}
+        {renderSummaryListCard({
+          title: t(
+            'natalChart.summary.retrogradePlanets',
+            'Ретроградные планеты'
+          ),
+          icon: 'refresh-outline',
+          color: '#FF6B35',
+          items: summary.retrogradePlanets,
+          bulletStyle: styles.karmaLessonBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t('natalChart.summary.stellium', 'Стеллиум'),
+          icon: 'ellipse-outline',
+          color: '#FFD700',
+          items: summary.stellium,
+          bulletStyle: styles.talentBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t('natalChart.summary.chartPatterns', 'Фигуры карты'),
+          icon: 'shapes-outline',
+          color: '#8B5CF6',
+          items: summary.chartPatterns,
+          bulletStyle: styles.traitBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t(
+            'natalChart.summary.dignityHighlights',
+            'Достоинства планет'
+          ),
+          icon: 'ribbon-outline',
+          color: '#4ECDC4',
+          items: summary.dignityHighlights,
+          bulletStyle: styles.talentBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t(
+            'natalChart.summary.retrogradeList',
+            'Ретроградные планеты: кратко'
+          ),
+          icon: 'list-outline',
+          color: '#FF6B35',
+          items: summary.retrogradeList,
+          bulletStyle: styles.recommendationBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t('natalChart.summary.houseAccents', 'Дома-акценты'),
+          icon: 'home-outline',
+          color: '#8B5CF6',
+          items: summary.houseAccents,
+          bulletStyle: styles.traitBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t('natalChart.summary.emptyHouses', 'Пустые дома'),
+          icon: 'scan-outline',
+          color: '#D8B4FE',
+          items: summary.emptyHouses,
+          bulletStyle: styles.recommendationBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t(
+            'natalChart.summary.retrogradeHouses',
+            'Дома с ретроградными планетами'
+          ),
+          icon: 'return-down-back-outline',
+          color: '#FF6B35',
+          items: summary.retrogradeHouses,
+          bulletStyle: styles.karmaLessonBullet,
+        })}
+
+        {renderSummaryListCard({
+          title: t(
+            'natalChart.summary.topAspectsDetailed',
+            'Топ сильных аспектов'
+          ),
+          icon: 'git-network-outline',
+          color: '#8B5CF6',
+          items: summary.topAspectsDetailed,
+          bulletStyle: styles.talentBullet,
+        })}
       </View>
     );
   };
@@ -2324,11 +2989,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         </ScrollView>
 
         {/* Контент вкладки */}
+        {activeTab === 'summary' && renderSummary()}
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'planets' && renderPlanets()}
         {activeTab === 'houses' && renderHouses()}
         {activeTab === 'aspects' && renderAspects()}
-        {activeTab === 'summary' && renderSummary()}
       </ScrollView>
 
       <Modal
@@ -2415,18 +3080,24 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
             >
-              {!!summaryModalSummary && (
-                <View style={styles.modalSummary}>
-                  <Text style={styles.modalSummaryText}>
-                    {summaryModalSummary}
-                  </Text>
-                </View>
+              {summaryModalVariant === 'lesson' ? (
+                renderLessonModalContent()
+              ) : (
+                <>
+                  {!!summaryModalSummary && (
+                    <View style={styles.modalSummary}>
+                      <Text style={styles.modalSummaryText}>
+                        {summaryModalSummary}
+                      </Text>
+                    </View>
+                  )}
+                  {summaryModalLines.map((line, idx) => (
+                    <Text key={`${line}-${idx}`} style={styles.modalText}>
+                      {line}
+                    </Text>
+                  ))}
+                </>
               )}
-              {summaryModalLines.map((line, idx) => (
-                <Text key={`${line}-${idx}`} style={styles.modalText}>
-                  {line}
-                </Text>
-              ))}
             </ScrollView>
           </View>
         </View>
@@ -2563,13 +3234,94 @@ const styles = StyleSheet.create({
   cardInner: {
     padding: 16,
   },
+  premiumNarrativeTouchable: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  premiumNarrativeBorder: {
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  premiumNarrativeContent: {
+    borderRadius: 11,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(10, 10, 10, 0.35)',
+  },
+  premiumNarrativeBlur: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  premiumNarrativeGradient: {
+    borderRadius: 12,
+    padding: 14,
+  },
+  premiumNarrativeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  premiumNarrativeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3C8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumNarrativeHeaderText: {
+    flex: 1,
+  },
+  premiumNarrativeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#F1C5FF',
+  },
+  premiumNarrativeTitle: {
+    marginTop: 2,
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  premiumNarrativeLessonTitle: {
+    marginTop: 14,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  premiumNarrativeLessonText: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  premiumNarrativeFooter: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  premiumNarrativeCta: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#F1C5FF',
+  },
   cardTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 16,
   },
-
+  cardTitleInline: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 16,
+  },
   // Большая тройка
   bigThreeRow: {
     flexDirection: 'row',
@@ -2687,6 +3439,13 @@ const styles = StyleSheet.create({
     marginLeft: 62,
     marginTop: 6,
   },
+  angleDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: 'rgba(255, 255, 255, 0.82)',
+    marginLeft: 62,
+    marginTop: 8,
+  },
 
   modalOverlay: {
     flex: 1,
@@ -2770,6 +3529,31 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 12,
+  },
+  modalLessonSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.045)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+    marginBottom: 12,
+  },
+  modalLessonSectionFirst: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderColor: 'rgba(139, 92, 246, 0.22)',
+  },
+  modalLessonSectionTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  modalLessonParagraph: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: 'rgba(255, 255, 255, 0.92)',
+    marginBottom: 8,
   },
 
   // Планеты

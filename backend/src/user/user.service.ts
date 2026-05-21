@@ -14,8 +14,11 @@ import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
 import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
 import { UpdatePushTokenDto } from './dto/update-push-token.dto';
-import { SubscriptionService } from '@/subscription/subscription.service';
-import { SubscriptionTier, hasAIAccess } from '@/types/subscription';
+import {
+  SubscriptionTier,
+  hasAIAccess,
+  normalizeSubscriptionTier,
+} from '@/types/subscription';
 
 const PROFILE_PRIMARY_PHOTO_TTL_SEC = 60 * 60 * 24;
 
@@ -26,7 +29,6 @@ export class UserService {
   constructor(
     private supabaseService: SupabaseService,
     private chartService: ChartService,
-    private subscriptionService: SubscriptionService,
     private userRepository: UserRepository,
     private eventEmitter: EventEmitter2,
     private prisma: PrismaService,
@@ -48,8 +50,7 @@ export class UserService {
       return SubscriptionTier.FREE;
     }
 
-    const tier = (subscription.tier ||
-      SubscriptionTier.FREE) as SubscriptionTier;
+    const tier = normalizeSubscriptionTier(subscription.tier);
     if (!hasAIAccess(tier)) {
       return SubscriptionTier.FREE;
     }
@@ -483,7 +484,7 @@ export class UserService {
       if (!sub) {
         await this.supabaseService.createSubscription({
           user_id: userId,
-          tier: 'max',
+          tier: 'free',
         });
       }
     } catch (_e) {
@@ -578,34 +579,31 @@ export class UserService {
         const hasPremiumAi = hasAIAccess(premiumTier);
 
         if (birthDataChanged || !hasExistingChart) {
+          if (hasExistingChart && birthDataChanged) {
+            this.logger.log(
+              `Birth data changed, recalculating natal chart for user ${userId}`,
+            );
+            await this.chartService.forceRecalculateNatalChart(userId, locale);
+          } else if (!hasExistingChart) {
+            await this.chartService.createNatalChart(
+              userId,
+              {
+                birthDate: birthDateOnly,
+                birthTime,
+                birthPlace,
+              },
+              locale,
+            );
+          }
+
           if (hasPremiumAi) {
-            await this.subscriptionService.refreshPremiumAssetsForUser(
+            await this.chartService.getNatalChartWithInterpretation(
               userId,
               locale,
             );
-          } else {
-            if (hasExistingChart && birthDataChanged) {
-              this.logger.log(
-                `Birth data changed, recalculating natal chart for user ${userId}`,
-              );
-              await this.chartService.forceRecalculateNatalChart(
-                userId,
-                locale,
-              );
-            } else if (!hasExistingChart) {
-              await this.chartService.createNatalChart(
-                userId,
-                {
-                  birthDate: birthDateOnly,
-                  birthTime,
-                  birthPlace,
-                },
-                locale,
-              );
-            }
-
-            await this.chartService.getHoroscope(userId, 'day', locale);
           }
+
+          await this.chartService.getHoroscope(userId, 'day', locale);
         }
       }
     } catch (_e) {

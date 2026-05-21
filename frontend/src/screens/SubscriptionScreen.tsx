@@ -14,12 +14,16 @@ import { Subscription, SUBSCRIPTION_PLANS } from '../types';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import SubscriptionCard from '../components/profile/SubscriptionCard';
-import { userAPI } from '../services/api';
+import { chartAPI, userAPI } from '../services/api';
 import { subscriptionAPI } from '../services/api/subscription.api';
-import { SubscriptionTier } from '../types/subscription';
+import {
+  normalizeSubscriptionTier,
+  SubscriptionTier,
+} from '../types/subscription';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
+import { writeHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
 
 type SubscriptionScreenProps = StackScreenProps<
   RootStackParamList,
@@ -27,43 +31,36 @@ type SubscriptionScreenProps = StackScreenProps<
 >;
 
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const cachedSubscription =
-    queryClient.getQueryData<Subscription>(['subscription']) ?? null;
-  const [currentSubscription, setCurrentSubscription] =
-    React.useState<Subscription | null>(cachedSubscription);
-  const [loading, setLoading] = React.useState(!cachedSubscription);
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
   const loadingPopupVisible = purchasing !== null;
 
-  React.useEffect(() => {
-    fetchSubscription();
-  }, []);
+  const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
+    const rawLocale = String(i18n.language || 'ru').toLowerCase();
+    if (rawLocale === 'en' || rawLocale.startsWith('en-')) return 'en';
+    if (rawLocale === 'es' || rawLocale.startsWith('es-')) return 'es';
+    return 'ru';
+  }, [i18n.language]);
 
-  const fetchSubscription = async () => {
-    try {
-      const subscription = await userAPI.getSubscription();
-      setCurrentSubscription(subscription);
-      queryClient.setQueryData(['subscription'], subscription);
-    } catch (error) {
-      // If no subscription, default to free
-      const freeFallback = {
-        tier: 'free',
-        isActive: false,
-        isTrial: false,
-        isTrialActive: false,
-        features: [],
-      } as any;
-      setCurrentSubscription((current) => current ?? freeFallback);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const freeFallback: Subscription = {
+    tier: 'free',
+    isActive: false,
+    isTrial: false,
+    isTrialActive: false,
+    features: [],
+  } as any;
+
+  const { data: currentSubscription = freeFallback, isLoading: loading } =
+    useQuery<Subscription>({
+      queryKey: ['subscription'],
+      queryFn: () => userAPI.getSubscription(),
+      staleTime: 30_000,
+    });
 
   const handlePurchase = async (tier: SubscriptionTier, planName: string) => {
     // If it's the current plan, just show info
-    if (currentSubscription?.tier === tier) {
+    if (normalizeSubscriptionTier(currentSubscription?.tier) === tier) {
       Alert.alert(
         t('subscription.current', 'Current Plan'),
         t(
@@ -92,28 +89,16 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
               const result = await subscriptionAPI.upgrade(tier, 'mock');
 
               if (result.success) {
-                const optimisticSubscription = {
-                  ...(currentSubscription || {}),
-                  tier,
-                  isActive: true,
-                  isTrial: false,
-                  expiresAt: result.subscription?.expiresAt,
-                } as Subscription;
-                setCurrentSubscription(optimisticSubscription);
-                queryClient.setQueryData(
-                  ['subscription'],
-                  optimisticSubscription
-                );
+                const locale = getApiLocale();
+                await Promise.allSettled([
+                  chartAPI.getNatalChartWithInterpretation(locale),
+                  chartAPI.getHoroscope('day', locale),
+                ]);
 
-                const freshSubscription = await subscriptionAPI.getStatus();
-                setCurrentSubscription(freshSubscription as Subscription);
-                queryClient.setQueryData(['subscription'], freshSubscription);
+                await writeHoroscopeScreenInvalidationMarker();
+
                 await queryClient.invalidateQueries({
                   queryKey: ['subscription'],
-                });
-                await queryClient.refetchQueries({
-                  queryKey: ['subscription'],
-                  type: 'active',
                 });
 
                 Alert.alert(
@@ -185,7 +170,8 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
         </View>
 
         {SUBSCRIPTION_PLANS.map((plan) => {
-          const isCurrentPlan = currentSubscription?.tier === plan.tier;
+          const isCurrentPlan =
+            normalizeSubscriptionTier(currentSubscription?.tier) === plan.tier;
           const isPurchasing = purchasing === plan.tier;
 
           const mockSubscription: Subscription = {

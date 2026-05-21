@@ -22,6 +22,7 @@ import {
   AILocale,
   HoroscopeResponse,
 } from './ai/interfaces/ai-types';
+import { buildPromptStyleGuide } from './ai/prompt-style';
 import { getSignNameLocalized } from '../modules/shared/astro-text';
 import type { Sign } from '../modules/shared/astro-text/types';
 
@@ -223,7 +224,11 @@ export class AIService {
         throw new Error(`Provider ${this.primaryProvider} not found`);
       }
 
-      return await provider.generate(prompt, undefined, locale);
+      return await provider.generate(prompt, undefined, locale, {
+        responseFormat: 'text',
+        maxTokens: 2600,
+        temperature: 0.7,
+      });
     } catch (error) {
       this.logger.error(
         `❌ Interpretation error via ${this.primaryProvider}:`,
@@ -243,7 +248,11 @@ export class AIService {
           const provider = this.providers.get(fallbackProvider);
           if (!provider) continue;
 
-          return await provider.generate(prompt, undefined, locale);
+          return await provider.generate(prompt, undefined, locale, {
+            responseFormat: 'text',
+            maxTokens: 2600,
+            temperature: 0.7,
+          });
         } catch (fallbackError) {
           this.logger.error(
             `❌ Fallback to ${fallbackProvider} also failed:`,
@@ -254,6 +263,282 @@ export class AIService {
 
       throw error;
     }
+  }
+
+  async generateStructuredChartInterpretation(context: {
+    chartData: any;
+    baseInterpretation: any;
+    userProfile?: any;
+    locale?: AILocale;
+  }): Promise<any> {
+    if (!this.isAvailable()) {
+      throw new Error('AI service unavailable');
+    }
+
+    this.logger.log(
+      `🤖 Generating structured PREMIUM natal interpretation via ${this.primaryProvider.toUpperCase()}`,
+    );
+
+    const locale = context.locale ?? 'ru';
+    const prompt = this.buildStructuredInterpretationPrompt(context, locale);
+    const provider = this.providers.get(this.primaryProvider);
+    if (!provider) {
+      throw new Error(`Provider ${this.primaryProvider} not found`);
+    }
+
+    const response = await provider.generate(prompt, undefined, locale, {
+      responseFormat: 'json_object',
+      maxTokens: 8000,
+      temperature: 0.45,
+    });
+
+    return this.parseJsonObjectResponse(response);
+  }
+
+  private parseJsonObjectResponse(response: string): any {
+    const text = response.trim();
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+    const candidate = fenced || text;
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      const extracted = candidate.match(/\{[\s\S]*\}/)?.[0];
+      if (extracted) {
+        return JSON.parse(extracted);
+      }
+      throw new Error('AI returned invalid JSON');
+    }
+  }
+
+  private buildStructuredInterpretationPrompt(
+    context: {
+      chartData: any;
+      baseInterpretation: any;
+      userProfile?: any;
+    },
+    locale: AILocale,
+  ): string {
+    const language =
+      locale === 'en' ? 'English' : locale === 'es' ? 'Spanish' : 'Russian';
+    const chartJson = JSON.stringify(
+      this.buildCompactNatalChartContext(
+        context.chartData,
+        context.baseInterpretation,
+      ),
+    );
+    const baseJson = JSON.stringify(
+      this.buildCompactInterpretationStructure(context.baseInterpretation),
+    );
+
+    return `You are a professional astrologer and writer for a premium astrology app.
+LANGUAGE: ${language}. Return ONLY valid JSON. No markdown, no commentary.
+
+Audience:
+- 20% experienced astrologers: they know terminology and value precision.
+- 50% astrology enthusiasts: they know some concepts and want to learn.
+- 30% beginners: they need clear explanations.
+
+Style:
+- Use astrological terms, but after a complex term add a short explanation in parentheses.
+- Write short readable paragraphs: 1-3 sentences.
+- Use neutral, useful wording: "you are given", "your task", "this manifests as", "this means" or the natural equivalent in ${language}.
+- Avoid slang, judgment, excessive enthusiasm, fatalism, and vague spiritual abstractions.
+- Do not use markdown heading syntax. Never output lines starting with "#", "##", or "###".
+- Do not output markdown separators such as "---", "***", or "___".
+- Do not prefix blocks, headings, or paragraphs with "№", "1.", "1.1.", "1.2.", or any other section numbering. Use plain localized titles only.
+- In premiumSummary, do not create separate Sun/Moon/Ascendant or Big Three descriptions. Big Three descriptions belong to the Overview tab. Mention chart anchors only as part of the overall synthesis.
+- For every generated item, include a final subsection inside the same text with a localized heading. In Russian use exactly "👉 Ключевая мысль:". The subsection must contain 2-3 useful, specific sentences in a businesslike tone.
+- The first block, premiumSummary, must end with a localized "📋 Итоговый синтез" section: 3-4 mobile-friendly paragraphs covering the main conflict of the chart, the main gift/strength, and the karmic task/what needs to be accepted.
+- Keep item texts concise enough for JSON, but preserve the requested structure: 1-2 short paragraphs plus the "👉 Ключевая мысль:" subsection with 2-3 sentences.
+
+Output limits:
+- Total JSON should fit within 30,000 characters.
+- premiumSummary: maximum 2,800 characters.
+- Any interpretation/overview/axisInterpretation/chainSummary/lifePurpose/relationships/careerPath/spiritualPath/healthFocus/financialApproach text: maximum 900 characters.
+- Each array of strings: maximum 5 items.
+- Each string array item: maximum 260 characters.
+- keywords, strengths, challenges: maximum 3 items each.
+
+Hard rules:
+- The natal chart is calculated by our backend. Do not invent placements, houses, aspects, planets, degrees, rulers, or signs.
+- Keep the same structure and identifiers from baseInterpretation.
+- Improve text quality: make it human, deep, specific, warm, psychologically precise.
+- Do not write a long house-by-house essay in premiumSummary. Houses have a separate app tab.
+- Replace only text fields. Preserve numbers, planet names, signs, houses, arrays order, and calculated metadata.
+- For aspects, keep the same planetA, planetB, and aspect identifiers. Replace only interpretation/significance text.
+- Each interpretation text should be meaningfully richer than the base text, not just rephrased.
+- Return complete valid JSON. Do not stop mid-object. Do not include fields not shown in the schema.
+
+Generate premium text for these app blocks:
+- Summary tab: premiumSummary, chart ruler, sect, lunar nodes, dispositorship center, key house rulers, strongest aspects summary, life purpose/life cycle, personality traits, talents, life themes, karmic lessons, unique chart features, relationships, career path, spiritual path, health focus, financial approach, dominant elements, dominant qualities, recommendations, retrograde planets, stellium, chart patterns, planet dignities, retrograde list, top house accents, empty houses, houses with retrograde planets, top strongest aspects details.
+- Overview tab: Big Three descriptions and angle-related descriptions through ascendant and houses 4, 7, 10. Statistics stay unchanged.
+- Planets tab: every planet/object already present in baseInterpretation.planets, including Chiron, Lilith, North Node, and South Node if present.
+- Houses tab: all 12 houses.
+- Aspects tab: select only the most meaningful aspects from baseInterpretation.aspects. Return 5-12 aspects, preserving their planetA, planetB, and aspect identifiers.
+
+Return JSON with this shape:
+{
+  "premiumSummary": "Free-form human synthesis for the first block in the Summary tab. Include archetype of the chart, main inner dynamic, strongest tensions/gifts, and growth task. 4-7 paragraphs.",
+  "overview": "Improved overview text.",
+  "sunSign": { "interpretation": "..." },
+  "moonSign": { "interpretation": "..." },
+  "ascendant": { "interpretation": "..." },
+  "planets": [{ "planet": "same as base", "interpretation": "...", "keywords": ["..."], "strengths": ["..."], "challenges": ["..."] }],
+  "houses": [{ "house": 1, "interpretation": "...", "keywords": ["..."], "strengths": ["..."], "challenges": ["..."] }],
+  "aspects": [{ "planetA": "same as base", "planetB": "same as base", "aspect": "same as base", "interpretation": "...", "significance": "..." }],
+  "summary": {
+    "chartRuler": { "interpretation": "..." },
+    "sect": { "interpretation": "..." },
+    "lunarNodes": { "axisInterpretation": "...", "northNode": { "interpretation": "..." }, "southNode": { "interpretation": "..." } },
+    "dispositors": { "chainSummary": "...", "finalDispositor": { "interpretation": "..." }, "dominantDispositor": { "interpretation": "..." }, "mutualReceptions": [{ "interpretation": "..." }] },
+    "keyHouseRulers": [{ "house": 1, "interpretation": "..." }],
+    "strongestAspects": [{ "title": "same or improved", "interpretation": "..." }],
+    "lifePurpose": "...",
+    "personalityTraits": ["..."],
+    "talents": ["..."],
+    "lifeThemes": ["..."],
+    "karmaLessons": ["..."],
+    "uniqueFeatures": ["..."],
+    "relationships": "...",
+    "careerPath": "...",
+    "spiritualPath": "...",
+    "healthFocus": "...",
+    "financialApproach": "...",
+    "dominantElements": ["..."],
+    "dominantQualities": ["..."],
+    "recommendations": ["..."],
+    "retrogradePlanets": ["..."],
+    "stellium": ["..."],
+    "chartPatterns": ["..."],
+    "dignityHighlights": ["..."],
+    "retrogradeList": ["..."],
+    "houseAccents": ["..."],
+    "emptyHouses": ["..."],
+    "retrogradeHouses": ["..."],
+    "topAspectsDetailed": ["..."]
+  }
+}
+
+NATAL CHART DATA:
+${chartJson}
+
+BASE INTERPRETATION STRUCTURE TO PRESERVE AND ENRICH:
+${baseJson}`;
+  }
+
+  private buildCompactNatalChartContext(
+    chartData: any,
+    baseInterpretation: any,
+  ): Record<string, unknown> {
+    const planets = chartData?.planets || {};
+    const interpretedPlanets = Array.isArray(baseInterpretation?.planets)
+      ? baseInterpretation.planets
+      : [];
+
+    return {
+      birth: {
+        date: chartData?.birthDate,
+        time: chartData?.birthTime,
+        place: chartData?.birthPlace || chartData?.location?.name,
+      },
+      angles: {
+        ascendant: this.pickAstroFields(chartData?.ascendant),
+        midheaven: this.pickAstroFields(chartData?.midheaven),
+        descendant: this.pickAstroFields(chartData?.houses?.[7]),
+        ic: this.pickAstroFields(chartData?.houses?.[4]),
+      },
+      planets: interpretedPlanets.map((item: any) => {
+        const key = String(item?.planet || '').toLowerCase();
+        return {
+          planet: item?.planet,
+          ...this.pickAstroFields(planets?.[key] || item),
+          house: item?.house ?? planets?.[key]?.house,
+          dignity: item?.dignity ?? planets?.[key]?.dignity,
+        };
+      }),
+      houses: Array.isArray(baseInterpretation?.houses)
+        ? baseInterpretation.houses.map((item: any) => ({
+            house: item?.house,
+            sign: item?.sign || chartData?.houses?.[item?.house]?.sign,
+            cusp: chartData?.houses?.[item?.house]?.cusp,
+          }))
+        : [],
+      strongestAspects: Array.isArray(
+        baseInterpretation?.summary?.strongestAspects,
+      )
+        ? baseInterpretation.summary.strongestAspects
+            .slice(0, 6)
+            .map((item: any) => ({
+              title: item?.title,
+              aspect: item?.aspect,
+              planetA: item?.planetA,
+              planetB: item?.planetB,
+              orb: item?.orb,
+              strength: item?.strength,
+            }))
+        : [],
+      patterns: baseInterpretation?.patterns || chartData?.patterns || [],
+      calculatedSummary: {
+        chartRuler: baseInterpretation?.summary?.chartRuler,
+        sect: baseInterpretation?.summary?.sect,
+        lunarNodes: baseInterpretation?.summary?.lunarNodes,
+        dispositors: baseInterpretation?.summary?.dispositors,
+        keyHouseRulers: baseInterpretation?.summary?.keyHouseRulers,
+        dominantElements: baseInterpretation?.summary?.dominantElements,
+        dominantQualities: baseInterpretation?.summary?.dominantQualities,
+        uniqueFeatures: baseInterpretation?.summary?.uniqueFeatures,
+      },
+    };
+  }
+
+  private buildCompactInterpretationStructure(
+    baseInterpretation: any,
+  ): Record<string, unknown> {
+    return {
+      hasOverview: Boolean(baseInterpretation?.overview),
+      hasBigThree: {
+        sunSign: Boolean(baseInterpretation?.sunSign),
+        moonSign: Boolean(baseInterpretation?.moonSign),
+        ascendant: Boolean(baseInterpretation?.ascendant),
+      },
+      planets: Array.isArray(baseInterpretation?.planets)
+        ? baseInterpretation.planets.map((item: any) => ({
+            planet: item?.planet,
+            sign: item?.sign,
+            house: item?.house,
+          }))
+        : [],
+      houses: Array.isArray(baseInterpretation?.houses)
+        ? baseInterpretation.houses.map((item: any) => ({
+            house: item?.house,
+            sign: item?.sign,
+          }))
+        : [],
+      aspects: Array.isArray(baseInterpretation?.aspects)
+        ? baseInterpretation.aspects.map((item: any) => ({
+            planetA: item?.planetA,
+            planetB: item?.planetB,
+            aspect: item?.aspect,
+            orb: item?.orb,
+            strength: item?.strength,
+          }))
+        : [],
+      summaryKeys: Object.keys(baseInterpretation?.summary || {}),
+    };
+  }
+
+  private pickAstroFields(value: any): Record<string, unknown> {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+
+    return {
+      sign: value.sign,
+      degree: value.degree,
+      longitude: value.longitude,
+      house: value.house,
+      retrograde: value.retrograde,
+    };
   }
 
   async generateCompatibilityInterpretation(context: {
@@ -702,6 +987,12 @@ export class AIService {
         : locale === 'es'
           ? 'No contradigas el contexto diario. Si los tránsitos están activos pero la reserva de energía es baja, describe el día como selectivo y dosificado, no como de energía universalmente alta.'
           : 'Не противоречьте дневному контексту. Если транзиты активны, но запас энергии низкий, описывайте день как требующий точности и дозировки, а не как безусловно «энергичный».';
+    const horoscopeStyleGuide = buildPromptStyleGuide({
+      locale,
+      product: 'horoscope',
+      format: 'json',
+      depth: isDeepSeek ? 'compact' : 'standard',
+    });
 
     if (locale === 'en') {
       return isDeepSeek
@@ -753,6 +1044,7 @@ Style and content requirements:
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
+${horoscopeStyleGuide}
 - Keep each field compact; avoid long introductions and repetition
 - Target ~220-320 words total
 - Do not exceed 3 sentences in "general"
@@ -805,6 +1097,7 @@ Content requirements:
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
+${horoscopeStyleGuide}
 - Keep a positive but honest tone
 - Frame challenges as growth opportunities
 - Each section must be unique, extended, and substantive`;
@@ -860,6 +1153,7 @@ Requisitos de estilo y contenido:
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
+${horoscopeStyleGuide}
 - Mantén cada campo compacto; evita introducciones largas y repeticiones
 - Objetivo ~220-320 palabras
 - No superes 3 frases en "general"
@@ -912,6 +1206,7 @@ Requisitos de contenido:
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
+${horoscopeStyleGuide}
 - Mantén un tono positivo pero honesto
 - Formula los desafíos como oportunidades de crecimiento
 - Cada sección debe ser única, extensa y sustancial`;
@@ -965,6 +1260,7 @@ ${dailyContextDescription}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
+${horoscopeStyleGuide}
 - Держите каждый раздел компактным; без длинных вступлений и повторов
 - Ориентир ~220-320 слов
 - Не превышайте 3 предложения в поле "general"
@@ -1016,6 +1312,7 @@ ${dailyContextDescription}
 - ${actionabilityLine}
 - ${opportunitiesLine}
 - ${challengesLine}
+${horoscopeStyleGuide}
 - Сохраняйте позитивный но честный тон
 - Вызовы формулируйте как возможности для роста
 - Каждый раздел должен быть уникальным, расширенным и содержательным`;
@@ -1192,10 +1489,16 @@ ${aspects || '- нет'}
           : 'Для каждого важного положения соединяйте знак + дом + градус в один абзац на 3-6 предложений: как это ощущается, где проявляется в жизни, в чем дар, риск и задача роста.';
     const requiredStructureLine =
       locale === 'en'
-        ? 'Structure the reading like a full consultation: opening synthesis, Ascendant, Sun, Moon, personal planets, Mars/Saturn/outer planets, lunar nodes, Lilith and Chiron if present, then final synthesis and main life tasks.'
+        ? 'Structure the reading for the app UI: opening archetype, concise chart-ruler section, Big Three synthesis, lunar nodes if present, dominant focus/strongest aspects, relationship-career-money themes, and final growth tasks. Do not make a house-by-house section here.'
         : locale === 'es'
-          ? 'Construye la lectura como una consulta completa: síntesis inicial, Ascendente, Sol, Luna, planetas personales, Marte/Saturno/planetas exteriores, nodos lunares, Lilith y Quirón si aparecen, y síntesis final con tareas principales.'
-          : 'Стройте ответ как полноценную консультацию: вводный синтез, Асцендент, Солнце, Луна, личные планеты, Марс/Сатурн/высшие планеты, Лунные узлы, Лилит и Хирон при наличии, затем финальный синтез и главные задачи.';
+          ? 'Estructura la lectura para la interfaz de la app: arquetipo inicial, regente de la carta, síntesis de la gran tríada, nodos lunares si aparecen, foco dominante/aspectos fuertes, temas de relación-carrera-dinero y tareas finales de crecimiento. No hagas una sección casa por casa aquí.'
+          : 'Стройте ответ под структуру экрана приложения: архетип в начале, управитель карты, синтез большой тройки, Лунные узлы при наличии, доминанты/сильнейшие аспекты, темы отношений-карьеры-денег и финальные задачи роста. Не делайте здесь подробный разбор домов по одному: для домов есть отдельная вкладка.';
+    const natalPremiumStyleGuide = buildPromptStyleGuide({
+      locale,
+      product: 'natalPremium',
+      format: 'plainText',
+      depth: 'deep',
+    });
 
     if (locale === 'en') {
       return `Create an extended PREMIUM natal-chart interpretation based strictly on the provided chart data.
@@ -1261,6 +1564,7 @@ Hard requirements:
 - ${humanNatalReadingLine}
 - ${placementDepthLine}
 - ${requiredStructureLine}
+${natalPremiumStyleGuide}
 - Explain synthesis: show how placements work together, not just one-by-one.
 - Pay special attention to the user's real chart anchors: big three, angular houses, dominant houses, repeated elements, and strongest aspects.
 - Give special weight to the tightest aspects by orb/strength and to the rulers of houses 7, 10, 2, and 8 when discussing relationships, career, and money.
@@ -1334,6 +1638,7 @@ Requisitos estrictos:
 - ${humanNatalReadingLine}
 - ${placementDepthLine}
 - ${requiredStructureLine}
+${natalPremiumStyleGuide}
 - Haz síntesis: muestra cómo los factores trabajan juntos, no solo uno por uno.
 - Da atención especial a los anclajes reales de la carta: gran tríada, casas angulares, casas dominantes, elementos repetidos y aspectos fuertes.
 - Da peso especial a los aspectos más cerrados por orbe/fuerza y a los regentes de las casas 7, 10, 2 y 8 al hablar de relaciones, carrera y dinero.
@@ -1385,6 +1690,16 @@ ${housesDesc}
 АСПЕКТЫ:
 ${aspectsDesc}
 
+ОБЯЗАТЕЛЬНАЯ СТРУКТУРА ОТВЕТА ДЛЯ ВКЛАДКИ «РЕЗЮМЕ»:
+1. «Архетип карты» — 1 образный, но конкретный раздел: какой центральный тип личности/сценарий задает карта.
+2. «Управитель карты» — как управитель Асцендента направляет поведение, выбор и вектор жизни.
+3. «Большая тройка» — Солнце, Луна, Асцендент как единый психологический механизм.
+4. «Доминанты и сильнейшие аспекты» — повторяющиеся темы, напряжения и таланты.
+5. «Отношения, карьера и деньги» — только через управителей домов и сильные факторы карты.
+6. «Задачи роста» — практичные выводы.
+
+ВАЖНО ПРО ДОМА: не пишите длинный раздел «дома» и не перечисляйте дома один за другим. Используйте дома только как аргументы внутри архетипа, управителя, отношений, карьеры и денег. Отдельный подробный разбор домов уже есть в другой вкладке приложения.
+
 Нужно написать единый premium-анализ, который:
 1. Начинает разбор с большой тройки: Солнце, Луна, Асцендент.
 2. Объясняет, как углы карты (ASC, IC, DSC, MC) формируют личную подачу, внутреннюю опору, сценарий партнерства и социальную реализацию.
@@ -1407,6 +1722,7 @@ ${aspectsDesc}
 - ${humanNatalReadingLine}
 - ${placementDepthLine}
 - ${requiredStructureLine}
+${natalPremiumStyleGuide}
 - Делайте синтез: показывайте, как факторы карты работают вместе.
 - Особое внимание уделяйте нашим главным якорям: большая тройка, угловые дома, повтор элементов, доминанты по домам и сильнейшие аспекты.
 - Отдельно учитывайте самые точные аспекты по орбу/силе и управителей 7, 10, 2 и 8 домов, когда говорите про отношения, карьеру и деньги.
