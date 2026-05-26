@@ -32,6 +32,10 @@ import Svg, {
   type SvgProps,
 } from 'react-native-svg';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
+import {
+  normalizeSubscriptionTier,
+  SubscriptionTier,
+} from '../types/subscription';
 import NatalChartWidget from '../components/profile/NatalChartWidget';
 import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
@@ -535,6 +539,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     navigateToRootScreen('Subscription');
   };
 
+  const handleManageSubscription = () => {
+    navigateToRootScreen('ManageSubscription');
+  };
+
   const handleViewPersonalCode = () => {
     navigateToRootScreen('PersonalCode');
   };
@@ -599,6 +607,25 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         (feature): feature is string => typeof feature === 'string'
       )
     : [];
+  const hasActivePremium =
+    normalizeSubscriptionTier(subscription?.tier) ===
+      SubscriptionTier.PREMIUM &&
+    Boolean(subscription?.isActive || subscription?.isTrial);
+  const premiumEndDate = subscription?.expiresAt || subscription?.trialEndsAt;
+  const premiumEndTimestamp = premiumEndDate
+    ? new Date(premiumEndDate).getTime()
+    : Number.NaN;
+  const calculatedPremiumDaysLeft = Number.isFinite(premiumEndTimestamp)
+    ? Math.max(
+        0,
+        Math.ceil((premiumEndTimestamp - Date.now()) / (1000 * 60 * 60 * 24))
+      )
+    : null;
+  const premiumDaysLeft =
+    typeof subscription?.daysRemaining === 'number' &&
+    Number.isFinite(subscription.daysRemaining)
+      ? Math.max(0, Math.ceil(subscription.daysRemaining))
+      : calculatedPremiumDaysLeft;
   const compatibilityLabel = i18n.language.toLowerCase().startsWith('ru')
     ? 'Совместимость'
     : i18n.language.toLowerCase().startsWith('es')
@@ -709,68 +736,107 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.premiumTouchable}
-            onPress={handleUpgradeSubscription}
-            activeOpacity={0.9}
-          >
-            <View style={styles.premiumBorder}>
-              <ImageBackground
-                source={premiumBackground}
-                imageStyle={styles.premiumBackgroundImage}
-                style={styles.premiumCard}
-                resizeMode="cover"
-              >
-                <View style={styles.premiumHero}>
+          {hasActivePremium ? (
+            <TouchableOpacity
+              style={styles.activePremiumContainer}
+              onPress={handleManageSubscription}
+              activeOpacity={0.9}
+            >
+              <View style={styles.premiumBorder}>
+                <LinearGradient
+                  colors={['rgba(87, 53, 205, 0.7)', 'rgba(16, 7, 47, 0.7)']}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.activePremiumCard}
+                >
+                  <View style={styles.activePremiumTextBlock}>
+                    <Text style={styles.activePremiumTitle}>Premium</Text>
+                    <View style={styles.activePremiumStatus}>
+                      <Text style={styles.activePremiumStatusText}>
+                        {t('subscription.status.active')}
+                      </Text>
+                      {premiumDaysLeft !== null && (
+                        <Text style={styles.activePremiumDaysText}>
+                          {' • '}
+                          {t('subscription.status.daysLeft', {
+                            count: premiumDaysLeft,
+                          })}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
                   <Image
                     source={premiumHero}
                     resizeMode="contain"
-                    style={styles.premiumHeroImage}
+                    style={styles.activePremiumHeroImage}
                   />
-                  <Text style={styles.premiumTitle}>Premium</Text>
-                  <View style={styles.premiumLink}>
-                    <Text style={styles.premiumLinkText}>
-                      {subscription == null || subscription.tier === 'free'
-                        ? t('subscription.buttons.upgrade')
-                        : t(`subscription.tiers.${subscription?.tier}.name`)}
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color="rgba(255, 255, 255, 0.65)"
+                </LinearGradient>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.premiumTouchable}
+              onPress={handleUpgradeSubscription}
+              activeOpacity={0.9}
+            >
+              <View style={styles.premiumBorder}>
+                <ImageBackground
+                  source={premiumBackground}
+                  imageStyle={styles.premiumBackgroundImage}
+                  style={styles.premiumCard}
+                  resizeMode="cover"
+                >
+                  <View style={styles.premiumHero}>
+                    <Image
+                      source={premiumHero}
+                      resizeMode="contain"
+                      style={styles.premiumHeroImage}
                     />
+                    <Text style={styles.premiumTitle}>Premium</Text>
+                    <View style={styles.premiumLink}>
+                      <Text style={styles.premiumLinkText}>
+                        {t('subscription.buttons.upgrade')}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color="rgba(255, 255, 255, 0.65)"
+                      />
+                    </View>
                   </View>
-                </View>
-                <View style={styles.premiumFeatures}>
-                  {premiumFeatures.slice(0, 8).map((feature) => (
-                    <GradientBorderView
-                      key={feature}
-                      colors={[
-                        'rgba(124, 119, 153, 0.7)',
-                        'rgba(124, 119, 153, 0.05)',
-                      ]}
-                      gradientProps={{
-                        locations: [0.29, 1],
-                        start: { x: 0.49, y: 0 },
-                        end: { x: 0.51, y: 1 },
-                      }}
-                      style={styles.premiumFeatureBorder}
-                      contentStyle={styles.premiumFeatureBorderContent}
-                    >
-                      <BlurView
-                        intensity={15}
-                        tint="dark"
-                        experimentalBlurMethod="dimezisBlurView"
-                        style={styles.premiumFeatureBlur}
+                  <View style={styles.premiumFeatures}>
+                    {premiumFeatures.slice(0, 8).map((feature) => (
+                      <GradientBorderView
+                        key={feature}
+                        colors={[
+                          'rgba(124, 119, 153, 0.7)',
+                          'rgba(124, 119, 153, 0.05)',
+                        ]}
+                        gradientProps={{
+                          locations: [0.29, 1],
+                          start: { x: 0.49, y: 0 },
+                          end: { x: 0.51, y: 1 },
+                        }}
+                        style={styles.premiumFeatureBorder}
+                        contentStyle={styles.premiumFeatureBorderContent}
                       >
-                        <Text style={styles.premiumFeatureText}>{feature}</Text>
-                      </BlurView>
-                    </GradientBorderView>
-                  ))}
-                </View>
-              </ImageBackground>
-            </View>
-          </TouchableOpacity>
+                        <BlurView
+                          intensity={15}
+                          tint="dark"
+                          experimentalBlurMethod="dimezisBlurView"
+                          style={styles.premiumFeatureBlur}
+                        >
+                          <Text style={styles.premiumFeatureText}>
+                            {feature}
+                          </Text>
+                        </BlurView>
+                      </GradientBorderView>
+                    ))}
+                  </View>
+                </ImageBackground>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Natal Chart Section */}
           {chart && (
@@ -1068,6 +1134,51 @@ const styles = StyleSheet.create({
   },
   premiumTouchable: {
     marginBottom: 26,
+  },
+  activePremiumContainer: {
+    marginBottom: 26,
+  },
+  activePremiumCard: {
+    minHeight: 84,
+    borderRadius: 11,
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activePremiumTextBlock: {
+    minHeight: 52,
+    justifyContent: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  activePremiumTitle: {
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  activePremiumStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activePremiumStatusText: {
+    fontSize: 16,
+    lineHeight: 19,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  activePremiumDaysText: {
+    fontSize: 16,
+    lineHeight: 19,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  activePremiumHeroImage: {
+    width: 80,
+    height: 64,
   },
   premiumBorder: {
     width: '100%',

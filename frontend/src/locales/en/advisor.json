@@ -134,6 +134,7 @@
   "premium": {
     "title": "Astro Advisor Premium",
     "subtitle": "Personal recommendations based on transits to your natal chart",
+    "gateDescription": "Subscribe to view\nthe AI analysis",
     "features": {
       "hourlyAnalysis": "Hourly analysis of day favorability",
       "aspectInterpretations": "Detailed aspect interpretations",

@@ -1,16 +1,15 @@
 import React from 'react';
 import {
   Alert,
-  Animated,
   Image,
   ImageBackground,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +25,7 @@ import {
 } from '../types/subscription';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
 import { writeHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
-import comingSoonBackground from '@assets/coming-soon-gb.png';
+import paywallBackground from '@assets/loading-bg.png';
 import premiumHero from '@assets/premium-hero.png';
 
 type SubscriptionScreenProps = StackScreenProps<
@@ -40,13 +39,24 @@ interface PaywallBenefit {
   description: string;
 }
 
+const PAYWALL_BASE_CONTENT_HEIGHT = 748;
+
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const queryClient = useQueryClient();
-  const scrollY = React.useRef(new Animated.Value(0)).current;
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
   const loadingPopupVisible = purchasing !== null;
+  const availableContentHeight = screenHeight - insets.top - insets.bottom;
+  const layoutScale = Math.min(
+    1,
+    availableContentHeight / PAYWALL_BASE_CONTENT_HEIGHT
+  );
+  const scaled = React.useCallback(
+    (value: number) => Math.round(value * layoutScale),
+    [layoutScale]
+  );
 
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     const rawLocale = String(i18n.language || 'ru').toLowerCase();
@@ -210,17 +220,12 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     },
   ];
   const isPurchasing = purchasing === SubscriptionTier.PREMIUM;
-  const topFadeOpacity = scrollY.interpolate({
-    inputRange: [0, 120],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
 
   return (
     <View style={styles.screen}>
       <View pointerEvents="none" style={styles.backgroundFrame}>
         <ImageBackground
-          source={comingSoonBackground}
+          source={paywallBackground}
           resizeMode="cover"
           style={styles.background}
           imageStyle={styles.backgroundImage}
@@ -229,7 +234,14 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
 
       <View style={styles.viewport}>
         <TouchableOpacity
-          style={[styles.closeButton, { top: insets.top + 6 }]}
+          style={[
+            styles.closeButton,
+            {
+              top: insets.top + scaled(6),
+              width: scaled(46),
+              height: scaled(46),
+            },
+          ]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
           accessibilityRole="button"
@@ -237,51 +249,86 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
         >
           <Ionicons
             name="close-outline"
-            size={34}
+            size={scaled(34)}
             color="rgba(255, 255, 255, 0.32)"
           />
         </TouchableOpacity>
 
-        <Animated.ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
+        <View
+          style={[
             styles.contentContainer,
             {
-              paddingTop: insets.top + 20,
-              paddingBottom: insets.bottom + 92,
+              paddingTop: insets.top + scaled(20),
+              paddingBottom: insets.bottom + scaled(16),
             },
           ]}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
         >
-          <View style={styles.hero}>
+          <View style={[styles.hero, { gap: scaled(7) }]}>
             <Image
               source={premiumHero}
               resizeMode="contain"
-              style={styles.heroImage}
+              style={{
+                width: scaled(115),
+                height: scaled(92),
+              }}
             />
-            <Text style={styles.title}>
+            <Text
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={[
+                styles.title,
+                { fontSize: scaled(25), lineHeight: scaled(30) },
+              ]}
+            >
               {t('subscription.paywall.title', 'Try it free')}
             </Text>
           </View>
 
-          <View style={styles.benefits}>
+          <View
+            style={[
+              styles.benefits,
+              {
+                gap: scaled(18),
+                marginTop: scaled(36),
+                paddingHorizontal: scaled(20),
+              },
+            ]}
+          >
             {benefits.map((benefit) => (
-              <View key={benefit.title} style={styles.benefit}>
+              <View
+                key={benefit.title}
+                style={[
+                  styles.benefit,
+                  { minHeight: scaled(44), gap: scaled(20) },
+                ]}
+              >
                 <Ionicons
                   name={benefit.icon}
-                  size={32}
+                  size={scaled(32)}
                   color="#FFFFFF"
-                  style={styles.benefitIcon}
+                  style={{ width: scaled(32) }}
                 />
-                <View style={styles.benefitText}>
-                  <Text style={styles.benefitTitle}>{benefit.title}</Text>
-                  <Text style={styles.benefitDescription}>
+                <View style={[styles.benefitText, { gap: scaled(4) }]}>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    numberOfLines={1}
+                    style={[
+                      styles.benefitTitle,
+                      { fontSize: scaled(14.5), lineHeight: scaled(18) },
+                    ]}
+                  >
+                    {benefit.title}
+                  </Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    numberOfLines={1}
+                    style={[
+                      styles.benefitDescription,
+                      { fontSize: scaled(13), lineHeight: scaled(16) },
+                    ]}
+                  >
                     {benefit.description}
                   </Text>
                 </View>
@@ -289,69 +336,88 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
             ))}
           </View>
 
-          <View style={styles.ctaSection}>
-            <Text style={styles.pricing}>
+          <View style={[styles.ctaSection, { paddingTop: scaled(40) }]}>
+            <Text
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={[
+                styles.pricing,
+                {
+                  fontSize: scaled(17),
+                  lineHeight: scaled(22),
+                  marginBottom: scaled(24),
+                },
+              ]}
+            >
               {t('subscription.paywall.pricing', '3 days free, then $9.99/mo')}
             </Text>
             <TouchableOpacity
-              style={[styles.continueButton, isPurchasing && styles.disabled]}
+              style={[
+                styles.continueButton,
+                {
+                  minHeight: scaled(60),
+                  borderRadius: scaled(58),
+                  paddingHorizontal: scaled(28),
+                  paddingVertical: scaled(14),
+                },
+                isPurchasing && styles.disabled,
+              ]}
               onPress={() =>
                 handlePurchase(SubscriptionTier.PREMIUM, premiumPlan.name)
               }
               activeOpacity={0.84}
               disabled={isPurchasing}
             >
-              <Text style={styles.continueText}>
+              <Text
+                style={[
+                  styles.continueText,
+                  { fontSize: scaled(18), lineHeight: scaled(23) },
+                ]}
+              >
                 {isPurchasing
                   ? t('subscription.purchasing', 'Processing...')
                   : t('subscription.paywall.continue', 'Continue')}
               </Text>
             </TouchableOpacity>
-            <Text style={styles.cancelText}>
+            <Text
+              style={[
+                styles.cancelText,
+                {
+                  marginTop: scaled(25),
+                  fontSize: scaled(14),
+                  lineHeight: scaled(18),
+                },
+              ]}
+            >
               {t('subscription.paywall.cancel', 'Cancel anytime')}
             </Text>
           </View>
 
-          <View style={styles.legal}>
-            <Text style={styles.legalText}>
+          <View
+            style={[styles.legal, { gap: scaled(24), marginTop: scaled(43) }]}
+          >
+            <Text
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={[
+                styles.legalText,
+                { fontSize: scaled(12), lineHeight: scaled(16) },
+              ]}
+            >
               {t('subscription.paywall.terms', 'Terms and Conditions')}
             </Text>
-            <Text style={styles.legalText}>
+            <Text
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={[
+                styles.legalText,
+                { fontSize: scaled(12), lineHeight: scaled(16) },
+              ]}
+            >
               {t('subscription.paywall.privacy', 'Privacy Policy')}
             </Text>
           </View>
-        </Animated.ScrollView>
-
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.topFade,
-            { height: insets.top + 56, opacity: topFadeOpacity },
-          ]}
-        >
-          <LinearGradient
-            colors={[
-              'rgba(8, 14, 28, 0.98)',
-              'rgba(8, 14, 28, 0.62)',
-              'rgba(8, 14, 28, 0)',
-            ]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
-        <LinearGradient
-          pointerEvents="none"
-          colors={[
-            'rgba(8, 14, 28, 0)',
-            'rgba(8, 14, 28, 0.52)',
-            'rgba(8, 14, 28, 0.94)',
-            '#080E1C',
-          ]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={[styles.bottomFade, { height: insets.bottom + 72 }]}
-        />
+        </View>
       </View>
 
       <Modal
@@ -382,7 +448,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#080E1C',
   },
   backgroundImage: {
-    opacity: 0.28,
+    opacity: 0.7,
   },
   viewport: {
     flex: 1,
@@ -396,102 +462,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scrollView: {
-    flex: 1,
-  },
-  topFade: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-  },
-  bottomFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
-  },
   contentContainer: {
-    flexGrow: 1,
+    flex: 1,
     alignItems: 'center',
     paddingHorizontal: 24,
   },
   hero: {
     alignItems: 'center',
-    gap: 7,
-  },
-  heroImage: {
-    width: 115,
-    height: 92,
   },
   title: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 25,
-    lineHeight: 30,
     fontWeight: '600',
     textAlign: 'center',
   },
   benefits: {
     width: '100%',
-    gap: 18,
-    marginTop: 36,
-    paddingHorizontal: 20,
   },
   benefit: {
-    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
-  },
-  benefitIcon: {
-    width: 32,
   },
   benefitText: {
     flex: 1,
     justifyContent: 'center',
-    gap: 4,
   },
   benefitTitle: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 14.5,
-    lineHeight: 18,
     fontWeight: '600',
   },
   benefitDescription: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 13,
-    lineHeight: 16,
     fontWeight: '400',
   },
   ctaSection: {
     width: '100%',
     alignItems: 'center',
     marginTop: 'auto',
-    paddingTop: 40,
   },
   pricing: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 17,
-    lineHeight: 22,
     fontWeight: '400',
     textAlign: 'center',
-    marginBottom: 24,
   },
   continueButton: {
     width: '100%',
-    minHeight: 60,
     backgroundColor: '#8D26A9',
-    borderRadius: 58,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 14,
   },
   disabled: {
     opacity: 0.65,
@@ -499,16 +520,11 @@ const styles = StyleSheet.create({
   continueText: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat_500Medium',
-    fontSize: 18,
-    lineHeight: 23,
     fontWeight: '500',
   },
   cancelText: {
-    marginTop: 25,
     color: '#FFFFFF',
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 14,
-    lineHeight: 18,
     fontWeight: '400',
     textAlign: 'center',
   },
@@ -516,14 +532,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
-    marginTop: 43,
   },
   legalText: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 12,
-    lineHeight: 16,
     fontWeight: '400',
     textAlign: 'center',
   },

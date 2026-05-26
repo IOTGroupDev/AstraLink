@@ -26,6 +26,29 @@
     }
   },
   "errorMessage": "No se pudo actualizar la suscripción. Inténtalo de nuevo.",
+  "gate": {
+    "title": "Suscripción\nrequerida",
+    "description": "Suscríbete para ver\nel análisis de IA"
+  },
+  "management": {
+    "title": "Tu suscripción\nPremium",
+    "description": "Administra tu plan y el acceso Premium.",
+    "cancelledDescription": "La cancelación está programada. El acceso seguirá activo hasta finalizar el período.",
+    "cancelling": "Termina pronto",
+    "keep": "Mantener Premium",
+    "cancelAction": "Cancelar suscripción",
+    "cancellingNow": "Cancelando...",
+    "confirmTitle": "¿Cancelar Premium?",
+    "confirmMessage": "Tu acceso Premium seguirá disponible hasta el final del período actual.",
+    "successTitle": "Cancelación programada",
+    "successMessage": "Premium seguirá activo hasta el final de tu período pagado.",
+    "error": "No se pudo cancelar la suscripción. Inténtalo de nuevo.",
+    "benefits": {
+      "ai": "Horóscopos personales con IA",
+      "chart": "Interpretación completa de carta natal",
+      "advisor": "Análisis de IA del asesor"
+    }
+  },
   "paywall": {
     "title": "Pruébalo gratis",
     "pricing": "3 días gratis, luego $9.99/mes",
@@ -90,6 +113,7 @@
   },
   "status": {
     "freeAccount": "Cuenta gratuita",
+    "active": "Activa",
     "expired": "Suscripción caducada",
     "trial": "Prueba",
     "daysLeft": "{{count}} días restantes",

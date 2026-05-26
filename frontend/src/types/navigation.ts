@@ -24,6 +24,7 @@ export type RootStackParamList = {
   // Main
   MainTabs: undefined;
   Subscription: undefined;
+  ManageSubscription: undefined;
   EditProfileScreen: undefined;
   CosmicSimulator: undefined;
   Learning:

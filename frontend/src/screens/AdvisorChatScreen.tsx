@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Alert,
   Image,
   Keyboard,
   NativeScrollEvent,
@@ -21,7 +22,6 @@ import {
   View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +41,7 @@ import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { advisorAPI } from '../services/api';
+import { SubscriptionTier } from '../types/subscription';
 import {
   ADVISOR_HISTORY_LIMIT,
   readAdvisorHistory,
@@ -52,7 +53,7 @@ import type {
 } from '../services/api/advisor.api';
 import DateWheelPicker from '../components/shared/DateWheelPicker';
 import { GradientBorderView } from '../components/shared';
-import { logger } from '../services/logger';
+import SubscriptionRequiredModal from '../components/modals/SubscriptionRequiredModal';
 import {
   buildAdvisorEvaluatePayload,
   chooseAdvisorQuickDate,
@@ -211,6 +212,131 @@ const DEFAULT_REVEAL_STATE: AdvisorSessionRevealState = {
   promptInput: false,
 };
 
+const TIME_CHART_LEFT = 18;
+const TIME_CHART_RIGHT = 364;
+const TIME_CHART_TOP = 18;
+const TIME_CHART_BOTTOM = 112;
+const MINUTES_PER_DAY = 24 * 60;
+
+type AdvisorTimeWindow = AdvisorEvaluateResponse['bestWindows'][number];
+
+interface AdvisorTimeChart {
+  linePath: string;
+  areaPath: string;
+  peakX: number;
+  peakY: number;
+  highlightX: number;
+  highlightWidth: number;
+  highlightY: number;
+  highlightHeight: number;
+}
+
+const getWindowMinutes = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.getHours() * 60 + date.getMinutes();
+};
+
+const getChartX = (minutes: number) =>
+  TIME_CHART_LEFT +
+  (Math.max(0, Math.min(MINUTES_PER_DAY, minutes)) / MINUTES_PER_DAY) *
+    (TIME_CHART_RIGHT - TIME_CHART_LEFT);
+
+const getChartY = (score: number) =>
+  TIME_CHART_BOTTOM -
+  (Math.max(0, Math.min(100, score)) / 100) *
+    (TIME_CHART_BOTTOM - TIME_CHART_TOP);
+
+const buildSmoothChartPath = (points: Array<{ x: number; y: number }>) =>
+  points.reduce((path, point, index) => {
+    if (index === 0) {
+      return `M${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }
+
+    const previous = points[index - 1];
+    const middleX = (previous.x + point.x) / 2;
+
+    return `${path} C${middleX.toFixed(1)} ${previous.y.toFixed(1)} ${middleX.toFixed(1)} ${point.y.toFixed(1)} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+  }, '');
+
+const buildAdvisorTimeChart = (
+  windows: AdvisorTimeWindow[]
+): AdvisorTimeChart | null => {
+  const positionedWindows = windows
+    .map((window) => {
+      const startMinutes = getWindowMinutes(window.startISO);
+      const rawEndMinutes = getWindowMinutes(window.endISO);
+
+      if (startMinutes === null || rawEndMinutes === null) {
+        return null;
+      }
+
+      const endMinutes =
+        rawEndMinutes <= startMinutes
+          ? Math.min(MINUTES_PER_DAY, rawEndMinutes + MINUTES_PER_DAY)
+          : rawEndMinutes;
+
+      return {
+        ...window,
+        startMinutes,
+        endMinutes,
+        startX: getChartX(startMinutes),
+        endX: getChartX(endMinutes),
+        y: getChartY(window.score),
+      };
+    })
+    .filter(
+      (
+        window
+      ): window is AdvisorTimeWindow & {
+        startMinutes: number;
+        endMinutes: number;
+        startX: number;
+        endX: number;
+        y: number;
+      } => window !== null
+    );
+
+  if (positionedWindows.length === 0) {
+    return null;
+  }
+
+  const orderedWindows = [...positionedWindows].sort(
+    (a, b) => a.startMinutes - b.startMinutes
+  );
+  const peakWindow = [...positionedWindows].sort(
+    (a, b) => b.score - a.score
+  )[0];
+  const points = [
+    { x: TIME_CHART_LEFT, y: TIME_CHART_BOTTOM },
+    ...orderedWindows.flatMap((window) => [
+      { x: window.startX, y: window.y },
+      { x: window.endX, y: window.y },
+    ]),
+    { x: TIME_CHART_RIGHT, y: TIME_CHART_BOTTOM },
+  ];
+  const linePath = buildSmoothChartPath(points);
+  const peakX = (peakWindow.startX + peakWindow.endX) / 2;
+  const peakY = peakWindow.y;
+  const highlightWidth = Math.max(22, peakWindow.endX - peakWindow.startX);
+  const highlightX = Math.max(
+    TIME_CHART_LEFT,
+    Math.min(TIME_CHART_RIGHT - highlightWidth, peakX - highlightWidth / 2)
+  );
+
+  return {
+    linePath,
+    areaPath: `${linePath} L${TIME_CHART_RIGHT} 126 L${TIME_CHART_LEFT} 126 Z`,
+    peakX,
+    peakY,
+    highlightX,
+    highlightWidth,
+    highlightY: peakY,
+    highlightHeight: 126 - peakY,
+  };
+};
+
 const AdvisorScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const advisorHeaderDescription = React.useMemo(() => {
@@ -229,11 +355,11 @@ const AdvisorScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { height: screenHeight } = useWindowDimensions();
-  const navigation = useNavigation();
   const { user } = useAuth();
-  const { isPremium } = useSubscription();
+  const { isPremium, isUpgrading, refetch, upgrade } = useSubscription();
   const premium = useMemo(() => isPremium(), [isPremium]);
   const scrollRef = useRef<ScrollView>(null);
+  const pendingSubmissionRef = useRef<AdvisorSession | null>(null);
   const revealTimeoutsRef = useRef<
     Record<string, ReturnType<typeof setTimeout>[]>
   >({});
@@ -247,6 +373,8 @@ const AdvisorScreen: React.FC = () => {
   const historyHydratedRef = useRef(false);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.9);
   const backgroundOpacityRef = useRef(0.9);
+  const [subscriptionModalVisible, setSubscriptionModalVisible] =
+    useState(false);
 
   const timezone = useMemo(() => {
     try {
@@ -681,7 +809,46 @@ const AdvisorScreen: React.FC = () => {
     setChatState((prev) => createNextAdvisorChatState(prev));
   }, [activeSessionId]);
 
-  const handleSendPrompt = useCallback(async () => {
+  const executeAdvisorRequest = useCallback(
+    async (pendingSession: AdvisorSession) => {
+      setChatState((prev) => ({
+        ...prev,
+        sessions: prev.sessions.map((session) =>
+          session.id === pendingSession.id ? pendingSession : session
+        ),
+      }));
+
+      try {
+        const data = await advisorAPI.evaluate(
+          buildAdvisorEvaluatePayload(pendingSession, timezone)
+        );
+
+        setChatState((prev) => ({
+          ...prev,
+          sessions: prev.sessions.map((session) =>
+            session.id === pendingSession.id
+              ? setAdvisorResult(session, data)
+              : session
+          ),
+        }));
+      } catch (error: any) {
+        const message =
+          error?.response?.data?.message || t('advisor.errors.requestFailed');
+
+        setChatState((prev) => ({
+          ...prev,
+          sessions: prev.sessions.map((session) =>
+            session.id === pendingSession.id
+              ? setAdvisorError(session, message)
+              : session
+          ),
+        }));
+      }
+    },
+    [t, timezone]
+  );
+
+  const handleSendPrompt = useCallback(() => {
     if (!activeSession) return;
 
     const pendingSession = submitAdvisorPrompt(activeSession);
@@ -690,99 +857,68 @@ const AdvisorScreen: React.FC = () => {
       return;
     }
 
-    setChatState((prev) => ({
-      ...prev,
-      sessions: prev.sessions.map((session) =>
-        session.id === pendingSession.id ? pendingSession : session
-      ),
-    }));
-
-    try {
-      const data = await advisorAPI.evaluate(
-        buildAdvisorEvaluatePayload(pendingSession, timezone)
-      );
-
-      setChatState((prev) => ({
-        ...prev,
-        sessions: prev.sessions.map((session) =>
-          session.id === pendingSession.id
-            ? setAdvisorResult(session, data)
-            : session
-        ),
-      }));
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.message || t('advisor.errors.requestFailed');
-
-      setChatState((prev) => ({
-        ...prev,
-        sessions: prev.sessions.map((session) =>
-          session.id === pendingSession.id
-            ? setAdvisorError(session, message)
-            : session
-        ),
-      }));
+    if (!premium) {
+      pendingSubmissionRef.current = pendingSession;
+      Keyboard.dismiss();
+      setSubscriptionModalVisible(true);
+      return;
     }
-  }, [activeSession, t, timezone]);
 
-  if (!premium) {
-    return (
-      <View style={styles.premiumGate}>
-        <LinearGradient
-          colors={['rgba(139, 92, 246, 0.2)', 'rgba(99, 102, 241, 0.1)']}
-          style={styles.premiumGradient}
-        >
-          <Ionicons name="lock-closed" size={72} color="#8B5CF6" />
-          <Text style={styles.premiumTitle}>{t('advisor.premium.title')}</Text>
-          <Text style={styles.premiumSubtitle}>
-            {t('advisor.premium.subtitle')}
-          </Text>
-          <View style={styles.premiumFeatures}>
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.featureText}>
-                {t('advisor.premium.features.hourlyAnalysis')}
-              </Text>
-            </View>
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.featureText}>
-                {t('advisor.premium.features.aspectInterpretations')}
-              </Text>
-            </View>
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.featureText}>
-                {t('advisor.premium.features.recommendations')}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            onPress={() => {
-              try {
-                navigation.navigate('Subscription' as never);
-              } catch (error: any) {
-                logger.error('navigation failed', error?.message || error);
-              }
-            }}
-            style={styles.premiumButton}
-          >
-            <LinearGradient
-              colors={['#8B5CF6', '#6366F1']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.premiumButtonGradient}
-            >
-              <Text style={styles.premiumButtonText}>
-                {t('advisor.premium.getPremium')}
-              </Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </LinearGradient>
-      </View>
+    void executeAdvisorRequest(pendingSession);
+  }, [activeSession, executeAdvisorRequest, premium]);
+
+  const handleSubscriptionModalClose = useCallback(() => {
+    if (isUpgrading) return;
+
+    pendingSubmissionRef.current = null;
+    setSubscriptionModalVisible(false);
+  }, [isUpgrading]);
+
+  const handleSubscriptionContinue = useCallback(() => {
+    Alert.alert(
+      t('subscription.confirmTitle', 'Confirm Subscription'),
+      t('subscription.confirmMessage', {
+        planName: t('subscription.tiers.premium.name', 'Premium'),
+      }),
+      [
+        {
+          text: t('common.buttons.cancel', 'Cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.buttons.confirm', 'Confirm'),
+          onPress: async () => {
+            const result = await upgrade(SubscriptionTier.PREMIUM);
+
+            if (!result.success) {
+              Alert.alert(
+                t('common.errors.generic', 'Error'),
+                t(
+                  'subscription.errorMessage',
+                  'Failed to upgrade subscription. Please try again.'
+                )
+              );
+              return;
+            }
+
+            await refetch();
+          },
+        },
+      ]
     );
-  }
+  }, [refetch, t, upgrade]);
+
+  useEffect(() => {
+    if (!subscriptionModalVisible || !premium) return;
+
+    const pendingSession = pendingSubmissionRef.current;
+    pendingSubmissionRef.current = null;
+    setSubscriptionModalVisible(false);
+
+    if (pendingSession) {
+      void executeAdvisorRequest(pendingSession);
+    }
+  }, [executeAdvisorRequest, premium, subscriptionModalVisible]);
 
   return (
     <>
@@ -1003,6 +1139,13 @@ const AdvisorScreen: React.FC = () => {
           </ScrollView>
         </View>
       </TabScreenLayout>
+      <SubscriptionRequiredModal
+        visible={subscriptionModalVisible}
+        description={t('advisor.premium.gateDescription')}
+        processing={isUpgrading}
+        onClose={handleSubscriptionModalClose}
+        onContinue={handleSubscriptionContinue}
+      />
     </>
   );
 };
@@ -1527,6 +1670,7 @@ function AdvisorResultMessage({
   const topWindows = [...(result.bestWindows ?? [])]
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
+  const timeChart = buildAdvisorTimeChart(result.bestWindows ?? []);
   const topFactors = [...(result.factors ?? [])]
     .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
     .slice(0, 2);
@@ -1637,7 +1781,7 @@ function AdvisorResultMessage({
         </View>
       ) : null}
 
-      {topWindows.length > 0 ? (
+      {topWindows.length > 0 && timeChart ? (
         <View style={styles.finalSection}>
           <View style={styles.finalSectionHeader}>
             <Ionicons name="time-outline" size={24} color="#FFFFFF" />
@@ -1689,33 +1833,46 @@ function AdvisorResultMessage({
                 </RadialGradient>
               </Defs>
               <Path
-                d="M18 96 C54 74 64 58 96 52 C118 48 118 28 127 18 C136 36 132 74 158 92 C188 110 218 113 364 112"
+                d={timeChart.linePath}
                 fill="none"
                 stroke="url(#advisorChartStroke)"
                 strokeWidth="2"
               />
               <Path
-                d="M18 96 C54 74 64 58 96 52 C118 48 118 28 127 18 C136 36 132 74 158 92 C188 110 218 113 364 112 L364 126 L18 126 Z"
+                d={timeChart.areaPath}
                 fill="url(#advisorChartLine)"
                 opacity="0.35"
               />
               <Rect
-                x="112"
-                y="18"
-                width="30"
-                height="108"
+                x={timeChart.highlightX}
+                y={timeChart.highlightY}
+                width={timeChart.highlightWidth}
+                height={timeChart.highlightHeight}
                 rx="6"
                 fill="url(#advisorWindowGlow)"
               />
-              <Circle cx="127" cy="18" r="15" fill="url(#advisorPeakGlow)" />
-              <Circle cx="127" cy="18" r="3" fill="#FFFFFF" opacity="0.9" />
+              <Circle
+                cx={timeChart.peakX}
+                cy={timeChart.peakY}
+                r="15"
+                fill="url(#advisorPeakGlow)"
+              />
+              <Circle
+                cx={timeChart.peakX}
+                cy={timeChart.peakY}
+                r="3"
+                fill="#FFFFFF"
+                opacity="0.9"
+              />
             </Svg>
             <View style={styles.timeChartLabels}>
-              {['12 PM', '6 AM', '12 AM', '6 PM', '12 PM'].map((label) => (
-                <Text key={label} style={styles.timeChartLabel}>
-                  {label}
-                </Text>
-              ))}
+              {['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'].map(
+                (label, index) => (
+                  <Text key={`${label}-${index}`} style={styles.timeChartLabel}>
+                    {label}
+                  </Text>
+                )
+              )}
             </View>
           </View>
           <View style={styles.finalWindowsList}>
@@ -2565,63 +2722,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 10,
     letterSpacing: 0.5,
-  },
-  premiumGate: {
-    flex: 1,
-    backgroundColor: '#0A0A0F',
-  },
-  premiumGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  premiumTitle: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 24,
-    textAlign: 'center',
-  },
-  premiumSubtitle: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 16,
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  premiumFeatures: {
-    marginTop: 32,
-    gap: 16,
-    width: '100%',
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  featureText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 15,
-    flex: 1,
-  },
-  premiumButton: {
-    width: '100%',
-    marginTop: 32,
-  },
-  premiumButtonGradient: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  premiumButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
 

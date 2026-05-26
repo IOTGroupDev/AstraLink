@@ -26,6 +26,29 @@
     }
   },
   "errorMessage": "Failed to upgrade subscription. Please try again.",
+  "gate": {
+    "title": "Subscription\nRequired",
+    "description": "Subscribe to view\nthe AI analysis"
+  },
+  "management": {
+    "title": "Your Premium\nsubscription",
+    "description": "Manage your plan and Premium access.",
+    "cancelledDescription": "Cancellation scheduled. Your access stays active until the period ends.",
+    "cancelling": "Ends soon",
+    "keep": "Keep Premium",
+    "cancelAction": "Cancel subscription",
+    "cancellingNow": "Cancelling...",
+    "confirmTitle": "Cancel Premium?",
+    "confirmMessage": "Your Premium access stays available until the end of the current period.",
+    "successTitle": "Cancellation scheduled",
+    "successMessage": "Premium will remain active until the end of your paid period.",
+    "error": "Failed to cancel subscription. Please try again.",
+    "benefits": {
+      "ai": "Personal AI horoscopes",
+      "chart": "Full natal chart interpretation",
+      "advisor": "Advisor AI analysis"
+    }
+  },
   "paywall": {
     "title": "Try it free",
     "pricing": "3 days free, then $9.99/mo",
@@ -90,6 +113,7 @@
   },
   "status": {
     "freeAccount": "Free account",
+    "active": "Active",
     "expired": "Subscription expired",
     "trial": "Trial",
     "daysLeft": "{{count}} days left",
