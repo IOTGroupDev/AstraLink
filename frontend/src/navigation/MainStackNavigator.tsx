@@ -1,5 +1,6 @@
 // src/navigation/MainStackNavigator.tsx
 import React from 'react';
+import { Image } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -24,6 +25,7 @@ import LearningScreen from '../screens/LearningScreen';
 import DatingProfileScreen from '../screens/DatingProfileScreen';
 
 import { useAuthSession, useAuthState } from '../stores/auth.store';
+import comingSoonBackground from '@assets/coming-soon-gb.png';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -49,6 +51,13 @@ export default function MainStackNavigator() {
   const session = useAuthSession();
   const hasSession = Boolean(session?.access_token);
 
+  React.useEffect(() => {
+    if (authState !== 'AUTHORIZED') return;
+
+    const backgroundUri = Image.resolveAssetSource(comingSoonBackground).uri;
+    void Image.prefetch(backgroundUri).catch(() => undefined);
+  }, [authState]);
+
   if (authState === 'AUTHORIZED') {
     return (
       <Stack.Navigator key="authorized" screenOptions={defaultScreenOptions}>
@@ -64,8 +73,8 @@ export default function MainStackNavigator() {
           name="Subscription"
           component={SubscriptionScreen}
           options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
+            presentation: 'fullScreenModal',
+            animation: 'none',
           }}
         />
         <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />

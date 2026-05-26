@@ -26,6 +26,36 @@
     }
   },
   "errorMessage": "No se pudo actualizar la suscripción. Inténtalo de nuevo.",
+  "paywall": {
+    "title": "Pruébalo gratis",
+    "pricing": "3 días gratis, luego $9.99/mes",
+    "continue": "Continuar",
+    "cancel": "Cancela cuando quieras",
+    "terms": "Términos y condiciones",
+    "privacy": "Política de privacidad",
+    "features": {
+      "natal": {
+        "title": "Cartas natales completas",
+        "description": "Cartas natales completas"
+      },
+      "horoscope": {
+        "title": "Horóscopos con IA",
+        "description": "Cartas natales completas"
+      },
+      "consultations": {
+        "title": "2 consultas astrológicas/año",
+        "description": "Cartas natales completas"
+      },
+      "dating": {
+        "title": "Cosmic Dating",
+        "description": "Cartas natales completas"
+      },
+      "likes": {
+        "title": "Quién te dio me gusta",
+        "description": "Cartas natales completas"
+      }
+    }
+  },
   "tiers": {
     "free": {
       "name": "Gratis",

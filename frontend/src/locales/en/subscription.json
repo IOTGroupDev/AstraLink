@@ -26,6 +26,36 @@
     }
   },
   "errorMessage": "Failed to upgrade subscription. Please try again.",
+  "paywall": {
+    "title": "Try it free",
+    "pricing": "3 days free, then $9.99/mo",
+    "continue": "Continue",
+    "cancel": "Cancel anytime",
+    "terms": "Terms and Conditions",
+    "privacy": "Privacy Policy",
+    "features": {
+      "natal": {
+        "title": "Full natal charts",
+        "description": "Full natal charts"
+      },
+      "horoscope": {
+        "title": "AI horoscopes",
+        "description": "Full natal charts"
+      },
+      "consultations": {
+        "title": "2 astrologer consultations/year",
+        "description": "Full natal charts"
+      },
+      "dating": {
+        "title": "Cosmic Dating",
+        "description": "Full natal charts"
+      },
+      "likes": {
+        "title": "Who liked you",
+        "description": "Full natal charts"
+      }
+    }
+  },
   "tiers": {
     "free": {
       "name": "Free",
