@@ -107,8 +107,10 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
           cx={centerX}
           cy={centerY}
           r={outerRadius}
-          stroke="rgba(139, 92, 246, 0.6)"
+          stroke="rgba(255, 255, 255, 0.9)"
           strokeWidth="2"
+          strokeDasharray="8 5 2 5"
+          strokeLinecap="round"
           fill="none"
         />
 
@@ -160,7 +162,7 @@ const NatalChartWidget: React.FC<NatalChartWidgetProps> = ({ chart }) => {
               y={y}
               textAnchor="middle"
               fontSize="10"
-              fill="rgba(139, 92, 246, 0.8)"
+              fill="rgba(255, 255, 255, 0.9)"
               fontWeight="bold"
             >
               {getZodiacLabel(sign)}
