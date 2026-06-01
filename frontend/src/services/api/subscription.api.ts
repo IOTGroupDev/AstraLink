@@ -3,8 +3,10 @@ import type { Subscription } from '../../types';
 import type { SubscriptionTier } from '../../types/subscription';
 
 export interface StripePaymentSheetParams {
-  paymentIntentClientSecret: string;
-  paymentIntentId: string;
+  customerId: string;
+  customerEphemeralKeySecret: string;
+  setupIntentClientSecret: string;
+  setupIntentId: string;
 }
 
 export const subscriptionAPI = {
@@ -42,11 +44,11 @@ export const subscriptionAPI = {
   },
   confirmStripePayment: async (
     tier: SubscriptionTier,
-    paymentIntentId: string
+    setupIntentId: string
   ): Promise<any> => {
     const response = await api.post('/subscription/stripe/confirm', {
       tier,
-      paymentIntentId,
+      setupIntentId,
     });
     return response.data;
   },

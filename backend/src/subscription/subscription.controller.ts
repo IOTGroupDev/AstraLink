@@ -106,12 +106,11 @@ export class ConfirmStripePaymentDto {
   tier?: string;
 
   @ApiProperty({
-    example: 'pi_123456',
-    description:
-      'Stripe PaymentIntent id returned with the PaymentSheet payload',
+    example: 'seti_123456',
+    description: 'Stripe SetupIntent id returned with the PaymentSheet payload',
   })
   @IsString()
-  paymentIntentId?: string;
+  setupIntentId?: string;
 }
 
 @ApiTags('Subscription')
@@ -268,14 +267,14 @@ export class SubscriptionController {
       throw new BadRequestException('Invalid subscription tier');
     }
 
-    if (!body?.paymentIntentId) {
-      throw new BadRequestException('Invalid Stripe payment intent');
+    if (!body?.setupIntentId) {
+      throw new BadRequestException('Invalid Stripe setup intent');
     }
 
     return this.subscriptionService.confirmStripePayment(
       this.getUserId(req),
       tierStr as SubscriptionTier,
-      body.paymentIntentId,
+      body.setupIntentId,
       this.resolveLocale(req),
     );
   }

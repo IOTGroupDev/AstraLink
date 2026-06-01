@@ -27,7 +27,10 @@ export const useStripeSubscriptionPayment = () => {
 
       const initResult = await initPaymentSheet({
         merchantDisplayName: 'AstraLink',
-        paymentIntentClientSecret: paymentSheetParams.paymentIntentClientSecret,
+        customerId: paymentSheetParams.customerId,
+        customerEphemeralKeySecret:
+          paymentSheetParams.customerEphemeralKeySecret,
+        setupIntentClientSecret: paymentSheetParams.setupIntentClientSecret,
         allowsDelayedPaymentMethods: false,
       });
 
@@ -47,7 +50,7 @@ export const useStripeSubscriptionPayment = () => {
 
       const confirmResult = await subscriptionAPI.confirmStripePayment(
         tier,
-        paymentSheetParams.paymentIntentId
+        paymentSheetParams.setupIntentId
       );
 
       if (!confirmResult.success) {
