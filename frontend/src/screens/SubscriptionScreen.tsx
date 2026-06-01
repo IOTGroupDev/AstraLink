@@ -24,6 +24,9 @@ import {
   SubscriptionTier,
 } from '../types/subscription';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
+import PaymentMethodSheet, {
+  type PaywallPaymentMethod,
+} from '../components/modals/PaymentMethodSheet';
 import { writeHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
 import paywallBackground from '@assets/loading-bg.png';
 import premiumHero from '@assets/premium-hero.png';
@@ -47,6 +50,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   const { height: screenHeight } = useWindowDimensions();
   const queryClient = useQueryClient();
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
+  const [paymentSheetVisible, setPaymentSheetVisible] = React.useState(false);
   const loadingPopupVisible = purchasing !== null;
   const availableContentHeight = screenHeight - insets.top - insets.bottom;
   const layoutScale = Math.min(
@@ -85,7 +89,60 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
     (plan) => plan.tier === SubscriptionTier.PREMIUM
   );
 
-  const handlePurchase = async (tier: SubscriptionTier, planName: string) => {
+  const completePurchase = async (
+    tier: SubscriptionTier,
+    _method: PaywallPaymentMethod
+  ) => {
+    try {
+      setPurchasing(tier);
+      // Stripe/Apple SDK flows are not wired yet; keep the existing upgrade path.
+      const result = await subscriptionAPI.upgrade(tier, 'mock');
+
+      if (result.success) {
+        const locale = getApiLocale();
+        void Promise.allSettled([
+          chartAPI.getNatalChartWithInterpretation(locale),
+          chartAPI.getHoroscope('day', locale),
+        ]);
+
+        await writeHoroscopeScreenInvalidationMarker();
+        await queryClient.invalidateQueries({
+          queryKey: ['subscription'],
+        });
+
+        setPaymentSheetVisible(false);
+        Alert.alert(
+          t('subscription.successTitle', 'Success!'),
+          t(
+            'subscription.successMessage',
+            'Your subscription has been upgraded successfully.'
+          ),
+          [
+            {
+              text: t('common.buttons.ok', 'OK'),
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      } else {
+        throw new Error(result.message || 'Upgrade failed');
+      }
+    } catch (error: any) {
+      Alert.alert(
+        t('common.errors.generic', 'Error'),
+        error.response?.data?.message ||
+          error.message ||
+          t(
+            'subscription.errorMessage',
+            'Failed to upgrade subscription. Please try again.'
+          )
+      );
+    } finally {
+      setPurchasing(null);
+    }
+  };
+
+  const handlePurchase = (tier: SubscriptionTier) => {
     if (normalizeSubscriptionTier(currentSubscription?.tier) === tier) {
       Alert.alert(
         t('subscription.current', 'Current Plan'),
@@ -97,67 +154,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
       return;
     }
 
-    const displayName = t(`subscription.tiers.${tier}.name`, planName);
-    Alert.alert(
-      t('subscription.confirmTitle', 'Confirm Subscription'),
-      t('subscription.confirmMessage', { planName: displayName }),
-      [
-        {
-          text: t('common.buttons.cancel', 'Cancel'),
-          style: 'cancel',
-        },
-        {
-          text: t('common.buttons.confirm', 'Confirm'),
-          onPress: async () => {
-            try {
-              setPurchasing(tier);
-              const result = await subscriptionAPI.upgrade(tier, 'mock');
-
-              if (result.success) {
-                const locale = getApiLocale();
-                void Promise.allSettled([
-                  chartAPI.getNatalChartWithInterpretation(locale),
-                  chartAPI.getHoroscope('day', locale),
-                ]);
-
-                await writeHoroscopeScreenInvalidationMarker();
-                await queryClient.invalidateQueries({
-                  queryKey: ['subscription'],
-                });
-
-                Alert.alert(
-                  t('subscription.successTitle', 'Success!'),
-                  t(
-                    'subscription.successMessage',
-                    'Your subscription has been upgraded successfully.'
-                  ),
-                  [
-                    {
-                      text: t('common.buttons.ok', 'OK'),
-                      onPress: () => navigation.goBack(),
-                    },
-                  ]
-                );
-              } else {
-                throw new Error(result.message || 'Upgrade failed');
-              }
-            } catch (error: any) {
-              Alert.alert(
-                t('common.errors.generic', 'Error'),
-                error.response?.data?.message ||
-                  error.message ||
-                  t(
-                    'subscription.errorMessage',
-                    'Failed to upgrade subscription. Please try again.'
-                  )
-              );
-            } finally {
-              setPurchasing(null);
-            }
-          },
-        },
-      ]
-    );
+    setPaymentSheetVisible(true);
   };
 
   if (loading) {
@@ -362,9 +359,7 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
                 },
                 isPurchasing && styles.disabled,
               ]}
-              onPress={() =>
-                handlePurchase(SubscriptionTier.PREMIUM, premiumPlan.name)
-              }
+              onPress={() => handlePurchase(SubscriptionTier.PREMIUM)}
               activeOpacity={0.84}
               disabled={isPurchasing}
             >
@@ -432,6 +427,18 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
       >
         <FullscreenLoadingScreen />
       </Modal>
+      <PaymentMethodSheet
+        visible={paymentSheetVisible}
+        processing={isPurchasing}
+        onClose={() => {
+          if (!isPurchasing) {
+            setPaymentSheetVisible(false);
+          }
+        }}
+        onSelect={(method) => {
+          void completePurchase(SubscriptionTier.PREMIUM, method);
+        }}
+      />
     </View>
   );
 }

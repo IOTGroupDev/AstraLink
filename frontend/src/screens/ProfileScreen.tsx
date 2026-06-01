@@ -535,6 +535,31 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     await finishAccountDeletionLocally();
   };
 
+  const handleLogout = () => {
+    Alert.alert(t('profile.logout.title'), t('profile.logout.message'), [
+      {
+        text: t('common.buttons.cancel'),
+        style: 'cancel',
+      },
+      {
+        text: t('profile.logout.confirm'),
+        style: 'destructive',
+        onPress: async () => {
+          isSigningOutRef.current = true;
+          requestIdRef.current += 1;
+          queryClient.clear();
+          useAuthStore.getState().resetAuth();
+
+          try {
+            await AuthEngine.signOut();
+          } catch (error) {
+            logger.warn('Sign out failed, clearing local auth state', error);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleUpgradeSubscription = () => {
     navigateToRootScreen('Subscription');
   };
@@ -966,6 +991,38 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   />
                 </LinearGradient>
               </GradientBorderView>
+
+              <TouchableOpacity
+                style={styles.settingTouchable}
+                onPress={handleLogout}
+              >
+                <GradientBorderView
+                  colors={[
+                    'rgba(135, 98, 154, 0.3)',
+                    'rgba(135, 98, 154, 0.08)',
+                  ]}
+                  style={styles.settingBorder}
+                  contentStyle={styles.settingBorderContent}
+                >
+                  <LinearGradient
+                    colors={[
+                      'rgba(97, 32, 129, 0.05)',
+                      'rgba(173, 58, 231, 0.1)',
+                    ]}
+                    style={styles.settingItem}
+                  >
+                    <Ionicons name="log-out-outline" size={22} color="#fff" />
+                    <Text style={styles.settingText}>
+                      {t('profile.settings.logout')}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#FFFFFF"
+                    />
+                  </LinearGradient>
+                </GradientBorderView>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.settingTouchable}

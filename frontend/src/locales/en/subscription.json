@@ -79,6 +79,18 @@
       }
     }
   },
+  "paymentSheet": {
+    "title": "Choose payment method",
+    "subtitle": "Select how you want to activate Premium.",
+    "stripe": {
+      "title": "Pay by card",
+      "subtitle": "Secure card payment via Stripe"
+    },
+    "apple": {
+      "title": "Apple Pay",
+      "subtitle": "Native payment on iPhone"
+    }
+  },
   "tiers": {
     "free": {
       "name": "Free",

@@ -79,6 +79,18 @@
       }
     }
   },
+  "paymentSheet": {
+    "title": "Выберите способ оплаты",
+    "subtitle": "Выберите, как активировать Premium.",
+    "stripe": {
+      "title": "Оплата картой",
+      "subtitle": "Безопасная оплата через Stripe"
+    },
+    "apple": {
+      "title": "Apple Pay",
+      "subtitle": "Нативная оплата на iPhone"
+    }
+  },
   "tiers": {
     "free": {
       "name": "Бесплатная",

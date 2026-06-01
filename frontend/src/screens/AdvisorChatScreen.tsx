@@ -54,6 +54,9 @@ import type {
 import DateWheelPicker from '../components/shared/DateWheelPicker';
 import { GradientBorderView } from '../components/shared';
 import SubscriptionRequiredModal from '../components/modals/SubscriptionRequiredModal';
+import PaymentMethodSheet, {
+  type PaywallPaymentMethod,
+} from '../components/modals/PaymentMethodSheet';
 import {
   buildAdvisorEvaluatePayload,
   chooseAdvisorQuickDate,
@@ -375,6 +378,7 @@ const AdvisorScreen: React.FC = () => {
   const backgroundOpacityRef = useRef(0.9);
   const [subscriptionModalVisible, setSubscriptionModalVisible] =
     useState(false);
+  const [paymentSheetVisible, setPaymentSheetVisible] = useState(false);
 
   const timezone = useMemo(() => {
     try {
@@ -875,38 +879,30 @@ const AdvisorScreen: React.FC = () => {
   }, [isUpgrading]);
 
   const handleSubscriptionContinue = useCallback(() => {
-    Alert.alert(
-      t('subscription.confirmTitle', 'Confirm Subscription'),
-      t('subscription.confirmMessage', {
-        planName: t('subscription.tiers.premium.name', 'Premium'),
-      }),
-      [
-        {
-          text: t('common.buttons.cancel', 'Cancel'),
-          style: 'cancel',
-        },
-        {
-          text: t('common.buttons.confirm', 'Confirm'),
-          onPress: async () => {
-            const result = await upgrade(SubscriptionTier.PREMIUM);
+    setPaymentSheetVisible(true);
+  }, []);
 
-            if (!result.success) {
-              Alert.alert(
-                t('common.errors.generic', 'Error'),
-                t(
-                  'subscription.errorMessage',
-                  'Failed to upgrade subscription. Please try again.'
-                )
-              );
-              return;
-            }
+  const handlePaymentMethodSelect = useCallback(
+    async (_method: PaywallPaymentMethod) => {
+      // Stripe/Apple SDK flows are not wired yet; keep the existing upgrade path.
+      const result = await upgrade(SubscriptionTier.PREMIUM, 'mock');
 
-            await refetch();
-          },
-        },
-      ]
-    );
-  }, [refetch, t, upgrade]);
+      if (!result.success) {
+        Alert.alert(
+          t('common.errors.generic', 'Error'),
+          t(
+            'subscription.errorMessage',
+            'Failed to upgrade subscription. Please try again.'
+          )
+        );
+        return;
+      }
+
+      setPaymentSheetVisible(false);
+      await refetch();
+    },
+    [refetch, t, upgrade]
+  );
 
   useEffect(() => {
     if (!subscriptionModalVisible || !premium) return;
@@ -914,6 +910,7 @@ const AdvisorScreen: React.FC = () => {
     const pendingSession = pendingSubmissionRef.current;
     pendingSubmissionRef.current = null;
     setSubscriptionModalVisible(false);
+    setPaymentSheetVisible(false);
 
     if (pendingSession) {
       void executeAdvisorRequest(pendingSession);
@@ -1145,6 +1142,18 @@ const AdvisorScreen: React.FC = () => {
         processing={isUpgrading}
         onClose={handleSubscriptionModalClose}
         onContinue={handleSubscriptionContinue}
+      />
+      <PaymentMethodSheet
+        visible={paymentSheetVisible}
+        processing={isUpgrading}
+        onClose={() => {
+          if (!isUpgrading) {
+            setPaymentSheetVisible(false);
+          }
+        }}
+        onSelect={(method) => {
+          void handlePaymentMethodSelect(method);
+        }}
       />
     </>
   );

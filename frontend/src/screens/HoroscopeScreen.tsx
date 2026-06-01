@@ -188,6 +188,7 @@ const HoroscopeScreen: React.FC = () => {
     subscription,
     refetch: refetchSubscription,
     hasFeature,
+    isPremium,
   } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const syncingRef = useRef(false);
@@ -1265,41 +1266,43 @@ const HoroscopeScreen: React.FC = () => {
                     )}
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={openSubscription}
-                    style={styles.premiumButton}
-                  >
-                    <GradientBorderView
-                      colors={[
-                        'rgba(255, 255, 255, 0.35)',
-                        'rgba(255, 255, 255, 0.025)',
-                      ]}
-                      gradientProps={{
-                        locations: [0.29, 1],
-                        start: { x: 0.49, y: 0 },
-                        end: { x: 0.51, y: 1 },
-                      }}
-                      style={styles.premiumBorder}
-                      contentStyle={styles.premiumBorderContent}
+                  {!isPremium() && (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={openSubscription}
+                      style={styles.premiumButton}
                     >
-                      <BlurView
-                        intensity={15}
-                        tint="dark"
-                        experimentalBlurMethod="dimezisBlurView"
-                        style={styles.premiumBlur}
+                      <GradientBorderView
+                        colors={[
+                          'rgba(255, 255, 255, 0.35)',
+                          'rgba(255, 255, 255, 0.025)',
+                        ]}
+                        gradientProps={{
+                          locations: [0.29, 1],
+                          start: { x: 0.49, y: 0 },
+                          end: { x: 0.51, y: 1 },
+                        }}
+                        style={styles.premiumBorder}
+                        contentStyle={styles.premiumBorderContent}
                       >
-                        <Text style={styles.premiumText}>
-                          👑{' '}
-                          {(!subscription?.tier &&
-                            subscription?.tier === null) ||
-                          subscription?.tier === 'free'
-                            ? t('horoscope.hero.getPremium')
-                            : t('horoscope.hero.premium')}
-                        </Text>
-                      </BlurView>
-                    </GradientBorderView>
-                  </TouchableOpacity>
+                        <BlurView
+                          intensity={15}
+                          tint="dark"
+                          experimentalBlurMethod="dimezisBlurView"
+                          style={styles.premiumBlur}
+                        >
+                          <Text style={styles.premiumText}>
+                            👑{' '}
+                            {(!subscription?.tier &&
+                              subscription?.tier === null) ||
+                            subscription?.tier === 'free'
+                              ? t('horoscope.hero.getPremium')
+                              : t('horoscope.hero.premium')}
+                          </Text>
+                        </BlurView>
+                      </GradientBorderView>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <Text style={styles.heroGreeting} numberOfLines={1}>
