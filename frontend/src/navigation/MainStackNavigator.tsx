@@ -1,10 +1,14 @@
 // src/navigation/MainStackNavigator.tsx
 import React from 'react';
+import { Image } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 
 import TabNavigator from './TabNavigator';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import ManageSubscriptionScreen from '../screens/ManageSubscriptionScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import OnboardingFirstScreen from '../screens/Onboarding/OnboardingFirstScreen';
 import OnboardingSecondScreen from '../screens/Onboarding/OnboardingSecondScreen';
@@ -24,6 +28,8 @@ import LearningScreen from '../screens/LearningScreen';
 import DatingProfileScreen from '../screens/DatingProfileScreen';
 
 import { useAuthSession, useAuthState } from '../stores/auth.store';
+import { useSubscription } from '../hooks/useSubscription';
+import paywallBackground from '@assets/loading-bg.png';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -44,17 +50,69 @@ const defaultScreenOptions = {
   headerShadowVisible: false,
 };
 
+function AuthorizedMainTabsScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const session = useAuthSession();
+  const { isPremium, refetch } = useSubscription();
+  const promptedUserIdRef = React.useRef<string | null>(null);
+  const [checkedUserId, setCheckedUserId] = React.useState<string | null>(null);
+  const userId = session?.user?.id ?? null;
+
+  React.useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+    setCheckedUserId(null);
+
+    void refetch().finally(() => {
+      if (!cancelled) {
+        setCheckedUserId(userId);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refetch, userId]);
+
+  React.useEffect(() => {
+    if (
+      !userId ||
+      checkedUserId !== userId ||
+      promptedUserIdRef.current === userId
+    ) {
+      return;
+    }
+
+    promptedUserIdRef.current = userId;
+
+    if (!isPremium()) {
+      navigation.navigate('Subscription');
+    }
+  }, [checkedUserId, isPremium, navigation, userId]);
+
+  return <TabNavigator />;
+}
+
 export default function MainStackNavigator() {
   const authState = useAuthState();
   const session = useAuthSession();
   const hasSession = Boolean(session?.access_token);
+
+  React.useEffect(() => {
+    if (authState !== 'AUTHORIZED') return;
+
+    const backgroundUri = Image.resolveAssetSource(paywallBackground).uri;
+    void Image.prefetch(backgroundUri).catch(() => undefined);
+  }, [authState]);
 
   if (authState === 'AUTHORIZED') {
     return (
       <Stack.Navigator key="authorized" screenOptions={defaultScreenOptions}>
         <Stack.Screen
           name="MainTabs"
-          component={TabNavigator}
+          component={AuthorizedMainTabsScreen}
           options={{
             animation: 'none',
           }}
@@ -64,8 +122,16 @@ export default function MainStackNavigator() {
           name="Subscription"
           component={SubscriptionScreen}
           options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
+            presentation: 'fullScreenModal',
+            animation: 'none',
+          }}
+        />
+        <Stack.Screen
+          name="ManageSubscription"
+          component={ManageSubscriptionScreen}
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'none',
           }}
         />
         <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />

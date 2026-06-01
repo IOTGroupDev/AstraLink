@@ -60,6 +60,8 @@
   },
   "chat": {
     "headerSubtitle": "A guided advisor session that feels like a conversation.",
+    "greeting": "Hey {{name}}!",
+    "fallbackName": "there",
     "intro": "Choose a topic and I will guide you through the reading.",
     "topicHelp": "Pick the life area you want me to evaluate first.",
     "selectedTopic": "Topic",
@@ -134,6 +136,7 @@
   "premium": {
     "title": "Astro Advisor Premium",
     "subtitle": "Personal recommendations based on transits to your natal chart",
+    "gateDescription": "Subscribe to view\nthe AI analysis",
     "features": {
       "hourlyAnalysis": "Hourly analysis of day favorability",
       "aspectInterpretations": "Detailed aspect interpretations",

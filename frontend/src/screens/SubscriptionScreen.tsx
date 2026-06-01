@@ -1,40 +1,71 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Alert,
+  Image,
+  ImageBackground,
   Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Subscription, SUBSCRIPTION_PLANS } from '../types';
-import type { StackScreenProps } from '@react-navigation/stack';
-import type { RootStackParamList } from '../types/navigation';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import SubscriptionCard from '../components/profile/SubscriptionCard';
+import type { StackScreenProps } from '@react-navigation/stack';
+import { Subscription, SUBSCRIPTION_PLANS } from '../types';
+import type { RootStackParamList } from '../types/navigation';
 import { chartAPI, userAPI } from '../services/api';
-import { subscriptionAPI } from '../services/api/subscription.api';
 import {
   normalizeSubscriptionTier,
   SubscriptionTier,
 } from '../types/subscription';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
+import PaymentMethodSheet, {
+  type PaywallPaymentMethod,
+} from '../components/modals/PaymentMethodSheet';
 import { writeHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
+import {
+  useStripeSubscriptionPayment,
+  waitForPaymentMethodSheetDismiss,
+} from '../hooks/useStripeSubscriptionPayment';
+import paywallBackground from '@assets/loading-bg.png';
+import premiumHero from '@assets/premium-hero.png';
 
 type SubscriptionScreenProps = StackScreenProps<
   RootStackParamList,
   'Subscription'
 >;
 
+interface PaywallBenefit {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+}
+
+const PAYWALL_BASE_CONTENT_HEIGHT = 748;
+
 function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const queryClient = useQueryClient();
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
-  const loadingPopupVisible = purchasing !== null;
+  const [nativePaymentActive, setNativePaymentActive] = React.useState(false);
+  const [paymentSheetVisible, setPaymentSheetVisible] = React.useState(false);
+  const loadingPopupVisible = purchasing !== null && !nativePaymentActive;
+  const startStripePayment = useStripeSubscriptionPayment();
+  const availableContentHeight = screenHeight - insets.top - insets.bottom;
+  const layoutScale = Math.min(
+    1,
+    availableContentHeight / PAYWALL_BASE_CONTENT_HEIGHT
+  );
+  const scaled = React.useCallback(
+    (value: number) => Math.round(value * layoutScale),
+    [layoutScale]
+  );
 
   const getApiLocale = React.useCallback((): 'ru' | 'en' | 'es' => {
     const rawLocale = String(i18n.language || 'ru').toLowerCase();
@@ -44,12 +75,13 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   }, [i18n.language]);
 
   const freeFallback: Subscription = {
-    tier: 'free',
+    id: 'free-fallback',
+    userId: '',
+    tier: SubscriptionTier.FREE,
     isActive: false,
     isTrial: false,
-    isTrialActive: false,
     features: [],
-  } as any;
+  };
 
   const { data: currentSubscription = freeFallback, isLoading: loading } =
     useQuery<Subscription>({
@@ -58,8 +90,72 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
       staleTime: 30_000,
     });
 
-  const handlePurchase = async (tier: SubscriptionTier, planName: string) => {
-    // If it's the current plan, just show info
+  const premiumPlan = SUBSCRIPTION_PLANS.find(
+    (plan) => plan.tier === SubscriptionTier.PREMIUM
+  );
+
+  const completePurchase = async (
+    tier: SubscriptionTier,
+    method: PaywallPaymentMethod
+  ) => {
+    if (method === 'apple') return;
+
+    try {
+      setPaymentSheetVisible(false);
+      await waitForPaymentMethodSheetDismiss();
+
+      setNativePaymentActive(true);
+      const result = await startStripePayment(tier);
+      setNativePaymentActive(false);
+
+      if (!result.success) {
+        return;
+      }
+
+      setPurchasing(tier);
+
+      const locale = getApiLocale();
+      void Promise.allSettled([
+        chartAPI.getNatalChartWithInterpretation(locale),
+        chartAPI.getHoroscope('day', locale),
+      ]);
+
+      await writeHoroscopeScreenInvalidationMarker();
+      await queryClient.invalidateQueries({
+        queryKey: ['subscription'],
+      });
+
+      setPaymentSheetVisible(false);
+      Alert.alert(
+        t('subscription.successTitle', 'Success!'),
+        t(
+          'subscription.successMessage',
+          'Your subscription has been upgraded successfully.'
+        ),
+        [
+          {
+            text: t('common.buttons.ok', 'OK'),
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error: any) {
+      setNativePaymentActive(false);
+      Alert.alert(
+        t('common.errors.generic', 'Error'),
+        error.response?.data?.message ||
+          error.message ||
+          t(
+            'subscription.errorMessage',
+            'Failed to upgrade subscription. Please try again.'
+          )
+      );
+    } finally {
+      setPurchasing(null);
+    }
+  };
+
+  const handlePurchase = (tier: SubscriptionTier) => {
     if (normalizeSubscriptionTier(currentSubscription?.tier) === tier) {
       Alert.alert(
         t('subscription.current', 'Current Plan'),
@@ -71,315 +167,401 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
       return;
     }
 
-    // Confirm purchase
-    const displayName = t(`subscription.tiers.${tier}.name`, planName);
-    Alert.alert(
-      t('subscription.confirmTitle', 'Confirm Subscription'),
-      t('subscription.confirmMessage', { planName: displayName }),
-      [
-        {
-          text: t('common.buttons.cancel', 'Cancel'),
-          style: 'cancel',
-        },
-        {
-          text: t('common.buttons.confirm', 'Confirm'),
-          onPress: async () => {
-            try {
-              setPurchasing(tier);
-              const result = await subscriptionAPI.upgrade(tier, 'mock');
-
-              if (result.success) {
-                const locale = getApiLocale();
-                void Promise.allSettled([
-                  chartAPI.getNatalChartWithInterpretation(locale),
-                  chartAPI.getHoroscope('day', locale),
-                ]);
-
-                await writeHoroscopeScreenInvalidationMarker();
-
-                await queryClient.invalidateQueries({
-                  queryKey: ['subscription'],
-                });
-
-                Alert.alert(
-                  t('subscription.successTitle', 'Success!'),
-                  t(
-                    'subscription.successMessage',
-                    'Your subscription has been upgraded successfully.'
-                  ),
-                  [
-                    {
-                      text: t('common.buttons.ok', 'OK'),
-                      onPress: () => {
-                        navigation.goBack();
-                      },
-                    },
-                  ]
-                );
-              } else {
-                throw new Error(result.message || 'Upgrade failed');
-              }
-            } catch (error: any) {
-              Alert.alert(
-                t('common.errors.generic', 'Error'),
-                error.response?.data?.message ||
-                  error.message ||
-                  t(
-                    'subscription.errorMessage',
-                    'Failed to upgrade subscription. Please try again.'
-                  )
-              );
-            } finally {
-              setPurchasing(null);
-            }
-          },
-        },
-      ]
-    );
+    setPaymentSheetVisible(true);
   };
 
   if (loading) {
     return <FullscreenLoadingScreen />;
   }
 
+  if (!premiumPlan) {
+    return null;
+  }
+
+  const benefits: PaywallBenefit[] = [
+    {
+      icon: 'sparkles-outline',
+      title: t(
+        'subscription.paywall.features.natal.title',
+        'Full natal charts'
+      ),
+      description: t(
+        'subscription.paywall.features.natal.description',
+        'Full natal charts'
+      ),
+    },
+    {
+      icon: 'chatbubble-outline',
+      title: t(
+        'subscription.paywall.features.horoscope.title',
+        'AI horoscopes'
+      ),
+      description: t(
+        'subscription.paywall.features.horoscope.description',
+        'Full natal charts'
+      ),
+    },
+    {
+      icon: 'people-outline',
+      title: t(
+        'subscription.paywall.features.consultations.title',
+        '2 astrologer consultations/year'
+      ),
+      description: t(
+        'subscription.paywall.features.consultations.description',
+        'Full natal charts'
+      ),
+    },
+    {
+      icon: 'heart-outline',
+      title: t('subscription.paywall.features.dating.title', 'Cosmic Dating'),
+      description: t(
+        'subscription.paywall.features.dating.description',
+        'Full natal charts'
+      ),
+    },
+    {
+      icon: 'eye-outline',
+      title: t('subscription.paywall.features.likes.title', 'Who liked you'),
+      description: t(
+        'subscription.paywall.features.likes.description',
+        'Full natal charts'
+      ),
+    },
+  ];
+  const isPurchasing =
+    purchasing === SubscriptionTier.PREMIUM || nativePaymentActive;
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header with Back Button */}
-      <View style={styles.navigationHeader}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {t('subscription.title', 'Subscription Plans')}
-        </Text>
-        <View style={styles.backButton} />
+    <View style={styles.screen}>
+      <View pointerEvents="none" style={styles.backgroundFrame}>
+        <ImageBackground
+          source={paywallBackground}
+          resizeMode="cover"
+          style={styles.background}
+          imageStyle={styles.backgroundImage}
+        />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.subtitle}>
-            {t('subscription.subtitle', 'Choose the plan that works for you')}
-          </Text>
-        </View>
+      <View style={styles.viewport}>
+        <TouchableOpacity
+          style={[
+            styles.closeButton,
+            {
+              top: insets.top + scaled(6),
+              width: scaled(46),
+              height: scaled(46),
+            },
+          ]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.buttons.close', 'Close')}
+        >
+          <Ionicons
+            name="close-outline"
+            size={scaled(34)}
+            color="rgba(255, 255, 255, 0.32)"
+          />
+        </TouchableOpacity>
 
-        {SUBSCRIPTION_PLANS.map((plan) => {
-          const isCurrentPlan =
-            normalizeSubscriptionTier(currentSubscription?.tier) === plan.tier;
-          const isPurchasing = purchasing === plan.tier;
+        <View
+          style={[
+            styles.contentContainer,
+            {
+              paddingTop: insets.top + scaled(20),
+              paddingBottom: insets.bottom + scaled(16),
+            },
+          ]}
+        >
+          <View style={[styles.hero, { gap: scaled(7) }]}>
+            <Image
+              source={premiumHero}
+              resizeMode="contain"
+              style={{
+                width: scaled(115),
+                height: scaled(92),
+              }}
+            />
+            <Text
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={[
+                styles.title,
+                { fontSize: scaled(25), lineHeight: scaled(30) },
+              ]}
+            >
+              {t('subscription.paywall.title', 'Try it free')}
+            </Text>
+          </View>
 
-          const mockSubscription: Subscription = {
-            id: plan.tier,
-            userId: '',
-            tier: plan.tier as any,
-            isActive: isCurrentPlan,
-            isTrial: false,
-            isTrialActive: false,
-            features: plan.features,
-            expiresAt: isCurrentPlan
-              ? currentSubscription?.expiresAt
-              : undefined,
-            trialEndsAt: isCurrentPlan
-              ? currentSubscription?.trialEndsAt
-              : undefined,
-          } as any;
-
-          return (
-            <View key={plan.tier} style={styles.planContainer}>
-              {plan.isPopular && (
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularText}>
-                    {t('subscription.popular', 'Most Popular')}
-                  </Text>
-                </View>
-              )}
-              {isCurrentPlan && (
-                <View style={styles.currentBadge}>
-                  <Text style={styles.currentText}>
-                    {t('subscription.current', 'Current Plan')}
-                  </Text>
-                </View>
-              )}
-              <SubscriptionCard
-                subscription={mockSubscription}
-                onUpgrade={() => handlePurchase(plan.tier, plan.name)}
-                showUpgradeButton={false}
-              />
-              {plan.price > 0 && (
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>
-                    {plan.currency === 'RUB' ? '₽' : '$'}
-                    {plan.price}
-                  </Text>
-                  <Text style={styles.period}>
-                    / {t(`subscription.period.${plan.period}`, plan.period)}
-                  </Text>
-                </View>
-              )}
-              {/* Purchase Button */}
-              <TouchableOpacity
+          <View
+            style={[
+              styles.benefits,
+              {
+                gap: scaled(18),
+                marginTop: scaled(36),
+                paddingHorizontal: scaled(20),
+              },
+            ]}
+          >
+            {benefits.map((benefit) => (
+              <View
+                key={benefit.title}
                 style={[
-                  styles.purchaseButton,
-                  isCurrentPlan && styles.currentPlanButton,
-                  isPurchasing && styles.purchasingButton,
+                  styles.benefit,
+                  { minHeight: scaled(44), gap: scaled(20) },
                 ]}
-                onPress={() => handlePurchase(plan.tier, plan.name)}
-                disabled={isPurchasing}
               >
-                <Text
-                  style={[
-                    styles.purchaseButtonText,
-                    isCurrentPlan && styles.currentPlanButtonText,
-                  ]}
-                >
-                  {isPurchasing
-                    ? t('subscription.purchasing', 'Processing...')
-                    : isCurrentPlan
-                      ? t('subscription.currentPlan', 'Current Plan')
-                      : plan.price === 0
-                        ? t('subscription.chooseFree', 'Choose Free')
-                        : t('subscription.choosePlan', 'Choose Plan')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
+                <Ionicons
+                  name={benefit.icon}
+                  size={scaled(32)}
+                  color="#FFFFFF"
+                  style={{ width: scaled(32) }}
+                />
+                <View style={[styles.benefitText, { gap: scaled(4) }]}>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    numberOfLines={1}
+                    style={[
+                      styles.benefitTitle,
+                      { fontSize: scaled(14.5), lineHeight: scaled(18) },
+                    ]}
+                  >
+                    {benefit.title}
+                  </Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    numberOfLines={1}
+                    style={[
+                      styles.benefitDescription,
+                      { fontSize: scaled(13), lineHeight: scaled(16) },
+                    ]}
+                  >
+                    {benefit.description}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.ctaSection, { paddingTop: scaled(40) }]}>
+            <Text
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={[
+                styles.pricing,
+                {
+                  fontSize: scaled(17),
+                  lineHeight: scaled(22),
+                  marginBottom: scaled(24),
+                },
+              ]}
+            >
+              {t('subscription.paywall.pricing', '3 days free, then $9.99/mo')}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.continueButton,
+                {
+                  minHeight: scaled(60),
+                  borderRadius: scaled(58),
+                  paddingHorizontal: scaled(28),
+                  paddingVertical: scaled(14),
+                },
+                isPurchasing && styles.disabled,
+              ]}
+              onPress={() => handlePurchase(SubscriptionTier.PREMIUM)}
+              activeOpacity={0.84}
+              disabled={isPurchasing}
+            >
+              <Text
+                style={[
+                  styles.continueText,
+                  { fontSize: scaled(18), lineHeight: scaled(23) },
+                ]}
+              >
+                {isPurchasing
+                  ? t('subscription.purchasing', 'Processing...')
+                  : t('subscription.paywall.continue', 'Continue')}
+              </Text>
+            </TouchableOpacity>
+            <Text
+              style={[
+                styles.cancelText,
+                {
+                  marginTop: scaled(25),
+                  fontSize: scaled(14),
+                  lineHeight: scaled(18),
+                },
+              ]}
+            >
+              {t('subscription.paywall.cancel', 'Cancel anytime')}
+            </Text>
+          </View>
+
+          <View
+            style={[styles.legal, { gap: scaled(14), marginTop: scaled(43) }]}
+          >
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              numberOfLines={1}
+              style={[
+                styles.legalText,
+                { fontSize: scaled(10), lineHeight: scaled(14) },
+              ]}
+            >
+              {t('subscription.paywall.terms', 'Terms and Conditions')}
+            </Text>
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              numberOfLines={1}
+              style={[
+                styles.legalText,
+                { fontSize: scaled(10), lineHeight: scaled(14) },
+              ]}
+            >
+              {t('subscription.paywall.privacy', 'Privacy Policy')}
+            </Text>
+          </View>
+        </View>
+      </View>
 
       <Modal
         animationType="fade"
         transparent
         visible={loadingPopupVisible}
         onRequestClose={() => {
-          // Prevent closing while premium assets are being prepared
+          // Prevent closing while premium assets are being prepared.
         }}
       >
         <FullscreenLoadingScreen />
       </Modal>
-    </SafeAreaView>
+      <PaymentMethodSheet
+        visible={paymentSheetVisible}
+        processing={isPurchasing}
+        onClose={() => {
+          if (!isPurchasing) {
+            setPaymentSheetVisible(false);
+          }
+        }}
+        onSelect={(method) => {
+          void completePurchase(SubscriptionTier.PREMIUM, method);
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#080E1C',
   },
-  navigationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  backgroundFrame: {
+    ...StyleSheet.absoluteFillObject,
+    transform: [{ rotate: '180deg' }],
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  background: {
+    flex: 1,
+    backgroundColor: '#080E1C',
+  },
+  backgroundImage: {
+    opacity: 0.7,
+  },
+  viewport: {
+    flex: 1,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 8,
+    zIndex: 2,
+    width: 46,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F9FAFB',
-  },
-  scrollView: {
-    flex: 1,
   },
   contentContainer: {
-    paddingVertical: 20,
-    paddingBottom: 40,
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 24,
   },
-  header: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-  planContainer: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    right: 28,
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 10,
-  },
-  popularText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  currentBadge: {
-    position: 'absolute',
-    top: -8,
-    left: 28,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 10,
-  },
-  currentText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    marginTop: -12,
-    marginBottom: 12,
-  },
-  price: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#F9FAFB',
-  },
-  period: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    marginLeft: 4,
-  },
-  purchaseButton: {
-    marginHorizontal: 16,
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 14,
-    borderRadius: 12,
+  hero: {
     alignItems: 'center',
   },
-  currentPlanButton: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderWidth: 1,
-    borderColor: '#10B981',
+  title: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_600SemiBold',
+    fontWeight: '600',
+    textAlign: 'center',
   },
-  purchasingButton: {
-    opacity: 0.6,
+  benefits: {
+    width: '100%',
   },
-  purchaseButtonText: {
-    color: '#FFF',
-    fontSize: 16,
+  benefit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  benefitText: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  benefitTitle: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_600SemiBold',
     fontWeight: '600',
   },
-  currentPlanButtonText: {
-    color: '#10B981',
+  benefitDescription: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
+  },
+  ctaSection: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 'auto',
+  },
+  pricing: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  continueButton: {
+    width: '100%',
+    backgroundColor: '#8D26A9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabled: {
+    opacity: 0.65,
+  },
+  continueText: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_500Medium',
+    fontWeight: '500',
+  },
+  cancelText: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  legal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legalText: {
+    flexShrink: 1,
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_400Regular',
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });
 

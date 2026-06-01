@@ -8,24 +8,34 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  ImageBackground,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withRepeat,
-  withSequence,
 } from 'react-native-reanimated';
+import Svg, {
+  Defs,
+  Ellipse,
+  FeGaussianBlur,
+  Filter,
+  RadialGradient,
+  Stop,
+  type SvgProps,
+} from 'react-native-svg';
 import { UserProfile, Subscription, Chart, ZodiacSign } from '../types';
-import CosmicBackground from '../components/shared/CosmicBackground';
-import ZodiacAvatar from '../components/profile/ZodiacAvatar';
-import SubscriptionCard from '../components/profile/SubscriptionCard';
+import {
+  normalizeSubscriptionTier,
+  SubscriptionTier,
+} from '../types/subscription';
 import NatalChartWidget from '../components/profile/NatalChartWidget';
 import DeleteAccountModal from '../components/modals/DeleteAccountModal';
 import { useAuthStore } from '../stores';
@@ -42,13 +52,39 @@ import { logger } from '../services/logger';
 import LanguageSelector from '../components/settings/LanguageSelector';
 import { ProfileSkeleton } from '../components/profile/ProfileSkeleton';
 import { BottomTabFade } from '../components/shared/BottomTabFade';
-import CompactScreenHeader from '../components/shared/CompactScreenHeader';
+import { GradientBorderView } from '../components/shared';
 import { getBirthDateParts } from '../utils/birthDate';
 import {
   getCachedPrimaryPhoto,
   setCachedPrimaryPhoto,
 } from '../services/profile-photo-cache';
 import type { RootStackParamList } from '../types/navigation';
+import premiumBackground from '@assets/premium-bg.png';
+import premiumHero from '@assets/premium-hero.png';
+import AriesProfileIcon from '@assets/zodiac-icons/aries.svg';
+import TaurusProfileIcon from '@assets/zodiac-icons/taurus.svg';
+import GeminiProfileIcon from '@assets/zodiac-icons/gemini.svg';
+import CancerProfileIcon from '@assets/zodiac-icons/cancer.svg';
+import LeoProfileIcon from '@assets/zodiac-icons/leo.svg';
+import VirgoProfileIcon from '@assets/zodiac-icons/virgo.svg';
+import LibraProfileIcon from '@assets/zodiac-icons/libra.svg';
+import ScorpioProfileIcon from '@assets/zodiac-icons/scorpio.svg';
+import SagittariusProfileIcon from '@assets/zodiac-icons/sagittarius.svg';
+import CapricornProfileIcon from '@assets/zodiac-icons/capricorn.svg';
+import AquariusProfileIcon from '@assets/zodiac-icons/aquarius.svg';
+import PiscesProfileIcon from '@assets/zodiac-icons/pisces.svg';
+import AriesAvatarIcon from '@assets/zodiac/aries.svg';
+import TaurusAvatarIcon from '@assets/zodiac/taurus.svg';
+import GeminiAvatarIcon from '@assets/zodiac/gemini.svg';
+import CancerAvatarIcon from '@assets/zodiac/cancer.svg';
+import LeoAvatarIcon from '@assets/zodiac/leo.svg';
+import VirgoAvatarIcon from '@assets/zodiac/virgo.svg';
+import LibraAvatarIcon from '@assets/zodiac/libra.svg';
+import ScorpioAvatarIcon from '@assets/zodiac/scorpius.svg';
+import SagittariusAvatarIcon from '@assets/zodiac/sagittarius.svg';
+import CapricornAvatarIcon from '@assets/zodiac/capricorn.svg';
+import AquariusAvatarIcon from '@assets/zodiac/aquarius.svg';
+import PiscesAvatarIcon from '@assets/zodiac/pisces.svg';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -63,6 +99,90 @@ const DEFAULT_SUBSCRIPTION = {
 } as any;
 
 const DELETE_ACCOUNT_MODAL_DISMISS_MS = 180;
+const PROFILE_META_COLOR = 'rgba(255, 255, 255, 0.7)';
+
+const PROFILE_ZODIAC_ICONS: Record<string, React.ComponentType<SvgProps>> = {
+  aries: AriesProfileIcon,
+  taurus: TaurusProfileIcon,
+  gemini: GeminiProfileIcon,
+  cancer: CancerProfileIcon,
+  leo: LeoProfileIcon,
+  virgo: VirgoProfileIcon,
+  libra: LibraProfileIcon,
+  scorpio: ScorpioProfileIcon,
+  sagittarius: SagittariusProfileIcon,
+  capricorn: CapricornProfileIcon,
+  aquarius: AquariusProfileIcon,
+  pisces: PiscesProfileIcon,
+};
+
+const PROFILE_AVATAR_ICONS: Record<string, React.ComponentType<SvgProps>> = {
+  aries: AriesAvatarIcon,
+  taurus: TaurusAvatarIcon,
+  gemini: GeminiAvatarIcon,
+  cancer: CancerAvatarIcon,
+  leo: LeoAvatarIcon,
+  virgo: VirgoAvatarIcon,
+  libra: LibraAvatarIcon,
+  scorpio: ScorpioAvatarIcon,
+  sagittarius: SagittariusAvatarIcon,
+  capricorn: CapricornAvatarIcon,
+  aquarius: AquariusAvatarIcon,
+  pisces: PiscesAvatarIcon,
+};
+
+const ProfileTopGlow = () => (
+  <Svg
+    pointerEvents="none"
+    viewBox="0 0 1352 1352"
+    preserveAspectRatio="none"
+    style={styles.topGlow}
+  >
+    <Defs>
+      <RadialGradient id="profileTopGlowGradient" cx="50%" cy="18%" r="72%">
+        <Stop offset="0" stopColor="#6F38A6" stopOpacity="0.95" />
+        <Stop offset="0.48" stopColor="#2E2457" stopOpacity="0.64" />
+        <Stop offset="1" stopColor="#080E1C" stopOpacity="0" />
+      </RadialGradient>
+      <Filter
+        id="profileTopGlowBlur"
+        x="-35%"
+        y="-35%"
+        width="170%"
+        height="170%"
+      >
+        <FeGaussianBlur stdDeviation="109" />
+      </Filter>
+    </Defs>
+    <Ellipse
+      cx="676"
+      cy="676"
+      rx="624"
+      ry="624"
+      fill="url(#profileTopGlowGradient)"
+      filter="url(#profileTopGlowBlur)"
+    />
+  </Svg>
+);
+
+const NatalChartGlow = () => (
+  <Svg pointerEvents="none" width={330} height={300} style={styles.chartGlow}>
+    <Defs>
+      <RadialGradient id="natalChartGlowGradient" cx="50%" cy="50%" r="50%">
+        <Stop offset="0" stopColor="#8D26A9" stopOpacity="0.44" />
+        <Stop offset="0.42" stopColor="#8D26A9" stopOpacity="0.17" />
+        <Stop offset="1" stopColor="#8D26A9" stopOpacity="0" />
+      </RadialGradient>
+    </Defs>
+    <Ellipse
+      cx="165"
+      cy="150"
+      rx="160"
+      ry="146"
+      fill="url(#natalChartGlowGradient)"
+    />
+  </Svg>
+);
 
 const waitForDeleteAccountModalDismiss = (): Promise<void> =>
   new Promise((resolve) => {
@@ -95,45 +215,6 @@ const normalizeZodiacKey = (sign: string): string => {
 };
 
 // Темы по стихиям (названия будут переведены в компоненте)
-const ELEMENT_THEMES = {
-  fire: {
-    colors: ['#FF6B35', '#F7931E', '#FFD700'] as const,
-    glow: '#FF6B35',
-    key: 'fire',
-  },
-  water: {
-    colors: ['#4ECDC4', '#44A08D', '#096B72'] as const,
-    glow: '#4ECDC4',
-    key: 'water',
-  },
-  earth: {
-    colors: ['#8FBC8F', '#556B2F', '#2F4F2F'] as const,
-    glow: '#8FBC8F',
-    key: 'earth',
-  },
-  air: {
-    colors: ['#FFD700', '#8B5CF6', '#DDA0DD'] as const,
-    glow: '#FFD700',
-    key: 'air',
-  },
-};
-
-// Соответствие знаков зодиака стихиям
-const ZODIAC_ELEMENTS = {
-  Aries: 'fire',
-  Leo: 'fire',
-  Sagittarius: 'fire',
-  Cancer: 'water',
-  Scorpio: 'water',
-  Pisces: 'water',
-  Taurus: 'earth',
-  Virgo: 'earth',
-  Capricorn: 'earth',
-  Gemini: 'air',
-  Libra: 'air',
-  Aquarius: 'air',
-};
-
 const isMissingProfileSessionError = (error: any): boolean => {
   const status = Number(error?.response?.status ?? error?.status ?? 0);
   const raw = JSON.stringify({
@@ -158,7 +239,6 @@ const isMissingProfileSessionError = (error: any): boolean => {
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const isFocused = useIsFocused();
   const authProfile = useAuthStore((s) => s.profile);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(
@@ -175,25 +255,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const subscriptionRef = useRef<Subscription | null>(subscription);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
-  const profileHeaderTitle = React.useMemo(() => {
-    const locale = String(i18n.language || 'en').toLowerCase();
-
-    if (locale.startsWith('ru')) {
-      return 'Мой профиль';
-    }
-
-    if (locale.startsWith('es')) {
-      return 'Mi perfil';
-    }
-
-    return 'My profile';
-  }, [i18n.language]);
-  const profileHeaderSubtitle = React.useMemo(() => {
-    return t('profile.headerSubtitle', {
-      defaultValue: 'Your chart, subscription, and cosmic settings.',
-    });
-  }, [t]);
-
   const navigateToRootScreen = React.useCallback(
     <T extends keyof RootStackParamList>(
       screen: T,
@@ -256,20 +317,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   // Animations
   const fadeAnim = useSharedValue(0);
-  const glowAnim = useSharedValue(0);
-  const orbAnim = useSharedValue(0);
 
   useEffect(() => {
     fadeAnim.value = withTiming(1, { duration: 800 });
-    glowAnim.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000 }),
-        withTiming(0.4, { duration: 2000 })
-      ),
-      -1,
-      true
-    );
-    orbAnim.value = withRepeat(withTiming(360, { duration: 20000 }), -1, false);
   }, []);
 
   useEffect(() => {
@@ -485,8 +535,37 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     await finishAccountDeletionLocally();
   };
 
+  const handleLogout = () => {
+    Alert.alert(t('profile.logout.title'), t('profile.logout.message'), [
+      {
+        text: t('common.buttons.cancel'),
+        style: 'cancel',
+      },
+      {
+        text: t('profile.logout.confirm'),
+        style: 'destructive',
+        onPress: async () => {
+          isSigningOutRef.current = true;
+          requestIdRef.current += 1;
+          queryClient.clear();
+          useAuthStore.getState().resetAuth();
+
+          try {
+            await AuthEngine.signOut();
+          } catch (error) {
+            logger.warn('Sign out failed, clearing local auth state', error);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleUpgradeSubscription = () => {
     navigateToRootScreen('Subscription');
+  };
+
+  const handleManageSubscription = () => {
+    navigateToRootScreen('ManageSubscription');
   };
 
   const handleViewPersonalCode = () => {
@@ -509,17 +588,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     opacity: fadeAnim.value,
   }));
 
-  const animatedGlowStyle = useAnimatedStyle(() => ({
-    opacity: glowAnim.value,
-  }));
-
   if (loading) {
     return (
       <SafeAreaViewSAC
         style={styles.container}
         edges={['top', 'left', 'right']}
       >
-        <CosmicBackground active={isFocused} />
+        <ProfileTopGlow />
         <ProfileSkeleton />
         <BottomTabFade />
       </SafeAreaViewSAC>
@@ -529,7 +604,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   if (!profile) {
     return (
       <View style={styles.container}>
-        <CosmicBackground active={isFocused} />
+        <ProfileTopGlow />
         <Text style={styles.errorText}>
           {t('profile.errors.profileNotFound')}
         </Text>
@@ -545,19 +620,84 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     `common.zodiacSigns.${normalizeZodiacKey(zodiacSign)}`,
     { defaultValue: zodiacSign }
   );
-  const elementTheme = getElementTheme(zodiacSign);
-  const themePrimary = elementTheme.colors[0];
+  const ProfileZodiacIcon =
+    PROFILE_ZODIAC_ICONS[normalizeZodiacKey(zodiacSign)] ?? AquariusProfileIcon;
+  const ProfileAvatarIcon =
+    PROFILE_AVATAR_ICONS[normalizeZodiacKey(zodiacSign)] ?? AquariusAvatarIcon;
+  const rawPremiumFeatures = t('subscription.tiers.premium.features', {
+    returnObjects: true,
+  });
+  const premiumFeatures = Array.isArray(rawPremiumFeatures)
+    ? rawPremiumFeatures.filter(
+        (feature): feature is string => typeof feature === 'string'
+      )
+    : [];
+  const hasActivePremium =
+    normalizeSubscriptionTier(subscription?.tier) ===
+      SubscriptionTier.PREMIUM &&
+    Boolean(subscription?.isActive || subscription?.isTrial);
+  const premiumEndDate = subscription?.expiresAt || subscription?.trialEndsAt;
+  const premiumEndTimestamp = premiumEndDate
+    ? new Date(premiumEndDate).getTime()
+    : Number.NaN;
+  const calculatedPremiumDaysLeft = Number.isFinite(premiumEndTimestamp)
+    ? Math.max(
+        0,
+        Math.ceil((premiumEndTimestamp - Date.now()) / (1000 * 60 * 60 * 24))
+      )
+    : null;
+  const premiumDaysLeft =
+    typeof subscription?.daysRemaining === 'number' &&
+    Number.isFinite(subscription.daysRemaining)
+      ? Math.max(0, Math.ceil(subscription.daysRemaining))
+      : calculatedPremiumDaysLeft;
+  const compatibilityLabel = i18n.language.toLowerCase().startsWith('ru')
+    ? 'Совместимость'
+    : i18n.language.toLowerCase().startsWith('es')
+      ? 'Compatibilidad'
+      : 'Compatibility';
+  const natalActions: Array<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    onPress: () => void;
+    featured?: boolean;
+  }> = [
+    {
+      icon: 'telescope-outline',
+      label: t('profile.natalChart.viewChart'),
+      onPress: () => navigateToRootScreen('NatalChart'),
+      featured: true,
+    },
+    {
+      icon: 'code-outline',
+      label: t('profile.natalChart.viewPersonalCode'),
+      onPress: handleViewPersonalCode,
+    },
+    {
+      icon: 'heart-outline',
+      label: compatibilityLabel,
+      onPress: handleOpenCompatibility,
+    },
+    {
+      icon: 'planet-outline',
+      label: t('profile.natalChart.viewSimulator'),
+      onPress: handleOpenCosmicSimulator,
+    },
+    {
+      icon: 'school-outline',
+      label: t('profile.natalChart.viewLearning'),
+      onPress: handleOpenLearning,
+    },
+  ];
 
   return (
     <SafeAreaViewSAC style={styles.container} edges={['left', 'right']}>
-      <CosmicBackground active={isFocused} />
-
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           {
             // ключевая строка: чтобы контент не перекрывался таббаром
-            paddingTop: insets.top + 12,
+            paddingTop: insets.top + 24,
             paddingBottom: Math.max(56, tabBarHeight + 28),
           },
         ]}
@@ -565,53 +705,44 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
+        <ProfileTopGlow />
         <Animated.View style={[styles.content, animatedContainerStyle]}>
-          {/* Header with Blur */}
-          <CompactScreenHeader
-            style={styles.headerCard}
-            title={profileHeaderTitle}
-            description={profileHeaderSubtitle}
-            icon={
-              <Ionicons
-                name="person-circle-outline"
-                size={24}
-                color="#FFFFFF"
-              />
-            }
-          />
-
-          {/* Avatar Section */}
           <View style={styles.avatarSection}>
-            <View style={styles.avatarContainer}>
-              <Animated.View style={[styles.avatarGlow, animatedGlowStyle]}>
-                <View style={styles.avatarWrapper}>
-                  {primaryPhotoUrl ? (
-                    <Image
-                      source={{ uri: primaryPhotoUrl }}
-                      style={styles.avatarImage}
-                      onError={() => setPrimaryPhotoUrl(null)}
-                    />
-                  ) : (
-                    <ZodiacAvatar zodiacSign={zodiacSign} size={120} />
-                  )}
-                </View>
-              </Animated.View>
-
-              <TouchableOpacity
-                style={styles.changePhotoButton}
-                onPress={() => navigateToRootScreen('EditProfileScreen')}
-                activeOpacity={0.8}
+            <TouchableOpacity
+              onPress={() => navigateToRootScreen('EditProfileScreen')}
+              activeOpacity={0.88}
+            >
+              <GradientBorderView
+                colors={['rgba(165, 47, 255, 0)', 'rgba(165, 47, 255, 0.5)']}
+                gradientProps={{
+                  start: { x: 0, y: 0.5 },
+                  end: { x: 1, y: 0.5 },
+                }}
+                style={styles.avatarBorder}
+                contentStyle={styles.avatarWrapper}
               >
-                <Ionicons name="camera" size={16} color="#fff" />
-              </TouchableOpacity>
-
-              {/* Premium Badge */}
-              {subscription != null && subscription.tier !== 'free' && (
-                <View style={styles.premiumBadge}>
-                  <Ionicons name="diamond" size={16} color="#fff" />
-                </View>
-              )}
-            </View>
+                {primaryPhotoUrl ? (
+                  <Image
+                    source={{ uri: primaryPhotoUrl }}
+                    style={styles.avatarImage}
+                    onError={() => setPrimaryPhotoUrl(null)}
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={['#422070', '#241046', '#10091E']}
+                    start={{ x: 0.2, y: 0 }}
+                    end={{ x: 0.8, y: 1 }}
+                    style={styles.avatarFallback}
+                  >
+                    <ProfileAvatarIcon
+                      width={88}
+                      height={92}
+                      style={styles.avatarFallbackIcon}
+                    />
+                  </LinearGradient>
+                )}
+              </GradientBorderView>
+            </TouchableOpacity>
 
             <Text style={styles.userName}>
               {profile.name ||
@@ -620,128 +751,182 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </Text>
 
             <View style={styles.zodiacInfo}>
-              <Text style={[styles.zodiacSign, { color: themePrimary }]}>
-                {zodiacSignLabel}
-              </Text>
-              <Text style={styles.elementName}>
-                {t(`common.elements.${elementTheme.key}`)}
-              </Text>
+              <ProfileZodiacIcon
+                width={19}
+                height={19}
+                color={PROFILE_META_COLOR}
+                style={styles.zodiacIcon}
+              />
+              <Text style={styles.zodiacSign}>{zodiacSignLabel}</Text>
             </View>
           </View>
 
-          {/* Subscription */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t('profile.sections.subscription')}
-            </Text>
-            <SubscriptionCard
-              subscription={subscription}
-              onUpgrade={handleUpgradeSubscription}
-              showUpgradeButton={!!subscription && subscription.tier === 'free'}
-            />
-          </View>
+          {hasActivePremium ? (
+            <TouchableOpacity
+              style={styles.activePremiumContainer}
+              onPress={handleManageSubscription}
+              activeOpacity={0.9}
+            >
+              <View style={styles.premiumBorder}>
+                <LinearGradient
+                  colors={['rgba(87, 53, 205, 0.7)', 'rgba(16, 7, 47, 0.7)']}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.activePremiumCard}
+                >
+                  <View style={styles.activePremiumTextBlock}>
+                    <Text style={styles.activePremiumTitle}>Premium</Text>
+                    <View style={styles.activePremiumStatus}>
+                      <Text style={styles.activePremiumStatusText}>
+                        {t('subscription.status.active')}
+                      </Text>
+                      {premiumDaysLeft !== null && (
+                        <Text style={styles.activePremiumDaysText}>
+                          {' • '}
+                          {t('subscription.status.daysLeft', {
+                            count: premiumDaysLeft,
+                          })}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <Image
+                    source={premiumHero}
+                    resizeMode="contain"
+                    style={styles.activePremiumHeroImage}
+                  />
+                </LinearGradient>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.premiumTouchable}
+              onPress={handleUpgradeSubscription}
+              activeOpacity={0.9}
+            >
+              <View style={styles.premiumBorder}>
+                <ImageBackground
+                  source={premiumBackground}
+                  imageStyle={styles.premiumBackgroundImage}
+                  style={styles.premiumCard}
+                  resizeMode="cover"
+                >
+                  <View style={styles.premiumHero}>
+                    <Image
+                      source={premiumHero}
+                      resizeMode="contain"
+                      style={styles.premiumHeroImage}
+                    />
+                    <Text style={styles.premiumTitle}>Premium</Text>
+                    <View style={styles.premiumLink}>
+                      <Text style={styles.premiumLinkText}>
+                        {t('subscription.buttons.upgrade')}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color="rgba(255, 255, 255, 0.65)"
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.premiumFeatures}>
+                    {premiumFeatures.slice(0, 8).map((feature) => (
+                      <GradientBorderView
+                        key={feature}
+                        colors={[
+                          'rgba(124, 119, 153, 0.7)',
+                          'rgba(124, 119, 153, 0.05)',
+                        ]}
+                        gradientProps={{
+                          locations: [0.29, 1],
+                          start: { x: 0.49, y: 0 },
+                          end: { x: 0.51, y: 1 },
+                        }}
+                        style={styles.premiumFeatureBorder}
+                        contentStyle={styles.premiumFeatureBorderContent}
+                      >
+                        <BlurView
+                          intensity={15}
+                          tint="dark"
+                          experimentalBlurMethod="dimezisBlurView"
+                          style={styles.premiumFeatureBlur}
+                        >
+                          <Text style={styles.premiumFeatureText}>
+                            {feature}
+                          </Text>
+                        </BlurView>
+                      </GradientBorderView>
+                    ))}
+                  </View>
+                </ImageBackground>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Natal Chart Section */}
-          {chart && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {t('profile.sections.natalChart')}
-              </Text>
-              <View style={styles.chartCard}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t('profile.sections.natalChart')}
+            </Text>
+            {chart && (
+              <View style={styles.chartWidget}>
+                <NatalChartGlow />
                 <NatalChartWidget chart={chart} />
-
-                <View style={styles.natalActionsGrid}>
-                  <TouchableOpacity
-                    style={styles.natalActionCard}
-                    onPress={() => navigateToRootScreen('NatalChart')}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={['#701F86', '#5B1670']}
-                      style={styles.natalActionGradient}
-                    >
-                      <Ionicons name="telescope" size={28} color="#fff" />
-                      <Text style={styles.natalActionText}>
-                        {t('profile.natalChart.viewChart')}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.natalActionCard}
-                    onPress={handleViewPersonalCode}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={['#8B5CF6', '#6D28D9']}
-                      style={styles.natalActionGradient}
-                    >
-                      <Ionicons name="code-outline" size={28} color="#fff" />
-                      <Text style={styles.natalActionText}>
-                        {t('profile.natalChart.viewPersonalCode')}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.natalActionCard}
-                    onPress={handleOpenCompatibility}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={['#BE185D', '#7C2D12']}
-                      style={styles.natalActionGradient}
-                    >
-                      <Ionicons
-                        name="heart-circle-outline"
-                        size={28}
-                        color="#fff"
-                      />
-                      <Text style={styles.natalActionText}>
-                        {i18n.language.toLowerCase().startsWith('ru')
-                          ? 'Совместимость'
-                          : i18n.language.toLowerCase().startsWith('es')
-                            ? 'Compatibilidad'
-                            : 'Compatibility'}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.natalActionCard}
-                    onPress={handleOpenCosmicSimulator}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={['#4C1D95', '#312E81']}
-                      style={styles.natalActionGradient}
-                    >
-                      <Ionicons name="planet-outline" size={28} color="#fff" />
-                      <Text style={styles.natalActionText}>
-                        {t('profile.natalChart.viewSimulator')}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.natalActionCard}
-                    onPress={handleOpenLearning}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={['#1D4ED8', '#4338CA']}
-                      style={styles.natalActionGradient}
-                    >
-                      <Ionicons name="school-outline" size={28} color="#fff" />
-                      <Text style={styles.natalActionText}>
-                        {t('profile.natalChart.viewLearning')}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
               </View>
+            )}
+
+            <View style={styles.natalActions}>
+              {natalActions.map((action) => (
+                <TouchableOpacity
+                  key={action.label}
+                  style={styles.natalActionButton}
+                  onPress={action.onPress}
+                  activeOpacity={0.85}
+                >
+                  <GradientBorderView
+                    colors={
+                      action.featured
+                        ? [
+                            'rgba(210, 164, 255, 0.55)',
+                            'rgba(109, 45, 150, 0.3)',
+                          ]
+                        : [
+                            'rgba(135, 98, 154, 0.35)',
+                            'rgba(135, 98, 154, 0.08)',
+                          ]
+                    }
+                    style={styles.natalActionBorder}
+                    contentStyle={styles.natalActionBorderContent}
+                  >
+                    <LinearGradient
+                      colors={
+                        action.featured
+                          ? [
+                              'rgba(97, 32, 129, 0.22)',
+                              'rgba(173, 58, 231, 0.34)',
+                            ]
+                          : [
+                              'rgba(97, 32, 129, 0.07)',
+                              'rgba(173, 58, 231, 0.13)',
+                            ]
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.natalActionGradient}
+                    >
+                      <Ionicons name={action.icon} size={24} color="#FFFFFF" />
+                      <Text style={styles.natalActionText}>{action.label}</Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                    </LinearGradient>
+                  </GradientBorderView>
+                </TouchableOpacity>
+              ))}
             </View>
-          )}
+          </View>
 
           {/* Settings Section */}
           <View style={styles.section}>
@@ -749,68 +934,125 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               {t('profile.sections.settings')}
             </Text>
 
-            <View style={styles.settingsCard}>
-              {/* Edit Profile */}
+            <View style={styles.settingsList}>
               <TouchableOpacity
-                style={styles.settingItem}
+                style={styles.settingTouchable}
                 onPress={() => navigation.navigate('EditProfileScreen')}
               >
-                <View style={styles.settingIcon}>
-                  <Ionicons name="person" size={32} color="#fff" />
-                </View>
-                <Text style={styles.settingText}>
-                  {t('profile.settings.editProfile')}
-                </Text>
-                <Ionicons name="chevron-forward" size={32} color="#fff" />
+                <GradientBorderView
+                  colors={[
+                    'rgba(135, 98, 154, 0.3)',
+                    'rgba(135, 98, 154, 0.08)',
+                  ]}
+                  style={styles.settingBorder}
+                  contentStyle={styles.settingBorderContent}
+                >
+                  <LinearGradient
+                    colors={[
+                      'rgba(97, 32, 129, 0.05)',
+                      'rgba(173, 58, 231, 0.1)',
+                    ]}
+                    style={styles.settingItem}
+                  >
+                    <Ionicons name="person" size={22} color="#fff" />
+                    <Text style={styles.settingText}>
+                      {t('profile.settings.editProfile')}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={22} color="#fff" />
+                  </LinearGradient>
+                </GradientBorderView>
               </TouchableOpacity>
 
-              {/* Language Selector */}
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="language" size={32} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
+              <GradientBorderView
+                colors={['rgba(135, 98, 154, 0.3)', 'rgba(135, 98, 154, 0.08)']}
+                style={styles.settingBorder}
+                contentStyle={styles.settingBorderContent}
+              >
+                <LinearGradient
+                  colors={[
+                    'rgba(97, 32, 129, 0.05)',
+                    'rgba(173, 58, 231, 0.1)',
+                  ]}
+                  style={styles.settingItem}
+                >
+                  <Ionicons name="language" size={22} color="#fff" />
                   <LanguageSelector
+                    compact
+                    label={t('profile.settings.language')}
                     onLanguageChange={(lang) => {
                       logger.log('Language changed to:', lang);
                     }}
                   />
-                </View>
-              </View>
+                </LinearGradient>
+              </GradientBorderView>
 
-              {/* Delete Account */}
               <TouchableOpacity
-                style={[styles.settingItem, styles.deleteItem]}
+                style={styles.settingTouchable}
+                onPress={handleLogout}
+              >
+                <GradientBorderView
+                  colors={[
+                    'rgba(135, 98, 154, 0.3)',
+                    'rgba(135, 98, 154, 0.08)',
+                  ]}
+                  style={styles.settingBorder}
+                  contentStyle={styles.settingBorderContent}
+                >
+                  <LinearGradient
+                    colors={[
+                      'rgba(97, 32, 129, 0.05)',
+                      'rgba(173, 58, 231, 0.1)',
+                    ]}
+                    style={styles.settingItem}
+                  >
+                    <Ionicons name="log-out-outline" size={22} color="#fff" />
+                    <Text style={styles.settingText}>
+                      {t('profile.settings.logout')}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#FFFFFF"
+                    />
+                  </LinearGradient>
+                </GradientBorderView>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingTouchable}
                 onPress={() => setShowDeleteModal(true)}
               >
-                <View style={styles.settingIcon}>
-                  <Ionicons name="trash-outline" size={32} color="#E25140" />
-                </View>
-                <View style={styles.deleteTextContainer}>
-                  <Text style={styles.deleteText}>
-                    {t('profile.settings.deleteAccount')}
-                  </Text>
-                  <Text style={styles.deleteSubtext}>
-                    {t('profile.settings.deleteAccountSubtitle')}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={32} color="#E25140" />
+                <GradientBorderView
+                  colors={[
+                    'rgba(154, 98, 98, 0.34)',
+                    'rgba(154, 98, 98, 0.08)',
+                  ]}
+                  style={styles.settingBorder}
+                  contentStyle={styles.settingBorderContent}
+                >
+                  <LinearGradient
+                    colors={[
+                      'rgba(129, 32, 32, 0.06)',
+                      'rgba(231, 58, 58, 0.11)',
+                    ]}
+                    style={styles.settingItem}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#FF8888" />
+                    <Text style={styles.deleteText}>
+                      {t('profile.settings.deleteAccount')}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#FFFFFF"
+                    />
+                  </LinearGradient>
+                </GradientBorderView>
               </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
       </ScrollView>
-      <LinearGradient
-        pointerEvents="none"
-        colors={[
-          'rgba(15, 23, 42, 0.98)',
-          'rgba(15, 23, 42, 0.65)',
-          'rgba(15, 23, 42, 0)',
-        ]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={[styles.topFade, { height: insets.top + 56 }]}
-      />
       <BottomTabFade />
 
       {/* Delete Account Modal */}
@@ -853,269 +1095,293 @@ const getZodiacSign = (birthDate: string): string => {
   return 'Pisces';
 };
 
-const getElementTheme = (zodiacSign: string) => {
-  const element = (
-    ZODIAC_ELEMENTS[zodiacSign as ZodiacSign] || 'air'
-  ).toLowerCase();
-  return (
-    ELEMENT_THEMES[element as keyof typeof ELEMENT_THEMES] || ELEMENT_THEMES.air
-  );
-};
-
 // Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#080E1C',
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
+    position: 'relative',
+    overflow: 'visible',
   },
-  topFade: {
+  topGlow: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    top: -499,
+    left: -250,
+    right: -250,
+    height: 1352,
+    opacity: 0.8,
   },
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 0,
-  },
-  headerCard: {
-    marginBottom: 28,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
+    gap: 4,
   },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  avatarGlow: {
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 30,
+  avatarBorder: {
+    borderRadius: 50,
+    borderWidth: 2,
+    marginBottom: 8,
   },
   avatarWrapper: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#fff',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#16122E',
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
   },
   avatarImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
   },
-  premiumBadge: {
-    position: 'absolute',
-    bottom: -8,
-    right: -8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#701F86',
-    justifyContent: 'center',
+  avatarFallback: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  changePhotoButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(112, 31, 134, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+  avatarFallbackIcon: {
+    opacity: 0.96,
   },
   userName: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '500',
     color: '#fff',
-    marginBottom: 4,
   },
   zodiacInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+  },
+  zodiacIcon: {
+    color: PROFILE_META_COLOR,
+    alignSelf: 'center',
   },
   zodiacSign: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  elementName: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontWeight: '500',
+    fontSize: 17,
+    lineHeight: 19,
+    color: PROFILE_META_COLOR,
+    fontWeight: '300',
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 26,
   },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '500',
+    letterSpacing: -0.8,
     color: '#fff',
-    marginBottom: 24,
+    marginBottom: 18,
   },
-  subscriptionCard: {
-    backgroundColor: '#701F86',
-    borderRadius: 12,
-    padding: 16,
+  premiumTouchable: {
+    marginBottom: 26,
   },
-  subscriptionHeader: {
+  activePremiumContainer: {
+    marginBottom: 26,
+  },
+  activePremiumCard: {
+    minHeight: 84,
+    borderRadius: 11,
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
   },
-  subscriptionBadge: {
+  activePremiumTextBlock: {
+    minHeight: 52,
+    justifyContent: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  activePremiumTitle: {
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  activePremiumStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 47,
-    gap: 6,
   },
-  subscriptionBadgeText: {
-    color: '#701F86',
+  activePremiumStatusText: {
     fontSize: 16,
+    lineHeight: 19,
     fontWeight: '500',
+    color: '#FFFFFF',
   },
-  upgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 47,
-    gap: 6,
-  },
-  upgradeButtonText: {
-    color: '#fff',
+  activePremiumDaysText: {
     fontSize: 16,
+    lineHeight: 19,
     fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.5)',
   },
-  maxBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 47,
-    gap: 6,
+  activePremiumHeroImage: {
+    width: 80,
+    height: 64,
   },
-  maxBadgeText: {
-    color: '#701F86',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  subscriptionDate: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '300',
-    marginBottom: 4,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderRadius: 40,
+  premiumBorder: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 12,
+    borderColor: 'rgba(135, 98, 154, 0.15)',
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 40,
+  premiumBackgroundImage: {
+    borderRadius: 11,
+    opacity: 0.7,
   },
-  chartCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(112, 31, 134, 0.3)',
+  premiumCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#130545',
+    borderRadius: 11,
+    overflow: 'hidden',
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 18,
+    minHeight: 256,
   },
-  natalActionsGrid: {
-    marginTop: 12,
+  premiumHero: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  premiumHeroImage: {
+    width: 115,
+    height: 92,
+  },
+  premiumTitle: {
+    marginTop: 2,
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  premiumLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
+  premiumLinkText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontWeight: '500',
+  },
+  premiumFeatures: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 10,
   },
-  natalActionCard: {
-    flexBasis: '48%',
-    maxWidth: '48%',
-    borderRadius: 14,
+  premiumFeatureBorder: {
+    borderWidth: 1,
+    borderRadius: 24,
+  },
+  premiumFeatureBorderContent: {
+    borderRadius: 23,
     overflow: 'hidden',
   },
+  premiumFeatureBlur: {
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  premiumFeatureText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 16,
+    fontWeight: '400',
+    letterSpacing: -0.8,
+    textAlign: 'center',
+  },
+  chartWidget: {
+    marginHorizontal: -16,
+    marginBottom: 8,
+    position: 'relative',
+    alignItems: 'center',
+  },
+  chartGlow: {
+    position: 'absolute',
+    top: 0,
+    opacity: 0.9,
+  },
+  natalActions: {
+    gap: 10,
+  },
+  natalActionButton: {
+    width: '100%',
+  },
+  natalActionBorder: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  natalActionBorderContent: {
+    backgroundColor: '#0D1223',
+  },
   natalActionGradient: {
-    minHeight: 116,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    justifyContent: 'space-between',
-    gap: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 60,
+    borderRadius: 11,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    gap: 18,
   },
   natalActionText: {
     flex: 1,
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 18,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 20,
   },
-  settingsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  settingsList: {
+    gap: 10,
+  },
+  settingTouchable: {
+    width: '100%',
+  },
+  settingBorder: {
+    width: '100%',
+    borderWidth: 1,
     borderRadius: 12,
-    overflow: 'hidden',
+  },
+  settingBorderContent: {
+    backgroundColor: '#0C1121',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    minHeight: 54,
+    borderRadius: 11,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
-    gap: 10,
-  },
-  settingIcon: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 18,
   },
   settingText: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#fff',
   },
-  deleteItem: {
-    backgroundColor: 'rgba(176, 66, 53, 0.15)',
-    borderBottomWidth: 0,
-  },
-  deleteTextContainer: {
-    flex: 1,
-  },
   deleteText: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#E25140',
-  },
-  deleteSubtext: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#E25140',
-    marginTop: 2,
-    letterSpacing: -0.24,
+    fontWeight: '500',
+    color: '#FF8888',
   },
   errorText: {
     color: '#fff',

@@ -60,6 +60,8 @@
   },
   "chat": {
     "headerSubtitle": "Un asesor guiado que se siente como una conversación.",
+    "greeting": "Hola, {{name}}!",
+    "fallbackName": "amigo",
     "intro": "Elige un tema y te guiaré paso a paso por la consulta.",
     "topicHelp": "Primero elige el área de tu vida que quieres evaluar.",
     "selectedTopic": "Tema",
@@ -134,6 +136,7 @@
   "premium": {
     "title": "Asesor Astral Premium",
     "subtitle": "Recomendaciones personales basadas en tránsitos a tu carta natal",
+    "gateDescription": "Suscríbete para ver\nel análisis de IA",
     "features": {
       "hourlyAnalysis": "Análisis horario de la favorabilidad del día",
       "aspectInterpretations": "Interpretaciones detalladas de aspectos",

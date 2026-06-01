@@ -32,6 +32,7 @@ import BiorhythmsWidget from '../components/horoscope/BiorhythmsWidget';
 import HoroscopeWidget from '../components/horoscope/HoroscopeWidget';
 import { HoroscopeWidgetSkeleton } from '../components/horoscope/HoroscopeSkeletons';
 import PlanetaryRecommendationWidget from '../components/horoscope/PlanetRecommendationWidget';
+import SubscriptionRequiredModal from '../components/modals/SubscriptionRequiredModal';
 import { chartAPI, userAPI } from '../services/api';
 import type {
   BiorhythmPhase,
@@ -187,6 +188,7 @@ const HoroscopeScreen: React.FC = () => {
     subscription,
     refetch: refetchSubscription,
     hasFeature,
+    isPremium,
   } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
   const syncingRef = useRef(false);
@@ -206,6 +208,8 @@ const HoroscopeScreen: React.FC = () => {
   const [transitModalLoading, setTransitModalLoading] = useState(false);
   const [transitModalText, setTransitModalText] = useState('');
   const [heroModalVisible, setHeroModalVisible] = useState(false);
+  const [subscriptionModalVisible, setSubscriptionModalVisible] =
+    useState(false);
   const [primaryPhotoUrl, setPrimaryPhotoUrl] = useState<string | null>(null);
   const predictionsAttemptedRef = useRef(false);
   const predictionsLoadingRef = useRef(false);
@@ -1042,10 +1046,7 @@ const HoroscopeScreen: React.FC = () => {
 
   const openMainTransitDetails = async () => {
     if (!hasAIAccess) {
-      Alert.alert(
-        t('horoscope.mainTransitWidget.premiumOnlyTitle'),
-        t('horoscope.mainTransitWidget.premiumOnlyMessage')
-      );
+      setSubscriptionModalVisible(true);
       return;
     }
 
@@ -1171,6 +1172,11 @@ const HoroscopeScreen: React.FC = () => {
   const openSubscription = React.useCallback(() => {
     (navigation as any).navigate('Subscription');
   }, [navigation]);
+  const closeSubscriptionModal = () => setSubscriptionModalVisible(false);
+  const continueToSubscription = () => {
+    setSubscriptionModalVisible(false);
+    openSubscription();
+  };
   const scrollToHoroscope = React.useCallback(() => {
     scrollViewRef.current?.scrollTo?.({
       y: Math.max(0, horoscopeAnchorYRef.current - 12),
@@ -1260,41 +1266,43 @@ const HoroscopeScreen: React.FC = () => {
                     )}
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={openSubscription}
-                    style={styles.premiumButton}
-                  >
-                    <GradientBorderView
-                      colors={[
-                        'rgba(255, 255, 255, 0.35)',
-                        'rgba(255, 255, 255, 0.025)',
-                      ]}
-                      gradientProps={{
-                        locations: [0.29, 1],
-                        start: { x: 0.49, y: 0 },
-                        end: { x: 0.51, y: 1 },
-                      }}
-                      style={styles.premiumBorder}
-                      contentStyle={styles.premiumBorderContent}
+                  {!isPremium() && (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={openSubscription}
+                      style={styles.premiumButton}
                     >
-                      <BlurView
-                        intensity={15}
-                        tint="dark"
-                        experimentalBlurMethod="dimezisBlurView"
-                        style={styles.premiumBlur}
+                      <GradientBorderView
+                        colors={[
+                          'rgba(255, 255, 255, 0.35)',
+                          'rgba(255, 255, 255, 0.025)',
+                        ]}
+                        gradientProps={{
+                          locations: [0.29, 1],
+                          start: { x: 0.49, y: 0 },
+                          end: { x: 0.51, y: 1 },
+                        }}
+                        style={styles.premiumBorder}
+                        contentStyle={styles.premiumBorderContent}
                       >
-                        <Text style={styles.premiumText}>
-                          👑{' '}
-                          {(!subscription?.tier &&
-                            subscription?.tier === null) ||
-                          subscription?.tier === 'free'
-                            ? t('horoscope.hero.getPremium')
-                            : t('horoscope.hero.premium')}
-                        </Text>
-                      </BlurView>
-                    </GradientBorderView>
-                  </TouchableOpacity>
+                        <BlurView
+                          intensity={15}
+                          tint="dark"
+                          experimentalBlurMethod="dimezisBlurView"
+                          style={styles.premiumBlur}
+                        >
+                          <Text style={styles.premiumText}>
+                            👑{' '}
+                            {(!subscription?.tier &&
+                              subscription?.tier === null) ||
+                            subscription?.tier === 'free'
+                              ? t('horoscope.hero.getPremium')
+                              : t('horoscope.hero.premium')}
+                          </Text>
+                        </BlurView>
+                      </GradientBorderView>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <Text style={styles.heroGreeting} numberOfLines={1}>
@@ -1576,6 +1584,13 @@ const HoroscopeScreen: React.FC = () => {
           </Animated.View>
         </View>
       </TabScreenLayout>
+
+      <SubscriptionRequiredModal
+        visible={subscriptionModalVisible}
+        description={t('horoscope.mainTransitWidget.premiumOnlyMessage')}
+        onClose={closeSubscriptionModal}
+        onContinue={continueToSubscription}
+      />
 
       <Modal
         animationType="fade"

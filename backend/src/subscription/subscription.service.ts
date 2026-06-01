@@ -2,6 +2,8 @@
 // ✅ MIGRATED TO PRISMA - Full Prisma integration
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SubscriptionTier,
@@ -36,7 +38,44 @@ export class SubscriptionService {
     private natalChartService: NatalChartService,
     private horoscopeService: HoroscopeGeneratorService,
     private redis: RedisService,
+    private configService: ConfigService,
   ) {}
+
+  private getStripeClient() {
+    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+
+    if (!secretKey) {
+      throw new BadRequestException('Stripe is not configured');
+    }
+
+    return new Stripe(secretKey);
+  }
+
+  private getStripePremiumAmount(): number {
+    const amount = Number(
+      this.configService.get<string>('STRIPE_PREMIUM_AMOUNT') || '999',
+    );
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      throw new BadRequestException('Invalid Stripe premium amount');
+    }
+
+    return amount;
+  }
+
+  private getStripeCurrency(): string {
+    const currency = (
+      this.configService.get<string>('STRIPE_CURRENCY') || 'usd'
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!/^[a-z]{3}$/.test(currency)) {
+      throw new BadRequestException('Invalid Stripe currency');
+    }
+
+    return currency;
+  }
 
   /**
    * Validate that a user exists in the database
@@ -284,14 +323,98 @@ export class SubscriptionService {
     );
   }
 
-  /**
-   * Mock платеж
-   */
+  async createStripePaymentSheet(userId: string, tier: SubscriptionTier) {
+    const normalizedTier = normalizeSubscriptionTier(tier);
+
+    if (normalizedTier === SubscriptionTier.FREE) {
+      throw new BadRequestException('Cannot pay for Free subscription');
+    }
+
+    await this.validateUserExists(userId);
+
+    const stripe = this.getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: this.getStripePremiumAmount(),
+      currency: this.getStripeCurrency(),
+      payment_method_types: ['card'],
+      metadata: {
+        userId,
+        tier: normalizedTier,
+      },
+    });
+
+    if (!paymentIntent.client_secret) {
+      throw new BadRequestException('Stripe did not return a client secret');
+    }
+
+    return {
+      paymentIntentClientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    };
+  }
+
+  async confirmStripePayment(
+    userId: string,
+    tier: SubscriptionTier,
+    paymentIntentId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    const normalizedTier = normalizeSubscriptionTier(tier);
+
+    if (!paymentIntentId?.startsWith('pi_')) {
+      throw new BadRequestException('Invalid Stripe payment intent');
+    }
+
+    const stripe = this.getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.metadata?.userId !== userId) {
+      throw new BadRequestException('Stripe payment does not belong to user');
+    }
+
+    if (
+      normalizeSubscriptionTier(paymentIntent.metadata?.tier) !== normalizedTier
+    ) {
+      throw new BadRequestException('Stripe payment tier mismatch');
+    }
+
+    if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException('Stripe payment is not completed');
+    }
+
+    return this.processPaidPayment(
+      userId,
+      normalizedTier,
+      paymentIntent.id,
+      paymentIntent.amount,
+      paymentIntent.currency.toUpperCase(),
+      locale,
+    );
+  }
+
   private async processMockPayment(
     userId: string,
     tier: SubscriptionTier,
     transactionId?: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    return this.processPaidPayment(
+      userId,
+      tier,
+      transactionId,
+      1999,
+      'RUB',
+      locale,
+    );
+  }
+
+  private async processPaidPayment(
+    userId: string,
+    tier: SubscriptionTier,
+    transactionId: string | undefined,
+    amount: number,
+    currency: string,
+    _locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     // Validate user exists before creating subscription
     await this.validateUserExists(userId);
@@ -337,16 +460,27 @@ export class SubscriptionService {
 
     if (transactionId) {
       // ✅ PRISMA: Создаем запись о платеже
-      await this.prisma.payment.create({
-        data: {
-          userId,
-          amount: 1999,
-          currency: 'RUB',
-          status: 'completed',
+      const existingPayment = await this.prisma.payment.findFirst({
+        where: {
           stripeSessionId: transactionId,
-          tier,
+        },
+        select: {
+          id: true,
         },
       });
+
+      if (!existingPayment) {
+        await this.prisma.payment.create({
+          data: {
+            userId,
+            amount,
+            currency,
+            status: 'completed',
+            stripeSessionId: transactionId,
+            tier,
+          },
+        });
+      }
     }
 
     const statusResponse: SubscriptionStatusResponse = {
