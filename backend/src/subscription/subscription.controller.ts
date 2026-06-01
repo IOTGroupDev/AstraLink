@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   BadRequestException,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +21,7 @@ import { IsOptional, IsIn, IsString } from 'class-validator';
 import * as jwt from 'jsonwebtoken';
 import { SubscriptionService } from './subscription.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { Public } from '../common/decorators/public.decorator';
 import { SubscriptionStatusResponse, SubscriptionTier } from '../types';
 
 // Interface for authenticated user on Express Request
@@ -33,6 +35,10 @@ interface AuthenticatedUser {
 // Extend Express Request to include our user type
 interface AuthenticatedRequest extends ExpressRequest {
   user?: AuthenticatedUser;
+}
+
+interface RawBodyRequest extends ExpressRequest {
+  rawBody?: Buffer;
 }
 
 /**
@@ -119,6 +125,25 @@ export class ConfirmStripePaymentDto {
 @ApiBearerAuth()
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
+
+  @Public()
+  @Post('stripe/webhook')
+  @ApiOperation({ summary: 'Handle Stripe subscription webhooks' })
+  @ApiResponse({ status: 200, description: 'Stripe webhook processed' })
+  async handleStripeWebhook(
+    @Request() req: RawBodyRequest,
+    @Headers('stripe-signature') signature?: string,
+  ) {
+    if (!req.rawBody) {
+      throw new BadRequestException('Missing Stripe raw body');
+    }
+
+    if (!signature) {
+      throw new BadRequestException('Missing Stripe signature');
+    }
+
+    return this.subscriptionService.handleStripeWebhook(req.rawBody, signature);
+  }
 
   private resolveLocale(req: AuthenticatedRequest): 'ru' | 'en' | 'es' {
     const localeHeader =

@@ -94,6 +94,7 @@ export const envSchema = z.object({
   // Stripe (optional until payments are enabled)
   STRIPE_SECRET_KEY: z.string().startsWith('sk_').optional(),
   STRIPE_PREMIUM_PRICE_ID: z.string().startsWith('price_').optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_').optional(),
   STRIPE_TRIAL_DAYS: z
     .string()
     .regex(/^\d+$/, 'STRIPE_TRIAL_DAYS must be a number')

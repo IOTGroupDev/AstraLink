@@ -90,7 +90,10 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  const app = await NestFactory.create(AppModule, { cors: false });
+  const app = await NestFactory.create(AppModule, {
+    cors: false,
+    rawBody: true,
+  });
 
   // Security headers with Helmet
   app.use(

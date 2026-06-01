@@ -4,6 +4,9 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Stripe from 'stripe';
+import type { Event } from 'stripe/cjs/resources/Events';
+import type { Invoice } from 'stripe/cjs/resources/Invoices';
+import type { Subscription as StripeSubscription } from 'stripe/cjs/resources/Subscriptions';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SubscriptionTier,
@@ -15,6 +18,15 @@ import {
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { RedisService } from '../redis/redis.service';
 import { NatalChartService } from '../chart/services';
+
+type StripeSubscriptionWithPeriods = StripeSubscription & {
+  current_period_end?: number | null;
+  current_period_start?: number | null;
+};
+
+type StripeInvoiceWithLegacySubscription = Invoice & {
+  subscription?: string | StripeSubscription | null;
+};
 
 @Injectable()
 export class SubscriptionService {
@@ -71,6 +83,62 @@ export class SubscriptionService {
     }
 
     return trialDays;
+  }
+
+  private getStripeWebhookSecret(): string {
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
+
+    if (!webhookSecret?.startsWith('whsec_')) {
+      throw new BadRequestException('Stripe webhook secret is not configured');
+    }
+
+    return webhookSecret;
+  }
+
+  private toStripeDate(timestamp?: number | null): Date | undefined {
+    return timestamp ? new Date(timestamp * 1000) : undefined;
+  }
+
+  private async clearSubscriptionCaches(userId: string): Promise<void> {
+    await Promise.all([
+      this.redis.del(this.getStatusCacheKey(userId)),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
+
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+    } catch (e) {
+      this.logger.warn(
+        `Failed to clear horoscope cache after Stripe webhook for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+  }
+
+  private getInvoiceSubscriptionId(invoice: Invoice): string | undefined {
+    const parentSubscription =
+      invoice.parent?.subscription_details?.subscription;
+
+    if (typeof parentSubscription === 'string') {
+      return parentSubscription;
+    }
+
+    if (parentSubscription?.id) {
+      return parentSubscription.id;
+    }
+
+    const legacySubscription = (invoice as StripeInvoiceWithLegacySubscription)
+      .subscription;
+
+    if (typeof legacySubscription === 'string') {
+      return legacySubscription;
+    }
+
+    return legacySubscription?.id;
   }
 
   /**
@@ -429,6 +497,224 @@ export class SubscriptionService {
       trialEndsAt,
       locale,
     );
+  }
+
+  async handleStripeWebhook(rawBody: Buffer, signature: string) {
+    const stripe = this.getStripeClient();
+    let event: Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.getStripeWebhookSecret(),
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown Stripe webhook error';
+      throw new BadRequestException(
+        `Invalid Stripe webhook signature: ${errorMessage}`,
+      );
+    }
+
+    switch (event.type) {
+      case 'invoice.paid':
+        await this.syncStripeInvoice(event.data.object, 'completed');
+        break;
+      case 'invoice.payment_failed':
+        await this.syncStripeInvoice(event.data.object, 'payment_failed');
+        break;
+      case 'customer.subscription.updated':
+        await this.syncStripeSubscription(event.data.object);
+        break;
+      case 'customer.subscription.deleted':
+        await this.syncStripeSubscription(event.data.object, 'canceled');
+        break;
+      default:
+        this.logger.debug(`Ignored Stripe webhook event: ${event.type}`);
+    }
+
+    return {
+      received: true,
+    };
+  }
+
+  private async syncStripeInvoice(
+    invoice: Invoice,
+    paymentStatus: 'completed' | 'payment_failed',
+  ): Promise<void> {
+    const stripeSubscriptionId = this.getInvoiceSubscriptionId(invoice);
+
+    if (!stripeSubscriptionId) {
+      this.logger.warn(`Stripe invoice ${invoice.id} has no subscription id`);
+      return;
+    }
+
+    const stripe = this.getStripeClient();
+    const subscription =
+      await stripe.subscriptions.retrieve(stripeSubscriptionId);
+
+    await this.syncStripeSubscription(subscription, paymentStatus, invoice);
+  }
+
+  private async syncStripeSubscription(
+    subscription: StripeSubscription,
+    paymentStatus?: string,
+    invoice?: Invoice,
+  ): Promise<void> {
+    const existingPayment = await this.prisma.payment.findFirst({
+      where: {
+        stripeSessionId: subscription.id,
+      },
+      select: {
+        id: true,
+        userId: true,
+        tier: true,
+      },
+    });
+
+    const userId = subscription.metadata?.userId || existingPayment?.userId;
+
+    if (!userId) {
+      this.logger.warn(
+        `Stripe subscription ${subscription.id} has no local user reference`,
+      );
+      return;
+    }
+
+    await this.validateUserExists(userId);
+
+    const rawTier =
+      subscription.metadata?.tier ||
+      existingPayment?.tier ||
+      SubscriptionTier.PREMIUM;
+    const tier = normalizeSubscriptionTier(rawTier);
+    const periodSubscription = subscription as StripeSubscriptionWithPeriods;
+    const currentPeriodEnd =
+      this.toStripeDate(periodSubscription.current_period_end) ||
+      this.toStripeDate(subscription.items.data[0]?.current_period_end) ||
+      this.toStripeDate(invoice?.period_end);
+    const trialEndsAt = this.toStripeDate(subscription.trial_end);
+    const isTerminalStatus = [
+      'canceled',
+      'incomplete_expired',
+      'unpaid',
+      'paused',
+    ].includes(paymentStatus || subscription.status);
+
+    if (isTerminalStatus) {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier: SubscriptionTier.FREE,
+          trialEndsAt: null,
+          expiresAt: null,
+          isCancelled: false,
+        },
+        update: {
+          tier: SubscriptionTier.FREE,
+          trialEndsAt: null,
+          expiresAt: null,
+          isCancelled: false,
+        },
+      });
+    } else if (subscription.status === 'trialing') {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier,
+          trialEndsAt: trialEndsAt || currentPeriodEnd,
+          expiresAt: null,
+          isCancelled: false,
+        },
+        update: {
+          tier,
+          trialEndsAt: trialEndsAt || currentPeriodEnd,
+          expiresAt: null,
+          isCancelled: false,
+        },
+      });
+    } else if (subscription.status === 'active') {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: subscription.cancel_at_period_end,
+        },
+        update: {
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: subscription.cancel_at_period_end,
+        },
+      });
+    } else {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: false,
+        },
+        update: {
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: false,
+        },
+      });
+    }
+
+    const currency = (invoice?.currency || subscription.currency).toUpperCase();
+    const status =
+      paymentStatus === 'completed' &&
+      subscription.status === 'trialing' &&
+      (invoice?.total || 0) <= 0
+        ? 'trialing'
+        : paymentStatus || subscription.status;
+
+    if (existingPayment) {
+      if (invoice) {
+        await this.prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            amount: invoice.total,
+            currency,
+            status,
+            tier,
+          },
+        });
+      } else {
+        await this.prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            currency,
+            status,
+            tier,
+          },
+        });
+      }
+    } else {
+      await this.prisma.payment.create({
+        data: {
+          userId,
+          amount: invoice?.total || 0,
+          currency,
+          status,
+          stripeSessionId: subscription.id,
+          tier,
+        },
+      });
+    }
+
+    await this.clearSubscriptionCaches(userId);
   }
 
   private async processMockPayment(
