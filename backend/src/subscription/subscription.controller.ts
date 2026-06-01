@@ -91,6 +91,29 @@ export class UpgradeSubscriptionResponseDto {
   };
 }
 
+export class CreateStripePaymentSheetDto {
+  @ApiProperty({ example: 'premium', description: 'Subscription tier to buy' })
+  @IsString()
+  tier?: string;
+}
+
+export class ConfirmStripePaymentDto {
+  @ApiProperty({
+    example: 'premium',
+    description: 'Subscription tier to activate',
+  })
+  @IsString()
+  tier?: string;
+
+  @ApiProperty({
+    example: 'pi_123456',
+    description:
+      'Stripe PaymentIntent id returned with the PaymentSheet payload',
+  })
+  @IsString()
+  paymentIntentId?: string;
+}
+
 @ApiTags('Subscription')
 @Controller('subscription')
 @UseGuards(SupabaseAuthGuard)
@@ -209,12 +232,57 @@ export class SubscriptionController {
     );
   }
 
-  /**
-   * Отменить подписку
-   */
+  @Post('stripe/payment-sheet')
+  @ApiOperation({ summary: 'Create Stripe PaymentSheet params for Premium' })
+  @ApiResponse({ status: 200, description: 'Stripe PaymentSheet params' })
+  async createStripePaymentSheet(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: CreateStripePaymentSheetDto,
+  ) {
+    const rawTier = body?.tier;
+    const tierStr =
+      typeof rawTier === 'string' ? rawTier.toLowerCase().trim() : rawTier;
+
+    if (!tierStr || !['premium', 'max'].includes(tierStr)) {
+      throw new BadRequestException('Invalid subscription tier');
+    }
+
+    return this.subscriptionService.createStripePaymentSheet(
+      this.getUserId(req),
+      tierStr as SubscriptionTier,
+    );
+  }
+
+  @Post('stripe/confirm')
+  @ApiOperation({ summary: 'Verify Stripe payment and activate subscription' })
+  @ApiResponse({ status: 200, description: 'Subscription activated' })
+  async confirmStripePayment(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: ConfirmStripePaymentDto,
+  ): Promise<UpgradeSubscriptionResponseDto> {
+    const rawTier = body?.tier;
+    const tierStr =
+      typeof rawTier === 'string' ? rawTier.toLowerCase().trim() : rawTier;
+
+    if (!tierStr || !['premium', 'max'].includes(tierStr)) {
+      throw new BadRequestException('Invalid subscription tier');
+    }
+
+    if (!body?.paymentIntentId) {
+      throw new BadRequestException('Invalid Stripe payment intent');
+    }
+
+    return this.subscriptionService.confirmStripePayment(
+      this.getUserId(req),
+      tierStr as SubscriptionTier,
+      body.paymentIntentId,
+      this.resolveLocale(req),
+    );
+  }
+
   @Post('cancel')
-  @ApiOperation({ summary: 'Отменить подписку' })
-  @ApiResponse({ status: 200, description: 'Подписка отменена' })
+  @ApiOperation({ summary: 'Cancel subscription' })
+  @ApiResponse({ status: 200, description: 'Subscription cancelled' })
   async cancel(@Request() req: AuthenticatedRequest) {
     return this.subscriptionService.cancel(this.getUserId(req));
   }

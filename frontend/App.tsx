@@ -13,7 +13,9 @@ if (typeof globalThis.TextDecoder === 'undefined')
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar, StyleSheet, View } from 'react-native';
+import Constants from 'expo-constants';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
 import { NavigationTheme } from './src/navigation/navigationConfig';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -32,6 +34,15 @@ enableScreens(true);
 const STARTUP_SPLASH_MIN_MS = 1600;
 
 const queryClient = new QueryClient();
+
+const expoExtra = (Constants?.expoConfig?.extra ?? {}) as Record<
+  string,
+  unknown
+>;
+const stripePublishableKey =
+  (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY as string | undefined) ||
+  (expoExtra.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY as string | undefined) ||
+  '';
 
 const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
   const normalized = String(locale || 'en').toLowerCase();
@@ -145,17 +156,23 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-      <QueryClientProvider client={queryClient}>
-        <View style={styles.root}>
-          <NavigationContainer
-            key={`auth-scene-${authSceneVersion}`}
-            theme={NavigationTheme}
-          >
-            <MainStackNavigator />
-          </NavigationContainer>
-          <TopStatusBarFade />
-        </View>
-      </QueryClientProvider>
+      <StripeProvider
+        publishableKey={stripePublishableKey}
+        merchantIdentifier="merchant.astralink"
+        urlScheme="astralink"
+      >
+        <QueryClientProvider client={queryClient}>
+          <View style={styles.root}>
+            <NavigationContainer
+              key={`auth-scene-${authSceneVersion}`}
+              theme={NavigationTheme}
+            >
+              <MainStackNavigator />
+            </NavigationContainer>
+            <TopStatusBarFade />
+          </View>
+        </QueryClientProvider>
+      </StripeProvider>
     </SafeAreaProvider>
   );
 }

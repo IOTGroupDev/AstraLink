@@ -91,6 +91,17 @@ export const envSchema = z.object({
   // Monitoring (optional)
   SENTRY_DSN: z.string().url('SENTRY_DSN must be a valid URL').optional(),
 
+  // Stripe (optional until payments are enabled)
+  STRIPE_SECRET_KEY: z.string().startsWith('sk_').optional(),
+  STRIPE_PREMIUM_AMOUNT: z
+    .string()
+    .regex(/^\d+$/, 'STRIPE_PREMIUM_AMOUNT must be a number')
+    .optional(),
+  STRIPE_CURRENCY: z
+    .string()
+    .regex(/^[a-zA-Z]{3}$/, 'STRIPE_CURRENCY must be a 3-letter code')
+    .optional(),
+
   // Rate Limiting
   MAX_AI_REQUESTS_PER_HOUR: z
     .string()

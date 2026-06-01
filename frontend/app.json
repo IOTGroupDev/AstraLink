@@ -61,7 +61,8 @@
       "SUPABASE_URL": "https://ayoucajwdyinyhamousz.supabase.co",
       "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo",
       "SUPABASE_YANDEX_PROVIDER": "custom:yandex",
-      "EXPO_PUBLIC_API_URL": "https://api.astralink.vip"
+      "EXPO_PUBLIC_API_URL": "https://api.astralink.vip",
+      "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TcpzcChJIbNpjLT8AGBHf8rsfRcuRIxTbGDIHigWLcgRYaXYGuDB5l5vaZhro4CD1RVFYRmhPAz2mnLvY0rEcdW00z9EB7ta8"
     },
     "plugins": [
       "expo-font",
@@ -69,7 +70,14 @@
       "expo-web-browser",
       "expo-local-authentication",
       "expo-apple-authentication",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.astralink",
+          "enableGooglePay": false
+        }
+      ]
     ],
     "updates": {
       "enabled": false,

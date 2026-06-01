@@ -18,7 +18,6 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import { Subscription, SUBSCRIPTION_PLANS } from '../types';
 import type { RootStackParamList } from '../types/navigation';
 import { chartAPI, userAPI } from '../services/api';
-import { subscriptionAPI } from '../services/api/subscription.api';
 import {
   normalizeSubscriptionTier,
   SubscriptionTier,
@@ -28,6 +27,10 @@ import PaymentMethodSheet, {
   type PaywallPaymentMethod,
 } from '../components/modals/PaymentMethodSheet';
 import { writeHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
+import {
+  useStripeSubscriptionPayment,
+  waitForPaymentMethodSheetDismiss,
+} from '../hooks/useStripeSubscriptionPayment';
 import paywallBackground from '@assets/loading-bg.png';
 import premiumHero from '@assets/premium-hero.png';
 
@@ -50,8 +53,10 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
   const { height: screenHeight } = useWindowDimensions();
   const queryClient = useQueryClient();
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
+  const [nativePaymentActive, setNativePaymentActive] = React.useState(false);
   const [paymentSheetVisible, setPaymentSheetVisible] = React.useState(false);
-  const loadingPopupVisible = purchasing !== null;
+  const loadingPopupVisible = purchasing !== null && !nativePaymentActive;
+  const startStripePayment = useStripeSubscriptionPayment();
   const availableContentHeight = screenHeight - insets.top - insets.bottom;
   const layoutScale = Math.min(
     1,
@@ -91,43 +96,51 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
 
   const completePurchase = async (
     tier: SubscriptionTier,
-    _method: PaywallPaymentMethod
+    method: PaywallPaymentMethod
   ) => {
+    if (method === 'apple') return;
+
     try {
-      setPurchasing(tier);
-      // Stripe/Apple SDK flows are not wired yet; keep the existing upgrade path.
-      const result = await subscriptionAPI.upgrade(tier, 'mock');
+      setPaymentSheetVisible(false);
+      await waitForPaymentMethodSheetDismiss();
 
-      if (result.success) {
-        const locale = getApiLocale();
-        void Promise.allSettled([
-          chartAPI.getNatalChartWithInterpretation(locale),
-          chartAPI.getHoroscope('day', locale),
-        ]);
+      setNativePaymentActive(true);
+      const result = await startStripePayment(tier);
+      setNativePaymentActive(false);
 
-        await writeHoroscopeScreenInvalidationMarker();
-        await queryClient.invalidateQueries({
-          queryKey: ['subscription'],
-        });
-
-        setPaymentSheetVisible(false);
-        Alert.alert(
-          t('subscription.successTitle', 'Success!'),
-          t(
-            'subscription.successMessage',
-            'Your subscription has been upgraded successfully.'
-          ),
-          [
-            {
-              text: t('common.buttons.ok', 'OK'),
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
-      } else {
-        throw new Error(result.message || 'Upgrade failed');
+      if (!result.success) {
+        return;
       }
+
+      setPurchasing(tier);
+
+      const locale = getApiLocale();
+      void Promise.allSettled([
+        chartAPI.getNatalChartWithInterpretation(locale),
+        chartAPI.getHoroscope('day', locale),
+      ]);
+
+      await writeHoroscopeScreenInvalidationMarker();
+      await queryClient.invalidateQueries({
+        queryKey: ['subscription'],
+      });
+
+      setPaymentSheetVisible(false);
+      Alert.alert(
+        t('subscription.successTitle', 'Success!'),
+        t(
+          'subscription.successMessage',
+          'Your subscription has been upgraded successfully.'
+        ),
+        [
+          {
+            text: t('common.buttons.ok', 'OK'),
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
     } catch (error: any) {
+      setNativePaymentActive(false);
       Alert.alert(
         t('common.errors.generic', 'Error'),
         error.response?.data?.message ||
@@ -216,7 +229,8 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
       ),
     },
   ];
-  const isPurchasing = purchasing === SubscriptionTier.PREMIUM;
+  const isPurchasing =
+    purchasing === SubscriptionTier.PREMIUM || nativePaymentActive;
 
   return (
     <View style={styles.screen}>
