@@ -4,6 +4,9 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Stripe from 'stripe';
+import type { Event } from 'stripe/cjs/resources/Events';
+import type { Invoice } from 'stripe/cjs/resources/Invoices';
+import type { Subscription as StripeSubscription } from 'stripe/cjs/resources/Subscriptions';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SubscriptionTier,
@@ -15,6 +18,15 @@ import {
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { RedisService } from '../redis/redis.service';
 import { NatalChartService } from '../chart/services';
+
+type StripeSubscriptionWithPeriods = StripeSubscription & {
+  current_period_end?: number | null;
+  current_period_start?: number | null;
+};
+
+type StripeInvoiceWithLegacySubscription = Invoice & {
+  subscription?: string | StripeSubscription | null;
+};
 
 @Injectable()
 export class SubscriptionService {
@@ -51,30 +63,82 @@ export class SubscriptionService {
     return new Stripe(secretKey);
   }
 
-  private getStripePremiumAmount(): number {
-    const amount = Number(
-      this.configService.get<string>('STRIPE_PREMIUM_AMOUNT') || '999',
-    );
+  private getStripePremiumPriceId(): string {
+    const priceId = this.configService.get<string>('STRIPE_PREMIUM_PRICE_ID');
 
-    if (!Number.isInteger(amount) || amount <= 0) {
-      throw new BadRequestException('Invalid Stripe premium amount');
+    if (!priceId?.startsWith('price_')) {
+      throw new BadRequestException('Stripe premium price is not configured');
     }
 
-    return amount;
+    return priceId;
   }
 
-  private getStripeCurrency(): string {
-    const currency = (
-      this.configService.get<string>('STRIPE_CURRENCY') || 'usd'
-    )
-      .trim()
-      .toLowerCase();
+  private getStripeTrialDays(): number {
+    const trialDays = Number(
+      this.configService.get<string>('STRIPE_TRIAL_DAYS') || '3',
+    );
 
-    if (!/^[a-z]{3}$/.test(currency)) {
-      throw new BadRequestException('Invalid Stripe currency');
+    if (!Number.isInteger(trialDays) || trialDays <= 0) {
+      throw new BadRequestException('Invalid Stripe trial days');
     }
 
-    return currency;
+    return trialDays;
+  }
+
+  private getStripeWebhookSecret(): string {
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
+
+    if (!webhookSecret?.startsWith('whsec_')) {
+      throw new BadRequestException('Stripe webhook secret is not configured');
+    }
+
+    return webhookSecret;
+  }
+
+  private toStripeDate(timestamp?: number | null): Date | undefined {
+    return timestamp ? new Date(timestamp * 1000) : undefined;
+  }
+
+  private async clearSubscriptionCaches(userId: string): Promise<void> {
+    await Promise.all([
+      this.redis.del(this.getStatusCacheKey(userId)),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
+
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+    } catch (e) {
+      this.logger.warn(
+        `Failed to clear horoscope cache after Stripe webhook for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+  }
+
+  private getInvoiceSubscriptionId(invoice: Invoice): string | undefined {
+    const parentSubscription =
+      invoice.parent?.subscription_details?.subscription;
+
+    if (typeof parentSubscription === 'string') {
+      return parentSubscription;
+    }
+
+    if (parentSubscription?.id) {
+      return parentSubscription.id;
+    }
+
+    const legacySubscription = (invoice as StripeInvoiceWithLegacySubscription)
+      .subscription;
+
+    if (typeof legacySubscription === 'string') {
+      return legacySubscription;
+    }
+
+    return legacySubscription?.id;
   }
 
   /**
@@ -333,63 +397,324 @@ export class SubscriptionService {
     await this.validateUserExists(userId);
 
     const stripe = this.getStripeClient();
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: this.getStripePremiumAmount(),
-      currency: this.getStripeCurrency(),
+    const customer = await stripe.customers.create({
+      metadata: {
+        userId,
+      },
+    });
+    const ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: customer.id },
+      { apiVersion: Stripe.API_VERSION },
+    );
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customer.id,
       payment_method_types: ['card'],
+      usage: 'off_session',
       metadata: {
         userId,
         tier: normalizedTier,
       },
     });
 
-    if (!paymentIntent.client_secret) {
+    if (!setupIntent.client_secret || !ephemeralKey.secret) {
       throw new BadRequestException('Stripe did not return a client secret');
     }
 
     return {
-      paymentIntentClientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      customerId: customer.id,
+      customerEphemeralKeySecret: ephemeralKey.secret,
+      setupIntentClientSecret: setupIntent.client_secret,
+      setupIntentId: setupIntent.id,
     };
   }
 
   async confirmStripePayment(
     userId: string,
     tier: SubscriptionTier,
-    paymentIntentId: string,
+    setupIntentId: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
     const normalizedTier = normalizeSubscriptionTier(tier);
 
-    if (!paymentIntentId?.startsWith('pi_')) {
-      throw new BadRequestException('Invalid Stripe payment intent');
+    if (!setupIntentId?.startsWith('seti_')) {
+      throw new BadRequestException('Invalid Stripe setup intent');
     }
 
     const stripe = this.getStripeClient();
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
 
-    if (paymentIntent.metadata?.userId !== userId) {
-      throw new BadRequestException('Stripe payment does not belong to user');
+    if (setupIntent.metadata?.userId !== userId) {
+      throw new BadRequestException(
+        'Stripe setup intent does not belong to user',
+      );
     }
 
     if (
-      normalizeSubscriptionTier(paymentIntent.metadata?.tier) !== normalizedTier
+      normalizeSubscriptionTier(setupIntent.metadata?.tier) !== normalizedTier
     ) {
-      throw new BadRequestException('Stripe payment tier mismatch');
+      throw new BadRequestException('Stripe setup intent tier mismatch');
     }
 
-    if (paymentIntent.status !== 'succeeded') {
-      throw new BadRequestException('Stripe payment is not completed');
+    if (setupIntent.status !== 'succeeded') {
+      throw new BadRequestException('Stripe setup intent is not completed');
     }
 
-    return this.processPaidPayment(
+    const customerId =
+      typeof setupIntent.customer === 'string'
+        ? setupIntent.customer
+        : setupIntent.customer?.id;
+    const paymentMethodId =
+      typeof setupIntent.payment_method === 'string'
+        ? setupIntent.payment_method
+        : setupIntent.payment_method?.id;
+
+    if (!customerId || !paymentMethodId) {
+      throw new BadRequestException('Stripe payment method is missing');
+    }
+
+    const priceId = this.getStripePremiumPriceId();
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      default_payment_method: paymentMethodId,
+      items: [{ price: priceId }],
+      trial_period_days: this.getStripeTrialDays(),
+      metadata: {
+        userId,
+        tier: normalizedTier,
+      },
+    });
+    const price = await stripe.prices.retrieve(priceId);
+    const trialEndsAt = subscription.trial_end
+      ? new Date(subscription.trial_end * 1000)
+      : undefined;
+
+    return this.processStripeTrialSubscription(
       userId,
       normalizedTier,
-      paymentIntent.id,
-      paymentIntent.amount,
-      paymentIntent.currency.toUpperCase(),
+      subscription.id,
+      price.unit_amount || 0,
+      price.currency.toUpperCase(),
+      trialEndsAt,
       locale,
     );
+  }
+
+  async handleStripeWebhook(rawBody: Buffer, signature: string) {
+    const stripe = this.getStripeClient();
+    let event: Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.getStripeWebhookSecret(),
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown Stripe webhook error';
+      throw new BadRequestException(
+        `Invalid Stripe webhook signature: ${errorMessage}`,
+      );
+    }
+
+    switch (event.type) {
+      case 'invoice.paid':
+        await this.syncStripeInvoice(event.data.object, 'completed');
+        break;
+      case 'invoice.payment_failed':
+        await this.syncStripeInvoice(event.data.object, 'payment_failed');
+        break;
+      case 'customer.subscription.updated':
+        await this.syncStripeSubscription(event.data.object);
+        break;
+      case 'customer.subscription.deleted':
+        await this.syncStripeSubscription(event.data.object, 'canceled');
+        break;
+      default:
+        this.logger.debug(`Ignored Stripe webhook event: ${event.type}`);
+    }
+
+    return {
+      received: true,
+    };
+  }
+
+  private async syncStripeInvoice(
+    invoice: Invoice,
+    paymentStatus: 'completed' | 'payment_failed',
+  ): Promise<void> {
+    const stripeSubscriptionId = this.getInvoiceSubscriptionId(invoice);
+
+    if (!stripeSubscriptionId) {
+      this.logger.warn(`Stripe invoice ${invoice.id} has no subscription id`);
+      return;
+    }
+
+    const stripe = this.getStripeClient();
+    const subscription =
+      await stripe.subscriptions.retrieve(stripeSubscriptionId);
+
+    await this.syncStripeSubscription(subscription, paymentStatus, invoice);
+  }
+
+  private async syncStripeSubscription(
+    subscription: StripeSubscription,
+    paymentStatus?: string,
+    invoice?: Invoice,
+  ): Promise<void> {
+    const existingPayment = await this.prisma.payment.findFirst({
+      where: {
+        stripeSessionId: subscription.id,
+      },
+      select: {
+        id: true,
+        userId: true,
+        tier: true,
+      },
+    });
+
+    const userId = subscription.metadata?.userId || existingPayment?.userId;
+
+    if (!userId) {
+      this.logger.warn(
+        `Stripe subscription ${subscription.id} has no local user reference`,
+      );
+      return;
+    }
+
+    await this.validateUserExists(userId);
+
+    const rawTier =
+      subscription.metadata?.tier ||
+      existingPayment?.tier ||
+      SubscriptionTier.PREMIUM;
+    const tier = normalizeSubscriptionTier(rawTier);
+    const periodSubscription = subscription as StripeSubscriptionWithPeriods;
+    const currentPeriodEnd =
+      this.toStripeDate(periodSubscription.current_period_end) ||
+      this.toStripeDate(subscription.items.data[0]?.current_period_end) ||
+      this.toStripeDate(invoice?.period_end);
+    const trialEndsAt = this.toStripeDate(subscription.trial_end);
+    const isTerminalStatus = [
+      'canceled',
+      'incomplete_expired',
+      'unpaid',
+      'paused',
+    ].includes(paymentStatus || subscription.status);
+
+    if (isTerminalStatus) {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier: SubscriptionTier.FREE,
+          trialEndsAt: null,
+          expiresAt: null,
+          isCancelled: false,
+        },
+        update: {
+          tier: SubscriptionTier.FREE,
+          trialEndsAt: null,
+          expiresAt: null,
+          isCancelled: false,
+        },
+      });
+    } else if (subscription.status === 'trialing') {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier,
+          trialEndsAt: trialEndsAt || currentPeriodEnd,
+          expiresAt: null,
+          isCancelled: false,
+        },
+        update: {
+          tier,
+          trialEndsAt: trialEndsAt || currentPeriodEnd,
+          expiresAt: null,
+          isCancelled: false,
+        },
+      });
+    } else if (subscription.status === 'active') {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: subscription.cancel_at_period_end,
+        },
+        update: {
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: subscription.cancel_at_period_end,
+        },
+      });
+    } else {
+      await this.prisma.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: false,
+        },
+        update: {
+          tier,
+          trialEndsAt: null,
+          expiresAt: currentPeriodEnd || null,
+          isCancelled: false,
+        },
+      });
+    }
+
+    const currency = (invoice?.currency || subscription.currency).toUpperCase();
+    const status =
+      paymentStatus === 'completed' &&
+      subscription.status === 'trialing' &&
+      (invoice?.total || 0) <= 0
+        ? 'trialing'
+        : paymentStatus || subscription.status;
+
+    if (existingPayment) {
+      if (invoice) {
+        await this.prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            amount: invoice.total,
+            currency,
+            status,
+            tier,
+          },
+        });
+      } else {
+        await this.prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            currency,
+            status,
+            tier,
+          },
+        });
+      }
+    } else {
+      await this.prisma.payment.create({
+        data: {
+          userId,
+          amount: invoice?.total || 0,
+          currency,
+          status,
+          stripeSessionId: subscription.id,
+          tier,
+        },
+      });
+    }
+
+    await this.clearSubscriptionCaches(userId);
   }
 
   private async processMockPayment(
@@ -406,6 +731,106 @@ export class SubscriptionService {
       'RUB',
       locale,
     );
+  }
+
+  private async processStripeTrialSubscription(
+    userId: string,
+    tier: SubscriptionTier,
+    stripeSubscriptionId: string,
+    amount: number,
+    currency: string,
+    trialEndsAt?: Date,
+    _locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
+    await this.validateUserExists(userId);
+
+    const now = new Date();
+    const effectiveTrialEndsAt =
+      trialEndsAt ||
+      new Date(now.getTime() + this.getStripeTrialDays() * 24 * 60 * 60 * 1000);
+
+    await this.prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        tier,
+        trialEndsAt: effectiveTrialEndsAt,
+        expiresAt: null,
+        isCancelled: false,
+      },
+      update: {
+        tier,
+        trialEndsAt: effectiveTrialEndsAt,
+        expiresAt: null,
+        isCancelled: false,
+      },
+    });
+
+    const cacheKey = this.getStatusCacheKey(userId);
+    await Promise.all([
+      this.redis.del(cacheKey),
+      this.redis.del(this.getRecordCacheKey(userId)),
+      this.redis.del(this.getLegacyCacheKey(userId)),
+    ]);
+
+    try {
+      await this.redis.deleteByPattern(`horoscope:${userId}:*`);
+    } catch (e) {
+      this.logger.warn(
+        `Failed to clear horoscope cache after Stripe subscription for ${userId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+
+    const existingPayment = await this.prisma.payment.findFirst({
+      where: {
+        stripeSessionId: stripeSubscriptionId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingPayment) {
+      await this.prisma.payment.create({
+        data: {
+          userId,
+          amount,
+          currency,
+          status: 'trialing',
+          stripeSessionId: stripeSubscriptionId,
+          tier,
+        },
+      });
+    }
+
+    const statusResponse: SubscriptionStatusResponse = {
+      tier,
+      expiresAt: undefined,
+      isActive: true,
+      isTrial: true,
+      trialEndsAt: effectiveTrialEndsAt.toISOString(),
+      features: FEATURE_MATRIX[tier].features,
+      daysRemaining: Math.max(
+        0,
+        Math.ceil(
+          (effectiveTrialEndsAt.getTime() - now.getTime()) /
+            (1000 * 60 * 60 * 24),
+        ),
+      ),
+    };
+
+    await this.redis.set(cacheKey, statusResponse, this.statusCacheTtlSec);
+
+    return {
+      success: true,
+      message: `Stripe subscription ${tier} trial activated`,
+      subscription: {
+        tier,
+        expiresAt: effectiveTrialEndsAt.toISOString(),
+      },
+    };
   }
 
   private async processPaidPayment(
