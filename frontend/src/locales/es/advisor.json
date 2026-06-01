@@ -60,6 +60,8 @@
   },
   "chat": {
     "headerSubtitle": "Un asesor guiado que se siente como una conversación.",
+    "greeting": "Hola, {{name}}!",
+    "fallbackName": "amigo",
     "intro": "Elige un tema y te guiaré paso a paso por la consulta.",
     "topicHelp": "Primero elige el área de tu vida que quieres evaluar.",
     "selectedTopic": "Tema",

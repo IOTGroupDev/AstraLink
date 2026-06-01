@@ -184,22 +184,28 @@ const SubscriptionRequiredModal: React.FC<SubscriptionRequiredModalProps> = ({
               styles.legal,
               {
                 bottom: insets.bottom + scaled(30),
-                gap: scaled(24),
+                gap: scaled(14),
               },
             ]}
           >
             <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              numberOfLines={1}
               style={[
                 styles.legalText,
-                { fontSize: scaled(11), lineHeight: scaled(14) },
+                { fontSize: scaled(10), lineHeight: scaled(13) },
               ]}
             >
               {t('subscription.paywall.terms', 'Terms and Conditions')}
             </Text>
             <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              numberOfLines={1}
               style={[
                 styles.legalText,
-                { fontSize: scaled(11), lineHeight: scaled(14) },
+                { fontSize: scaled(10), lineHeight: scaled(13) },
               ]}
             >
               {t('subscription.paywall.privacy', 'Privacy Policy')}
@@ -288,6 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legalText: {
+    flexShrink: 1,
     color: '#FFFFFF',
     fontWeight: '400',
     textAlign: 'center',

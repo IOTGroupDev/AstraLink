@@ -60,6 +60,8 @@
   },
   "chat": {
     "headerSubtitle": "A guided advisor session that feels like a conversation.",
+    "greeting": "Hey {{name}}!",
+    "fallbackName": "there",
     "intro": "Choose a topic and I will guide you through the reading.",
     "topicHelp": "Pick the life area you want me to evaluate first.",
     "selectedTopic": "Topic",

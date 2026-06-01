@@ -394,24 +394,26 @@ function SubscriptionScreen({ navigation }: SubscriptionScreenProps) {
           </View>
 
           <View
-            style={[styles.legal, { gap: scaled(24), marginTop: scaled(43) }]}
+            style={[styles.legal, { gap: scaled(14), marginTop: scaled(43) }]}
           >
             <Text
               adjustsFontSizeToFit
+              minimumFontScale={0.75}
               numberOfLines={1}
               style={[
                 styles.legalText,
-                { fontSize: scaled(12), lineHeight: scaled(16) },
+                { fontSize: scaled(10), lineHeight: scaled(14) },
               ]}
             >
               {t('subscription.paywall.terms', 'Terms and Conditions')}
             </Text>
             <Text
               adjustsFontSizeToFit
+              minimumFontScale={0.75}
               numberOfLines={1}
               style={[
                 styles.legalText,
-                { fontSize: scaled(12), lineHeight: scaled(16) },
+                { fontSize: scaled(10), lineHeight: scaled(14) },
               ]}
             >
               {t('subscription.paywall.privacy', 'Privacy Policy')}
@@ -534,6 +536,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   legalText: {
+    flexShrink: 1,
     color: '#FFFFFF',
     fontFamily: 'Montserrat_400Regular',
     fontWeight: '400',

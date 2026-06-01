@@ -404,8 +404,8 @@ const AdvisorScreen: React.FC = () => {
 
   const displayName = useMemo(() => {
     const name = user?.name?.trim();
-    return name ? name.split(/\s+/)[0] : 'there';
-  }, [user?.name]);
+    return name ? name.split(/\s+/)[0] : t('advisor.chat.fallbackName');
+  }, [t, user?.name]);
 
   const transcriptSignature = useMemo(
     () =>
@@ -1163,6 +1163,8 @@ function InitialAdvisorState({
   selectedTopic?: AdvisorTopic;
   onTopicSelect: (topic: AdvisorTopic) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <View
       style={[
@@ -1196,10 +1198,10 @@ function InitialAdvisorState({
         </BlurView>
       </GradientBorderView>
 
-      <Text style={styles.initialTitle}>Hey {displayName}!</Text>
-      <Text style={styles.initialSubtitle}>
-        Choose a topic and I will guide{'\n'}you through the reading.
+      <Text style={styles.initialTitle}>
+        {t('advisor.chat.greeting', { name: displayName })}
       </Text>
+      <Text style={styles.initialSubtitle}>{t('advisor.chat.intro')}</Text>
 
       {!selectedTopic && (
         <View style={styles.initialChipsWrap}>
@@ -1256,6 +1258,7 @@ function TopicSelectionBubble({
   topicOption: TopicOption | null;
   fallbackLabel: string;
 }) {
+  const { t } = useTranslation();
   const label = topicOption?.label || fallbackLabel;
   const icon = topicOption?.icon || 'sparkles';
   const borderColors: readonly [string, string, string] = topicOption
@@ -1296,7 +1299,9 @@ function TopicSelectionBubble({
             },
           ]}
         >
-          <Text style={styles.topicBubbleLabel}>Topic</Text>
+          <Text style={styles.topicBubbleLabel}>
+            {t('advisor.chat.selectedTopic')}
+          </Text>
           <View style={styles.topicBubbleContent}>
             <Ionicons name={icon} size={14} color="#FFFFFF" />
             <Text style={styles.topicBubbleText}>{label}</Text>
@@ -1308,6 +1313,8 @@ function TopicSelectionBubble({
 }
 
 function DateSelectionBubble({ label }: { label: string }) {
+  const { t } = useTranslation();
+
   return (
     <Reanimated.View
       entering={FadeInDown.duration(240)}
@@ -1336,7 +1343,9 @@ function DateSelectionBubble({ label }: { label: string }) {
             { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
           ]}
         >
-          <Text style={styles.topicBubbleLabel}>Date</Text>
+          <Text style={styles.topicBubbleLabel}>
+            {t('advisor.chat.selectedDate')}
+          </Text>
           <View style={styles.topicBubbleContent}>
             <Text style={styles.topicBubbleText}>{label}</Text>
           </View>
@@ -1347,6 +1356,8 @@ function DateSelectionBubble({ label }: { label: string }) {
 }
 
 function PromptSelectionBubble({ text }: { text: string }) {
+  const { t } = useTranslation();
+
   return (
     <Reanimated.View
       entering={FadeInDown.duration(240)}
@@ -1377,6 +1388,9 @@ function PromptSelectionBubble({ text }: { text: string }) {
             { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
           ]}
         >
+          <Text style={styles.topicBubbleLabel}>
+            {t('advisor.chat.yourMessage')}
+          </Text>
           <Text style={[styles.topicBubbleText, styles.promptBubbleText]}>
             {text}
           </Text>
@@ -1538,6 +1552,7 @@ function InlinePromptCard({
   onSend: () => void;
   buttonLabel: string;
 }) {
+  const { t } = useTranslation();
   const disabled = !value.trim();
 
   return (
@@ -1560,7 +1575,7 @@ function InlinePromptCard({
           style={styles.promptCardBorder}
           contentStyle={styles.promptCardContent}
         >
-          <Text style={styles.promptLabel}>Input</Text>
+          <Text style={styles.promptLabel}>{t('advisor.chat.inputTitle')}</Text>
           <TextInput
             value={value}
             onChangeText={onChangeText}
@@ -2416,8 +2431,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   promptLabel: {
-    width: 40,
-    height: 16,
+    minHeight: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 10,
     fontWeight: '400',
