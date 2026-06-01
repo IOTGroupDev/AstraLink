@@ -40,6 +40,10 @@ import Svg, {
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
+import {
+  useStripeSubscriptionPayment,
+  waitForPaymentMethodSheetDismiss,
+} from '../hooks/useStripeSubscriptionPayment';
 import { advisorAPI } from '../services/api';
 import { SubscriptionTier } from '../types/subscription';
 import {
@@ -359,7 +363,8 @@ const AdvisorScreen: React.FC = () => {
   const tabBarHeight = useBottomTabBarHeight();
   const { height: screenHeight } = useWindowDimensions();
   const { user } = useAuth();
-  const { isPremium, isUpgrading, refetch, upgrade } = useSubscription();
+  const { isPremium, isUpgrading, refetch } = useSubscription();
+  const startStripePayment = useStripeSubscriptionPayment();
   const premium = useMemo(() => isPremium(), [isPremium]);
   const scrollRef = useRef<ScrollView>(null);
   const pendingSubmissionRef = useRef<AdvisorSession | null>(null);
@@ -379,6 +384,7 @@ const AdvisorScreen: React.FC = () => {
   const [subscriptionModalVisible, setSubscriptionModalVisible] =
     useState(false);
   const [paymentSheetVisible, setPaymentSheetVisible] = useState(false);
+  const [nativePaymentActive, setNativePaymentActive] = useState(false);
 
   const timezone = useMemo(() => {
     try {
@@ -872,36 +878,47 @@ const AdvisorScreen: React.FC = () => {
   }, [activeSession, executeAdvisorRequest, premium]);
 
   const handleSubscriptionModalClose = useCallback(() => {
-    if (isUpgrading) return;
+    if (isUpgrading || nativePaymentActive) return;
 
     pendingSubmissionRef.current = null;
     setSubscriptionModalVisible(false);
-  }, [isUpgrading]);
+  }, [isUpgrading, nativePaymentActive]);
 
   const handleSubscriptionContinue = useCallback(() => {
     setPaymentSheetVisible(true);
   }, []);
 
   const handlePaymentMethodSelect = useCallback(
-    async (_method: PaywallPaymentMethod) => {
-      // Stripe/Apple SDK flows are not wired yet; keep the existing upgrade path.
-      const result = await upgrade(SubscriptionTier.PREMIUM, 'mock');
+    async (method: PaywallPaymentMethod) => {
+      if (method === 'apple') return;
 
-      if (!result.success) {
+      try {
+        setPaymentSheetVisible(false);
+        await waitForPaymentMethodSheetDismiss();
+
+        setNativePaymentActive(true);
+        const result = await startStripePayment(SubscriptionTier.PREMIUM);
+        setNativePaymentActive(false);
+
+        if (!result.success) {
+          return;
+        }
+
+        await refetch();
+      } catch (error: any) {
+        setNativePaymentActive(false);
         Alert.alert(
           t('common.errors.generic', 'Error'),
-          t(
-            'subscription.errorMessage',
-            'Failed to upgrade subscription. Please try again.'
-          )
+          error.response?.data?.message ||
+            error.message ||
+            t(
+              'subscription.errorMessage',
+              'Failed to upgrade subscription. Please try again.'
+            )
         );
-        return;
       }
-
-      setPaymentSheetVisible(false);
-      await refetch();
     },
-    [refetch, t, upgrade]
+    [refetch, startStripePayment, t]
   );
 
   useEffect(() => {
@@ -1139,15 +1156,15 @@ const AdvisorScreen: React.FC = () => {
       <SubscriptionRequiredModal
         visible={subscriptionModalVisible}
         description={t('advisor.premium.gateDescription')}
-        processing={isUpgrading}
+        processing={isUpgrading || nativePaymentActive}
         onClose={handleSubscriptionModalClose}
         onContinue={handleSubscriptionContinue}
       />
       <PaymentMethodSheet
         visible={paymentSheetVisible}
-        processing={isUpgrading}
+        processing={isUpgrading || nativePaymentActive}
         onClose={() => {
-          if (!isUpgrading) {
+          if (!isUpgrading && !nativePaymentActive) {
             setPaymentSheetVisible(false);
           }
         }}

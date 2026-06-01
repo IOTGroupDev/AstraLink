@@ -45,6 +45,7 @@ const PaymentMethodSheet: React.FC<PaymentMethodSheetProps> = ({
     icon: keyof typeof Ionicons.glyphMap;
     title: string;
     subtitle: string;
+    disabled?: boolean;
   }> = [
     {
       key: 'stripe',
@@ -65,6 +66,7 @@ const PaymentMethodSheet: React.FC<PaymentMethodSheetProps> = ({
               'subscription.paymentSheet.apple.subtitle',
               'Native payment on iPhone'
             ),
+            disabled: true,
           },
         ]
       : []),
@@ -198,9 +200,16 @@ const PaymentMethodSheet: React.FC<PaymentMethodSheetProps> = ({
               <TouchableOpacity
                 key={method.key}
                 activeOpacity={0.84}
-                disabled={processing}
-                onPress={() => onSelect(method.key)}
-                style={[styles.methodButton, processing && styles.disabled]}
+                disabled={processing || method.disabled}
+                onPress={() => {
+                  if (!method.disabled) {
+                    onSelect(method.key);
+                  }
+                }}
+                style={[
+                  styles.methodButton,
+                  (processing || method.disabled) && styles.disabled,
+                ]}
               >
                 <View style={styles.methodIcon}>
                   <Ionicons name={method.icon} size={22} color="#FFFFFF" />
@@ -209,8 +218,14 @@ const PaymentMethodSheet: React.FC<PaymentMethodSheetProps> = ({
                   <Text style={styles.methodTitle}>{method.title}</Text>
                   <Text style={styles.methodSubtitle}>{method.subtitle}</Text>
                 </View>
-                {processing ? (
+                {processing && !method.disabled ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : method.disabled ? (
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color="rgba(255, 255, 255, 0.54)"
+                  />
                 ) : (
                   <Ionicons
                     name="chevron-forward"
