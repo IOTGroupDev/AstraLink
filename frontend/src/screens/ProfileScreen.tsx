@@ -864,75 +864,69 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           )}
 
           {/* Natal Chart Section */}
-          {chart && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {t('profile.sections.natalChart')}
-              </Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t('profile.sections.natalChart')}
+            </Text>
+            {chart && (
               <View style={styles.chartWidget}>
                 <NatalChartGlow />
                 <NatalChartWidget chart={chart} />
               </View>
+            )}
 
-              <View style={styles.natalActions}>
-                {natalActions.map((action) => (
-                  <TouchableOpacity
-                    key={action.label}
-                    style={styles.natalActionButton}
-                    onPress={action.onPress}
-                    activeOpacity={0.85}
+            <View style={styles.natalActions}>
+              {natalActions.map((action) => (
+                <TouchableOpacity
+                  key={action.label}
+                  style={styles.natalActionButton}
+                  onPress={action.onPress}
+                  activeOpacity={0.85}
+                >
+                  <GradientBorderView
+                    colors={
+                      action.featured
+                        ? [
+                            'rgba(210, 164, 255, 0.55)',
+                            'rgba(109, 45, 150, 0.3)',
+                          ]
+                        : [
+                            'rgba(135, 98, 154, 0.35)',
+                            'rgba(135, 98, 154, 0.08)',
+                          ]
+                    }
+                    style={styles.natalActionBorder}
+                    contentStyle={styles.natalActionBorderContent}
                   >
-                    <GradientBorderView
+                    <LinearGradient
                       colors={
                         action.featured
                           ? [
-                              'rgba(210, 164, 255, 0.55)',
-                              'rgba(109, 45, 150, 0.3)',
+                              'rgba(97, 32, 129, 0.22)',
+                              'rgba(173, 58, 231, 0.34)',
                             ]
                           : [
-                              'rgba(135, 98, 154, 0.35)',
-                              'rgba(135, 98, 154, 0.08)',
+                              'rgba(97, 32, 129, 0.07)',
+                              'rgba(173, 58, 231, 0.13)',
                             ]
                       }
-                      style={styles.natalActionBorder}
-                      contentStyle={styles.natalActionBorderContent}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.natalActionGradient}
                     >
-                      <LinearGradient
-                        colors={
-                          action.featured
-                            ? [
-                                'rgba(97, 32, 129, 0.22)',
-                                'rgba(173, 58, 231, 0.34)',
-                              ]
-                            : [
-                                'rgba(97, 32, 129, 0.07)',
-                                'rgba(173, 58, 231, 0.13)',
-                              ]
-                        }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.natalActionGradient}
-                      >
-                        <Ionicons
-                          name={action.icon}
-                          size={24}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.natalActionText}>
-                          {action.label}
-                        </Text>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={22}
-                          color="#FFFFFF"
-                        />
-                      </LinearGradient>
-                    </GradientBorderView>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                      <Ionicons name={action.icon} size={24} color="#FFFFFF" />
+                      <Text style={styles.natalActionText}>{action.label}</Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                    </LinearGradient>
+                  </GradientBorderView>
+                </TouchableOpacity>
+              ))}
             </View>
-          )}
+          </View>
 
           {/* Settings Section */}
           <View style={styles.section}>
