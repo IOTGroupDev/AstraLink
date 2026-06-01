@@ -3,7 +3,7 @@
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
+import * as Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SubscriptionTier,
