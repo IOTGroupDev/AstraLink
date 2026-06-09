@@ -10,6 +10,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import AdvisorChatScreen from '../screens/AdvisorChatScreen';
 import HoroscopeScreen from '../screens/HoroscopeScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import NatalChartScreen from '../screens/NatalChartScreen';
 import { useNavigation } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import ProfileCompletionModal from '../components/modals/ProfileCompletionModal';
@@ -59,6 +60,8 @@ const getIconName = (routeName: string): keyof typeof Ionicons.glyphMap => {
     case 'Advisor':
     case 'Messages':
       return 'chatbubbles-outline';
+    case 'Chart':
+      return 'sparkles-outline';
     case 'Profile':
       return 'person-circle-outline';
     default:
@@ -105,6 +108,7 @@ export default function TabNavigator() {
       horoscope: t('common.tabs.horoscope'),
       dating: t('common.tabs.dating'),
       messages: t('common.tabs.messages'),
+      chart: t('common.tabs.chart'),
       advisor: t('common.tabs.advisor'),
       profile: t('common.tabs.profile'),
     }),
@@ -301,11 +305,11 @@ export default function TabNavigator() {
           }}
         />
         <Tab.Screen
-          name="Messages"
-          component={ChatListScreen}
+          name="Chart"
+          component={NatalChartScreen}
           options={{
-            title: tabLabels.messages,
-            tabBarLabel: tabLabels.messages,
+            title: tabLabels.chart,
+            tabBarLabel: tabLabels.chart,
             headerShown: false,
           }}
         />
@@ -325,6 +329,16 @@ export default function TabNavigator() {
             title: tabLabels.profile,
             tabBarLabel: tabLabels.profile,
             headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Messages"
+          component={ChatListScreen}
+          options={{
+            title: tabLabels.messages,
+            headerShown: false,
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: 'none' },
           }}
         />
       </Tab.Navigator>

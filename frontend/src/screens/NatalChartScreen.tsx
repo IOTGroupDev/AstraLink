@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  StatusBar,
   StyleProp,
   ViewStyle,
 } from 'react-native';
@@ -30,9 +31,15 @@ import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScree
 import { GradientBorderView } from '../components/shared';
 import { logger } from '../services/logger';
 import { readHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
+import { theme } from '../styles/theme';
 
 interface NatalChartScreenProps {
   navigation: any;
+  route?: {
+    name?: string;
+  };
 }
 
 interface PlanetData {
@@ -490,7 +497,13 @@ const getHouseForLongitude = (
   return 1;
 };
 
-const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
+const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
+  navigation,
+  route,
+}) => {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
+  const showBackButton = route?.name !== 'Chart';
   const { t, i18n } = useTranslation();
   const { subscription } = useSubscription();
   const prevTierRef = useRef<string | undefined>(subscription?.tier);
@@ -3050,10 +3063,21 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <TabScreenLayout>
+    <TabScreenLayout
+      scrollable={false}
+      edges={['left', 'right']}
+      contentContainerStyle={styles.layoutContent}
+    >
+      <StatusBar barStyle="light-content" />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 12,
+            paddingBottom: Math.max(72, tabBarHeight + 44),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -3065,19 +3089,43 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
         }
       >
         {/* Заголовок */}
-        <BlurView intensity={20} tint="dark" style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
+        <GradientBorderView
+          colors={[
+            'rgba(237, 164, 255, 0.55)',
+            'rgba(135, 98, 154, 0.22)',
+            'rgba(255, 255, 255, 0.04)',
+          ]}
+          gradientProps={{
+            locations: [0, 0.48, 1],
+            start: { x: 0, y: 0 },
+            end: { x: 1, y: 1 },
+          }}
+          style={styles.header}
+          contentStyle={styles.headerContent}
+        >
+          <LinearGradient
+            colors={['rgba(88, 1, 114, 0.5)', 'rgba(8, 14, 28, 0.78)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradient}
           >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerIconContainer}>
-            <Ionicons name="planet" size={60} color="#8B5CF6" />
-          </View>
-          <Text style={styles.headerTitle}>{t('natalChart.title')}</Text>
-          <Text style={styles.headerSubtitle}>{t('natalChart.subtitle')}</Text>
-        </BlurView>
+            {showBackButton && (
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+            <View style={styles.headerIconContainer}>
+              <Ionicons name="sparkles-outline" size={26} color="#F1C5FF" />
+            </View>
+            <Text style={styles.headerTitle}>{t('natalChart.title')}</Text>
+            <Text style={styles.headerSubtitle}>
+              {t('natalChart.subtitle')}
+            </Text>
+          </LinearGradient>
+        </GradientBorderView>
 
         {/* Вкладки */}
         <ScrollView
@@ -3228,11 +3276,16 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  layoutContent: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
   container: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingHorizontal: theme.spacing.lg,
   },
   errorContainer: {
     flex: 1,
@@ -3248,10 +3301,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 30,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: theme.borderRadius.full,
   },
   retryButtonText: {
     color: '#FFFFFF',
@@ -3261,14 +3314,20 @@ const styles = StyleSheet.create({
 
   // Заголовок
   header: {
-    marginHorizontal: 8,
-    borderRadius: 16,
-    padding: 10,
-    alignItems: 'center',
-    overflow: 'hidden',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 20,
+    marginBottom: 24,
+  },
+  headerContent: {
+    borderRadius: 23,
+    overflow: 'hidden',
+  },
+  headerGradient: {
+    minHeight: 220,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   },
   backButton: {
@@ -3278,57 +3337,62 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     zIndex: 10,
   },
   headerIconContainer: {
-    width: 60,
-    height: 60,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(241, 197, 255, 0.28)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 18,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 10,
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '500',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: 20,
+    fontSize: 16,
+    lineHeight: 23,
     fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 10,
+    color: theme.colors.textSecondary,
+    marginTop: 8,
     textAlign: 'center',
   },
 
   // Вкладки
   tabsContainer: {
-    marginBottom: 20,
+    marginHorizontal: -16,
+    marginBottom: 24,
   },
   tabsContent: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     gap: 8,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingHorizontal: 15,
+    paddingVertical: 11,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.045)',
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   activeTab: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderColor: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
+    borderColor: 'rgba(196, 181, 253, 0.55)',
   },
   tabText: {
     fontSize: 14,
@@ -3343,17 +3407,17 @@ const styles = StyleSheet.create({
 
   // Контент
   content: {
-    paddingHorizontal: 8,
     gap: 16,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(135, 98, 154, 0.22)',
+    backgroundColor: 'rgba(15, 18, 38, 0.72)',
   },
   cardInner: {
-    padding: 16,
+    padding: 20,
   },
   premiumNarrativeTouchable: {
     borderRadius: 12,
