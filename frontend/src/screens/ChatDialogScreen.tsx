@@ -31,6 +31,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -54,6 +56,23 @@ type Message = {
   createdAt: string;
   mediaUrl?: string | null;
   deliveryStatus?: 'pending' | 'failed';
+  readAt?: string | null;
+};
+
+type MessageVisualStatus = 'pending' | 'failed' | 'sent' | 'read' | 'received';
+
+const MESSAGE_STATUS_ICON: Record<
+  MessageVisualStatus,
+  { name: keyof typeof Ionicons.glyphMap; color: string }
+> = {
+  pending: { name: 'time-outline', color: 'rgba(255,255,255,0.72)' },
+  failed: { name: 'alert-circle-outline', color: '#FF8C9A' },
+  sent: { name: 'checkmark', color: 'rgba(255,255,255,0.72)' },
+  read: { name: 'checkmark-done', color: '#B98AE0' },
+  received: {
+    name: 'checkmark-circle-outline',
+    color: 'rgba(255,255,255,0.72)',
+  },
 };
 
 const USER_PHOTOS_BUCKET = 'user-photos';
@@ -97,6 +116,36 @@ const resolveMediaStorageTarget = (
     path: mediaPath,
   };
 };
+
+function MessageMetadata({
+  time,
+  status,
+  overlay = false,
+}: {
+  time: string;
+  status: MessageVisualStatus;
+  overlay?: boolean;
+}) {
+  const icon = MESSAGE_STATUS_ICON[status];
+
+  return (
+    <View style={[styles.messageMetadata, overlay && styles.mediaMetadata]}>
+      <Text numberOfLines={1} style={styles.time}>
+        {time}
+      </Text>
+      <View style={styles.messageStatusSlot}>
+        <Animated.View
+          key={status}
+          entering={FadeIn.duration(140)}
+          exiting={FadeOut.duration(140)}
+          style={styles.messageStatusIcon}
+        >
+          <Ionicons name={icon.name} size={13} color={icon.color} />
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
 
 export default function ChatDialogScreen() {
   const backgroundOpacity = useSharedValue(0.9);
@@ -163,11 +212,16 @@ export default function ChatDialogScreen() {
   const inputRef = useRef<TextInput>(null);
   const authAlertShown = useRef(false);
   const initialScrollPendingRef = useRef(true);
-  const keyboardScrollPendingRef = useRef(false);
+  const keepAtBottomPendingRef = useRef(false);
+  const pendingScrollDeltaRef = useRef(0);
+  const isNearBottomRef = useRef(true);
+  const scrollOffsetRef = useRef(0);
   const composerBottomPadding = keyboardVisible ? 8 : inputBottomPadding;
   const keyboardOverlayInset = Platform.OS === 'ios' ? keyboardContentInset : 0;
   const messagesFooterHeight =
     keyboardOverlayInset + composerBottomPadding + 8 + composerHeight + 16;
+  const previousFooterHeightRef = useRef(messagesFooterHeight);
+  const previousKeyboardInsetRef = useRef(keyboardContentInset);
 
   const scrollToLatestMessage = useCallback(() => {
     requestAnimationFrame(() => {
@@ -187,6 +241,8 @@ export default function ChatDialogScreen() {
 
   useEffect(() => {
     initialScrollPendingRef.current = true;
+    isNearBottomRef.current = true;
+    scrollOffsetRef.current = 0;
   }, [otherUserId]);
 
   useEffect(() => {
@@ -196,21 +252,75 @@ export default function ChatDialogScreen() {
     settleAtLatestMessage();
   }, [loading, messages.length, settleAtLatestMessage]);
 
+  const queueViewportAdjustment = useCallback((delta: number) => {
+    if (!delta || initialScrollPendingRef.current) return;
+    if (isNearBottomRef.current) {
+      keepAtBottomPendingRef.current = true;
+    } else {
+      pendingScrollDeltaRef.current += delta;
+    }
+  }, []);
+
   useEffect(() => {
-    if (!keyboardVisible || keyboardContentInset <= 0) return;
-    keyboardScrollPendingRef.current = true;
-    settleAtLatestMessage();
-  }, [keyboardContentInset, keyboardVisible, settleAtLatestMessage]);
+    const previousHeight = previousFooterHeightRef.current;
+    previousFooterHeightRef.current = messagesFooterHeight;
+    queueViewportAdjustment(messagesFooterHeight - previousHeight);
+  }, [messagesFooterHeight, queueViewportAdjustment]);
+
+  useEffect(() => {
+    const previousInset = previousKeyboardInsetRef.current;
+    previousKeyboardInsetRef.current = keyboardContentInset;
+    if (Platform.OS === 'android') {
+      queueViewportAdjustment(keyboardContentInset - previousInset);
+    }
+  }, [keyboardContentInset, queueViewportAdjustment]);
 
   const handleMessagesLayoutReady = useCallback(() => {
-    if (!initialScrollPendingRef.current && !keyboardScrollPendingRef.current) {
+    if (
+      !initialScrollPendingRef.current &&
+      !keepAtBottomPendingRef.current &&
+      pendingScrollDeltaRef.current === 0
+    ) {
       return;
     }
 
-    settleAtLatestMessage();
+    if (initialScrollPendingRef.current || keepAtBottomPendingRef.current) {
+      settleAtLatestMessage();
+    } else if (pendingScrollDeltaRef.current !== 0) {
+      const nextOffset = Math.max(
+        0,
+        scrollOffsetRef.current + pendingScrollDeltaRef.current
+      );
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({
+          offset: nextOffset,
+          animated: false,
+        });
+      });
+      scrollOffsetRef.current = nextOffset;
+    }
     initialScrollPendingRef.current = false;
-    keyboardScrollPendingRef.current = false;
+    keepAtBottomPendingRef.current = false;
+    pendingScrollDeltaRef.current = 0;
   }, [settleAtLatestMessage]);
+
+  const handleMessagesScroll = useCallback(
+    (event: {
+      nativeEvent: {
+        contentOffset: { y: number };
+        contentSize: { height: number };
+        layoutMeasurement: { height: number };
+      };
+    }) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      scrollOffsetRef.current = contentOffset.y;
+      const distanceFromBottom =
+        contentSize.height - layoutMeasurement.height - contentOffset.y;
+      isNearBottomRef.current = distanceFromBottom <= 80;
+    },
+    []
+  );
 
   const insertEmoji = useCallback(
     (emoji: string) => {
@@ -301,6 +411,7 @@ export default function ChatDialogScreen() {
           mediaPath: mp,
           createdAt: it.createdAt,
           mediaUrl: mu ?? null,
+          readAt: it.readAt ?? null,
         };
       });
 
@@ -385,13 +496,12 @@ export default function ChatDialogScreen() {
   useEffect(() => {
     const showKeyboard = (event: KeyboardEvent) => {
       setKeyboardVisible(true);
-      keyboardScrollPendingRef.current = true;
+      const inset = Math.max(
+        0,
+        Dimensions.get('window').height - event.endCoordinates.screenY
+      );
+      setKeyboardContentInset(inset);
       if (Platform.OS === 'ios') {
-        const inset = Math.max(
-          0,
-          Dimensions.get('window').height - event.endCoordinates.screenY
-        );
-        setKeyboardContentInset(inset);
         keyboardInset.value = withTiming(inset, {
           duration: event.duration || 250,
           easing: Easing.out(Easing.cubic),
@@ -401,7 +511,6 @@ export default function ChatDialogScreen() {
     const hideKeyboard = (event: KeyboardEvent) => {
       setKeyboardVisible(false);
       setKeyboardContentInset(0);
-      keyboardScrollPendingRef.current = false;
       keyboardInset.value = withTiming(0, {
         duration: event.duration || 250,
         easing: Easing.out(Easing.cubic),
@@ -486,6 +595,7 @@ export default function ChatDialogScreen() {
                       ? recNew[pickKey(recNew, createdKeys)!]
                       : recNew.created_at) ?? new Date().toISOString(),
                   mediaUrl: mu ?? null,
+                  readAt: recNew.read_at ?? null,
                 };
 
                 if (localIdx !== -1) {
@@ -563,6 +673,10 @@ export default function ChatDialogScreen() {
                     : recNew.created_at !== undefined
                       ? recNew.created_at
                       : copy[idx].createdAt,
+                  readAt:
+                    recNew.read_at !== undefined
+                      ? recNew.read_at
+                      : copy[idx].readAt,
                 };
                 if (copy[idx].mediaPath && copy[idx].mediaUrl) {
                   mediaUrlCacheRef.current[copy[idx].mediaPath!] =
@@ -613,6 +727,7 @@ export default function ChatDialogScreen() {
                       ? recNew[createdKey0]
                       : recNew.created_at,
                     mediaUrl: mu0 ?? null,
+                    readAt: recNew.read_at ?? null,
                   } as Message,
                 ];
                 if (mp0 && !mu0) {
@@ -973,6 +1088,22 @@ export default function ChatDialogScreen() {
     ({ item }: { item: Message }) => {
       if (!user) return null;
       const isMine = item.senderId === user.id;
+      const hasImage = Boolean(item.mediaUrl);
+      const visualStatus: MessageVisualStatus = item.deliveryStatus
+        ? item.deliveryStatus
+        : isMine
+          ? item.readAt
+            ? 'read'
+            : 'sent'
+          : 'received';
+      const formattedTime = new Date(item.createdAt).toLocaleTimeString(
+        i18n.language === 'ru'
+          ? 'ru-RU'
+          : i18n.language === 'es'
+            ? 'es-ES'
+            : 'en-US',
+        { hour: '2-digit', minute: '2-digit' }
+      );
       return (
         <View
           style={[
@@ -1005,6 +1136,7 @@ export default function ChatDialogScreen() {
               contentStyle={[
                 styles.bubble,
                 isMine ? styles.bubbleMine : styles.bubbleOther,
+                hasImage && styles.imageBubble,
               ]}
             >
               {item.text ? (
@@ -1024,31 +1156,11 @@ export default function ChatDialogScreen() {
               ) : (
                 <Text style={styles.msgText}>—</Text>
               )}
-              <Text style={styles.time}>
-                {new Date(item.createdAt).toLocaleTimeString(
-                  i18n.language === 'ru'
-                    ? 'ru-RU'
-                    : i18n.language === 'es'
-                      ? 'es-ES'
-                      : 'en-US',
-                  {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }
-                )}
-              </Text>
-              {item.deliveryStatus ? (
-                <Text
-                  style={[
-                    styles.deliveryStatus,
-                    item.deliveryStatus === 'failed' && styles.deliveryFailed,
-                  ]}
-                >
-                  {item.deliveryStatus === 'pending'
-                    ? 'Sending…'
-                    : 'Failed to send'}
-                </Text>
-              ) : null}
+              <MessageMetadata
+                time={formattedTime}
+                status={visualStatus}
+                overlay={hasImage}
+              />
             </GradientBorderView>
           </Pressable>
         </View>
@@ -1262,6 +1374,9 @@ export default function ChatDialogScreen() {
               />
             }
             onContentSizeChange={handleMessagesLayoutReady}
+            onLayout={handleMessagesLayoutReady}
+            onScroll={handleMessagesScroll}
+            scrollEventThrottle={16}
           />
         )}
 
@@ -1298,9 +1413,10 @@ export default function ChatDialogScreen() {
             style={styles.composerRow}
             onLayout={(event) => {
               const nextHeight = Math.ceil(event.nativeEvent.layout.height);
-              setComposerHeight((current) =>
-                current === nextHeight ? current : nextHeight
-              );
+              setComposerHeight((current) => {
+                if (current === nextHeight) return current;
+                return nextHeight;
+              });
             }}
           >
             <Pressable
@@ -1649,6 +1765,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
+  imageBubble: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    position: 'relative',
+  },
   bubbleMine: {
     borderTopLeftRadius: 11,
     borderTopRightRadius: 11,
@@ -1672,25 +1793,45 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mediaImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 12,
+    width: 220,
+    height: 220,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  time: {
+  messageMetadata: {
+    height: 18,
     marginTop: 4,
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  mediaMetadata: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    height: 22,
+    marginTop: 0,
+    paddingHorizontal: 7,
+    borderRadius: 11,
+    backgroundColor: 'rgba(8,14,28,0.68)',
+  },
+  time: {
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 9,
-    alignSelf: 'flex-end',
+    lineHeight: 12,
   },
-  deliveryStatus: {
-    marginTop: 2,
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 10,
-    lineHeight: 13,
-    alignSelf: 'flex-end',
+  messageStatusSlot: {
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  deliveryFailed: { color: '#FF8C9A' },
+  messageStatusIcon: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   inputContainer: {
     position: 'absolute',
     left: 0,

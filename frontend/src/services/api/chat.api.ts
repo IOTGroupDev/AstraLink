@@ -46,6 +46,7 @@ export const chatAPI = {
       mediaPath: string | null;
       createdAt: string;
       mediaUrl?: string | null;
+      readAt?: string | null;
     }>
   > => {
     const response = await api.get(

@@ -29,6 +29,7 @@ export interface ChatMessage {
   mediaPath: string | null;
   createdAt: string;
   mediaUrl?: string | null;
+  readAt?: string | null;
 }
 
 export interface ChatConversation {
@@ -594,6 +595,7 @@ export class ChatService {
         mediaPath,
         createdAt,
         mediaUrl,
+        readAt: r.read_at ? normalizeDate(r.read_at) : null,
       } as ChatMessage;
     });
 
