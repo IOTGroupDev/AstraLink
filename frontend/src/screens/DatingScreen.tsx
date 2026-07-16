@@ -54,6 +54,7 @@ const DISCOVERY_ACTIONS_HEIGHT = 106;
 const DISCOVERY_ACTIONS_TOP_PADDING = 16;
 const DISCOVERY_ACTIONS_BOTTOM_PADDING = 26;
 const DISCOVERY_BACKDROP_EXTRA_HEIGHT = 30;
+const SHOW_MATCH_FILTERS = false;
 
 const matchFilters: Array<{ key: MatchFilter; label: string }> = [
   { key: 'all', label: 'All' },
@@ -149,7 +150,7 @@ export default function DatingScreen() {
   const discoveryBackdropHeight = cardHeight + DISCOVERY_BACKDROP_EXTRA_HEIGHT;
 
   useEffect(() => {
-    backgroundOpacity.value = withTiming(tab === 'discovery' ? 0.9 : 0.45, {
+    backgroundOpacity.value = withTiming(tab === 'discovery' ? 0.9 : 0.3, {
       duration: 360,
       easing: Easing.inOut(Easing.cubic),
     });
@@ -531,27 +532,32 @@ export default function DatingScreen() {
         />
       }
       ListHeaderComponent={
-        <View style={styles.filtersRow}>
-          <Pressable style={styles.filterIcon}>
-            <Ionicons name="filter" size={20} color="#FFFFFF" />
-          </Pressable>
-          {matchFilters.map((filter) => {
-            const active = filter.key === matchFilter;
-            return (
-              <Pressable
-                key={filter.key}
-                onPress={() => setMatchFilter(filter.key)}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-              >
-                <Text
-                  style={[styles.filterText, active && styles.filterTextActive]}
+        SHOW_MATCH_FILTERS ? (
+          <View style={styles.filtersRow}>
+            <Pressable style={styles.filterIcon}>
+              <Ionicons name="filter" size={20} color="#FFFFFF" />
+            </Pressable>
+            {matchFilters.map((filter) => {
+              const active = filter.key === matchFilter;
+              return (
+                <Pressable
+                  key={filter.key}
+                  onPress={() => setMatchFilter(filter.key)}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
                 >
-                  {filter.label} {filterCount(filter.key)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.filterText,
+                      active && styles.filterTextActive,
+                    ]}
+                  >
+                    {filter.label} {filterCount(filter.key)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null
       }
       ListEmptyComponent={
         loadingMatches ? (

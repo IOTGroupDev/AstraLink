@@ -190,7 +190,9 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
         </View>
 
         <View style={styles.trailing}>
-          <Text style={styles.time}>{formatTime(item.lastMessageAt)}</Text>
+          <Text numberOfLines={1} ellipsizeMode="clip" style={styles.time}>
+            {formatTime(item.lastMessageAt)}
+          </Text>
           {unread > 0 ? (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadText}>
@@ -313,13 +315,20 @@ const styles = StyleSheet.create({
   name: { color: '#F1F0F3', fontSize: 17, lineHeight: 21, fontWeight: '500' },
   preview: { color: '#8E899B', fontSize: 15, lineHeight: 19, marginTop: 1 },
   trailing: {
-    width: 48,
+    width: 66,
+    flexShrink: 0,
     minHeight: 48,
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingVertical: 2,
   },
-  time: { color: '#9690A1', fontSize: 14 },
+  time: {
+    width: '100%',
+    color: '#9690A1',
+    fontSize: 14,
+    lineHeight: 18,
+    textAlign: 'right',
+  },
   unreadBadge: {
     minWidth: 19,
     height: 19,

@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { GradientBorderView } from '../shared';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../shared';
 
 export type DatingTab = 'discovery' | 'matched' | 'messages';
 
@@ -43,23 +47,15 @@ export function DatingTabBar({ value, onChange }: Props) {
 
   return (
     <GradientBorderView
-      colors={['rgba(255,255,255,0.42)', 'rgba(124,119,153,0.32)']}
+      colors={DATING_GLASS_BORDER_COLORS}
       gradientProps={{
         locations: [0, 1],
-        start: { x: 0.5, y: 0 },
-        end: { x: 0.5, y: 1 },
+        ...DATING_GLASS_BORDER_GRADIENT,
       }}
       style={styles.shell}
       contentStyle={styles.shellContent}
     >
-      <BlurView
-        pointerEvents="none"
-        intensity={56}
-        tint="dark"
-        experimentalBlurMethod="dimezisBlurView"
-        style={StyleSheet.absoluteFill}
-      />
-      <View pointerEvents="none" style={styles.shellTint} />
+      <DatingGlassFill />
       <View
         style={styles.tabs}
         onLayout={(event) => setTabsWidth(event.nativeEvent.layout.width)}
@@ -105,10 +101,6 @@ const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  shellTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8,14,28,0.08)',
-  },
   tabs: {
     flex: 1,
     flexDirection: 'row',
@@ -119,7 +111,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    borderRadius: 30,
+    borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   tab: {
@@ -127,7 +119,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 30,
+    borderRadius: 24,
     zIndex: 1,
   },
   label: {

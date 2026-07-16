@@ -18,6 +18,12 @@ import { logger } from '../services/logger';
 import type { RootStackParamList } from '../types/navigation';
 import advisorBackground from '../../assets/advisor-bg.png';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DatingProfile'>;
 type PublicProfile = Awaited<ReturnType<typeof datingAPI.getProfile>>;
@@ -46,7 +52,8 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
   );
   const [loading, setLoading] = useState(true);
   const [moderationBusy, setModerationBusy] = useState(false);
-  const headerHeight = insets.top + 83;
+  const headerTopPadding = insets.top + 10;
+  const headerHeight = headerTopPadding + 48;
 
   useEffect(() => {
     let mounted = true;
@@ -275,35 +282,57 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
         </Pressable>
       </ScrollView>
 
-      <View style={[styles.fixedHeader, { paddingTop: insets.top + 10 }]}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(25,20,57,0.78)',
+          'rgba(25,20,57,0.4)',
+          'rgba(25,20,57,0)',
+        ]}
+        locations={[0, 0.62, 1]}
+        style={[styles.headerFade, { height: headerHeight + 44 }]}
+      />
+      <View
+        style={[
+          styles.fixedHeader,
+          { paddingTop: headerTopPadding, height: headerHeight },
+        ]}
+      >
         <Pressable
-          style={styles.backButton}
+          style={styles.headerCirclePressable}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+          <GradientBorderView
+            colors={DATING_GLASS_BORDER_COLORS}
+            gradientProps={DATING_GLASS_BORDER_GRADIENT}
+            style={styles.headerCircleBorder}
+            contentStyle={[styles.datingGlassContent, styles.backButton]}
+          >
+            <DatingGlassFill />
+            <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+          </GradientBorderView>
         </Pressable>
-        <View style={styles.titlePill}>
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            {title}
-          </Text>
-          <Text style={styles.headerSubtitle}>
-            {zodiac ?? ''}
-            {zodiac ? ' · ' : ''}
-            <Text style={online ? styles.onlineText : styles.offlineText}>
-              {online ? t('chat.header.online') : t('chat.header.offline')}
+        <GradientBorderView
+          colors={DATING_GLASS_BORDER_COLORS}
+          gradientProps={DATING_GLASS_BORDER_GRADIENT}
+          style={styles.titlePillBorder}
+          contentStyle={[styles.datingGlassContent, styles.titlePill]}
+        >
+          <DatingGlassFill />
+          <View style={styles.titlePillContent}>
+            <Text numberOfLines={1} style={styles.headerTitle}>
+              {title}
             </Text>
-          </Text>
-        </View>
+            <Text style={styles.headerSubtitle}>
+              {zodiac ?? ''}
+              {zodiac ? ' · ' : ''}
+              <Text style={online ? styles.onlineText : styles.offlineText}>
+                {online ? t('chat.header.online') : t('chat.header.offline')}
+              </Text>
+            </Text>
+          </View>
+        </GradientBorderView>
         <View style={styles.headerSpacer} />
-        <LinearGradient
-          pointerEvents="none"
-          colors={[
-            'rgba(25,20,57,0.98)',
-            'rgba(25,20,57,0.72)',
-            'rgba(25,20,57,0)',
-          ]}
-          style={styles.headerFade}
-        />
       </View>
     </View>
   );
@@ -315,7 +344,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
-    opacity: 0.9,
+    opacity: 0.3,
   },
   content: { paddingHorizontal: 23, paddingBottom: 44 },
   fixedHeader: {
@@ -330,36 +359,49 @@ const styles = StyleSheet.create({
   },
   headerFade: {
     position: 'absolute',
-    top: 63,
-    left: -24,
-    right: -24,
-    height: 45,
-    zIndex: -1,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 19,
+  },
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   backButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    borderWidth: 1,
-    borderColor: 'rgba(124,124,157,0.42)',
-    backgroundColor: 'rgba(45,45,78,0.82)',
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerSpacer: { width: 45 },
-  titlePill: {
+  headerSpacer: { width: 48 },
+  titlePillBorder: {
     minWidth: 137,
     maxWidth: 210,
-    minHeight: 45,
+    height: 48,
     borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  titlePill: {
+    height: 45.8,
+    borderRadius: 22.9,
     paddingHorizontal: 20,
-    paddingVertical: 5,
+    paddingVertical: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(52,51,86,0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(129,126,163,0.48)',
   },
+  titlePillContent: { alignItems: 'center' },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 17,

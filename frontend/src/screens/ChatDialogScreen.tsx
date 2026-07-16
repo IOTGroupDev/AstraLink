@@ -1,13 +1,8 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
+  Dimensions,
   Platform,
   Pressable,
   StyleSheet,
@@ -18,6 +13,7 @@ import {
   Alert,
   Keyboard,
   BackHandler,
+  type KeyboardEvent,
 } from 'react-native';
 import {
   useNavigation,
@@ -42,6 +38,12 @@ import Animated, {
 import { logger } from '../services/logger';
 import advisorBackground from '../../assets/advisor-bg.png';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
 
 type Message = {
   id: string;
@@ -51,11 +53,34 @@ type Message = {
   mediaPath: string | null;
   createdAt: string;
   mediaUrl?: string | null;
+  deliveryStatus?: 'pending' | 'failed';
 };
 
 const USER_PHOTOS_BUCKET = 'user-photos';
 const CHAT_MEDIA_BUCKET = 'chat-media';
 const CHAT_MEDIA_PREFIX = `${CHAT_MEDIA_BUCKET}:`;
+const CHAT_EMOJIS = [
+  '😀',
+  '😂',
+  '🥰',
+  '😍',
+  '😊',
+  '😉',
+  '😌',
+  '😘',
+  '🤗',
+  '🤔',
+  '😅',
+  '🥹',
+  '😇',
+  '🙈',
+  '🔥',
+  '✨',
+  '❤️',
+  '💜',
+  '👍',
+  '🙏',
+] as const;
 
 const resolveMediaStorageTarget = (
   mediaPath: string
@@ -75,6 +100,7 @@ const resolveMediaStorageTarget = (
 
 export default function ChatDialogScreen() {
   const backgroundOpacity = useSharedValue(0.9);
+  const keyboardInset = useSharedValue(0);
 
   useEffect(() => {
     backgroundOpacity.value = withTiming(0.45, {
@@ -86,17 +112,16 @@ export default function ChatDialogScreen() {
   const animatedBackgroundStyle = useAnimatedStyle(() => ({
     opacity: backgroundOpacity.value,
   }));
+  const animatedComposerStyle = useAnimatedStyle(() => ({
+    bottom: keyboardInset.value,
+  }));
   const { t, i18n } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
-  const keyboardVerticalOffset = useMemo(() => {
-    if (Platform.OS !== 'ios') return 0;
-    return (insets?.top || 0) + 120;
-  }, [insets?.top]);
-  const headerTopPadding = Math.max((insets?.top || 0) + 10, 20);
-  const headerHeight = headerTopPadding + 63;
+  const headerTopPadding = (insets?.top || 0) + 10;
+  const headerHeight = headerTopPadding + 48;
   const inputBottomPadding = Math.max((insets?.bottom || 0) + 8, 16);
 
   const otherUserId: string = route?.params?.otherUserId;
@@ -120,13 +145,93 @@ export default function ChatDialogScreen() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [text, setText] = useState('');
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [composerSelection, setComposerSelection] = useState({
+    start: 0,
+    end: 0,
+  });
+  const [multilineComposer, setMultilineComposer] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(44);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardContentInset, setKeyboardContentInset] = useState(0);
   const [otherProfile, setOtherProfile] = useState<{
     zodiacSign: string | null;
     lastActive: string | null;
     primaryPhotoUrl: string | null;
   } | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
+  const inputRef = useRef<TextInput>(null);
   const authAlertShown = useRef(false);
+  const initialScrollPendingRef = useRef(true);
+  const keyboardScrollPendingRef = useRef(false);
+  const composerBottomPadding = keyboardVisible ? 8 : inputBottomPadding;
+  const keyboardOverlayInset = Platform.OS === 'ios' ? keyboardContentInset : 0;
+  const messagesFooterHeight =
+    keyboardOverlayInset + composerBottomPadding + 8 + composerHeight + 16;
+
+  const scrollToLatestMessage = useCallback(() => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+    });
+  }, []);
+
+  const settleAtLatestMessage = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated: false });
+      });
+    });
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 120);
+  }, []);
+
+  useEffect(() => {
+    initialScrollPendingRef.current = true;
+  }, [otherUserId]);
+
+  useEffect(() => {
+    if (loading || messages.length === 0 || !initialScrollPendingRef.current) {
+      return;
+    }
+    settleAtLatestMessage();
+  }, [loading, messages.length, settleAtLatestMessage]);
+
+  useEffect(() => {
+    if (!keyboardVisible || keyboardContentInset <= 0) return;
+    keyboardScrollPendingRef.current = true;
+    settleAtLatestMessage();
+  }, [keyboardContentInset, keyboardVisible, settleAtLatestMessage]);
+
+  const handleMessagesLayoutReady = useCallback(() => {
+    if (!initialScrollPendingRef.current && !keyboardScrollPendingRef.current) {
+      return;
+    }
+
+    settleAtLatestMessage();
+    initialScrollPendingRef.current = false;
+    keyboardScrollPendingRef.current = false;
+  }, [settleAtLatestMessage]);
+
+  const insertEmoji = useCallback(
+    (emoji: string) => {
+      const start = Math.min(composerSelection.start, text.length);
+      const end = Math.min(Math.max(composerSelection.end, start), text.length);
+      if (text.length - (end - start) + emoji.length > 1000) return;
+
+      const nextText = `${text.slice(0, start)}${emoji}${text.slice(end)}`;
+      const nextCursor = start + emoji.length;
+      const nextSelection = { start: nextCursor, end: nextCursor };
+
+      setText(nextText);
+      setComposerSelection(nextSelection);
+      setEmojiPickerOpen(false);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setNativeProps({ selection: nextSelection });
+      });
+    },
+    [composerSelection.end, composerSelection.start, text]
+  );
 
   // Кэш подписанных URL по mediaPath, чтобы не мигало
   const mediaUrlCacheRef = useRef<Record<string, string>>({});
@@ -206,7 +311,17 @@ export default function ChatDialogScreen() {
         }
       }
 
-      setMessages(mapped);
+      setMessages((current) => {
+        const localMessages = current.filter(
+          (message) =>
+            message.deliveryStatus &&
+            !mapped.some((serverMessage) => serverMessage.id === message.id)
+        );
+        return [...mapped, ...localMessages].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
     } catch (e) {
       logger.error('Ошибка загрузки сообщений', e);
     } finally {
@@ -268,21 +383,45 @@ export default function ChatDialogScreen() {
   );
 
   useEffect(() => {
-    const s1 = Keyboard.addListener('keyboardWillShow', () => {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-    });
-    const s2 = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-    });
+    const showKeyboard = (event: KeyboardEvent) => {
+      setKeyboardVisible(true);
+      keyboardScrollPendingRef.current = true;
+      if (Platform.OS === 'ios') {
+        const inset = Math.max(
+          0,
+          Dimensions.get('window').height - event.endCoordinates.screenY
+        );
+        setKeyboardContentInset(inset);
+        keyboardInset.value = withTiming(inset, {
+          duration: event.duration || 250,
+          easing: Easing.out(Easing.cubic),
+        });
+      }
+    };
+    const hideKeyboard = (event: KeyboardEvent) => {
+      setKeyboardVisible(false);
+      setKeyboardContentInset(0);
+      keyboardScrollPendingRef.current = false;
+      keyboardInset.value = withTiming(0, {
+        duration: event.duration || 250,
+        easing: Easing.out(Easing.cubic),
+      });
+    };
+    const s1 = Keyboard.addListener('keyboardWillShow', showKeyboard);
+    const s2 = Keyboard.addListener('keyboardDidShow', showKeyboard);
+    const s3 = Keyboard.addListener('keyboardWillHide', hideKeyboard);
+    const s4 = Keyboard.addListener('keyboardDidHide', hideKeyboard);
     return () => {
       try {
         s1.remove();
         s2.remove();
+        s3.remove();
+        s4.remove();
       } catch (removeError) {
         logger.warn('Не удалось удалить keyboard listeners', removeError);
       }
     };
-  }, []);
+  }, [keyboardInset]);
 
   useEffect(() => {
     if (!user || !otherUserId) return;
@@ -549,38 +688,61 @@ export default function ChatDialogScreen() {
   const onSend = useCallback(async () => {
     const payload = text.trim();
     if (!payload || sending || !user || !otherUserId) return;
-    try {
-      setSending(true);
-      const response = await chatAPI.sendMessage(otherUserId, payload, null);
-      const now = new Date().toISOString();
-      const optimisticMessage: Message = {
-        id: response.id,
+    const localId = `local-text-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: localId,
         senderId: user.id,
         recipientId: otherUserId,
         text: payload,
         mediaPath: null,
-        createdAt: now,
-      };
+        createdAt: new Date().toISOString(),
+        deliveryStatus: 'pending',
+      },
+    ]);
+    setText('');
+    setComposerSelection({ start: 0, end: 0 });
+    requestAnimationFrame(() => inputRef.current?.focus());
+    scrollToLatestMessage();
+    try {
+      setSending(true);
+      const response = await chatAPI.sendMessage(otherUserId, payload, null);
       setMessages((prev) => {
-        if (prev.some((x) => x.id === response.id)) return prev;
-        return [...prev, optimisticMessage];
+        const alreadyReceived = prev.some(
+          (message) => message.id === response.id
+        );
+        if (alreadyReceived) {
+          return prev.filter((message) => message.id !== localId);
+        }
+        return prev.map((message) =>
+          message.id === localId
+            ? { ...message, id: response.id, deliveryStatus: undefined }
+            : message
+        );
       });
-      setText('');
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+      scrollToLatestMessage();
       setTimeout(() => {
         fetchMessages().catch(() => void 0);
       }, 500);
     } catch (error) {
       logger.error('Ошибка отправки сообщения', error);
-      Alert.alert(t('common.errors.generic'), t('chat.errors.failedToSend'));
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === localId
+            ? { ...message, deliveryStatus: 'failed' }
+            : message
+        )
+      );
     } finally {
       setSending(false);
     }
-  }, [text, sending, otherUserId, user, fetchMessages, t]);
+  }, [text, sending, user, otherUserId, scrollToLatestMessage, fetchMessages]);
 
   const onAttach = useCallback(async () => {
     if (uploading || sending) return;
     if (!user || !otherUserId) return;
+    let localId: string | null = null;
     try {
       setUploading(true);
       const { status } =
@@ -605,6 +767,21 @@ export default function ChatDialogScreen() {
         return;
       }
       const uri: string = asset.uri;
+      localId = `local-media-${Date.now()}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: localId as string,
+          senderId: user.id,
+          recipientId: otherUserId,
+          text: null,
+          mediaPath: null,
+          createdAt: new Date().toISOString(),
+          mediaUrl: uri,
+          deliveryStatus: 'pending',
+        },
+      ]);
+      scrollToLatestMessage();
       const name: string = asset.fileName || uri;
       const lower = name.toLowerCase();
       const assetMime = asset.mimeType?.toLowerCase();
@@ -643,35 +820,61 @@ export default function ChatDialogScreen() {
         );
       }
 
-      const nowIso = new Date().toISOString();
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `local-${Date.now()}`,
-          senderId: user.id,
-          recipientId: otherUserId,
-          text: null,
-          mediaPath: path,
-          createdAt: nowIso,
-          mediaUrl: localSignedUrl,
-        },
-      ]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+      const pendingId = localId;
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === pendingId
+            ? {
+                ...message,
+                mediaPath: path,
+                mediaUrl: localSignedUrl ?? message.mediaUrl,
+              }
+            : message
+        )
+      );
 
-      await chatAPI.sendMessage(otherUserId, undefined, path);
+      const response = await chatAPI.sendMessage(otherUserId, undefined, path);
+      setMessages((prev) => {
+        const alreadyReceived = prev.some(
+          (message) => message.id === response.id
+        );
+        if (alreadyReceived) {
+          return prev.filter((message) => message.id !== pendingId);
+        }
+        return prev.map((message) =>
+          message.id === pendingId
+            ? { ...message, id: response.id, deliveryStatus: undefined }
+            : message
+        );
+      });
+      scrollToLatestMessage();
       setTimeout(() => {
         fetchMessages().catch(() => void 0);
       }, 400);
     } catch (err) {
       logger.error('Ошибка загрузки вложения', err);
-      Alert.alert(
-        t('common.errors.generic'),
-        t('chat.errors.failedToSendFile')
-      );
+      if (localId) {
+        const failedId = localId;
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === failedId
+              ? { ...message, deliveryStatus: 'failed' }
+              : message
+          )
+        );
+      }
     } finally {
       setUploading(false);
     }
-  }, [uploading, sending, user, otherUserId, fetchMessages, t]);
+  }, [
+    uploading,
+    sending,
+    user,
+    otherUserId,
+    scrollToLatestMessage,
+    fetchMessages,
+    t,
+  ]);
 
   // Удаление сообщений
   const removeMessageLocal = useCallback((id: string) => {
@@ -780,40 +983,73 @@ export default function ChatDialogScreen() {
           <Pressable
             onLongPress={() => onLongPressMessage(item)}
             style={[
-              styles.bubble,
-              isMine ? styles.bubbleMine : styles.bubbleOther,
+              styles.bubbleBase,
+              isMine ? styles.bubbleBaseMine : styles.bubbleBaseOther,
             ]}
           >
-            {item.text ? (
-              <Text style={styles.msgText}>{item.text}</Text>
-            ) : item.mediaUrl || item.mediaPath ? (
-              item.mediaUrl ? (
-                <Image
-                  source={{ uri: item.mediaUrl }}
-                  style={styles.mediaImage}
-                />
+            <GradientBorderView
+              colors={[
+                'rgba(255, 255, 255, 0.7)',
+                'rgba(255, 255, 255, 0.5)',
+                'rgba(255, 255, 255, 0.05)',
+              ]}
+              gradientProps={{
+                locations: [0, 0.5, 1],
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              }}
+              style={[
+                styles.bubbleBorder,
+                isMine ? styles.bubbleBorderMine : styles.bubbleBorderOther,
+              ]}
+              contentStyle={[
+                styles.bubble,
+                isMine ? styles.bubbleMine : styles.bubbleOther,
+              ]}
+            >
+              {item.text ? (
+                <Text style={styles.msgText}>{item.text}</Text>
+              ) : item.mediaUrl || item.mediaPath ? (
+                item.mediaUrl ? (
+                  <Image
+                    source={{ uri: item.mediaUrl }}
+                    style={styles.mediaImage}
+                  />
+                ) : (
+                  <View style={styles.mediaContainer}>
+                    <Ionicons name="image" size={20} color="#fff" />
+                    <Text style={styles.msgText}>{t('chat.media.label')}</Text>
+                  </View>
+                )
               ) : (
-                <View style={styles.mediaContainer}>
-                  <Ionicons name="image" size={20} color="#fff" />
-                  <Text style={styles.msgText}>{t('chat.media.label')}</Text>
-                </View>
-              )
-            ) : (
-              <Text style={styles.msgText}>—</Text>
-            )}
-            <Text style={styles.time}>
-              {new Date(item.createdAt).toLocaleTimeString(
-                i18n.language === 'ru'
-                  ? 'ru-RU'
-                  : i18n.language === 'es'
-                    ? 'es-ES'
-                    : 'en-US',
-                {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }
+                <Text style={styles.msgText}>—</Text>
               )}
-            </Text>
+              <Text style={styles.time}>
+                {new Date(item.createdAt).toLocaleTimeString(
+                  i18n.language === 'ru'
+                    ? 'ru-RU'
+                    : i18n.language === 'es'
+                      ? 'es-ES'
+                      : 'en-US',
+                  {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }
+                )}
+              </Text>
+              {item.deliveryStatus ? (
+                <Text
+                  style={[
+                    styles.deliveryStatus,
+                    item.deliveryStatus === 'failed' && styles.deliveryFailed,
+                  ]}
+                >
+                  {item.deliveryStatus === 'pending'
+                    ? 'Sending…'
+                    : 'Failed to send'}
+                </Text>
+              ) : null}
+            </GradientBorderView>
           </Pressable>
         </View>
       );
@@ -899,60 +1135,94 @@ export default function ChatDialogScreen() {
       />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={keyboardVerticalOffset}
-        enabled
+        behavior={Platform.OS === 'android' ? 'height' : undefined}
+        keyboardVerticalOffset={0}
+        enabled={Platform.OS === 'android'}
       >
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(23,19,56,0.78)',
+            'rgba(23,19,56,0.4)',
+            'rgba(23,19,56,0)',
+          ]}
+          locations={[0, 0.62, 1]}
+          style={[styles.headerFade, { height: headerHeight + 44 }]}
+        />
         <View
           style={[
             styles.header,
             {
               paddingTop: headerTopPadding,
-              minHeight: headerTopPadding + 64,
+              height: headerHeight,
             },
           ]}
         >
-          <Pressable style={styles.backHit} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={30} color="#fff" />
+          <Pressable
+            style={styles.headerCirclePressable}
+            onPress={() => navigation.goBack()}
+          >
+            <GradientBorderView
+              colors={DATING_GLASS_BORDER_COLORS}
+              gradientProps={DATING_GLASS_BORDER_GRADIENT}
+              style={styles.headerCircleBorder}
+              contentStyle={[styles.datingGlassContent, styles.backHit]}
+            >
+              <DatingGlassFill />
+              <Ionicons name="chevron-back" size={30} color="#fff" />
+            </GradientBorderView>
           </Pressable>
           <Pressable
-            style={styles.headerCenter}
+            style={styles.headerCenterPressable}
             onPress={openOtherProfile}
             hitSlop={10}
           >
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.title}>{displayName || otherUserId}</Text>
-              <Text style={styles.headerSubtitle}>
-                {zodiacLabel ?? ''}
-                {zodiacLabel ? ' · ' : ''}
-                <Text style={isOtherOnline ? styles.online : styles.offline}>
-                  {isOtherOnline
-                    ? t('chat.header.online')
-                    : t('chat.header.offline')}
-                </Text>
-              </Text>
-            </View>
-          </Pressable>
-          <Pressable style={styles.avatarShell} onPress={openOtherProfile}>
-            {resolvedPhotoUrl ? (
-              <Image source={{ uri: resolvedPhotoUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {(displayName || otherUserId).slice(0, 1).toUpperCase()}
+            <GradientBorderView
+              colors={DATING_GLASS_BORDER_COLORS}
+              gradientProps={DATING_GLASS_BORDER_GRADIENT}
+              style={styles.headerCenterBorder}
+              contentStyle={[styles.datingGlassContent, styles.headerCenter]}
+            >
+              <DatingGlassFill />
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.title}>{displayName || otherUserId}</Text>
+                <Text style={styles.headerSubtitle}>
+                  {zodiacLabel ?? ''}
+                  {zodiacLabel ? ' · ' : ''}
+                  <Text style={isOtherOnline ? styles.online : styles.offline}>
+                    {isOtherOnline
+                      ? t('chat.header.online')
+                      : t('chat.header.offline')}
+                  </Text>
                 </Text>
               </View>
-            )}
+            </GradientBorderView>
           </Pressable>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              'rgba(23,19,56,0.98)',
-              'rgba(23,19,56,0.68)',
-              'rgba(23,19,56,0)',
-            ]}
-            style={styles.headerFade}
-          />
+          <Pressable
+            style={styles.headerCirclePressable}
+            onPress={openOtherProfile}
+          >
+            <GradientBorderView
+              colors={DATING_GLASS_BORDER_COLORS}
+              gradientProps={DATING_GLASS_BORDER_GRADIENT}
+              style={styles.headerCircleBorder}
+              contentStyle={[styles.datingGlassContent, styles.avatarShell]}
+            >
+              <DatingGlassFill />
+              {resolvedPhotoUrl ? (
+                <Image
+                  source={{ uri: resolvedPhotoUrl }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarText}>
+                    {(displayName || otherUserId).slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </GradientBorderView>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -981,69 +1251,186 @@ export default function ChatDialogScreen() {
             keyboardDismissMode="interactive"
             contentContainerStyle={[
               styles.messagesList,
-              { paddingTop: headerHeight + 24 },
+              {
+                paddingTop: headerHeight + 24,
+              },
             ]}
-            onContentSizeChange={() =>
-              listRef.current?.scrollToEnd({ animated: false })
+            ListFooterComponent={
+              <View
+                pointerEvents="none"
+                style={{ height: messagesFooterHeight }}
+              />
             }
-            onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
+            onContentSizeChange={handleMessagesLayoutReady}
           />
         )}
 
-        <View
+        {emojiPickerOpen ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close emoji picker"
+            onPress={() => setEmojiPickerOpen(false)}
+            style={styles.emojiBackdrop}
+          />
+        ) : null}
+
+        <Animated.View
+          pointerEvents="box-none"
           style={[
             styles.inputContainer,
+            animatedComposerStyle,
             {
-              paddingBottom: inputBottomPadding,
+              paddingBottom: composerBottomPadding,
             },
           ]}
         >
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={text}
-              onChangeText={setText}
-              placeholder={t('chat.input.placeholder')}
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
-              multiline
-              maxLength={1000}
-              editable={!sending}
-              blurOnSubmit={false}
-              returnKeyType="send"
-              onFocus={() =>
-                setTimeout(
-                  () => listRef.current?.scrollToEnd({ animated: true }),
-                  50
-                )
-              }
-            />
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(23,19,56,0)',
+              'rgba(23,19,56,0.4)',
+              'rgba(23,19,56,0.78)',
+            ]}
+            locations={[0, 0.48, 1]}
+            style={styles.composerFade}
+          />
+          <View
+            style={styles.composerRow}
+            onLayout={(event) => {
+              const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+              setComposerHeight((current) =>
+                current === nextHeight ? current : nextHeight
+              );
+            }}
+          >
             <Pressable
-              style={styles.attachBtn}
+              style={[
+                styles.composerCirclePressable,
+                multilineComposer && styles.composerButtonTop,
+              ]}
               disabled={uploading || sending}
               onPress={onAttach}
             >
-              {uploading ? (
-                <LoadingIndicator size="small" />
-              ) : (
-                <Ionicons name="happy-outline" size={23} color="#9290A1" />
-              )}
+              <GradientBorderView
+                colors={DATING_GLASS_BORDER_COLORS}
+                gradientProps={DATING_GLASS_BORDER_GRADIENT}
+                style={styles.composerCircleBorder}
+                contentStyle={[
+                  styles.datingGlassContent,
+                  styles.attachmentButton,
+                ]}
+              >
+                <DatingGlassFill />
+                <Ionicons name="attach-outline" size={29} color="#FFFFFF" />
+              </GradientBorderView>
             </Pressable>
+
+            <View style={styles.inputColumn}>
+              {emojiPickerOpen ? (
+                <GradientBorderView
+                  colors={DATING_GLASS_BORDER_COLORS}
+                  gradientProps={DATING_GLASS_BORDER_GRADIENT}
+                  style={styles.emojiPopoverBorder}
+                  contentStyle={[
+                    styles.datingGlassContent,
+                    styles.emojiPopover,
+                  ]}
+                >
+                  <DatingGlassFill />
+                  <View style={styles.emojiGrid}>
+                    {CHAT_EMOJIS.map((emoji) => (
+                      <Pressable
+                        key={emoji}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Insert ${emoji}`}
+                        onPress={() => insertEmoji(emoji)}
+                        style={styles.emojiButton}
+                      >
+                        <Text style={styles.emoji}>{emoji}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </GradientBorderView>
+              ) : null}
+
+              <GradientBorderView
+                colors={DATING_GLASS_BORDER_COLORS}
+                gradientProps={DATING_GLASS_BORDER_GRADIENT}
+                style={styles.inputBorder}
+                contentStyle={[styles.datingGlassContent, styles.inputRow]}
+              >
+                <DatingGlassFill />
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  value={text}
+                  onChangeText={setText}
+                  onSelectionChange={(event) =>
+                    setComposerSelection(event.nativeEvent.selection)
+                  }
+                  onContentSizeChange={(event) =>
+                    setMultilineComposer(
+                      event.nativeEvent.contentSize.height > 44
+                    )
+                  }
+                  placeholder={t('chat.input.placeholder')}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  multiline
+                  maxLength={1000}
+                  blurOnSubmit={false}
+                  returnKeyType="send"
+                  onFocus={() =>
+                    setTimeout(
+                      () => listRef.current?.scrollToEnd({ animated: true }),
+                      50
+                    )
+                  }
+                />
+                <Pressable
+                  style={styles.emojiToggle}
+                  disabled={sending}
+                  onPress={() => {
+                    setEmojiPickerOpen((current) => !current);
+                    requestAnimationFrame(() => inputRef.current?.focus());
+                  }}
+                >
+                  <Ionicons
+                    name="happy-outline"
+                    size={27}
+                    color={emojiPickerOpen ? '#FFFFFF' : '#9290A1'}
+                  />
+                </Pressable>
+              </GradientBorderView>
+            </View>
+
             <Pressable
               style={[
-                styles.sendBtn,
-                (!text.trim() || sending) && styles.sendDisabled,
+                styles.sendButtonPressable,
+                multilineComposer && styles.composerButtonTop,
+                (!text.trim() || sending) && styles.sendButtonDisabled,
               ]}
               disabled={!text.trim() || sending}
               onPress={onSend}
             >
-              {sending ? (
-                <LoadingIndicator size="small" />
-              ) : (
+              <GradientBorderView
+                colors={[
+                  'rgba(126,108,160,0.78)',
+                  'rgba(96,67,142,0.82)',
+                  'rgba(62,32,104,0.9)',
+                ]}
+                gradientProps={{
+                  locations: [0, 0.52, 1],
+                  start: { x: 0.2, y: 0 },
+                  end: { x: 0.8, y: 1 },
+                }}
+                style={styles.sendButtonBorder}
+                contentStyle={styles.sendBtn}
+              >
                 <Ionicons name="send" size={20} color="#fff" />
-              )}
+              </GradientBorderView>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -1070,37 +1457,53 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 24,
   },
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
   backHit: {
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    borderWidth: 1,
-    borderColor: 'rgba(124,124,157,0.42)',
-    backgroundColor: 'rgba(45,45,78,0.82)',
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCenter: {
+  headerCenterPressable: {
     minWidth: 137,
     maxWidth: 210,
-    minHeight: 45,
+    height: 48,
     borderRadius: 24,
+  },
+  headerCenterBorder: {
+    minWidth: 137,
+    maxWidth: 210,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  headerCenter: {
+    height: 45.8,
+    borderRadius: 22.9,
     paddingHorizontal: 18,
-    paddingVertical: 5,
+    paddingVertical: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(52,51,86,0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(129,126,163,0.48)',
   },
   avatarShell: {
-    width: 47,
-    height: 47,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: '#6D278F',
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     padding: 2,
-    backgroundColor: 'rgba(76,52,108,0.9)',
   },
   avatar: {
     width: '100%',
@@ -1136,11 +1539,10 @@ const styles = StyleSheet.create({
   offline: { color: '#8E899B' },
   headerFade: {
     position: 'absolute',
-    top: 63,
+    top: 0,
     left: 0,
     right: 0,
-    height: 46,
-    zIndex: -1,
+    zIndex: 19,
   },
   loader: {
     flex: 1,
@@ -1197,7 +1599,6 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingHorizontal: 24,
-    paddingBottom: 18,
   },
   msgRow: {
     marginBottom: 22,
@@ -1209,25 +1610,60 @@ const styles = StyleSheet.create({
   msgRowOther: {
     justifyContent: 'flex-start',
   },
-  bubble: {
+  bubbleBase: {
     maxWidth: '80%',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(160,155,185,0.72)',
+    borderColor: 'rgba(255,255,255,0.05)',
+    overflow: 'hidden',
+  },
+  bubbleBaseMine: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 2,
+  },
+  bubbleBaseOther: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 12,
+  },
+  bubbleBorder: {
+    borderWidth: 1,
+    margin: -1,
+  },
+  bubbleBorderMine: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 2,
+  },
+  bubbleBorderOther: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 12,
+  },
+  bubble: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   bubbleMine: {
-    backgroundColor: 'rgba(100,85,123,0.76)',
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
+    borderBottomLeftRadius: 11,
     borderBottomRightRadius: 2,
   },
   bubbleOther: {
-    backgroundColor: 'rgba(26,29,51,0.88)',
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
     borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 11,
   },
   msgText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 20,
   },
   mediaContainer: {
@@ -1247,55 +1683,146 @@ const styles = StyleSheet.create({
     fontSize: 9,
     alignSelf: 'flex-end',
   },
+  deliveryStatus: {
+    marginTop: 2,
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 10,
+    lineHeight: 13,
+    alignSelf: 'flex-end',
+  },
+  deliveryFailed: { color: '#FF8C9A' },
   inputContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 31,
     paddingHorizontal: 24,
     paddingTop: 8,
-    backgroundColor: 'rgba(8,14,28,0.98)',
+    backgroundColor: 'transparent',
+  },
+  composerFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 123,
+    zIndex: 0,
+  },
+  emojiBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
+  },
+  emojiPopoverBorder: {
+    width: 224,
+    position: 'absolute',
+    right: 0,
+    bottom: '100%',
+    marginBottom: 10,
+    zIndex: 2,
+    borderRadius: 22,
+    borderWidth: 1.1,
+  },
+  emojiPopover: {
+    padding: 10,
+    borderRadius: 20.9,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  emojiButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  emoji: { fontSize: 29, lineHeight: 35 },
+  composerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 1,
+  },
+  composerCirclePressable: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    flexShrink: 0,
+  },
+  composerCircleBorder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.1,
+  },
+  attachmentButton: {
+    width: 41.8,
+    height: 41.8,
+    borderRadius: 20.9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputColumn: {
+    flex: 1,
+    minWidth: 0,
+    position: 'relative',
+  },
+  inputBorder: {
+    width: '100%',
+    borderRadius: 23,
+    borderWidth: 1.1,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(26,24,54,0.96)',
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(100,94,134,0.6)',
-    paddingLeft: 19,
-    paddingRight: 9,
-    paddingVertical: 7,
-    minHeight: 64,
+    borderRadius: 21.9,
+    paddingLeft: 16,
+    paddingRight: 11,
+    paddingVertical: 2,
+    minHeight: 44,
   },
   input: {
     flex: 1,
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 19,
     maxHeight: 100,
-    marginRight: 4,
-    paddingTop: 8,
-    paddingBottom: 8,
+    marginRight: 8,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
-  attachBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  emojiToggle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 3,
+  },
+  composerButtonTop: {
+    alignSelf: 'flex-end',
+    marginBottom: 0,
+  },
+  sendButtonPressable: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignSelf: 'center',
+    flexShrink: 0,
+  },
+  sendButtonBorder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.4,
   },
   sendBtn: {
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    backgroundColor: '#4C1774',
+    width: 41.2,
+    height: 41.2,
+    borderRadius: 20.6,
+    backgroundColor: '#35185C',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  sendDisabled: {
-    backgroundColor: 'rgba(76,23,116,0.55)',
-    shadowOpacity: 0,
-  },
+  sendButtonDisabled: { opacity: 0.5 },
 });
