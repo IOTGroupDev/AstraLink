@@ -4,10 +4,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  ActivityIndicator,
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { useTranslation } from 'react-i18next';
 import NatalChartWheel from './NatalChartWheel';
 import PlanetList from './PlanetList';
@@ -33,7 +33,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <LoadingIndicator size="large" />
         <Text style={styles.loadingText}>
           {t('common.loading.calculatingChart')}
         </Text>

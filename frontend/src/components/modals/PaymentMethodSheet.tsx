@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Modal,
@@ -12,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -219,7 +219,7 @@ const PaymentMethodSheet: React.FC<PaymentMethodSheetProps> = ({
                   <Text style={styles.methodSubtitle}>{method.subtitle}</Text>
                 </View>
                 {processing && !method.disabled ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <LoadingIndicator size="small" />
                 ) : method.disabled ? (
                   <Ionicons
                     name="lock-closed-outline"

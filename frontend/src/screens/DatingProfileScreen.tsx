@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -17,6 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { datingAPI, userAPI } from '../services/api';
 import { logger } from '../services/logger';
 import type { RootStackParamList } from '../types/navigation';
+import advisorBackground from '../../assets/advisor-bg.png';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DatingProfile'>;
 type PublicProfile = Awaited<ReturnType<typeof datingAPI.getProfile>>;
@@ -147,10 +148,10 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <LinearGradient
-        colors={['#191439', '#080E1C', '#080E1C']}
-        locations={[0, 0.36, 1]}
-        style={StyleSheet.absoluteFillObject}
+      <Image
+        source={advisorBackground}
+        resizeMode="cover"
+        style={styles.backgroundImage}
       />
 
       <ScrollView
@@ -192,9 +193,7 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
               ))}
             </View>
           ) : null}
-          {loading ? (
-            <ActivityIndicator style={styles.photoLoader} color="#FFFFFF" />
-          ) : null}
+          {loading ? <LoadingIndicator style={styles.photoLoader} /> : null}
         </View>
 
         <View style={styles.actionRow}>
@@ -312,6 +311,12 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#080E1C' },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.9,
+  },
   content: { paddingHorizontal: 23, paddingBottom: 44 },
   fixedHeader: {
     position: 'absolute',

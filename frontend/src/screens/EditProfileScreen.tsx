@@ -14,7 +14,6 @@ import {
   Alert,
   Image,
   TextInput,
-  ActivityIndicator,
   Modal,
   Pressable,
 } from 'react-native';
@@ -697,7 +696,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 disabled={uploadingPhoto}
               >
                 {uploadingPhoto ? (
-                  <ActivityIndicator color="#8B5CF6" />
+                  <LoadingIndicator size="small" />
                 ) : (
                   <>
                     <Ionicons name="add" size={32} color="#8B5CF6" />
@@ -1003,7 +1002,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             style={styles.saveButtonGradient}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <LoadingIndicator size="small" />
             ) : (
               <>
                 <Ionicons name="checkmark" size={20} color="#fff" />

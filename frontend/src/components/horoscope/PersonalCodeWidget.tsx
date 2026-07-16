@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,7 +63,7 @@ const PersonalCodeWidget: React.FC<PersonalCodeWidgetProps> = ({ onPress }) => {
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#10B981" />
+              <LoadingIndicator size="small" />
             </View>
           ) : todayCode ? (
             <View style={styles.codeContainer}>

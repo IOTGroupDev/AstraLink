@@ -5,9 +5,9 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -272,7 +272,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                       style={styles.buttonGradient}
                     >
                       {isDeleting ? (
-                        <ActivityIndicator color="#fff" size="small" />
+                        <LoadingIndicator size="small" />
                       ) : (
                         <>
                           <Ionicons name="trash" size={20} color="#fff" />

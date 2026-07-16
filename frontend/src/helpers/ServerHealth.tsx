@@ -1,13 +1,7 @@
 // screens/onboarding/OnboardingFirstScreen.tsx
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-  Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { DebugHttpDump, testBackendDebug } from '../services/api';
 import { OnboardingLayout } from '../components/onboarding/OnboardingLayout';
 import OnboardingHeader from '../components/onboarding/OnboardingHeader';
@@ -46,7 +40,7 @@ const OnboardingFirstScreen: React.FC = () => {
           onPress={handleTestBackend}
         />
 
-        {loading && <ActivityIndicator size="small" style={styles.indicator} />}
+        {loading && <LoadingIndicator size="small" style={styles.indicator} />}
 
         {dump && (
           <ScrollView style={styles.card}>

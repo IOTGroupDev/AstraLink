@@ -539,10 +539,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Linking,
   TextInput,
 } from 'react-native';
+import LoadingIndicator from '../../components/shared/LoadingIndicator';
 import {
   useNavigation,
   useRoute,
@@ -721,7 +721,7 @@ export default function MagicLinkWaitingScreen() {
             activeOpacity={0.8}
           >
             {verifying ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <LoadingIndicator size="small" />
             ) : (
               <Text style={styles.primaryButtonText}>Подтвердить код</Text>
             )}
@@ -748,7 +748,7 @@ export default function MagicLinkWaitingScreen() {
             activeOpacity={0.8}
           >
             {resending ? (
-              <ActivityIndicator color="#8B5CF6" />
+              <LoadingIndicator size="small" />
             ) : (
               <Text style={styles.secondaryButtonText}>Отправить ещё раз</Text>
             )}

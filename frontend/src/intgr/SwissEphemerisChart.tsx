@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { useTranslation } from 'react-i18next';
 
 // Types for planetary data
@@ -225,7 +226,7 @@ const SwissEphemerisChart: React.FC<SwissEphemerisChartProps> = ({
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <LoadingIndicator size="large" />
         <Text style={styles.loadingText}>
           {t('common.loading.calculatingChart')}
         </Text>

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -13,7 +12,15 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -31,9 +38,22 @@ import {
   type DatingTab,
 } from '../components/dating/DatingTabBar';
 import ChatListScreen from './ChatListScreen';
+import DatingCardBackdrop from '../../assets/dating-bg.svg';
+import advisorBackground from '../../assets/advisor-bg.png';
+import { GradientBorderView } from '../components/shared';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 
 const LAST_TAB_KEY_PREFIX = 'dating:last-tab:';
 type MatchFilter = 'all' | 'new' | 'nearby' | 'online';
+
+const DISCOVERY_CARD_MAX_HEIGHT = 530;
+const DISCOVERY_CARD_MIN_HEIGHT = 410;
+const DISCOVERY_CARD_STAGE_OFFSET = 24;
+const DISCOVERY_CARD_TOP_OFFSET = 14;
+const DISCOVERY_ACTIONS_HEIGHT = 106;
+const DISCOVERY_ACTIONS_TOP_PADDING = 16;
+const DISCOVERY_ACTIONS_BOTTOM_PADDING = 26;
+const DISCOVERY_BACKDROP_EXTRA_HEIGHT = 30;
 
 const matchFilters: Array<{ key: MatchFilter; label: string }> = [
   { key: 'all', label: 'All' },
@@ -42,13 +62,59 @@ const matchFilters: Array<{ key: MatchFilter; label: string }> = [
   { key: 'online', label: 'Online' },
 ];
 
+function DiscoveryActionButton({
+  children,
+  onPress,
+  size,
+}: {
+  children: React.ReactNode;
+  onPress: () => void;
+  size: number;
+}) {
+  const borderWidth = size === 64 ? 1.6 : 1.4;
+  return (
+    <Pressable onPress={onPress} style={{ borderRadius: size / 2 }}>
+      <GradientBorderView
+        colors={['rgba(255,255,255,0.42)', 'rgba(124,119,153,0.26)']}
+        gradientProps={{
+          start: { x: 0.5, y: 0 },
+          end: { x: 0.5, y: 1 },
+        }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth,
+        }}
+        contentStyle={[
+          styles.roundActionContent,
+          {
+            width: size - borderWidth * 2,
+            height: size - borderWidth * 2,
+          },
+        ]}
+      >
+        <BlurView
+          pointerEvents="none"
+          intensity={30}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+        />
+        <View pointerEvents="none" style={styles.roundActionTint} />
+        {children}
+      </GradientBorderView>
+    </Pressable>
+  );
+}
+
 export default function DatingScreen() {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const bottomTabHeight = useOptionalBottomTabBarHeight();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const [tab, setTab] = useState<DatingTab>('discovery');
   const [tabReady, setTabReady] = useState(false);
   const [candidates, setCandidates] = useState<DatingCandidate[]>([]);
@@ -59,13 +125,39 @@ export default function DatingScreen() {
   const [refreshingMatches, setRefreshingMatches] = useState(false);
   const [matchFilter, setMatchFilter] = useState<MatchFilter>('all');
   const [moderationBusy, setModerationBusy] = useState(false);
+  const backgroundOpacity = useSharedValue(0.9);
 
   const storageKey = `${LAST_TAB_KEY_PREFIX}${user?.id ?? 'anonymous'}`;
-  const headerHeight = insets.top + 86;
+  const headerHeight = insets.top + 68;
+  const discoveryCardWidth = Math.min(382, screenWidth - 48);
+  const discoveryBackdropWidth = discoveryCardWidth + 32;
+  const discoveryBackdropLeft =
+    (discoveryCardWidth - discoveryBackdropWidth) / 2;
+  const bottomTabOffset = Math.max(14, Math.round(insets.bottom * 0.5) + 12);
+  const bottomNavigationClearance = bottomTabHeight + bottomTabOffset;
   const cardHeight = Math.max(
-    410,
-    Math.min(575, screenHeight - headerHeight - bottomTabHeight - 128)
+    DISCOVERY_CARD_MIN_HEIGHT,
+    Math.min(
+      DISCOVERY_CARD_MAX_HEIGHT,
+      screenHeight -
+        headerHeight -
+        bottomNavigationClearance -
+        DISCOVERY_ACTIONS_HEIGHT -
+        DISCOVERY_CARD_STAGE_OFFSET
+    )
   );
+  const discoveryBackdropHeight = cardHeight + DISCOVERY_BACKDROP_EXTRA_HEIGHT;
+
+  useEffect(() => {
+    backgroundOpacity.value = withTiming(tab === 'discovery' ? 0.9 : 0.45, {
+      duration: 360,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [backgroundOpacity, tab]);
+
+  const animatedBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: backgroundOpacity.value,
+  }));
 
   useEffect(() => {
     let mounted = true;
@@ -259,7 +351,7 @@ export default function DatingScreen() {
     if (loadingCandidates || authLoading) {
       return (
         <View style={[styles.center, { paddingTop: headerHeight }]}>
-          <ActivityIndicator color="#A93BE2" size="large" />
+          <LoadingIndicator size="large" />
         </View>
       );
     }
@@ -280,50 +372,83 @@ export default function DatingScreen() {
       <View
         style={[
           styles.discovery,
-          { paddingTop: headerHeight + 20, paddingBottom: bottomTabHeight + 8 },
+          {
+            paddingTop: headerHeight,
+            paddingBottom: bottomNavigationClearance,
+          },
         ]}
       >
-        <DatingCard
-          key={current.userId}
-          cardHeight={cardHeight}
-          user={{
-            id: current.userId,
-            name: current.name ?? t('dating.defaults.userName'),
-            age: current.age,
-            zodiacSign: current.zodiacSign,
-            compatibility: current.compatibility,
-            compatibilitySummary: current.compatibilitySummary,
-            badge: current.badge,
-            bio: current.bio,
-            interests: current.interests ?? [],
-            city: current.city,
-            photos: current.photos,
-            photoUrl: current.photoUrl,
-            lookingFor: current.lookingFor,
-            lastActive: current.lastActive,
-          }}
-          onSwipe={handleSwipe}
-          onChat={() => undefined}
-          onOpenProfile={() => openProfile(current)}
-          onOpenActions={openActions}
-          actionsDisabled={moderationBusy}
-          isTop
-        />
+        <View
+          style={[
+            styles.cardStage,
+            {
+              width: discoveryCardWidth,
+              height: cardHeight + DISCOVERY_CARD_STAGE_OFFSET,
+            },
+          ]}
+        >
+          <MaskedView
+            pointerEvents="none"
+            style={[
+              styles.cardBackdrop,
+              {
+                width: discoveryBackdropWidth,
+                height: discoveryBackdropHeight,
+                left: discoveryBackdropLeft,
+              },
+            ]}
+            maskElement={
+              <LinearGradient
+                colors={['#FFFFFF', '#FFFFFF', 'rgba(255,255,255,0)']}
+                locations={[0, 0.38, 0.74]}
+                style={StyleSheet.absoluteFillObject}
+              />
+            }
+          >
+            <DatingCardBackdrop
+              width={discoveryBackdropWidth}
+              height={discoveryBackdropHeight}
+              preserveAspectRatio="none"
+            />
+          </MaskedView>
+          <View style={styles.cardForeground}>
+            <DatingCard
+              key={current.userId}
+              cardHeight={cardHeight}
+              user={{
+                id: current.userId,
+                name: current.name ?? t('dating.defaults.userName'),
+                age: current.age,
+                zodiacSign: current.zodiacSign,
+                compatibility: current.compatibility,
+                compatibilitySummary: current.compatibilitySummary,
+                badge: current.badge,
+                bio: current.bio,
+                interests: current.interests ?? [],
+                city: current.city,
+                photos: current.photos,
+                photoUrl: current.photoUrl,
+                lookingFor: current.lookingFor,
+                lastActive: current.lastActive,
+              }}
+              onSwipe={handleSwipe}
+              onChat={() => undefined}
+              onOpenProfile={() => openProfile(current)}
+              onOpenActions={openActions}
+              actionsDisabled={moderationBusy}
+              isTop
+            />
+          </View>
+        </View>
         <View style={styles.discoveryActions}>
-          <Pressable
-            style={styles.roundAction}
-            onPress={() => handleSwipe('left')}
-          >
-            <Ionicons name="close" size={37} color="#FF1E2D" />
-          </Pressable>
-          <Pressable
-            style={[styles.roundAction, styles.mainRoundAction]}
-            onPress={() => handleSwipe('right')}
-          >
+          <DiscoveryActionButton size={56} onPress={() => handleSwipe('left')}>
+            <Ionicons name="close" size={34} color="#FF1E2D" />
+          </DiscoveryActionButton>
+          <DiscoveryActionButton size={64} onPress={() => handleSwipe('right')}>
             <Ionicons name="heart" size={37} color="#FF293E" />
-          </Pressable>
-          <Pressable
-            style={styles.roundAction}
+          </DiscoveryActionButton>
+          <DiscoveryActionButton
+            size={56}
             onPress={() =>
               navigation.navigate('ChatDialog', {
                 otherUserId: current.userId,
@@ -332,8 +457,8 @@ export default function DatingScreen() {
               })
             }
           >
-            <Ionicons name="chatbubble-ellipses" size={29} color="#F1F1F1" />
-          </Pressable>
+            <Ionicons name="chatbubble-ellipses" size={27} color="#F1F1F1" />
+          </DiscoveryActionButton>
         </View>
       </View>
     );
@@ -431,7 +556,7 @@ export default function DatingScreen() {
       ListEmptyComponent={
         loadingMatches ? (
           <View style={styles.listCenter}>
-            <ActivityIndicator color="#A93BE2" />
+            <LoadingIndicator />
           </View>
         ) : (
           <View style={styles.listCenter}>
@@ -446,10 +571,10 @@ export default function DatingScreen() {
 
   return (
     <GestureHandlerRootView style={styles.screen}>
-      <LinearGradient
-        colors={['#080E1C', '#151231', '#080E1C']}
-        locations={[0, 0.34, 1]}
-        style={StyleSheet.absoluteFillObject}
+      <Animated.Image
+        source={advisorBackground}
+        resizeMode="cover"
+        style={[styles.backgroundImage, animatedBackgroundStyle]}
       />
 
       {tabReady ? (
@@ -462,17 +587,18 @@ export default function DatingScreen() {
         )
       ) : null}
 
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(20,17,48,0.72)',
+          'rgba(20,17,48,0.36)',
+          'rgba(20,17,48,0)',
+        ]}
+        locations={[0, 0.62, 1]}
+        style={[styles.topFade, { height: headerHeight + 44 }]}
+      />
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 10 }]}>
         <DatingTabBar value={tab} onChange={selectTab} />
-        <LinearGradient
-          pointerEvents="none"
-          colors={[
-            'rgba(20,17,48,0.98)',
-            'rgba(20,17,48,0.68)',
-            'rgba(20,17,48,0)',
-          ]}
-          style={styles.headerFade}
-        />
       </View>
     </GestureHandlerRootView>
   );
@@ -480,6 +606,11 @@ export default function DatingScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#080E1C', overflow: 'hidden' },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
   fixedHeader: {
     position: 'absolute',
     top: 0,
@@ -487,13 +618,12 @@ const styles = StyleSheet.create({
     right: 24,
     zIndex: 20,
   },
-  headerFade: {
+  topFade: {
     position: 'absolute',
-    top: 58,
-    left: -24,
-    right: -24,
-    height: 42,
-    zIndex: -1,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 19,
   },
   center: {
     flex: 1,
@@ -523,25 +653,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#4B1B6A',
   },
-  discovery: { flex: 1, paddingHorizontal: 23, alignItems: 'center' },
+  discovery: { flex: 1, alignItems: 'center' },
+  cardStage: { position: 'relative' },
+  cardBackdrop: { position: 'absolute', top: 4 },
+  cardForeground: {
+    position: 'absolute',
+    top: DISCOVERY_CARD_TOP_OFFSET,
+    left: 0,
+    right: 0,
+  },
   discoveryActions: {
-    height: 82,
+    height: DISCOVERY_ACTIONS_HEIGHT,
+    paddingTop: DISCOVERY_ACTIONS_TOP_PADDING,
+    paddingBottom: DISCOVERY_ACTIONS_BOTTOM_PADDING,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 31,
+    gap: 32,
   },
-  roundAction: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 1,
-    borderColor: 'rgba(125,128,158,0.5)',
-    backgroundColor: 'rgba(39,43,61,0.92)',
+  roundActionContent: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  mainRoundAction: { width: 66, height: 66, borderRadius: 33 },
+  roundActionTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8,14,28,0.2)',
+  },
   filtersRow: {
     height: 58,
     flexDirection: 'row',

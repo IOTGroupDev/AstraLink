@@ -2,7 +2,8 @@
 // Используйте этот wrapper для тяжелых экранов, чтобы избежать белых/черных экранов
 
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 
 interface ScreenWrapperProps {
   children: React.ReactNode;
@@ -27,7 +28,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
     <View style={[styles.container, { backgroundColor }]}>
       {!isReady && showLoader ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
+          <LoadingIndicator size="large" />
         </View>
       ) : (
         children

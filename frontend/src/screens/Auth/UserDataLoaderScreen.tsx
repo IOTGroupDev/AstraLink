@@ -356,13 +356,8 @@
 
 // src/screens/auth/UserDataLoaderScreen.tsx
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import LoadingIndicator from '../../components/shared/LoadingIndicator';
 import { useNavigation } from '@react-navigation/native';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { supabase } from '../../services/supabase';
@@ -815,7 +810,7 @@ const UserDataLoaderScreen: React.FC = () => {
   return (
     <AuthLayout>
       <View style={styles.content}>
-        <ActivityIndicator size="large" color={AUTH_COLORS.loaderPrimary} />
+        <LoadingIndicator size="large" />
         <Text style={styles.text}>
           {t('auth.userDataLoader.completingSignIn', {
             defaultValue: 'Finalizing sign-in...',

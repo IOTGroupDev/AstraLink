@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -59,7 +60,7 @@ export const LunarCalendarWidget: React.FC<LunarCalendarWidgetProps> = () => {
           style={styles.phaseCardBorder}
           contentStyle={styles.phaseCardContent}
         >
-          <ActivityIndicator size="small" color="rgba(191, 158, 207, 1)" />
+          <LoadingIndicator size="small" />
         </GradientBorderView>
       </View>
     );

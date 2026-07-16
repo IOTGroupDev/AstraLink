@@ -5,8 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -207,7 +207,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
             style={styles.generateButtonGradient}
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <LoadingIndicator size="small" />
             ) : (
               <>
                 <Ionicons name="sparkles" size={20} color="#FFFFFF" />

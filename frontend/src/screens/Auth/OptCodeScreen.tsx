@@ -14,8 +14,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import LoadingIndicator from '../../components/shared/LoadingIndicator';
 import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -319,7 +319,7 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
             style={[styles.cta, !canSubmit && styles.ctaDisabled]}
           >
             {submitting ? (
-              <ActivityIndicator />
+              <LoadingIndicator size="small" />
             ) : (
               <Text style={styles.ctaText}>{t('auth.otp.submitButton')}</Text>
             )}

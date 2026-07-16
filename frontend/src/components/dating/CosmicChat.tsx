@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
   type KeyboardEvent,
   ScrollView,
 } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -251,7 +251,7 @@ const CosmicChat: React.FC<CosmicChatProps> = ({
                   disabled={!message.trim() || sending}
                 >
                   {sending ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <LoadingIndicator size="small" />
                   ) : (
                     <Ionicons name="send" size={20} color="#fff" />
                   )}

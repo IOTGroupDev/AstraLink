@@ -5,10 +5,10 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Keyboard,
   ScrollView,
 } from 'react-native';
+import LoadingIndicator from './LoadingIndicator';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { geoApi, CityOption } from '../../services/api/geo.api';
@@ -135,13 +135,7 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
             autoCorrect={false}
           />
 
-          {loading && (
-            <ActivityIndicator
-              size="small"
-              color="#FFFFFF"
-              style={styles.loader}
-            />
-          )}
+          {loading && <LoadingIndicator size="small" style={styles.loader} />}
         </View>
 
         <View style={styles.borderBottom} />

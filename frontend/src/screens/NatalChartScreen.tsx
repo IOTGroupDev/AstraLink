@@ -9,11 +9,11 @@ import {
   Alert,
   Modal,
   Pressable,
-  ActivityIndicator,
   StatusBar,
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -1025,7 +1025,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
             >
               <View style={styles.premiumNarrativeHeader}>
                 <View style={styles.premiumNarrativeIconWrap}>
-                  <ActivityIndicator size="small" color="#4C1D95" />
+                  <LoadingIndicator size="small" />
                 </View>
                 <View style={styles.premiumNarrativeHeaderText}>
                   <Text style={styles.premiumNarrativeLabel}>
@@ -3194,7 +3194,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
             >
               {angleModalLoading ? (
                 <View style={styles.modalLoading}>
-                  <ActivityIndicator size="small" color="#8B5CF6" />
+                  <LoadingIndicator size="small" />
                   <Text style={styles.modalLoadingText}>
                     {t('natalChart.angleModal.loading')}
                   </Text>

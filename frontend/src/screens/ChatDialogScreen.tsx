@@ -6,7 +6,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -34,7 +33,15 @@ import { supabase } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { logger } from '../services/logger';
+import advisorBackground from '../../assets/advisor-bg.png';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 
 type Message = {
   id: string;
@@ -67,6 +74,18 @@ const resolveMediaStorageTarget = (
 };
 
 export default function ChatDialogScreen() {
+  const backgroundOpacity = useSharedValue(0.9);
+
+  useEffect(() => {
+    backgroundOpacity.value = withTiming(0.45, {
+      duration: 360,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [backgroundOpacity]);
+
+  const animatedBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: backgroundOpacity.value,
+  }));
   const { t, i18n } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -837,12 +856,13 @@ export default function ChatDialogScreen() {
   if (authLoading) {
     return (
       <View style={styles.container}>
-        <LinearGradient
-          colors={['#0F172A', '#1E293B', '#334155']}
-          style={StyleSheet.absoluteFillObject}
+        <Animated.Image
+          source={advisorBackground}
+          resizeMode="cover"
+          style={[styles.backgroundImage, animatedBackgroundStyle]}
         />
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
+          <LoadingIndicator size="large" />
           <Text style={styles.loadingText}>
             {t('chat.loading.authorization')}
           </Text>
@@ -872,10 +892,10 @@ export default function ChatDialogScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#171338', '#080E1C', '#080E1C']}
-        locations={[0, 0.36, 1]}
-        style={StyleSheet.absoluteFillObject}
+      <Animated.Image
+        source={advisorBackground}
+        resizeMode="cover"
+        style={[styles.backgroundImage, animatedBackgroundStyle]}
       />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -937,7 +957,7 @@ export default function ChatDialogScreen() {
 
         {loading ? (
           <View style={styles.loader}>
-            <ActivityIndicator color="#8B5CF6" size="large" />
+            <LoadingIndicator size="large" />
             <Text style={styles.loadingText}>{t('chat.loading.messages')}</Text>
           </View>
         ) : messages.length === 0 ? (
@@ -1003,7 +1023,7 @@ export default function ChatDialogScreen() {
               onPress={onAttach}
             >
               {uploading ? (
-                <ActivityIndicator size="small" color="#9290A1" />
+                <LoadingIndicator size="small" />
               ) : (
                 <Ionicons name="happy-outline" size={23} color="#9290A1" />
               )}
@@ -1017,7 +1037,7 @@ export default function ChatDialogScreen() {
               onPress={onSend}
             >
               {sending ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <LoadingIndicator size="small" />
               ) : (
                 <Ionicons name="send" size={20} color="#fff" />
               )}
@@ -1033,6 +1053,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#080E1C',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   header: {
     position: 'absolute',

@@ -7,8 +7,8 @@ import {
   SafeAreaView,
   Alert,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import ChartDisplay from './ChartDisplay';
 import type { ChartData, BirthData } from './astrology.types';
 import { chartLogger } from '../services/logger';
@@ -115,7 +115,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
         />
       ) : (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <LoadingIndicator size="large" />
         </View>
       )}
     </SafeAreaView>

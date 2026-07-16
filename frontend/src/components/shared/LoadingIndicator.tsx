@@ -1,30 +1,41 @@
 import React from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { theme } from '../../styles/theme';
-import { commonStyles } from '../../styles/commonStyles';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import LottieView from 'lottie-react-native';
+import loadingAnimation from '../../../assets/loading-lottie.json';
 
 interface LoadingIndicatorProps {
-  size?: 'small' | 'large';
+  size?: 'small' | 'large' | number;
   color?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-/**
- * LoadingIndicator - простой индикатор загрузки
- * Для скелетонов виджетов используйте SkeletonLoader
- */
 export default function LoadingIndicator({
   size = 'large',
-  color = theme.colors.primary,
+  style,
 }: LoadingIndicatorProps) {
+  const dimension =
+    typeof size === 'number' ? size : size === 'small' ? 26 : 64;
+
   return (
-    <View style={[commonStyles.loadingContainer, styles.container]}>
-      <ActivityIndicator size={size} color={color} />
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+      style={[styles.container, { width: dimension, height: dimension }, style]}
+    >
+      <LottieView
+        source={loadingAnimation}
+        autoPlay
+        loop
+        resizeMode="contain"
+        style={StyleSheet.absoluteFillObject}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.background,
+    alignSelf: 'center',
+    flexShrink: 0,
   },
 });

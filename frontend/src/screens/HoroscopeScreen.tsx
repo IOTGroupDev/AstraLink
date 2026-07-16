@@ -8,7 +8,6 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
-  ActivityIndicator,
   Animated,
   Image,
   ImageBackground,
@@ -17,6 +16,7 @@ import {
   Pressable,
   TouchableOpacity,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -1340,7 +1340,7 @@ const HoroscopeScreen: React.FC = () => {
               <View style={styles.contentContainer}>
                 {syncing && (
                   <View style={styles.syncBanner}>
-                    <ActivityIndicator size="small" color="#F59E0B" />
+                    <LoadingIndicator size="small" />
                     <Text style={styles.syncText}>
                       {t(
                         'horoscope.syncing',
@@ -1625,7 +1625,7 @@ const HoroscopeScreen: React.FC = () => {
               >
                 {transitModalLoading ? (
                   <View style={styles.modalLoading}>
-                    <ActivityIndicator size="small" color="#F59E0B" />
+                    <LoadingIndicator size="small" />
                     <Text style={styles.modalLoadingText}>
                       {t('horoscope.mainTransitWidget.detailsLoading')}
                     </Text>

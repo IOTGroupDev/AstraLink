@@ -6,8 +6,8 @@ import {
   SafeAreaView,
   StyleSheet,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -152,7 +152,7 @@ export default function WelcomeScreen() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#000" />
+            <LoadingIndicator size="small" />
           ) : (
             <Text style={styles.loginButtonText}>
               {t('auth.signUp.emailButton')}

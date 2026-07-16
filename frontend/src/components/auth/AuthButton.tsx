@@ -1,11 +1,7 @@
 // src/components/auth/AuthButton.tsx
 import React from 'react';
-import {
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { Text, StyleSheet, TouchableOpacity } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import {
   AUTH_COLORS,
   AUTH_TYPOGRAPHY,
@@ -41,10 +37,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
       disabled={isDisabled}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? AUTH_COLORS.btnText : AUTH_COLORS.text}
-          size="small"
-        />
+        <LoadingIndicator size="small" />
       ) : (
         <Text
           style={[

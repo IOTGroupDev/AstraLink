@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -25,7 +24,9 @@ import { acquirePresence, subscribePresence } from '../services/presence';
 import { supabase } from '../services/supabase';
 import { logger } from '../services/logger';
 import { BottomTabFade } from '../components/shared/BottomTabFade';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import type { RootStackParamList } from '../types/navigation';
+import advisorBackground from '../../assets/advisor-bg.png';
 
 type ConversationItem = Awaited<
   ReturnType<typeof chatAPI.listConversations>
@@ -209,13 +210,20 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
   if (authLoading || (loading && items.length === 0)) {
     return (
       <View style={styles.screen}>
-        <ActivityIndicator style={styles.loader} color="#A93BE2" size="large" />
+        <LoadingIndicator style={styles.loader} size="large" />
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
+      {!embedded ? (
+        <Image
+          source={advisorBackground}
+          resizeMode="cover"
+          style={styles.backgroundImage}
+        />
+      ) : null}
       <FlatList
         data={items}
         keyExtractor={(item) => item.otherUserId}
@@ -255,6 +263,12 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.9,
+  },
   loader: { flex: 1 },
   content: { paddingHorizontal: 24, flexGrow: 1 },
   standaloneTitle: {

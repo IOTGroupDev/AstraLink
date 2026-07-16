@@ -1,12 +1,7 @@
 // frontend/src/components/SubscriptionCard.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import LoadingIndicator from '../shared/LoadingIndicator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -218,7 +213,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <View style={styles.statusContainer}>
             {isLoading ? (
               <View style={styles.loadingRow}>
-                <ActivityIndicator size="small" color={levelConfig.color} />
+                <LoadingIndicator size="small" />
                 <Text style={styles.statusText}>
                   {t('common.loading.loading', 'Loading...')}
                 </Text>

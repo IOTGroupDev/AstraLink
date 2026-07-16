@@ -124,6 +124,28 @@ export class DatingService {
     return v;
   }
 
+  private isSeededDatingAccount(email?: string | null): boolean {
+    return String(email ?? '')
+      .trim()
+      .toLowerCase()
+      .endsWith('@astralink.dev');
+  }
+
+  private hasCompleteDatingProfile(user: {
+    name?: string | null;
+    photos?: Array<{ storagePath?: string | null }> | null;
+  }): boolean {
+    const hasName =
+      typeof user.name === 'string' && user.name.trim().length > 0;
+    const hasPhoto = (user.photos ?? []).some(
+      (photo) =>
+        typeof photo.storagePath === 'string' &&
+        photo.storagePath.trim().length > 0,
+    );
+
+    return hasName && hasPhoto;
+  }
+
   private extractDatingPreferences(
     profile:
       | {
@@ -449,8 +471,12 @@ export class DatingService {
         .filter((candidateId) => !excludedUserIds.has(candidateId));
 
       // ✅ PRISMA: Получаем данные пользователей с профилями и картами через include
-      const users = await this.prisma.public_users.findMany({
-        where: { id: { in: candidateIds } },
+      const rankedUsers = await this.prisma.public_users.findMany({
+        where: {
+          id: { in: candidateIds },
+          onboarding_completed: true,
+          profile: { is: { isOnboarded: true } },
+        },
         include: {
           profile: true, // UserProfile relation
           charts: {
@@ -461,6 +487,12 @@ export class DatingService {
           },
         },
       });
+      const users = rankedUsers.filter(
+        (user) =>
+          !this.isSeededDatingAccount(user.email) &&
+          this.hasCompleteDatingProfile(user),
+      );
+      const eligibleUserIds = new Set(users.map((user) => user.id));
 
       // Преобразуем в Map для быстрого доступа
       const usersMap = new Map<string, any>(
@@ -525,6 +557,7 @@ export class DatingService {
 
       const filteredRows = rows
         .filter((r) => !excludedUserIds.has(r.user_id))
+        .filter((r) => eligibleUserIds.has(r.user_id))
         .filter((r) =>
           this.passesGenderPreferences(selfProfile, profilesMap.get(r.user_id)),
         )
@@ -609,10 +642,15 @@ export class DatingService {
 
         // ✅ PRISMA: Получаем дополнительных пользователей
         const moreUsers = await this.prisma.public_users.findMany({
+          where: {
+            onboarding_completed: true,
+            profile: { is: { isOnboarded: true } },
+          },
           orderBy: { created_at: 'desc' },
           take: Math.max(needMore * 3, 10),
           select: {
             id: true,
+            email: true,
             name: true,
             birth_date: true,
             birth_time: true,
@@ -625,6 +663,7 @@ export class DatingService {
         });
 
         const extraIds = moreUsers
+          .filter((user) => !this.isSeededDatingAccount(user.email))
           .map((u: any) => u.id)
           .filter(
             (id: string) =>
@@ -634,7 +673,11 @@ export class DatingService {
         if (extraIds.length) {
           // ✅ PRISMA: Получаем профили, карты и фото через include
           const extraUsersData = await this.prisma.public_users.findMany({
-            where: { id: { in: extraIds } },
+            where: {
+              id: { in: extraIds },
+              onboarding_completed: true,
+              profile: { is: { isOnboarded: true } },
+            },
             include: {
               profile: true,
               charts: {
@@ -697,8 +740,15 @@ export class DatingService {
           }
 
           // ✅ ОПТИМИЗАЦИЯ: Batch create signed URLs for fallback candidates
-          const fallbackEligibleUserIds = extraIds.filter((uid: string) =>
-            this.passesGenderPreferences(selfProfile, profilesById.get(uid)),
+          const completeProfileIds = new Set(
+            extraUsersData
+              .filter((candidate) => this.hasCompleteDatingProfile(candidate))
+              .map((candidate) => candidate.id),
+          );
+          const fallbackEligibleUserIds = extraIds.filter(
+            (uid: string) =>
+              completeProfileIds.has(uid) &&
+              this.passesGenderPreferences(selfProfile, profilesById.get(uid)),
           );
           const fallbackUserIds = fallbackEligibleUserIds.slice(0, needMore);
           const fallbackPhotoLookup = await this.resolvePhotoUrlMap(
@@ -851,9 +901,9 @@ export class DatingService {
           isNew: now - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
           isNearby: Boolean(
             selfProfile?.city &&
-              profile.city &&
-              selfProfile.city.trim().toLowerCase() ===
-                profile.city.trim().toLowerCase(),
+            profile.city &&
+            selfProfile.city.trim().toLowerCase() ===
+              profile.city.trim().toLowerCase(),
           ),
           isOnline:
             Number.isFinite(lastActiveMs) && now - lastActiveMs < 5 * 60 * 1000,

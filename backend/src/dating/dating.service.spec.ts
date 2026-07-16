@@ -311,6 +311,36 @@ describe('DatingService', () => {
   });
 
   describe('Dating Preferences', () => {
+    it('recognizes development seed accounts', () => {
+      expect(
+        (service as any).isSeededDatingAccount('test01@astralink.dev'),
+      ).toBe(true);
+      expect((service as any).isSeededDatingAccount('person@example.com')).toBe(
+        false,
+      );
+    });
+
+    it('only exposes candidates with a display name and photo', () => {
+      expect(
+        (service as any).hasCompleteDatingProfile({
+          name: 'Medina',
+          photos: [{ storagePath: 'dating/medina.jpg' }],
+        }),
+      ).toBe(true);
+      expect(
+        (service as any).hasCompleteDatingProfile({
+          name: 'Medina',
+          photos: [],
+        }),
+      ).toBe(false);
+      expect(
+        (service as any).hasCompleteDatingProfile({
+          name: '   ',
+          photos: [{ storagePath: 'dating/anonymous.jpg' }],
+        }),
+      ).toBe(false);
+    });
+
     it('should extract gender preferences from Prisma camelCase fields', () => {
       const prefs = (service as any).extractDatingPreferences({
         gender: 'male',

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import Animated, {
   Easing,
   interpolate,
@@ -132,27 +133,48 @@ function DatingCard({
       <Animated.View
         style={[styles.card, { height: cardHeight }, animatedStyle]}
       >
-        <Pressable style={styles.cardPressable} onPress={onOpenProfile}>
-          {photos[photoIndex] ? (
-            <Image source={{ uri: photos[photoIndex] }} style={styles.photo} />
-          ) : (
-            <LinearGradient
-              colors={['#B58BCB', '#76518E']}
-              style={styles.photoFallback}
-            >
-              <Ionicons
-                name="person"
-                size={118}
-                color="rgba(255,255,255,0.28)"
+        <Pressable
+          style={styles.cardPressable}
+          onPress={onOpenProfile}
+          onLongPress={actionsDisabled ? undefined : onOpenActions}
+        >
+          <MaskedView
+            pointerEvents="none"
+            style={styles.photoMask}
+            maskElement={
+              <LinearGradient
+                colors={['#FFFFFF', '#FFFFFF', 'rgba(255,255,255,0)']}
+                locations={[0, 0.58, 0.86]}
+                style={StyleSheet.absoluteFillObject}
               />
-            </LinearGradient>
-          )}
+            }
+          >
+            <View style={styles.photoClip}>
+              {photos[photoIndex] ? (
+                <Image
+                  source={{ uri: photos[photoIndex] }}
+                  style={styles.photo}
+                />
+              ) : (
+                <LinearGradient
+                  colors={['#B58BCB', '#76518E']}
+                  style={styles.photoFallback}
+                >
+                  <Ionicons
+                    name="person"
+                    size={118}
+                    color="rgba(255,255,255,0.28)"
+                  />
+                </LinearGradient>
+              )}
 
-          <LinearGradient
-            colors={['rgba(8,14,28,0)', 'rgba(8,14,28,0.12)', '#080E1C']}
-            locations={[0.45, 0.68, 0.84]}
-            style={StyleSheet.absoluteFillObject}
-          />
+              <LinearGradient
+                colors={['rgba(8,14,28,0)', 'rgba(8,14,28,0.28)', '#080E1C']}
+                locations={[0.42, 0.69, 0.9]}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+          </MaskedView>
 
           {photos.length > 1 ? (
             <View style={styles.photoSteps}>
@@ -173,15 +195,6 @@ function DatingCard({
             <View style={styles.matchRing} />
             <Text style={styles.matchBadgeText}>{matchText}</Text>
           </View>
-
-          <Pressable
-            hitSlop={12}
-            disabled={actionsDisabled}
-            onPress={onOpenActions}
-            style={styles.moreButton}
-          >
-            <Ionicons name="ellipsis-horizontal" size={21} color="#FFFFFF" />
-          </Pressable>
 
           <View style={styles.info}>
             <View style={styles.titleRow}>
@@ -211,10 +224,16 @@ function DatingCard({
                     <Text style={styles.detailText}>{user.lookingFor}</Text>
                   </View>
                 ) : null}
-                <View style={styles.detail}>
-                  <Ionicons name="planet-outline" size={15} color="#FFFFFF" />
-                  <Text style={styles.detailText}>{matchText}</Text>
-                </View>
+                {user.lastActive ? (
+                  <View style={styles.detail}>
+                    <Ionicons name="time-outline" size={15} color="#FFFFFF" />
+                    <Text style={styles.detailText}>
+                      {t('dating.card.recentlyActive', {
+                        defaultValue: 'Recently active',
+                      })}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               <View style={styles.tags}>
                 {(user.interests ?? []).slice(0, 4).map((interest) => (
@@ -234,17 +253,20 @@ function DatingCard({
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    borderRadius: 30,
-    overflow: 'hidden',
-    backgroundColor: '#080E1C',
-    borderWidth: 1,
-    borderColor: 'rgba(136,130,178,0.45)',
+    backgroundColor: 'transparent',
   },
   cardPressable: { flex: 1 },
-  photo: { ...StyleSheet.absoluteFillObject, width: '100%', height: '77%' },
+  photoMask: { ...StyleSheet.absoluteFillObject },
+  photoClip: {
+    flex: 1,
+    borderRadius: 40,
+    overflow: 'hidden',
+    backgroundColor: '#080E1C',
+  },
+  photo: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   photoFallback: {
     width: '100%',
-    height: '77%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -265,15 +287,15 @@ const styles = StyleSheet.create({
   photoStepActive: { backgroundColor: '#FFFFFF' },
   matchBadge: {
     position: 'absolute',
-    top: 20,
-    left: 16,
-    height: 32,
-    paddingHorizontal: 10,
-    borderRadius: 16,
+    top: 15,
+    left: 15,
+    height: 30,
+    paddingHorizontal: 8,
+    borderRadius: 55,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(102,79,127,0.78)',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
   matchRing: {
     width: 16,
@@ -283,29 +305,43 @@ const styles = StyleSheet.create({
     borderColor: '#21D6B1',
   },
   matchBadgeText: { color: '#EAE5EE', fontSize: 13 },
-  moreButton: {
-    position: 'absolute',
-    right: 16,
-    top: 14,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(31,32,58,0.58)',
-  },
-  info: { position: 'absolute', left: 16, right: 16, bottom: 15 },
+  info: { position: 'absolute', left: 16, right: 16, bottom: 17 },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   titleBlock: { flexShrink: 1 },
-  name: { color: '#FFFFFF', fontSize: 21, lineHeight: 26, fontWeight: '500' },
-  zodiac: { color: '#E6DEE9', fontSize: 16, lineHeight: 20 },
+  name: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  zodiac: {
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 18,
+    lineHeight: 22,
+  },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText: { color: '#DDD5E3', fontSize: 14 },
-  bio: { color: '#EDE8EF', fontSize: 14, lineHeight: 17, marginTop: 10 },
+  locationText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 16,
+  },
+  bio: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 14,
+    lineHeight: 18,
+    marginTop: 10,
+  },
   detailsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
   detailsColumn: { flex: 1, gap: 5 },
   detail: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  detailText: { color: '#FFFFFF', fontSize: 12, flexShrink: 1 },
+  detailText: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 12,
+    flexShrink: 1,
+  },
   tags: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   tag: {
     borderRadius: 12,
@@ -313,7 +349,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  tagText: { color: '#EEDDF2', fontSize: 10 },
+  tagText: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 10,
+  },
 });
 
 export default React.memo(DatingCard);

@@ -1,12 +1,7 @@
 // src/screens/auth/SignUpScreen.tsx
 import React, { useEffect, useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import LoadingIndicator from '../../components/shared/LoadingIndicator';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -228,7 +223,7 @@ const SignUpScreen = () => {
                 disabled={loadingProvider === 'google'}
               >
                 {loadingProvider === 'google' ? (
-                  <ActivityIndicator color={AUTH_COLORS.border} size="small" />
+                  <LoadingIndicator size="small" />
                 ) : (
                   <Ionicons
                     name="logo-google"
@@ -248,7 +243,7 @@ const SignUpScreen = () => {
                 disabled={loadingProvider === 'apple'}
               >
                 {loadingProvider === 'apple' ? (
-                  <ActivityIndicator color={AUTH_COLORS.border} size="small" />
+                  <LoadingIndicator size="small" />
                 ) : (
                   <Ionicons
                     name="logo-apple"
@@ -268,7 +263,7 @@ const SignUpScreen = () => {
                 disabled={loadingProvider === 'yandex'}
               >
                 {loadingProvider === 'yandex' ? (
-                  <ActivityIndicator color={AUTH_COLORS.border} size="small" />
+                  <LoadingIndicator size="small" />
                 ) : (
                   <View style={styles.yandexIcon}>
                     <Text style={styles.yandexText}>Ya</Text>

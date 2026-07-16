@@ -6,7 +6,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   RefreshControl,
   ScrollView,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import LoadingIndicator from '../components/shared/LoadingIndicator';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -949,7 +949,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
               style={styles.submitGradient}
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <LoadingIndicator size="small" />
               ) : (
                 <>
                   <Ionicons name="pulse-outline" size={20} color="#FFFFFF" />
