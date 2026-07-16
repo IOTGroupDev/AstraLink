@@ -18,6 +18,7 @@ import type {
   UserProfile,
   UserChart,
   SynastryData,
+  MutualDatingMatch,
 } from './dating.types';
 
 @Injectable()
@@ -339,6 +340,48 @@ export class DatingService {
     return result;
   }
 
+  private async getCompatibilityMap(
+    selfId: string | null,
+    otherIds: string[],
+  ): Promise<Map<string, { score: number; summary: string | null }>> {
+    const result = new Map<string, { score: number; summary: string | null }>();
+    if (!selfId || otherIds.length === 0) return result;
+
+    try {
+      const admin = this.supabaseService.getAdminClient();
+      const { data, error } = await admin
+        .from('compatibility_scores')
+        .select('*')
+        .or(
+          `person_a.eq.${selfId},person_b.eq.${selfId},norm_a.eq.${selfId},norm_b.eq.${selfId}`,
+        );
+
+      if (error || !Array.isArray(data)) return result;
+      const allowedIds = new Set(otherIds);
+
+      for (const row of data as Array<Record<string, unknown>>) {
+        const pair = [row.person_a, row.person_b, row.norm_a, row.norm_b]
+          .filter((value): value is string => typeof value === 'string')
+          .find((value) => value !== selfId && allowedIds.has(value));
+        const rawScore = Number(row.score);
+        if (!pair || !Number.isFinite(rawScore)) continue;
+
+        result.set(pair, {
+          score: Math.max(0, Math.min(100, Math.round(rawScore))),
+          summary: typeof row.summary === 'string' ? row.summary : null,
+        });
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Compatibility score lookup failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    return result;
+  }
+
   private async getExcludedUserIds(
     userId: string | null | undefined,
   ): Promise<Set<string>> {
@@ -487,6 +530,11 @@ export class DatingService {
         )
         .slice(0, safeLimit);
 
+      const compatibilityMap = await this.getCompatibilityMap(
+        selfId,
+        filteredRows.map((row) => row.user_id),
+      );
+
       const photoUrlLookup = await this.resolvePhotoUrlMap(
         filteredRows.flatMap((r) => {
           const primaryPath = r.primary_photo_path
@@ -536,6 +584,9 @@ export class DatingService {
         return {
           userId: r.user_id,
           badge: r.badge,
+          compatibility: compatibilityMap.get(r.user_id)?.score ?? null,
+          compatibilitySummary:
+            compatibilityMap.get(r.user_id)?.summary ?? null,
           photoUrl: photoUrlMap.get(r.user_id) ?? null,
           photos: candidatePhotosMap.get(r.user_id) ?? null,
           name: displayName,
@@ -690,6 +741,8 @@ export class DatingService {
             extraEnriched.push({
               userId: uid,
               badge: 'low',
+              compatibility: null,
+              compatibilitySummary: null,
               photoUrl: fallbackPhotoUrlMap.get(uid) ?? null,
               photos: fallbackPhotosMap.get(uid) ?? null,
               name: displayName,
@@ -713,6 +766,100 @@ export class DatingService {
     }
 
     return result;
+  }
+
+  async getMutualMatchesViaSupabase(
+    userAccessToken: string,
+    limit = 50,
+  ): Promise<MutualDatingMatch[]> {
+    const safeLimit = Math.max(1, Math.min(50, limit));
+    const { data: userResponse } =
+      await this.supabaseService.getUser(userAccessToken);
+    const selfId = userResponse?.user?.id ?? null;
+    if (!selfId) return [];
+
+    const client = this.supabaseService.getClientForToken(userAccessToken);
+    const { data, error } = await client
+      .from('matches')
+      .select('*')
+      .or(`user_a.eq.${selfId},user_b.eq.${selfId}`)
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+
+    if (error || !Array.isArray(data)) {
+      if (error)
+        this.logger.warn(`Mutual matches lookup failed: ${error.message}`);
+      return [];
+    }
+
+    const readString = (value: unknown, fallback = ''): string =>
+      typeof value === 'string' ? value : fallback;
+    const rows = (data as Array<Record<string, unknown>>).filter(
+      (row) => readString(row.status, 'active').toLowerCase() === 'active',
+    );
+    const otherIds = rows
+      .map((row) =>
+        row.user_a === selfId ? readString(row.user_b) : readString(row.user_a),
+      )
+      .filter(Boolean);
+
+    const [compatibilityMap, selfProfile, profiles] = await Promise.all([
+      this.getCompatibilityMap(selfId, otherIds),
+      this.prisma.userProfile.findUnique({
+        where: { userId: selfId },
+        select: { city: true },
+      }),
+      Promise.all(otherIds.map((id) => this.getPublicProfileForCard(id))),
+    ]);
+    const profileMap = new Map(
+      profiles.map((profile) => [profile.userId, profile]),
+    );
+    const now = Date.now();
+
+    return rows.flatMap((row): MutualDatingMatch[] => {
+      const otherId =
+        row.user_a === selfId ? readString(row.user_b) : readString(row.user_a);
+      const profile = profileMap.get(otherId);
+      if (!profile) return [];
+
+      const createdAt =
+        typeof row.created_at === 'string'
+          ? row.created_at
+          : new Date().toISOString();
+      const lastActiveMs = profile.lastActive
+        ? new Date(profile.lastActive).getTime()
+        : Number.NaN;
+      const compatibility = compatibilityMap.get(otherId);
+
+      return [
+        {
+          id: readString(row.id, otherId),
+          userId: otherId,
+          name: profile.name,
+          age: profile.age,
+          zodiacSign: profile.zodiacSign,
+          bio: profile.bio,
+          interests: profile.interests,
+          city: profile.city,
+          lookingFor: profile.lookingFor ?? null,
+          lastActive: profile.lastActive ?? null,
+          primaryPhotoUrl: profile.primaryPhotoUrl,
+          photos: profile.photos ?? null,
+          compatibility: compatibility?.score ?? null,
+          compatibilitySummary: compatibility?.summary ?? null,
+          createdAt,
+          isNew: now - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+          isNearby: Boolean(
+            selfProfile?.city &&
+              profile.city &&
+              selfProfile.city.trim().toLowerCase() ===
+                profile.city.trim().toLowerCase(),
+          ),
+          isOnline:
+            Number.isFinite(lastActiveMs) && now - lastActiveMs < 5 * 60 * 1000,
+        },
+      ];
+    });
   }
 
   /**

@@ -39,6 +39,7 @@ export interface ChatConversation {
   lastMessageAt: string;
   primaryPhotoUrl?: string | null;
   displayName?: string | null;
+  unreadCount: number;
 }
 
 @Injectable()
@@ -634,6 +635,27 @@ export class ChatService {
       // без URL — покажем плейсхолдер на фронтенде
     }
 
+    // Opening a dialog marks incoming messages as read. The authenticated
+    // recipient id is resolved server-side before the admin update.
+    if (selfId) {
+      try {
+        const existing = await this.getExistingColumns(userAccessToken);
+        const senderColumn = COLS.sender.find((key) => existing.has(key));
+        const recipientColumn = COLS.recipient.find((key) => existing.has(key));
+        if (existing.has('read_at') && senderColumn && recipientColumn) {
+          await this.supabaseService
+            .getAdminClient()
+            .from('messages')
+            .update({ read_at: new Date().toISOString() })
+            .eq(senderColumn, otherUserId)
+            .eq(recipientColumn, selfId)
+            .is('read_at', null);
+        }
+      } catch {
+        // Read receipts are non-critical; message loading must still succeed.
+      }
+    }
+
     return result;
   }
 
@@ -718,6 +740,8 @@ export class ChatService {
       if (!otherUserId || otherUserId === 'null' || otherUserId === 'undefined')
         continue;
 
+      if (!map.has(otherUserId) && map.size >= safeLimit) continue;
+
       if (!map.has(otherUserId)) {
         const createdKey = pickKey(r, COLS.created) || 'created_at';
         const contentKey = pickKey(r, COLS.content) || 'content';
@@ -735,9 +759,14 @@ export class ChatService {
           lastMessageAt: createdAt,
           primaryPhotoUrl: null,
           displayName: null,
+          unreadCount: 0,
         });
       }
-      if (map.size >= safeLimit) break;
+
+      const conversation = map.get(otherUserId);
+      if (conversation && String(recipient) === selfId && !r.read_at) {
+        conversation.unreadCount += 1;
+      }
     }
 
     // Пробуем подтянуть primary-фото собеседников через admin client

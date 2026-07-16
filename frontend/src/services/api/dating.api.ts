@@ -1,26 +1,9 @@
 import { api } from './client';
+import type { DatingCandidate, MutualDatingMatch } from '../../types/dating';
 
 export const datingAPI = {
   // Ranked candidate feed for swipe discovery
-  getCandidates: async (
-    limit = 20
-  ): Promise<
-    Array<{
-      userId: string;
-      badge: 'high' | 'medium' | 'low';
-      photoUrl: string | null;
-      photos?: string[] | null;
-      avatarUrl?: string | null;
-      name?: string | null;
-      age?: number | null;
-      zodiacSign?: string | null;
-      bio?: string | null;
-      interests?: string[] | null;
-      city?: string | null;
-      lookingFor?: string | null;
-      lastActive?: string | null;
-    }>
-  > => {
+  getCandidates: async (limit = 20): Promise<DatingCandidate[]> => {
     const safeLimit = Math.max(1, Math.min(50, limit));
     const response = await api.get(`/dating/candidates?limit=${safeLimit}`);
     const raw = response?.data;
@@ -38,9 +21,14 @@ export const datingAPI = {
         return {
           userId: it?.userId ?? it?.user_id ?? it?.id ?? '',
           badge: (it?.badge ?? 'low') as 'high' | 'medium' | 'low',
+          compatibility:
+            typeof it?.compatibility === 'number' ? it.compatibility : null,
+          compatibilitySummary:
+            typeof it?.compatibilitySummary === 'string'
+              ? it.compatibilitySummary
+              : null,
           photoUrl: photo,
           photos: Array.isArray(it?.photos) ? it.photos : null,
-          avatarUrl: it?.avatarUrl ?? null,
           name: it?.name ?? null,
           age: typeof it?.age === 'number' ? it.age : (it?.age ?? null),
           zodiacSign: it?.zodiacSign ?? it?.sign ?? null,
@@ -52,6 +40,12 @@ export const datingAPI = {
         };
       })
       .filter((c) => typeof c.userId === 'string' && c.userId.length > 0);
+  },
+
+  getMutualMatches: async (limit = 50): Promise<MutualDatingMatch[]> => {
+    const safeLimit = Math.max(1, Math.min(50, limit));
+    const response = await api.get(`/dating/mutual-matches?limit=${safeLimit}`);
+    return Array.isArray(response.data) ? response.data : [];
   },
 
   // Public profile for Dating card (backend aggregates users + user_profiles + charts + photos)

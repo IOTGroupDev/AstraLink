@@ -157,6 +157,8 @@ export interface CandidateRow {
 export interface EnrichedCandidate {
   userId: string;
   badge: CandidateBadge;
+  compatibility?: number | null;
+  compatibilitySummary?: string | null;
   photoUrl: string | null;
   photos?: string[] | null;
   name: string | null;
@@ -167,6 +169,27 @@ export interface EnrichedCandidate {
   city: string | null;
   lookingFor?: string | null;
   lastActive?: string | null;
+}
+
+export interface MutualDatingMatch {
+  id: string;
+  userId: string;
+  name: string | null;
+  age: number | null;
+  zodiacSign: string | null;
+  bio: string | null;
+  interests: string[] | null;
+  city: string | null;
+  lookingFor: string | null;
+  lastActive: string | null;
+  primaryPhotoUrl: string | null;
+  photos: string[] | null;
+  compatibility: number | null;
+  compatibilitySummary: string | null;
+  createdAt: string;
+  isNew: boolean;
+  isNearby: boolean;
+  isOnline: boolean;
 }
 
 // Compatibility calculation types

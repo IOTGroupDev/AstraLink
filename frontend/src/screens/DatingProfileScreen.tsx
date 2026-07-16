@@ -2,62 +2,28 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsFocused } from '@react-navigation/native';
-import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CosmicBackground from '../components/shared/CosmicBackground';
-import CosmicChat from '../components/dating/CosmicChat';
-import { chatAPI, datingAPI, userAPI } from '../services/api';
+import { useTranslation } from 'react-i18next';
+import { datingAPI, userAPI } from '../services/api';
 import { logger } from '../services/logger';
 import type { RootStackParamList } from '../types/navigation';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const HERO_HEIGHT = Math.min(Dimensions.get('window').height * 0.54, 430);
-
 type Props = NativeStackScreenProps<RootStackParamList, 'DatingProfile'>;
-type DatingPublicProfile = Awaited<ReturnType<typeof datingAPI.getProfile>>;
+type PublicProfile = Awaited<ReturnType<typeof datingAPI.getProfile>>;
 
-const getZodiacTranslationKey = (sign: string): string => {
-  const map: Record<string, string> = {
-    aries: 'aries',
-    taurus: 'taurus',
-    gemini: 'gemini',
-    cancer: 'cancer',
-    leo: 'leo',
-    virgo: 'virgo',
-    libra: 'libra',
-    scorpio: 'scorpio',
-    sagittarius: 'sagittarius',
-    capricorn: 'capricorn',
-    aquarius: 'aquarius',
-    pisces: 'pisces',
-  };
-
-  return (
-    map[
-      String(sign || '')
-        .trim()
-        .toLowerCase()
-    ] ?? String(sign || '')
-  );
-};
-
-const buildPreviewProfile = (
-  params: RootStackParamList['DatingProfile']
-): DatingPublicProfile => ({
+const getInitialProfile = (
+  params: Props['route']['params']
+): PublicProfile => ({
   userId: params.userId,
   name: params.name ?? null,
   age: params.age ?? null,
@@ -73,706 +39,408 @@ const buildPreviewProfile = (
 
 export default function DatingProfileScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
-  const previewProfile = useMemo(
-    () => buildPreviewProfile(route.params),
-    [route.params]
-  );
-  const [profile, setProfile] = useState<DatingPublicProfile | null>(
-    previewProfile
+  const [profile, setProfile] = useState<PublicProfile>(() =>
+    getInitialProfile(route.params)
   );
   const [loading, setLoading] = useState(true);
-  const [chatVisible, setChatVisible] = useState(false);
   const [moderationBusy, setModerationBusy] = useState(false);
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const headerHeight = insets.top + 83;
 
   useEffect(() => {
     let mounted = true;
-
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        const freshProfile = await datingAPI.getProfile(route.params.userId);
+    void datingAPI
+      .getProfile(route.params.userId)
+      .then((fresh) => {
         if (!mounted) return;
-
         setProfile((current) => ({
           ...current,
-          ...freshProfile,
+          ...fresh,
+          primaryPhotoUrl: fresh.primaryPhotoUrl ?? current.primaryPhotoUrl,
           photos:
-            Array.isArray(freshProfile.photos) && freshProfile.photos.length > 0
-              ? freshProfile.photos
-              : (current?.photos ?? null),
-          primaryPhotoUrl:
-            freshProfile.primaryPhotoUrl ??
-            current?.primaryPhotoUrl ??
-            route.params.photoUrl ??
-            null,
+            fresh.photos && fresh.photos.length > 0
+              ? fresh.photos
+              : current.photos,
         }));
-      } catch (error) {
-        logger.error('[DatingProfile] Ошибка загрузки профиля', error);
-        if (mounted && !previewProfile.name) {
-          Alert.alert(
-            t('common.errors.generic'),
-            t('dating.profile.failedToLoad')
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadProfile();
-
+      })
+      .catch((error) =>
+        logger.error('[DatingProfile] Failed to load profile', error)
+      )
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
     return () => {
       mounted = false;
     };
-  }, [previewProfile.name, route.params.photoUrl, route.params.userId, t]);
+  }, [route.params.userId]);
 
-  const resolvedPhotos = useMemo(() => {
-    if (Array.isArray(profile?.photos) && profile.photos.length > 0) {
-      return profile.photos.filter((photo): photo is string => !!photo);
+  const photos = useMemo(() => {
+    const result = (profile.photos ?? []).filter((photo): photo is string =>
+      Boolean(photo)
+    );
+    if (profile.primaryPhotoUrl && !result.includes(profile.primaryPhotoUrl)) {
+      result.unshift(profile.primaryPhotoUrl);
     }
-
-    if (profile?.primaryPhotoUrl) {
-      return [profile.primaryPhotoUrl];
-    }
-
-    if (Array.isArray(route.params.photos) && route.params.photos.length > 0) {
-      return route.params.photos.filter((photo): photo is string => !!photo);
-    }
-
-    return route.params.photoUrl ? [route.params.photoUrl] : [];
-  }, [
-    profile?.photos,
-    profile?.primaryPhotoUrl,
-    route.params.photoUrl,
-    route.params.photos,
-  ]);
-
-  useEffect(() => {
-    setActivePhotoIndex((currentIndex) => {
-      if (resolvedPhotos.length <= 1) return 0;
-      return Math.min(currentIndex, resolvedPhotos.length - 1);
-    });
-  }, [resolvedPhotos.length]);
-
-  const displayName =
-    profile?.name ?? route.params.name ?? t('dating.defaults.userName');
-  const displayTitle =
-    profile?.age != null ? `${displayName}, ${profile.age}` : displayName;
-  const zodiacLabel = profile?.zodiacSign
-    ? t(`common.zodiacSigns.${getZodiacTranslationKey(profile.zodiacSign)}`, {
+    return result;
+  }, [profile.photos, profile.primaryPhotoUrl]);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const displayName = profile.name ?? t('dating.defaults.userName');
+  const title =
+    profile.age != null ? `${displayName}, ${profile.age}` : displayName;
+  const online = useMemo(() => {
+    if (!profile.lastActive) return false;
+    const value = new Date(profile.lastActive).getTime();
+    return Number.isFinite(value) && Date.now() - value < 5 * 60 * 1000;
+  }, [profile.lastActive]);
+  const zodiac = profile.zodiacSign
+    ? t(`common.zodiacSigns.${profile.zodiacSign.toLowerCase()}`, {
         defaultValue: profile.zodiacSign,
       })
     : null;
-  const cityLabel = profile?.city ?? route.params.city ?? null;
-  const lookingForLabel = profile?.lookingFor
-    ? t(`dating.lookingFor.${profile.lookingFor}`, {
-        defaultValue: profile.lookingFor,
-      })
-    : (route.params.lookingFor ?? null);
-  const lastActiveValue =
-    profile?.lastActive ?? route.params.lastActive ?? null;
-  const lastActiveLabel = (() => {
-    if (!lastActiveValue) return null;
-    const parsed = new Date(lastActiveValue);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return parsed.toLocaleDateString();
-  })();
-  const interests = Array.isArray(profile?.interests)
-    ? profile.interests
-    : (route.params.interests ?? []);
 
-  const handlePhotoScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>
-  ) => {
-    const nextIndex = Math.round(
-      event.nativeEvent.contentOffset.x / SCREEN_WIDTH
-    );
-    setActivePhotoIndex(nextIndex);
-  };
-
-  const reportUserFromProfile = useCallback(async () => {
-    try {
-      setModerationBusy(true);
-      await userAPI.reportUser(route.params.userId, 'dating_profile_report');
-      navigation.goBack();
-    } catch (error) {
-      logger.error('[DatingProfile] Ошибка репорта пользователя', error);
-      Alert.alert(
-        t('common.errors.generic'),
-        t('dating.actions.failedToReport')
-      );
-    } finally {
-      setModerationBusy(false);
-    }
-  }, [navigation, route.params.userId, t]);
-
-  const blockUserFromProfile = useCallback(async () => {
-    try {
-      setModerationBusy(true);
-      await userAPI.blockUser(route.params.userId);
-      navigation.goBack();
-    } catch (error) {
-      logger.error('[DatingProfile] Ошибка блокировки пользователя', error);
-      Alert.alert(
-        t('common.errors.generic'),
-        t('dating.actions.failedToBlock')
-      );
-    } finally {
-      setModerationBusy(false);
-    }
-  }, [navigation, route.params.userId, t]);
-
-  const handleOpenActions = useCallback(() => {
-    if (moderationBusy) return;
-
-    Alert.alert(
-      t('dating.actions.title'),
-      t('dating.actions.subtitle', { name: displayName }),
-      [
-        { text: t('common.buttons.cancel'), style: 'cancel' },
-        {
-          text: t('dating.actions.report'),
-          onPress: () => {
-            Alert.alert(
-              t('dating.actions.reportTitle'),
-              t('dating.actions.reportMessage', { name: displayName }),
-              [
-                { text: t('common.buttons.cancel'), style: 'cancel' },
-                {
-                  text: t('dating.actions.report'),
-                  style: 'destructive',
-                  onPress: () => {
-                    void reportUserFromProfile();
-                  },
-                },
-              ]
-            );
-          },
-        },
-        {
-          text: t('dating.actions.block'),
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              t('dating.actions.blockTitle'),
-              t('dating.actions.blockMessage', { name: displayName }),
-              [
-                { text: t('common.buttons.cancel'), style: 'cancel' },
-                {
-                  text: t('dating.actions.block'),
-                  style: 'destructive',
-                  onPress: () => {
-                    void blockUserFromProfile();
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
-  }, [
-    blockUserFromProfile,
-    displayName,
-    moderationBusy,
-    reportUserFromProfile,
-    t,
-  ]);
-
-  const handleSendMessage = useCallback(
-    async (text: string) => {
-      try {
-        await chatAPI.sendMessage(route.params.userId, text);
-        setChatVisible(false);
-        navigation.navigate('ChatDialog', {
-          otherUserId: route.params.userId,
-          displayName,
-          primaryPhotoUrl:
-            profile?.primaryPhotoUrl ?? route.params.photoUrl ?? null,
-        });
-      } catch (error) {
-        logger.error('[DatingProfile] Ошибка отправки сообщения', error);
-        Alert.alert(
-          t('common.errors.generic'),
-          t('dating.errors.failedToSendMessage')
-        );
-      }
-    },
-    [
+  const openChat = useCallback(() => {
+    navigation.navigate('ChatDialog', {
+      otherUserId: route.params.userId,
       displayName,
-      navigation,
-      profile?.primaryPhotoUrl,
-      route.params.photoUrl,
-      route.params.userId,
-      t,
-    ]
-  );
+      primaryPhotoUrl: profile.primaryPhotoUrl,
+    });
+  }, [displayName, navigation, profile.primaryPhotoUrl, route.params.userId]);
 
-  const renderSection = (
-    title: string,
-    content: React.ReactNode,
-    icon: keyof typeof Ionicons.glyphMap
-  ) => (
-    <View style={styles.sectionCard}>
-      <View style={styles.sectionHeader}>
-        <Ionicons name={icon} size={18} color="#F5B942" />
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      {content}
-    </View>
-  );
+  const openSafetyActions = useCallback(() => {
+    if (moderationBusy) return;
+    Alert.alert(t('dating.actions.title'), undefined, [
+      { text: t('common.buttons.cancel'), style: 'cancel' },
+      {
+        text: t('dating.actions.report'),
+        onPress: async () => {
+          try {
+            setModerationBusy(true);
+            await userAPI.reportUser(
+              route.params.userId,
+              'dating_profile_report'
+            );
+            navigation.goBack();
+          } catch (error) {
+            logger.error('[DatingProfile] Report failed', error);
+          } finally {
+            setModerationBusy(false);
+          }
+        },
+      },
+      {
+        text: t('dating.actions.block'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setModerationBusy(true);
+            await userAPI.blockUser(route.params.userId);
+            navigation.goBack();
+          } catch (error) {
+            logger.error('[DatingProfile] Block failed', error);
+          } finally {
+            setModerationBusy(false);
+          }
+        },
+      },
+    ]);
+  }, [moderationBusy, navigation, route.params.userId, t]);
 
   return (
     <View style={styles.screen}>
-      <CosmicBackground active={isFocused} />
+      <LinearGradient
+        colors={['#191439', '#080E1C', '#080E1C']}
+        locations={[0, 0.36, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: headerHeight + 17 },
+        ]}
       >
         <View style={styles.hero}>
-          {resolvedPhotos.length > 0 ? (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              nestedScrollEnabled
-              directionalLockEnabled
-              scrollEnabled={resolvedPhotos.length > 1}
-              bounces={false}
-              overScrollMode="never"
-              scrollEventThrottle={16}
-              onMomentumScrollEnd={handlePhotoScroll}
-              showsHorizontalScrollIndicator={false}
-            >
-              {resolvedPhotos.map((photo, index) => (
-                <Image
-                  key={`${photo}-${index}`}
-                  source={{ uri: photo }}
-                  style={styles.heroPhoto}
-                  resizeMode="cover"
-                />
-              ))}
-            </ScrollView>
+          {photos[photoIndex] ? (
+            <Image
+              source={{ uri: photos[photoIndex] }}
+              style={styles.heroPhoto}
+            />
           ) : (
             <LinearGradient
-              colors={['#8B5CF6', '#6F1F87', '#31124D']}
-              style={styles.heroPhoto}
+              colors={['#B58BCB', '#76518E']}
+              style={styles.heroFallback}
             >
               <Ionicons
                 name="person"
-                size={112}
-                color="rgba(255,255,255,0.24)"
+                size={118}
+                color="rgba(255,255,255,0.28)"
               />
             </LinearGradient>
           )}
+          {photos.length > 1 ? (
+            <View style={styles.photoPager}>
+              {photos.map((photo, index) => (
+                <Pressable
+                  key={`${photo}-${index}`}
+                  onPress={() => setPhotoIndex(index)}
+                  style={[
+                    styles.photoDot,
+                    index === photoIndex && styles.photoDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          ) : null}
+          {loading ? (
+            <ActivityIndicator style={styles.photoLoader} color="#FFFFFF" />
+          ) : null}
+        </View>
 
-          <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(9, 12, 26, 0.08)', 'rgba(9, 12, 26, 0.82)']}
-            style={styles.heroOverlay}
-          />
-
-          <View style={[styles.heroHeader, { paddingTop: insets.top + 8 }]}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="arrow-back" size={20} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={handleOpenActions}
-              activeOpacity={0.82}
-              disabled={moderationBusy}
-            >
-              <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-            </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <Pressable style={styles.actionCard} onPress={openChat}>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={33}
+              color="#FFFFFF"
+            />
+            <Text style={styles.actionText}>
+              {t('dating.profile.message', { defaultValue: 'Message' })}
+            </Text>
+          </Pressable>
+          <View style={styles.actionCard}>
+            <Ionicons name="sparkles-outline" size={37} color="#FFFFFF" />
+            <Text style={styles.actionText}>
+              {t('dating.profile.astrologyMatch', {
+                defaultValue: 'Astrology Match',
+              })}
+            </Text>
           </View>
+        </View>
 
-          <View pointerEvents="none" style={styles.heroFooter}>
-            <View style={styles.compatibilityBadge}>
-              <Ionicons name="sparkles" size={14} color="#0F172A" />
-              <Text style={styles.compatibilityBadgeText}>
+        {route.params.compatibility != null ? (
+          <View style={styles.section}>
+            <View style={styles.matchTitleRow}>
+              <View style={styles.matchRing} />
+              <Text style={styles.matchLabel}>MATCH</Text>
+              <Text style={styles.matchPercent}>
                 {route.params.compatibility}%
               </Text>
             </View>
-
-            <Text style={styles.heroTitle}>{displayTitle}</Text>
-
-            {(zodiacLabel || cityLabel) && (
-              <View style={styles.heroMetaRow}>
-                {zodiacLabel ? (
-                  <Text style={styles.heroMetaText}>{zodiacLabel}</Text>
-                ) : null}
-                {zodiacLabel && cityLabel ? (
-                  <Text style={styles.heroMetaDivider}>{'\u00B7'}</Text>
-                ) : null}
-                {cityLabel ? (
-                  <Text style={styles.heroMetaText}>{cityLabel}</Text>
-                ) : null}
-              </View>
+            {route.params.compatibilitySummary ? (
+              <Text style={styles.bodyText}>
+                {route.params.compatibilitySummary}
+              </Text>
+            ) : (
+              <Text style={styles.bodyText}>
+                {t('dating.profile.compatibilityReady', {
+                  defaultValue:
+                    'Your natal charts show a meaningful compatibility pattern.',
+                })}
+              </Text>
             )}
+          </View>
+        ) : null}
 
-            {resolvedPhotos.length > 1 ? (
-              <View style={styles.pagination}>
-                {resolvedPhotos.map((photo, index) => (
-                  <View
-                    key={`${photo}-${index}`}
-                    style={[
-                      styles.paginationDot,
-                      index === activePhotoIndex && styles.paginationDotActive,
-                    ]}
-                  />
-                ))}
-              </View>
-            ) : null}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ABOUT</Text>
+          <Text style={styles.bodyText}>
+            {profile.bio?.trim() || t('dating.profile.emptyBio')}
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>INTERESTS</Text>
+          <View style={styles.tags}>
+            {(profile.interests ?? []).length > 0 ? (
+              (profile.interests ?? []).map((interest) => (
+                <View style={styles.tag} key={interest}>
+                  <Text style={styles.tagText}>{interest}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.mutedText}>
+                {t('dating.profile.emptyInterests')}
+              </Text>
+            )}
           </View>
         </View>
 
-        <View style={styles.content}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>{t('dating.profile.title')}</Text>
-            <Text style={styles.summarySubtitle}>
-              {t('dating.profile.subtitle')}
-            </Text>
-
-            <View style={styles.compatibilityBlock}>
-              <Text style={styles.compatibilityLabel}>
-                {t('dating.card.compatibilityLabel')}
-              </Text>
-              <View style={styles.compatibilityTrack}>
-                <LinearGradient
-                  colors={['#F5B942', '#F97316']}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={[
-                    styles.compatibilityFill,
-                    { width: `${route.params.compatibility}%` },
-                  ]}
-                />
-              </View>
-            </View>
-          </View>
-
-          {renderSection(
-            t('dating.profile.aboutTitle'),
-            <Text style={styles.sectionBodyText}>
-              {profile?.bio?.trim() || t('dating.profile.emptyBio')}
-            </Text>,
-            'person-outline'
-          )}
-
-          {renderSection(
-            t('dating.profile.interestsTitle'),
-            <View style={styles.tagsWrap}>
-              {interests.length > 0 ? (
-                interests.map((interest, index) => (
-                  <View key={`${interest}-${index}`} style={styles.tag}>
-                    <Text style={styles.tagText}>
-                      {t(`dating.interests.${String(interest).toLowerCase()}`, {
-                        defaultValue: interest,
-                      })}
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.sectionMutedText}>
-                  {t('dating.profile.emptyInterests')}
-                </Text>
-              )}
-            </View>,
-            'planet-outline'
-          )}
-
-          {cityLabel
-            ? renderSection(
-                t('dating.profile.locationTitle'),
-                <Text style={styles.sectionBodyText}>{cityLabel}</Text>,
-                'location-outline'
-              )
-            : null}
-
-          {lookingForLabel
-            ? renderSection(
-                t('dating.profile.lookingForTitle'),
-                <Text style={styles.sectionBodyText}>{lookingForLabel}</Text>,
-                'heart-outline'
-              )
-            : null}
-
-          {lastActiveLabel
-            ? renderSection(
-                t('dating.profile.lastActiveTitle'),
-                <Text style={styles.sectionBodyText}>{lastActiveLabel}</Text>,
-                'time-outline'
-              )
-            : null}
-
-          <TouchableOpacity
-            style={styles.messageButton}
-            onPress={() => setChatVisible(true)}
-            activeOpacity={0.88}
-          >
-            <LinearGradient
-              colors={['#F5B942', '#F97316']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.messageButtonGradient}
-            >
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={18}
-                color="#111827"
-              />
-              <Text style={styles.messageButtonText}>
-                {t('dating.profile.sendMessage')}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {loading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color="#F5B942" />
-              <Text style={styles.loadingText}>
-                {t('dating.profile.loading')}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+        <Pressable
+          onPress={openSafetyActions}
+          disabled={moderationBusy}
+          style={styles.safetyButton}
+        >
+          <Ionicons name="shield-outline" size={17} color="#8E899B" />
+          <Text style={styles.safetyText}>{t('dating.actions.title')}</Text>
+        </Pressable>
       </ScrollView>
 
-      {chatVisible ? (
-        <CosmicChat
-          visible={chatVisible}
-          user={{
-            id: route.params.userId,
-            name: displayName,
-            zodiacSign: profile?.zodiacSign ?? route.params.zodiacSign ?? null,
-            compatibility: route.params.compatibility,
-          }}
-          onClose={() => setChatVisible(false)}
-          onSendMessage={handleSendMessage}
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 10 }]}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+        </Pressable>
+        <View style={styles.titlePill}>
+          <Text numberOfLines={1} style={styles.headerTitle}>
+            {title}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {zodiac ?? ''}
+            {zodiac ? ' · ' : ''}
+            <Text style={online ? styles.onlineText : styles.offlineText}>
+              {online ? t('chat.header.online') : t('chat.header.offline')}
+            </Text>
+          </Text>
+        </View>
+        <View style={styles.headerSpacer} />
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(25,20,57,0.98)',
+            'rgba(25,20,57,0.72)',
+            'rgba(25,20,57,0)',
+          ]}
+          style={styles.headerFade}
         />
-      ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#090C1A',
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  hero: {
-    height: HERO_HEIGHT,
-  },
-  heroPhoto: {
-    width: SCREEN_WIDTH,
-    height: HERO_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroHeader: {
+  screen: { flex: 1, backgroundColor: '#080E1C' },
+  content: { paddingHorizontal: 23, paddingBottom: 44 },
+  fixedHeader: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
+    left: 24,
+    right: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    zIndex: 20,
   },
-  headerButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.66)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  heroFooter: {
+  headerFade: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 22,
+    top: 63,
+    left: -24,
+    right: -24,
+    height: 45,
+    zIndex: -1,
   },
-  compatibilityBadge: {
-    alignSelf: 'flex-start',
-    minHeight: 28,
-    borderRadius: 999,
-    backgroundColor: '#F5B942',
-    flexDirection: 'row',
+  backButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: 'rgba(124,124,157,0.42)',
+    backgroundColor: 'rgba(45,45,78,0.82)',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    marginBottom: 14,
+    justifyContent: 'center',
   },
-  compatibilityBadgeText: {
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  heroTitle: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  heroMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroMetaText: {
-    color: 'rgba(255,255,255,0.84)',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  heroMetaDivider: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 15,
-    marginHorizontal: 8,
-  },
-  pagination: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 16,
-  },
-  paginationDot: {
-    width: 24,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.28)',
-  },
-  paginationDotActive: {
-    backgroundColor: '#fff',
-  },
-  content: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    gap: 14,
-  },
-  summaryCard: {
+  headerSpacer: { width: 45 },
+  titlePill: {
+    minWidth: 137,
+    maxWidth: 210,
+    minHeight: 45,
     borderRadius: 24,
-    padding: 18,
-    backgroundColor: 'rgba(15, 23, 42, 0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  summaryTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  summarySubtitle: {
-    color: 'rgba(226, 232, 240, 0.78)',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  compatibilityBlock: {
-    gap: 10,
-  },
-  compatibilityLabel: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  compatibilityTrack: {
-    height: 10,
-    borderRadius: 999,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  compatibilityFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  sectionCard: {
-    borderRadius: 20,
-    padding: 16,
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 5,
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(52,51,86,0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(129,126,163,0.48)',
   },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  sectionBodyText: {
-    color: 'rgba(255,255,255,0.86)',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  sectionMutedText: {
-    color: 'rgba(226, 232, 240, 0.58)',
-    fontSize: 14,
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
     lineHeight: 20,
-  },
-  tagsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  tagText: {
-    color: '#fff',
-    fontSize: 13,
     fontWeight: '500',
   },
-  messageButton: {
-    borderRadius: 18,
+  headerSubtitle: { color: '#C5BECE', fontSize: 11, lineHeight: 14 },
+  onlineText: { color: '#14D1AA' },
+  offlineText: { color: '#8E899B' },
+  hero: {
+    height: 329,
+    borderRadius: 26,
     overflow: 'hidden',
-    marginTop: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(112,103,148,0.85)',
+    backgroundColor: '#8A67A1',
   },
-  messageButtonGradient: {
-    minHeight: 54,
+  heroPhoto: { width: '100%', height: '100%' },
+  heroFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  photoPager: {
+    position: 'absolute',
+    left: 70,
+    right: 70,
+    bottom: 12,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  photoDot: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  photoDotActive: { backgroundColor: '#FFFFFF' },
+  photoLoader: { position: 'absolute', right: 12, top: 12 },
+  actionRow: { flexDirection: 'row', gap: 13, marginTop: 13 },
+  actionCard: {
+    flex: 1,
+    height: 82,
+    borderRadius: 22,
+    backgroundColor: 'rgba(39,43,61,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(107,108,139,0.48)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  actionText: { color: '#FFFFFF', fontSize: 13 },
+  section: { marginTop: 23 },
+  matchTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  matchRing: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 3,
+    borderColor: '#21D6B1',
+    marginRight: 5,
+  },
+  matchLabel: { color: '#F0C9F4', fontSize: 12 },
+  matchPercent: { color: '#FFFFFF', fontSize: 12 },
+  sectionTitle: { color: '#F0C9F4', fontSize: 12, marginBottom: 8 },
+  bodyText: { color: '#C7C3CE', fontSize: 15, lineHeight: 19 },
+  mutedText: { color: '#8E899B', fontSize: 13 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 11 },
+  tag: {
+    minWidth: 88,
+    borderRadius: 17,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    alignItems: 'center',
+    backgroundColor: 'rgba(40,43,57,0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(91,94,116,0.7)',
+  },
+  tagText: { color: '#C9C5CE', fontSize: 12 },
+  safetyButton: {
+    marginTop: 28,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 7,
   },
-  messageButtonText: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  loadingText: {
-    color: 'rgba(226, 232, 240, 0.78)',
-    fontSize: 14,
-  },
+  safetyText: { color: '#8E899B', fontSize: 13 },
 });

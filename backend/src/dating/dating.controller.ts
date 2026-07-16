@@ -67,6 +67,23 @@ export class DatingController {
     }
   }
 
+  @Get('mutual-matches')
+  @ApiOperation({ summary: 'Get active mutual dating matches' })
+  @ApiResponse({
+    status: 200,
+    description: 'Mutual matches with public profiles',
+  })
+  async getMutualMatches(
+    @Request() req: AuthenticatedRequest,
+    @Query('limit') limit?: string,
+  ) {
+    const token = this.getAccessToken(req);
+    const safeLimit = limit
+      ? Math.max(1, Math.min(50, parseInt(limit, 10)))
+      : 50;
+    return this.datingService.getMutualMatchesViaSupabase(token, safeLimit);
+  }
+
   @Post('match/:id/like')
   @ApiOperation({ summary: 'Лайкнуть кандидата' })
   @ApiParam({ name: 'id', description: 'ID кандидата' })

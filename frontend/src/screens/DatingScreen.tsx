@@ -1,647 +1,617 @@
-import React from 'react';
-import { ImageBackground, StyleSheet, Text, View } from 'react-native';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import HeartOutlineIcon from '../../assets/icons/heart-outline.svg';
-import comingSoonBackground from '../../assets/coming-soon-gb.png';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../hooks/useAuth';
+import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
+import { datingAPI, userAPI } from '../services/api';
+import { logger } from '../services/logger';
+import type { RootStackParamList } from '../types/navigation';
+import type { DatingCandidate, MutualDatingMatch } from '../types/dating';
+import DatingCard from '../components/dating/DatingCard';
+import {
+  DatingTabBar,
+  type DatingTab,
+} from '../components/dating/DatingTabBar';
+import ChatListScreen from './ChatListScreen';
+
+const LAST_TAB_KEY_PREFIX = 'dating:last-tab:';
+type MatchFilter = 'all' | 'new' | 'nearby' | 'online';
+
+const matchFilters: Array<{ key: MatchFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'new', label: 'New' },
+  { key: 'nearby', label: 'Nearby' },
+  { key: 'online', label: 'Online' },
+];
 
 export default function DatingScreen() {
+  const { t } = useTranslation();
+  const { user, isLoading: authLoading } = useAuth();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const bottomTabHeight = useOptionalBottomTabBarHeight();
+  const { height: screenHeight } = useWindowDimensions();
+  const [tab, setTab] = useState<DatingTab>('discovery');
+  const [tabReady, setTabReady] = useState(false);
+  const [candidates, setCandidates] = useState<DatingCandidate[]>([]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [matches, setMatches] = useState<MutualDatingMatch[]>([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [refreshingMatches, setRefreshingMatches] = useState(false);
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>('all');
+  const [moderationBusy, setModerationBusy] = useState(false);
+
+  const storageKey = `${LAST_TAB_KEY_PREFIX}${user?.id ?? 'anonymous'}`;
+  const headerHeight = insets.top + 86;
+  const cardHeight = Math.max(
+    410,
+    Math.min(575, screenHeight - headerHeight - bottomTabHeight - 128)
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    setTabReady(false);
+    void AsyncStorage.getItem(storageKey)
+      .then((saved) => {
+        if (
+          mounted &&
+          (saved === 'discovery' || saved === 'matched' || saved === 'messages')
+        ) {
+          setTab(saved);
+        }
+      })
+      .finally(() => {
+        if (mounted) setTabReady(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [storageKey]);
+
+  const selectTab = useCallback(
+    (nextTab: DatingTab) => {
+      setTab(nextTab);
+      void AsyncStorage.setItem(storageKey, nextTab);
+    },
+    [storageKey]
+  );
+
+  const loadCandidates = useCallback(async () => {
+    if (!user || authLoading) return;
+    setLoadingCandidates(true);
+    try {
+      const result = await datingAPI.getCandidates(20);
+      setCandidates(result);
+      setCandidateIndex(0);
+    } catch (error) {
+      logger.error('[Dating] Failed to load candidates', error);
+      Alert.alert(t('common.errors.generic'), t('dating.errors.failedToLoad'));
+    } finally {
+      setLoadingCandidates(false);
+    }
+  }, [authLoading, t, user]);
+
+  const loadMatches = useCallback(
+    async (refresh = false) => {
+      if (!user || authLoading) return;
+      refresh ? setRefreshingMatches(true) : setLoadingMatches(true);
+      try {
+        setMatches(await datingAPI.getMutualMatches(50));
+      } catch (error) {
+        logger.error('[Dating] Failed to load mutual matches', error);
+      } finally {
+        setRefreshingMatches(false);
+        setLoadingMatches(false);
+      }
+    },
+    [authLoading, user]
+  );
+
+  useEffect(() => {
+    if (tabReady && user && candidates.length === 0) void loadCandidates();
+  }, [candidates.length, loadCandidates, tabReady, user]);
+
+  useEffect(() => {
+    if (tab === 'matched' && matches.length === 0) void loadMatches();
+  }, [loadMatches, matches.length, tab]);
+
+  const current = candidates[candidateIndex] ?? null;
+
+  const openProfile = useCallback(
+    (profile: DatingCandidate | MutualDatingMatch) => {
+      const photoUrl =
+        'primaryPhotoUrl' in profile
+          ? profile.primaryPhotoUrl
+          : profile.photoUrl;
+      navigation.navigate('DatingProfile', {
+        userId: profile.userId,
+        compatibility: profile.compatibility,
+        compatibilitySummary: profile.compatibilitySummary,
+        name: profile.name,
+        age: profile.age,
+        zodiacSign: profile.zodiacSign,
+        bio: profile.bio,
+        interests: profile.interests,
+        city: profile.city,
+        photos: profile.photos,
+        photoUrl,
+        lookingFor: profile.lookingFor,
+        lastActive: profile.lastActive,
+      });
+    },
+    [navigation]
+  );
+
+  const handleSwipe = useCallback(
+    async (direction: 'left' | 'right') => {
+      if (!current) return;
+      try {
+        const result = await datingAPI.like(
+          current.userId,
+          direction === 'right' ? 'like' : 'pass'
+        );
+        if (direction === 'right' && result.matchId) {
+          Alert.alert(t('dating.match.title'), t('dating.match.message'), [
+            { text: t('common.buttons.close'), style: 'cancel' },
+            {
+              text: t('dating.match.openChat'),
+              onPress: () =>
+                navigation.navigate('ChatDialog', {
+                  otherUserId: current.userId,
+                  displayName: current.name,
+                  primaryPhotoUrl: current.photoUrl,
+                }),
+            },
+          ]);
+        }
+      } catch (error) {
+        logger.error('[Dating] Swipe failed', error);
+      } finally {
+        setCandidateIndex((index) => index + 1);
+      }
+    },
+    [current, navigation, t]
+  );
+
+  const removeCandidate = useCallback((userId: string) => {
+    setCandidates((items) => items.filter((item) => item.userId !== userId));
+  }, []);
+
+  const openActions = useCallback(() => {
+    if (!current || moderationBusy) return;
+    Alert.alert(
+      t('dating.actions.title'),
+      t('dating.actions.subtitle', {
+        name: current.name ?? t('dating.defaults.userName'),
+      }),
+      [
+        { text: t('common.buttons.cancel'), style: 'cancel' },
+        {
+          text: t('dating.actions.report'),
+          onPress: async () => {
+            try {
+              setModerationBusy(true);
+              await userAPI.reportUser(current.userId, 'dating_profile_report');
+              removeCandidate(current.userId);
+            } finally {
+              setModerationBusy(false);
+            }
+          },
+        },
+        {
+          text: t('dating.actions.block'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setModerationBusy(true);
+              await userAPI.blockUser(current.userId);
+              removeCandidate(current.userId);
+            } finally {
+              setModerationBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [current, moderationBusy, removeCandidate, t]);
+
+  const filteredMatches = useMemo(() => {
+    if (matchFilter === 'new') return matches.filter((item) => item.isNew);
+    if (matchFilter === 'nearby')
+      return matches.filter((item) => item.isNearby);
+    if (matchFilter === 'online')
+      return matches.filter((item) => item.isOnline);
+    return matches;
+  }, [matchFilter, matches]);
+
+  const filterCount = useCallback(
+    (filter: MatchFilter) => {
+      if (filter === 'new') return matches.filter((item) => item.isNew).length;
+      if (filter === 'nearby')
+        return matches.filter((item) => item.isNearby).length;
+      if (filter === 'online')
+        return matches.filter((item) => item.isOnline).length;
+      return matches.length;
+    },
+    [matches]
+  );
+
+  const renderDiscovery = () => {
+    if (loadingCandidates || authLoading) {
+      return (
+        <View style={[styles.center, { paddingTop: headerHeight }]}>
+          <ActivityIndicator color="#A93BE2" size="large" />
+        </View>
+      );
+    }
+    if (!current) {
+      return (
+        <View style={[styles.center, { paddingTop: headerHeight }]}>
+          <Ionicons name="planet-outline" size={58} color="#8D62A6" />
+          <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
+          <Text style={styles.emptyText}>{t('dating.empty.subtitle')}</Text>
+          <Pressable style={styles.retryButton} onPress={loadCandidates}>
+            <Ionicons name="refresh" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.discovery,
+          { paddingTop: headerHeight + 20, paddingBottom: bottomTabHeight + 8 },
+        ]}
+      >
+        <DatingCard
+          key={current.userId}
+          cardHeight={cardHeight}
+          user={{
+            id: current.userId,
+            name: current.name ?? t('dating.defaults.userName'),
+            age: current.age,
+            zodiacSign: current.zodiacSign,
+            compatibility: current.compatibility,
+            compatibilitySummary: current.compatibilitySummary,
+            badge: current.badge,
+            bio: current.bio,
+            interests: current.interests ?? [],
+            city: current.city,
+            photos: current.photos,
+            photoUrl: current.photoUrl,
+            lookingFor: current.lookingFor,
+            lastActive: current.lastActive,
+          }}
+          onSwipe={handleSwipe}
+          onChat={() => undefined}
+          onOpenProfile={() => openProfile(current)}
+          onOpenActions={openActions}
+          actionsDisabled={moderationBusy}
+          isTop
+        />
+        <View style={styles.discoveryActions}>
+          <Pressable
+            style={styles.roundAction}
+            onPress={() => handleSwipe('left')}
+          >
+            <Ionicons name="close" size={37} color="#FF1E2D" />
+          </Pressable>
+          <Pressable
+            style={[styles.roundAction, styles.mainRoundAction]}
+            onPress={() => handleSwipe('right')}
+          >
+            <Ionicons name="heart" size={37} color="#FF293E" />
+          </Pressable>
+          <Pressable
+            style={styles.roundAction}
+            onPress={() =>
+              navigation.navigate('ChatDialog', {
+                otherUserId: current.userId,
+                displayName: current.name,
+                primaryPhotoUrl: current.photoUrl,
+              })
+            }
+          >
+            <Ionicons name="chatbubble-ellipses" size={29} color="#F1F1F1" />
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  const renderMatchCard = ({ item }: { item: MutualDatingMatch }) => {
+    const title =
+      item.age != null
+        ? `${item.name ?? t('dating.defaults.userName')}, ${item.age}`
+        : item.name;
+    return (
+      <Pressable style={styles.matchCard} onPress={() => openProfile(item)}>
+        {item.primaryPhotoUrl ? (
+          <Image
+            source={{ uri: item.primaryPhotoUrl }}
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          <LinearGradient
+            colors={['#B58BCB', '#76518E']}
+            style={styles.matchPhotoFallback}
+          >
+            <Ionicons name="person" size={70} color="rgba(255,255,255,0.28)" />
+          </LinearGradient>
+        )}
+        <LinearGradient
+          colors={['transparent', 'rgba(8,14,28,0.08)', 'rgba(8,14,28,0.96)']}
+          locations={[0.46, 0.64, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        {item.isOnline ? <View style={styles.onlineDot} /> : null}
+        <View style={styles.matchInfo}>
+          <Text numberOfLines={1} style={styles.matchName}>
+            {title}
+          </Text>
+          {item.zodiacSign ? (
+            <Text style={styles.matchZodiac}>{item.zodiacSign}</Text>
+          ) : null}
+          <View style={styles.compatibilityRow}>
+            <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
+            <Text style={styles.compatibilityText}>
+              {item.compatibility != null
+                ? `${t('dating.card.compatibilityLabel')} ${item.compatibility}%`
+                : t('dating.compatibility.pending', { defaultValue: 'Match' })}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
+
+  const renderMatched = () => (
+    <FlatList
+      data={filteredMatches}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      renderItem={renderMatchCard}
+      columnWrapperStyle={styles.matchRow}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingTop: headerHeight + 26,
+        paddingHorizontal: 23,
+        paddingBottom: bottomTabHeight + 42,
+      }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshingMatches}
+          onRefresh={() => loadMatches(true)}
+          tintColor="#A93BE2"
+        />
+      }
+      ListHeaderComponent={
+        <View style={styles.filtersRow}>
+          <Pressable style={styles.filterIcon}>
+            <Ionicons name="filter" size={20} color="#FFFFFF" />
+          </Pressable>
+          {matchFilters.map((filter) => {
+            const active = filter.key === matchFilter;
+            return (
+              <Pressable
+                key={filter.key}
+                onPress={() => setMatchFilter(filter.key)}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+              >
+                <Text
+                  style={[styles.filterText, active && styles.filterTextActive]}
+                >
+                  {filter.label} {filterCount(filter.key)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      }
+      ListEmptyComponent={
+        loadingMatches ? (
+          <View style={styles.listCenter}>
+            <ActivityIndicator color="#A93BE2" />
+          </View>
+        ) : (
+          <View style={styles.listCenter}>
+            <Text style={styles.emptyTitle}>
+              {t('dating.matched.empty', { defaultValue: 'No matches yet' })}
+            </Text>
+          </View>
+        )
+      }
+    />
+  );
 
   return (
-    <View style={styles.screen}>
-      <ImageBackground
-        source={comingSoonBackground}
-        resizeMode="cover"
-        style={styles.background}
-      >
-        <View
-          style={[
-            styles.content,
-            {
-              paddingTop: insets.top,
-              paddingBottom: Math.max(96, tabBarHeight + 32),
-            },
+    <GestureHandlerRootView style={styles.screen}>
+      <LinearGradient
+        colors={['#080E1C', '#151231', '#080E1C']}
+        locations={[0, 0.34, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {tabReady ? (
+        tab === 'discovery' ? (
+          renderDiscovery()
+        ) : tab === 'matched' ? (
+          renderMatched()
+        ) : (
+          <ChatListScreen embedded topInset={headerHeight + 14} />
+        )
+      ) : null}
+
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 10 }]}>
+        <DatingTabBar value={tab} onChange={selectTab} />
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(20,17,48,0.98)',
+            'rgba(20,17,48,0.68)',
+            'rgba(20,17,48,0)',
           ]}
-        >
-          <HeartOutlineIcon width={50} height={50} color="#FFFFFF" />
-          <Text style={styles.title}>Coming soon</Text>
-          <Text style={styles.description}>
-            Something special is on the way.{'\n'}Soon you'll discover people
-            {'\n'}who truly align with you.
-          </Text>
-        </View>
-      </ImageBackground>
-    </View>
+          style={styles.headerFade}
+        />
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#080E1C',
+  screen: { flex: 1, backgroundColor: '#080E1C', overflow: 'hidden' },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
+    zIndex: 20,
   },
-  background: {
-    flex: 1,
-    backgroundColor: '#080E1C',
+  headerFade: {
+    position: 'absolute',
+    top: 58,
+    left: -24,
+    right: -24,
+    height: 42,
+    zIndex: -1,
   },
-  content: {
+  center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
   },
-  title: {
+  emptyTitle: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '500',
-    letterSpacing: 0,
-    lineHeight: 31,
-    marginTop: 20,
+    marginTop: 14,
     textAlign: 'center',
-    textShadowColor: 'rgba(8, 14, 28, 0.55)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 16,
   },
-  description: {
-    color: 'rgba(255, 255, 255, 0.72)',
-    fontSize: 15,
-    fontWeight: '400',
-    letterSpacing: 0,
-    lineHeight: 22,
-    marginTop: 8,
-    maxWidth: 290,
+  emptyText: {
+    color: 'rgba(255,255,255,0.62)',
+    fontSize: 14,
+    marginTop: 7,
     textAlign: 'center',
-    textShadowColor: 'rgba(8, 14, 28, 0.45)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 12,
+  },
+  retryButton: {
+    marginTop: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4B1B6A',
+  },
+  discovery: { flex: 1, paddingHorizontal: 23, alignItems: 'center' },
+  discoveryActions: {
+    height: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 31,
+  },
+  roundAction: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: 'rgba(125,128,158,0.5)',
+    backgroundColor: 'rgba(39,43,61,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mainRoundAction: { width: 66, height: 66, borderRadius: 33 },
+  filtersRow: {
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 8,
+  },
+  filterIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: 'rgba(126,123,163,0.58)',
+    backgroundColor: 'rgba(46,44,79,0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChip: {
+    height: 42,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(126,123,163,0.58)',
+    backgroundColor: 'rgba(46,44,79,0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipActive: { backgroundColor: 'rgba(104,99,135,0.85)' },
+  filterText: { color: '#AAA5B6', fontSize: 15 },
+  filterTextActive: { color: '#FFFFFF' },
+  matchRow: { gap: 13, marginBottom: 14 },
+  matchCard: {
+    flex: 1,
+    aspectRatio: 0.72,
+    maxWidth: '49%',
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(95,88,132,0.8)',
+    backgroundColor: '#221B3B',
+  },
+  matchPhotoFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onlineDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#21D6B1',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  matchInfo: { position: 'absolute', left: 11, right: 8, bottom: 8 },
+  matchName: { color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
+  matchZodiac: { color: '#E7DFE9', fontSize: 12, marginTop: 1 },
+  compatibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  compatibilityText: { color: '#E7DFE9', fontSize: 10 },
+  listCenter: {
+    minHeight: 250,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
-
-// import React, { useEffect, useState, useCallback } from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   Alert,
-//   type LayoutChangeEvent,
-// } from 'react-native';
-// import { LinearGradient } from 'expo-linear-gradient';
-// import { GestureHandlerRootView } from 'react-native-gesture-handler';
-// import { Ionicons } from '@expo/vector-icons';
-// import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-// import {
-//   useNavigation,
-//   useIsFocused,
-//   type NavigationProp,
-// } from '@react-navigation/native';
-// import { useTranslation } from 'react-i18next';
-// import type { RootStackParamList } from '../types/navigation';
-// import { useAuth } from '../hooks/useAuth';
-// import { datingAPI, chatAPI, userAPI } from '../services/api';
-// import CosmicChat from '../components/dating/CosmicChat';
-// import DatingCard from '../components/dating/DatingCard';
-// import { TabScreenLayout } from '../components/layout/TabScreenLayout';
-// import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import CosmicBackground from '../components/shared/CosmicBackground';
-// import CompactScreenHeader from '../components/shared/CompactScreenHeader';
-// import { logger } from '../services/logger';
-// import { DatingCardSkeleton } from '../components/dating/DatingCardSkeleton';
-//
-// const CARD_TOP_PADDING = 4;
-// const MAX_CARD_HEIGHT = 640;
-//
-// // API типы
-// type ApiCandidate = {
-//   userId: string;
-//   badge: 'high' | 'medium' | 'low';
-//   photoUrl?: string | null;
-//   photos?: string[] | null;
-//   avatarUrl?: string | null;
-//   name?: string | null;
-//   age?: number | null;
-//   zodiacSign?: string | null;
-//   bio?: string | null;
-//   interests?: string[] | null;
-//   city?: string | null;
-//   lookingFor?: string | null;
-//   lastActive?: string | null;
-// };
-//
-// // Расширенный тип для UI
-// type Candidate = ApiCandidate & {
-//   name: string;
-//   age?: number | null;
-//   zodiacSign?: string | null;
-//   bio?: string | null;
-//   interests: string[];
-//   city?: string;
-//   photos: string[];
-//   photoUrl?: string | null;
-//   lookingFor?: string | null;
-//   lastActive?: string | null;
-// };
-//
-// export default function DatingScreen() {
-//   const { t } = useTranslation();
-//   const [candidates, setCandidates] = useState<Candidate[]>([]);
-//   const [currentIndex, setCurrentIndex] = useState(0);
-//   const [chatVisible, setChatVisible] = useState(false);
-//   const [selectedUser, setSelectedUser] = useState<{
-//     id: string;
-//     name: string;
-//     zodiacSign?: string | null;
-//     compatibility: number;
-//   } | null>(null);
-//   const [loadingCards, setLoadingCards] = useState<boolean>(true);
-//   const [moderationBusy, setModerationBusy] = useState(false);
-//   const [cardAreaHeight, setCardAreaHeight] = useState(0);
-//
-//   const hasReachedEnd = currentIndex >= candidates.length;
-//   const current = hasReachedEnd ? null : candidates[currentIndex] || null;
-//
-//   const { user, isLoading: authLoading } = useAuth();
-//   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-//   const insets = useSafeAreaInsets();
-//   const tabBarHeight = useBottomTabBarHeight();
-//   const cardBottomPadding = Math.max(20, tabBarHeight + 12);
-//   const availableCardHeight = Math.max(
-//     0,
-//     cardAreaHeight - CARD_TOP_PADDING - cardBottomPadding
-//   );
-//   const measuredCardHeight =
-//     availableCardHeight > 0
-//       ? Math.min(MAX_CARD_HEIGHT, availableCardHeight)
-//       : undefined;
-//   const isFocused = useIsFocused();
-//
-//   const getCompatibilityFromBadge = (b?: 'high' | 'medium' | 'low') =>
-//     b === 'high' ? 85 : b === 'medium' ? 65 : 45;
-//
-//   const nextCard = useCallback(() => {
-//     setCurrentIndex((idx) => Math.min(idx + 1, candidates.length));
-//   }, [candidates.length]);
-//
-//   const removeCandidateFromFeed = useCallback((userId: string) => {
-//     setCandidates((prev) =>
-//       prev.filter((candidate) => candidate.userId !== userId)
-//     );
-//   }, []);
-//
-//   // ===============================
-//   // Handlers
-//   // ===============================
-//   const handleSwipe = useCallback(
-//     async (direction: 'left' | 'right') => {
-//       if (!current) return;
-//
-//       try {
-//         if (direction === 'right') {
-//           const res = await datingAPI.like?.(current.userId, 'like');
-//           if (res?.matchId) {
-//             Alert.alert(t('dating.match.title'), t('dating.match.message'), [
-//               { text: t('common.buttons.close'), style: 'cancel' },
-//               {
-//                 text: t('dating.match.openChat'),
-//                 onPress: () =>
-//                   navigation.navigate('ChatDialog', {
-//                     otherUserId: current.userId,
-//                     displayName: current.name,
-//                   }),
-//               },
-//             ]);
-//           }
-//         } else {
-//           await datingAPI.like?.(current.userId, 'pass');
-//         }
-//       } catch (e) {
-//         logger.error('Ошибка свайпа', e);
-//       } finally {
-//         nextCard();
-//       }
-//     },
-//     [current, navigation, nextCard, t]
-//   );
-//
-//   const handleChat = useCallback(() => {
-//     if (!current) {
-//       Alert.alert(t('common.errors.generic'), t('dating.errors.noUserData'));
-//       return;
-//     }
-//
-//     const userData = {
-//       id: current.userId,
-//       name: current.name,
-//       zodiacSign: current.zodiacSign,
-//       compatibility: getCompatibilityFromBadge(current.badge),
-//     };
-//
-//     setSelectedUser(userData);
-//     setChatVisible(true);
-//   }, [current]);
-//
-//   const handleOpenProfile = useCallback(() => {
-//     if (!current) return;
-//
-//     navigation.navigate('DatingProfile', {
-//       userId: current.userId,
-//       compatibility: getCompatibilityFromBadge(current.badge),
-//       name: current.name,
-//       age: current.age ?? null,
-//       zodiacSign: current.zodiacSign ?? null,
-//       bio: current.bio ?? null,
-//       interests: current.interests,
-//       city: current.city ?? null,
-//       photos: current.photos,
-//       photoUrl: current.photoUrl ?? null,
-//       lookingFor: current.lookingFor ?? null,
-//       lastActive: current.lastActive ?? null,
-//     });
-//   }, [current, navigation]);
-//
-//   const handleSendMessage = useCallback(
-//     async (text: string) => {
-//       if (!selectedUser?.id) {
-//         Alert.alert(
-//           t('common.errors.generic'),
-//           t('dating.errors.userNotSelected')
-//         );
-//         return;
-//       }
-//
-//       try {
-//         await chatAPI.sendMessage(selectedUser.id, text);
-//         setChatVisible(false);
-//         navigation.navigate('ChatDialog', {
-//           otherUserId: selectedUser.id,
-//           displayName: selectedUser.name,
-//         });
-//         setSelectedUser(null);
-//       } catch (error) {
-//         logger.error('Ошибка отправки сообщения', error);
-//         Alert.alert(
-//           t('common.errors.generic'),
-//           t('dating.errors.failedToSendMessage')
-//         );
-//       }
-//     },
-//     [selectedUser, navigation, t]
-//   );
-//
-//   const handleCloseChat = useCallback(() => {
-//     setChatVisible(false);
-//     setSelectedUser(null);
-//   }, []);
-//
-//   const reportCurrentUser = useCallback(
-//     async (targetUserId: string) => {
-//       try {
-//         setModerationBusy(true);
-//         await userAPI.reportUser(targetUserId, 'dating_profile_report');
-//         removeCandidateFromFeed(targetUserId);
-//       } catch (error) {
-//         logger.error('[Dating] Ошибка репорта пользователя', error);
-//         Alert.alert(
-//           t('common.errors.generic'),
-//           t('dating.actions.failedToReport')
-//         );
-//       } finally {
-//         setModerationBusy(false);
-//       }
-//     },
-//     [removeCandidateFromFeed, t]
-//   );
-//
-//   const blockCurrentUser = useCallback(
-//     async (targetUserId: string) => {
-//       try {
-//         setModerationBusy(true);
-//         await userAPI.blockUser(targetUserId);
-//         removeCandidateFromFeed(targetUserId);
-//       } catch (error) {
-//         logger.error('[Dating] Ошибка блокировки пользователя', error);
-//         Alert.alert(
-//           t('common.errors.generic'),
-//           t('dating.actions.failedToBlock')
-//         );
-//       } finally {
-//         setModerationBusy(false);
-//       }
-//     },
-//     [removeCandidateFromFeed, t]
-//   );
-//
-//   const handleOpenActions = useCallback(() => {
-//     if (!current || moderationBusy) return;
-//
-//     Alert.alert(
-//       t('dating.actions.title'),
-//       t('dating.actions.subtitle', { name: current.name }),
-//       [
-//         {
-//           text: t('common.buttons.cancel'),
-//           style: 'cancel',
-//         },
-//         {
-//           text: t('dating.actions.report'),
-//           onPress: () => {
-//             Alert.alert(
-//               t('dating.actions.reportTitle'),
-//               t('dating.actions.reportMessage', { name: current.name }),
-//               [
-//                 {
-//                   text: t('common.buttons.cancel'),
-//                   style: 'cancel',
-//                 },
-//                 {
-//                   text: t('dating.actions.report'),
-//                   style: 'destructive',
-//                   onPress: () => {
-//                     void reportCurrentUser(current.userId);
-//                   },
-//                 },
-//               ]
-//             );
-//           },
-//         },
-//         {
-//           text: t('dating.actions.block'),
-//           style: 'destructive',
-//           onPress: () => {
-//             Alert.alert(
-//               t('dating.actions.blockTitle'),
-//               t('dating.actions.blockMessage', { name: current.name }),
-//               [
-//                 {
-//                   text: t('common.buttons.cancel'),
-//                   style: 'cancel',
-//                 },
-//                 {
-//                   text: t('dating.actions.block'),
-//                   style: 'destructive',
-//                   onPress: () => {
-//                     void blockCurrentUser(current.userId);
-//                   },
-//                 },
-//               ]
-//             );
-//           },
-//         },
-//       ]
-//     );
-//   }, [blockCurrentUser, current, moderationBusy, reportCurrentUser, t]);
-//
-//   const handleCardAreaLayout = useCallback((event: LayoutChangeEvent) => {
-//     const nextHeight = event.nativeEvent.layout.height;
-//     setCardAreaHeight((prev) =>
-//       Math.abs(prev - nextHeight) > 1 ? nextHeight : prev
-//     );
-//   }, []);
-//
-//   // ===============================
-//   // Загрузка кандидатов
-//   // ===============================
-//   useEffect(() => {
-//     if (authLoading) return;
-//
-//     if (!user) {
-//       setCandidates([]);
-//       setCurrentIndex(0);
-//       setLoadingCards(false);
-//       return;
-//     }
-//
-//     (async () => {
-//       setLoadingCards(true);
-//       try {
-//         const data: ApiCandidate[] =
-//           (await datingAPI.getCandidates?.(20)) || [];
-//         logger.info('[Dating] candidates raw count', data.length);
-//
-//         // Если совпадений нет — оставляем пусто, UI покажет заглушку (empty-state)
-//         if (data.length === 0) {
-//           logger.info('[Dating] Нет кандидатов от API');
-//         }
-//
-//         const enriched: Candidate[] = data.map((c) => {
-//           return {
-//             ...c,
-//             name: c.name || t('dating.defaults.userName'),
-//             age: c.age ?? null,
-//             zodiacSign: c.zodiacSign ?? null,
-//             bio: c.bio ?? null,
-//             interests: Array.isArray(c.interests) ? c.interests : [],
-//             city: c.city ?? undefined,
-//             photos:
-//               Array.isArray(c.photos) && c.photos.length > 0
-//                 ? c.photos
-//                 : c.photoUrl
-//                   ? [c.photoUrl]
-//                   : [],
-//             photoUrl: c.photoUrl || c.avatarUrl || null,
-//             lookingFor: c.lookingFor
-//               ? t(`dating.lookingFor.${c.lookingFor}`, {
-//                   defaultValue: c.lookingFor,
-//                 })
-//               : null,
-//             lastActive: c.lastActive ?? null,
-//           };
-//         });
-//
-//         logger.info('[Dating] enriched candidates count', enriched.length);
-//         setCandidates(enriched);
-//         setCurrentIndex(0);
-//       } catch (err) {
-//         logger.error('[Dating] Ошибка загрузки', err);
-//         Alert.alert(
-//           t('common.errors.generic'),
-//           t('dating.errors.failedToLoad')
-//         );
-//       } finally {
-//         setLoadingCards(false);
-//       }
-//     })();
-//   }, [authLoading, user, t]);
-//
-//   // ===============================
-//   // Render
-//   // ===============================
-//   return (
-//     <TabScreenLayout
-//       scrollable={false}
-//       edges={['left', 'right']}
-//       contentContainerStyle={styles.layoutContent}
-//     >
-//       <View style={styles.screen}>
-//         <GestureHandlerRootView style={styles.container}>
-//           {/* Космический фон */}
-//           <CosmicBackground active={isFocused} />
-//
-//           <View style={styles.content}>
-//             {/* Header */}
-//             <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-//               <CompactScreenHeader
-//                 title={t('dating.title')}
-//                 description={t('dating.subtitle')}
-//                 icon={<Ionicons name="heart" size={20} color="#FFFFFF" />}
-//               />
-//             </View>
-//
-//             {/* Content */}
-//             {loadingCards ? (
-//               <View
-//                 style={[
-//                   styles.cardContainer,
-//                   {
-//                     paddingTop: CARD_TOP_PADDING,
-//                     paddingBottom: cardBottomPadding,
-//                   },
-//                 ]}
-//                 onLayout={handleCardAreaLayout}
-//               >
-//                 <DatingCardSkeleton cardHeight={measuredCardHeight} />
-//               </View>
-//             ) : !current ? (
-//               <View
-//                 style={[
-//                   styles.emptyContainer,
-//                   {
-//                     paddingBottom: cardBottomPadding,
-//                     paddingTop: CARD_TOP_PADDING,
-//                   },
-//                 ]}
-//               >
-//                 <Ionicons name="planet-outline" size={64} color="#8B5CF6" />
-//                 <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
-//                 <Text style={styles.emptyText}>
-//                   {t('dating.empty.subtitle')}
-//                 </Text>
-//               </View>
-//             ) : (
-//               <View
-//                 style={[
-//                   styles.cardContainer,
-//                   {
-//                     paddingTop: CARD_TOP_PADDING,
-//                     paddingBottom: cardBottomPadding,
-//                   },
-//                 ]}
-//                 onLayout={handleCardAreaLayout}
-//               >
-//                 <DatingCard
-//                   key={current.userId}
-//                   user={{
-//                     id: current.userId,
-//                     name: current.name,
-//                     age: current.age,
-//                     zodiacSign: current.zodiacSign,
-//                     compatibility: getCompatibilityFromBadge(current.badge),
-//                     bio: current.bio,
-//                     interests: current.interests,
-//                     city: current.city,
-//                     photos: current.photos,
-//                     photoUrl: current.photoUrl,
-//                     lookingFor: current.lookingFor,
-//                     lastActive: current.lastActive,
-//                   }}
-//                   cardHeight={measuredCardHeight}
-//                   onSwipe={handleSwipe}
-//                   onChat={handleChat}
-//                   onOpenProfile={handleOpenProfile}
-//                   onOpenActions={handleOpenActions}
-//                   actionsDisabled={moderationBusy}
-//                   isTop={true}
-//                 />
-//               </View>
-//             )}
-//
-//             {/* Модалка чата */}
-//             {chatVisible && selectedUser && (
-//               <CosmicChat
-//                 visible={chatVisible}
-//                 user={selectedUser}
-//                 onClose={handleCloseChat}
-//                 onSendMessage={handleSendMessage}
-//               />
-//             )}
-//           </View>
-//         </GestureHandlerRootView>
-//         <LinearGradient
-//           pointerEvents="none"
-//           colors={[
-//             'rgba(13, 6, 24, 0.98)',
-//             'rgba(13, 6, 24, 0.65)',
-//             'rgba(13, 6, 24, 0)',
-//           ]}
-//           start={{ x: 0.5, y: 0 }}
-//           end={{ x: 0.5, y: 1 }}
-//           style={[styles.topFade, { height: insets.top + 56 }]}
-//         />
-//       </View>
-//     </TabScreenLayout>
-//   );
-// }
-//
-// const styles = StyleSheet.create({
-//   layoutContent: {
-//     flex: 1,
-//     paddingHorizontal: 0,
-//     paddingBottom: 0,
-//   },
-//   screen: {
-//     flex: 1,
-//   },
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#0D0618',
-//   },
-//   content: {
-//     flex: 1,
-//   },
-//   header: {
-//     paddingHorizontal: 16,
-//     paddingBottom: 20,
-//   },
-//   topFade: {
-//     position: 'absolute',
-//     top: 0,
-//     left: 0,
-//     right: 0,
-//     zIndex: 10,
-//   },
-//   loadingContainer: {
-//     flex: 1,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-//   loadingText: {
-//     fontSize: 16,
-//     color: '#fff',
-//     marginTop: 16,
-//   },
-//   emptyContainer: {
-//     flex: 1,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     paddingHorizontal: 40,
-//   },
-//   emptyTitle: {
-//     fontSize: 24,
-//     fontWeight: '600',
-//     color: '#fff',
-//     marginTop: 16,
-//     marginBottom: 8,
-//   },
-//   emptyText: {
-//     fontSize: 16,
-//     color: 'rgba(255,255,255,0.7)',
-//     textAlign: 'center',
-//   },
-//   cardContainer: {
-//     flex: 1,
-//     justifyContent: 'flex-start',
-//     alignItems: 'center',
-//     paddingHorizontal: 24,
-//   },
-// });

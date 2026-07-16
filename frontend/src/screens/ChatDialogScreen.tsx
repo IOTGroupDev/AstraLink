@@ -28,7 +28,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { chatAPI } from '../services/api';
+import { chatAPI, datingAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,7 +76,8 @@ export default function ChatDialogScreen() {
     if (Platform.OS !== 'ios') return 0;
     return (insets?.top || 0) + 120;
   }, [insets?.top]);
-  const headerTopPadding = Math.max((insets?.top || 0) + 12, 24);
+  const headerTopPadding = Math.max((insets?.top || 0) + 10, 20);
+  const headerHeight = headerTopPadding + 63;
   const inputBottomPadding = Math.max((insets?.bottom || 0) + 8, 16);
 
   const otherUserId: string = route?.params?.otherUserId;
@@ -89,7 +90,7 @@ export default function ChatDialogScreen() {
     if (!otherUserId) return;
     navigation.navigate('DatingProfile', {
       userId: otherUserId,
-      compatibility: 0,
+      compatibility: null,
       name: displayName ?? otherUserId,
       photoUrl: primaryPhotoUrl ?? null,
     });
@@ -100,6 +101,11 @@ export default function ChatDialogScreen() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [text, setText] = useState('');
+  const [otherProfile, setOtherProfile] = useState<{
+    zodiacSign: string | null;
+    lastActive: string | null;
+    primaryPhotoUrl: string | null;
+  } | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
   const authAlertShown = useRef(false);
 
@@ -193,6 +199,26 @@ export default function ChatDialogScreen() {
     if (user && otherUserId) fetchMessages();
   }, [user, otherUserId, fetchMessages]);
 
+  useEffect(() => {
+    if (!otherUserId) return;
+    let mounted = true;
+    void datingAPI
+      .getProfile(otherUserId)
+      .then((profile) => {
+        if (mounted) {
+          setOtherProfile({
+            zodiacSign: profile.zodiacSign,
+            lastActive: profile.lastActive ?? null,
+            primaryPhotoUrl: profile.primaryPhotoUrl,
+          });
+        }
+      })
+      .catch(() => void 0);
+    return () => {
+      mounted = false;
+    };
+  }, [otherUserId]);
+
   useFocusEffect(
     useCallback(() => {
       if (user && otherUserId) fetchMessages();
@@ -202,7 +228,7 @@ export default function ChatDialogScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        navigation.navigate('MainTabs', { screen: 'Messages' });
+        navigation.goBack();
         return true;
       };
       const sub = BackHandler.addEventListener(
@@ -776,6 +802,19 @@ export default function ChatDialogScreen() {
     [user, onLongPressMessage, t, i18n.language]
   );
 
+  const resolvedPhotoUrl =
+    primaryPhotoUrl ?? otherProfile?.primaryPhotoUrl ?? undefined;
+  const isOtherOnline = (() => {
+    if (!otherProfile?.lastActive) return false;
+    const value = new Date(otherProfile.lastActive).getTime();
+    return Number.isFinite(value) && Date.now() - value < 5 * 60 * 1000;
+  })();
+  const zodiacLabel = otherProfile?.zodiacSign
+    ? t(`common.zodiacSigns.${otherProfile.zodiacSign.toLowerCase()}`, {
+        defaultValue: otherProfile.zodiacSign,
+      })
+    : null;
+
   if (!otherUserId) {
     return (
       <View style={styles.container}>
@@ -784,9 +823,7 @@ export default function ChatDialogScreen() {
           <Text style={styles.error}>{t('chat.errors.noInterlocutor')}</Text>
           <Pressable
             style={styles.backButton}
-            onPress={() =>
-              navigation.navigate('MainTabs', { screen: 'Messages' })
-            }
+            onPress={() => navigation.goBack()}
           >
             <Text style={styles.backButtonText}>
               {t('common.buttons.back')}
@@ -822,9 +859,7 @@ export default function ChatDialogScreen() {
           <Text style={styles.error}>{t('chat.errors.authRequired')}</Text>
           <Pressable
             style={styles.backButton}
-            onPress={() =>
-              navigation.navigate('MainTabs', { screen: 'Messages' })
-            }
+            onPress={() => navigation.goBack()}
           >
             <Text style={styles.backButtonText}>
               {t('common.buttons.back')}
@@ -838,7 +873,8 @@ export default function ChatDialogScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0F172A', '#1E293B', '#334155']}
+        colors={['#171338', '#080E1C', '#080E1C']}
+        locations={[0, 0.36, 1]}
         style={StyleSheet.absoluteFillObject}
       />
       <KeyboardAvoidingView
@@ -856,33 +892,47 @@ export default function ChatDialogScreen() {
             },
           ]}
         >
-          <Pressable
-            style={styles.backHit}
-            onPress={() =>
-              navigation.navigate('MainTabs', { screen: 'Messages' })
-            }
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Pressable style={styles.backHit} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={30} color="#fff" />
           </Pressable>
           <Pressable
             style={styles.headerCenter}
             onPress={openOtherProfile}
             hitSlop={10}
           >
-            {primaryPhotoUrl ? (
-              <Image source={{ uri: primaryPhotoUrl }} style={styles.avatar} />
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>{displayName || otherUserId}</Text>
+              <Text style={styles.headerSubtitle}>
+                {zodiacLabel ?? ''}
+                {zodiacLabel ? ' · ' : ''}
+                <Text style={isOtherOnline ? styles.online : styles.offline}>
+                  {isOtherOnline
+                    ? t('chat.header.online')
+                    : t('chat.header.offline')}
+                </Text>
+              </Text>
+            </View>
+          </Pressable>
+          <Pressable style={styles.avatarShell} onPress={openOtherProfile}>
+            {resolvedPhotoUrl ? (
+              <Image source={{ uri: resolvedPhotoUrl }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarText}>
-                  {(displayName || otherUserId).slice(0, 2).toUpperCase()}
+                  {(displayName || otherUserId).slice(0, 1).toUpperCase()}
                 </Text>
               </View>
             )}
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.title}>{displayName || otherUserId}</Text>
-            </View>
           </Pressable>
-          <View style={{ width: 40 }} />
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(23,19,56,0.98)',
+              'rgba(23,19,56,0.68)',
+              'rgba(23,19,56,0)',
+            ]}
+            style={styles.headerFade}
+          />
         </View>
 
         {loading ? (
@@ -909,7 +959,10 @@ export default function ChatDialogScreen() {
             renderItem={renderItem}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
-            contentContainerStyle={styles.messagesList}
+            contentContainerStyle={[
+              styles.messagesList,
+              { paddingTop: headerHeight + 24 },
+            ]}
             onContentSizeChange={() =>
               listRef.current?.scrollToEnd({ animated: false })
             }
@@ -926,20 +979,6 @@ export default function ChatDialogScreen() {
           ]}
         >
           <View style={styles.inputRow}>
-            <Pressable
-              style={[
-                styles.attachBtn,
-                (uploading || sending) && styles.sendDisabled,
-              ]}
-              disabled={uploading || sending}
-              onPress={onAttach}
-            >
-              {uploading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="attach-outline" size={20} color="#fff" />
-              )}
-            </Pressable>
             <TextInput
               style={styles.input}
               value={text}
@@ -958,6 +997,17 @@ export default function ChatDialogScreen() {
                 )
               }
             />
+            <Pressable
+              style={styles.attachBtn}
+              disabled={uploading || sending}
+              onPress={onAttach}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#9290A1" />
+              ) : (
+                <Ionicons name="happy-outline" size={23} color="#9290A1" />
+              )}
+            </Pressable>
             <Pressable
               style={[
                 styles.sendBtn,
@@ -982,35 +1032,59 @@ export default function ChatDialogScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#080E1C',
   },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(139, 92, 246, 0.2)',
+    paddingHorizontal: 24,
   },
   backHit: {
-    padding: 8,
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: 'rgba(124,124,157,0.42)',
+    backgroundColor: 'rgba(45,45,78,0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerCenter: {
-    flex: 1,
-    flexDirection: 'row',
+    minWidth: 137,
+    maxWidth: 210,
+    minHeight: 45,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 5,
     alignItems: 'center',
-    marginLeft: 12,
-    minHeight: 48,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(52,51,86,0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(129,126,163,0.48)',
+  },
+  avatarShell: {
+    width: 47,
+    height: 47,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#6D278F',
+    padding: 2,
+    backgroundColor: 'rgba(76,52,108,0.9)',
   },
   avatar: {
-    width: 40,
-    height: 40,
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
     backgroundColor: 'rgba(139, 92, 246, 0.2)',
   },
   avatarPlaceholder: {
-    width: 40,
-    height: 40,
+    flex: 1,
     borderRadius: 20,
     backgroundColor: 'rgba(139, 92, 246, 0.3)',
     alignItems: 'center',
@@ -1022,16 +1096,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerTextContainer: {
-    marginLeft: 12,
-    flex: 1,
+    maxWidth: '100%',
     justifyContent: 'center',
-    paddingTop: 4,
+    alignItems: 'center',
   },
   title: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    lineHeight: 24,
+    fontSize: 17,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  headerSubtitle: { color: '#C5BECE', fontSize: 11, lineHeight: 14 },
+  online: { color: '#14D1AA' },
+  offline: { color: '#8E899B' },
+  headerFade: {
+    position: 'absolute',
+    top: 63,
+    left: 0,
+    right: 0,
+    height: 46,
+    zIndex: -1,
   },
   loader: {
     flex: 1,
@@ -1073,6 +1157,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    paddingTop: 120,
   },
   emptyText: {
     color: '#fff',
@@ -1086,11 +1171,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   messagesList: {
-    padding: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 18,
   },
   msgRow: {
-    marginBottom: 12,
+    marginBottom: 22,
     flexDirection: 'row',
   },
   msgRowMine: {
@@ -1101,27 +1186,24 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: '80%',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(160,155,185,0.72)',
   },
   bubbleMine: {
-    backgroundColor: '#8B5CF6',
-    borderTopRightRadius: 4,
+    backgroundColor: 'rgba(100,85,123,0.76)',
+    borderBottomRightRadius: 2,
   },
   bubbleOther: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderTopLeftRadius: 4,
+    backgroundColor: 'rgba(26,29,51,0.88)',
+    borderBottomLeftRadius: 2,
   },
   msgText: {
     color: '#fff',
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
   },
   mediaContainer: {
     flexDirection: 'row',
@@ -1135,50 +1217,50 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   time: {
-    marginTop: 6,
+    marginTop: 4,
     color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 11,
+    fontSize: 9,
     alignSelf: 'flex-end',
   },
   inputContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.2)',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    backgroundColor: 'rgba(8,14,28,0.98)',
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    minHeight: 48,
+    alignItems: 'center',
+    backgroundColor: 'rgba(26,24,54,0.96)',
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(100,94,134,0.6)',
+    paddingLeft: 19,
+    paddingRight: 9,
+    paddingVertical: 7,
+    minHeight: 64,
   },
   input: {
     flex: 1,
     color: '#fff',
     fontSize: 16,
     maxHeight: 100,
-    marginRight: 12,
+    marginRight: 4,
     paddingTop: 8,
     paddingBottom: 8,
   },
   attachBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 3,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#8B5CF6',
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    backgroundColor: '#4C1774',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#8B5CF6',
@@ -1188,7 +1270,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   sendDisabled: {
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
-    shadowOpacity: 0.1,
+    backgroundColor: 'rgba(76,23,116,0.55)',
+    shadowOpacity: 0,
   },
 });

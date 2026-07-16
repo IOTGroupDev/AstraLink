@@ -25,6 +25,7 @@ export const chatAPI = {
       lastMessageAt: string;
       primaryPhotoUrl?: string | null;
       displayName?: string | null;
+      unreadCount?: number;
     }>
   > => {
     const response = await api.get(

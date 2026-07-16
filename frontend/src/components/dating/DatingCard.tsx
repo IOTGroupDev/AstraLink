@@ -1,32 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
+  Image,
+  Pressable,
   StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-  ImageBackground,
+  Text,
+  View,
+  useWindowDimensions,
 } from 'react-native';
-import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
-  useSharedValue,
+  Easing,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
+  useSharedValue,
   withSpring,
   withTiming,
-  interpolate,
-  Easing,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-
-const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = width - 48;
-const DEFAULT_CARD_HEIGHT = height * 0.65;
-const MIN_CARD_HEIGHT = 400;
-const MAX_CARD_HEIGHT = 640;
+import { useTranslation } from 'react-i18next';
+import type { CandidateBadge } from '../../types/dating';
 
 interface DatingCardProps {
   user: {
@@ -34,7 +28,9 @@ interface DatingCardProps {
     name: string;
     age?: number | null;
     zodiacSign?: string | null;
-    compatibility: number;
+    compatibility?: number | null;
+    compatibilitySummary?: string | null;
+    badge?: CandidateBadge;
     bio?: string | null;
     interests?: string[];
     city?: string | null;
@@ -52,127 +48,67 @@ interface DatingCardProps {
   isTop: boolean;
 }
 
-const DatingCard: React.FC<DatingCardProps> = ({
+const badgeLabel: Record<CandidateBadge, string> = {
+  high: 'High match',
+  medium: 'Good match',
+  low: 'New match',
+};
+
+function DatingCard({
   user,
-  cardHeight,
+  cardHeight = 560,
   onSwipe,
-  onChat,
   onOpenProfile,
   onOpenActions,
   actionsDisabled = false,
-  isTop: _isTop,
-}) => {
+}: DatingCardProps) {
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
-  const photoUrls = Array.isArray(user.photos)
-    ? user.photos.filter((photo): photo is string => !!photo)
-    : user.photoUrl
-      ? [user.photoUrl]
-      : [];
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const resolvedCardHeight =
-    cardHeight != null
-      ? Math.min(MAX_CARD_HEIGHT, Math.max(0, cardHeight))
-      : Math.max(
-          MIN_CARD_HEIGHT,
-          Math.min(MAX_CARD_HEIGHT, DEFAULT_CARD_HEIGHT)
-        );
-  const activePhotoUrl = photoUrls[activePhotoIndex] ?? user.photoUrl ?? null;
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const photos = useMemo(
+    () =>
+      (Array.isArray(user.photos) ? user.photos : [])
+        .filter((photo): photo is string => Boolean(photo))
+        .concat(
+          user.photoUrl && !user.photos?.includes(user.photoUrl)
+            ? [user.photoUrl]
+            : []
+        ),
+    [user.photoUrl, user.photos]
+  );
 
-  useEffect(() => {
-    setActivePhotoIndex(0);
-  }, [user.id]);
+  useEffect(() => setPhotoIndex(0), [user.id]);
 
-  const handlePrevPhoto = () => {
-    if (photoUrls.length <= 1) return;
-    setActivePhotoIndex((index) =>
-      index === 0 ? photoUrls.length - 1 : index - 1
-    );
-  };
-
-  const handleNextPhoto = () => {
-    if (photoUrls.length <= 1) return;
-    setActivePhotoIndex((index) =>
-      index === photoUrls.length - 1 ? 0 : index + 1
-    );
-  };
-
-  const getZodiacLabel = (sign: string): string => {
-    const raw = String(sign || '').trim();
-    if (!raw) return sign;
-
-    const map: Record<string, string> = {
-      aries: 'aries',
-      taurus: 'taurus',
-      gemini: 'gemini',
-      cancer: 'cancer',
-      leo: 'leo',
-      virgo: 'virgo',
-      libra: 'libra',
-      scorpio: 'scorpio',
-      sagittarius: 'sagittarius',
-      capricorn: 'capricorn',
-      aquarius: 'aquarius',
-      pisces: 'pisces',
-    };
-
-    const key = map[raw.toLowerCase()] ?? raw.toLowerCase();
-    return t(`common.zodiacSigns.${key}`, { defaultValue: sign });
-  };
-
-  const getInterestLabel = (interest: string): string => {
-    const key = String(interest || '')
-      .trim()
-      .toLowerCase();
-    if (!key) return interest;
-    return t(`dating.interests.${key}`, { defaultValue: interest });
-  };
-
-  const cityLabel = user.city ? String(user.city).trim() : null;
-  const hasMeta = Boolean(user.zodiacSign || cityLabel);
-  const titleText = user.age != null ? `${user.name}, ${user.age}` : user.name;
-  const lastActiveLabel = (() => {
-    if (!user.lastActive) return null;
-    const parsed = new Date(user.lastActive);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return parsed.toLocaleDateString();
-  })();
-
-  const gestureHandler = Gesture.Pan()
+  const gesture = Gesture.Pan()
     .onUpdate((event) => {
-      'worklet';
       translateX.value = event.translationX;
-      translateY.value = event.translationY;
+      translateY.value = event.translationY * 0.25;
       rotation.value = interpolate(
         event.translationX,
         [-width, width],
-        [-15, 15]
+        [-12, 12]
       );
     })
     .onEnd((event) => {
-      'worklet';
-      const shouldSwipe = Math.abs(event.translationX) > width * 0.3;
-
-      if (shouldSwipe) {
-        const direction = event.translationX > 0 ? 'right' : 'left';
-
-        translateX.value = withTiming(
-          direction === 'right' ? width : -width,
-          { duration: 300, easing: Easing.out(Easing.quad) },
-          () => {
-            runOnJS(onSwipe)(direction);
-          }
-        );
-      } else {
-        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
-        rotation.value = withSpring(0, { damping: 15, stiffness: 150 });
+      const shouldSwipe = Math.abs(event.translationX) > width * 0.26;
+      if (!shouldSwipe) {
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        rotation.value = withSpring(0);
+        return;
       }
+      const direction = event.translationX > 0 ? 'right' : 'left';
+      translateX.value = withTiming(
+        direction === 'right' ? width * 1.25 : -width * 1.25,
+        { duration: 260, easing: Easing.out(Easing.quad) },
+        () => runOnJS(onSwipe)(direction)
+      );
     });
 
-  const animatedCardStyle = useAnimatedStyle(() => ({
+  const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
@@ -180,550 +116,204 @@ const DatingCard: React.FC<DatingCardProps> = ({
     ],
   }));
 
-  const getCompatibilityColor = (score: number) => {
-    if (score >= 80) return '#10B981';
-    if (score >= 60) return '#F59E0B';
-    return '#EF4444';
-  };
-
-  const renderInfo = () => (
-    <View style={styles.infoContainer}>
-      <BlurView intensity={20} tint="dark" style={styles.infoBlur}>
-        <View style={styles.headerRow}>
-          <Text style={styles.name}>{titleText}</Text>
-        </View>
-
-        {hasMeta ? (
-          <View style={styles.metaRow}>
-            {user.zodiacSign ? (
-              <Text style={styles.zodiacSign} numberOfLines={1}>
-                {getZodiacLabel(user.zodiacSign)}
-              </Text>
-            ) : null}
-            {cityLabel ? (
-              <>
-                {user.zodiacSign ? (
-                  <Text style={styles.metaDivider}>{'\u00B7'}</Text>
-                ) : null}
-                <View style={styles.metaInfoRow}>
-                  <Ionicons
-                    name="location"
-                    size={14}
-                    color="rgba(255,255,255,0.7)"
-                  />
-                  <Text style={styles.metaInfoText} numberOfLines={1}>
-                    {cityLabel}
-                  </Text>
-                </View>
-              </>
-            ) : null}
-          </View>
-        ) : null}
-
-        {user.bio ? (
-          <Text style={styles.bio} numberOfLines={3}>
-            {user.bio}
-          </Text>
-        ) : null}
-
-        <View style={styles.compatibilitySection}>
-          <Text style={styles.compatibilityLabel}>
-            {t('dating.card.compatibilityLabel')}
-          </Text>
-          <View style={styles.compatibilityBarContainer}>
-            <View style={styles.compatibilityBar}>
-              <View
-                style={[
-                  styles.compatibilityFill,
-                  {
-                    width: `${user.compatibility}%`,
-                    backgroundColor: getCompatibilityColor(user.compatibility),
-                  },
-                ]}
-              />
-            </View>
-            <Text
-              style={[
-                styles.compatibilityPercent,
-                { color: getCompatibilityColor(user.compatibility) },
-              ]}
-            >
-              {user.compatibility}%
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.detailsRow}>
-          {user.lookingFor && (
-            <View style={styles.detailItem}>
-              <Ionicons
-                name="heart-outline"
-                size={16}
-                color="rgba(255,255,255,0.9)"
-              />
-              <Text style={styles.detailText}>{user.lookingFor}</Text>
-            </View>
-          )}
-          {lastActiveLabel ? (
-            <View style={styles.detailItem}>
-              <Ionicons
-                name="time-outline"
-                size={16}
-                color="rgba(255,255,255,0.9)"
-              />
-              <Text style={styles.detailText} numberOfLines={1}>
-                {lastActiveLabel}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
-        {Array.isArray(user.interests) && user.interests.length > 0 && (
-          <View style={styles.interestsContainer}>
-            {user.interests.slice(0, 4).map((interest, index) => (
-              <View key={index} style={styles.interestTag}>
-                <Text style={styles.interestText}>
-                  {getInterestLabel(interest)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={onOpenProfile}
-          activeOpacity={0.85}
-          disabled={actionsDisabled}
-        >
-          <Ionicons
-            name="sparkles-outline"
-            size={16}
-            color="rgba(255,255,255,0.95)"
-          />
-          <Text style={styles.profileButtonText}>
-            {t('dating.profile.openButton')}
-          </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color="rgba(255,255,255,0.95)"
-          />
-        </TouchableOpacity>
-      </BlurView>
-    </View>
-  );
+  const zodiac = user.zodiacSign
+    ? t(`common.zodiacSigns.${user.zodiacSign.toLowerCase()}`, {
+        defaultValue: user.zodiacSign,
+      })
+    : null;
+  const matchText =
+    user.compatibility != null
+      ? `Match ${user.compatibility}%`
+      : badgeLabel[user.badge ?? 'low'];
+  const title = user.age != null ? `${user.name}, ${user.age}` : user.name;
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        { height: resolvedCardHeight },
-        animatedCardStyle,
-      ]}
-    >
-      <GestureDetector gesture={gestureHandler}>
-        <View style={styles.card}>
-          {activePhotoUrl ? (
-            <ImageBackground
-              source={{ uri: activePhotoUrl }}
-              style={styles.photoBackground}
-              imageStyle={styles.photoImage}
-            >
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
-                style={styles.gradientOverlay}
-              />
-
-              <TouchableOpacity
-                style={styles.moreButton}
-                onPress={onOpenActions}
-                activeOpacity={0.8}
-                disabled={actionsDisabled}
-                accessibilityRole="button"
-                accessibilityLabel={t('dating.actions.openLabel')}
-              >
-                <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-              </TouchableOpacity>
-
-              {photoUrls.length > 1 ? (
-                <>
-                  <View style={styles.photoPagination}>
-                    {photoUrls.map((photo, index) => (
-                      <View
-                        key={`${photo}-${index}`}
-                        style={[
-                          styles.photoPaginationDot,
-                          index === activePhotoIndex &&
-                            styles.photoPaginationDotActive,
-                        ]}
-                      />
-                    ))}
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.photoNavButton, styles.photoNavLeft]}
-                    onPress={handlePrevPhoto}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-back" size={18} color="#fff" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.photoNavButton, styles.photoNavRight]}
-                    onPress={handleNextPhoto}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-forward" size={18} color="#fff" />
-                  </TouchableOpacity>
-                </>
-              ) : null}
-
-              <View style={styles.sideButtons}>
-                <TouchableOpacity
-                  style={[styles.sideButton, styles.closeButton]}
-                  onPress={() => onSwipe('left')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="close" size={24} color="#6F1F87" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.sideButton, styles.heartButton]}
-                  onPress={() => onSwipe('right')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="heart" size={24} color="#6F1F87" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.sideButton, styles.chatButton]}
-                  onPress={onChat}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name="chatbubble-ellipses"
-                    size={20}
-                    color="#6F1F87"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {renderInfo()}
-            </ImageBackground>
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[styles.card, { height: cardHeight }, animatedStyle]}
+      >
+        <Pressable style={styles.cardPressable} onPress={onOpenProfile}>
+          {photos[photoIndex] ? (
+            <Image source={{ uri: photos[photoIndex] }} style={styles.photo} />
           ) : (
             <LinearGradient
-              colors={['#8B5CF6', '#6F1F87', '#4C0E6B']}
-              style={styles.photoBackground}
+              colors={['#B58BCB', '#76518E']}
+              style={styles.photoFallback}
             >
-              <View style={styles.placeholderIcon}>
-                <Ionicons
-                  name="person"
-                  size={100}
-                  color="rgba(255,255,255,0.3)"
-                />
-              </View>
-
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
-                style={styles.gradientOverlay}
+              <Ionicons
+                name="person"
+                size={118}
+                color="rgba(255,255,255,0.28)"
               />
-
-              <TouchableOpacity
-                style={styles.moreButton}
-                onPress={onOpenActions}
-                activeOpacity={0.8}
-                disabled={actionsDisabled}
-                accessibilityRole="button"
-                accessibilityLabel={t('dating.actions.openLabel')}
-              >
-                <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-              </TouchableOpacity>
-
-              <View style={styles.sideButtons}>
-                <TouchableOpacity
-                  style={[styles.sideButton, styles.closeButton]}
-                  onPress={() => onSwipe('left')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="close" size={24} color="#6F1F87" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.sideButton, styles.heartButton]}
-                  onPress={() => onSwipe('right')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="heart" size={24} color="#6F1F87" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.sideButton, styles.chatButton]}
-                  onPress={onChat}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name="chatbubble-ellipses"
-                    size={20}
-                    color="#6F1F87"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {renderInfo()}
             </LinearGradient>
           )}
-        </View>
-      </GestureDetector>
-    </Animated.View>
+
+          <LinearGradient
+            colors={['rgba(8,14,28,0)', 'rgba(8,14,28,0.12)', '#080E1C']}
+            locations={[0.45, 0.68, 0.84]}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          {photos.length > 1 ? (
+            <View style={styles.photoSteps}>
+              {photos.map((photo, index) => (
+                <Pressable
+                  key={`${photo}-${index}`}
+                  onPress={() => setPhotoIndex(index)}
+                  style={[
+                    styles.photoStep,
+                    index === photoIndex && styles.photoStepActive,
+                  ]}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.matchBadge}>
+            <View style={styles.matchRing} />
+            <Text style={styles.matchBadgeText}>{matchText}</Text>
+          </View>
+
+          <Pressable
+            hitSlop={12}
+            disabled={actionsDisabled}
+            onPress={onOpenActions}
+            style={styles.moreButton}
+          >
+            <Ionicons name="ellipsis-horizontal" size={21} color="#FFFFFF" />
+          </Pressable>
+
+          <View style={styles.info}>
+            <View style={styles.titleRow}>
+              <View style={styles.titleBlock}>
+                <Text style={styles.name}>{title}</Text>
+                {zodiac ? <Text style={styles.zodiac}>{zodiac}</Text> : null}
+              </View>
+              {user.city ? (
+                <View style={styles.locationRow}>
+                  <Ionicons name="location-outline" size={22} color="#EFEAF4" />
+                  <Text style={styles.locationText}>{user.city}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {user.bio ? (
+              <Text numberOfLines={2} style={styles.bio}>
+                {user.bio}
+              </Text>
+            ) : null}
+
+            <View style={styles.detailsRow}>
+              <View style={styles.detailsColumn}>
+                {user.lookingFor ? (
+                  <View style={styles.detail}>
+                    <Ionicons name="heart-outline" size={15} color="#FFFFFF" />
+                    <Text style={styles.detailText}>{user.lookingFor}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.detail}>
+                  <Ionicons name="planet-outline" size={15} color="#FFFFFF" />
+                  <Text style={styles.detailText}>{matchText}</Text>
+                </View>
+              </View>
+              <View style={styles.tags}>
+                {(user.interests ?? []).slice(0, 4).map((interest) => (
+                  <View key={interest} style={styles.tag}>
+                    <Text style={styles.tagText}>{interest}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </Animated.View>
+    </GestureDetector>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    width: CARD_WIDTH,
-    alignSelf: 'center',
-  },
   card: {
-    flex: 1,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#1A0B2E',
-  },
-  photoBackground: {
-    flex: 1,
     width: '100%',
-    height: '100%',
+    borderRadius: 30,
+    overflow: 'hidden',
+    backgroundColor: '#080E1C',
+    borderWidth: 1,
+    borderColor: 'rgba(136,130,178,0.45)',
   },
-  photoImage: {
-    borderRadius: 20,
-  },
-  placeholderIcon: {
-    position: 'absolute',
-    top: '35%',
-    alignSelf: 'center',
-  },
-  gradientOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-  },
-  moreButton: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  cardPressable: { flex: 1 },
+  photo: { ...StyleSheet.absoluteFillObject, width: '100%', height: '77%' },
+  photoFallback: {
+    width: '100%',
+    height: '77%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17, 24, 39, 0.7)',
-    zIndex: 10,
   },
-  photoPagination: {
+  photoSteps: {
     position: 'absolute',
-    top: 18,
-    left: 64,
-    right: 64,
+    left: 74,
+    right: 74,
+    top: 10,
     flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    zIndex: 10,
+    gap: 5,
   },
-  photoPaginationDot: {
+  photoStep: {
     flex: 1,
-    maxWidth: 32,
-    height: 4,
-    borderRadius: 999,
+    height: 3,
+    borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.35)',
   },
-  photoPaginationDotActive: {
-    backgroundColor: '#fff',
-  },
-  photoNavButton: {
+  photoStepActive: { backgroundColor: '#FFFFFF' },
+  matchBadge: {
     position: 'absolute',
-    top: '44%',
+    top: 20,
+    left: 16,
+    height: 32,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(102,79,127,0.78)',
+  },
+  matchRing: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: '#21D6B1',
+  },
+  matchBadgeText: { color: '#EAE5EE', fontSize: 13 },
+  moreButton: {
+    position: 'absolute',
+    right: 16,
+    top: 14,
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17, 24, 39, 0.7)',
-    zIndex: 10,
+    backgroundColor: 'rgba(31,32,58,0.58)',
   },
-  photoNavLeft: {
-    left: 12,
+  info: { position: 'absolute', left: 16, right: 16, bottom: 15 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  titleBlock: { flexShrink: 1 },
+  name: { color: '#FFFFFF', fontSize: 21, lineHeight: 26, fontWeight: '500' },
+  zodiac: { color: '#E6DEE9', fontSize: 16, lineHeight: 20 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locationText: { color: '#DDD5E3', fontSize: 14 },
+  bio: { color: '#EDE8EF', fontSize: 14, lineHeight: 17, marginTop: 10 },
+  detailsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  detailsColumn: { flex: 1, gap: 5 },
+  detail: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  detailText: { color: '#FFFFFF', fontSize: 12, flexShrink: 1 },
+  tags: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tag: {
+    borderRadius: 12,
+    backgroundColor: '#6F1F87',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  photoNavRight: {
-    right: 12,
-  },
-  sideButtons: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    gap: 10,
-    zIndex: 10,
-  },
-  sideButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  closeButton: {},
-  heartButton: {},
-  chatButton: {},
-  infoContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    overflow: 'hidden',
-  },
-  infoBlur: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    minWidth: 0,
-  },
-  metaInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  zodiacSign: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.8)',
-    flexShrink: 1,
-  },
-  metaDivider: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.45)',
-    marginHorizontal: 8,
-  },
-  metaInfoText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    flexShrink: 1,
-  },
-  bio: {
-    fontSize: 14,
-    color: '#fff',
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  compatibilitySection: {
-    marginBottom: 10,
-  },
-  compatibilityLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  compatibilityBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  compatibilityBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  compatibilityFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  compatibilityPercent: {
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 45,
-    textAlign: 'right',
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 6,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-  },
-  interestTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(111, 31, 135, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(111, 31, 135, 1)',
-  },
-  interestText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '500',
-  },
-  profileButton: {
-    minHeight: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-  },
-  profileButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  tagText: { color: '#EEDDF2', fontSize: 10 },
 });
 
 export default React.memo(DatingCard);
