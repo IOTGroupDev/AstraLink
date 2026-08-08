@@ -57,7 +57,7 @@ jobs:
         run: npm run lint -- --format json --output-file eslint-report.json || true
 
       - name: Upload ESLint report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: eslint-backend-report
           path: backend/eslint-report.json
@@ -128,7 +128,7 @@ jobs:
           cr frontend/src --format json > frontend-complexity.json || true
 
       - name: Upload complexity reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: complexity-reports
           path: |
@@ -161,7 +161,7 @@ jobs:
             --output "./jscpd-report.json" || true
 
       - name: Upload duplicate code report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: duplicate-code-report
           path: jscpd-report.json
