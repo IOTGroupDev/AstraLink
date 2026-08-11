@@ -6,23 +6,45 @@ import IORedis, { Redis } from 'ioredis';
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
   private client: Redis | null = null;
+  private redisErrorLogCount = 0;
 
   constructor(private readonly config: ConfigService) {
     const url =
       this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
     try {
+      this.logger.log(`Redis target: ${this.getSafeRedisTarget(url)}`);
       this.client = new IORedis(url, {
         maxRetriesPerRequest: 3,
+        connectTimeout: 1000,
+        commandTimeout: 1000,
         enableAutoPipelining: true,
+        enableOfflineQueue: false,
         lazyConnect: false,
+        retryStrategy: (times) => {
+          if (times > 5) {
+            this.logger.warn(
+              'Redis reconnect stopped after 5 failed attempts; cache and queue features will run in degraded mode',
+            );
+            return null;
+          }
+          return Math.min(times * 100, 1000);
+        },
       });
 
       this.client.on('error', (err: any) => {
-        this.logger.error(
-          `Redis error: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        this.redisErrorLogCount += 1;
+        const message = err instanceof Error ? err.message : String(err);
+        if (
+          this.redisErrorLogCount <= 3 ||
+          this.redisErrorLogCount % 20 === 0
+        ) {
+          this.logger.warn(`Redis unavailable: ${message}`);
+        }
       });
-      this.client.on('connect', () => this.logger.log('Redis connected'));
+      this.client.on('connect', () => {
+        this.redisErrorLogCount = 0;
+        this.logger.log('Redis connected');
+      });
       this.client.on('ready', () => this.logger.log('Redis ready'));
       this.client.on('end', () => this.logger.warn('Redis connection closed'));
     } catch (e) {
@@ -32,11 +54,25 @@ export class RedisService {
   }
 
   getClient(): Redis | null {
-    return this.client;
+    return this.isReady() ? this.client : null;
+  }
+
+  private isReady(): boolean {
+    return this.client?.status === 'ready';
+  }
+
+  private getSafeRedisTarget(url: string): string {
+    try {
+      const parsed = new URL(url);
+      const port = parsed.port || '6379';
+      return `${parsed.protocol}//${parsed.hostname}:${port}`;
+    } catch {
+      return 'invalid REDIS_URL';
+    }
   }
 
   async get<T = any>(key: string): Promise<T | null> {
-    if (!this.client) return null;
+    if (!this.isReady() || !this.client) return null;
     try {
       const raw = await this.client.get(key);
       if (!raw) return null;
@@ -54,7 +90,7 @@ export class RedisService {
     value: T,
     ttlSeconds?: number,
   ): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.isReady() || !this.client) return false;
     try {
       const payload = JSON.stringify(value);
       if (ttlSeconds && ttlSeconds > 0) {
@@ -72,7 +108,7 @@ export class RedisService {
   }
 
   async del(key: string): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.isReady() || !this.client) return false;
     try {
       await this.client.del(key);
       return true;
@@ -85,7 +121,7 @@ export class RedisService {
   }
 
   async ping(): Promise<string | null> {
-    if (!this.client) return null;
+    if (!this.isReady() || !this.client) return null;
     try {
       return await this.client.ping();
     } catch (e) {
@@ -95,7 +131,7 @@ export class RedisService {
   }
 
   async deleteByPattern(pattern: string): Promise<number> {
-    if (!this.client) return 0;
+    if (!this.isReady() || !this.client) return 0;
     try {
       let cursor = '0';
       let total = 0;
@@ -127,7 +163,7 @@ export class RedisService {
    * Used for rate limiting and counters
    */
   async incr(key: string): Promise<number | null> {
-    if (!this.client) return null;
+    if (!this.isReady() || !this.client) return null;
     try {
       return await this.client.incr(key);
     } catch (e) {
@@ -142,7 +178,7 @@ export class RedisService {
    * Increment a key's value by a specific amount
    */
   async incrBy(key: string, amount: number): Promise<number | null> {
-    if (!this.client) return null;
+    if (!this.isReady() || !this.client) return null;
     try {
       return await this.client.incrby(key, amount);
     } catch (e) {
@@ -158,7 +194,7 @@ export class RedisService {
    * Returns true if timeout was set, false otherwise
    */
   async expire(key: string, seconds: number): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.isReady() || !this.client) return false;
     try {
       const result = await this.client.expire(key, seconds);
       return result === 1;
@@ -175,7 +211,7 @@ export class RedisService {
    * Returns -1 if key exists but has no expiry, -2 if key doesn't exist
    */
   async ttl(key: string): Promise<number | null> {
-    if (!this.client) return null;
+    if (!this.isReady() || !this.client) return null;
     try {
       return await this.client.ttl(key);
     } catch (e) {
@@ -190,7 +226,7 @@ export class RedisService {
    * Check if a key exists
    */
   async exists(key: string): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.isReady() || !this.client) return false;
     try {
       const result = await this.client.exists(key);
       return result === 1;
@@ -206,7 +242,7 @@ export class RedisService {
    * Get multiple keys at once
    */
   async mget<T = any>(keys: string[]): Promise<(T | null)[]> {
-    if (!this.client || keys.length === 0) return [];
+    if (!this.isReady() || !this.client || keys.length === 0) return [];
     try {
       const values = await this.client.mget(...keys);
       return values.map((val) => {
@@ -227,7 +263,7 @@ export class RedisService {
    * Set multiple key-value pairs at once
    */
   async mset(entries: Record<string, any>): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.isReady() || !this.client) return false;
     try {
       const pairs: string[] = [];
       for (const [key, value] of Object.entries(entries)) {
