@@ -7,6 +7,10 @@ import React, {
 } from 'react';
 import {
   Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,16 +20,12 @@ import {
   View,
 } from 'react-native';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { StackScreenProps } from '@react-navigation/stack';
-import CosmicBackground from '../components/shared/CosmicBackground';
-import CompactScreenHeader from '../components/shared/CompactScreenHeader';
 import AstralCityInput from '../components/shared/AstralCityInput';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
 import { compatibilityAPI } from '../services/api';
@@ -39,6 +39,19 @@ import type {
 } from '../types/compatibility';
 import { logger } from '../services/logger';
 import { useSharedValue } from 'react-native-reanimated';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
+
+const compatibilityBackground = require('../../assets/advisor-bg.png');
+const SURFACE_BORDER_COLORS = [
+  'rgba(124,119,153,0.62)',
+  'rgba(124,119,153,0.1)',
+] as const;
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 type Props = StackScreenProps<RootStackParamList, 'Compatibility'>;
 
@@ -557,6 +570,9 @@ export default function CompatibilityScreen({ navigation }: Props) {
   const { i18n } = useTranslation();
   const copy = useMemo(() => copyByLocale(i18n.language), [i18n.language]);
   const insets = useSafeAreaInsets();
+  const headerTopPadding = insets.top + 10;
+  const headerHeight = headerTopPadding + 48;
+  const ctaBottom = Math.max(16, insets.bottom + 12);
   const pickerAnimation = useSharedValue(1);
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');
@@ -570,8 +586,50 @@ export default function CompatibilityScreen({ navigation }: Props) {
     useState<CompatibilityQuotaStatus | null>(null);
   const [currentReport, setCurrentReport] =
     useState<CompatibilityReport | null>(null);
+  const [resultVisible, setResultVisible] = useState(false);
+  const formTranslateX = useRef(new Animated.Value(0)).current;
+  const resultTranslateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const inFlightRequestKeyRef = useRef<string | null>(null);
   const lastSuccessfulRequestKeyRef = useRef<string | null>(null);
+
+  const openResult = useCallback(
+    (report: CompatibilityReport) => {
+      setCurrentReport(report);
+      resultTranslateX.setValue(SCREEN_WIDTH);
+      setResultVisible(true);
+
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(formTranslateX, {
+            toValue: -SCREEN_WIDTH * 0.28,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(resultTranslateX, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    },
+    [formTranslateX, resultTranslateX]
+  );
+
+  const closeResult = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(resultTranslateX, {
+        toValue: SCREEN_WIDTH,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(formTranslateX, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setResultVisible(false));
+  }, [formTranslateX, resultTranslateX]);
 
   const loadQuota = useCallback(async () => {
     try {
@@ -653,7 +711,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
         timezone: selectedCity?.tzid,
         useAi: shouldConsumeAiQuota,
       });
-      setCurrentReport(report);
+      openResult(report);
       setReports((items) => [
         report,
         ...items.filter((item) => item.id !== report.id),
@@ -788,9 +846,14 @@ export default function CompatibilityScreen({ navigation }: Props) {
     !!quotaStatus && quotaStatus.totalLimit > 0 && quotaStatus.remaining <= 0;
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
-      <CosmicBackground active />
-      <ScrollView
+    <View style={styles.container}>
+      <Image
+        source={compatibilityBackground}
+        resizeMode="cover"
+        style={styles.backgroundImage}
+      />
+      <Animated.ScrollView
+        style={{ transform: [{ translateX: formTranslateX }] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -802,33 +865,48 @@ export default function CompatibilityScreen({ navigation }: Props) {
         }
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 32 },
+          {
+            paddingTop: headerHeight + 24,
+            paddingBottom: ctaBottom + 112,
+          },
         ]}
       >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.75}
+        <GradientBorderView
+          colors={SURFACE_BORDER_COLORS}
+          gradientProps={{
+            start: { x: 0.5, y: 0 },
+            end: { x: 0.5, y: 1 },
+          }}
+          style={styles.introCard}
+          contentStyle={styles.introCardSurface}
+        >
+          <BlurView
+            intensity={24}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+            style={styles.introCardBlur}
           >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerSpacer} />
-        </View>
+            <Ionicons name="heart-circle-outline" size={24} color="#FFFFFF" />
+            <View style={styles.introCopy}>
+              <Text style={styles.headerSubtitle}>{copy.subtitle}</Text>
+              <View style={styles.privacyRow}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={14}
+                  color="rgba(255,255,255,0.68)"
+                />
+                <Text style={styles.privacyText}>{copy.privacy}</Text>
+              </View>
+            </View>
+          </BlurView>
+        </GradientBorderView>
 
-        <CompactScreenHeader
-          title={copy.title}
-          description={copy.subtitle}
-          icon={<Ionicons name="sparkles-outline" size={24} color="#FFFFFF" />}
-          style={styles.compactHeader}
-        />
-
-        <View style={styles.privacyRow}>
-          <Ionicons name="lock-closed-outline" size={16} color="#A7F3D0" />
-          <Text style={styles.privacyText}>{copy.privacy}</Text>
-        </View>
-
-        <View style={styles.quotaCard}>
+        <BlurView
+          intensity={20}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={styles.quotaCard}
+        >
           <View style={styles.quotaHeader}>
             <View style={styles.quotaTitleRow}>
               <Ionicons name="calendar-outline" size={17} color="#C4B5FD" />
@@ -872,9 +950,14 @@ export default function CompatibilityScreen({ navigation }: Props) {
           ) : (
             <Text style={styles.quotaMeta}>{copy.quotaUnavailable}</Text>
           )}
-        </View>
+        </BlurView>
 
-        <View style={styles.panel}>
+        <BlurView
+          intensity={20}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={styles.panel}
+        >
           <Text style={styles.panelTitle}>{copy.formTitle}</Text>
 
           <View style={styles.compactPickerGroup}>
@@ -936,84 +1019,14 @@ export default function CompatibilityScreen({ navigation }: Props) {
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.disabledButton]}
-            disabled={loading}
-            activeOpacity={0.85}
-            onPress={handleSubmit}
-          >
-            <LinearGradient
-              colors={['#7C3AED', '#DB2777']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.submitGradient}
-            >
-              {loading ? (
-                <LoadingIndicator size="small" />
-              ) : (
-                <>
-                  <Ionicons name="pulse-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.submitText}>{copy.submit}</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        </BlurView>
 
-        {result && (
-          <View style={styles.panel}>
-            <View style={styles.resultHeader}>
-              <View>
-                <Text style={styles.panelTitle}>{copy.result}</Text>
-                <Text style={styles.resultDate}>
-                  {new Date(currentReport.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-              <View style={styles.scoreBadge}>
-                <Text style={styles.scoreValue}>{currentReport.score}</Text>
-                <Text style={styles.scoreLabel}>{copy.score}</Text>
-              </View>
-            </View>
-
-            <View style={styles.descriptionStack}>
-              {visibleResultDescriptions.map((description, index) => (
-                <Text
-                  key={`${currentReport.id}-${index}`}
-                  style={[styles.summary, index > 0 && styles.secondarySummary]}
-                >
-                  {description}
-                </Text>
-              ))}
-            </View>
-
-            <View style={styles.astrologySummaryBlock}>
-              <View style={styles.astrologySummaryHeader}>
-                <Ionicons name="planet-outline" size={17} color="#C4B5FD" />
-                <Text style={styles.astrologySummaryTitle}>
-                  {copy.astrologySummaryTitle}
-                </Text>
-              </View>
-              <Text style={styles.astrologySummaryText}>
-                {astrologySummary}
-              </Text>
-            </View>
-
-            {(result.aiStatus === 'unavailable' ||
-              result.aiStatus === 'failed') && (
-              <Text style={styles.aiStatus}>{copy.aiUnavailable}</Text>
-            )}
-
-            {resultCategories.length > 0 && (
-              <View style={styles.categories}>
-                {resultCategories.map(([key, category]) =>
-                  renderCategory(key, category)
-                )}
-              </View>
-            )}
-          </View>
-        )}
-
-        <View style={styles.panel}>
+        <BlurView
+          intensity={20}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={styles.panel}
+        >
           <Text style={styles.panelTitle}>{copy.history}</Text>
           {reports.length === 0 ? (
             <Text style={styles.emptyText}>{copy.noHistory}</Text>
@@ -1025,8 +1038,8 @@ export default function CompatibilityScreen({ navigation }: Props) {
                   styles.historyRow,
                   currentReport?.id === report.id && styles.historyRowActive,
                 ]}
-                onPress={() => setCurrentReport(report)}
-                activeOpacity={0.75}
+                onPress={() => openResult(report)}
+                activeOpacity={1}
               >
                 <View>
                   <Text style={styles.historyScore}>{report.score}/100</Text>
@@ -1050,9 +1063,266 @@ export default function CompatibilityScreen({ navigation }: Props) {
               </TouchableOpacity>
             ))
           )}
+        </BlurView>
+      </Animated.ScrollView>
+
+      <Modal
+        animationType="none"
+        transparent
+        statusBarTranslucent
+        visible={resultVisible && !!currentReport && !!result}
+        onRequestClose={closeResult}
+      >
+        <View style={styles.resultModalRoot}>
+          <Animated.View
+            style={[
+              styles.resultScreen,
+              { transform: [{ translateX: resultTranslateX }] },
+            ]}
+          >
+            <Image
+              source={compatibilityBackground}
+              resizeMode="cover"
+              style={styles.backgroundImage}
+            />
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.resultScrollContent,
+                {
+                  paddingTop: headerHeight + 24,
+                  paddingBottom: Math.max(40, insets.bottom + 32),
+                },
+              ]}
+            >
+              {currentReport && result ? (
+                <BlurView
+                  intensity={20}
+                  tint="dark"
+                  experimentalBlurMethod="dimezisBlurView"
+                  style={styles.resultPanel}
+                >
+                  <View style={styles.resultHeader}>
+                    <View>
+                      <Text style={styles.panelTitle}>{copy.result}</Text>
+                      <Text style={styles.resultDate}>
+                        {new Date(currentReport.createdAt).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <View style={styles.scoreBadge}>
+                      <Text style={styles.scoreValue}>{currentReport.score}</Text>
+                      <Text style={styles.scoreLabel}>{copy.score}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.descriptionStack}>
+                    {visibleResultDescriptions.map((description, index) => (
+                      <Text
+                        key={`${currentReport.id}-${index}`}
+                        style={[
+                          styles.summary,
+                          index > 0 && styles.secondarySummary,
+                        ]}
+                      >
+                        {description}
+                      </Text>
+                    ))}
+                  </View>
+
+                  <View style={styles.astrologySummaryBlock}>
+                    <View style={styles.astrologySummaryHeader}>
+                      <Ionicons
+                        name="planet-outline"
+                        size={17}
+                        color="#C4B5FD"
+                      />
+                      <Text style={styles.astrologySummaryTitle}>
+                        {copy.astrologySummaryTitle}
+                      </Text>
+                    </View>
+                    <Text style={styles.astrologySummaryText}>
+                      {astrologySummary}
+                    </Text>
+                  </View>
+
+                  {(result.aiStatus === 'unavailable' ||
+                    result.aiStatus === 'failed') && (
+                    <Text style={styles.aiStatus}>{copy.aiUnavailable}</Text>
+                  )}
+
+                  {resultCategories.length > 0 ? (
+                    <View style={styles.categories}>
+                      {resultCategories.map(([key, category]) =>
+                        renderCategory(key, category)
+                      )}
+                    </View>
+                  ) : null}
+                </BlurView>
+              ) : null}
+            </ScrollView>
+          </Animated.View>
+
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(20,17,48,0.88)',
+              'rgba(20,17,48,0.44)',
+              'rgba(20,17,48,0)',
+            ]}
+            locations={[0, 0.62, 1]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={[styles.topFade, { height: headerHeight + 44 }]}
+          />
+
+          <View
+            style={[
+              styles.fixedHeader,
+              { paddingTop: headerTopPadding, height: headerHeight },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.headerCirclePressable}
+              onPress={closeResult}
+            >
+              <GradientBorderView
+                colors={DATING_GLASS_BORDER_COLORS}
+                gradientProps={DATING_GLASS_BORDER_GRADIENT}
+                style={styles.headerCircleBorder}
+                contentStyle={[styles.datingGlassContent, styles.backHit]}
+              >
+                <DatingGlassFill />
+                <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+              </GradientBorderView>
+            </TouchableOpacity>
+
+            <GradientBorderView
+              colors={DATING_GLASS_BORDER_COLORS}
+              gradientProps={DATING_GLASS_BORDER_GRADIENT}
+              style={styles.titlePillBorder}
+              contentStyle={[styles.datingGlassContent, styles.titlePill]}
+            >
+              <DatingGlassFill />
+              <Text numberOfLines={1} style={styles.fixedHeaderTitle}>
+                {copy.result}
+              </Text>
+            </GradientBorderView>
+
+            <View style={styles.headerSpacer} />
+          </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </Modal>
+
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(20,17,48,0.88)',
+          'rgba(20,17,48,0.44)',
+          'rgba(20,17,48,0)',
+        ]}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[styles.topFade, { height: headerHeight + 44 }]}
+      />
+
+      <View
+        style={[
+          styles.fixedHeader,
+          { paddingTop: headerTopPadding, height: headerHeight },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.headerCirclePressable}
+          onPress={() => navigation.goBack()}
+        >
+          <GradientBorderView
+            colors={DATING_GLASS_BORDER_COLORS}
+            gradientProps={DATING_GLASS_BORDER_GRADIENT}
+            style={styles.headerCircleBorder}
+            contentStyle={[styles.datingGlassContent, styles.backHit]}
+          >
+            <DatingGlassFill />
+            <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+          </GradientBorderView>
+        </TouchableOpacity>
+
+        <GradientBorderView
+          colors={DATING_GLASS_BORDER_COLORS}
+          gradientProps={DATING_GLASS_BORDER_GRADIENT}
+          style={styles.titlePillBorder}
+          contentStyle={[styles.datingGlassContent, styles.titlePill]}
+        >
+          <DatingGlassFill />
+          <Text numberOfLines={1} style={styles.fixedHeaderTitle}>
+            {copy.title}
+          </Text>
+        </GradientBorderView>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(8,14,28,0)',
+          'rgba(8,14,28,0.72)',
+          'rgba(8,14,28,0.98)',
+        ]}
+        locations={[0, 0.48, 1]}
+        style={[styles.bottomCtaFade, { height: ctaBottom + 104 }]}
+      />
+
+      <Animated.View
+        style={[
+          styles.fixedCta,
+          {
+            bottom: ctaBottom,
+            transform: [{ translateX: formTranslateX }],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={[styles.submitButton, loading && styles.disabledButton]}
+          disabled={loading}
+          onPress={handleSubmit}
+        >
+          <GradientBorderView
+            colors={['rgba(216,180,254,0.86)', 'rgba(126,108,160,0.42)']}
+            gradientProps={{
+              start: { x: 0.5, y: 0 },
+              end: { x: 0.5, y: 1 },
+            }}
+            style={styles.submitButtonBorder}
+            contentStyle={styles.submitButtonContent}
+          >
+            <LinearGradient
+              colors={[
+                'rgba(126,108,160,0.96)',
+                'rgba(96,63,142,0.98)',
+                'rgba(62,32,104,0.98)',
+              ]}
+              locations={[0, 0.52, 1]}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={styles.submitGradient}
+            >
+              {loading ? (
+                <LoadingIndicator size="small" />
+              ) : (
+                <>
+                  <Ionicons name="pulse-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.submitText}>{copy.submit}</Text>
+                </>
+              )}
+            </LinearGradient>
+          </GradientBorderView>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -1060,50 +1330,125 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#080E1C',
+    overflow: 'hidden',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.82,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    gap: 14,
+    paddingHorizontal: 24,
+    gap: 16,
   },
-  headerRow: {
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
   },
-  headerSpacer: {
-    flex: 1,
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  backHit: {
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
-  compactHeader: {
-    borderRadius: 16,
+  titlePillBorder: {
+    height: 48,
+    maxWidth: 220,
+    marginHorizontal: 12,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  titlePill: {
+    height: 45.8,
+    borderRadius: 22.9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
+  },
+  introCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    marginBottom: 8,
+  },
+  introCardSurface: {
+    backgroundColor: 'rgba(18,18,42,0.48)',
+  },
+  introCardBlur: {
+    minHeight: 92,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    overflow: 'hidden',
+  },
+  introCopy: {
+    flex: 1,
+    gap: 9,
+  },
+  headerSubtitle: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 15,
+    lineHeight: 21,
   },
   privacyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 4,
+    gap: 6,
   },
   privacyText: {
     flex: 1,
-    color: 'rgba(209,250,229,0.86)',
+    color: 'rgba(255,255,255,0.58)',
     fontSize: 12,
     lineHeight: 16,
   },
   quotaCard: {
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: 'rgba(15, 23, 42, 0.62)',
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: 'rgba(18,18,42,0.5)',
     borderWidth: 1,
-    borderColor: 'rgba(196, 181, 253, 0.22)',
+    borderColor: 'rgba(124,119,153,0.34)',
     gap: 10,
+    overflow: 'hidden',
   },
   quotaHeader: {
     flexDirection: 'row',
@@ -1157,12 +1502,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   panel: {
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: 'rgba(15, 23, 42, 0.74)',
+    borderRadius: 18,
+    padding: 18,
+    backgroundColor: 'rgba(18,18,42,0.52)',
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.14)',
-    gap: 14,
+    borderColor: 'rgba(124,119,153,0.34)',
+    gap: 16,
+    overflow: 'hidden',
   },
   panelTitle: {
     color: '#FFFFFF',
@@ -1212,19 +1558,48 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   submitButton: {
-    borderRadius: 12,
+    width: '100%',
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  resultModalRoot: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  resultScreen: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#080E1C',
+  },
+  resultScrollContent: {
+    paddingHorizontal: 24,
+  },
+  resultPanel: {
+    borderRadius: 18,
+    padding: 18,
+    backgroundColor: 'rgba(18,18,42,0.52)',
+    borderWidth: 1,
+    borderColor: 'rgba(124,119,153,0.34)',
+    gap: 16,
     overflow: 'hidden',
   },
   disabledButton: {
     opacity: 0.72,
   },
   submitGradient: {
-    minHeight: 52,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     paddingHorizontal: 16,
+  },
+  submitButtonBorder: {
+    borderWidth: 1.2,
+    borderRadius: 28,
+  },
+  submitButtonContent: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   submitText: {
     color: '#FFFFFF',
@@ -1385,5 +1760,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(248, 113, 113, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(248, 113, 113, 0.18)',
+  },
+  bottomCtaFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 21,
+  },
+  fixedCta: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    zIndex: 22,
   },
 });

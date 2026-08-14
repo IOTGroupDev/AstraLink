@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useTranslation } from 'react-i18next';
 import { AstroLesson } from '../../types/lessons';
+import { GradientBorderView } from '../shared';
 
 interface LessonCardProps {
   lesson: AstroLesson;
@@ -98,6 +99,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
   if (compact) {
     return (
       <TouchableOpacity
+        activeOpacity={1}
         onPress={() => setExpanded(true)}
         style={styles.compactCard}
       >
@@ -130,184 +132,219 @@ export const LessonCard: React.FC<LessonCardProps> = ({
 
   return (
     <>
-      <BlurView intensity={10} tint="dark" style={styles.card}>
-        {/* Header */}
-        <TouchableOpacity
-          onPress={() => setExpanded(!expanded)}
-          style={styles.cardHeader}
+      <GradientBorderView
+        colors={['rgba(255, 255, 255, 0.34)', 'rgba(124, 119, 153, 0.08)']}
+        gradientProps={{
+          start: { x: 0.5, y: 0 },
+          end: { x: 0.5, y: 1 },
+        }}
+        style={styles.cardBorder}
+        contentStyle={styles.cardSurface}
+      >
+        <BlurView
+          intensity={20}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={styles.card}
         >
-          <LinearGradient colors={lesson.gradient} style={styles.iconGradient}>
-            <Text style={styles.emoji}>{lesson.emoji}</Text>
-          </LinearGradient>
+          {/* Header */}
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setExpanded(!expanded)}
+            style={styles.cardHeader}
+          >
+            <LinearGradient
+              colors={lesson.gradient}
+              style={styles.iconGradient}
+            >
+              <Text style={styles.emoji}>{lesson.emoji}</Text>
+            </LinearGradient>
 
-          <View style={styles.headerContent}>
-            <View style={styles.titleRow}>
-              <Text
-                style={styles.title}
-                numberOfLines={expanded ? undefined : 2}
-              >
-                {lesson.title}
-              </Text>
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onBookmark?.(lesson.id);
-                }}
-                style={styles.bookmarkButton}
-              >
-                <Ionicons
-                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                  size={20}
-                  color={isBookmarked ? '#FBBF24' : 'rgba(255,255,255,0.5)'}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {lesson.subtitle && (
-              <Text style={styles.subtitle}>{lesson.subtitle}</Text>
-            )}
-
-            <View style={styles.meta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="time" size={14} color="rgba(255,255,255,0.5)" />
-                <Text style={styles.metaText}>
-                  {t('learning.lessonCard.readTimeShort', {
-                    seconds: lesson.readTime,
-                  })}
+            <View style={styles.headerContent}>
+              <View style={styles.titleRow}>
+                <Text
+                  style={styles.title}
+                  numberOfLines={expanded ? undefined : 2}
+                >
+                  {lesson.title}
                 </Text>
+                <View style={styles.headerActions}>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onBookmark?.(lesson.id);
+                    }}
+                    style={styles.bookmarkButton}
+                  >
+                    <Ionicons
+                      name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                      size={20}
+                      color={
+                        isBookmarked ? '#FBBF24' : 'rgba(255,255,255,0.5)'
+                      }
+                    />
+                  </TouchableOpacity>
+                  <Ionicons
+                    name={expanded ? 'chevron-up' : 'chevron-down'}
+                    size={24}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                </View>
               </View>
 
-              <View
-                style={[
-                  styles.difficultyBadge,
-                  { backgroundColor: `${getDifficultyColor()}20` },
-                ]}
-              >
-                <Text
+              {lesson.subtitle && (
+                <Text style={styles.subtitle}>{lesson.subtitle}</Text>
+              )}
+
+              <View style={styles.meta}>
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="time"
+                    size={14}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                  <Text style={styles.metaText}>
+                    {t('learning.lessonCard.readTimeShort', {
+                      seconds: lesson.readTime,
+                    })}
+                  </Text>
+                </View>
+
+                <View
                   style={[
-                    styles.difficultyText,
-                    { color: getDifficultyColor() },
+                    styles.difficultyBadge,
+                    { backgroundColor: `${getDifficultyColor()}20` },
                   ]}
                 >
-                  {getDifficultyLabel()}
-                </Text>
-              </View>
-
-              {isCompleted && (
-                <View style={styles.completedTag}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={styles.completedText}>
-                    {t('learning.lessonCard.completedTag')}
+                  <Text
+                    style={[
+                      styles.difficultyText,
+                      { color: getDifficultyColor() },
+                    ]}
+                  >
+                    {getDifficultyLabel()}
                   </Text>
+                </View>
+
+                {isCompleted && (
+                  <View style={styles.completedTag}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color="#10B981"
+                    />
+                    <Text style={styles.completedText}>
+                      {t('learning.lessonCard.completedTag')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+          </TouchableOpacity>
+
+          {/* Expanded Content */}
+          {expanded && (
+            <View style={styles.expandedContent}>
+              {/* Short Text */}
+              <Text style={styles.shortText}>{lesson.shortText}</Text>
+
+              {/* Key Points */}
+              {lesson.keyPoints && lesson.keyPoints.length > 0 && (
+                <View style={styles.keyPointsContainer}>
+                  <Text style={styles.sectionTitle}>
+                    {t('learning.lessonCard.keyPointsTitle')}
+                  </Text>
+                  {lesson.keyPoints.map((point, index) => (
+                    <View key={index} style={styles.keyPoint}>
+                      <Text style={styles.bullet}>•</Text>
+                      <Text style={styles.keyPointText}>{point}</Text>
+                    </View>
+                  ))}
                 </View>
               )}
-            </View>
-          </View>
 
-          <Ionicons
-            name={expanded ? 'chevron-up' : 'chevron-down'}
-            size={24}
-            color="rgba(255,255,255,0.5)"
-          />
-        </TouchableOpacity>
-
-        {/* Expanded Content */}
-        {expanded && (
-          <View style={styles.expandedContent}>
-            {/* Short Text */}
-            <Text style={styles.shortText}>{lesson.shortText}</Text>
-
-            {/* Key Points */}
-            {lesson.keyPoints && lesson.keyPoints.length > 0 && (
-              <View style={styles.keyPointsContainer}>
-                <Text style={styles.sectionTitle}>
-                  {t('learning.lessonCard.keyPointsTitle')}
-                </Text>
-                {lesson.keyPoints.map((point, index) => (
-                  <View key={index} style={styles.keyPoint}>
-                    <Text style={styles.bullet}>•</Text>
-                    <Text style={styles.keyPointText}>{point}</Text>
+              {/* Example */}
+              {lesson.example && (
+                <View style={styles.exampleContainer}>
+                  <View style={styles.exampleHeader}>
+                    <Ionicons name="bulb" size={16} color="#FBBF24" />
+                    <Text style={styles.exampleTitle}>
+                      {t('learning.lessonCard.exampleTitle')}
+                    </Text>
                   </View>
-                ))}
-              </View>
-            )}
+                  <Text style={styles.exampleText}>{lesson.example}</Text>
+                </View>
+              )}
 
-            {/* Example */}
-            {lesson.example && (
-              <View style={styles.exampleContainer}>
-                <View style={styles.exampleHeader}>
-                  <Ionicons name="bulb" size={16} color="#FBBF24" />
-                  <Text style={styles.exampleTitle}>
-                    {t('learning.lessonCard.exampleTitle')}
+              {/* Full Text */}
+              {lesson.fullText && (
+                <View style={styles.fullTextContainer}>
+                  <Text style={styles.fullText}>{lesson.fullText}</Text>
+                </View>
+              )}
+
+              {/* Task */}
+              {lesson.task && (
+                <View style={styles.taskContainer}>
+                  <View style={styles.taskHeader}>
+                    <Ionicons name="checkbox" size={16} color="#8B5CF6" />
+                    <Text style={styles.taskTitle}>{lesson.task.title}</Text>
+                  </View>
+                  <Text style={styles.taskDescription}>
+                    {lesson.task.description}
                   </Text>
+                  <TouchableOpacity
+                    style={styles.taskButton}
+                    onPress={() => onTaskPress?.(lesson)}
+                  >
+                    <LinearGradient
+                      colors={lesson.gradient}
+                      style={styles.taskButtonGradient}
+                    >
+                      <Text style={styles.taskButtonText}>
+                        {lesson.task.actionLabel}
+                      </Text>
+                      <Ionicons
+                        name="arrow-forward"
+                        size={16}
+                        color="#FFFFFF"
+                      />
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.exampleText}>{lesson.example}</Text>
-              </View>
-            )}
+              )}
 
-            {/* Full Text */}
-            {lesson.fullText && (
-              <View style={styles.fullTextContainer}>
-                <Text style={styles.fullText}>{lesson.fullText}</Text>
-              </View>
-            )}
-
-            {/* Task */}
-            {lesson.task && (
-              <View style={styles.taskContainer}>
-                <View style={styles.taskHeader}>
-                  <Ionicons name="checkbox" size={16} color="#8B5CF6" />
-                  <Text style={styles.taskTitle}>{lesson.task.title}</Text>
-                </View>
-                <Text style={styles.taskDescription}>
-                  {lesson.task.description}
-                </Text>
+              {/* Actions */}
+              <View style={styles.actions}>
                 <TouchableOpacity
-                  style={styles.taskButton}
-                  onPress={() => onTaskPress?.(lesson)}
+                  onPress={handleComplete}
+                  style={styles.completeButton}
+                  disabled={isCompleted && !lesson.quiz}
                 >
                   <LinearGradient
-                    colors={lesson.gradient}
-                    style={styles.taskButtonGradient}
+                    colors={isCompleted ? completedGradient : lesson.gradient}
+                    style={styles.completeButtonGradient}
                   >
-                    <Text style={styles.taskButtonText}>
-                      {lesson.task.actionLabel}
+                    <Ionicons
+                      name={isCompleted ? 'checkmark-circle' : 'checkmark'}
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.completeButtonText}>
+                      {isCompleted
+                        ? t('learning.lessonCard.completeDone')
+                        : lesson.quiz
+                          ? t('learning.lessonCard.completeQuiz')
+                          : t('learning.lessonCard.completeMark')}
                     </Text>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
-            )}
-
-            {/* Actions */}
-            <View style={styles.actions}>
-              <TouchableOpacity
-                onPress={handleComplete}
-                style={styles.completeButton}
-                disabled={isCompleted && !lesson.quiz}
-              >
-                <LinearGradient
-                  colors={isCompleted ? completedGradient : lesson.gradient}
-                  style={styles.completeButtonGradient}
-                >
-                  <Ionicons
-                    name={isCompleted ? 'checkmark-circle' : 'checkmark'}
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                  <Text style={styles.completeButtonText}>
-                    {isCompleted
-                      ? t('learning.lessonCard.completeDone')
-                      : lesson.quiz
-                        ? t('learning.lessonCard.completeQuiz')
-                        : t('learning.lessonCard.completeMark')}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
             </View>
-          </View>
-        )}
-      </BlurView>
+          )}
+        </BlurView>
+      </GradientBorderView>
 
       {/* Quiz Modal */}
       {lesson.quiz && (
@@ -447,12 +484,17 @@ const styles = StyleSheet.create({
   },
 
   // Full Card
-  card: {
-    borderRadius: 16,
-    overflow: 'hidden',
+  cardBorder: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 16,
+    borderRadius: 18,
+    marginBottom: 14,
+  },
+  cardSurface: {
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
+  },
+  card: {
+    borderRadius: 17,
+    overflow: 'hidden',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -483,14 +525,24 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '600',
+    lineHeight: 23,
+    fontWeight: '500',
     color: '#FFFFFF',
   },
   bookmarkButton: {
-    padding: 4,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   subtitle: {
     fontSize: 14,
+    lineHeight: 19,
     color: 'rgba(255,255,255,0.7)',
   },
   meta: {
@@ -648,7 +700,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   completeButton: {
-    borderRadius: 12,
+    borderRadius: 22,
     overflow: 'hidden',
   },
   completeButtonGradient: {
@@ -656,7 +708,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    minHeight: 44,
+    paddingVertical: 11,
   },
   completeButtonText: {
     fontSize: 16,

@@ -18,11 +18,12 @@ import {
   Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { useSharedValue } from 'react-native-reanimated';
-import { CommonActions, useIsFocused } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   userAPI,
@@ -32,7 +33,6 @@ import {
 import AstralInput from '../components/shared/AstralInput';
 import AstralCityInput from '../components/shared/AstralCityInput';
 import AstralDateTimePicker from '../components/shared/DateTimePicker';
-import CosmicBackground from '../components/shared/CosmicBackground';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { logger } from '../services/logger';
 import type { CityOption } from '../services/api/geo.api';
@@ -41,6 +41,14 @@ import {
   clearCachedPrimaryPhoto,
   setCachedPrimaryPhoto,
 } from '../services/profile-photo-cache';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
+
+const editProfileBackground = require('../../assets/advisor-bg.png');
 
 const SHORT_LIVED_SIGNED_URL_TTL_MS = 14 * 60 * 1000;
 
@@ -57,6 +65,64 @@ interface Interest {
   icon: string;
   category: 'primary' | 'secondary';
 }
+
+type ProfileChipProps = {
+  disabled?: boolean;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+};
+
+const ProfileChip: React.FC<ProfileChipProps> = ({
+  disabled = false,
+  icon,
+  label,
+  onPress,
+  selected,
+}) => (
+  <TouchableOpacity
+    activeOpacity={1}
+    disabled={disabled}
+    onPress={onPress}
+    style={[styles.interestChipPressable, disabled && styles.interestChipDisabled]}
+  >
+    <GradientBorderView
+      colors={
+        selected
+          ? ['rgba(255,255,255,0.64)', 'rgba(124,119,153,0.24)']
+          : ['rgba(124,119,153,0.7)', 'rgba(124,119,153,0.05)']
+      }
+      gradientProps={{
+        locations: [0.29, 1],
+        start: { x: 0.49, y: 0 },
+        end: { x: 0.51, y: 1 },
+      }}
+      style={styles.interestChipBorder}
+      contentStyle={styles.interestChipContent}
+    >
+      <BlurView
+        intensity={selected ? 28 : 15}
+        tint="dark"
+        experimentalBlurMethod="dimezisBlurView"
+        style={[
+          styles.interestChipBlur,
+          selected && styles.interestChipBlurSelected,
+        ]}
+      >
+        <Ionicons name={icon} size={16} color="#FFFFFF" />
+        <Text
+          style={[
+            styles.interestText,
+            selected && styles.interestTextSelected,
+          ]}
+        >
+          {label}
+        </Text>
+      </BlurView>
+    </GradientBorderView>
+  </TouchableOpacity>
+);
 
 const INTERESTS_CONFIG: Array<{
   id: string;
@@ -96,9 +162,11 @@ const INTERESTS_CONFIG: Array<{
 ];
 
 const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const isFocused = useIsFocused();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const headerTopPadding = insets.top + 10;
+  const headerHeight = headerTopPadding + 48;
+  const saveButtonBottom = Math.max(16, insets.bottom + 12);
   const [profileId, setProfileId] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -609,8 +677,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <CosmicBackground active={isFocused} />
-        <LoadingIndicator />
+        <Image
+          source={editProfileBackground}
+          resizeMode="cover"
+          style={styles.backgroundImage}
+        />
+        <View style={styles.loadingContainer}>
+          <LoadingIndicator />
+        </View>
       </View>
     );
   }
@@ -623,24 +697,22 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <CosmicBackground active={isFocused} />
+      <Image
+        source={editProfileBackground}
+        resizeMode="cover"
+        style={styles.backgroundImage}
+      />
 
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
-          // Reserve space for sticky bottom save bar + safe-area
-          { paddingBottom: 140 + insets.bottom },
+          {
+            paddingTop: headerHeight + 24,
+            paddingBottom: saveButtonBottom + 112,
+          },
         ]}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.title}>{t('editProfile.title')}</Text>
-          <View style={styles.placeholder} />
-        </View>
-
         {/* Photos Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
@@ -794,28 +866,13 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             ].map((g) => {
               const isSelected = gender === (g.key as any);
               return (
-                <TouchableOpacity
+                <ProfileChip
                   key={g.key}
-                  style={[
-                    styles.interestChip,
-                    isSelected && styles.interestChipSelected,
-                  ]}
+                  selected={isSelected}
+                  icon={g.icon}
+                  label={t(`editProfile.gender.${g.key}`)}
                   onPress={() => setGender(g.key as any)}
-                >
-                  <Ionicons
-                    name={g.icon as any}
-                    size={18}
-                    color={isSelected ? '#fff' : '#8B5CF6'}
-                  />
-                  <Text
-                    style={[
-                      styles.interestText,
-                      isSelected && styles.interestTextSelected,
-                    ]}
-                  >
-                    {t(`editProfile.gender.${g.key}`)}
-                  </Text>
-                </TouchableOpacity>
+                />
               );
             })}
           </View>
@@ -834,28 +891,13 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             ].map((option) => {
               const isSelected = lookingFor === option.key;
               return (
-                <TouchableOpacity
+                <ProfileChip
                   key={option.key}
-                  style={[
-                    styles.interestChip,
-                    isSelected && styles.interestChipSelected,
-                  ]}
+                  selected={isSelected}
+                  icon={option.icon}
+                  label={t(`dating.lookingFor.${option.key}`)}
                   onPress={() => setLookingFor(option.key as any)}
-                >
-                  <Ionicons
-                    name={option.icon as any}
-                    size={18}
-                    color={isSelected ? '#fff' : '#8B5CF6'}
-                  />
-                  <Text
-                    style={[
-                      styles.interestText,
-                      isSelected && styles.interestTextSelected,
-                    ]}
-                  >
-                    {t(`dating.lookingFor.${option.key}`)}
-                  </Text>
-                </TouchableOpacity>
+                />
               );
             })}
           </View>
@@ -873,28 +915,13 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             ].map((option) => {
               const isSelected = lookingForGender === option.key;
               return (
-                <TouchableOpacity
+                <ProfileChip
                   key={option.key}
-                  style={[
-                    styles.interestChip,
-                    isSelected && styles.interestChipSelected,
-                  ]}
+                  selected={isSelected}
+                  icon={option.icon}
+                  label={t(`editProfile.gender.${option.key}`)}
                   onPress={() => setLookingForGender(option.key as any)}
-                >
-                  <Ionicons
-                    name={option.icon as any}
-                    size={18}
-                    color={isSelected ? '#fff' : '#8B5CF6'}
-                  />
-                  <Text
-                    style={[
-                      styles.interestText,
-                      isSelected && styles.interestTextSelected,
-                    ]}
-                  >
-                    {t(`editProfile.gender.${option.key}`)}
-                  </Text>
-                </TouchableOpacity>
+                />
               );
             })}
           </View>
@@ -932,29 +959,14 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             {displayedInterests.map((interest) => {
               const isSelected = selectedInterests.includes(interest.id);
               return (
-                <TouchableOpacity
+                <ProfileChip
                   key={interest.id}
-                  style={[
-                    styles.interestChip,
-                    isSelected && styles.interestChipSelected,
-                  ]}
+                  selected={isSelected}
+                  icon={interest.icon as React.ComponentProps<typeof Ionicons>['name']}
+                  label={interest.label}
                   onPress={() => toggleInterest(interest.id)}
                   disabled={!isSelected && selectedInterests.length >= 10}
-                >
-                  <Ionicons
-                    name={interest.icon as any}
-                    size={18}
-                    color={isSelected ? '#fff' : '#8B5CF6'}
-                  />
-                  <Text
-                    style={[
-                      styles.interestText,
-                      isSelected && styles.interestTextSelected,
-                    ]}
-                  >
-                    {interest.label}
-                  </Text>
-                </TouchableOpacity>
+                />
               );
             })}
           </View>
@@ -971,21 +983,74 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Ionicons
               name={showAllInterests ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color="#8B5CF6"
+              color="#D8B4FE"
             />
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Sticky Save Bar */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(20, 17, 48, 0.88)',
+          'rgba(20, 17, 48, 0.44)',
+          'rgba(20, 17, 48, 0)',
+        ]}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[styles.topFade, { height: headerHeight + 44 }]}
+      />
+
       <View
         style={[
-          styles.bottomBar,
-          {
-            paddingBottom: Math.max(16, insets.bottom + 12),
-          },
+          styles.fixedHeader,
+          { paddingTop: headerTopPadding, height: headerHeight },
         ]}
       >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.headerCirclePressable}
+          onPress={handleBackPress}
+        >
+          <GradientBorderView
+            colors={DATING_GLASS_BORDER_COLORS}
+            gradientProps={DATING_GLASS_BORDER_GRADIENT}
+            style={styles.headerCircleBorder}
+            contentStyle={[styles.datingGlassContent, styles.backHit]}
+          >
+            <DatingGlassFill />
+            <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+          </GradientBorderView>
+        </TouchableOpacity>
+
+        <GradientBorderView
+          colors={DATING_GLASS_BORDER_COLORS}
+          gradientProps={DATING_GLASS_BORDER_GRADIENT}
+          style={styles.titlePillBorder}
+          contentStyle={[styles.datingGlassContent, styles.titlePill]}
+        >
+          <DatingGlassFill />
+          <Text numberOfLines={1} style={styles.fixedHeaderTitle}>
+            {t('editProfile.title')}
+          </Text>
+        </GradientBorderView>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(8, 14, 28, 0)',
+          'rgba(8, 14, 28, 0.42)',
+          'rgba(8, 14, 28, 0.78)',
+        ]}
+        locations={[0, 0.48, 1]}
+        style={[styles.bottomFade, { height: saveButtonBottom + 104 }]}
+      />
+
+      <View style={[styles.bottomBar, { bottom: saveButtonBottom }]}>
         <TouchableOpacity
           style={[
             styles.saveButton,
@@ -993,14 +1058,17 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           ]}
           onPress={handleSave}
           disabled={isSaveDisabled}
-          activeOpacity={0.9}
+          activeOpacity={1}
         >
-          <LinearGradient
-            colors={
-              isSaveDisabled ? ['#4B5563', '#374151'] : ['#8B5CF6', '#7C3AED']
-            }
-            style={styles.saveButtonGradient}
-          >
+          <BlurView
+            pointerEvents="none"
+            intensity={72}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.saveButtonTint} />
+          <View style={styles.saveButtonInner}>
             {saving ? (
               <LoadingIndicator size="small" />
             ) : (
@@ -1011,7 +1079,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 </Text>
               </>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -1058,56 +1126,103 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#080E1C',
+    overflow: 'hidden',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.82,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    paddingBottom: 16,
+    paddingHorizontal: 24,
   },
-  header: {
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    justifyContent: 'space-between',
+    zIndex: 20,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  backHit: {
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(139, 92, 246, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
+  titlePillBorder: {
+    height: 48,
+    maxWidth: 220,
+    marginHorizontal: 12,
+    borderRadius: 24,
+    borderWidth: 1.1,
   },
-  placeholder: {
-    width: 44,
+  titlePill: {
+    height: 45.8,
+    borderRadius: 22.9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
+    padding: 18,
+    marginBottom: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    lineHeight: 25,
+    fontWeight: '600',
     color: '#fff',
-    marginBottom: 8,
-    textShadowColor: 'rgba(139, 92, 246, 0.3)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    marginBottom: 10,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#999',
+    color: 'rgba(255,255,255,0.62)',
     marginBottom: 16,
   },
   photosContainer: {
@@ -1119,9 +1234,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderRadius: 15,
     overflow: 'hidden',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    backgroundColor: 'rgba(18, 18, 42, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(124, 119, 153, 0.44)',
   },
   photoImage: {
     width: '100%',
@@ -1164,9 +1279,9 @@ const styles = StyleSheet.create({
     width: 120,
     height: 160,
     borderRadius: 15,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderWidth: 2,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(46, 44, 79, 0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(216, 180, 254, 0.34)',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1181,19 +1296,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#E0E0E0',
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.72)',
     marginBottom: 8,
   },
   textAreaContainer: {
     position: 'relative',
   },
   textArea: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderRadius: 15,
+    backgroundColor: 'rgba(46, 44, 79, 0.48)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(124, 119, 153, 0.42)',
     padding: 16,
     color: '#fff',
     fontSize: 16,
@@ -1212,26 +1327,41 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginHorizontal: -4,
   },
-  interestChip: {
+  interestChipPressable: {
+    margin: 4,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  interestChipDisabled: {
+    opacity: 0.38,
+  },
+  interestChipBorder: {
+    borderWidth: 1,
+    borderRadius: 24,
+  },
+  interestChipContent: {
+    borderRadius: 23,
+    overflow: 'hidden',
+  },
+  interestChipBlur: {
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    margin: 4,
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  interestChipSelected: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
+  interestChipBlurSelected: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   interestText: {
-    color: '#8B5CF6',
+    color: 'rgba(255,255,255,0.78)',
     fontSize: 14,
-    marginLeft: 6,
-    fontWeight: '600',
+    lineHeight: 16,
+    fontWeight: '500',
+    letterSpacing: -0.4,
   },
   interestTextSelected: {
     color: '#fff',
@@ -1241,47 +1371,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
+    minHeight: 40,
     paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(46, 44, 79, 0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.3)',
   },
   showMoreText: {
-    color: '#8B5CF6',
+    color: '#D8B4FE',
     fontSize: 14,
     fontWeight: '600',
     marginRight: 4,
   },
   bottomBar: {
     position: 'absolute',
+    left: 24,
+    right: 24,
+    zIndex: 22,
+  },
+  bottomFade: {
+    position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.18)',
+    zIndex: 21,
   },
   saveButton: {
-    borderRadius: 25,
+    width: '100%',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+    backgroundColor: 'transparent',
     overflow: 'hidden',
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.48,
   },
-  saveButtonGradient: {
+  saveButtonTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8,14,28,0.12)',
+  },
+  saveButtonInner: {
+    minHeight: 54,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 16,
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     marginLeft: 8,
   },
   unsavedOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(3, 6, 20, 0.76)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -1289,11 +1434,11 @@ const styles = StyleSheet.create({
   unsavedModal: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#1E1B2E',
+    backgroundColor: '#17152B',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
+    borderColor: 'rgba(216, 180, 254, 0.34)',
   },
   unsavedTitle: {
     fontSize: 18,

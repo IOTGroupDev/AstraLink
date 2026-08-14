@@ -126,18 +126,40 @@ const ScrollTopGlow = () => (
 );
 
 const QUICK_ACTIONS = [
-  { labelKey: 'horoscope.quickHelp.actions.dating', route: 'Dating' },
-  { labelKey: 'horoscope.quickHelp.actions.advisor', route: 'Advisor' },
-  { labelKey: 'horoscope.quickHelp.actions.natalChart', route: 'NatalChart' },
-  { labelKey: 'horoscope.quickHelp.actions.learning', route: 'Learning' },
+  {
+    labelKey: 'horoscope.quickHelp.actions.dating',
+    route: 'Dating',
+    icon: 'heart-outline',
+  },
+  {
+    labelKey: 'horoscope.quickHelp.actions.advisor',
+    route: 'Advisor',
+    icon: 'chatbubbles-outline',
+  },
+  {
+    labelKey: 'horoscope.quickHelp.actions.natalChart',
+    route: 'NatalChart',
+    icon: 'telescope-outline',
+  },
+  {
+    labelKey: 'horoscope.quickHelp.actions.learning',
+    route: 'Learning',
+    icon: 'school-outline',
+  },
   {
     labelKey: 'horoscope.quickHelp.actions.personalCode',
     route: 'PersonalCode',
+    icon: 'code-outline',
   },
-  { labelKey: 'horoscope.quickHelp.actions.horoscope', route: 'Horoscope' },
+  {
+    labelKey: 'horoscope.quickHelp.actions.horoscope',
+    route: 'Horoscope',
+    icon: 'planet-outline',
+  },
   {
     labelKey: 'horoscope.quickHelp.actions.cosmicSimulator',
     route: 'CosmicSimulator',
+    icon: 'planet-outline',
   },
 ] as const;
 
@@ -1388,6 +1410,11 @@ const HoroscopeScreen: React.FC = () => {
                               experimentalBlurMethod="dimezisBlurView"
                               style={styles.quickActionBlur}
                             >
+                              <Ionicons
+                                name={action.icon}
+                                size={16}
+                                color="#FFFFFF"
+                              />
                               <Text style={styles.quickActionText}>
                                 {t(action.labelKey)}
                               </Text>
@@ -1939,10 +1966,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   quickActionBlur: {
+    flexDirection: 'row',
     paddingVertical: 9,
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 7,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   quickActionText: {

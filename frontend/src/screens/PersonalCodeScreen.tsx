@@ -1,13 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
+  Animated,
+  Image,
+  Modal,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,8 +20,20 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types/navigation';
 import { CodePurpose, PersonalCodeResult } from '../types/personal-code';
 import { chartAPI } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
 import { logger } from '../services/logger';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
+
+const personalCodeBackground = require('../../assets/advisor-bg.png');
+
+const SURFACE_BORDER_COLORS = [
+  'rgba(255, 255, 255, 0.34)',
+  'rgba(124, 119, 153, 0.08)',
+] as const;
 
 const PURPOSE_CONFIG: Array<{
   key: CodePurpose;
@@ -43,7 +59,14 @@ type PersonalCodeScreenProps = StackScreenProps<
 
 function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const resultTranslateX = useRef(new Animated.Value(windowWidth)).current;
+  const formTranslateX = useRef(new Animated.Value(0)).current;
+  const headerTitleOpacity = useRef(new Animated.Value(1)).current;
+  const headerTopPadding = insets.top + 10;
+  const headerHeight = headerTopPadding + 48;
+  const ctaBottom = Math.max(16, insets.bottom + 12);
   const [selectedPurpose, setSelectedPurpose] = useState<CodePurpose>(
     CodePurpose.LUCK
   );
@@ -72,7 +95,33 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
         selectedPurpose,
         selectedDigitCount
       );
-      setResult(data);
+      resultTranslateX.setValue(windowWidth);
+      Animated.timing(headerTitleOpacity, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }).start(() => {
+        setResult(data);
+        requestAnimationFrame(() => {
+          Animated.parallel([
+            Animated.timing(resultTranslateX, {
+              toValue: 0,
+              duration: 320,
+              useNativeDriver: true,
+            }),
+            Animated.timing(formTranslateX, {
+              toValue: -windowWidth * 0.28,
+              duration: 320,
+              useNativeDriver: true,
+            }),
+            Animated.timing(headerTitleOpacity, {
+              toValue: 1,
+              duration: 180,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        });
+      });
     } catch (err: any) {
       setError(
         err.response?.data?.message || t('personalCode.errors.generationFailed')
@@ -83,35 +132,122 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
     }
   };
 
+  const closeResult = () => {
+    Animated.parallel([
+      Animated.timing(resultTranslateX, {
+        toValue: windowWidth,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(formTranslateX, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerTitleOpacity, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setResult(null);
+      Animated.timing(headerTitleOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
   const selectedPurposeData = purposes.find((p) => p.key === selectedPurpose);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={['#0F172A', '#1E1B4B', '#312E81']}
-        style={StyleSheet.absoluteFillObject}
+    <View style={styles.container}>
+      <Image
+        source={personalCodeBackground}
+        resizeMode="cover"
+        style={styles.backgroundImage}
       />
 
-      {/* Navigation Header */}
-      <View style={styles.navigationHeader}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('personalCode.header.title')}</Text>
-        <View style={styles.backButton} />
-      </View>
-
-      <ScrollView
+      <Animated.ScrollView
+        style={{ transform: [{ translateX: formTranslateX }] }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: headerHeight + 24,
+            paddingBottom: ctaBottom + 112,
+          },
+        ]}
       >
-        {/* Subtitle */}
-        <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>
-            {t('personalCode.header.subtitle')}
+        <GradientBorderView
+          colors={SURFACE_BORDER_COLORS}
+          gradientProps={{
+            start: { x: 0.5, y: 0 },
+            end: { x: 0.5, y: 1 },
+          }}
+          style={styles.introCard}
+          contentStyle={styles.introCardSurface}
+        >
+          <BlurView
+            intensity={24}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+            style={styles.introCardBlur}
+          >
+            <Ionicons name="code-outline" size={22} color="#D8B4FE" />
+            <Text style={styles.headerSubtitle}>
+              {t('personalCode.header.subtitle')}
+            </Text>
+          </BlurView>
+        </GradientBorderView>
+
+        {/* Digit Count Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('personalCode.digitCount.title')}
+          </Text>
+          <View style={styles.digitCountRow}>
+            {digitCounts.map((count) => {
+              const active = selectedDigitCount === count;
+
+              return (
+                <TouchableOpacity
+                  activeOpacity={1}
+                  key={count}
+                  style={styles.digitButtonTouchable}
+                  onPress={() => setSelectedDigitCount(count)}
+                >
+                  <GradientBorderView
+                    colors={
+                      active
+                        ? [
+                            'rgba(216, 180, 254, 0.78)',
+                            'rgba(139, 92, 246, 0.24)',
+                          ]
+                        : SURFACE_BORDER_COLORS
+                    }
+                    style={styles.digitButtonBorder}
+                    contentStyle={[
+                      styles.digitButton,
+                      active && styles.digitButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.digitButtonText,
+                        active && styles.digitButtonTextActive,
+                      ]}
+                    >
+                      {count}
+                    </Text>
+                  </GradientBorderView>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.digitHint}>
+            {t('personalCode.digitCount.hint')}
           </Text>
         </View>
 
@@ -123,14 +259,28 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
           <View style={styles.purposeGrid}>
             {purposes.map((purpose) => (
               <TouchableOpacity
+                activeOpacity={1}
                 key={purpose.key}
                 style={[
                   styles.purposeCard,
-                  selectedPurpose === purpose.key && styles.purposeCardActive,
+                  {
+                    borderColor:
+                      selectedPurpose === purpose.key
+                        ? purpose.color
+                        : 'rgba(124, 119, 153, 0.34)',
+                  },
                 ]}
                 onPress={() => setSelectedPurpose(purpose.key)}
               >
-                <BlurView intensity={20} style={styles.purposeCardBlur}>
+                <BlurView
+                  intensity={20}
+                  tint="dark"
+                  experimentalBlurMethod="dimezisBlurView"
+                  style={[
+                    styles.purposeCardBlur,
+                    selectedPurpose === purpose.key && styles.purposeCardActive,
+                  ]}
+                >
                   <Text style={styles.purposeIcon}>{purpose.icon}</Text>
                   <Text
                     style={[
@@ -142,82 +292,10 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
                     {purpose.label}
                   </Text>
                 </BlurView>
-                {selectedPurpose === purpose.key && (
-                  <View
-                    style={[
-                      styles.purposeActiveBorder,
-                      { borderColor: purpose.color },
-                    ]}
-                  />
-                )}
               </TouchableOpacity>
             ))}
           </View>
         </View>
-
-        {/* Digit Count Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('personalCode.digitCount.title')}
-          </Text>
-          <View style={styles.digitCountRow}>
-            {digitCounts.map((count) => (
-              <TouchableOpacity
-                key={count}
-                style={[
-                  styles.digitButton,
-                  selectedDigitCount === count && styles.digitButtonActive,
-                ]}
-                onPress={() => setSelectedDigitCount(count)}
-              >
-                <Text
-                  style={[
-                    styles.digitButtonText,
-                    selectedDigitCount === count &&
-                      styles.digitButtonTextActive,
-                  ]}
-                >
-                  {count}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={styles.digitHint}>
-            {t('personalCode.digitCount.hint')}
-          </Text>
-        </View>
-
-        {/* Generate Button */}
-        <TouchableOpacity
-          style={[
-            styles.generateButton,
-            loading && styles.generateButtonDisabled,
-          ]}
-          onPress={handleGenerate}
-          disabled={loading}
-        >
-          <LinearGradient
-            colors={
-              selectedPurposeData
-                ? [selectedPurposeData.color, selectedPurposeData.color + 'CC']
-                : ['#8B5CF6', '#7C3AED']
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.generateButtonGradient}
-          >
-            {loading ? (
-              <LoadingIndicator size="small" />
-            ) : (
-              <>
-                <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-                <Text style={styles.generateButtonText}>
-                  {t('personalCode.generate.button')}
-                </Text>
-              </>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
 
         {/* Error */}
         {error && (
@@ -229,7 +307,36 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
 
         {/* Result */}
         {result && (
-          <View style={styles.resultContainer}>
+          <Modal
+            animationType="none"
+            transparent
+            statusBarTranslucent
+            visible
+            onRequestClose={closeResult}
+          >
+            <View style={styles.resultModalRoot}>
+              <Animated.View
+                style={[
+                  styles.resultScreen,
+                  { transform: [{ translateX: resultTranslateX }] },
+                ]}
+              >
+                <Image
+                  source={personalCodeBackground}
+                  resizeMode="cover"
+                  style={styles.backgroundImage}
+                />
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={[
+                    styles.resultScrollContent,
+                    {
+                      paddingTop: headerHeight + 24,
+                      paddingBottom: Math.max(40, insets.bottom + 32),
+                    },
+                  ]}
+                >
+                  <View style={styles.resultContainer}>
             {/* Code Display */}
             <BlurView intensity={30} style={styles.codeCard}>
               <LinearGradient
@@ -449,50 +556,299 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
                 </BlurView>
               ))}
             </View>
-          </View>
+                  </View>
+                </ScrollView>
+              </Animated.View>
+
+              <LinearGradient
+                pointerEvents="none"
+                colors={[
+                  'rgba(20, 17, 48, 0.88)',
+                  'rgba(20, 17, 48, 0.44)',
+                  'rgba(20, 17, 48, 0)',
+                ]}
+                locations={[0, 0.62, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={[styles.topFade, { height: headerHeight + 44 }]}
+              />
+
+              <View
+                style={[
+                  styles.fixedHeader,
+                  { paddingTop: headerTopPadding, height: headerHeight },
+                ]}
+              >
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={styles.headerCirclePressable}
+                  onPress={closeResult}
+                >
+                  <GradientBorderView
+                    colors={DATING_GLASS_BORDER_COLORS}
+                    gradientProps={DATING_GLASS_BORDER_GRADIENT}
+                    style={styles.headerCircleBorder}
+                    contentStyle={[styles.datingGlassContent, styles.backHit]}
+                  >
+                    <DatingGlassFill />
+                    <Ionicons
+                      name="chevron-back"
+                      size={30}
+                      color="#FFFFFF"
+                    />
+                  </GradientBorderView>
+                </TouchableOpacity>
+
+                <GradientBorderView
+                  colors={DATING_GLASS_BORDER_COLORS}
+                  gradientProps={DATING_GLASS_BORDER_GRADIENT}
+                  style={styles.titlePillBorder}
+                  contentStyle={[styles.datingGlassContent, styles.titlePill]}
+                >
+                  <DatingGlassFill />
+                  <Animated.Text
+                    numberOfLines={1}
+                    style={[
+                      styles.fixedHeaderTitle,
+                      { opacity: headerTitleOpacity },
+                    ]}
+                  >
+                    {t('personalCode.result.codeLabel')}
+                  </Animated.Text>
+                </GradientBorderView>
+
+                <View style={styles.headerSpacer} />
+              </View>
+            </View>
+          </Modal>
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </Animated.ScrollView>
+
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(20, 17, 48, 0.88)',
+          'rgba(20, 17, 48, 0.44)',
+          'rgba(20, 17, 48, 0)',
+        ]}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[styles.topFade, { height: headerHeight + 44 }]}
+      />
+
+      <View
+        style={[
+          styles.fixedHeader,
+          { paddingTop: headerTopPadding, height: headerHeight },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.headerCirclePressable}
+          onPress={() => navigation.goBack()}
+        >
+          <GradientBorderView
+            colors={DATING_GLASS_BORDER_COLORS}
+            gradientProps={DATING_GLASS_BORDER_GRADIENT}
+            style={styles.headerCircleBorder}
+            contentStyle={[styles.datingGlassContent, styles.backHit]}
+          >
+            <DatingGlassFill />
+            <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+          </GradientBorderView>
+        </TouchableOpacity>
+
+        <GradientBorderView
+          colors={DATING_GLASS_BORDER_COLORS}
+          gradientProps={DATING_GLASS_BORDER_GRADIENT}
+          style={styles.titlePillBorder}
+          contentStyle={[styles.datingGlassContent, styles.titlePill]}
+        >
+          <DatingGlassFill />
+          <Animated.Text
+            numberOfLines={1}
+            style={[
+              styles.fixedHeaderTitle,
+              { opacity: headerTitleOpacity },
+            ]}
+          >
+            {t('personalCode.header.title')}
+          </Animated.Text>
+        </GradientBorderView>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(8, 14, 28, 0)',
+          'rgba(8, 14, 28, 0.72)',
+          'rgba(8, 14, 28, 0.98)',
+        ]}
+        locations={[0, 0.48, 1]}
+        style={[styles.bottomCtaFade, { height: ctaBottom + 104 }]}
+      />
+
+      <Animated.View
+        style={[
+          styles.fixedCta,
+          {
+            bottom: ctaBottom,
+            transform: [{ translateX: formTranslateX }],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={[
+            styles.generateButton,
+            loading && styles.generateButtonDisabled,
+          ]}
+          onPress={handleGenerate}
+          disabled={loading}
+        >
+          <GradientBorderView
+            colors={[
+              'rgba(216, 180, 254, 0.86)',
+              'rgba(126, 108, 160, 0.42)',
+            ]}
+            gradientProps={{
+              start: { x: 0.5, y: 0 },
+              end: { x: 0.5, y: 1 },
+            }}
+            style={styles.generateButtonBorder}
+            contentStyle={styles.generateButtonContent}
+          >
+            <LinearGradient
+              colors={[
+                'rgba(126, 108, 160, 0.96)',
+                'rgba(96, 63, 142, 0.98)',
+                'rgba(62, 32, 104, 0.98)',
+              ]}
+              locations={[0, 0.52, 1]}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={styles.generateButtonGradient}
+            >
+              {loading ? (
+                <LoadingIndicator size="small" />
+              ) : (
+                <>
+                  <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                  <Text style={styles.generateButtonText}>
+                    {t('personalCode.generate.button')}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
+          </GradientBorderView>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#080E1C',
+    overflow: 'hidden',
   },
-  navigationHeader: {
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.82,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 20,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  backHit: {
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  titlePillBorder: {
+    height: 48,
+    maxWidth: 220,
+    marginHorizontal: 12,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  titlePill: {
+    height: 45.8,
+    borderRadius: 22.9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
+  },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
   },
-  header: {
+  introCard: {
+    borderWidth: 1,
+    borderRadius: 18,
     marginBottom: 24,
-    marginTop: 16,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F9FAFB',
+  introCardSurface: {
+    backgroundColor: 'rgba(18, 18, 42, 0.48)',
+  },
+  introCardBlur: {
+    minHeight: 72,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    overflow: 'hidden',
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#A78BFA',
-    textAlign: 'center',
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    color: 'rgba(255,255,255,0.7)',
   },
   section: {
     marginBottom: 24,
@@ -512,26 +868,17 @@ const styles = StyleSheet.create({
     width: '47%',
     aspectRatio: 1.5,
     borderRadius: 16,
+    borderWidth: 1,
     overflow: 'hidden',
-    position: 'relative',
   },
   purposeCardBlur: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   purposeCardActive: {
-    transform: [{ scale: 0.98 }],
-  },
-  purposeActiveBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderWidth: 2,
-    borderRadius: 16,
+    backgroundColor: 'rgba(104, 99, 135, 0.48)',
   },
   purposeIcon: {
     fontSize: 32,
@@ -550,15 +897,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  digitButton: {
+  digitButtonTouchable: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+  },
+  digitButtonBorder: {
+    borderWidth: 1,
+    borderRadius: 20,
+  },
+  digitButton: {
+    minHeight: 40,
+    borderRadius: 19,
+    backgroundColor: 'rgba(46, 44, 79, 0.72)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   digitButtonActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(104, 99, 135, 0.88)',
   },
   digitButtonText: {
     fontSize: 16,
@@ -575,15 +930,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   generateButton: {
-    marginBottom: 24,
-    borderRadius: 16,
-    overflow: 'hidden',
+    width: '100%',
+    borderRadius: 28,
   },
   generateButtonDisabled: {
     opacity: 0.6,
   },
+  generateButtonBorder: {
+    borderWidth: 1.2,
+    borderRadius: 28,
+  },
+  generateButtonContent: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
   generateButtonGradient: {
-    paddingVertical: 16,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -593,6 +954,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  fixedCta: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    zIndex: 22,
+  },
+  bottomCtaFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 21,
   },
   errorCard: {
     flexDirection: 'row',
@@ -608,15 +982,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#EF4444',
   },
+  resultModalRoot: {
+    flex: 1,
+  },
+  resultScreen: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#080E1C',
+    overflow: 'hidden',
+  },
+  resultScrollContent: {
+    paddingHorizontal: 24,
+  },
   resultContainer: {
     gap: 24,
   },
   codeCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   codeCardGradient: {
-    padding: 24,
+    padding: 18,
   },
   codeHeader: {
     flexDirection: 'row',
@@ -681,9 +1069,11 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   numerologyCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(46, 44, 79, 0.44)',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.24)',
   },
   numerologyLabel: {
     fontSize: 12,
@@ -728,9 +1118,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   interpretationCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   interpretationSummary: {
     fontSize: 15,
@@ -753,9 +1145,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   breakdownCard: {
-    borderRadius: 12,
+    borderRadius: 18,
     padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   breakdownHeader: {
     flexDirection: 'row',
@@ -808,8 +1202,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   exampleCard: {
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
     padding: 16,
   },
   exampleHeader: {
@@ -829,9 +1225,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   usageCard: {
-    borderRadius: 12,
+    borderRadius: 18,
     padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   usageItem: {
     flexDirection: 'row',

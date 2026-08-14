@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,6 +30,19 @@ import type { Chart } from '../types';
 import type { AstroLesson, LessonCategory } from '../types/lessons';
 import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { useLearningStore } from '../stores';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
+
+const learningBackground = require('../../assets/advisor-bg.png');
+
+const SURFACE_BORDER_COLORS = [
+  'rgba(255, 255, 255, 0.34)',
+  'rgba(124, 119, 153, 0.08)',
+] as const;
 
 const CATEGORY_ORDER: LessonCategory[] = [
   'basics',
@@ -93,6 +107,41 @@ const sortLessonsByFocus = <
   });
 };
 
+const LearningFilterChip: React.FC<{
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}> = ({ active, label, onPress }) => (
+  <TouchableOpacity
+    activeOpacity={0.82}
+    onPress={onPress}
+    style={styles.filterChipTouchable}
+  >
+    <GradientBorderView
+      colors={
+        active
+          ? ['rgba(216, 180, 254, 0.78)', 'rgba(139, 92, 246, 0.24)']
+          : SURFACE_BORDER_COLORS
+      }
+      gradientProps={{
+        start: { x: 0.5, y: 0 },
+        end: { x: 0.5, y: 1 },
+      }}
+      style={styles.filterChipBorder}
+      contentStyle={[
+        styles.filterChipContent,
+        active && styles.filterChipContentActive,
+      ]}
+    >
+      <Text
+        style={[styles.filterChipText, active && styles.filterChipTextActive]}
+      >
+        {label}
+      </Text>
+    </GradientBorderView>
+  </TouchableOpacity>
+);
+
 const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
   navigation,
   route,
@@ -101,6 +150,8 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
   const insets = useSafeAreaInsets();
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const locale = getLessonsLocale(i18n.language);
+  const headerTopPadding = insets.top + 10;
+  const headerHeight = headerTopPadding + 48;
 
   const {
     completedLessonIds,
@@ -311,107 +362,138 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
       scrollable={false}
       edges={['left', 'right']}
       contentContainerStyle={styles.layoutContent}
+      showCosmicBackground={false}
     >
       <View style={styles.screen}>
+        <Image
+          source={learningBackground}
+          resizeMode="cover"
+          style={styles.backgroundImage}
+        />
         <ScrollView
           ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingTop: insets.top + 12,
-              paddingBottom: Math.max(56, tabBarHeight + 28),
+              paddingTop: headerHeight + 24,
+              paddingBottom: Math.max(72, tabBarHeight + 48),
             },
           ]}
         >
-          <BlurView intensity={20} tint="dark" style={styles.headerContainer}>
-            <View style={styles.headerTop}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={styles.backButton}
-              >
-                <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              <View style={styles.headerTextContainer}>
-                <Text style={styles.headerTitle}>{t('learning.title')}</Text>
+          <GradientBorderView
+            colors={SURFACE_BORDER_COLORS}
+            gradientProps={{
+              start: { x: 0.5, y: 0 },
+              end: { x: 0.5, y: 1 },
+            }}
+            style={styles.headerContainer}
+            contentStyle={styles.headerSurface}
+          >
+            <BlurView
+              intensity={24}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={styles.headerBlur}
+            >
+              <View style={styles.overviewHeader}>
+                <Ionicons name="school-outline" size={22} color="#D8B4FE" />
                 <Text style={styles.headerSubtitle}>
                   {t('learning.subtitle')}
                 </Text>
               </View>
-            </View>
 
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <LinearGradient
-                  colors={['#8B5CF6', '#6366F1']}
-                  style={[
-                    styles.progressFill,
-                    { width: `${progressPercent}%` },
-                  ]}
-                />
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <LinearGradient
+                    colors={['#C45BFF', '#7567FF']}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={[
+                      styles.progressFill,
+                      { width: `${progressPercent}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>{progressPercent}%</Text>
               </View>
-              <Text style={styles.progressText}>{progressPercent}%</Text>
-            </View>
 
-            <Text style={styles.progressCaption}>
-              {t('learning.progress.summary', {
-                completed: completedTrackedLessons,
-                total: trackableLessonIds.length,
-              })}
-            </Text>
-          </BlurView>
+              <Text style={styles.progressCaption}>
+                {t('learning.progress.summary', {
+                  completed: completedTrackedLessons,
+                  total: trackableLessonIds.length,
+                })}
+              </Text>
+            </BlurView>
+          </GradientBorderView>
 
           {dailyLesson &&
             dismissedDailyLessonKey !== dailyLessonKey &&
             featuredLesson?.id !== dailyLesson.id && (
-              <BlurView intensity={10} tint="dark" style={styles.dailyCard}>
-                <View style={styles.dailyHeader}>
-                  <View style={styles.dailyIconWrap}>
-                    <LinearGradient
-                      colors={
-                        dailyLesson.gradient as [string, string, ...string[]]
-                      }
-                      style={styles.dailyIcon}
-                    >
-                      <Text style={styles.dailyEmoji}>{dailyLesson.emoji}</Text>
-                    </LinearGradient>
-                  </View>
+              <GradientBorderView
+                colors={[
+                  'rgba(216, 180, 254, 0.62)',
+                  'rgba(139, 92, 246, 0.1)',
+                ]}
+                style={styles.dailyCard}
+                contentStyle={styles.dailyCardSurface}
+              >
+                <BlurView
+                  intensity={20}
+                  tint="dark"
+                  experimentalBlurMethod="dimezisBlurView"
+                  style={styles.dailyCardBlur}
+                >
+                  <View style={styles.dailyHeader}>
+                    <View style={styles.dailyIconWrap}>
+                      <LinearGradient
+                        colors={
+                          dailyLesson.gradient as [string, string, ...string[]]
+                        }
+                        style={styles.dailyIcon}
+                      >
+                        <Text style={styles.dailyEmoji}>
+                          {dailyLesson.emoji}
+                        </Text>
+                      </LinearGradient>
+                    </View>
 
-                  <View style={styles.dailyContent}>
-                    <Text style={styles.dailyLabel}>
-                      {t('learning.dailyLesson.label')}
-                    </Text>
-                    <Text style={styles.dailyTitle}>{dailyLesson.title}</Text>
-                    <Text style={styles.dailySubtitle} numberOfLines={3}>
-                      {dailyLesson.shortText}
-                    </Text>
+                    <View style={styles.dailyContent}>
+                      <Text style={styles.dailyLabel}>
+                        {t('learning.dailyLesson.label')}
+                      </Text>
+                      <Text style={styles.dailyTitle}>{dailyLesson.title}</Text>
+                      <Text style={styles.dailySubtitle} numberOfLines={3}>
+                        {dailyLesson.shortText}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => dismissDailyLesson(dailyLessonKey)}
+                      style={styles.dailyDismiss}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={18}
+                        color="rgba(255,255,255,0.6)"
+                      />
+                    </TouchableOpacity>
                   </View>
 
                   <TouchableOpacity
-                    onPress={() => dismissDailyLesson(dailyLessonKey)}
-                    style={styles.dailyDismiss}
+                    activeOpacity={0.82}
+                    onPress={() =>
+                      handleOpenLesson(dailyLesson.id, dailyLesson.category)
+                    }
+                    style={styles.dailyAction}
                   >
-                    <Ionicons
-                      name="close"
-                      size={18}
-                      color="rgba(255,255,255,0.6)"
-                    />
+                    <Text style={styles.dailyActionText}>
+                      {t('learning.dailyLesson.button')}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={16} color="#D8B4FE" />
                   </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() =>
-                    handleOpenLesson(dailyLesson.id, dailyLesson.category)
-                  }
-                  style={styles.dailyAction}
-                >
-                  <Text style={styles.dailyActionText}>
-                    {t('learning.dailyLesson.button')}
-                  </Text>
-                  <Ionicons name="arrow-forward" size={16} color="#8B5CF6" />
-                </TouchableOpacity>
-              </BlurView>
+                </BlurView>
+              </GradientBorderView>
             )}
 
           {featuredLesson && (
@@ -465,43 +547,19 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filtersContent}
             >
-              <TouchableOpacity
+              <LearningFilterChip
+                active={selectedCategory === 'all'}
+                label={t('learning.filters.all')}
                 onPress={() => setSelectedCategory('all')}
-                style={[
-                  styles.filterChip,
-                  selectedCategory === 'all' && styles.filterChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedCategory === 'all' && styles.filterChipTextActive,
-                  ]}
-                >
-                  {t('learning.filters.all')}
-                </Text>
-              </TouchableOpacity>
+              />
 
               {visibleCategories.map((category) => (
-                <TouchableOpacity
+                <LearningFilterChip
                   key={category}
+                  active={selectedCategory === category}
+                  label={`${t(`learning.categories.${category}`)} (${categoriesWithCount[category]})`}
                   onPress={() => setSelectedCategory(category)}
-                  style={[
-                    styles.filterChip,
-                    selectedCategory === category && styles.filterChipActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedCategory === category &&
-                        styles.filterChipTextActive,
-                    ]}
-                  >
-                    {t(`learning.categories.${category}`)} (
-                    {categoriesWithCount[category]})
-                  </Text>
-                </TouchableOpacity>
+                />
               ))}
             </ScrollView>
           </View>
@@ -540,14 +598,51 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
         <LinearGradient
           pointerEvents="none"
           colors={[
-            'rgba(15, 23, 42, 0.98)',
-            'rgba(15, 23, 42, 0.65)',
-            'rgba(15, 23, 42, 0)',
+            'rgba(20, 17, 48, 0.88)',
+            'rgba(20, 17, 48, 0.44)',
+            'rgba(20, 17, 48, 0)',
           ]}
+          locations={[0, 0.62, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
-          style={[styles.topFade, { height: insets.top + 56 }]}
+          style={[styles.topFade, { height: headerHeight + 44 }]}
         />
+        <View
+          style={[
+            styles.fixedHeader,
+            { paddingTop: headerTopPadding, height: headerHeight },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.headerCirclePressable}
+            onPress={() => navigation.goBack()}
+          >
+            <GradientBorderView
+              colors={DATING_GLASS_BORDER_COLORS}
+              gradientProps={DATING_GLASS_BORDER_GRADIENT}
+              style={styles.headerCircleBorder}
+              contentStyle={[styles.datingGlassContent, styles.backHit]}
+            >
+              <DatingGlassFill />
+              <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+            </GradientBorderView>
+          </TouchableOpacity>
+
+          <GradientBorderView
+            colors={DATING_GLASS_BORDER_COLORS}
+            gradientProps={DATING_GLASS_BORDER_GRADIENT}
+            style={styles.titlePillBorder}
+            contentStyle={[styles.datingGlassContent, styles.titlePill]}
+          >
+            <DatingGlassFill />
+            <Text numberOfLines={1} style={styles.fixedHeaderTitle}>
+              {t('learning.title')}
+            </Text>
+          </GradientBorderView>
+
+          <View style={styles.headerSpacer} />
+        </View>
       </View>
     </TabScreenLayout>
   );
@@ -561,9 +656,17 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
+    backgroundColor: '#080E1C',
+    overflow: 'hidden',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.82,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
   topFade: {
     position: 'absolute',
@@ -572,38 +675,80 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  headerContainer: {
-    borderRadius: 16,
-    padding: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  headerTop: {
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  backHit: {
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTextContainer: {
-    flex: 1,
+  titlePillBorder: {
+    height: 48,
+    marginHorizontal: 12,
+    borderRadius: 24,
+    borderWidth: 1.1,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+  titlePill: {
+    height: 45.8,
+    borderRadius: 22.9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedHeaderTitle: {
     color: '#FFFFFF',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
+  },
+  headerContainer: {
+    borderWidth: 1,
+    borderRadius: 20,
+  },
+  headerSurface: {
+    backgroundColor: 'rgba(18, 18, 42, 0.48)',
+  },
+  headerBlur: {
+    padding: 18,
+    overflow: 'hidden',
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   headerSubtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    lineHeight: 20,
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
     color: 'rgba(255,255,255,0.7)',
   },
   progressContainer: {
@@ -614,9 +759,9 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flex: 1,
-    height: 8,
+    height: 7,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
   },
   progressFill: {
@@ -626,8 +771,8 @@ const styles = StyleSheet.create({
   progressText: {
     minWidth: 40,
     fontSize: 14,
-    fontWeight: '700',
-    color: '#8B5CF6',
+    fontWeight: '600',
+    color: '#D8B4FE',
   },
   progressCaption: {
     marginTop: 10,
@@ -635,12 +780,16 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.65)',
   },
   dailyCard: {
-    marginTop: 16,
-    borderRadius: 16,
+    marginTop: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  dailyCardSurface: {
+    backgroundColor: 'rgba(18, 18, 42, 0.44)',
+  },
+  dailyCardBlur: {
     padding: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.3)',
   },
   dailyHeader: {
     flexDirection: 'row',
@@ -665,15 +814,15 @@ const styles = StyleSheet.create({
   },
   dailyLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    color: '#8B5CF6',
+    color: '#D8B4FE',
     letterSpacing: 0.5,
   },
   dailyTitle: {
     marginTop: 4,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   dailySubtitle: {
@@ -697,55 +846,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(139,92,246,0.16)',
+    minHeight: 42,
+    borderRadius: 22,
+    backgroundColor: 'rgba(104,99,135,0.34)',
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.3)',
+    borderColor: 'rgba(216,180,254,0.28)',
   },
   dailyActionText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#8B5CF6',
+    fontWeight: '600',
+    color: '#F5EEFF',
   },
   featuredContainer: {
-    marginTop: 20,
+    marginTop: 24,
   },
   personalizedContainer: {
-    marginTop: 20,
+    marginTop: 24,
   },
   filtersContainer: {
-    marginTop: 20,
+    marginTop: 24,
+    marginHorizontal: -24,
   },
   filtersContent: {
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 24,
   },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  filterChipTouchable: {
+    borderRadius: 22,
+  },
+  filterChipBorder: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 22,
   },
-  filterChipActive: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
+  filterChipContent: {
+    minHeight: 40,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(46,44,79,0.72)',
+  },
+  filterChipContentActive: {
+    backgroundColor: 'rgba(104,99,135,0.88)',
   },
   filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.72)',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#AAA5B6',
   },
   filterChipTextActive: {
     color: '#FFFFFF',
   },
   categorySection: {
-    marginTop: 20,
+    marginTop: 24,
   },
   sectionTitle: {
-    marginBottom: 12,
+    marginBottom: 14,
     fontSize: 20,
-    fontWeight: '700',
+    lineHeight: 25,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   sectionSubtitle: {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  Image,
   View,
   Text,
   StyleSheet,
@@ -28,12 +29,24 @@ import {
 } from '../types/subscription';
 import { TabScreenLayout } from '../components/layout/TabScreenLayout';
 import FullscreenLoadingScreen from '../components/shared/FullscreenLoadingScreen';
-import { GradientBorderView } from '../components/shared';
+import {
+  DATING_GLASS_BORDER_COLORS,
+  DATING_GLASS_BORDER_GRADIENT,
+  DatingGlassFill,
+  GradientBorderView,
+} from '../components/shared';
 import { logger } from '../services/logger';
 import { readHoroscopeScreenInvalidationMarker } from '../services/horoscope-cache';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOptionalBottomTabBarHeight } from '../hooks/useOptionalBottomTabBarHeight';
 import { theme } from '../styles/theme';
+
+const natalChartBackground = require('../../assets/advisor-bg.png');
+
+const CHART_SURFACE_BORDER_COLORS = [
+  'rgba(255, 255, 255, 0.34)',
+  'rgba(124, 119, 153, 0.08)',
+] as const;
 
 interface NatalChartScreenProps {
   navigation: any;
@@ -503,6 +516,8 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useOptionalBottomTabBarHeight();
+  const headerTopPadding = insets.top + 10;
+  const fixedHeaderHeight = headerTopPadding + 48;
   const showBackButton = route?.name !== 'Chart';
   const { t, i18n } = useTranslation();
   const { subscription } = useSubscription();
@@ -527,6 +542,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
   const [summaryModalSubtitle, setSummaryModalSubtitle] = useState('');
   const [summaryModalSummary, setSummaryModalSummary] = useState('');
   const [summaryModalLines, setSummaryModalLines] = useState<string[]>([]);
+
   const [summaryModalVariant, setSummaryModalVariant] = useState<
     'default' | 'lesson'
   >('default');
@@ -699,7 +715,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
 
   if (!chartData?.data) {
     return (
-      <TabScreenLayout>
+      <TabScreenLayout showCosmicBackground={false}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#8B5CF6" />
           <Text style={styles.errorText}>
@@ -3062,19 +3078,97 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
     );
   };
 
+  const renderTabsNavigation = (pinned = false) => (
+    <View
+      style={[
+        styles.tabsStickyShell,
+        {
+          marginHorizontal: pinned
+            ? 0
+            : showBackButton
+              ? -24
+              : -16,
+        },
+        pinned && styles.pinnedTabsShell,
+      ]}
+    >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsContainer}
+        contentContainerStyle={[
+          styles.tabsContent,
+          { paddingHorizontal: showBackButton ? 24 : 16 },
+        ]}
+      >
+        {tabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.id}
+            activeOpacity={1}
+            style={styles.tabTouchable}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <GradientBorderView
+              colors={
+                activeTab === tab.id
+                  ? [
+                      'rgba(216, 180, 254, 0.78)',
+                      'rgba(139, 92, 246, 0.24)',
+                    ]
+                  : CHART_SURFACE_BORDER_COLORS
+              }
+              gradientProps={{
+                start: { x: 0.5, y: 0 },
+                end: { x: 0.5, y: 1 },
+              }}
+              style={styles.tabBorder}
+              contentStyle={[
+                styles.tab,
+                activeTab === tab.id && styles.activeTab,
+              ]}
+            >
+              <Ionicons
+                name={tab.icon}
+                size={18}
+                color={activeTab === tab.id ? '#FFFFFF' : '#AAA5B6'}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.id && styles.activeTabText,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </GradientBorderView>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   return (
     <TabScreenLayout
       scrollable={false}
       edges={['left', 'right']}
       contentContainerStyle={styles.layoutContent}
+      showCosmicBackground={false}
     >
       <StatusBar barStyle="light-content" />
+      <Image
+        source={natalChartBackground}
+        resizeMode="cover"
+        style={styles.backgroundImage}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 12,
+            paddingHorizontal: showBackButton ? 24 : 16,
+            paddingTop: showBackButton
+              ? fixedHeaderHeight + 76
+              : insets.top + 12,
             paddingBottom: Math.max(72, tabBarHeight + 44),
           },
         ]}
@@ -3089,73 +3183,56 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
         }
       >
         {/* Заголовок */}
-        <GradientBorderView
-          colors={[
-            'rgba(237, 164, 255, 0.55)',
-            'rgba(135, 98, 154, 0.22)',
-            'rgba(255, 255, 255, 0.04)',
-          ]}
-          gradientProps={{
-            locations: [0, 0.48, 1],
-            start: { x: 0, y: 0 },
-            end: { x: 1, y: 1 },
-          }}
-          style={styles.header}
-          contentStyle={styles.headerContent}
-        >
-          <LinearGradient
-            colors={['rgba(88, 1, 114, 0.5)', 'rgba(8, 14, 28, 0.78)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerGradient}
+        {!showBackButton && (
+          <GradientBorderView
+            colors={[
+              'rgba(237, 164, 255, 0.55)',
+              'rgba(135, 98, 154, 0.22)',
+              'rgba(255, 255, 255, 0.04)',
+            ]}
+            gradientProps={{
+              locations: [0, 0.48, 1],
+              start: { x: 0, y: 0 },
+              end: { x: 1, y: 1 },
+            }}
+            style={styles.header}
+            contentStyle={styles.headerContent}
           >
-            {showBackButton && (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
-            <View style={styles.headerIconContainer}>
-              <Ionicons name="sparkles-outline" size={26} color="#F1C5FF" />
-            </View>
-            <Text style={styles.headerTitle}>{t('natalChart.title')}</Text>
-            <Text style={styles.headerSubtitle}>
-              {t('natalChart.subtitle')}
-            </Text>
-          </LinearGradient>
-        </GradientBorderView>
+            <BlurView
+              intensity={24}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={styles.headerGradient}
+            >
+              <LinearGradient
+                pointerEvents="none"
+                colors={[
+                  'rgba(88, 1, 114, 0.42)',
+                  'rgba(8, 14, 28, 0.56)',
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <>
+                <View style={styles.headerIconContainer}>
+                  <Ionicons
+                    name="sparkles-outline"
+                    size={26}
+                    color="#F1C5FF"
+                  />
+                </View>
+                <Text style={styles.headerTitle}>{t('natalChart.title')}</Text>
+                <Text style={styles.headerSubtitle}>
+                  {t('natalChart.subtitle')}
+                </Text>
+              </>
+            </BlurView>
+          </GradientBorderView>
+        )}
 
         {/* Вкладки */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabsContainer}
-          contentContainerStyle={styles.tabsContent}
-        >
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.activeTab]}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={20}
-                color={activeTab === tab.id ? '#8B5CF6' : '#B0B0B0'}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.id && styles.activeTabText,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {!showBackButton && renderTabsNavigation()}
 
         {/* Контент вкладки */}
         {activeTab === 'summary' && renderSummary()}
@@ -3164,6 +3241,77 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
         {activeTab === 'houses' && renderHouses()}
         {activeTab === 'aspects' && renderAspects()}
       </ScrollView>
+
+      {showBackButton && (
+        <View
+          style={[
+            styles.pinnedTabsOverlay,
+            { top: fixedHeaderHeight + 12 },
+          ]}
+        >
+          {renderTabsNavigation(true)}
+        </View>
+      )}
+
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          'rgba(20, 17, 48, 0.88)',
+          'rgba(20, 17, 48, 0.44)',
+          'rgba(20, 17, 48, 0)',
+        ]}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[
+          styles.topFade,
+          {
+            height: showBackButton ? fixedHeaderHeight + 164 : insets.top + 64,
+          },
+        ]}
+      />
+
+      {showBackButton && (
+        <View
+          style={[
+            styles.fixedHeader,
+            {
+              paddingTop: headerTopPadding,
+              height: fixedHeaderHeight,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.headerCirclePressable}
+            onPress={() => navigation.goBack()}
+          >
+            <GradientBorderView
+              colors={DATING_GLASS_BORDER_COLORS}
+              gradientProps={DATING_GLASS_BORDER_GRADIENT}
+              style={styles.headerCircleBorder}
+              contentStyle={[styles.datingGlassContent, styles.backHit]}
+            >
+              <DatingGlassFill />
+              <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
+            </GradientBorderView>
+          </TouchableOpacity>
+
+          <GradientBorderView
+            colors={DATING_GLASS_BORDER_COLORS}
+            gradientProps={DATING_GLASS_BORDER_GRADIENT}
+            style={styles.titlePillBorder}
+            contentStyle={[styles.datingGlassContent, styles.titlePill]}
+          >
+            <DatingGlassFill />
+            <Text numberOfLines={1} style={styles.fixedHeaderTitle}>
+              {t('natalChart.title')}
+            </Text>
+          </GradientBorderView>
+
+          <View style={styles.headerSpacer} />
+        </View>
+      )}
 
       <Modal
         animationType="fade"
@@ -3284,8 +3432,76 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.82,
+  },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
+  },
+  headerCirclePressable: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  headerCircleBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  datingGlassContent: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  backHit: {
+    width: 45.8,
+    height: 45.8,
+    borderRadius: 22.9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titlePillBorder: {
+    height: 48,
+    maxWidth: 220,
+    marginHorizontal: 12,
+    borderRadius: 24,
+    borderWidth: 1.1,
+  },
+  titlePill: {
+    height: 45.8,
+    borderRadius: 22.9,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
   },
   errorContainer: {
     flex: 1,
@@ -3314,35 +3530,39 @@ const styles = StyleSheet.create({
 
   // Заголовок
   header: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     marginBottom: 24,
   },
   headerContent: {
-    borderRadius: 23,
+    borderRadius: 19,
     overflow: 'hidden',
+    backgroundColor: 'rgba(18, 18, 42, 0.48)',
   },
   headerGradient: {
-    minHeight: 220,
+    minHeight: 196,
     paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingVertical: 24,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  backButton: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
+  interpretationHeaderGradient: {
+    minHeight: 0,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  interpretationIntro: {
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    zIndex: 10,
+    gap: 10,
+  },
+  interpretationIntroText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    color: theme.colors.textSecondary,
   },
   headerIconContainer: {
     width: 52,
@@ -3372,52 +3592,69 @@ const styles = StyleSheet.create({
   },
 
   // Вкладки
-  tabsContainer: {
-    marginHorizontal: -16,
+  tabsStickyShell: {
     marginBottom: 24,
+  },
+  pinnedTabsShell: {
+    marginBottom: 0,
+  },
+  pinnedTabsOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 15,
+    backgroundColor: 'transparent',
+  },
+  tabsContainer: {
+    overflow: 'visible',
   },
   tabsContent: {
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 10,
+  },
+  tabTouchable: {
+    borderRadius: theme.borderRadius.full,
+  },
+  tabBorder: {
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
   },
   tab: {
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 11,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
     borderRadius: theme.borderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.045)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(46, 44, 79, 0.72)',
   },
   activeTab: {
-    backgroundColor: 'rgba(139, 92, 246, 0.18)',
-    borderColor: 'rgba(196, 181, 253, 0.55)',
+    backgroundColor: 'rgba(104, 99, 135, 0.88)',
   },
   tabText: {
     fontSize: 14,
-    color: '#B0B0B0',
+    color: '#AAA5B6',
     fontWeight: '500',
-    marginLeft: 8,
+    marginLeft: 7,
   },
   activeTabText: {
-    color: '#8B5CF6',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 
   // Контент
   content: {
-    gap: 16,
+    gap: 14,
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(135, 98, 154, 0.22)',
-    backgroundColor: 'rgba(15, 18, 38, 0.72)',
+    borderColor: 'rgba(124, 119, 153, 0.34)',
+    backgroundColor: 'rgba(18, 18, 42, 0.5)',
   },
   cardInner: {
-    padding: 20,
+    padding: 18,
   },
   premiumNarrativeTouchable: {
     borderRadius: 12,
@@ -3847,12 +4084,12 @@ const styles = StyleSheet.create({
   planetChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    minHeight: 34,
+    backgroundColor: 'rgba(104, 99, 135, 0.38)',
+    paddingHorizontal: 12,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(216, 180, 254, 0.24)',
   },
   planetChipSymbol: {
     fontSize: 14,
@@ -3990,12 +4227,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   summaryGuideChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 14,
+    minHeight: 34,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(46, 44, 79, 0.72)',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(124, 119, 153, 0.34)',
     paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   summaryGuideChipText: {
     fontSize: 12,
@@ -4038,12 +4276,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   elementChip: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    minHeight: 34,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(104, 99, 135, 0.38)',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
+    borderColor: 'rgba(216, 180, 254, 0.24)',
   },
   elementChipText: {
     fontSize: 13,
