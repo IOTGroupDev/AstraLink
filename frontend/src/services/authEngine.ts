@@ -19,6 +19,8 @@ let authSubscription: { unsubscribe: () => void } | null = null;
 let appStateSubscription: { remove: () => void } | null = null;
 const pendingAuthEvents = new Set<ReturnType<typeof setTimeout>>();
 const PROFILE_LOOKUP_TIMEOUT_MS = 10_000;
+const PROFILE_RETRY_DELAY_MS = 5_000;
+let profileRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -63,6 +65,10 @@ const syncRuntimeToken = async (session: Session | null) => {
 };
 
 const setProfile = (profile: AuthProfile | null) => {
+  if (profileRetryTimer) {
+    clearTimeout(profileRetryTimer);
+    profileRetryTimer = null;
+  }
   useAuthStore.getState().setProfile(profile);
 };
 
@@ -82,16 +88,6 @@ const normalizeProfile = (raw: AuthProfile): AuthProfile => ({
   birthTime: raw.birthTime || undefined,
   birthPlace: raw.birthPlace || undefined,
   onboardingCompleted: hasCompletedOnboarding(raw),
-});
-
-const profileFromSession = (session: Session): AuthProfile => ({
-  id: session.user.id,
-  email: session.user.email || '',
-  name: (session.user.user_metadata as any)?.name || undefined,
-  birthDate: undefined,
-  birthTime: undefined,
-  birthPlace: undefined,
-  onboardingCompleted: false,
 });
 
 const resolveState = (profile: AuthProfile | null) => {
@@ -114,6 +110,27 @@ const fetchProfile = async (): Promise<AuthProfile | null> => {
 const isCurrentSession = (session: Session): boolean =>
   useAuthStore.getState().session?.access_token === session.access_token &&
   useAuthStore.getState().session?.user.id === session.user.id;
+
+const scheduleProfileRetry = (session: Session) => {
+  if (profileRetryTimer) return;
+
+  profileRetryTimer = setTimeout(() => {
+    profileRetryTimer = null;
+    if (isCurrentSession(session)) {
+      void AuthEngine.refreshProfileInBackground().then(
+        () => {
+          if (isCurrentSession(session) && !useAuthStore.getState().profile) {
+            scheduleProfileRetry(session);
+          }
+        },
+        (error: unknown) => {
+          authLogger.error('Profile retry failed', error);
+          if (isCurrentSession(session)) scheduleProfileRetry(session);
+        }
+      );
+    }
+  }, PROFILE_RETRY_DELAY_MS);
+};
 
 const isStaleAuthSessionError = (err: unknown): boolean => {
   const error = err as {
@@ -191,10 +208,10 @@ const applyFallbackProfileState = (session: Session) => {
     return;
   }
 
-  const fallbackProfile = profileFromSession(session);
-  setProfile(fallbackProfile);
+  setProfile(null);
   setError('profile_load_failed');
-  setState('AUTHORIZED');
+  setState('BOOT');
+  scheduleProfileRetry(session);
 };
 
 const bootstrap = async () => {
@@ -444,6 +461,10 @@ export const AuthEngine = {
     appStateSubscription = null;
     pendingAuthEvents.forEach(clearTimeout);
     pendingAuthEvents.clear();
+    if (profileRetryTimer) {
+      clearTimeout(profileRetryTimer);
+      profileRetryTimer = null;
+    }
     engineInitialized = false;
   },
 };

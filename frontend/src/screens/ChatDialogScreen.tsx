@@ -209,6 +209,7 @@ export default function ChatDialogScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const historyInitializedRef = useRef(false);
   const olderRequestInFlight = useRef(false);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -458,9 +459,14 @@ export default function ChatDialogScreen() {
         };
       });
       const first = mapped[0];
-      setHistoryCursor(
-        mapped.length === 100 && first ? `${first.createdAt}~${first.id}` : null
-      );
+      if (!historyInitializedRef.current) {
+        setHistoryCursor(
+          mapped.length === 100 && first
+            ? `${first.createdAt}~${first.id}`
+            : null
+        );
+        historyInitializedRef.current = true;
+      }
 
       // Обновляем кэш известными URL
       for (const m of mapped) {
@@ -500,6 +506,7 @@ export default function ChatDialogScreen() {
       setHistoryCursor(
         older.length === 100 && first ? `${first.createdAt}~${first.id}` : null
       );
+      historyInitializedRef.current = true;
       setMessages((current) => {
         const ids = new Set(current.map((message) => message.id));
         return [...older.filter((message) => !ids.has(message.id)), ...current];
@@ -512,6 +519,13 @@ export default function ChatDialogScreen() {
       setLoadingOlder(false);
     }
   }, [historyCursor, otherUserId, t]);
+
+  useEffect(() => {
+    historyInitializedRef.current = false;
+    olderRequestInFlight.current = false;
+    setHistoryCursor(null);
+    setLoadingOlder(false);
+  }, [otherUserId, user?.id]);
 
   useEffect(() => {
     if (user && otherUserId) fetchMessages();

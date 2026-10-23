@@ -360,6 +360,46 @@ describe('Dating chat realtime', () => {
     expect(screen.queryByLabelText('chat.loading.older')).toBeNull();
   });
 
+  it('keeps the oldest history cursor after the periodic refresh', async () => {
+    jest.useFakeTimers();
+    try {
+      const makePage = (prefix: string, start: number) =>
+        Array.from({ length: 100 }, (_, index) => ({
+          ...incoming,
+          id: `${prefix}-${index}`,
+          text: `${prefix} ${index}`,
+          createdAt: new Date(
+            Date.UTC(2026, 0, 1, 0, start + index)
+          ).toISOString(),
+        }));
+      const latestPage = makePage('Latest', 1000);
+      const olderPage = makePage('Older', 0);
+      api.listMessages.mockResolvedValue(latestPage);
+      render(<ChatDialogScreen />);
+      await act(async () => {});
+
+      api.listMessages.mockResolvedValueOnce(olderPage);
+      fireEvent.press(screen.getByLabelText('chat.loading.older'));
+      await act(async () => {});
+
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+
+      api.listMessages.mockResolvedValueOnce([]);
+      fireEvent.press(screen.getByLabelText('chat.loading.older'));
+      await act(async () => {});
+
+      expect(api.listMessages).toHaveBeenLastCalledWith(
+        'other',
+        100,
+        `${olderPage[0].createdAt}~${olderPage[0].id}`
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('waits for message measurements before scrolling a newly opened dialog to the end', async () => {
     const scroll = jest.spyOn(FlatList.prototype, 'scrollToEnd');
     jest

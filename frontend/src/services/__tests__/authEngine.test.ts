@@ -177,25 +177,39 @@ describe('AuthEngine stale session handling', () => {
     expect(mockedSupabaseAuth.signOut).not.toHaveBeenCalled();
   });
 
-  it('does not keep global loading forever when profile load hangs during boot', async () => {
-    jest.useFakeTimers();
+  it('keeps boot blocked and retries when no profile is available', async () => {
     mockedSupabaseAuth.getSession.mockResolvedValueOnce({
       data: {
         session,
       },
       error: null,
     } as any);
-    mockedUserAPI.getProfile.mockReturnValue(new Promise(() => undefined));
+    mockedUserAPI.getProfile.mockRejectedValueOnce(
+      new Error('Network unavailable')
+    );
 
-    const initPromise = AuthEngine.init();
-    await Promise.resolve();
-    await jest.advanceTimersByTimeAsync(10_000);
-    await initPromise;
+    await AuthEngine.init();
 
-    const state = useAuthStore.getState();
-    expect(state.isLoading).toBe(false);
-    expect(state.authState).toBe('AUTHORIZED');
-    expect(state.profile?.id).toBe('user-1');
+    expect(useAuthStore.getState().authState).toBe('BOOT');
+    expect(useAuthStore.getState().profile).toBeNull();
+    expect(useAuthStore.getState().error).toBe('profile_load_failed');
+
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: {
+        session,
+      },
+      error: null,
+    } as any);
+    mockedUserAPI.getProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'person@example.com',
+      onboardingCompleted: true,
+    } as any);
+
+    await jest.advanceTimersByTimeAsync(5_000);
+
+    expect(useAuthStore.getState().authState).toBe('AUTHORIZED');
+    expect(useAuthStore.getState().profile?.onboardingCompleted).toBe(true);
   });
 
   it('does not downgrade an already authorized user when background profile refresh times out', async () => {
