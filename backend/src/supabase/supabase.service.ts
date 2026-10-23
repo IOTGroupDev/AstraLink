@@ -497,7 +497,7 @@ export class SupabaseService implements OnModuleInit {
     const { data, error } = await this.getAdminClient()
       .from('users')
       .select(
-        'id, email, name, birth_date, birth_time, birth_time_known, birth_place, birth_date_encrypted, birth_time_encrypted, birth_place_encrypted, onboarding_completed, created_at, updated_at',
+        'id, email, name, birth_date, birth_time, birth_time_known, birth_place, birth_location, birth_date_encrypted, birth_time_encrypted, birth_place_encrypted, onboarding_completed, created_at, updated_at',
       )
       .eq('id', userId)
       .single();

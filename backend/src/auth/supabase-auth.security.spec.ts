@@ -309,6 +309,33 @@ describe('Supabase auth identity boundaries', () => {
     expect(result.user.id).toBe(ownUserId);
   });
 
+  it('persists the exact selected birthplace coordinates before scheduling the chart', async () => {
+    await service.completeSignup(
+      ownUserId,
+      {
+        ...signupDto,
+        birthPlace: 'Springfield, Illinois, United States',
+        latitude: 39.8,
+        longitude: -89.65,
+        timezone: 'America/Chicago',
+      },
+      'token',
+    );
+    expect(supabase.updateUserProfileAdmin).toHaveBeenCalledWith(
+      ownUserId,
+      expect.objectContaining({
+        birth_location: {
+          birthPlace: 'Springfield, Illinois, United States',
+          location: {
+            latitude: 39.8,
+            longitude: -89.65,
+            timezone: 'America/Chicago',
+          },
+        },
+      }),
+    );
+  });
+
   it('refuses a foreign ID in the authenticated profile recovery entry point', async () => {
     await expect(
       service.ensureAuthenticatedUserProfile(otherUserId, 'token'),

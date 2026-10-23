@@ -16,6 +16,9 @@ export interface UserProfile {
 }
 
 export interface UpdateProfileRequest {
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
   name?: string;
   birthDate?: string;
   birthTime?: string;

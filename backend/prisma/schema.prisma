@@ -562,6 +562,7 @@ model public_users {
   birth_date            DateTime?
   birth_time            String?
   birth_time_known      Boolean?
+  birth_location        Json?
   birth_place           String?
   birth_date_encrypted  String?
   birth_time_encrypted  String?

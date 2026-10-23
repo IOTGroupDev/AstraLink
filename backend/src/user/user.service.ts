@@ -451,6 +451,26 @@ export class UserService {
       patch.birth_time_known = true;
     const nowISO = new Date().toISOString();
 
+    if (
+      typeof updateData.latitude === 'number' &&
+      typeof updateData.longitude === 'number' &&
+      updateData.timezone
+    ) {
+      patch.birth_location = {
+        birthPlace: patch.birth_place ?? oldData.birthPlace,
+        location: {
+          latitude: updateData.latitude,
+          longitude: updateData.longitude,
+          timezone: updateData.timezone,
+        },
+      };
+    } else if (
+      patch.birth_place !== undefined &&
+      patch.birth_place !== oldData.birthPlace
+    ) {
+      patch.birth_location = null;
+    }
+
     // 3) Если профиля нет — создаём запись (upsert через insert/select)
     if (!profile) {
       const insertPayload: any = {
@@ -574,7 +594,8 @@ export class UserService {
       const birthDataChanged =
         patch.birth_date !== undefined ||
         patch.birth_time !== undefined ||
-        patch.birth_place !== undefined;
+        patch.birth_place !== undefined ||
+        patch.birth_location !== undefined;
 
       if (hasAll) {
         // есть ли карты?

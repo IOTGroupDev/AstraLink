@@ -69,6 +69,23 @@ export class SignupDto extends OmitType(BirthDataDto, ['birthTime'] as const) {
 export class UpdateProfileDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  timezone?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(100)

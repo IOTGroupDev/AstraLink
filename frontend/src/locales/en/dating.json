@@ -4,6 +4,14 @@
   "oldTitle": "Cosmic Connections",
   "oldSubtitle": "Find Your Soulmate",
   "loading": "Finding matches...",
+  "tabs": {
+    "discovery": "Discovery",
+    "matched": "Matched",
+    "messages": "Messages"
+  },
+  "matched": {
+    "empty": "No matches yet"
+  },
   "empty": {
     "title": "No more profiles",
     "subtitle": "Refresh to browse profiles again",

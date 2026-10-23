@@ -113,6 +113,131 @@ describe('NatalChartService locale handling', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('uses persisted selection during bootstrap and recalculation without geocoding again', async () => {
+    const h = createService();
+    const birthPlace = 'Springfield, Illinois, United States';
+    const selected = {
+      latitude: 39.8,
+      longitude: -89.65,
+      timezone: 'America/Chicago',
+    };
+    h.supabaseService.getUserProfileAdmin.mockResolvedValue({
+      data: {
+        birth_date: '1990-01-01',
+        birth_time: '12:00',
+        birth_place: birthPlace,
+        birth_time_known: false,
+        birth_location: { birthPlace, location: selected },
+      },
+    });
+    h.chartRepository.findByUserId.mockResolvedValue(null);
+    h.ephemerisService.calculateNatalChart.mockImplementation(
+      async (_date, _time, location) => ({
+        birthDate: _date,
+        birthTime: _time,
+        birthDateTimeUtc: '1990-01-01T18:00:00.000Z',
+        location,
+        planets: {},
+        houses: {},
+        metadata: {
+          birthTimeKnown: false,
+          calculationVersion: 'nodes-utc-houses-v3',
+        },
+      }),
+    );
+    h.chartRepository.create.mockImplementation(async (value) => ({
+      id: 'chart-1',
+      ...value,
+    }));
+    const first = await h.service.createNatalChart(userId, {});
+    expect(first.data.birthPlace).toBe(birthPlace);
+    expect(h.ephemerisService.calculateNatalChart.mock.calls[0][2]).toEqual({
+      latitude: 39.8,
+      longitude: -89.65,
+      timezoneId: 'America/Chicago',
+      timezone: -6,
+    });
+    h.chartRepository.findByUserId.mockResolvedValue({
+      id: 'chart-1',
+      user_id: userId,
+      data: first.data,
+    });
+    h.chartRepository.update.mockImplementation(async (_id, value) => ({
+      id: 'chart-1',
+      user_id: userId,
+      ...value,
+    }));
+    const repeated = await h.service.forceRecalculateNatalChart(userId);
+    expect(repeated.data.metadata.fingerprint).toBe(
+      first.data.metadata.fingerprint,
+    );
+    expect(h.geoService.suggestCities).not.toHaveBeenCalled();
+    expect(
+      h.interpretationService.generateNatalChartInterpretation,
+    ).not.toHaveBeenCalled();
+
+    // Same city name, different coordinates: invalidate the chart and AI cache key.
+    h.supabaseService.getUserProfileAdmin.mockResolvedValue({
+      data: {
+        birth_date: '1990-01-01',
+        birth_time: '12:00',
+        birth_place: birthPlace,
+        birth_time_known: false,
+        birth_location: {
+          birthPlace,
+          location: { ...selected, latitude: 39.9 },
+        },
+      },
+    });
+    const moved = await h.service.getNatalChartWithInterpretation(userId);
+    expect(moved.data.location.latitude).toBe(39.9);
+    expect(moved.data.metadata.fingerprint).not.toBe(
+      first.data.metadata.fingerprint,
+    );
+  });
+
+  it('does not reuse unidentified legacy coordinates for a changed birthplace', async () => {
+    const h = createService();
+    h.chartRepository.findByUserId.mockResolvedValue({
+      id: 'chart-1',
+      data: {
+        ...baseChartData,
+        birthPlace: 'Paris, France',
+        location: { latitude: 55.75, longitude: 37.6, timezone: 3 },
+      },
+    });
+    h.supabaseService.getUserProfileAdmin.mockResolvedValue({
+      data: {
+        birth_date: '1990-01-01',
+        birth_time: '12:00',
+        birth_place: 'Paris, France',
+        birth_time_known: false,
+      },
+    });
+    h.geoService.suggestCities.mockResolvedValue([
+      { lat: 48.85, lon: 2.35, tzid: 'Europe/Paris' },
+    ]);
+    h.ephemerisService.calculateNatalChart.mockResolvedValue({
+      planets: {},
+      metadata: { birthTimeKnown: false },
+    });
+    h.chartRepository.update.mockImplementation(async (_id, value) => ({
+      id: 'chart-1',
+      ...value,
+    }));
+    await h.service.forceRecalculateNatalChart(userId);
+    expect(h.geoService.suggestCities).toHaveBeenCalledWith(
+      'Paris, France',
+      'ru',
+    );
+    expect(h.ephemerisService.calculateNatalChart.mock.calls[0][2]).toEqual({
+      latitude: 48.85,
+      longitude: 2.35,
+      timezoneId: 'Europe/Paris',
+      timezone: 1,
+    });
+  });
+
   it('withholds legacy unknown-time angles and never generates their interpretation', async () => {
     const { service, interpretationService, chartRepository, aiService } =
       createService();

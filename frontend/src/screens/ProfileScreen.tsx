@@ -970,7 +970,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     t('profile.notifications.title'),
                     t('profile.notifications.description'),
                     [
-                      { text: t('common.cancel'), style: 'cancel' },
+                      { text: t('common.buttons.cancel'), style: 'cancel' },
                       {
                         text: t('profile.notifications.enable'),
                         onPress: () => {

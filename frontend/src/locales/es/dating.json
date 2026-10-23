@@ -4,6 +4,14 @@
   "oldTitle": "Conexiones Cósmicas",
   "oldSubtitle": "Encuentra tu alma gemela",
   "loading": "Buscando coincidencias...",
+  "tabs": {
+    "discovery": "Descubrir",
+    "matched": "Coincidencias",
+    "messages": "Mensajes"
+  },
+  "matched": {
+    "empty": "Aún no hay coincidencias"
+  },
   "empty": {
     "title": "No hay más perfiles",
     "subtitle": "Actualiza para volver a ver los perfiles",

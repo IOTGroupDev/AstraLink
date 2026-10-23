@@ -178,7 +178,8 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
-  const [, setSelectedBirthPlaceCity] = useState<CityOption | null>(null);
+  const [selectedBirthPlaceCity, setSelectedBirthPlaceCity] =
+    useState<CityOption | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -301,8 +302,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleBirthPlaceSelect = useCallback((selected: CityOption) => {
     setSelectedBirthPlaceCity(selected);
-    // AstralCityInput уже вызовет onChangeText(display), тут дополнительно ничего не нужно.
-    // Но сохраняем selectedCity на будущее (если понадобится хранить координаты/таймзону).
+    // Keep the selected birth coordinates for saving; residence is separate.
   }, []);
 
   const handleCityChange = useCallback((text: string) => {
@@ -576,7 +576,12 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
 
       // Update basic profile
-      await userAPI.updateProfile(formData);
+      await userAPI.updateProfile({
+        ...formData,
+        latitude: selectedBirthPlaceCity?.lat,
+        longitude: selectedBirthPlaceCity?.lon,
+        timezone: selectedBirthPlaceCity?.tzid,
+      });
 
       // Update extended profile (bio, city, gender, interests)
       // ✅ looking_for / looking_for_gender are now real DB columns (public.user_profiles)
@@ -692,6 +697,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       />
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,

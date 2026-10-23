@@ -657,6 +657,15 @@ export class SupabaseAuthService {
           birth_time: resolvedBirthTime,
           birth_time_known: birthTimeKnown !== false,
           birth_place: birthPlace.trim(),
+          birth_location:
+            typeof latitude === 'number' &&
+            typeof longitude === 'number' &&
+            timezone
+              ? {
+                  birthPlace: birthPlace.trim(),
+                  location: { latitude, longitude, timezone },
+                }
+              : null,
           updated_at: new Date().toISOString(),
         });
 

@@ -1,4 +1,6 @@
 {
+  "birthLocation": "Birthplace",
+  "birthCoordinates": "Birth coordinates",
   "title": "Natal Chart",
   "subtitle": "Full astrological analysis",
   "tabs": {

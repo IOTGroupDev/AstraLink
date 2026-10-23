@@ -7,6 +7,7 @@ import {
 } from 'node:crypto';
 
 type BirthProfilePayload = {
+  birth_location?: unknown;
   birth_date?: unknown;
   birth_time?: string | null;
   birth_place?: string | null;
@@ -147,6 +148,14 @@ export class SensitiveProfileEncryptionService {
     }
 
     const nextPayload = { ...payload } as PreparedBirthProfilePayload<T>;
+    if (
+      nextPayload.birth_location &&
+      typeof nextPayload.birth_location === 'object'
+    ) {
+      nextPayload.birth_location = this.prepareBirthDocumentForStorage(
+        nextPayload.birth_location,
+      );
+    }
 
     if (Object.prototype.hasOwnProperty.call(nextPayload, 'birth_date')) {
       nextPayload.birth_date_encrypted = this.encryptValue(
@@ -184,6 +193,14 @@ export class SensitiveProfileEncryptionService {
     }
 
     const nextPayload = { ...payload };
+    if (
+      nextPayload.birth_location &&
+      typeof nextPayload.birth_location === 'object'
+    ) {
+      nextPayload.birth_location = this.hydrateBirthDocument(
+        nextPayload.birth_location,
+      );
+    }
 
     const decryptedBirthDate = this.decryptValue(
       nextPayload.birth_date_encrypted,

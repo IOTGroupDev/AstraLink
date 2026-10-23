@@ -90,3 +90,7 @@ prisma/migrations/
 backend/backups/
 backend/db-schema.sql
 .playwright-mcp/
+
+.env
+.env.*
+!.env.example

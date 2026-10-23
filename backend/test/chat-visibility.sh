@@ -21,6 +21,7 @@ SQL
 for replay in 1 2; do
   run_sql < "$test_root/supabase/migrations/20261022203008_persist_chat_visibility.sql"
   run_sql < "$test_root/supabase/migrations/20261022205031_persist_birth_time_known.sql"
+  run_sql < "$test_root/supabase/migrations/20261023084057_persist_birth_location.sql"
 done
 run_sql <<'SQL'
 INSERT INTO auth.users VALUES ('11111111-1111-4111-8111-111111111111');

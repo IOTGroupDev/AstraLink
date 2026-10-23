@@ -32,6 +32,25 @@ describe('SensitiveProfileEncryptionService', () => {
     expect(payload.birth_place_encrypted).toMatch(/^v1\./);
   });
 
+  it('encrypts and restores the canonical birthplace selection in the profile', () => {
+    process.env.DATA_ENCRYPTION_KEY = 'test-birth-location-key-1234567890';
+    const service = new SensitiveProfileEncryptionService();
+    const original = {
+      birth_location: {
+        birthPlace: 'Springfield, Illinois, United States',
+        location: {
+          latitude: 39.8,
+          longitude: -89.65,
+          timezone: 'America/Chicago',
+        },
+      },
+    };
+    const stored = service.prepareBirthDataForStorage(original);
+    expect(JSON.stringify(stored)).not.toContain('Springfield');
+    expect(JSON.stringify(stored)).not.toContain('39.8');
+    expect(service.hydrateBirthData(stored)).toEqual(original);
+  });
+
   it('keeps plaintext fields only when legacy dual-write is explicitly enabled', () => {
     process.env.DATA_ENCRYPTION_KEY =
       'test-encryption-key-1234567890-abcdefghijklmnopqrstuvwxyz';
