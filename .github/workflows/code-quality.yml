@@ -64,7 +64,7 @@ jobs:
           retention-days: 30
 
       - name: Annotate code
-        uses: ataylorme/eslint-annotate-action@v2
+        uses: ataylorme/eslint-annotate-action@v3
         if: always()
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
