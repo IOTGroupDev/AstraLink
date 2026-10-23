@@ -11,7 +11,12 @@ import {
   Headers,
   Logger,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
+import {
+  SignupDto,
+  OAuthCallbackDto,
+} from '@/common/dto/request-validation.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -19,11 +24,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { SupabaseAuthService } from './supabase-auth.service';
-import type {
-  SignupRequest,
-  AuthResponse,
-  OAuthCallbackRequest,
-} from '@/types';
+import type { AuthResponse } from '@/types';
 import { Public } from '../common/decorators/public.decorator';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { MagicLinkRateLimitGuard } from './guards/magic-link-rate-limit.guard';
@@ -64,7 +65,7 @@ export class AuthController {
     description: 'Превышен лимит попыток регистрации (5 в день на IP)',
   })
   async signup(
-    @Body() signupDto: SignupRequest,
+    @Body() signupDto: SignupDto,
   ): Promise<{ success: boolean; message: string }> {
     return this.supabaseAuthService.signup(signupDto);
   }
@@ -199,7 +200,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'OAuth успешно обработан' })
   @ApiResponse({ status: 400, description: 'Ошибка обработки OAuth' })
   async handleGoogleCallback(
-    @Body() body: OAuthCallbackRequest,
+    @Body() body: OAuthCallbackDto,
   ): Promise<AuthResponse> {
     return this.supabaseAuthService.handleGoogleCallback(body);
   }
@@ -219,7 +220,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'OAuth успешно обработан' })
   @ApiResponse({ status: 400, description: 'Ошибка обработки OAuth' })
   async handleAppleCallback(
-    @Body() body: OAuthCallbackRequest,
+    @Body() body: OAuthCallbackDto,
   ): Promise<AuthResponse> {
     return this.supabaseAuthService.handleAppleCallback(body);
   }
@@ -239,7 +240,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'OAuth успешно обработан' })
   @ApiResponse({ status: 400, description: 'Ошибка обработки OAuth' })
   async handleYandexCallback(
-    @Body() body: OAuthCallbackRequest,
+    @Body() body: OAuthCallbackDto,
   ): Promise<AuthResponse> {
     return this.supabaseAuthService.handleYandexCallback(body);
   }
@@ -248,14 +249,21 @@ export class AuthController {
    * 🎯 Завершение регистрации
    * Для пользователей, зарегистрированных через OAuth без данных о рождении
    */
-  @Public()
   @Post('complete-signup-OAuth')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Завершить регистрацию для OAuth пользователей',
     description:
       'Добавляет данные о рождении и создает натальную карту для пользователей, зарегистрированных через OAuth',
   })
+  async completeSignupOAuth(
+    @Body() dto: CompleteSignupDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.completeSignup(dto, req);
+  }
 
   /**
    * 🚪 Выход из системы
@@ -279,23 +287,17 @@ export class AuthController {
    *
    * Обновляет профиль данными о рождении и создает натальную карту
    */
-  @Public()
   @Post('complete-signup')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async completeSignup(
     @Body() dto: CompleteSignupDto,
     @Request() req: AuthenticatedRequest,
   ) {
     try {
-      const resolvedUserId = (req.user?.userId || req.user?.id) ?? dto.userId;
-      const userId = resolvedUserId;
-      const rawAuth =
-        (req.headers as any)?.authorization ??
-        (req.headers as any)?.Authorization;
-      const accessToken =
-        typeof rawAuth === 'string'
-          ? rawAuth.replace(/^Bearer\s+/i, '').trim()
-          : undefined;
+      const userId = this.getAuthenticatedUserId(req, dto.userId);
+      const accessToken = this.getAccessToken(req);
 
       this.logger.log('Complete signup request');
 
@@ -326,6 +328,7 @@ export class AuthController {
    * Creates public.users record if it doesn't exist after OTP verification
    */
   @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @Post('ensure-profile')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -343,17 +346,12 @@ export class AuthController {
   ) {
     try {
       this.logger.log('Ensure profile request');
-      const authUserId = req.user?.userId || req.user?.id || dto.userId;
-      const email = (dto.email || req.user?.email || '').trim().toLowerCase();
-
-      if (!authUserId) {
-        throw new UnauthorizedException('Пользователь не аутентифицирован');
-      }
-
-      const result = await this.supabaseAuthService.ensureUserProfile(
-        authUserId,
-        email,
-      );
+      const authUserId = this.getAuthenticatedUserId(req, dto.userId);
+      const result =
+        await this.supabaseAuthService.ensureAuthenticatedUserProfile(
+          authUserId,
+          this.getAccessToken(req),
+        );
 
       return result;
     } catch (error) {
@@ -362,6 +360,38 @@ export class AuthController {
         error instanceof Error ? error.message : String(error),
       );
       throw error;
+    }
+  }
+
+  private getAuthenticatedUserId(
+    req: AuthenticatedRequest,
+    requestedUserId?: string,
+  ): string {
+    const userId = req.user?.userId || req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Пользователь не аутентифицирован');
+    }
+    if (requestedUserId !== undefined && requestedUserId !== userId) {
+      throw new ForbiddenException(
+        'Нельзя изменять профиль другого пользователя',
+      );
+    }
+    return userId;
+  }
+
+  private getAccessToken(req: AuthenticatedRequest): string | undefined {
+    const headers = req.headers as unknown as Record<string, unknown>;
+    const rawHeader = headers?.authorization ?? headers?.Authorization;
+    if (typeof rawHeader !== 'string') return undefined;
+
+    const normalized = rawHeader.trim().replace(/^Bearer%20/i, 'Bearer ');
+    const match = normalized.match(/^Bearer\s+(.+)$/i);
+    if (!match) return undefined;
+
+    try {
+      return decodeURIComponent(match[1]).trim() || undefined;
+    } catch {
+      return match[1].trim() || undefined;
     }
   }
 }

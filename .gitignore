@@ -17,6 +17,9 @@ tsconfig.build.tsbuildinfo
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Build outputs
 dist/
@@ -82,3 +85,12 @@ jspm_packages/
 
 # Prisma
 prisma/migrations/
+
+# Local database snapshots may contain personal data.
+backend/backups/
+backend/db-schema.sql
+.playwright-mcp/
+
+.env
+.env.*
+!.env.example

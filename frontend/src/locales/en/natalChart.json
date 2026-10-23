@@ -1,4 +1,6 @@
 {
+  "birthLocation": "Birthplace",
+  "birthCoordinates": "Birth coordinates",
   "title": "Natal Chart",
   "subtitle": "Full astrological analysis",
   "tabs": {
@@ -202,5 +204,7 @@
   },
   "widget": {
     "loading": "Loading chart data..."
-  }
+  },
+  "unknownBirthTime": "Birth time is unknown. Planet positions use 12:00 as a reference and are approximate; the Moon range spans the local birth date. The Ascendant, houses and their interpretations are unavailable.",
+  "degreesPerDay": "°/day"
 }

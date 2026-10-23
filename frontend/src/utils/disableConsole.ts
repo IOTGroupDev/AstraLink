@@ -30,7 +30,7 @@ console.trace = () => {};
 
 // Expose a way to re-enable console if needed for debugging
 // Usage in browser/debugger console: __enableConsole()
-(global as any).__enableConsole = () => {
+(globalThis as any).__enableConsole = () => {
   console.log = originalConsole.log;
   console.warn = originalConsole.warn;
   console.error = originalConsole.error;
@@ -41,4 +41,4 @@ console.trace = () => {};
 };
 
 // Global flag to indicate console has been disabled
-(global as any).__consoleDisabled = true;
+(globalThis as any).__consoleDisabled = true;

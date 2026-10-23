@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     left: 6,
   },
   energyValueOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

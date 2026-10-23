@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -118,6 +119,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const labelAnimation = useSharedValue(0);
+  const { t, i18n } = useTranslation();
   const [date, setDate] = useState(() => getPickerDateFromValue(value, mode));
 
   useEffect(() => {
@@ -316,7 +318,7 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
                 is24Hour={true}
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleDateChange}
-                locale="ru-RU"
+                locale={i18n.language}
                 textColor="#FFFFFF"
                 themeVariant="dark"
                 style={styles.picker}
@@ -326,7 +328,9 @@ const AstralDateTimePicker: React.FC<DateTimePickerProps> = ({
                   style={[styles.modalButton, styles.modalCancelButton]}
                   onPress={() => setShowPicker(false)}
                 >
-                  <Text style={styles.modalButtonText}>Отмена</Text>
+                  <Text style={styles.modalButtonText}>
+                    {t('common.cancel')}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.modalButton}

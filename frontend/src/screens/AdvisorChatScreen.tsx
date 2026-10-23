@@ -21,7 +21,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
@@ -1216,7 +1216,7 @@ function InitialAdvisorState({
         <BlurView
           intensity={24}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
           style={styles.initialBadgeBlur}
         >
           <Text style={styles.initialBadgeText}>Advisor Ai</Text>
@@ -2097,7 +2097,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#080E1C',
   },
   advisorBackground: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },

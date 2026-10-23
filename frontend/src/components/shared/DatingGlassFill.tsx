@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from './BlurView';
 
 export function DatingGlassFill() {
   return (
@@ -9,7 +9,7 @@ export function DatingGlassFill() {
         pointerEvents="none"
         intensity={56}
         tint="dark"
-        experimentalBlurMethod="dimezisBlurView"
+        blurMethod="dimezisBlurView"
         style={StyleSheet.absoluteFill}
       />
       <View pointerEvents="none" style={styles.tint} />
@@ -19,7 +19,7 @@ export function DatingGlassFill() {
 
 const styles = StyleSheet.create({
   tint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(8,14,28,0.08)',
   },
 });

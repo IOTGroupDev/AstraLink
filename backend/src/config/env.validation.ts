@@ -63,16 +63,20 @@ export const envSchema = z.object({
         message:
           'JWT_SECRET has insufficient entropy. In production, please use a strong random secret (e.g., openssl rand -base64 64)',
       },
-    ),
+    )
+    .optional(),
   DATA_ENCRYPTION_KEY: z
     .string()
     .min(32, 'DATA_ENCRYPTION_KEY must be at least 32 characters long')
     .optional(),
+  // Parsed and validated by SensitiveProfileEncryptionService; old keys are read-only.
+  DATA_ENCRYPTION_PREVIOUS_KEYS: z.string().optional(),
   BIRTH_DATA_WRITE_PLAINTEXT: z.enum(['true', 'false']).optional(),
 
   // AI Providers (at least one is required)
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  DEEPSEEK_API_KEY: z.string().optional(),
 
   // Server
   PORT: z
@@ -124,9 +128,16 @@ export function validateEnv(): EnvConfig {
 
     // Custom validation: at least one AI provider must be configured (only in production)
     if (parsed.NODE_ENV === 'production') {
-      if (!parsed.ANTHROPIC_API_KEY && !parsed.OPENAI_API_KEY) {
+      if (!parsed.DATA_ENCRYPTION_KEY) {
+        throw new Error('DATA_ENCRYPTION_KEY is required in production');
+      }
+      if (
+        !parsed.ANTHROPIC_API_KEY &&
+        !parsed.OPENAI_API_KEY &&
+        !parsed.DEEPSEEK_API_KEY
+      ) {
         throw new Error(
-          'At least one AI provider key is required in production: ANTHROPIC_API_KEY or OPENAI_API_KEY',
+          'At least one AI provider key is required in production: ANTHROPIC_API_KEY, OPENAI_API_KEY or DEEPSEEK_API_KEY',
         );
       }
     }

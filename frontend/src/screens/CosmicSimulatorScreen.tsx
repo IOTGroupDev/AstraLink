@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -83,6 +83,7 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
   const [activeTransits, setActiveTransits] = useState<TransitData[]>([]);
   const [loading, setLoading] = useState(true);
   const [transitsLoading, setTransitsLoading] = useState(false);
+  const [transitsError, setTransitsError] = useState(false);
   const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
   const [hasAIAccess, setHasAIAccess] = useState(false);
 
@@ -216,6 +217,7 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
 
   const loadTransitsForDate = async (date: Date) => {
     setTransitsLoading(true);
+    setTransitsError(false);
     try {
       // Загружаем AI интерпретацию транзитов (с проверкой подписки на backend)
       const dateStr = date.toISOString().split('T')[0];
@@ -319,164 +321,13 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
       );
     } catch (error) {
       logger.error(t('cosmicSimulator.errors.loadTransits'), error);
-      // Fallback на расчётные данные
-      const transitPlanets = calculateTransitPlanets(date);
-      setTransitPlanets(transitPlanets);
-
-      const activeTransits = calculateActiveTransits(
-        transitPlanets,
-        natalChart,
-        date
-      );
-      setActiveTransits(activeTransits);
+      setTransitPlanets([]);
+      setActiveTransits([]);
+      setAiInterpretation('');
+      setTransitsError(true);
     } finally {
       setTransitsLoading(false);
     }
-  };
-
-  const calculateTransitPlanets = (date: Date): PlanetPosition[] => {
-    const daysSinceEpoch = Math.floor(
-      (date.getTime() - new Date('2000-01-01').getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-
-    const planetSpeeds = {
-      Sun: 0.985,
-      Moon: 13.176,
-      Mercury: 1.383,
-      Venus: 1.602,
-      Mars: 0.524,
-      Jupiter: 0.083,
-      Saturn: 0.033,
-      Uranus: 0.014,
-      Neptune: 0.006,
-      Pluto: 0.004,
-    };
-
-    const initialPositions = {
-      Sun: 280,
-      Moon: 45,
-      Mercury: 290,
-      Venus: 300,
-      Mars: 180,
-      Jupiter: 45,
-      Saturn: 280,
-      Uranus: 75,
-      Neptune: 355,
-      Pluto: 295,
-    };
-
-    const planets: PlanetPosition[] = [];
-
-    Object.entries(planetSpeeds).forEach(([planetName, speed]) => {
-      const longitude =
-        (initialPositions[planetName as keyof typeof initialPositions] +
-          daysSinceEpoch * speed) %
-        360;
-
-      const sign = getSignFromLongitude(longitude);
-      const degree = longitude - Math.floor(longitude / 30) * 30;
-
-      planets.push({
-        name: planetName,
-        longitude,
-        sign,
-        degree: Math.round(degree * 10) / 10,
-        speed,
-        isRetrograde: planetName === 'Mercury' && Math.random() > 0.7, // Demo
-      });
-    });
-
-    return planets;
-  };
-
-  const getSignFromLongitude = (longitude: number): string => {
-    const signs = [
-      'Aries',
-      'Taurus',
-      'Gemini',
-      'Cancer',
-      'Leo',
-      'Virgo',
-      'Libra',
-      'Scorpio',
-      'Sagittarius',
-      'Capricorn',
-      'Aquarius',
-      'Pisces',
-    ];
-    const signIndex = Math.floor(longitude / 30);
-    return signs[signIndex % 12];
-  };
-
-  const calculateActiveTransits = (
-    transitPlanets: PlanetPosition[],
-    natalChart: any,
-    date: Date
-  ): TransitData[] => {
-    const natalPlanets = natalChart?.data?.planets || natalChart?.planets;
-
-    if (!natalPlanets) {
-      return [];
-    }
-
-    const transits: TransitData[] = [];
-
-    transitPlanets.forEach((transitPlanet) => {
-      Object.entries(natalPlanets).forEach(
-        ([natalPlanetKey, natalPlanet]: [string, any]) => {
-          const aspect = calculateAspect(
-            transitPlanet.longitude,
-            natalPlanet.longitude
-          );
-
-          if (aspect.aspect !== 'none' && aspect.orb <= minOrb) {
-            transits.push({
-              planet: transitPlanet.name,
-              aspect: aspect.aspect,
-              target: String(natalPlanetKey || '').toLowerCase(),
-              orb: Math.round(aspect.orb * 10) / 10,
-              date: date.toDateString(),
-              description: getTransitDescription(
-                transitPlanet.name,
-                aspect.aspect,
-                String(natalPlanetKey || '').toLowerCase()
-              ),
-              type: getAspectType(aspect.aspect),
-              strength: aspect.strength,
-            });
-          }
-        }
-      );
-    });
-
-    return transits.sort((a, b) => (b.strength || 0) - (a.strength || 0));
-  };
-
-  const calculateAspect = (longitude1: number, longitude2: number) => {
-    const diff = Math.abs(longitude1 - longitude2);
-    const angle = diff > 180 ? 360 - diff : diff;
-
-    const aspects = [
-      { name: 'conjunction', angle: 0, orb: 10, strength: 1.0 },
-      { name: 'sextile', angle: 60, orb: 6, strength: 0.7 },
-      { name: 'square', angle: 90, orb: 8, strength: 0.9 },
-      { name: 'trine', angle: 120, orb: 8, strength: 0.8 },
-      { name: 'opposition', angle: 180, orb: 10, strength: 0.9 },
-    ];
-
-    for (const asp of aspects) {
-      const orbDiff = Math.abs(angle - asp.angle);
-      if (orbDiff <= asp.orb) {
-        return {
-          aspect: asp.name,
-          orb: orbDiff,
-          strength: asp.strength * (1 - orbDiff / asp.orb),
-        };
-      }
-    }
-
-    return { aspect: 'none', orb: 999, strength: 0 };
   };
 
   const getTransitDescription = (
@@ -888,7 +739,11 @@ export default function CosmicSimulatorScreen({ navigation }: any) {
                       color="rgba(255,255,255,0.3)"
                     />
                     <Text style={styles.emptyTransitsText}>
-                      {t('cosmicSimulator.transits.empty')}
+                      {t(
+                        transitsError
+                          ? 'cosmicSimulator.errors.loadTransits'
+                          : 'cosmicSimulator.transits.empty'
+                      )}
                     </Text>
                   </View>
                 ) : (

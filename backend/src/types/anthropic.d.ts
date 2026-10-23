@@ -1,6 +1,10 @@
 declare module '@anthropic-ai/sdk' {
   export default class Anthropic {
-    constructor(options?: { apiKey?: string });
+    constructor(options?: {
+      apiKey?: string;
+      timeout?: number;
+      maxRetries?: number;
+    });
     messages: {
       create(options: {
         model: string;

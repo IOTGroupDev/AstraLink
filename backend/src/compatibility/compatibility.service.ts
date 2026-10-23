@@ -1,3 +1,4 @@
+import { ASTRO_CALCULATION_VERSION } from '@/shared/astro-version';
 import {
   BadRequestException,
   Injectable,
@@ -37,6 +38,8 @@ type CompatibilityCategory = {
 };
 
 type CompatibilityResult = {
+  locale: 'ru' | 'en' | 'es';
+  calculationVersion: string;
   score: number;
   summary: string;
   categories: {
@@ -73,7 +76,11 @@ export class CompatibilityService {
     private readonly subscriptionService: SubscriptionService,
   ) {}
 
-  async createReport(userId: string, dto: CreateCompatibilityReportDto) {
+  async createReport(
+    userId: string,
+    dto: CreateCompatibilityReportDto,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ) {
     const userChart = await this.prisma.chart.findUnique({
       where: { userId },
       select: { data: true },
@@ -90,6 +97,7 @@ export class CompatibilityService {
       userId,
       dto,
       location,
+      locale,
     );
 
     if (duplicateReport) {
@@ -105,14 +113,17 @@ export class CompatibilityService {
       dto.birthDate,
       dto.birthTime,
       location,
+      true,
+      locale,
     )) as ChartData;
     const ownChart = userChart.data as ChartData;
     const synastry = (await this.ephemerisService.getSynastry(
       ownChart,
       partnerChart,
+      locale,
     )) as SynastryData;
 
-    const result = this.buildCompatibilityResult(synastry);
+    const result = this.buildCompatibilityResult(synastry, locale);
     let aiProvider: string | null = null;
     let aiGeneratedAt: Date | null = null;
 
@@ -125,7 +136,7 @@ export class CompatibilityService {
               categories: result.categories,
               keyAspects: result.keyAspects,
               synastrySummary: result.synastrySummary,
-              locale: 'ru',
+              locale,
             });
           result.aiStatus = 'generated';
           aiProvider = this.aiService.getProvider();
@@ -156,7 +167,10 @@ export class CompatibilityService {
     const report = await this.prisma.compatibilityReport.create({
       data: {
         userId,
-        partnerBirthData: partnerBirthData as Prisma.InputJsonValue,
+        partnerBirthData:
+          this.sensitiveProfileEncryption.prepareBirthDocumentForStorage(
+            partnerBirthData,
+          ) as Prisma.InputJsonValue,
         partnerChartData: this.toJsonValue(
           this.sanitizePartnerChart(partnerChart),
         ),
@@ -293,6 +307,7 @@ export class CompatibilityService {
 
   private buildCompatibilityResult(
     synastry: SynastryData,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): CompatibilityResult {
     const aspects = Array.isArray(synastry.aspects) ? synastry.aspects : [];
     const baseScore = Math.max(
@@ -304,26 +319,58 @@ export class CompatibilityService {
       emotional: this.scoreCategory(
         aspects,
         ['moon'],
-        'Эмоциональная совместимость',
-        'Показывает, насколько легко совпадают реакции, потребности и бытовой ритм.',
+        locale === 'en'
+          ? 'Emotional compatibility'
+          : locale === 'es'
+            ? 'Compatibilidad emocional'
+            : 'Эмоциональная совместимость',
+        locale === 'en'
+          ? 'How naturally your responses, needs and everyday rhythms align.'
+          : locale === 'es'
+            ? 'Cómo coinciden las reacciones, las necesidades y los ritmos cotidianos.'
+            : 'Показывает, насколько легко совпадают реакции, потребности и бытовой ритм.',
       ),
       attraction: this.scoreCategory(
         aspects,
         ['venus', 'mars'],
-        'Притяжение и романтика',
-        'Оценивает химию, симпатию и телесно-эмоциональное притяжение.',
+        locale === 'en'
+          ? 'Attraction and romance'
+          : locale === 'es'
+            ? 'Atracción y romance'
+            : 'Притяжение и романтика',
+        locale === 'en'
+          ? 'Chemistry, affection and physical and emotional attraction.'
+          : locale === 'es'
+            ? 'La química, el afecto y la atracción física y emocional.'
+            : 'Оценивает химию, симпатию и телесно-эмоциональное притяжение.',
       ),
       communication: this.scoreCategory(
         aspects,
         ['mercury'],
-        'Общение',
-        'Показывает, насколько легко договариваться, слышать друг друга и обсуждать сложные темы.',
+        locale === 'en'
+          ? 'Communication'
+          : locale === 'es'
+            ? 'Comunicación'
+            : 'Общение',
+        locale === 'en'
+          ? 'How easily you listen, reach agreements and discuss difficult subjects.'
+          : locale === 'es'
+            ? 'La facilidad para escuchar, llegar a acuerdos y tratar temas difíciles.'
+            : 'Показывает, насколько легко договариваться, слышать друг друга и обсуждать сложные темы.',
       ),
       stability: this.scoreCategory(
         aspects,
         ['saturn', 'jupiter'],
-        'Долгосрочный потенциал',
-        'Оценивает устойчивость, ответственность и способность строить общие планы.',
+        locale === 'en'
+          ? 'Long-term potential'
+          : locale === 'es'
+            ? 'Potencial a largo plazo'
+            : 'Долгосрочный потенциал',
+        locale === 'en'
+          ? 'Stability, responsibility and the ability to make shared plans.'
+          : locale === 'es'
+            ? 'La estabilidad, la responsabilidad y la capacidad de hacer planes conjuntos.'
+            : 'Оценивает устойчивость, ответственность и способность строить общие планы.',
       ),
     };
 
@@ -338,7 +385,9 @@ export class CompatibilityService {
 
     return {
       score,
-      summary: this.buildSummary(score),
+      locale,
+      calculationVersion: ASTRO_CALCULATION_VERSION,
+      summary: this.buildSummary(score, locale),
       categories,
       keyAspects: aspects
         .slice()
@@ -381,7 +430,26 @@ export class CompatibilityService {
     };
   }
 
-  private buildSummary(score: number): string {
+  private buildSummary(
+    score: number,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): string {
+    if (locale === 'en')
+      return score >= 80
+        ? 'High compatibility: many natural sources of attraction and support.'
+        : score >= 65
+          ? 'Good compatibility: strong potential supported by honest agreements.'
+          : score >= 45
+            ? 'Mixed compatibility: the relationship can be valuable with conscious work on tension.'
+            : 'Challenging compatibility: differences require maturity and clear boundaries.';
+    if (locale === 'es')
+      return score >= 80
+        ? 'Alta compatibilidad: muchas fuentes naturales de atracción y apoyo.'
+        : score >= 65
+          ? 'Buena compatibilidad: gran potencial con acuerdos sinceros.'
+          : score >= 45
+            ? 'Compatibilidad mixta: la relación puede ser valiosa trabajando conscientemente las tensiones.'
+            : 'Compatibilidad compleja: las diferencias requieren madurez y límites claros.';
     if (score >= 80) {
       return 'Высокая совместимость: много естественных точек притяжения и поддержки.';
     }
@@ -503,6 +571,7 @@ export class CompatibilityService {
     userId: string,
     dto: CreateCompatibilityReportDto,
     location: BirthLocation,
+    locale: 'ru' | 'en' | 'es',
   ) {
     const targetSignature = this.buildBirthDataSignature({
       birth_date: dto.birthDate,
@@ -530,9 +599,17 @@ export class CompatibilityService {
 
     return (
       recentReports.find((report) => {
+        const result = report.result as Record<string, unknown> | null;
+        if (
+          result?.locale !== locale ||
+          result?.calculationVersion !== ASTRO_CALCULATION_VERSION
+        )
+          return false;
         const hydratedBirthData =
           this.sensitiveProfileEncryption.hydrateBirthData(
-            report.partnerBirthData as Record<string, unknown>,
+            this.sensitiveProfileEncryption.hydrateBirthDocument(
+              report.partnerBirthData,
+            ) as Record<string, unknown>,
           );
         const reportSignature = this.buildBirthDataSignature(hydratedBirthData);
 

@@ -27,6 +27,28 @@ export abstract class BaseAIProvider implements IAIProvider {
     locale?: AILocale,
   ): AsyncGenerator<string, void, unknown>;
 
+  protected generationBudget(options?: AIGenerateOptions) {
+    const duration = Math.max(
+      1,
+      Math.min(30_000, options?.timeoutMs ?? 30_000),
+    );
+    const deadline = Date.now() + duration;
+    const signal = options?.signal
+      ? AbortSignal.any([options.signal, AbortSignal.timeout(duration)])
+      : AbortSignal.timeout(duration);
+    return {
+      requestOptions: () => {
+        signal.throwIfAborted();
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new Error('AI generation deadline exceeded');
+        return { timeout: remaining, maxRetries: 0, signal };
+      },
+      canRetry: () => !signal.aborted && Date.now() < deadline,
+      backoff: (delay: number) =>
+        this.sleep(Math.max(0, Math.min(delay, deadline - Date.now()))),
+    };
+  }
+
   /**
    * Sleep utility for retry backoff
    */

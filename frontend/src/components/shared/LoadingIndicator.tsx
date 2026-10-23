@@ -27,7 +27,7 @@ export default function LoadingIndicator({
         autoPlay
         loop
         resizeMode="contain"
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
     </View>
   );

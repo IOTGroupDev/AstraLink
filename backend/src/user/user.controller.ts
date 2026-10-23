@@ -24,12 +24,10 @@ import { UserService } from './user.service';
 import { BlockUserDto, ReportUserDto } from './dto/moderation.dto';
 import { UpdateExtendedProfileDto } from './dto/update-extended-profile.dto';
 import { UpdatePushTokenDto } from './dto/update-push-token.dto';
-import type {
-  SubscriptionStatusResponse,
-  UpdateProfileRequest,
-} from '../types';
+import type { SubscriptionStatusResponse } from '../types';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SubscriptionService } from '@/subscription/subscription.service';
+import { UpdateProfileDto } from '@/common/dto/request-validation.dto';
 import { SupabaseService } from '@/supabase/supabase.service';
 
 // Interface for authenticated user on Express Request
@@ -82,7 +80,7 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Профиль обновлен' })
   async updateProfile(
     @Request() req: AuthenticatedRequest,
-    @Body() updateData: UpdateProfileRequest,
+    @Body() updateData: UpdateProfileDto,
   ) {
     const userId = req.user?.userId || req.user?.id;
     return this.userService.updateProfile(
@@ -202,6 +200,8 @@ export class UserController {
     const userId = (req.user?.userId || req.user?.id) as string;
     this.logger.log(`Delete account request for user: ${userId}`);
 
+    // Stop future recurring charges while provider IDs are still available.
+    await this.subscriptionService.cancel(userId);
     await this.userService.deleteAccount(userId);
 
     return {

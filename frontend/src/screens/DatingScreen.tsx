@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Alert,
   FlatList,
@@ -12,7 +18,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import Animated, {
@@ -22,7 +28,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -67,14 +73,25 @@ function DiscoveryActionButton({
   children,
   onPress,
   size,
+  disabled = false,
+  accessibilityLabel,
 }: {
   children: React.ReactNode;
   onPress: () => void;
   size: number;
+  disabled?: boolean;
+  accessibilityLabel: string;
 }) {
   const borderWidth = size === 64 ? 1.6 : 1.4;
   return (
-    <Pressable onPress={onPress} style={{ borderRadius: size / 2 }}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      style={{ borderRadius: size / 2, opacity: disabled ? 0.5 : 1 }}
+    >
       <GradientBorderView
         colors={['rgba(255,255,255,0.42)', 'rgba(124,119,153,0.26)']}
         gradientProps={{
@@ -99,7 +116,7 @@ function DiscoveryActionButton({
           pointerEvents="none"
           intensity={30}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
           style={StyleSheet.absoluteFill}
         />
         <View pointerEvents="none" style={styles.roundActionTint} />
@@ -126,6 +143,9 @@ export default function DatingScreen() {
   const [refreshingMatches, setRefreshingMatches] = useState(false);
   const [matchFilter, setMatchFilter] = useState<MatchFilter>('all');
   const [moderationBusy, setModerationBusy] = useState(false);
+  const [swipeBusy, setSwipeBusy] = useState(false);
+  const swipeInFlight = useRef(false);
+  const candidateRequestVersion = useRef(0);
   const backgroundOpacity = useSharedValue(0.9);
 
   const storageKey = `${LAST_TAB_KEY_PREFIX}${user?.id ?? 'anonymous'}`;
@@ -188,20 +208,33 @@ export default function DatingScreen() {
     [storageKey]
   );
 
-  const loadCandidates = useCallback(async () => {
-    if (!user || authLoading) return;
-    setLoadingCandidates(true);
-    try {
-      const result = await datingAPI.getCandidates(20);
-      setCandidates(result);
+  const loadCandidates = useCallback(
+    async (includeReviewed = false) => {
+      if (!user || authLoading) return;
+      const requestVersion = ++candidateRequestVersion.current;
+      setLoadingCandidates(true);
+      setCandidates([]);
       setCandidateIndex(0);
-    } catch (error) {
-      logger.error('[Dating] Failed to load candidates', error);
-      Alert.alert(t('common.errors.generic'), t('dating.errors.failedToLoad'));
-    } finally {
-      setLoadingCandidates(false);
-    }
-  }, [authLoading, t, user]);
+      try {
+        const result = await datingAPI.getCandidates(20, includeReviewed);
+        if (requestVersion !== candidateRequestVersion.current) return;
+        setCandidates(result);
+        setCandidateIndex(0);
+      } catch (error) {
+        if (requestVersion !== candidateRequestVersion.current) return;
+        logger.error('[Dating] Failed to load candidates', error);
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.errors.failedToLoad')
+        );
+      } finally {
+        if (requestVersion === candidateRequestVersion.current) {
+          setLoadingCandidates(false);
+        }
+      }
+    },
+    [authLoading, t, user]
+  );
 
   const loadMatches = useCallback(
     async (refresh = false) => {
@@ -219,9 +252,15 @@ export default function DatingScreen() {
     [authLoading, user]
   );
 
-  useEffect(() => {
-    if (tabReady && user && candidates.length === 0) void loadCandidates();
-  }, [candidates.length, loadCandidates, tabReady, user]);
+  useFocusEffect(
+    useCallback(() => {
+      if (tabReady && tab === 'discovery') void loadCandidates();
+      // Ignore responses from a batch requested before navigation/profile edits.
+      return () => {
+        candidateRequestVersion.current += 1;
+      };
+    }, [loadCandidates, tab, tabReady])
+  );
 
   useEffect(() => {
     if (tab === 'matched' && matches.length === 0) void loadMatches();
@@ -256,12 +295,18 @@ export default function DatingScreen() {
 
   const handleSwipe = useCallback(
     async (direction: 'left' | 'right') => {
-      if (!current) return;
+      if (!current || moderationBusy || swipeInFlight.current) return;
+      swipeInFlight.current = true;
+      setSwipeBusy(true);
+      const requestVersion = candidateRequestVersion.current;
       try {
         const result = await datingAPI.like(
           current.userId,
           direction === 'right' ? 'like' : 'pass'
         );
+        if (requestVersion !== candidateRequestVersion.current) return;
+        setCandidateIndex((index) => index + 1);
+        if (result.matchId) setMatches([]);
         if (direction === 'right' && result.matchId) {
           Alert.alert(t('dating.match.title'), t('dating.match.message'), [
             { text: t('common.buttons.close'), style: 'cancel' },
@@ -278,11 +323,16 @@ export default function DatingScreen() {
         }
       } catch (error) {
         logger.error('[Dating] Swipe failed', error);
+        Alert.alert(
+          t('common.errors.generic'),
+          t('dating.errors.failedToSaveAction')
+        );
       } finally {
-        setCandidateIndex((index) => index + 1);
+        swipeInFlight.current = false;
+        setSwipeBusy(false);
       }
     },
-    [current, navigation, t]
+    [current, moderationBusy, navigation, t]
   );
 
   const removeCandidate = useCallback((userId: string) => {
@@ -362,7 +412,12 @@ export default function DatingScreen() {
           <Ionicons name="planet-outline" size={58} color="#8D62A6" />
           <Text style={styles.emptyTitle}>{t('dating.empty.title')}</Text>
           <Text style={styles.emptyText}>{t('dating.empty.subtitle')}</Text>
-          <Pressable style={styles.retryButton} onPress={loadCandidates}>
+          <Pressable
+            style={styles.retryButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('dating.empty.refresh')}
+            onPress={() => void loadCandidates(true)}
+          >
             <Ionicons name="refresh" size={18} color="#FFFFFF" />
           </Pressable>
         </View>
@@ -402,7 +457,7 @@ export default function DatingScreen() {
               <LinearGradient
                 colors={['#FFFFFF', '#FFFFFF', 'rgba(255,255,255,0)']}
                 locations={[0, 0.38, 0.74]}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
             }
           >
@@ -436,20 +491,32 @@ export default function DatingScreen() {
               onChat={() => undefined}
               onOpenProfile={() => openProfile(current)}
               onOpenActions={openActions}
-              actionsDisabled={moderationBusy}
+              actionsDisabled={moderationBusy || swipeBusy}
               isTop
             />
           </View>
         </View>
         <View style={styles.discoveryActions}>
-          <DiscoveryActionButton size={56} onPress={() => handleSwipe('left')}>
+          <DiscoveryActionButton
+            size={56}
+            disabled={moderationBusy || swipeBusy}
+            accessibilityLabel={t('dating.actions.pass')}
+            onPress={() => handleSwipe('left')}
+          >
             <Ionicons name="close" size={34} color="#FF1E2D" />
           </DiscoveryActionButton>
-          <DiscoveryActionButton size={64} onPress={() => handleSwipe('right')}>
+          <DiscoveryActionButton
+            size={64}
+            disabled={moderationBusy || swipeBusy}
+            accessibilityLabel={t('dating.actions.like')}
+            onPress={() => handleSwipe('right')}
+          >
             <Ionicons name="heart" size={37} color="#FF293E" />
           </DiscoveryActionButton>
           <DiscoveryActionButton
             size={56}
+            disabled={moderationBusy || swipeBusy}
+            accessibilityLabel={t('dating.match.openChat')}
             onPress={() =>
               navigation.navigate('ChatDialog', {
                 otherUserId: current.userId,
@@ -475,7 +542,7 @@ export default function DatingScreen() {
         {item.primaryPhotoUrl ? (
           <Image
             source={{ uri: item.primaryPhotoUrl }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
         ) : (
           <LinearGradient
@@ -488,7 +555,7 @@ export default function DatingScreen() {
         <LinearGradient
           colors={['transparent', 'rgba(8,14,28,0.08)', 'rgba(8,14,28,0.96)']}
           locations={[0.46, 0.64, 1]}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         {item.isOnline ? <View style={styles.onlineDot} /> : null}
         <View style={styles.matchInfo}>
@@ -613,7 +680,7 @@ export default function DatingScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#080E1C', overflow: 'hidden' },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },
@@ -683,7 +750,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   roundActionTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(8,14,28,0.2)',
   },
   filtersRow: {

@@ -11,6 +11,7 @@ import { useAuthStore } from '../stores/auth.store';
 import { useOnboardingStore } from '../stores/onboarding.store';
 import { useChartStore } from '../stores/chart.store';
 import { useSubscriptionStore } from '../stores/subscription.store';
+import { queryClient } from '../providers/QueryProvider';
 
 const CLEANUP_OPERATION_TIMEOUT_MS = 2500;
 let activeUserDataCleanupPromise: Promise<void> | null = null;
@@ -167,6 +168,8 @@ export const clearAllUserData = async (): Promise<void> => {
       // 0. Clear current in-memory Zustand state. Removing storage is not enough
       // while the app process keeps running after account deletion.
       resetInMemoryUserState();
+      await queryClient.cancelQueries();
+      queryClient.clear();
 
       // 0.1 Clear Supabase auth runtime/storage explicitly. This protects the
       // next login after account deletion from reusing a deleted local session.

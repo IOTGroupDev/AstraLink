@@ -1,12 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { datingAPI, userAPI } from '../services/api';
 import { logger } from '../services/logger';
+import { getOnlineIds, subscribePresence } from '../services/presence';
 import type { RootStackParamList } from '../types/navigation';
 import advisorBackground from '../../assets/advisor-bg.png';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
@@ -51,12 +60,26 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
     getInitialProfile(route.params)
   );
   const [loading, setLoading] = useState(true);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
+  const [viewerZoomed, setViewerZoomed] = useState(false);
+  const photoPagerRef = useRef<ScrollView>(null);
+  const fullPhotoPagerRef = useRef<ScrollView>(null);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [photoWidth, setPhotoWidth] = useState(Math.max(1, windowWidth - 50));
   const [moderationBusy, setModerationBusy] = useState(false);
+  const [onlineIds, setOnlineIds] = useState<ReadonlySet<string>>(getOnlineIds);
+  useEffect(() => subscribePresence(setOnlineIds), []);
   const headerTopPadding = insets.top + 10;
   const headerHeight = headerTopPadding + 48;
 
   useEffect(() => {
     let mounted = true;
+    setPhotoIndex(0);
+    setPhotoViewerOpen(false);
+    setLoading(true);
+    setProfile(getInitialProfile(route.params));
     void datingAPI
       .getProfile(route.params.userId)
       .then((fresh) => {
@@ -64,12 +87,14 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
         setProfile((current) => ({
           ...current,
           ...fresh,
-          primaryPhotoUrl: fresh.primaryPhotoUrl ?? current.primaryPhotoUrl,
-          photos:
-            fresh.photos && fresh.photos.length > 0
-              ? fresh.photos
-              : current.photos,
+          // Older API responses may omit the gallery. An explicit empty array
+          // means deletion; a missing gallery must not erase discovery photos.
+          photos: Array.isArray(fresh.photos) ? fresh.photos : current.photos,
         }));
+        logger.debug('[DatingProfile] Gallery response', {
+          photoCount: Array.isArray(fresh.photos) ? fresh.photos.length : null,
+          hasPrimaryPhoto: Boolean(fresh.primaryPhotoUrl),
+        });
       })
       .catch((error) =>
         logger.error('[DatingProfile] Failed to load profile', error)
@@ -91,15 +116,41 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
     }
     return result;
   }, [profile.photos, profile.primaryPhotoUrl]);
-  const [photoIndex, setPhotoIndex] = useState(0);
+  useEffect(() => {
+    setPhotoIndex((index) => Math.min(index, Math.max(0, photos.length - 1)));
+  }, [photos.length]);
+  const movePhoto = useCallback(
+    (direction: number) => {
+      if (photos.length < 2) return;
+      setPhotoIndex(
+        (index) => (index + direction + photos.length) % photos.length
+      );
+    },
+    [photos.length]
+  );
+  useEffect(() => {
+    setPhotoLoadFailed(false);
+    setViewerZoomed(false);
+  }, [photoIndex, photoViewerOpen]);
+  const alignFullPhoto = useCallback(() => {
+    fullPhotoPagerRef.current?.scrollTo({
+      x: photoIndex * windowWidth,
+      animated: false,
+    });
+  }, [photoIndex, windowWidth]);
+  useEffect(() => {
+    if (photoViewerOpen) alignFullPhoto();
+  }, [alignFullPhoto, photoViewerOpen]);
+  useEffect(() => {
+    photoPagerRef.current?.scrollTo({
+      x: photoIndex * photoWidth,
+      animated: false,
+    });
+  }, [photoIndex, photoWidth, photos.length]);
   const displayName = profile.name ?? t('dating.defaults.userName');
   const title =
     profile.age != null ? `${displayName}, ${profile.age}` : displayName;
-  const online = useMemo(() => {
-    if (!profile.lastActive) return false;
-    const value = new Date(profile.lastActive).getTime();
-    return Number.isFinite(value) && Date.now() - value < 5 * 60 * 1000;
-  }, [profile.lastActive]);
+  const online = onlineIds.has(route.params.userId);
   const zodiac = profile.zodiacSign
     ? t(`common.zodiacSigns.${profile.zodiacSign.toLowerCase()}`, {
         defaultValue: profile.zodiacSign,
@@ -162,6 +213,7 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
       />
 
       <ScrollView
+        directionalLockEnabled
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
@@ -169,11 +221,73 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
         ]}
       >
         <View style={styles.hero}>
-          {photos[photoIndex] ? (
-            <Image
-              source={{ uri: photos[photoIndex] }}
-              style={styles.heroPhoto}
-            />
+          {photos.length > 0 ? (
+            <ScrollView
+              ref={photoPagerRef}
+              testID="dating-profile-gallery"
+              horizontal
+              pagingEnabled
+              directionalLockEnabled
+              nestedScrollEnabled
+              bounces={false}
+              showsHorizontalScrollIndicator={false}
+              style={styles.photoGallery}
+              contentContainerStyle={styles.photoGalleryContent}
+              onLayout={(event) => {
+                const width = event.nativeEvent.layout.width;
+                if (width > 0) setPhotoWidth(width);
+              }}
+              onMomentumScrollEnd={(event) => {
+                const index = Math.round(
+                  event.nativeEvent.contentOffset.x / photoWidth
+                );
+                setPhotoIndex(Math.max(0, Math.min(photos.length - 1, index)));
+              }}
+            >
+              {photos.map((photo, index) => (
+                <View
+                  key={`${photo}-${index}`}
+                  style={{ width: photoWidth, height: '100%' }}
+                  accessibilityElementsHidden={index !== photoIndex}
+                  importantForAccessibility={
+                    index !== photoIndex ? 'no-hide-descendants' : 'auto'
+                  }
+                >
+                  <Image
+                    testID={
+                      index === photoIndex ? 'dating-profile-photo' : undefined
+                    }
+                    source={{ uri: photo }}
+                    style={styles.heroPhoto}
+                  />
+                  {photos.length > 1 ? (
+                    <View style={styles.photoTapZones}>
+                      <Pressable
+                        style={styles.photoTapZone}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('dating.card.previousPhoto')}
+                        onPress={() => movePhoto(-1)}
+                        onLongPress={() => setPhotoViewerOpen(true)}
+                      />
+                      <Pressable
+                        style={styles.photoTapZone}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('dating.card.nextPhoto')}
+                        onPress={() => movePhoto(1)}
+                        onLongPress={() => setPhotoViewerOpen(true)}
+                      />
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={StyleSheet.absoluteFill}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('dating.card.openPhoto')}
+                      onPress={() => setPhotoViewerOpen(true)}
+                    />
+                  )}
+                </View>
+              ))}
+            </ScrollView>
           ) : (
             <LinearGradient
               colors={['#B58BCB', '#76518E']}
@@ -186,12 +300,20 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
               />
             </LinearGradient>
           )}
+          {photos.length > 0 ? (
+            <View style={styles.photoCounter} pointerEvents="none">
+              <Text style={styles.photoCounterText}>
+                {photoIndex + 1} / {photos.length}
+              </Text>
+            </View>
+          ) : null}
           {photos.length > 1 ? (
             <View style={styles.photoPager}>
               {photos.map((photo, index) => (
                 <Pressable
                   key={`${photo}-${index}`}
                   onPress={() => setPhotoIndex(index)}
+                  hitSlop={{ top: 10, bottom: 10 }}
                   style={[
                     styles.photoDot,
                     index === photoIndex && styles.photoDotActive,
@@ -199,6 +321,16 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
                 />
               ))}
             </View>
+          ) : null}
+          {photos.length > 0 ? (
+            <Pressable
+              style={styles.expandPhotoButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('dating.card.openPhoto')}
+              onPress={() => setPhotoViewerOpen(true)}
+            >
+              <Ionicons name="expand-outline" size={24} color="#FFFFFF" />
+            </Pressable>
           ) : null}
           {loading ? <LoadingIndicator style={styles.photoLoader} /> : null}
         </View>
@@ -334,14 +466,184 @@ export default function DatingProfileScreen({ navigation, route }: Props) {
         </GradientBorderView>
         <View style={styles.headerSpacer} />
       </View>
+      <Modal
+        visible={photoViewerOpen && Boolean(photos[photoIndex])}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setPhotoViewerOpen(false)}
+      >
+        <View style={styles.photoViewer} testID="dating-profile-photo-viewer">
+          <ScrollView
+            ref={fullPhotoPagerRef}
+            testID="dating-profile-full-gallery"
+            style={styles.photoViewer}
+            horizontal
+            pagingEnabled
+            directionalLockEnabled
+            nestedScrollEnabled
+            bounces={false}
+            scrollEnabled={!viewerZoomed}
+            contentOffset={{ x: photoIndex * windowWidth, y: 0 }}
+            onLayout={alignFullPhoto}
+            onContentSizeChange={alignFullPhoto}
+            onMomentumScrollEnd={(event) => {
+              const index = Math.round(
+                event.nativeEvent.contentOffset.x / windowWidth
+              );
+              setPhotoIndex(Math.max(0, Math.min(photos.length - 1, index)));
+            }}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+          >
+            {photos.map((photo, index) => (
+              <ScrollView
+                key={`${route.params.userId}-${index}-${index === photoIndex}`}
+                testID={
+                  index === photoIndex ? 'dating-profile-photo-zoom' : undefined
+                }
+                style={{ width: windowWidth, height: windowHeight }}
+                contentContainerStyle={styles.photoViewerContent}
+                minimumZoomScale={1}
+                maximumZoomScale={4}
+                centerContent
+                directionalLockEnabled
+                nestedScrollEnabled
+                bounces={false}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                accessibilityElementsHidden={index !== photoIndex}
+                importantForAccessibility={
+                  index !== photoIndex ? 'no-hide-descendants' : 'auto'
+                }
+                scrollEventThrottle={16}
+                onScroll={(event) => {
+                  if (index === photoIndex) {
+                    setViewerZoomed((event.nativeEvent.zoomScale ?? 1) > 1.01);
+                  }
+                }}
+              >
+                <Image
+                  testID={
+                    index === photoIndex
+                      ? 'dating-profile-full-photo'
+                      : undefined
+                  }
+                  source={{ uri: photo }}
+                  resizeMode="contain"
+                  style={{ width: windowWidth, height: windowHeight }}
+                  onError={() => {
+                    if (index === photoIndex) setPhotoLoadFailed(true);
+                  }}
+                />
+              </ScrollView>
+            ))}
+          </ScrollView>
+          {photoLoadFailed ? (
+            <Text style={styles.photoViewerError}>
+              {t('chat.media.failedToLoadPhoto')}
+            </Text>
+          ) : null}
+          <Pressable
+            style={[
+              styles.viewerButton,
+              styles.viewerClose,
+              { top: insets.top + 12 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.buttons.close')}
+            onPress={() => setPhotoViewerOpen(false)}
+          >
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </Pressable>
+          {photos.length > 1 ? (
+            <View
+              style={[styles.viewerNavigation, { bottom: insets.bottom + 16 }]}
+            >
+              <Pressable
+                style={styles.viewerButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('dating.card.previousPhoto')}
+                onPress={() => movePhoto(-1)}
+              >
+                <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+              </Pressable>
+              <Text style={styles.photoCounterText}>
+                {photoIndex + 1} / {photos.length}
+              </Text>
+              <Pressable
+                style={styles.viewerButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('dating.card.nextPhoto')}
+                onPress={() => movePhoto(1)}
+              >
+                <Ionicons name="chevron-forward" size={28} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  expandPhotoButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  photoViewer: { flex: 1, backgroundColor: '#000000' },
+  photoViewerContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoViewerError: {
+    position: 'absolute',
+    top: '50%',
+    alignSelf: 'center',
+    color: '#FFFFFF',
+  },
+  viewerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(40,40,40,0.8)',
+  },
+  viewerClose: { position: 'absolute', right: 16 },
+  viewerNavigation: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  photoTapZones: { ...StyleSheet.absoluteFill, flexDirection: 'row' },
+  photoTapZone: { flex: 1 },
+  photoGallery: { flex: 1 },
+  photoGalleryContent: { height: '100%' },
+  photoCounter: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  photoCounterText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   screen: { flex: 1, backgroundColor: '#080E1C' },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.3,

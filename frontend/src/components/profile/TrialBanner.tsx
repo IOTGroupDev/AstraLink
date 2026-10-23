@@ -253,7 +253,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({
       <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
         <LinearGradient
           colors={['#10B981', '#059669', 'transparent']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />

@@ -20,7 +20,7 @@ focusManager.setEventListener((handleFocus) => {
   }
 });
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
@@ -31,7 +31,7 @@ const queryClient = new QueryClient({
       refetchOnMount: 'always',
     },
     mutations: {
-      retry: 1,
+      retry: false,
     },
   },
 });

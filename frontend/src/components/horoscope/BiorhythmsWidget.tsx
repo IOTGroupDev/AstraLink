@@ -7,7 +7,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../shared/BlurView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import Svg, {
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 12,
   },
   borderGradient: {

@@ -2,14 +2,10 @@
  * Utility functions for location and timezone handling
  */
 
-import * as winston from 'winston';
+import { BadRequestException } from '@nestjs/common';
+import { find as findTimezone } from 'geo-tz';
+import { historicalTimezoneOffset } from '../common/utils/timezone.util';
 import type { LocationCoordinates } from '../types/connection';
-
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.simple(),
-  transports: [new winston.transports.Console()],
-});
 
 /**
  * Database of major cities with their coordinates and timezones
@@ -17,6 +13,7 @@ const logger = winston.createLogger({
  */
 export const CITY_COORDINATES: Record<string, LocationCoordinates> = {
   // Russia
+  Moscow: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
   Москва: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
   'Санкт-Петербург': { latitude: 59.9311, longitude: 30.3609, timezone: 3 },
   Екатеринбург: { latitude: 56.8431, longitude: 60.6454, timezone: 5 },
@@ -78,16 +75,9 @@ export const CITY_COORDINATES: Record<string, LocationCoordinates> = {
   Lagos: { latitude: 6.5244, longitude: 3.3792, timezone: 1 },
 };
 
-// Default location (Moscow) for unknown cities
-export const DEFAULT_LOCATION: LocationCoordinates = {
-  latitude: 55.7558,
-  longitude: 37.6176,
-  timezone: 3,
-};
-
 /**
  * Get coordinates for a city by name
- * Returns default location (Moscow) if city is not found
+ * Rejects unknown cities; never invents a birth location
  *
  * @param cityName - Name of the city
  * @returns Location coordinates with latitude, longitude, and timezone
@@ -108,11 +98,9 @@ export function getLocationCoordinates(cityName: string): LocationCoordinates {
     return CITY_COORDINATES[cityKey];
   }
 
-  // Return default location if not found
-  logger.warn(
-    `City "${cityName}" not found in database, using default location (Moscow)`,
+  throw new BadRequestException(
+    'Unknown birth location; select a city or provide coordinates',
   );
-  return DEFAULT_LOCATION;
 }
 
 /**
@@ -152,6 +140,8 @@ export function getLocationFromBirthData(
   latitude?: number,
   longitude?: number,
   timezone?: number,
+  birthDate?: string,
+  birthTime?: string,
 ): LocationCoordinates {
   // If explicit coordinates are provided, use them
   if (
@@ -163,5 +153,15 @@ export function getLocationFromBirthData(
   }
 
   // Otherwise, look up by city name
-  return getLocationCoordinates(birthPlace || 'Москва');
+  if (!birthPlace) throw new BadRequestException('Birth location is required');
+  const coordinates = getLocationCoordinates(birthPlace);
+  if (!birthDate || !birthTime) return coordinates;
+  const zones = findTimezone(coordinates.latitude, coordinates.longitude);
+  const offset =
+    zones.length === 1
+      ? historicalTimezoneOffset(zones[0], birthDate, birthTime)
+      : null;
+  if (offset === null)
+    throw new BadRequestException('Unable to resolve historical timezone');
+  return { ...coordinates, timezone: offset, timezoneId: zones[0] };
 }

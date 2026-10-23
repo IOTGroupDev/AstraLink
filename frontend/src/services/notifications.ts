@@ -106,7 +106,9 @@ const configureAndroidChannel = async (): Promise<void> => {
   });
 };
 
-const ensurePermissions = async (): Promise<boolean> => {
+const ensurePermissions = async (
+  requestPermission: boolean
+): Promise<boolean> => {
   if (Platform.OS === 'web') {
     return false;
   }
@@ -114,7 +116,7 @@ const ensurePermissions = async (): Promise<boolean> => {
   const current = await Notifications.getPermissionsAsync();
   let status = current.status;
 
-  if (status !== 'granted') {
+  if (status !== 'granted' && requestPermission) {
     const requested = await Notifications.requestPermissionsAsync({
       ios: {
         allowAlert: true,
@@ -128,12 +130,14 @@ const ensurePermissions = async (): Promise<boolean> => {
   return status === 'granted';
 };
 
-const getExpoPushToken = async (): Promise<string | null> => {
+const getExpoPushToken = async (
+  requestPermission: boolean
+): Promise<string | null> => {
   if (Platform.OS === 'web') {
     return null;
   }
 
-  const hasPermission = await ensurePermissions();
+  const hasPermission = await ensurePermissions(requestPermission);
   if (!hasPermission) {
     notificationsLogger.warn('Push permissions were not granted');
     return null;
@@ -159,18 +163,22 @@ export const notificationService = {
     await configureAndroidChannel();
   },
 
-  async syncAuthenticatedPushToken(userId: string): Promise<void> {
+  async syncAuthenticatedPushToken(
+    userId: string,
+    requestPermission = false
+  ): Promise<void> {
     if (!userId || Platform.OS === 'web') {
       return;
     }
 
     if (syncPromise) {
-      return syncPromise;
+      if (!requestPermission) return syncPromise;
+      await syncPromise;
     }
 
     syncPromise = (async () => {
       try {
-        const expoPushToken = await getExpoPushToken();
+        const expoPushToken = await getExpoPushToken(requestPermission);
         if (!expoPushToken) {
           return;
         }

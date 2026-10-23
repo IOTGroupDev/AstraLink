@@ -1,7 +1,4 @@
 import { AstroLesson, LessonCategory } from '../types/lessons';
-import { ASTRO_LESSONS } from './lessons-database';
-import { ASTRO_LESSONS_EN } from './lessons-database.en';
-import { ASTRO_LESSONS_ES } from './lessons-database.es';
 import {
   buildPersonalizedNatalLessonIds,
   getGeneratedNatalLessons,
@@ -11,10 +8,17 @@ import {
 } from './generated-sign-lessons';
 import type { Chart } from '../types';
 
-const LESSONS_BY_LOCALE: Record<'ru' | 'en' | 'es', AstroLesson[]> = {
-  ru: ASTRO_LESSONS,
-  en: ASTRO_LESSONS_EN,
-  es: ASTRO_LESSONS_ES,
+// Literal requires allow Metro to evaluate only the selected language database.
+const lessonLoaders: Record<SupportedLessonsLocale, () => AstroLesson[]> = {
+  ru: () =>
+    (require('./lessons-database') as typeof import('./lessons-database'))
+      .ASTRO_LESSONS,
+  en: () =>
+    (require('./lessons-database.en') as typeof import('./lessons-database.en'))
+      .ASTRO_LESSONS_EN,
+  es: () =>
+    (require('./lessons-database.es') as typeof import('./lessons-database.es'))
+      .ASTRO_LESSONS_ES,
 };
 
 const COMBINED_LESSONS_CACHE: Partial<
@@ -24,7 +28,7 @@ const COMBINED_LESSONS_CACHE: Partial<
 export const getCoreLessonsByLocale = (
   locale: 'ru' | 'en' | 'es'
 ): AstroLesson[] => {
-  return LESSONS_BY_LOCALE[locale] || ASTRO_LESSONS_EN;
+  return (lessonLoaders[locale] || lessonLoaders.en)();
 };
 
 export const getLessonsByLocale = (

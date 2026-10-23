@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../shared/BlurView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SkeletonLoader } from '../shared/SkeletonLoader';
 import { theme } from '../../styles/theme';

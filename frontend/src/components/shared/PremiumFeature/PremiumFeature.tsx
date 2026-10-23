@@ -166,16 +166,14 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
           onPress={handleUpgrade}
           activeOpacity={0.95}
         >
-          <Animated.View
-            style={[StyleSheet.absoluteFillObject, animatedGlowStyle]}
-          >
+          <Animated.View style={[StyleSheet.absoluteFill, animatedGlowStyle]}>
             <LinearGradient
               colors={[
                 requiredTierColors[0],
                 requiredTierColors[1],
                 'transparent',
               ]}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
@@ -267,7 +265,7 @@ const PremiumFeature: React.FC<PremiumFeatureProps> = ({
       <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
         <LinearGradient
           colors={[requiredTierColors[0], requiredTierColors[1], 'transparent']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
@@ -516,7 +514,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 12,
     overflow: 'hidden',
   },

@@ -3,9 +3,14 @@ import type { DatingCandidate, MutualDatingMatch } from '../../types/dating';
 
 export const datingAPI = {
   // Ranked candidate feed for swipe discovery
-  getCandidates: async (limit = 20): Promise<DatingCandidate[]> => {
+  getCandidates: async (
+    limit = 20,
+    includeReviewed = false
+  ): Promise<DatingCandidate[]> => {
     const safeLimit = Math.max(1, Math.min(50, limit));
-    const response = await api.get(`/dating/candidates?limit=${safeLimit}`);
+    const response = await api.get(
+      `/dating/candidates?limit=${safeLimit}${includeReviewed ? '&includeReviewed=true' : ''}`
+    );
     const raw = response?.data;
     // Унификация формы ответа: поддерживаем и массив, и {items}
     const list: any[] = Array.isArray(raw)
@@ -88,6 +93,9 @@ export const datingAPI = {
     action: 'like' | 'super_like' | 'pass' = 'like'
   ): Promise<{ success: boolean; matchId: string | null; message: string }> => {
     const response = await api.post('/dating/like', { targetUserId, action });
+    if (response.data?.success !== true) {
+      throw new Error('Dating action was not saved');
+    }
     return response.data;
   },
 

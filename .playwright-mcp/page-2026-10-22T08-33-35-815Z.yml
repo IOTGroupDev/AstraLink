@@ -1,0 +1,12 @@
+- generic [ref=e42]:
+  - generic [ref=e43]:
+    - generic [ref=e45] [cursor=pointer]
+    - generic [ref=e48]: Authorization
+  - generic [ref=e52]:
+    - generic [ref=e53]: Enter your Email
+    - generic [ref=e54]:
+      - generic [ref=e57]:
+        - generic [ref=e58]: 
+        - textbox "Your email" [ref=e60]
+      - generic [ref=e62]: We will send a 6-digit code to your email
+    - generic [ref=e63]: NEXT

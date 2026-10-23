@@ -12,8 +12,8 @@ module.exports = function (api) {
       ],
     ],
     plugins: [
-      // Required for react-native-reanimated (must be last)
-      'react-native-reanimated/plugin',
+      // Worklets transforms must run last for Reanimated 4.
+      'react-native-worklets/plugin',
     ],
   };
 };

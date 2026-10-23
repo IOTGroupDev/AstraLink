@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -20,13 +21,14 @@ type Props = {
   onChange: (tab: DatingTab) => void;
 };
 
-const TABS: Array<{ key: DatingTab; label: string }> = [
-  { key: 'discovery', label: 'Discovery' },
-  { key: 'matched', label: 'Matched' },
-  { key: 'messages', label: 'Messages' },
+const TABS: Array<{ key: DatingTab }> = [
+  { key: 'discovery' },
+  { key: 'matched' },
+  { key: 'messages' },
 ];
 
 export function DatingTabBar({ value, onChange }: Props) {
+  const { t } = useTranslation();
   const [tabsWidth, setTabsWidth] = useState(0);
   const indicatorX = useSharedValue(0);
   const activeIndex = TABS.findIndex((tab) => tab.key === value);
@@ -80,7 +82,7 @@ export function DatingTabBar({ value, onChange }: Props) {
               onPress={() => onChange(tab.key)}
               style={styles.tab}
             >
-              <Text style={styles.label}>{tab.label}</Text>
+              <Text style={styles.label}>{t(`dating.tabs.${tab.key}`)}</Text>
             </Pressable>
           );
         })}

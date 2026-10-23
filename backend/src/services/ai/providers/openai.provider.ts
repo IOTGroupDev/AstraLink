@@ -32,7 +32,7 @@ export class OpenAIProvider extends BaseAIProvider {
     }
 
     try {
-      this.client = new OpenAI({ apiKey });
+      this.client = new OpenAI({ apiKey, timeout: 30_000, maxRetries: 1 });
       this.logger.log('✅ OpenAI GPT initialized');
     } catch (error) {
       const errorMessage =
@@ -61,6 +61,8 @@ export class OpenAIProvider extends BaseAIProvider {
       throw new Error('OpenAI not initialized');
     }
 
+    const budget = this.generationBudget(options);
+    retries = Math.max(1, Math.min(3, retries));
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -88,12 +90,7 @@ export class OpenAIProvider extends BaseAIProvider {
               ? {}
               : { response_format: { type: 'json_object' } }),
           },
-          {
-            ...(typeof options?.timeoutMs === 'number'
-              ? { timeout: options.timeoutMs }
-              : {}),
-            ...(options?.signal ? { signal: options.signal } : {}),
-          },
+          budget.requestOptions(),
         ); // request options + response_format supported but local types lag behind runtime
 
         const duration = Date.now() - startTime;
@@ -112,14 +109,14 @@ export class OpenAIProvider extends BaseAIProvider {
         );
 
         // Don't retry on final attempt
-        if (attempt === retries - 1) {
+        if (attempt === retries - 1 || !budget.canRetry()) {
           break;
         }
 
         // Exponential backoff: 1s, 2s, 4s
         const backoffMs = this.calculateBackoff(attempt);
         this.logger.log(`Retrying in ${backoffMs}ms...`);
-        await this.sleep(backoffMs);
+        await budget.backoff(backoffMs);
       }
     }
 

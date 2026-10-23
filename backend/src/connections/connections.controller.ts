@@ -1,3 +1,4 @@
+import { requestLocale } from '../common/utils/request-headers.util';
 import {
   Controller,
   Get,
@@ -15,18 +16,15 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { ConnectionsService } from './connections.service';
-import type {
-  CreateConnectionRequest,
-  SynastryResponse,
-  CompositeResponse,
-} from '../types';
+import type { SynastryResponse, CompositeResponse } from '../types';
 import type { AuthenticatedRequest } from '../types/auth';
+import { CreateConnectionDto } from '@/common/dto/request-validation.dto';
 
 @ApiTags('Connections')
 @Controller('connections')
-@UseGuards(JwtAuthGuard)
+@UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class ConnectionsController {
   constructor(private readonly connectionsService: ConnectionsService) {}
@@ -36,7 +34,7 @@ export class ConnectionsController {
   @ApiResponse({ status: 201, description: 'Связь создана' })
   async createConnection(
     @Request() req: AuthenticatedRequest,
-    @Body() connectionData: CreateConnectionRequest,
+    @Body() connectionData: CreateConnectionDto,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     if (!userId) {
@@ -69,7 +67,11 @@ export class ConnectionsController {
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.connectionsService.getSynastry(userId, connectionId);
+    return this.connectionsService.getSynastry(
+      userId,
+      connectionId,
+      requestLocale(req),
+    );
   }
 
   @Get(':id/composite')
@@ -85,6 +87,10 @@ export class ConnectionsController {
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-    return this.connectionsService.getComposite(userId, connectionId);
+    return this.connectionsService.getComposite(
+      userId,
+      connectionId,
+      requestLocale(req),
+    );
   }
 }

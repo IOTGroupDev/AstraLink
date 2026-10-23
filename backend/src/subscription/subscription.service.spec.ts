@@ -1,14 +1,48 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Prisma, Subscription } from '@prisma/client';
 import { SubscriptionService } from './subscription.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { AIService } from '../services/ai.service';
+import { NatalChartService } from '../chart/services';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
-import { SubscriptionTier } from '../types';
+import { RedisService } from '../redis/redis.service';
+import { FEATURE_MATRIX, SubscriptionTier, TRIAL_CONFIG } from '../types';
+
+function createPrismaMock() {
+  return {
+    public_users: {
+      findUnique: jest
+        .fn<
+          Promise<{ id: string } | null>,
+          [Prisma.public_usersFindUniqueArgs]
+        >()
+        .mockResolvedValue({ id: 'test-user-123' }),
+    },
+    subscription: {
+      findUnique: jest.fn<
+        Promise<Subscription | null>,
+        [Prisma.SubscriptionFindUniqueArgs]
+      >(),
+      upsert: jest.fn<Promise<Subscription>, [Prisma.SubscriptionUpsertArgs]>(),
+      update: jest.fn<Promise<Subscription>, [Prisma.SubscriptionUpdateArgs]>(),
+    },
+  };
+}
+
+function createRedisMock() {
+  return {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+    del: jest.fn().mockResolvedValue(1),
+    deleteByPattern: jest.fn().mockResolvedValue(undefined),
+  };
+}
 
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
-  let prismaService: jest.Mocked<PrismaService>;
+  let prismaService: ReturnType<typeof createPrismaMock>;
+  let redis: ReturnType<typeof createRedisMock>;
 
   const mockUserId = 'test-user-123';
   const mockDate = new Date('2025-11-23T00:00:00Z');
@@ -18,18 +52,8 @@ describe('SubscriptionService', () => {
     jest.useFakeTimers();
     jest.setSystemTime(mockDate);
 
-    const mockPrismaService = {
-      subscription: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-      },
-    };
-
-    const mockAIService = {
-      isAvailable: jest.fn(),
-    };
+    prismaService = createPrismaMock();
+    redis = createRedisMock();
 
     const mockHoroscopeService = {
       generateHoroscope: jest.fn(),
@@ -40,21 +64,25 @@ describe('SubscriptionService', () => {
         SubscriptionService,
         {
           provide: PrismaService,
-          useValue: mockPrismaService,
+          useValue: prismaService,
         },
         {
-          provide: AIService,
-          useValue: mockAIService,
+          provide: NatalChartService,
+          useValue: { refreshPremiumChartAssets: jest.fn() },
         },
         {
           provide: HoroscopeGeneratorService,
           useValue: mockHoroscopeService,
         },
+        { provide: RedisService, useValue: redis },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({ NODE_ENV: 'test' }),
+        },
       ],
     }).compile();
 
     service = module.get<SubscriptionService>(SubscriptionService);
-    prismaService = module.get(PrismaService);
   });
 
   afterEach(() => {
@@ -65,23 +93,28 @@ describe('SubscriptionService', () => {
   describe('getStatus', () => {
     it('should return free subscription for new user', async () => {
       prismaService.subscription.findUnique.mockResolvedValue(null);
-      prismaService.subscription.create.mockResolvedValue({
+      prismaService.subscription.upsert.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.FREE,
         expiresAt: null,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
       expect(result.tier).toBe(SubscriptionTier.FREE);
       expect(result.isActive).toBe(true);
       expect(result.isTrial).toBe(false);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(prismaService.subscription.create).toHaveBeenCalled();
+      expect(prismaService.subscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: mockUserId },
+          create: expect.objectContaining({ tier: SubscriptionTier.FREE }),
+        }),
+      );
     });
 
     it('should return active premium subscription', async () => {
@@ -91,12 +124,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.PREMIUM,
         expiresAt: futureDate,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -113,12 +147,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.PREMIUM,
         expiresAt: null,
         trialEndsAt: trialEndDate,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -136,43 +171,45 @@ describe('SubscriptionService', () => {
         .mockResolvedValueOnce({
           id: '1',
           userId: mockUserId,
+          isCancelled: false,
           tier: SubscriptionTier.PREMIUM,
           expiresAt: pastDate,
           trialEndsAt: null,
           createdAt: mockDate,
           updatedAt: mockDate,
-        } as any)
+        })
         .mockResolvedValueOnce({
           id: '1',
           userId: mockUserId,
+          isCancelled: false,
           tier: SubscriptionTier.FREE,
           expiresAt: null,
           trialEndsAt: null,
           createdAt: mockDate,
           updatedAt: mockDate,
-        } as any);
+        });
 
       prismaService.subscription.update.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.FREE,
         expiresAt: null,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
       expect(result.tier).toBe(SubscriptionTier.FREE);
       expect(result.isActive).toBe(true);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(prismaService.subscription.update).toHaveBeenCalledWith({
         where: { userId: mockUserId },
         data: {
           tier: SubscriptionTier.FREE,
           expiresAt: null,
-          trialEndsAt: null,
+          isCancelled: false,
         },
       });
     });
@@ -184,12 +221,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.PREMIUM,
         expiresAt: futureDate,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -204,23 +242,34 @@ describe('SubscriptionService', () => {
         .mockResolvedValueOnce({
           id: '1',
           userId: mockUserId,
+          isCancelled: false,
           tier: SubscriptionTier.PREMIUM,
           expiresAt: null,
           trialEndsAt: pastDate,
           createdAt: mockDate,
           updatedAt: mockDate,
-        } as any)
+        })
         .mockResolvedValueOnce({
           id: '1',
           userId: mockUserId,
+          isCancelled: false,
           tier: SubscriptionTier.FREE,
           expiresAt: null,
           trialEndsAt: null,
           createdAt: mockDate,
           updatedAt: mockDate,
-        } as any);
+        });
 
-      prismaService.subscription.update.mockResolvedValue({} as any);
+      prismaService.subscription.update.mockResolvedValue({
+        id: '1',
+        userId: mockUserId,
+        tier: SubscriptionTier.FREE,
+        expiresAt: null,
+        trialEndsAt: null,
+        isCancelled: false,
+        createdAt: mockDate,
+        updatedAt: mockDate,
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -234,17 +283,19 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.FREE,
         expiresAt: null,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
-      expect(result.features).toBeDefined();
-      expect(Array.isArray(result.features)).toBe(true);
+      expect(result.features).toEqual(
+        FEATURE_MATRIX[SubscriptionTier.FREE].features,
+      );
     });
 
     it('should have correct features for PREMIUM tier', async () => {
@@ -254,40 +305,114 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.PREMIUM,
         expiresAt: futureDate,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
-      expect(result.features).toBeDefined();
-      expect(Array.isArray(result.features)).toBe(true);
-      // Premium should have more features than FREE
+      expect(result.features).toEqual(
+        FEATURE_MATRIX[SubscriptionTier.PREMIUM].features,
+      );
     });
 
-    it('should validate tier upgrade path (FREE -> PREMIUM)', async () => {
-      // Test upgrade logic if implemented
-    });
+    it('normalizes legacy MAX subscriptions to Premium', async () => {
+      prismaService.subscription.findUnique.mockResolvedValue({
+        id: '1',
+        userId: mockUserId,
+        tier: SubscriptionTier.MAX,
+        expiresAt: new Date('2025-12-23T00:00:00Z'),
+        trialEndsAt: null,
+        isCancelled: false,
+        createdAt: mockDate,
+        updatedAt: mockDate,
+      });
 
-    it('should validate tier upgrade path (PREMIUM -> ULTIMATE)', async () => {
-      // Test upgrade logic if implemented
+      const result = await service.getStatus(mockUserId);
+
+      expect(result.tier).toBe(SubscriptionTier.PREMIUM);
+      expect(result.features).toEqual(
+        FEATURE_MATRIX[SubscriptionTier.PREMIUM].features,
+      );
     });
   });
 
   describe('Trial Management', () => {
-    it('should start trial for new premium subscription', async () => {
-      // Test trial creation logic
+    const freeSubscription: Subscription = {
+      id: '1',
+      userId: mockUserId,
+      tier: SubscriptionTier.FREE,
+      expiresAt: null,
+      trialEndsAt: null,
+      isCancelled: false,
+      createdAt: mockDate,
+      updatedAt: mockDate,
+    };
+
+    it('activates a trial and invalidates all subscription caches', async () => {
+      prismaService.subscription.findUnique.mockResolvedValue(freeSubscription);
+      const trialEnd = new Date(mockDate);
+      trialEnd.setDate(trialEnd.getDate() + TRIAL_CONFIG.duration);
+      prismaService.subscription.update.mockResolvedValue({
+        ...freeSubscription,
+        tier: TRIAL_CONFIG.tier,
+        trialEndsAt: trialEnd,
+      });
+
+      await expect(service.activateTrial(mockUserId)).resolves.toEqual({
+        success: true,
+        message: `Trial активирован на ${TRIAL_CONFIG.duration} дней`,
+        expiresAt: trialEnd.toISOString(),
+      });
+      expect(prismaService.subscription.update).toHaveBeenCalledWith({
+        where: { userId: mockUserId },
+        data: { tier: TRIAL_CONFIG.tier, trialEndsAt: trialEnd },
+      });
+      for (const key of ['status:', 'record:', '']) {
+        expect(redis.del).toHaveBeenCalledWith(
+          `subscription:${key}${mockUserId}`,
+        );
+      }
+      expect(redis.set).toHaveBeenCalledWith(
+        `subscription:status:${mockUserId}`,
+        expect.objectContaining({
+          isTrial: true,
+          daysRemaining: TRIAL_CONFIG.duration,
+        }),
+        60,
+      );
     });
 
-    it('should not allow multiple trials for same user', async () => {
-      // Test trial restriction
-    });
+    it.each([
+      ['2025-11-22T00:00:00Z', 'Trial период уже был использован'],
+      ['2025-11-24T00:00:00Z', 'Trial период уже активен'],
+    ])(
+      'rejects a repeat trial with expiration %s',
+      async (trialEndsAt, message) => {
+        prismaService.subscription.findUnique.mockResolvedValue({
+          ...freeSubscription,
+          trialEndsAt: new Date(trialEndsAt),
+        });
 
-    it('should convert trial to paid subscription after trial ends', async () => {
-      // Test trial conversion logic
+        await expect(service.activateTrial(mockUserId)).rejects.toThrow(
+          message,
+        );
+        expect(prismaService.subscription.update).not.toHaveBeenCalled();
+        expect(redis.set).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects a trial when the subscription does not exist', async () => {
+      prismaService.subscription.findUnique.mockResolvedValue(null);
+
+      await expect(service.activateTrial(mockUserId)).rejects.toThrow(
+        'Подписка не найдена',
+      );
+      expect(prismaService.subscription.update).not.toHaveBeenCalled();
     });
 
     it('should calculate trial expiration correctly', async () => {
@@ -298,12 +423,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.PREMIUM,
         expiresAt: null,
         trialEndsAt: trialEndDate,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -320,12 +446,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.PREMIUM,
         expiresAt: todayEnd,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -341,23 +468,34 @@ describe('SubscriptionService', () => {
         .mockResolvedValueOnce({
           id: '1',
           userId: mockUserId,
+          isCancelled: false,
           tier: SubscriptionTier.PREMIUM,
           expiresAt: pastDate,
           trialEndsAt: null,
           createdAt: mockDate,
           updatedAt: mockDate,
-        } as any)
+        })
         .mockResolvedValueOnce({
           id: '1',
           userId: mockUserId,
+          isCancelled: false,
           tier: SubscriptionTier.FREE,
           expiresAt: null,
           trialEndsAt: null,
           createdAt: mockDate,
           updatedAt: mockDate,
-        } as any);
+        });
 
-      prismaService.subscription.update.mockResolvedValue({} as any);
+      prismaService.subscription.update.mockResolvedValue({
+        id: '1',
+        userId: mockUserId,
+        tier: SubscriptionTier.FREE,
+        expiresAt: null,
+        trialEndsAt: null,
+        isCancelled: false,
+        createdAt: mockDate,
+        updatedAt: mockDate,
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -369,12 +507,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.FREE,
         expiresAt: null,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const result = await service.getStatus(mockUserId);
 
@@ -386,12 +525,13 @@ describe('SubscriptionService', () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
+        isCancelled: false,
         tier: SubscriptionTier.FREE,
         expiresAt: null,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
       const promises = Array.from({ length: 10 }, () =>
         service.getStatus(mockUserId),
@@ -415,50 +555,60 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('should handle invalid userId gracefully', async () => {
-      const invalidUserId = '';
+    it('rejects subscription creation for a missing user', async () => {
+      prismaService.subscription.findUnique.mockResolvedValue(null);
+      prismaService.public_users.findUnique.mockResolvedValue(null);
 
-      await expect(service.getStatus(invalidUserId)).rejects.toThrow();
+      await expect(service.getStatus(mockUserId)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaService.subscription.upsert).not.toHaveBeenCalled();
     });
 
     it('should handle malformed subscription data', async () => {
       prismaService.subscription.findUnique.mockResolvedValue({
         id: '1',
         userId: mockUserId,
-        tier: 'INVALID_TIER' as any,
+        isCancelled: false,
+        tier: 'INVALID_TIER',
         expiresAt: null,
         trialEndsAt: null,
         createdAt: mockDate,
         updatedAt: mockDate,
-      } as any);
+      });
 
-      // Should handle gracefully or throw appropriate error
-      await service.getStatus(mockUserId);
+      const result = await service.getStatus(mockUserId);
 
-      // Verify error handling
+      expect(result.tier).toBe(SubscriptionTier.FREE);
+      expect(result.features).toEqual(
+        FEATURE_MATRIX[SubscriptionTier.FREE].features,
+      );
     });
   });
 
-  describe('Performance', () => {
-    it('should complete status check within acceptable time', async () => {
-      prismaService.subscription.findUnique.mockResolvedValue({
-        id: '1',
-        userId: mockUserId,
-        tier: SubscriptionTier.FREE,
-        expiresAt: null,
-        trialEndsAt: null,
-        createdAt: mockDate,
-        updatedAt: mockDate,
-      } as any);
+  describe('Status caching', () => {
+    it('uses the cached status without a database lookup', async () => {
+      redis.get.mockResolvedValue({
+        tier: SubscriptionTier.MAX,
+        isActive: true,
+        isTrial: false,
+        features: ['obsolete feature'],
+        daysRemaining: 5,
+      });
 
-      const startTime = Date.now();
-      await service.getStatus(mockUserId);
-      const endTime = Date.now();
+      const result = await service.getStatus(mockUserId);
 
-      const duration = endTime - startTime;
-
-      // Should complete in less than 100ms
-      expect(duration).toBeLessThan(100);
+      expect(redis.get).toHaveBeenCalledWith(
+        `subscription:status:${mockUserId}`,
+      );
+      expect(prismaService.subscription.findUnique).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        tier: SubscriptionTier.PREMIUM,
+        isActive: true,
+        isTrial: false,
+        features: FEATURE_MATRIX[SubscriptionTier.PREMIUM].features,
+        daysRemaining: 5,
+      });
     });
   });
 });

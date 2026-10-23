@@ -7,17 +7,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0D0618"
-    },
     "ios": {
       "bundleIdentifier": "astralink.test",
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "buildNumber": "55",
+      "buildNumber": "61",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Используется для безопасного входа в приложение",
         "ITSAppUsesNonExemptEncryption": false
@@ -61,8 +55,7 @@
       "SUPABASE_URL": "https://ayoucajwdyinyhamousz.supabase.co",
       "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5b3VjYWp3ZHlpbnloYW1vdXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDcyMDcsImV4cCI6MjA3NDI4MzIwN30.S-JOt3sVAEzbZTIEJrHDsKthp3pA5wGsyNEfHfeOrHo",
       "SUPABASE_YANDEX_PROVIDER": "custom:yandex",
-      "EXPO_PUBLIC_API_URL": "https://api.astralink.vip",
-      "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TcpzcChJIbNpjLT8AGBHf8rsfRcuRIxTbGDIHigWLcgRYaXYGuDB5l5vaZhro4CD1RVFYRmhPAz2mnLvY0rEcdW00z9EB7ta8"
+      "EXPO_PUBLIC_API_URL": "https://api.astralink.vip"
     },
     "plugins": [
       "expo-font",
@@ -76,6 +69,32 @@
         {
           "merchantIdentifier": "merchant.astralink",
           "enableGooglePay": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4",
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0D0618",
+          "enableFullScreenImage_legacy": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AstraLink uses your selected photos for your profile and chat messages.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],

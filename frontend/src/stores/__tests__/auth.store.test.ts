@@ -51,6 +51,16 @@ describe('Auth Store', () => {
     expect(result.current.isAuthenticated).toBe(true);
   });
 
+  it('keeps server-confirmed completion when birth fields are absent', () => {
+    useAuthStore.getState().setProfile({
+      id: '123',
+      email: 'test@example.com',
+      onboardingCompleted: true,
+    });
+
+    expect(useAuthStore.getState().onboardingCompleted).toBe(true);
+  });
+
   it('should clear user on logout', () => {
     const { result } = renderHook(() => useAuthStore());
     const mockUser = {

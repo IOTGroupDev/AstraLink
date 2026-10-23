@@ -9,7 +9,8 @@
       "ios": {
         "simulator": true,
         "buildConfiguration": "Debug"
-      }
+      },
+      "node": "22.22.3"
     },
     "preview": {
       "distribution": "internal",
@@ -19,7 +20,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://staging.api.astralink.app"
-      }
+      },
+      "node": "22.22.3"
     },
     "production": {
       "distribution": "store",
@@ -30,7 +32,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.astralink.vip"
-      }
+      },
+      "node": "22.22.3"
     }
   },
   "submit": {

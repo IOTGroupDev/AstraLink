@@ -1,4 +1,6 @@
 {
+  "birthLocation": "Lugar de nacimiento",
+  "birthCoordinates": "Coordenadas de nacimiento",
   "title": "Carta Natal",
   "subtitle": "Análisis astrológico completo",
   "tabs": {
@@ -202,5 +204,7 @@
   },
   "widget": {
     "loading": "Cargando datos de la carta..."
-  }
+  },
+  "unknownBirthTime": "Se desconoce la hora de nacimiento. Las posiciones planetarias usan las 12:00 como referencia y son aproximadas; el intervalo lunar abarca la fecha local. El ascendente, las casas y sus interpretaciones no están disponibles.",
+  "degreesPerDay": "°/día"
 }

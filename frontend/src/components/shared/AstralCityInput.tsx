@@ -34,10 +34,14 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchVersion = useRef(0);
   const justSelected = useRef(false);
 
   useEffect(() => {
+    const version = ++searchVersion.current;
+    setLoading(false);
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
@@ -65,13 +69,15 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
       setLoading(true);
       try {
         const results = await geoApi.suggestCities({ q: value, lang: 'ru' });
+        if (version !== searchVersion.current) return;
         setSuggestions(results);
         setShowSuggestions(results.length > 0);
       } catch (error) {
+        if (version !== searchVersion.current) return;
         setSuggestions([]);
         setShowSuggestions(false);
       } finally {
-        setLoading(false);
+        if (version === searchVersion.current) setLoading(false);
       }
     }, 300);
 
@@ -82,14 +88,31 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
     };
   }, [value, isFocused]);
 
+  useEffect(
+    () => () => {
+      searchVersion.current += 1;
+      if (blurTimeout.current) clearTimeout(blurTimeout.current);
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    },
+    []
+  );
+
   const handleFocus = useCallback(() => {
+    if (blurTimeout.current) clearTimeout(blurTimeout.current);
     setIsFocused(true);
   }, []);
 
   const handleBlur = useCallback(() => {
-    setIsFocused(false);
-    setShowSuggestions(false);
-    setSuggestions([]);
+    searchVersion.current += 1;
+    setLoading(false);
+    // iOS can blur the input before dispatching the suggestion's onPress.
+    // Keep the row mounted until that tap has been handled.
+    if (blurTimeout.current) clearTimeout(blurTimeout.current);
+    blurTimeout.current = setTimeout(() => {
+      setIsFocused(false);
+      setShowSuggestions(false);
+      setSuggestions([]);
+    }, 150);
 
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
@@ -99,6 +122,10 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
 
   const handleSelectCity = useCallback(
     (city: CityOption) => {
+      if (blurTimeout.current) clearTimeout(blurTimeout.current);
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+      searchVersion.current += 1;
+      setLoading(false);
       justSelected.current = true;
       onChangeText(city.display);
       setShowSuggestions(false);

@@ -11,6 +11,8 @@ import {
   Logger,
   HttpException,
   HttpStatus,
+  DefaultValuePipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,9 +20,12 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { DatingService } from './dating.service';
+import { DatingActionDto } from './dto/dating-action.dto';
 import type { DatingMatchResponse } from '../types';
 import type { AuthenticatedRequest } from '../types/auth';
 
@@ -140,9 +145,17 @@ export class DatingController {
     summary: 'Получить кандидатов для свайпа (ранжирование по совместимости)',
   })
   @ApiResponse({ status: 200, description: 'Список кандидатов' })
+  @ApiQuery({
+    name: 'includeReviewed',
+    required: false,
+    type: Boolean,
+    description: 'Повторно показать анкеты с сохранённым лайком или пропуском',
+  })
   async getCandidates(
     @Request() req: AuthenticatedRequest,
     @Query('limit') limit?: string,
+    @Query('includeReviewed', new DefaultValuePipe(false), new ParseBoolPipe())
+    includeReviewed: boolean = false,
   ) {
     try {
       const token = this.getAccessToken(req);
@@ -152,6 +165,7 @@ export class DatingController {
       return await this.datingService.getCandidatesViaSupabase(
         token,
         safeLimit,
+        includeReviewed,
       );
     } catch (e: any) {
       this.logger.error('getCandidates failed', e?.stack || e);
@@ -173,7 +187,7 @@ export class DatingController {
   async likeUser(
     @Request() req: AuthenticatedRequest,
     @Body()
-    body: { targetUserId: string; action?: 'like' | 'super_like' | 'pass' },
+    body: DatingActionDto,
   ) {
     try {
       const token = this.getAccessToken(req);
@@ -197,6 +211,7 @@ export class DatingController {
   }
 
   @Post('rank/run')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Запустить ночной ранк кандидатов вручную (admin)' })
   @ApiResponse({ status: 200, description: 'Задача запущена' })
   async runRankCandidates() {
@@ -219,12 +234,18 @@ export class DatingController {
   })
   @ApiParam({ name: 'userId', description: 'ID пользователя' })
   @ApiResponse({ status: 200, description: 'Публичный профиль' })
-  async getPublicProfileForCard(@Param('userId') userId: string) {
+  async getPublicProfileForCard(
+    @Param('userId') userId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     try {
       if (!userId) {
         throw new UnauthorizedException('userId is required');
       }
-      return await this.datingService.getPublicProfileForCard(userId);
+      return await this.datingService.getPublicProfileForCard(
+        userId,
+        req.user?.userId || req.user?.id,
+      );
     } catch (e: any) {
       this.logger.error('getPublicProfileForCard failed', e?.stack || e);
       if (e instanceof HttpException) throw e;

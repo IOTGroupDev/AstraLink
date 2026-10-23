@@ -1,19 +1,19 @@
 import { AppState, type AppStateStatus } from 'react-native';
 import { supabase } from './supabase';
+import { logger } from './logger';
 
 type PresenceListener = (onlineIds: ReadonlySet<string>) => void;
 
 let channel: ReturnType<typeof supabase.channel> | null = null;
 let currentUserId: string | null = null;
 let onlineIds: Set<string> = new Set();
-let listeners: Set<PresenceListener> = new Set();
+const listeners: Set<PresenceListener> = new Set();
 let appStateSub: { remove: () => void } | null = null;
 
-/**
- * Presence should be enabled only when needed (e.g. Messages screens),
- * to avoid side-effects on navigation animations and overall app performance.
- */
-let leaseCount = 0;
+// App owns a lease throughout the authenticated session. Screens can share it.
+const leases = new Set<symbol>();
+let subscribed = false;
+let trackingQueue: Promise<void> = Promise.resolve();
 
 function notify() {
   const snapshot = new Set(onlineIds);
@@ -34,13 +34,17 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   return true;
 }
 
-function syncFromChannel() {
-  if (!channel) return;
+function syncFromChannel(source: NonNullable<typeof channel>) {
+  if (channel !== source || !subscribed) return;
 
   let next: Set<string>;
   try {
-    const state = channel.presenceState() as Record<string, unknown>;
-    next = new Set(Object.keys(state || {}));
+    const state = source.presenceState();
+    next = new Set(
+      Object.entries(state)
+        .filter(([, sessions]) => sessions.length > 0)
+        .map(([id]) => id)
+    );
   } catch {
     next = new Set();
   }
@@ -51,25 +55,22 @@ function syncFromChannel() {
   notify();
 }
 
-async function safeTrack() {
-  if (!channel) return;
-  try {
-    await channel.track({ online_at: new Date().toISOString() });
-  } catch {
-    // ignore
-  }
-}
-
-async function safeUntrack() {
-  if (!channel) return;
-  const anyCh: any = channel as any;
-  try {
-    if (typeof anyCh.untrack === 'function') {
-      await anyCh.untrack();
-    }
-  } catch {
-    // ignore
-  }
+function reconcileTracking() {
+  const source = channel;
+  if (!source) return;
+  // Serialize a pending track and subsequent untrack during rapid AppState
+  // changes so a completed track cannot leave a background app online.
+  trackingQueue = trackingQueue
+    .then(async () => {
+      if (channel !== source || !subscribed) return;
+      const result =
+        AppState.currentState === 'active'
+          ? await source.track({ online_at: new Date().toISOString() })
+          : await source.untrack();
+      if (result !== 'ok')
+        logger.warn('[Presence] Tracking unavailable', result);
+    })
+    .catch((error) => logger.warn('[Presence] Tracking failed', error));
 }
 
 function attachAppStateListener() {
@@ -82,9 +83,9 @@ function attachAppStateListener() {
         if (!channel) return;
 
         if (nextState === 'active') {
-          void safeTrack();
+          reconcileTracking();
         } else if (nextState === 'background' || nextState === 'inactive') {
-          void safeUntrack();
+          reconcileTracking();
         }
       }
     );
@@ -109,26 +110,35 @@ export function startPresence(userId: string) {
 
   currentUserId = userId;
 
-  channel = supabase.channel('presence:global', {
+  const source = supabase.channel('presence:global', {
     config: {
       presence: { key: userId },
     },
   });
+  channel = source;
 
-  channel.on('presence', { event: 'sync' }, () => syncFromChannel());
-  channel.on('presence', { event: 'join' }, () => syncFromChannel());
-  channel.on('presence', { event: 'leave' }, () => syncFromChannel());
+  source.on('presence', { event: 'sync' }, () => syncFromChannel(source));
+  source.on('presence', { event: 'join' }, () => syncFromChannel(source));
+  source.on('presence', { event: 'leave' }, () => syncFromChannel(source));
 
-  channel.subscribe((status) => {
+  source.subscribe((status) => {
+    if (channel !== source) return;
+    subscribed = status === 'SUBSCRIBED';
     if (status === 'SUBSCRIBED') {
-      void safeTrack();
+      reconcileTracking();
+    } else {
+      if (onlineIds.size > 0) {
+        onlineIds = new Set();
+        notify();
+      }
+      logger.warn('[Presence] Subscription unavailable', status);
     }
   });
 
   attachAppStateListener();
 
   // Initial state (before first sync)
-  syncFromChannel();
+  syncFromChannel(source);
 }
 
 /**
@@ -138,22 +148,26 @@ export function startPresence(userId: string) {
 export function acquirePresence(userId: string): () => void {
   if (!userId) return () => void 0;
 
-  leaseCount += 1;
   startPresence(userId);
+  const lease = Symbol(userId);
+  leases.add(lease);
 
   let released = false;
   return () => {
     if (released) return;
     released = true;
 
-    leaseCount = Math.max(0, leaseCount - 1);
-    if (leaseCount === 0) {
+    if (!leases.delete(lease)) return;
+    if (leases.size === 0) {
       stopPresence();
     }
   };
 }
 
 export function stopPresence() {
+  leases.clear();
+  subscribed = false;
+  trackingQueue = Promise.resolve();
   if (appStateSub) {
     try {
       appStateSub.remove();
@@ -165,7 +179,9 @@ export function stopPresence() {
 
   if (channel) {
     try {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel).catch((error) => {
+        logger.warn('[Presence] Cleanup failed', error);
+      });
     } catch {
       // ignore
     }

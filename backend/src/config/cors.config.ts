@@ -19,6 +19,7 @@ export const getCorsConfig = (): CorsOptions => {
     // Production: strict CORS policy
     const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
       .split(',')
+      .map((origin) => origin.trim())
       .filter(Boolean);
 
     if (allowedOrigins.length === 0) {
@@ -48,6 +49,8 @@ export const getCorsConfig = (): CorsOptions => {
         'Authorization',
         'X-Requested-With',
         'X-Client-Type',
+        'X-Locale',
+        'Accept-Language',
       ],
       exposedHeaders: [
         'X-Total-Count',
@@ -76,6 +79,8 @@ export const getCorsConfig = (): CorsOptions => {
         'Authorization',
         'X-Requested-With',
         'X-Client-Type',
+        'X-Locale',
+        'Accept-Language',
       ],
       exposedHeaders: [
         'X-Total-Count',

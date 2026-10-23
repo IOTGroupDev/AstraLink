@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { useAuthStore } from '../stores/auth.store';
+import { AuthEngine } from './authEngine';
 
 export type OAuthRoutingUser = {
   id: string;
@@ -30,33 +31,29 @@ export async function applyOAuthSessionToAuthStore(
     session = null;
   }
 
-  if (user && session) {
-    const onboardingCompleted = !!user.onboardingCompleted;
+  if (!session) return false;
 
+  if (user?.id === session.user.id && user.onboardingCompleted === true) {
     authStore.setProfile({
       id: user.id,
       email: user.email,
       name: user.name,
-      onboardingCompleted,
+      onboardingCompleted: true,
     });
-    authStore.setAuthState(onboardingCompleted ? 'AUTHORIZED' : 'ONBOARDING');
-    authStore.setLoading(false);
-    authStore.setError(null);
-    return true;
   }
 
-  if (session?.user) {
-    authStore.setProfile({
-      id: session.user.id,
-      email: session.user.email || '',
-      name: (session.user.user_metadata as any)?.name || '',
-      onboardingCompleted: false,
-    });
-    authStore.setAuthState('ONBOARDING');
-    authStore.setLoading(false);
-    authStore.setError(null);
-    return true;
+  // A missing flag in an OAuth/OTP response says nothing about an existing
+  // profile. Resolve it through the same server lookup used at app startup.
+  try {
+    await AuthEngine.refreshProfile();
+  } catch {
+    // AuthEngine preserves a live session on transient profile errors, and
+    // clears invalid sessions. Neither case is evidence for onboarding.
   }
 
-  return false;
+  const current = useAuthStore.getState();
+  return (
+    Boolean(current.session?.access_token) &&
+    (current.authState === 'AUTHORIZED' || current.authState === 'ONBOARDING')
+  );
 }

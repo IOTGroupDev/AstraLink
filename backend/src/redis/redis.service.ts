@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import IORedis, { Redis } from 'ioredis';
 
 @Injectable()
-export class RedisService {
+export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private client: Redis | null = null;
   private redisErrorLogCount = 0;
@@ -20,15 +20,7 @@ export class RedisService {
         enableAutoPipelining: true,
         enableOfflineQueue: false,
         lazyConnect: false,
-        retryStrategy: (times) => {
-          if (times > 5) {
-            this.logger.warn(
-              'Redis reconnect stopped after 5 failed attempts; cache and queue features will run in degraded mode',
-            );
-            return null;
-          }
-          return Math.min(times * 100, 1000);
-        },
+        retryStrategy: (times) => Math.min(times * 200, 5000),
       });
 
       this.client.on('error', (err: any) => {
@@ -55,6 +47,10 @@ export class RedisService {
 
   getClient(): Redis | null {
     return this.isReady() ? this.client : null;
+  }
+
+  onModuleDestroy(): void {
+    this.client?.disconnect();
   }
 
   private isReady(): boolean {
@@ -130,8 +126,12 @@ export class RedisService {
     }
   }
 
-  async deleteByPattern(pattern: string): Promise<number> {
-    if (!this.isReady() || !this.client) return 0;
+  async deleteByPattern(pattern: string, required = false): Promise<number> {
+    if (!this.isReady() || !this.client) {
+      if (required)
+        throw new Error('Redis unavailable during required cleanup');
+      return 0;
+    }
     try {
       let cursor = '0';
       let total = 0;
@@ -154,6 +154,7 @@ export class RedisService {
       this.logger.warn(
         `Redis deleteByPattern failed for pattern=${pattern}: ${(e as Error).message}`,
       );
+      if (required) throw e;
       return 0;
     }
   }

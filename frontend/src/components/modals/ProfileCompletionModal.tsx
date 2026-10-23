@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(18, 17, 33, 0.8)',
   },
   headerGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   headerRow: {
     flexDirection: 'row',

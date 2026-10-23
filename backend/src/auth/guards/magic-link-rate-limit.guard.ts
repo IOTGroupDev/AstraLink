@@ -34,10 +34,7 @@ export class MagicLinkRateLimitGuard implements CanActivate {
     const response = context.switchToHttp().getResponse();
 
     // Get IP address
-    const ip =
-      (request.headers['x-forwarded-for'] as string)?.split(',')[0].trim() ||
-      request.ip ||
-      'unknown';
+    const ip = request.ip || 'unknown';
 
     // Get email from request body
     const email = request.body?.email;

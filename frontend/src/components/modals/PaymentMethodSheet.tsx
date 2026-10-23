@@ -15,6 +15,7 @@ import LoadingIndicator from '../shared/LoadingIndicator';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { stripeSubscriptionAvailable } from '../../services/subscription-payment-config';
 
 export type PaywallPaymentMethod = 'stripe' | 'apple';
 
@@ -49,12 +50,15 @@ const PaymentMethodSheet: React.FC<PaymentMethodSheetProps> = ({
   }> = [
     {
       key: 'stripe',
+      disabled: !stripeSubscriptionAvailable,
       icon: 'card-outline',
       title: t('subscription.paymentSheet.stripe.title', 'Pay by card'),
-      subtitle: t(
-        'subscription.paymentSheet.stripe.subtitle',
-        'Secure card payment via Stripe'
-      ),
+      subtitle: !stripeSubscriptionAvailable
+        ? t('subscription.paymentSheet.unavailable')
+        : t(
+            'subscription.paymentSheet.stripe.subtitle',
+            'Secure card payment via Stripe'
+          ),
     },
     ...(Platform.OS === 'ios'
       ? [
@@ -248,11 +252,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   dismissArea: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   sheet: {
     overflow: 'hidden',

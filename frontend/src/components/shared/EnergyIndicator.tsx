@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -27,6 +28,7 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
   size = SIZE,
   color = '#8B5CF6',
 }) => {
+  const { t } = useTranslation();
   const AnimatedCircle = Animated.createAnimatedComponent(Circle);
   const progress = useSharedValue(0);
   const rotation = useSharedValue(0);
@@ -84,7 +86,7 @@ const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({
 
       <View style={styles.content}>
         <Text style={styles.energyText}>{Math.round(energy)}%</Text>
-        <Text style={styles.labelText}>Энергия</Text>
+        <Text style={styles.labelText}>{t('common.energy')}</Text>
       </View>
     </View>
   );

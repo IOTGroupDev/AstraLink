@@ -37,6 +37,9 @@ export const AuthResponseSchema = z.object({
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 
 export const UpdateProfileRequestSchema = z.object({
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  timezone: z.string().optional(),
   name: z.string().min(2).optional(),
   birthDate: z.string().optional(),
   birthPlace: z.string().optional(),

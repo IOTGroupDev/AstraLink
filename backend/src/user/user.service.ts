@@ -9,11 +9,13 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { RedisService } from '@/redis/redis.service';
 import type { UpdateProfileRequest } from '../types';
 import { ChartService } from '../chart/chart.service';
 import { UserRepository } from '../repositories';
 import { UserProfileUpdatedEvent, BirthDataChangedEvent } from './events';
 import { UpdatePushTokenDto } from './dto/update-push-token.dto';
+import { isOwnedPhotoPath } from './dto/photos.dto';
 import {
   SubscriptionTier,
   hasAIAccess,
@@ -32,6 +34,7 @@ export class UserService {
     private userRepository: UserRepository,
     private eventEmitter: EventEmitter2,
     private prisma: PrismaService,
+    private readonly redis: RedisService,
   ) {}
 
   private async getActiveSubscriptionTier(
@@ -231,10 +234,14 @@ export class UserService {
     const primaryPhoto = await this.prisma.userPhoto.findFirst({
       where: { userId },
       orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
-      select: { storagePath: true },
+      select: { userId: true, storagePath: true },
     });
 
-    if (!primaryPhoto?.storagePath) {
+    if (
+      !primaryPhoto ||
+      primaryPhoto.userId !== userId ||
+      !isOwnedPhotoPath(primaryPhoto.userId, primaryPhoto.storagePath)
+    ) {
       return {
         primaryPhotoUrl: null,
         primaryPhotoPath: null,
@@ -437,7 +444,32 @@ export class UserService {
       profile = null;
     }
 
+    if (
+      patch.birth_time !== undefined &&
+      patch.birth_time !== oldData.birthTime
+    )
+      patch.birth_time_known = true;
     const nowISO = new Date().toISOString();
+
+    if (
+      typeof updateData.latitude === 'number' &&
+      typeof updateData.longitude === 'number' &&
+      updateData.timezone
+    ) {
+      patch.birth_location = {
+        birthPlace: patch.birth_place ?? oldData.birthPlace,
+        location: {
+          latitude: updateData.latitude,
+          longitude: updateData.longitude,
+          timezone: updateData.timezone,
+        },
+      };
+    } else if (
+      patch.birth_place !== undefined &&
+      patch.birth_place !== oldData.birthPlace
+    ) {
+      patch.birth_location = null;
+    }
 
     // 3) Если профиля нет — создаём запись (upsert через insert/select)
     if (!profile) {
@@ -562,7 +594,8 @@ export class UserService {
       const birthDataChanged =
         patch.birth_date !== undefined ||
         patch.birth_time !== undefined ||
-        patch.birth_place !== undefined;
+        patch.birth_place !== undefined ||
+        patch.birth_location !== undefined;
 
       if (hasAll) {
         // есть ли карты?
@@ -591,6 +624,7 @@ export class UserService {
                 birthDate: birthDateOnly,
                 birthTime,
                 birthPlace,
+                birthTimeKnown: profile.birth_time_known !== false,
               },
               locale,
             );
@@ -730,6 +764,39 @@ export class UserService {
    *
    * ✅ ИСПРАВЛЕНО: Использует Prisma $transaction для гарантии атомарности
    */
+  private async finalizeAccountDeletion(userId: string): Promise<void> {
+    const cleanups = await Promise.all([
+      this.supabaseService.removeStorageObjectsByPrefix('user-photos', userId),
+      this.supabaseService.removeStorageObjectsByPrefix('chat-media', userId),
+    ]);
+    if (cleanups.some((cleanup) => cleanup.error)) {
+      throw new InternalServerErrorException(
+        'Account storage cleanup is incomplete; retry deletion',
+      );
+    }
+    await Promise.all([
+      this.redis.deleteByPattern(`horoscope:${userId}:*`, true),
+      this.redis.deleteByPattern(`ephe:transits:${userId}:*`, true),
+      this.redis.deleteByPattern(`chat:hidden:*:${userId}`, true),
+      this.redis.deleteByPattern(`subscription:*:${userId}`, true),
+      this.redis.deleteByPattern(`subscription:${userId}`, true),
+      this.redis.deleteByPattern(`advisor:*:${userId}:*`, true),
+      this.redis.deleteByPattern(`ai:horoscope:quota:${userId}:*`, true),
+      this.redis.deleteByPattern(`ratelimit:*:${userId}*`, true),
+    ]);
+    const { error } = await this.supabaseService.deleteUser(userId);
+    const alreadyDeleted =
+      typeof error === 'object' &&
+      error !== null &&
+      'status' in error &&
+      error.status === 404;
+    if (error && !alreadyDeleted) {
+      throw new InternalServerErrorException(
+        'Auth account deletion is incomplete; retry deletion',
+      );
+    }
+  }
+
   async deleteAccount(userId: string): Promise<void> {
     try {
       this.logger.log(`🗑️ Начинаем удаление аккаунта пользователя: ${userId}`);
@@ -738,7 +805,8 @@ export class UserService {
       const user = await this.userRepository.findById(userId);
 
       if (!user) {
-        throw new NotFoundException(`Пользователь с ID ${userId} не найден`);
+        await this.finalizeAccountDeletion(userId);
+        return;
       }
 
       this.logger.log(`✅ Пользователь найден: ${user.id}`);
@@ -793,6 +861,8 @@ export class UserService {
         ai_content_cache: await tableExists('ai_content_cache'),
         public_profiles: await tableExists('public_profiles'),
         profiles: await tableExists('profiles'),
+        compatibility_reports: await tableExists('compatibility_reports'),
+        user_fomo_counters: await tableExists('user_fomo_counters'),
       };
 
       const profileColumns = {
@@ -813,6 +883,17 @@ export class UserService {
       // ✅ КРИТИЧНО: Все операции с БД в одной транзакции
       // Если хотя бы одна операция упадёт - всё откатится автоматически
       await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        if (existingTables.compatibility_reports) {
+          await tx.$executeRaw(
+            Prisma.sql`DELETE FROM public.compatibility_reports WHERE user_id = ${userId}::uuid`,
+          );
+        }
+        if (existingTables.user_fomo_counters) {
+          await tx.$executeRaw(
+            Prisma.sql`DELETE FROM public.user_fomo_counters WHERE user_id::text = ${userId}`,
+          );
+        }
+
         if (existingTables.messages) {
           this.logger.log('🗑️ Удаление сообщений пользователя (messages)...');
           const messagesDeleted = existingTables.matches
@@ -1088,54 +1169,7 @@ export class UserService {
         '✅ Все данные пользователя удалены из БД (в транзакции)',
       );
 
-      const [userPhotosCleanup, chatMediaCleanup] = await Promise.all([
-        this.supabaseService.removeStorageObjectsByPrefix(
-          'user-photos',
-          userId,
-        ),
-        this.supabaseService.removeStorageObjectsByPrefix('chat-media', userId),
-      ]);
-
-      const describeStorageCleanupError = (error: unknown): string => {
-        if (error instanceof Error) {
-          return error.message;
-        }
-        if (typeof error === 'string') {
-          return error;
-        }
-        return JSON.stringify(error);
-      };
-
-      for (const [bucket, cleanup] of [
-        ['user-photos', userPhotosCleanup],
-        ['chat-media', chatMediaCleanup],
-      ] as const) {
-        if (cleanup.error) {
-          this.logger.warn(
-            `⚠️ Не удалось полностью очистить Storage bucket ${bucket} для пользователя ${userId}: ${describeStorageCleanupError(cleanup.error)}`,
-          );
-        } else {
-          this.logger.log(
-            `✅ Удалено storage-объектов пользователя из ${bucket}: ${cleanup.removed}`,
-          );
-        }
-      }
-
-      // 6. Удаляем пользователя из Supabase Auth (вне транзакции - внешний API)
-      this.logger.log('🗑️ Удаление пользователя из Supabase Auth...');
-      const { error: authError } =
-        await this.supabaseService.deleteUser(userId);
-
-      if (authError) {
-        this.logger.error('❌ Ошибка удаления auth user:', authError);
-        // Логируем warning, но не выбрасываем ошибку
-        // т.к. основные данные уже атомарно удалены
-        this.logger.warn(
-          '⚠️ Не удалось удалить пользователя из Auth, но все данные в БД удалены',
-        );
-      } else {
-        this.logger.log('✅ Пользователь удален из Supabase Auth');
-      }
+      await this.finalizeAccountDeletion(userId);
 
       this.logger.log(`✅ Аккаунт пользователя ${userId} полностью удален`);
     } catch (error) {
@@ -1151,7 +1185,7 @@ export class UserService {
       }
 
       throw new InternalServerErrorException(
-        'Произошла ошибка при удалении аккаунта. Изменения откатаны.',
+        'Удаление аккаунта не завершено. Повторите запрос.',
       );
     }
   }

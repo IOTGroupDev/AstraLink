@@ -12,6 +12,8 @@ import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   private readonly logger = new Logger(SupabaseAuthGuard.name);
+  // Global and route guards can share a request, but never trust a client field.
+  private static readonly verifiedRequests = new WeakMap<object, string>();
 
   constructor(
     private supabaseService: SupabaseService,
@@ -62,6 +64,7 @@ export class SupabaseAuthGuard implements CanActivate {
       );
       throw new UnauthorizedException('Токен авторизации не предоставлен');
     }
+    if (SupabaseAuthGuard.verifiedRequests.get(request) === token) return true;
 
     try {
       this.logger.debug(`🔐 Validating token for ${requestLabel}`);
@@ -85,8 +88,11 @@ export class SupabaseAuthGuard implements CanActivate {
         id: user.id,
         email: user.email,
         role: (user as any).role,
+        appMetadata: user.app_metadata,
         rawUser: user,
       };
+
+      SupabaseAuthGuard.verifiedRequests.set(request, token);
 
       return true;
     } catch (e: any) {

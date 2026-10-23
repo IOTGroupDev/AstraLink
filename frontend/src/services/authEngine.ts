@@ -1,17 +1,26 @@
-import type { Session } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { AppState, Platform } from 'react-native';
 import { supabase } from './supabase';
 import { userAPI } from './api/user.api';
 import { authLogger } from './logger';
 import { notificationService } from './notifications';
 import { clearAllUserData } from './cleanupService';
-import { useAuthStore, type AuthProfile } from '../stores/auth.store';
+import {
+  useAuthStore,
+  hasCompletedOnboarding,
+  type AuthProfile,
+} from '../stores/auth.store';
 import { tokenService } from './tokenService';
 
 export type AuthState = 'BOOT' | 'UNAUTHORIZED' | 'ONBOARDING' | 'AUTHORIZED';
 
 let engineInitialized = false;
 let authSubscription: { unsubscribe: () => void } | null = null;
+let appStateSubscription: { remove: () => void } | null = null;
+const pendingAuthEvents = new Set<ReturnType<typeof setTimeout>>();
 const PROFILE_LOOKUP_TIMEOUT_MS = 10_000;
+const PROFILE_RETRY_DELAY_MS = 5_000;
+let profileRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -36,7 +45,7 @@ async function withTimeout<T>(
 }
 
 const needsOnboarding = (profile: AuthProfile | null): boolean => {
-  return !profile?.birthDate || !profile?.birthTime || !profile?.birthPlace;
+  return !hasCompletedOnboarding(profile);
 };
 
 const setState = (state: AuthState) => {
@@ -56,6 +65,10 @@ const syncRuntimeToken = async (session: Session | null) => {
 };
 
 const setProfile = (profile: AuthProfile | null) => {
+  if (profileRetryTimer) {
+    clearTimeout(profileRetryTimer);
+    profileRetryTimer = null;
+  }
   useAuthStore.getState().setProfile(profile);
 };
 
@@ -67,24 +80,14 @@ const setError = (message: string | null) => {
   useAuthStore.getState().setError(message);
 };
 
-const normalizeProfile = (raw: any): AuthProfile => ({
+const normalizeProfile = (raw: AuthProfile): AuthProfile => ({
   id: raw.id,
   email: raw.email,
   name: raw.name || undefined,
   birthDate: raw.birthDate || undefined,
   birthTime: raw.birthTime || undefined,
   birthPlace: raw.birthPlace || undefined,
-  onboardingCompleted: !!raw.birthDate && !!raw.birthTime && !!raw.birthPlace,
-});
-
-const profileFromSession = (session: Session): AuthProfile => ({
-  id: session.user.id,
-  email: session.user.email || '',
-  name: (session.user.user_metadata as any)?.name || undefined,
-  birthDate: undefined,
-  birthTime: undefined,
-  birthPlace: undefined,
-  onboardingCompleted: false,
+  onboardingCompleted: hasCompletedOnboarding(raw),
 });
 
 const resolveState = (profile: AuthProfile | null) => {
@@ -102,6 +105,31 @@ const fetchProfile = async (): Promise<AuthProfile | null> => {
     'profile_lookup'
   );
   return normalizeProfile(profile);
+};
+
+const isCurrentSession = (session: Session): boolean =>
+  useAuthStore.getState().session?.access_token === session.access_token &&
+  useAuthStore.getState().session?.user.id === session.user.id;
+
+const scheduleProfileRetry = (session: Session) => {
+  if (profileRetryTimer) return;
+
+  profileRetryTimer = setTimeout(() => {
+    profileRetryTimer = null;
+    if (isCurrentSession(session)) {
+      void AuthEngine.refreshProfileInBackground().then(
+        () => {
+          if (isCurrentSession(session) && !useAuthStore.getState().profile) {
+            scheduleProfileRetry(session);
+          }
+        },
+        (error: unknown) => {
+          authLogger.error('Profile retry failed', error);
+          if (isCurrentSession(session)) scheduleProfileRetry(session);
+        }
+      );
+    }
+  }, PROFILE_RETRY_DELAY_MS);
 };
 
 const isStaleAuthSessionError = (err: unknown): boolean => {
@@ -173,18 +201,17 @@ const applyFallbackProfileState = (session: Session) => {
 
   if (
     current.session?.user?.id === session.user.id &&
-    currentProfile?.id === session.user.id &&
-    !needsOnboarding(currentProfile)
+    currentProfile?.id === session.user.id
   ) {
     setError('profile_load_failed');
-    setState('AUTHORIZED');
+    resolveState(currentProfile);
     return;
   }
 
-  const fallbackProfile = profileFromSession(session);
-  setProfile(fallbackProfile);
+  setProfile(null);
   setError('profile_load_failed');
-  setState('ONBOARDING');
+  setState('BOOT');
+  scheduleProfileRetry(session);
 };
 
 const bootstrap = async () => {
@@ -217,10 +244,12 @@ const bootstrap = async () => {
 
   try {
     const profile = await fetchProfile();
+    if (!isCurrentSession(session)) return;
     setProfile(profile);
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed during boot', err);
+    if (!isCurrentSession(session)) return;
     if (isStaleAuthSessionError(err)) {
       await clearLocalAuthSession();
       return;
@@ -231,7 +260,10 @@ const bootstrap = async () => {
   }
 };
 
-const handleAuthEvent = async (event: string, session: Session | null) => {
+const handleAuthEvent = async (
+  event: AuthChangeEvent,
+  session: Session | null
+) => {
   authLogger.log('Auth event', event);
 
   if (!session) {
@@ -250,6 +282,13 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
   setSession(session);
   await syncRuntimeToken(session);
 
+  if (
+    (useAuthStore.getState().session?.access_token ?? null) !==
+    (session?.access_token ?? null)
+  ) {
+    return;
+  }
+
   if (!session) {
     setProfile(null);
     setError(null);
@@ -257,19 +296,29 @@ const handleAuthEvent = async (event: string, session: Session | null) => {
     return;
   }
 
+  // Token rotation is not registration: keep the current screen and profile.
+  const current = useAuthStore.getState();
+  if (
+    event === 'TOKEN_REFRESHED' &&
+    current.profile?.id === session.user.id &&
+    (current.authState === 'AUTHORIZED' || current.authState === 'ONBOARDING')
+  ) {
+    return;
+  }
+
   try {
     const profile = await fetchProfile();
+    if (!isCurrentSession(session)) return;
     setProfile(profile);
     resolveState(profile);
   } catch (err) {
     authLogger.error('Profile load failed after auth event', err);
-    if (session) {
-      applyFallbackProfileState(session);
-    } else {
-      setProfile(null);
-      setError('profile_load_failed');
-      setState('UNAUTHORIZED');
+    if (!isCurrentSession(session)) return;
+    if (isStaleAuthSessionError(err)) {
+      await clearLocalAuthSession();
+      return;
     }
+    applyFallbackProfileState(session);
   }
 };
 
@@ -282,28 +331,61 @@ export const AuthEngine = {
 
     await bootstrap();
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      await handleAuthEvent(event, session);
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      // Supabase invokes subscribers under its auth lock. Defer API calls so
+      // getSession/refreshSession can finish before profile requests run.
+      const timer = setTimeout(() => {
+        pendingAuthEvents.delete(timer);
+        void handleAuthEvent(event, session).catch((error: unknown) => {
+          authLogger.error('Auth event handling failed', error);
+        });
+      }, 0);
+      pendingAuthEvents.add(timer);
     });
 
     authSubscription = data?.subscription ?? null;
+
+    if (Platform.OS !== 'web') {
+      const updateAutoRefresh = (state: string | null) => {
+        const operation =
+          state === 'active'
+            ? supabase.auth.startAutoRefresh()
+            : supabase.auth.stopAutoRefresh();
+        void operation.catch((error: unknown) => {
+          authLogger.warn('Auth auto refresh lifecycle failed', error);
+        });
+      };
+      appStateSubscription = AppState.addEventListener(
+        'change',
+        updateAutoRefresh
+      );
+      updateAutoRefresh(AppState.currentState);
+    }
   },
 
   async refreshProfile() {
+    let requestedSession: Session | null = null;
     try {
       setLoading(true);
       setError(null);
       const session = await syncCurrentSession('Profile refresh');
+      requestedSession = session;
       if (!session) {
         setProfile(null);
         setState('UNAUTHORIZED');
         throw new Error('No active auth session');
       }
       const profile = await fetchProfile();
+      if (!isCurrentSession(session)) return;
       setProfile(profile);
       resolveState(profile);
     } catch (err) {
       authLogger.error('Profile refresh failed', err);
+      if (requestedSession && !isCurrentSession(requestedSession)) throw err;
+      if (isStaleAuthSessionError(err)) {
+        await clearLocalAuthSession();
+        throw err;
+      }
       const session = await getCurrentSessionSafely('Profile refresh failed');
       if (session) {
         applyFallbackProfileState(session);
@@ -319,6 +401,7 @@ export const AuthEngine = {
   },
 
   async refreshProfileInBackground() {
+    let requestedSession: Session | null = null;
     try {
       setError(null);
       const session = await getCurrentSessionSafely(
@@ -327,13 +410,20 @@ export const AuthEngine = {
       if (!session) {
         return;
       }
+      requestedSession = session;
       setSession(session);
       await syncRuntimeToken(session);
       const profile = await fetchProfile();
+      if (!isCurrentSession(session)) return;
       setProfile(profile);
       resolveState(profile);
     } catch (err) {
       authLogger.warn('Background profile refresh failed', err);
+      if (requestedSession && !isCurrentSession(requestedSession)) return;
+      if (isStaleAuthSessionError(err)) {
+        await clearLocalAuthSession();
+        return;
+      }
       const session = await getCurrentSessionSafely(
         'Background profile refresh failed'
       );
@@ -367,6 +457,14 @@ export const AuthEngine = {
   dispose() {
     authSubscription?.unsubscribe();
     authSubscription = null;
+    appStateSubscription?.remove();
+    appStateSubscription = null;
+    pendingAuthEvents.forEach(clearTimeout);
+    pendingAuthEvents.clear();
+    if (profileRetryTimer) {
+      clearTimeout(profileRetryTimer);
+      profileRetryTimer = null;
+    }
     engineInitialized = false;
   },
 };

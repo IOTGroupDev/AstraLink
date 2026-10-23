@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { existsSync } from 'fs';
 import { RedisService } from '../redis/redis.service';
+import { ASTRO_CALCULATION_VERSION } from '../shared/astro-version';
+import { historicalTimezoneOffset } from '../common/utils/timezone.util';
 import {
   calculateAspect,
   calculatePartOfFortune,
@@ -151,7 +153,7 @@ export class EphemerisService implements OnModuleInit {
 
   private hasEphemerisFiles(path: string): boolean {
     const knownFiles = ['sepl_18.se1', 'semo_18.se1', 'seas_18.se1'];
-    return knownFiles.some((file) => existsSync(`${path}/${file}`));
+    return knownFiles.every((file) => existsSync(`${path}/${file}`));
   }
 
   private describeEphemerisMode(initError?: string): string {
@@ -164,6 +166,17 @@ export class EphemerisService implements OnModuleInit {
     }
 
     return `Ephemeris mode: init failed${initError ? ` (${initError})` : ''}`;
+  }
+
+  getReadiness() {
+    return {
+      initialized: this.hasSE,
+      mode: this.ephemerisMode,
+      filesAvailable: Boolean(
+        this.activeEphePath && this.hasEphemerisFiles(this.activeEphePath),
+      ),
+      calculationVersion: ASTRO_CALCULATION_VERSION,
+    };
   }
 
   /**
@@ -216,9 +229,17 @@ export class EphemerisService implements OnModuleInit {
   async calculateNatalChart(
     date: string,
     time: string,
-    location: { latitude: number; longitude: number; timezone: number },
+    location: {
+      latitude: number;
+      longitude: number;
+      timezone: number;
+      timezoneId?: string;
+    },
+    birthTimeKnown = true,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<any> {
     await this.ensureSwissEphemeris();
+    if (!birthTimeKnown) time = '12:00';
 
     if (!date || !time) {
       throw new Error('Дата и время рождения обязательны');
@@ -261,10 +282,9 @@ export class EphemerisService implements OnModuleInit {
     );
 
     const planets = await this.calculatePlanets(julianDay);
-    const { houses, ascendant, midheaven } = await this.calculateHouses(
-      julianDay,
-      location,
-    );
+    const { houses, ascendant, midheaven, houseSystem } = birthTimeKnown
+      ? await this.calculateHouses(julianDay, location)
+      : { houses: {}, ascendant: null, midheaven: null, houseSystem: null };
     const aspects = this.calculateAspects(planets);
 
     // Calculate Part of Fortune
@@ -291,7 +311,7 @@ export class EphemerisService implements OnModuleInit {
         );
 
         // Get interpretation
-        const interpretation = getPartOfFortuneInterpretation(pof.sign, 'ru');
+        const interpretation = getPartOfFortuneInterpretation(pof.sign, locale);
 
         partOfFortune = {
           longitude: pof.longitude,
@@ -317,19 +337,58 @@ export class EphemerisService implements OnModuleInit {
       ascendant,
       midheaven,
       partOfFortune,
+      metadata: {
+        calculationVersion: ASTRO_CALCULATION_VERSION,
+        nodeModel: 'mean',
+        houseSystem,
+        ephemerisMode: this.ephemerisMode,
+        birthTimeKnown,
+        referenceTime: birthTimeKnown ? null : '12:00',
+        moonLongitudeRange: birthTimeKnown
+          ? null
+          : this.calculateMoonDayRange(date, location),
+      },
       calculatedAt: new Date().toISOString(),
     };
+  }
+
+  private calculateMoonDayRange(
+    date: string,
+    location: { timezone: number; timezoneId?: string },
+  ) {
+    const next = new Date(`${date}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    const nextDate = next.toISOString().slice(0, 10);
+    const bounds = [date, nextDate].map((day) => {
+      const offset = location.timezoneId
+        ? historicalTimezoneOffset(location.timezoneId, day, '00:00')
+        : location.timezone;
+      if (offset === null)
+        throw new Error('Unable to resolve the birth date timezone');
+      const instant = buildUtcBirthDateTime(day, '00:00', offset)!;
+      const result = swisseph.swe_calc_ut(
+        instant.getTime() / 86400000 + 2440587.5,
+        1,
+        swisseph.SEFLG_SWIEPH | swisseph.SEFLG_SPEED,
+      );
+      if (result?.error || !Number.isFinite(result?.longitude))
+        throw new Error('Unable to calculate lunar uncertainty');
+      return {
+        longitude: result.longitude as number,
+        sign: this.longitudeToSign(result.longitude),
+        degree: result.longitude % 30,
+      };
+    });
+    return { from: bounds[0], to: bounds[1] };
   }
 
   /**
    * Получает транзиты для пользователя
    */
-  async getTransits(userId: string, from: Date, to: Date): Promise<any[]> {
+  async getTransits(_userId: string, from: Date, to: Date): Promise<any[]> {
     await this.ensureSwissEphemeris();
 
-    const fromISO = from.toISOString().split('T')[0];
-    const toISO = to.toISOString().split('T')[0];
-    const cacheKey = `ephe:transits:${userId}:${fromISO}:${toISO}`;
+    const cacheKey = `ephe:transits:${ASTRO_CALCULATION_VERSION}:${from.toISOString()}:${to.toISOString()}`;
     const cached = await this.redis.get<any[]>(cacheKey);
     if (cached) {
       this.logger.debug(`Cache hit: ${cacheKey}`);
@@ -363,14 +422,18 @@ export class EphemerisService implements OnModuleInit {
   /**
    * Рассчитывает синастрию между двумя картами
    */
-  async getSynastry(chartA: ChartData, chartB: ChartData): Promise<any> {
+  async getSynastry(
+    chartA: ChartData,
+    chartB: ChartData,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<any> {
     const aspects: any[] = [];
     const planetsA = chartA.planets ?? {};
     const planetsB = chartB.planets ?? {};
 
     for (const [planetA, dataA] of Object.entries(planetsA)) {
       for (const [planetB, dataB] of Object.entries(planetsB)) {
-        if (planetA !== planetB && dataA && dataB) {
+        if (dataA && dataB) {
           const aspect = this.calculateAspect(dataA.longitude, dataB.longitude);
           if (aspect) {
             aspects.push({
@@ -390,14 +453,18 @@ export class EphemerisService implements OnModuleInit {
     return {
       aspects,
       compatibility,
-      summary: this.generateSynastrySummary(aspects, compatibility),
+      summary: this.generateSynastrySummary(aspects, compatibility, locale),
     };
   }
 
   /**
    * Рассчитывает композитную карту
    */
-  async getComposite(chartA: ChartData, chartB: ChartData): Promise<any> {
+  async getComposite(
+    chartA: ChartData,
+    chartB: ChartData,
+    locale: 'ru' | 'en' | 'es' = 'ru',
+  ): Promise<any> {
     const compositePlanets: any = {};
     const planetsA = chartA.planets ?? {};
     const planetsB = chartB.planets ?? {};
@@ -421,7 +488,12 @@ export class EphemerisService implements OnModuleInit {
     return {
       type: 'composite',
       planets: compositePlanets,
-      summary: 'Композитная карта показывает общую энергию пары',
+      summary:
+        locale === 'en'
+          ? 'The composite chart describes the shared dynamics of the relationship'
+          : locale === 'es'
+            ? 'La carta compuesta describe la dinámica compartida de la relación'
+            : 'Композитная карта показывает общую энергию пары',
       calculatedAt: new Date().toISOString(),
     };
   }
@@ -436,7 +508,7 @@ export class EphemerisService implements OnModuleInit {
       throw new Error('Некорректная дата для расчёта планет');
     }
 
-    const cacheKey = `ephe:planets:${Math.round(julianDay * 1000)}`;
+    const cacheKey = `ephe:planets:${ASTRO_CALCULATION_VERSION}:${julianDay}`;
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) {
       this.logger.debug(`Cache hit: ${cacheKey}`);
@@ -456,7 +528,6 @@ export class EphemerisService implements OnModuleInit {
       8: 'neptune',
       9: 'pluto',
       10: 'north_node',
-      11: 'south_node',
       12: 'lilith',
       15: 'chiron',
     };
@@ -486,6 +557,11 @@ export class EphemerisService implements OnModuleInit {
           degree: longitude % 30,
           speed,
           isRetrograde,
+          retrograde: isRetrograde,
+          ephemerisSource:
+            (result.rflag & swisseph.SEFLG_MOSEPH) !== 0
+              ? 'moshier'
+              : 'swisseph',
         };
       } else {
         throw new Error(
@@ -493,6 +569,17 @@ export class EphemerisService implements OnModuleInit {
         );
       }
     }
+
+    // Both node IDs in Swiss Ephemeris are northern nodes. The descending
+    // node is opposite the chosen ascending node and has the same speed.
+    const north = planets.north_node;
+    const southLongitude = (north.longitude + 180) % 360;
+    planets.south_node = {
+      ...north,
+      longitude: southLongitude,
+      sign: this.longitudeToSign(southLongitude),
+      degree: southLongitude % 30,
+    };
 
     if (Object.keys(planets).length === 0) {
       throw new Error('Не удалось рассчитать ни одной планеты');
@@ -532,106 +619,49 @@ export class EphemerisService implements OnModuleInit {
     houses: Record<number, { cusp: number; sign: string }>;
     ascendant: ChartAngle;
     midheaven: ChartAngle;
+    houseSystem: 'P' | 'O';
   }> {
     await this.ensureSwissEphemeris();
-
-    const houses: Record<number, { cusp: number; sign: string }> = {};
-    let ascendantLongitude: number | null = null;
-    let midheavenLongitude: number | null = null;
-
-    try {
-      const rawHouses = swisseph.swe_houses(
+    for (const houseSystem of ['P', 'O'] as const) {
+      const result = swisseph.swe_houses(
         julianDay,
         location.latitude,
         location.longitude,
-        'P',
+        houseSystem,
       );
-
-      let cuspsArray: number[] | null = null;
-
-      if (Array.isArray(rawHouses) && rawHouses.length >= 13) {
-        cuspsArray = rawHouses;
-      } else if (rawHouses?.cusps && Array.isArray(rawHouses.cusps)) {
-        cuspsArray = rawHouses.cusps;
-      } else if (Array.isArray(rawHouses?.[0])) {
-        cuspsArray = rawHouses[0];
-      } else if (rawHouses?.house && Array.isArray(rawHouses.house)) {
-        cuspsArray = [null, ...rawHouses.house];
+      if (result?.error) continue;
+      const cusps = result?.house ?? result?.houses;
+      const asc = result?.ascendant ?? result?.ascmc?.[0];
+      const mc = result?.mc ?? result?.midheaven ?? result?.ascmc?.[1];
+      if (
+        !Array.isArray(cusps) ||
+        !Number.isFinite(asc) ||
+        !Number.isFinite(mc)
+      )
+        continue;
+      const houses: Record<number, { cusp: number; sign: string }> = {};
+      for (let index = 1; index <= 12; index++) {
+        const cusp = cusps[cusps.length === 12 ? index - 1 : index];
+        if (
+          typeof cusp !== 'number' ||
+          !Number.isFinite(cusp) ||
+          cusp < 0 ||
+          cusp >= 360
+        )
+          break;
+        houses[index] = { cusp, sign: this.longitudeToSign(cusp) };
       }
-
-      if (typeof rawHouses?.ascendant === 'number') {
-        ascendantLongitude = rawHouses.ascendant;
-      } else if (typeof rawHouses?.ac === 'number') {
-        ascendantLongitude = rawHouses.ac;
-      } else if (Array.isArray(rawHouses?.ascmc)) {
-        ascendantLongitude = rawHouses.ascmc[0] ?? null;
-        midheavenLongitude = rawHouses.ascmc[1] ?? null;
-      } else if (Array.isArray(rawHouses?.[1])) {
-        ascendantLongitude = rawHouses[1][0] ?? null;
-        midheavenLongitude = rawHouses[1][1] ?? null;
-      }
-
-      if (typeof rawHouses?.midheaven === 'number') {
-        midheavenLongitude = rawHouses.midheaven;
-      } else if (typeof rawHouses?.mc === 'number') {
-        midheavenLongitude = rawHouses.mc;
-      }
-
-      if (cuspsArray) {
-        for (let i = 1; i <= 12; i++) {
-          const cusp = cuspsArray[i];
-          if (
-            typeof cusp === 'number' &&
-            !isNaN(cusp) &&
-            cusp >= 0 &&
-            cusp < 360
-          ) {
-            houses[i] = {
-              cusp: cusp,
-              sign: this.longitudeToSign(cusp),
-            };
-          } else {
-            houses[i] = {
-              cusp: (i - 1) * 30,
-              sign: this.longitudeToSign((i - 1) * 30),
-            };
-          }
-        }
-      } else {
-        throw new Error('Не удалось распарсить результат swe_houses');
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn('Используем упрощённый расчёт домов:', errorMessage);
-      for (let i = 1; i <= 12; i++) {
-        houses[i] = {
-          cusp: (i - 1) * 30,
-          sign: this.longitudeToSign((i - 1) * 30),
-        };
-      }
+      if (Object.keys(houses).length !== 12) continue;
+      return {
+        houses,
+        ascendant: this.buildAngle(asc),
+        midheaven: this.buildAngle(mc),
+        houseSystem,
+      };
     }
-
-    const fallbackAsc = houses[1]?.cusp ?? 0;
-    const fallbackMc = houses[10]?.cusp ?? 270;
-    const normalizedAsc =
-      typeof ascendantLongitude === 'number' &&
-      isFinite(ascendantLongitude) &&
-      ascendantLongitude >= 0
-        ? ascendantLongitude
-        : fallbackAsc;
-    const normalizedMc =
-      typeof midheavenLongitude === 'number' &&
-      isFinite(midheavenLongitude) &&
-      midheavenLongitude >= 0
-        ? midheavenLongitude
-        : fallbackMc;
-
-    return {
-      houses,
-      ascendant: this.buildAngle(normalizedAsc),
-      midheaven: this.buildAngle(normalizedMc),
-    };
+    throw new Error(
+      'Swiss Ephemeris could not calculate Placidus or Porphyry houses',
+    );
   }
 
   private buildAngle(longitude: number): ChartAngle {
@@ -728,7 +758,7 @@ export class EphemerisService implements OnModuleInit {
     let aspectCount = 0;
 
     for (const aspect of aspects) {
-      const weight = this.getAspectWeight(aspect.type);
+      const weight = this.getAspectWeight(aspect.aspect);
       totalScore += aspect.strength * weight;
       aspectCount++;
     }
@@ -750,22 +780,28 @@ export class EphemerisService implements OnModuleInit {
   private generateSynastrySummary(
     aspects: any[],
     compatibility: number,
+    locale: 'ru' | 'en' | 'es',
   ): string {
     const positiveAspects = aspects.filter((a) =>
-      ['sextile', 'trine', 'conjunction'].includes(a.type),
+      ['sextile', 'trine', 'conjunction'].includes(a.aspect),
     );
     const challengingAspects = aspects.filter((a) =>
-      ['square', 'opposition'].includes(a.type),
+      ['square', 'opposition'].includes(a.aspect),
     );
 
-    let summary = `Совместимость: ${compatibility}%`;
+    const labels = {
+      ru: ['Совместимость', 'Гармоничные аспекты', 'Сложные аспекты'],
+      en: ['Compatibility', 'Harmonious aspects', 'Challenging aspects'],
+      es: ['Compatibilidad', 'Aspectos armoniosos', 'Aspectos desafiantes'],
+    }[locale];
+    let summary = `${labels[0]}: ${compatibility}%`;
 
     if (positiveAspects.length > 0) {
-      summary += `\nГармоничные аспекты: ${positiveAspects.length}`;
+      summary += `\n${labels[1]}: ${positiveAspects.length}`;
     }
 
     if (challengingAspects.length > 0) {
-      summary += `\nСложные аспекты: ${challengingAspects.length}`;
+      summary += `\n${labels[2]}: ${challengingAspects.length}`;
     }
 
     return summary;

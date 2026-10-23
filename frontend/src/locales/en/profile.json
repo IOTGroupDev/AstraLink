@@ -71,5 +71,10 @@
       "question": "Are you absolutely sure you want to delete your account?",
       "deleteForever": "Delete forever"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Enable notifications to hear about new messages and matches.",
+    "enable": "Enable"
   }
 }

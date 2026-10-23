@@ -1,6 +1,9 @@
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
+  IsUUID,
+  MaxLength,
   IsNumber,
   IsString,
   IsNotEmpty,
@@ -14,15 +17,17 @@ import { Sanitize } from '@/common/decorators/sanitize.decorator';
 export class CompleteSignupDto {
   @Sanitize('strict') // No HTML in names
   @IsString()
+  @MaxLength(100)
   @IsOptional()
   name?: string;
 
-  @IsString()
+  @IsUUID()
   @IsOptional()
   userId?: string;
 
   @IsString()
   @IsNotEmpty()
+  @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'Дата должна быть в формате YYYY-MM-DD',
   })
@@ -38,6 +43,7 @@ export class CompleteSignupDto {
   @Sanitize('strict') // No HTML in location names
   @IsString()
   @IsOptional()
+  @MaxLength(300)
   birthPlace?: string;
 
   @Type(() => Number)
@@ -56,6 +62,7 @@ export class CompleteSignupDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   timezone?: string;
 
   @IsBoolean()

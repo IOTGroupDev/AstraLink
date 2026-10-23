@@ -18,7 +18,7 @@ import {
   Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -85,7 +85,10 @@ const ProfileChip: React.FC<ProfileChipProps> = ({
     activeOpacity={1}
     disabled={disabled}
     onPress={onPress}
-    style={[styles.interestChipPressable, disabled && styles.interestChipDisabled]}
+    style={[
+      styles.interestChipPressable,
+      disabled && styles.interestChipDisabled,
+    ]}
   >
     <GradientBorderView
       colors={
@@ -104,7 +107,7 @@ const ProfileChip: React.FC<ProfileChipProps> = ({
       <BlurView
         intensity={selected ? 28 : 15}
         tint="dark"
-        experimentalBlurMethod="dimezisBlurView"
+        blurMethod="dimezisBlurView"
         style={[
           styles.interestChipBlur,
           selected && styles.interestChipBlurSelected,
@@ -112,10 +115,7 @@ const ProfileChip: React.FC<ProfileChipProps> = ({
       >
         <Ionicons name={icon} size={16} color="#FFFFFF" />
         <Text
-          style={[
-            styles.interestText,
-            selected && styles.interestTextSelected,
-          ]}
+          style={[styles.interestText, selected && styles.interestTextSelected]}
         >
           {label}
         </Text>
@@ -178,7 +178,8 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
-  const [, setSelectedBirthPlaceCity] = useState<CityOption | null>(null);
+  const [selectedBirthPlaceCity, setSelectedBirthPlaceCity] =
+    useState<CityOption | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -301,8 +302,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleBirthPlaceSelect = useCallback((selected: CityOption) => {
     setSelectedBirthPlaceCity(selected);
-    // AstralCityInput уже вызовет onChangeText(display), тут дополнительно ничего не нужно.
-    // Но сохраняем selectedCity на будущее (если понадобится хранить координаты/таймзону).
+    // Keep the selected birth coordinates for saving; residence is separate.
   }, []);
 
   const handleCityChange = useCallback((text: string) => {
@@ -419,7 +419,9 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       allowsEditing: true,
       aspect: [3, 4],
       quality: 0.8,
@@ -435,21 +437,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       setUploadingPhoto(true);
       logger.info('Starting upload...');
 
-      // 1. Get upload URL
-      const { path, signedUrl } = await userPhotosAPI.getUploadUrl({
-        ext: 'jpg',
-      });
-      logger.info('Got signed URL', path);
-
-      // 2. Upload file
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      await userPhotosAPI.uploadToSignedUrl(signedUrl, blob, 'image/jpeg');
-      logger.info('Uploaded to storage');
-
-      // 3. Confirm upload
-      const confirmedPhoto = await userPhotosAPI.confirmPhoto(path);
+      const confirmedPhoto = await userPhotosAPI.uploadPickedPhoto(uri);
       logger.info('Confirmed in DB');
 
       // 4. Update local gallery immediately instead of refetching everything
@@ -588,7 +576,12 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
 
       // Update basic profile
-      await userAPI.updateProfile(formData);
+      await userAPI.updateProfile({
+        ...formData,
+        latitude: selectedBirthPlaceCity?.lat,
+        longitude: selectedBirthPlaceCity?.lon,
+        timezone: selectedBirthPlaceCity?.tzid,
+      });
 
       // Update extended profile (bio, city, gender, interests)
       // ✅ looking_for / looking_for_gender are now real DB columns (public.user_profiles)
@@ -704,6 +697,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       />
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
@@ -962,7 +956,11 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <ProfileChip
                   key={interest.id}
                   selected={isSelected}
-                  icon={interest.icon as React.ComponentProps<typeof Ionicons>['name']}
+                  icon={
+                    interest.icon as React.ComponentProps<
+                      typeof Ionicons
+                    >['name']
+                  }
                   label={interest.label}
                   onPress={() => toggleInterest(interest.id)}
                   disabled={!isSelected && selectedInterests.length >= 10}
@@ -1064,7 +1062,7 @@ const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             pointerEvents="none"
             intensity={72}
             tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
+            blurMethod="dimezisBlurView"
             style={StyleSheet.absoluteFill}
           />
           <View pointerEvents="none" style={styles.saveButtonTint} />
@@ -1130,7 +1128,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.82,
@@ -1409,7 +1407,7 @@ const styles = StyleSheet.create({
     opacity: 0.48,
   },
   saveButtonTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(8,14,28,0.12)',
   },
   saveButtonInner: {

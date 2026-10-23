@@ -71,5 +71,10 @@
       "question": "¿Estás completamente seguro de que quieres eliminar tu cuenta?",
       "deleteForever": "Eliminar para siempre"
     }
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "description": "Activa las notificaciones para recibir avisos de nuevos mensajes y coincidencias.",
+    "enable": "Activar"
   }
 }

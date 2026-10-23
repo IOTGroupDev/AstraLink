@@ -1,3 +1,6 @@
+import { getLocationFromBirthData } from '@/utils/location.utils';
+import { historicalTimezoneOffset } from '@/common/utils/timezone.util';
+import { ASTRO_CALCULATION_VERSION } from '@/shared/astro-version';
 /**
  * Natal Chart Service
  * Microservice for managing natal charts and interpretations
@@ -55,17 +58,26 @@ export class NatalChartService {
 
   /**
    * Compute fingerprint of birth inputs to detect changes.
-   * Uses normalized ISO date (YYYY-MM-DD), HH:MM time, and raw place string.
+   * Includes civil date/time, place label and canonical coordinates/timezone.
    */
   private computeFingerprint(
     birthDateISO: string,
     birthTime: string,
     birthPlace: string,
+    location?: {
+      latitude: number;
+      longitude: number;
+      timezone: number;
+      timezoneId?: string;
+    },
   ): string {
     const date = birthDateISO?.trim() || '';
     const time = birthTime?.trim() || '';
     const place = (birthPlace ?? '').trim();
-    const payload = `${date}|${time}|${place}`.toLowerCase();
+    const coordinates = location
+      ? `|${location.latitude}|${location.longitude}|${location.timezoneId ?? location.timezone}`
+      : '';
+    const payload = `${date}|${time}|${place}${coordinates}`.toLowerCase();
     return createHash('sha1').update(payload).digest('hex');
   }
 
@@ -184,12 +196,12 @@ export class NatalChartService {
 
     return Boolean(
       birthDate &&
-        birthDate === chartData?.birthDate &&
-        birthTime &&
-        birthTime === chartData?.birthTime &&
-        typeof birthDateTimeUtc === 'string' &&
-        !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
-        calculationVersion === 'utc-fixed-v2',
+      birthDate === chartData?.birthDate &&
+      birthTime &&
+      birthTime === chartData?.birthTime &&
+      typeof birthDateTimeUtc === 'string' &&
+      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+      calculationVersion === ASTRO_CALCULATION_VERSION,
     );
   }
 
@@ -218,11 +230,11 @@ export class NatalChartService {
       Object.values(chartData?.aiInterpretations || {}).some(
         (entry: any) => entry?.narrative || entry?.premiumNarrative,
       ) ||
-        chartData?.interpretationVersion === 'v3-ai' ||
-        chartData?.generatedBy === 'ai' ||
-        chartData?.interpretation?.generatedBy === 'ai' ||
-        chartData?.interpretation?.aiNarrative ||
-        chartData?.interpretation?.premiumNarrative,
+      chartData?.interpretationVersion === 'v3-ai' ||
+      chartData?.generatedBy === 'ai' ||
+      chartData?.interpretation?.generatedBy === 'ai' ||
+      chartData?.interpretation?.aiNarrative ||
+      chartData?.interpretation?.premiumNarrative,
     );
   }
 
@@ -456,7 +468,7 @@ export class NatalChartService {
         },
       });
       this.logger.debug(
-        `Saved persistent natal AI cache for user=${userId}, locale=${locale}, fingerprint=${this.getChartFingerprint(chartData)}, chars=${narrative.length}`,
+        `Saved persistent natal AI cache for user=${userId}, locale=${locale}, chars=${narrative.length}`,
       );
     } catch (error) {
       this.logger.warn(
@@ -1044,20 +1056,30 @@ export class NatalChartService {
       throw new BadRequestException('Invalid birth time (expected HH:MM)');
     }
 
+    const { data: profile } =
+      await this.supabaseService.getUserProfileAdmin(userId);
     const location = await this.resolveBirthLocation(
       birthPlace,
       dateStr,
       birthTime,
+      profile?.birth_location,
     );
 
     // Fingerprint for birth data
-    const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
+    const fingerprint = this.computeFingerprint(
+      dateStr,
+      birthTime,
+      birthPlace,
+      location,
+    );
 
     // Calculate natal chart via Swiss Ephemeris
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
       birthTime,
       location,
+      true,
+      locale,
     );
 
     // Generate full interpretation (only once at registration)
@@ -1074,10 +1096,12 @@ export class NatalChartService {
       locale,
       interpretation,
     );
+    chartWithInterpretation.birthPlace = birthPlace;
     chartWithInterpretation.metadata = {
       ...chartWithInterpretation.metadata,
       fingerprint,
-      calculationVersion: 'utc-fixed-v2',
+      birthLocationVersion: 1,
+      calculationVersion: ASTRO_CALCULATION_VERSION,
     };
 
     const created = await this.chartRepository.create({
@@ -1133,10 +1157,31 @@ export class NatalChartService {
       const bt = userProfile?.birth_time as string | undefined;
       const bp = userProfile?.birth_place as string | undefined;
 
+      if (bp && !chartData.birthPlace) chartData.birthPlace = bp;
       if (bd && bt && bp) {
         const dateStr = this.normalizeBirthDateInput(bd);
         if (dateStr) {
-          currentFingerprint = this.computeFingerprint(dateStr, bt, bp);
+          const saved = userProfile?.birth_location ?? {
+            birthPlace: chartData?.birthPlace,
+            location: chartData?.location
+              ? {
+                  ...chartData.location,
+                  timezone:
+                    chartData.location.timezoneId ??
+                    chartData.location.timezone,
+                }
+              : undefined,
+          };
+          const currentLocation =
+            chartData?.metadata?.birthLocationVersion === 1
+              ? await this.resolveBirthLocation(bp, dateStr, bt, saved)
+              : undefined;
+          currentFingerprint = this.computeFingerprint(
+            dateStr,
+            bt,
+            bp,
+            currentLocation,
+          );
         }
       }
     } catch (_e) {
@@ -1153,43 +1198,11 @@ export class NatalChartService {
     ) {
       // Birth inputs changed -> fully recompute natal chart + interpretation and persist
       try {
-        const { data: userProfile } =
-          await this.supabaseService.getUserProfileAdmin(chart.user_id);
-        const bd = userProfile?.birth_date as string;
-        const bt = userProfile?.birth_time as string;
-        const bp = userProfile?.birth_place as string;
-
-        const dateStr = this.normalizeBirthDateInput(bd);
-        if (!dateStr) {
-          throw new Error('Invalid birth date in user profile');
-        }
-        const location = await this.resolveBirthLocation(bp, dateStr, bt);
-
-        const newNatal = await this.ephemerisService.calculateNatalChart(
-          dateStr,
-          bt,
-          location,
-        );
-
-        const newInterp =
-          await this.interpretationService.generateNatalChartInterpretation(
-            userId,
-            newNatal,
-            locale,
-          );
-
-        const updatedData = this.withLocalizedInterpretation(
-          newNatal,
+        const recalculated = await this.forceRecalculateNatalChart(
+          userId,
           locale,
-          newInterp,
         );
-        updatedData.metadata = {
-          ...updatedData.metadata,
-          fingerprint: currentFingerprint,
-          calculationVersion: 'utc-fixed-v2',
-        };
-
-        await this.chartRepository.update(chart.id, { data: updatedData });
+        const updatedData = recalculated.data;
 
         try {
           await this.redis.deleteByPattern(`horoscope:${userId}:*`);
@@ -1199,6 +1212,7 @@ export class NatalChartService {
         }
 
         if (
+          updatedData.metadata?.birthTimeKnown !== false &&
           this.hasAiInterpretation(chartData) &&
           this.aiService.isAvailable()
         ) {
@@ -1233,6 +1247,25 @@ export class NatalChartService {
           `Failed to recompute natal chart for fingerprint change user ${userId}: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
+    }
+
+    if (chartData?.metadata?.birthTimeKnown === false) {
+      return {
+        id: chart.id,
+        userId: chart.user_id,
+        data: {
+          ...chartData,
+          houses: {},
+          ascendant: null,
+          midheaven: null,
+          partOfFortune: null,
+          interpretation: undefined,
+          interpretations: undefined,
+          aiInterpretations: undefined,
+        },
+        createdAt: chart.created_at,
+        updatedAt: chart.updated_at,
+      };
     }
 
     const localizedInterpretation = this.getLocalizedInterpretation(
@@ -1358,6 +1391,9 @@ export class NatalChartService {
     const chartData = chart.data as Record<string, any>;
     const sanitizedData = {
       ...chartData,
+      ...(chartData?.metadata?.birthTimeKnown === false
+        ? { houses: {}, ascendant: null, midheaven: null, partOfFortune: null }
+        : {}),
     };
 
     if ('interpretation' in sanitizedData) {
@@ -1396,13 +1432,19 @@ export class NatalChartService {
       return this.getNatalChartWithInterpretation(userId, locale);
     }
 
+    let birthTimeKnown = data?.birthTimeKnown as boolean | undefined;
     let birthDateInput =
       typeof data?.birthDate === 'string' ? data.birthDate : null;
     let birthTimeInput =
-      typeof data?.birthTime === 'string' ? data.birthTime : null;
+      birthTimeKnown === false
+        ? '12:00'
+        : typeof data?.birthTime === 'string'
+          ? data.birthTime
+          : null;
     let birthPlaceInput =
       typeof data?.birthPlace === 'string' ? data.birthPlace : null;
 
+    let storedBirthLocation: unknown;
     const payloadLocation =
       typeof data?.latitude === 'number' &&
       typeof data?.longitude === 'number' &&
@@ -1410,6 +1452,10 @@ export class NatalChartService {
         ? {
             latitude: data.latitude,
             longitude: data.longitude,
+            timezoneId:
+              typeof data.timezone === 'string' && data.timezone.includes('/')
+                ? data.timezone
+                : undefined,
             timezone:
               typeof data.timezone === 'number'
                 ? data.timezone
@@ -1422,20 +1468,29 @@ export class NatalChartService {
           }
         : null;
 
-    if (!birthDateInput || !birthTimeInput || !birthPlaceInput) {
+    if (
+      !birthDateInput ||
+      !birthTimeInput ||
+      !birthPlaceInput ||
+      !payloadLocation
+    ) {
       const { data: user } =
         await this.supabaseService.getUserProfileAdmin(userId);
 
-      if (!user || !user.birth_date || !user.birth_time || !user.birth_place) {
+      if (
+        (!birthDateInput || !birthTimeInput || !birthPlaceInput) &&
+        (!user || !user.birth_date || !user.birth_time || !user.birth_place)
+      ) {
         throw new NotFoundException('User birth data not found');
       }
-
+      storedBirthLocation = user?.birth_location;
+      birthTimeKnown ??= user?.birth_time_known !== false;
       birthDateInput =
-        birthDateInput || (user.birth_date as string | null) || null;
+        birthDateInput || (user?.birth_date as string | null) || null;
       birthTimeInput =
-        birthTimeInput || (user.birth_time as string | null) || null;
+        birthTimeInput || (user?.birth_time as string | null) || null;
       birthPlaceInput =
-        birthPlaceInput || (user.birth_place as string | null) || null;
+        birthPlaceInput || (user?.birth_place as string | null) || null;
     } else {
       this.logger.debug(`Using provided birth data payload for user ${userId}`);
     }
@@ -1460,42 +1515,51 @@ export class NatalChartService {
         birthPlaceInput,
         dateStr,
         birthTimeInput,
+        storedBirthLocation,
       ));
 
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
       birthTimeInput,
       location,
+      birthTimeKnown !== false,
+      locale,
     );
 
     // Generate interpretation immediately on creation
     const interpretation =
-      await this.interpretationService.generateNatalChartInterpretation(
-        userId,
-        natalChartData,
-        locale,
-      );
+      birthTimeKnown === false
+        ? null
+        : await this.interpretationService.generateNatalChartInterpretation(
+            userId,
+            natalChartData,
+            locale,
+          );
 
     // Fingerprint for birth data
     const fingerprint = this.computeFingerprint(
       dateStr,
       birthTimeInput,
       birthPlaceInput,
+      location,
     );
 
-    const chartWithInterpretation = this.withLocalizedInterpretation(
-      natalChartData,
-      locale,
-      interpretation,
-    );
+    const chartWithInterpretation = interpretation
+      ? this.withLocalizedInterpretation(natalChartData, locale, interpretation)
+      : natalChartData;
+    chartWithInterpretation.birthPlace = birthPlaceInput;
     chartWithInterpretation.metadata = {
       ...chartWithInterpretation.metadata,
       fingerprint,
-      calculationVersion: 'utc-fixed-v2',
-      birthTimeKnown: data?.birthTimeKnown !== false,
+      birthLocationVersion: 1,
+      calculationVersion: ASTRO_CALCULATION_VERSION,
+      birthTimeKnown: birthTimeKnown !== false,
       locationSource: payloadLocation
         ? 'client-selected-city'
-        : 'server-geocode',
+        : (storedBirthLocation as { birthPlace?: string } | undefined)
+              ?.birthPlace === birthPlaceInput
+          ? 'profile-selected-city'
+          : 'server-geocode',
     };
 
     // Save chart via repository
@@ -1739,14 +1803,63 @@ export class NatalChartService {
       default: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
     };
 
-    return locations[birthPlace] || locations['default'];
+    const location = locations[birthPlace];
+    if (!location || birthPlace === 'default')
+      throw new BadRequestException(
+        'Could not resolve birth location; select a city with coordinates',
+      );
+    return location;
   }
 
   private async resolveBirthLocation(
     birthPlace: string,
     birthDateISO?: string,
     birthTime?: string,
-  ): Promise<{ latitude: number; longitude: number; timezone: number }> {
+    saved?: unknown,
+  ): Promise<{
+    latitude: number;
+    longitude: number;
+    timezone: number;
+    timezoneId?: string;
+  }> {
+    const canonical = saved as {
+      birthPlace?: string;
+      location?: {
+        latitude?: number;
+        longitude?: number;
+        timezone?: string | number;
+      };
+    } | null;
+    const selected =
+      canonical?.birthPlace === birthPlace ? canonical.location : null;
+    if (
+      selected &&
+      typeof selected.latitude === 'number' &&
+      typeof selected.longitude === 'number' &&
+      Math.abs(selected.latitude) <= 90 &&
+      Math.abs(selected.longitude) <= 180 &&
+      (typeof selected.timezone === 'string' ||
+        typeof selected.timezone === 'number')
+    ) {
+      return {
+        latitude: selected.latitude,
+        longitude: selected.longitude,
+        timezoneId:
+          typeof selected.timezone === 'string' &&
+          selected.timezone.includes('/')
+            ? selected.timezone
+            : undefined,
+        timezone:
+          typeof selected.timezone === 'number'
+            ? selected.timezone
+            : this.parseTimezoneOffset(
+                selected.timezone,
+                birthPlace,
+                birthDateISO,
+                birthTime,
+              ),
+      };
+    }
     try {
       const [suggestion] = await this.geoService.suggestCities(
         birthPlace,
@@ -1756,6 +1869,7 @@ export class NatalChartService {
         return {
           latitude: suggestion.lat,
           longitude: suggestion.lon,
+          timezoneId: suggestion.tzid,
           timezone: this.parseTimezoneOffset(
             suggestion.tzid,
             birthPlace,
@@ -1768,7 +1882,14 @@ export class NatalChartService {
       // fallback to local lookup
     }
 
-    return this.getLocationCoordinates(birthPlace);
+    return getLocationFromBirthData(
+      birthPlace,
+      undefined,
+      undefined,
+      undefined,
+      birthDateISO,
+      birthTime,
+    );
   }
 
   private parseTimezoneOffset(
@@ -1793,7 +1914,7 @@ export class NatalChartService {
       const hours = Number(match[1]);
       const minutes = match[2] ? Number(match[2]) : 0;
       if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
-        const sign = hours >= 0 ? 1 : -1;
+        const sign = match[1].startsWith('-') ? -1 : 1;
         return hours + sign * (minutes / 60);
       }
     }
@@ -1807,7 +1928,9 @@ export class NatalChartService {
       return historicalOffset;
     }
 
-    return this.getLocationCoordinates(birthPlace || 'default').timezone;
+    throw new BadRequestException(
+      'Invalid timezone or nonexistent local birth time',
+    );
   }
 
   private resolveHistoricalTimezoneOffset(
@@ -1815,51 +1938,7 @@ export class NatalChartService {
     birthDateISO?: string,
     birthTime?: string,
   ): number | null {
-    if (!birthDateISO || !birthTime || !timezone.includes('/')) {
-      return null;
-    }
-
-    const dateMatch = birthDateISO.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const timeMatch = birthTime.match(/^(\d{1,2}):(\d{2})$/);
-    if (!dateMatch || !timeMatch) {
-      return null;
-    }
-
-    try {
-      const year = Number(dateMatch[1]);
-      const month = Number(dateMatch[2]);
-      const day = Number(dateMatch[3]);
-      const hour = Number(timeMatch[1]);
-      const minute = Number(timeMatch[2]);
-
-      const probe = new Date(
-        Date.UTC(year, month - 1, day, hour, minute, 0, 0),
-      );
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        timeZoneName: 'shortOffset',
-      }).formatToParts(probe);
-      const tzName = parts.find((part) => part.type === 'timeZoneName')?.value;
-      if (!tzName) {
-        return null;
-      }
-
-      const match = tzName.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?$/i);
-      if (!match) {
-        return null;
-      }
-
-      const hours = Number(match[1]);
-      const minutes = match[2] ? Number(match[2]) : 0;
-      if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-        return null;
-      }
-
-      const sign = hours >= 0 ? 1 : -1;
-      return hours + sign * (minutes / 60);
-    } catch {
-      return null;
-    }
+    return historicalTimezoneOffset(timezone, birthDateISO, birthTime);
   }
 
   /**
@@ -2146,6 +2225,10 @@ export class NatalChartService {
 
     const { data: userProfile } =
       await this.supabaseService.getUserProfileAdmin(userId);
+    const birthTimeKnown =
+      typeof userProfile?.birth_time_known === 'boolean'
+        ? userProfile.birth_time_known
+        : chart.data?.metadata?.birthTimeKnown !== false;
     const birthDateISO = userProfile?.birth_date as string | undefined;
     const birthTime = userProfile?.birth_time as string | undefined;
     const birthPlace = userProfile?.birth_place as string | undefined;
@@ -2168,30 +2251,52 @@ export class NatalChartService {
       birthPlace,
       dateStr,
       birthTime,
+      userProfile?.birth_location ??
+        (chart.data?.metadata?.birthLocationVersion === 1
+          ? {
+              birthPlace: chart.data.birthPlace,
+              location: chart.data.location
+                ? {
+                    ...chart.data.location,
+                    timezone:
+                      chart.data.location.timezoneId ??
+                      chart.data.location.timezone,
+                  }
+                : undefined,
+            }
+          : undefined),
     );
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
       birthTime,
       location,
-    );
-    const interpretation =
-      await this.interpretationService.generateNatalChartInterpretation(
-        userId,
-        natalChartData,
-        locale,
-      );
-
-    const fingerprint = this.computeFingerprint(dateStr, birthTime, birthPlace);
-    const updatedData = this.withLocalizedInterpretation(
-      natalChartData,
+      birthTimeKnown,
       locale,
-      interpretation,
     );
+    const interpretation = !birthTimeKnown
+      ? null
+      : await this.interpretationService.generateNatalChartInterpretation(
+          userId,
+          natalChartData,
+          locale,
+        );
+
+    const fingerprint = this.computeFingerprint(
+      dateStr,
+      birthTime,
+      birthPlace,
+      location,
+    );
+    const updatedData = interpretation
+      ? this.withLocalizedInterpretation(natalChartData, locale, interpretation)
+      : natalChartData;
+    updatedData.birthPlace = birthPlace;
     updatedData.metadata = {
       ...updatedData.metadata,
       fingerprint,
+      birthLocationVersion: 1,
       recalculatedAt: new Date().toISOString(),
-      calculationVersion: 'utc-fixed-v2',
+      calculationVersion: ASTRO_CALCULATION_VERSION,
     };
 
     const updated = await this.chartRepository.update(chart.id, {

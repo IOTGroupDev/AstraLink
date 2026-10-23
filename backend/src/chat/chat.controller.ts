@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Post,
   Query,
   Request,
@@ -19,16 +20,12 @@ import {
 } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
-
-interface SendMessageBody {
-  recipientId: string;
-  text?: string;
-  mediaPath?: string | null;
-}
-
-interface CreateChatMediaUploadUrlBody {
-  ext?: string;
-}
+import {
+  ChatMediaUploadDto,
+  SendMessageDto,
+  DialogQueryDto,
+  ChatLimitDto,
+} from './dto/chat.dto';
 
 @ApiTags('Chat')
 @ApiBearerAuth()
@@ -42,7 +39,7 @@ export class ChatController {
   @ApiResponse({ status: 201, description: 'Signed upload URL создан' })
   async createChatMediaUploadUrl(
     @Request() req: any,
-    @Body() body?: CreateChatMediaUploadUrlBody,
+    @Body() body?: ChatMediaUploadDto,
   ) {
     const userId = req?.user?.userId || req?.user?.id;
     if (!userId) {
@@ -58,7 +55,7 @@ export class ChatController {
   @Post('messages/send')
   @ApiOperation({ summary: 'Отправить сообщение пользователю' })
   @ApiResponse({ status: 201, description: 'Сообщение отправлено' })
-  async sendMessage(@Request() req: any, @Body() body: SendMessageBody) {
+  async sendMessage(@Request() req: any, @Body() body: SendMessageDto) {
     const token = this.getAccessToken(req);
     if (!body?.recipientId) {
       throw new BadRequestException('recipientId is required');
@@ -75,39 +72,38 @@ export class ChatController {
   }
 
   @Get('messages')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Получить сообщения диалога с пользователем' })
   @ApiResponse({ status: 200, description: 'Список сообщений диалога' })
-  async listDialog(
-    @Request() req: any,
-    @Query('userId') userId?: string,
-    @Query('limit') limit?: string,
-  ) {
+  async listDialog(@Request() req: any, @Query() query: DialogQueryDto) {
     const token = this.getAccessToken(req);
-    if (!userId) {
-      throw new BadRequestException('userId is required');
-    }
-    const safeLimit = limit
-      ? Math.max(1, Math.min(100, parseInt(limit, 10)))
-      : 50;
+    const { userId, limit: safeLimit, before } = query;
 
     const messages = await this.chatService.listDialogMessages(
       token,
       userId,
       safeLimit,
+      before,
     );
-    return { items: messages };
+    const first = messages[0];
+    return {
+      items: messages,
+      nextCursor:
+        messages.length === safeLimit && first
+          ? `${first.createdAt}~${first.id}`
+          : null,
+    };
   }
 
   @Get('conversations')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({
     summary: 'Список последних диалогов (агрегировано по собеседнику)',
   })
   @ApiResponse({ status: 200, description: 'Список последних диалогов' })
-  async listConversations(@Request() req: any, @Query('limit') limit?: string) {
+  async listConversations(@Request() req: any, @Query() query: ChatLimitDto) {
     const token = this.getAccessToken(req);
-    const safeLimit = limit
-      ? Math.max(1, Math.min(100, parseInt(limit, 10)))
-      : 50;
+    const safeLimit = query.limit;
 
     const items = await this.chatService.listConversationsWithToken(
       token,

@@ -114,3 +114,9 @@ Before finishing, suggest relevant checks:
 - Do not replace Supabase Auth with custom auth.
 - Do not remove Redis/Prisma/Supabase integration unless asked.
 - Do not give vague advice when exact code is possible.
+
+## Auth storage decision (2026-10-22)
+
+- Supabase sessions use SecureStore on native. AsyncStorage sessions are migrated on first read only when SecureStore has no entry; logout removes both copies.
+- Web keeps Supabase sessions in AsyncStorage/localStorage. A production web host must provide a tested CSP; the current repository does not contain the Caddy deployment referenced by the old audit.
+- Do not switch storage adapters without preserving existing sessions and deletion behavior.

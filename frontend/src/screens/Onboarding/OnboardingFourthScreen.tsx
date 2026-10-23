@@ -195,7 +195,7 @@ export default function OnboardingFourthScreen() {
       }
 
       const birthTime = `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
-      const resolvedBirthPlace = selectedCity?.city || placeClean;
+      const resolvedBirthPlace = selectedCity?.display || placeClean;
       const completedProfile = {
         id: userId,
         email: session?.user.email || authProfile?.email || '',

@@ -1,5 +1,11 @@
 /* eslint-disable */
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../redis/redis.service';
@@ -20,6 +26,10 @@ import type {
 } from './chat.types';
 import { COLUMN_CANDIDATES as COLS } from './chat.types';
 import { ChatNotificationsService } from './chat-notifications.service';
+import { isOwnedPhotoPath } from '../user/dto/photos.dto';
+import { isUUID } from 'class-validator';
+import { decodeDialogCursor, messageTimestamp } from './dialog-cursor';
+import { ChatVisibilityService } from './chat-visibility.service';
 
 export interface ChatMessage {
   id: string;
@@ -55,12 +65,12 @@ export class ChatService {
   private readonly preferDeleteRpc =
     process.env.CHAT_DELETE_PREFER_RPC === 'true';
   private rpcWarned = false;
-  private messagesColumnsCache: Set<string> | null = null;
 
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly redis: RedisService,
     private readonly chatNotificationsService: ChatNotificationsService,
+    private readonly visibility: ChatVisibilityService,
   ) {}
 
   private triggerIncomingMessageNotification(params: {
@@ -125,6 +135,10 @@ export class ChatService {
     if (normalizedMediaPath) {
       this.assertOwnedMediaPath(uid, normalizedMediaPath);
     }
+
+    await this.assertMessagingAllowed(uid, recipientId);
+    // Validate media before creating a conversation; check status before RPC too.
+    const matchId = await this.ensureMatch(userAccessToken, uid, recipientId);
 
     // 1) RPC (если включено переменной окружения)
     const payload = {
@@ -305,8 +319,6 @@ export class ChatService {
     let lastErr: Error | null = null;
 
     // Разрешим match для RLS и NOT NULL match_id
-    const matchId = await this.ensureMatch(userAccessToken, uid, recipientId);
-
     // Выберем лучшую доступную колонку для отправителя
     const senderKey = senderColumns.find((k) => existing.has(k)) || null;
 
@@ -491,6 +503,7 @@ export class ChatService {
     userAccessToken: string,
     otherUserId: string,
     limit = 50,
+    before?: string,
   ): Promise<ChatMessage[]> {
     const safeLimit = Math.max(1, Math.min(100, limit));
     const client = this.supabaseService.getClientForToken(userAccessToken);
@@ -500,38 +513,39 @@ export class ChatService {
       await this.supabaseService.getUser(userAccessToken);
     const typedUserRes2 = userRes2 as SupabaseUserResponse | null;
     const selfId = typedUserRes2?.user?.id;
-
-    let hiddenMsgIds = new Set<string>();
-    if (selfId) {
-      try {
-        const convKey = `chat:hidden:conversations:${selfId}`;
-        const msgKey = `chat:hidden:messages:${selfId}`;
-        const [convList, msgList] = await Promise.all([
-          this.redis.get<string[]>(convKey),
-          this.redis.get<string[]>(msgKey),
-        ]);
-        const hiddenConv =
-          Array.isArray(convList) && convList.includes(otherUserId);
-        if (hiddenConv) {
-          return [];
-        }
-        hiddenMsgIds = new Set<string>(
-          Array.isArray(msgList) ? msgList.map(String) : [],
-        );
-      } catch {
-        // в случае проблем с Redis скрытия игнорируем
-      }
+    if (!selfId || !isUUID(selfId) || !isUUID(otherUserId)) {
+      throw new BadRequestException('Invalid dialog participants');
     }
+    const cursor = before ? decodeDialogCursor(before) : null;
 
-    // Из-за дрейфа схемы не используем серверные фильтры по неизвестным колонкам.
-    // Берём порцию сообщений, RLS отдаст только доступные строки для auth.uid().
-    const { data, error } = await client
+    const [hiddenConversations, hiddenMsgIds] = await Promise.all([
+      this.visibility.getHidden(selfId, 'conversations'),
+      this.visibility.getHidden(selfId, 'messages'),
+    ]);
+    if (hiddenConversations.has(otherUserId)) return [];
+
+    // Filter the actual conversation and hidden rows before sorting/limiting.
+    let query = client
       .from('messages')
       .select('*')
-      .limit(Math.max(50, safeLimit * 2));
+      .or(
+        `and(sender_id.eq.${selfId},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${selfId})`,
+      );
+    if (cursor) {
+      query = query.or(
+        `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
+      );
+    }
+    const hiddenIds = [...hiddenMsgIds].filter((id) => isUUID(id));
+    if (hiddenIds.length)
+      query = query.not('id', 'in', `(${hiddenIds.join(',')})`);
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(safeLimit);
 
     if (error) {
-      return [];
+      throw new ServiceUnavailableException('Unable to load message history');
     }
     const rows = Array.isArray(data) ? (data as MessageRow[]) : [];
 
@@ -562,7 +576,10 @@ export class ChatService {
       const ka = String(a[pickKey(a, createdKeys) || 'created_at'] ?? '');
 
       const kb = String(b[pickKey(b, createdKeys) || 'created_at'] ?? '');
-      return new Date(ka).getTime() - new Date(kb).getTime();
+      return (
+        messageTimestamp(ka).localeCompare(messageTimestamp(kb)) ||
+        String(a.id).localeCompare(String(b.id))
+      );
     });
 
     // Ограничиваем и маппим в DTO
@@ -573,7 +590,7 @@ export class ChatService {
       const mediaK = pickKey(r, mediaKeys) || 'media_path';
       const createdK = pickKey(r, createdKeys) || 'created_at';
 
-      const createdAt = normalizeDate(r[createdK]);
+      const createdAt = messageTimestamp(r[createdK]);
 
       // Разделяем URL и path: если в колонке значение — абсолютный URL, используем его напрямую
       const rawMedia = r[mediaK] ?? null;
@@ -605,6 +622,10 @@ export class ChatService {
 
       for (const message of result) {
         if (!message.mediaUrl && message.mediaPath) {
+          if (!this.isOwnedMediaPath(message.senderId, message.mediaPath)) {
+            message.mediaPath = null;
+            continue;
+          }
           const target = this.resolveMediaStorageTarget(message.mediaPath);
           const bucketPaths =
             refsByBucket.get(target.bucket) ?? new Set<string>();
@@ -684,18 +705,27 @@ export class ChatService {
   }
 
   private assertOwnedMediaPath(userId: string, mediaPath: string): void {
+    if (!this.isOwnedMediaPath(userId, mediaPath)) {
+      throw new BadRequestException('Invalid chat media path');
+    }
+  }
+
+  private isOwnedMediaPath(userId: string, mediaPath: string): boolean {
     const { bucket, path } = this.resolveMediaStorageTarget(mediaPath);
 
     if (
       bucket !== ChatService.CHAT_MEDIA_BUCKET &&
       bucket !== ChatService.USER_PHOTOS_BUCKET
     ) {
-      throw new BadRequestException('Unsupported media storage bucket');
+      return false;
     }
 
-    if (!path || !path.startsWith(`${userId}/`)) {
-      throw new BadRequestException('Invalid chat media path');
-    }
+    return (
+      !!path &&
+      path.length <= 1024 &&
+      path.startsWith(`${userId}/`) &&
+      path.split('/').every((part) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(part))
+    );
   }
 
   /**
@@ -785,7 +815,10 @@ export class ChatService {
           // Сопоставим user_id -> storage_path
           const byUser: Record<string, string> = {};
           for (const p of photos as UserPhoto[]) {
-            if (p?.user_id && p?.storage_path)
+            if (
+              map.has(p.user_id) &&
+              isOwnedPhotoPath(p.user_id, p.storage_path)
+            )
               byUser[p.user_id] = p.storage_path;
           }
 
@@ -842,92 +875,27 @@ export class ChatService {
       // имя опционально
     }
 
-    // Применим фильтр скрытых переписок (для текущего пользователя)
-    let items = Array.from(map.values());
-    try {
-      const hidden =
-        (await this.redis.get<string[]>(
-          `chat:hidden:conversations:${selfId}`,
-        )) ?? [];
-      if (Array.isArray(hidden) && hidden.length) {
-        items = items.filter((c) => hidden.indexOf(c.otherUserId) === -1);
-      }
-    } catch {
-      // если Redis недоступен — просто не фильтруем
-    }
+    const hidden = await this.visibility.getHidden(selfId, 'conversations');
+    const items = Array.from(map.values()).filter(
+      (c) => !hidden.has(c.otherUserId),
+    );
     return items.slice(0, safeLimit);
   }
 
-  /**
-   * Проверяет, существует ли указанный столбец в таблице messages с контекстом пользователя.
-   * Выполняется безопасный select(column) limit(0). Если колонка отсутствует — вернётся ошибка.
-   */
-  private async columnExists(
-    userAccessToken: string,
-    column: string,
-  ): Promise<boolean> {
-    // Сначала пробуем клиентом пользователя (RLS)
-    try {
-      const client = this.supabaseService.getClientForToken(userAccessToken);
-      const { error } = await client.from('messages').select(column).limit(0);
-      if (!error) return true;
-    } catch {
-      // игнорируем, попробуем через admin
-    }
-    // Фолбэк — проверяем существование колонки через admin (обходит RLS)
-    try {
-      const admin = this.supabaseService.getAdminClient();
-      const { error } = await admin.from('messages').select(column).limit(0);
-      return !error;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Возвращает множество реально существующих колонок в messages.
-   * Результат кэшируется в памяти процесса (messagesColumnsCache) для последующих вызовов.
-   */
   private async getExistingColumns(
-    userAccessToken: string,
+    _userAccessToken: string,
   ): Promise<Set<string>> {
-    if (this.messagesColumnsCache) {
-      return this.messagesColumnsCache;
-    }
-
-    const candidates = [
+    return new Set([
       'id',
       'match_id',
       'sender_id',
       'recipient_id',
-      'receiver_id',
-      'to_user_id',
-      'to_id',
       'type',
       'content',
-      'text',
-      'body',
-      'message',
-      'message_text',
       'attachment_path',
-      'media_path',
-      'media_url',
-      'attachment_url',
-      'attachment',
       'created_at',
       'read_at',
-    ];
-
-    const present = new Set<string>();
-    await Promise.all(
-      candidates.map(async (c) => {
-        const ok = await this.columnExists(userAccessToken, c);
-        if (ok) present.add(c);
-      }),
-    );
-
-    this.messagesColumnsCache = present;
-    return present;
+    ]);
   }
   /**
    * Создаёт/находит match между selfId и otherUserId, чтобы удовлетворить RLS и NOT NULL match_id.
@@ -954,12 +922,15 @@ export class ChatService {
       for (const o of orders) {
         const { data, error } = await client
           .from('matches')
-          .select('id')
+          .select('id, status')
           .eq('user_a', o.a)
           .eq('user_b', o.b)
           .limit(1)
           .maybeSingle();
         if (!error && data?.id) {
+          if (data.status !== 'active') {
+            throw new ForbiddenException('This conversation is not active');
+          }
           return String(data.id);
         }
       }
@@ -1002,9 +973,43 @@ export class ChatService {
     return id; // может остаться null — тогда вставка сообщения упадёт, и мы отдадим подробности в логах выше
   }
 
+  private async assertMessagingAllowed(
+    selfId: string,
+    otherUserId: string,
+  ): Promise<void> {
+    const uuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (
+      !uuid.test(selfId) ||
+      !uuid.test(otherUserId) ||
+      selfId === otherUserId
+    ) {
+      throw new BadRequestException('Invalid message recipient');
+    }
+
+    // Read both directions through the server client; RLS hides incoming blocks.
+    const { data, error } = await this.supabaseService
+      .getAdminClient()
+      .from('user_blocks')
+      .select('id')
+      .or(
+        `and(user_id.eq.${selfId},blocked_user_id.eq.${otherUserId}),and(user_id.eq.${otherUserId},blocked_user_id.eq.${selfId})`,
+      )
+      .limit(1);
+
+    if (error) {
+      throw new ServiceUnavailableException(
+        'Cannot verify messaging permissions',
+      );
+    }
+    if (Array.isArray(data) && data.length > 0) {
+      throw new ForbiddenException('Messaging is unavailable for these users');
+    }
+  }
+
   /**
    * Удаление сообщения.
-   * mode: 'for_me' — скрыть у текущего пользователя (Redis);
+   * mode: 'for_me' — скрыть у текущего пользователя (PostgreSQL);
    *       'for_all' — физически удалить, если текущий пользователь — отправитель.
    */
   async deleteMessageWithToken(
@@ -1020,14 +1025,9 @@ export class ChatService {
       throw new Error('auth required');
     }
 
-    // "Удалить у меня" — скрываем в Redis
+    if (!isUUID(messageId)) throw new BadRequestException('Invalid message ID');
     if (mode === 'for_me') {
-      const key = `chat:hidden:messages:${selfId}`;
-      const list = (await this.redis.get<string[]>(key)) ?? [];
-      if (!list.includes(String(messageId))) {
-        list.push(String(messageId));
-        await this.redis.set(key, list);
-      }
+      await this.visibility.hide(selfId, 'messages', messageId);
       return { success: true };
     }
 
@@ -1225,12 +1225,9 @@ export class ChatService {
     if (!selfId) {
       throw new Error('auth required');
     }
-    const key = `chat:hidden:conversations:${selfId}`;
-    const list = (await this.redis.get<string[]>(key)) ?? [];
-    if (!list.includes(String(otherUserId))) {
-      list.push(String(otherUserId));
-      await this.redis.set(key, list);
-    }
+    if (!isUUID(otherUserId) || selfId === otherUserId)
+      throw new BadRequestException('Invalid conversation');
+    await this.visibility.hide(selfId, 'conversations', otherUserId);
     return { success: true };
   }
 }

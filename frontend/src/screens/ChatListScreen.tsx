@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import * as Notifications from 'expo-notifications';
 import {
   Alert,
+  AppState,
   FlatList,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -46,32 +49,78 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const requestVersion = useRef(0);
+  const pendingRequests = useRef(0);
   const [onlineIds, setOnlineIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );
 
   const load = useCallback(
-    async (refresh = false) => {
-      if (!user || authLoading) return;
-      refresh ? setRefreshing(true) : setLoading(true);
+    async (refresh = false, silent = false) => {
+      if (!user?.id || authLoading) return;
+      const version = ++requestVersion.current;
+      pendingRequests.current += 1;
+      if (!silent) refresh ? setRefreshing(true) : setLoading(true);
       try {
-        setItems(await chatAPI.listConversations(50));
+        const conversations = await chatAPI.listConversations(50);
+        if (version === requestVersion.current) setItems(conversations);
       } catch (error) {
         logger.error('[Messages] Failed to load conversations', error);
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        pendingRequests.current -= 1;
+        if (version === requestVersion.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
-    [authLoading, user]
+    [authLoading, user?.id]
   );
+
+  useEffect(() => {
+    setItems([]);
+    return () => {
+      // Ignore responses from a previous account or an unmounted screen.
+      requestVersion.current += 1;
+    };
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
       void load();
       const release = acquirePresence(user.id);
-      return release;
+      const listener = AppState.addEventListener('change', (state) => {
+        if (state === 'active') void load(true);
+      });
+      const notificationListener =
+        Platform.OS !== 'web'
+          ? Notifications.addNotificationReceivedListener((notification) => {
+              const data = notification.request.content.data;
+              if (
+                data?.type === 'chat-message' &&
+                data.recipientId === user.id &&
+                AppState.currentState === 'active'
+              )
+                void load(true);
+            })
+          : undefined;
+      // A mobile WebSocket can silently stop delivering events. Reconcile only
+      // while this screen is focused and the app is in the foreground.
+      const interval = setInterval(() => {
+        if (
+          AppState.currentState === 'active' &&
+          pendingRequests.current === 0
+        ) {
+          void load(false, true);
+        }
+      }, 10000);
+      return () => {
+        clearInterval(interval);
+        notificationListener?.remove();
+        listener.remove();
+        release();
+      };
     }, [load, user?.id])
   );
 
@@ -79,16 +128,29 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
 
   useEffect(() => {
     if (!user?.id) return;
+    let active = true;
     const channel = supabase
       .channel(`dating-conversations-${user.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
-        () => void load(true)
+        () => {
+          if (active) void load(true);
+        }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (!active) return;
+        if (status === 'SUBSCRIBED') {
+          void load(true);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          logger.warn('[Messages] Realtime subscription unavailable', status);
+        }
+      });
     return () => {
-      void supabase.removeChannel(channel);
+      active = false;
+      void supabase.removeChannel(channel).catch((error) => {
+        logger.warn('[Messages] Realtime cleanup failed', error);
+      });
     };
   }, [load, user?.id]);
 
@@ -162,6 +224,8 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
         <View>
           {item.primaryPhotoUrl ? (
             <Image
+              key={item.primaryPhotoUrl}
+              testID={`conversation-avatar-${item.otherUserId}`}
               source={{ uri: item.primaryPhotoUrl }}
               style={styles.avatar}
             />
@@ -266,7 +330,7 @@ export default function ChatListScreen({ embedded = false, topInset }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.9,

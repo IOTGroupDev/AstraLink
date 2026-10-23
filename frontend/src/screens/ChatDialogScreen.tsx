@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import * as Notifications from 'expo-notifications';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -10,9 +11,13 @@ import {
   TextInput,
   View,
   Image,
+  Modal,
+  ScrollView,
+  useWindowDimensions,
   Alert,
   Keyboard,
   BackHandler,
+  AppState,
   type KeyboardEvent,
 } from 'react-native';
 import {
@@ -38,6 +43,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { logger } from '../services/logger';
+import { getOnlineIds, subscribePresence } from '../services/presence';
 import advisorBackground from '../../assets/advisor-bg.png';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import {
@@ -190,7 +196,21 @@ export default function ChatDialogScreen() {
   }, [displayName, navigation, otherUserId, primaryPhotoUrl]);
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [onlineIds, setOnlineIds] = useState<ReadonlySet<string>>(getOnlineIds);
+  useEffect(() => subscribePresence(setOnlineIds), []);
+  const messageRequestVersion = useRef(0);
+  const pendingMessageRequests = useRef(0);
+  const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
+  const photoViewport = useWindowDimensions();
+  const viewingPhotoUrl = messages.find(
+    (message) => message.id === viewingPhotoId
+  )?.mediaUrl;
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const historyInitializedRef = useRef(false);
+  const olderRequestInFlight = useRef(false);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [text, setText] = useState('');
@@ -212,6 +232,8 @@ export default function ChatDialogScreen() {
   const inputRef = useRef<TextInput>(null);
   const authAlertShown = useRef(false);
   const initialScrollPendingRef = useRef(true);
+  const listViewportReadyRef = useRef(false);
+  const listContentReadyRef = useRef(false);
   const keepAtBottomPendingRef = useRef(false);
   const pendingScrollDeltaRef = useRef(0);
   const isNearBottomRef = useRef(true);
@@ -240,13 +262,29 @@ export default function ChatDialogScreen() {
   }, []);
 
   useEffect(() => {
+    setViewingPhotoId(null);
     initialScrollPendingRef.current = true;
+    listViewportReadyRef.current = false;
+    listContentReadyRef.current = false;
     isNearBottomRef.current = true;
     scrollOffsetRef.current = 0;
   }, [otherUserId]);
 
+  useEffect(
+    () => () => {
+      messageRequestVersion.current += 1;
+    },
+    [user?.id, otherUserId]
+  );
+
   useEffect(() => {
-    if (loading || messages.length === 0 || !initialScrollPendingRef.current) {
+    if (
+      loading ||
+      messages.length === 0 ||
+      !initialScrollPendingRef.current ||
+      !listViewportReadyRef.current ||
+      !listContentReadyRef.current
+    ) {
       return;
     }
     settleAtLatestMessage();
@@ -276,6 +314,9 @@ export default function ChatDialogScreen() {
   }, [keyboardContentInset, queueViewportAdjustment]);
 
   const handleMessagesLayoutReady = useCallback(() => {
+    // onLayout may run before FlatList has measured its message cells.
+    // Keep the initial scroll pending until both measurements are available.
+    if (!listViewportReadyRef.current || !listContentReadyRef.current) return;
     if (
       !initialScrollPendingRef.current &&
       !keepAtBottomPendingRef.current &&
@@ -389,8 +430,11 @@ export default function ChatDialogScreen() {
 
   const fetchMessages = useCallback(async () => {
     if (!otherUserId || !user) return;
+    const version = ++messageRequestVersion.current;
+    pendingMessageRequests.current += 1;
     try {
       const items = await chatAPI.listMessages(otherUserId, 100);
+      if (version !== messageRequestVersion.current) return;
       const sorted = [...items].sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -414,6 +458,15 @@ export default function ChatDialogScreen() {
           readAt: it.readAt ?? null,
         };
       });
+      const first = mapped[0];
+      if (!historyInitializedRef.current) {
+        setHistoryCursor(
+          mapped.length === 100 && first
+            ? `${first.createdAt}~${first.id}`
+            : null
+        );
+        historyInitializedRef.current = true;
+      }
 
       // Обновляем кэш известными URL
       for (const m of mapped) {
@@ -422,10 +475,12 @@ export default function ChatDialogScreen() {
         }
       }
 
+      if (isNearBottomRef.current) keepAtBottomPendingRef.current = true;
       setMessages((current) => {
         const localMessages = current.filter(
           (message) =>
-            message.deliveryStatus &&
+            (message.deliveryStatus ||
+              (first && message.createdAt < first.createdAt)) &&
             !mapped.some((serverMessage) => serverMessage.id === message.id)
         );
         return [...mapped, ...localMessages].sort(
@@ -436,9 +491,41 @@ export default function ChatDialogScreen() {
     } catch (e) {
       logger.error('Ошибка загрузки сообщений', e);
     } finally {
-      setLoading(false);
+      pendingMessageRequests.current -= 1;
+      if (version === messageRequestVersion.current) setLoading(false);
     }
-  }, [otherUserId, user]);
+  }, [otherUserId, user?.id]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!historyCursor || olderRequestInFlight.current) return;
+    olderRequestInFlight.current = true;
+    setLoadingOlder(true);
+    try {
+      const older = await chatAPI.listMessages(otherUserId, 100, historyCursor);
+      const first = older[0];
+      setHistoryCursor(
+        older.length === 100 && first ? `${first.createdAt}~${first.id}` : null
+      );
+      historyInitializedRef.current = true;
+      setMessages((current) => {
+        const ids = new Set(current.map((message) => message.id));
+        return [...older.filter((message) => !ids.has(message.id)), ...current];
+      });
+    } catch (error) {
+      logger.warn('[Chat] Failed to load older messages', error);
+      Alert.alert(t('common.errors.generic'), t('chat.errors.loadHistory'));
+    } finally {
+      olderRequestInFlight.current = false;
+      setLoadingOlder(false);
+    }
+  }, [historyCursor, otherUserId, t]);
+
+  useEffect(() => {
+    historyInitializedRef.current = false;
+    olderRequestInFlight.current = false;
+    setHistoryCursor(null);
+    setLoadingOlder(false);
+  }, [otherUserId, user?.id]);
 
   useEffect(() => {
     if (user && otherUserId) fetchMessages();
@@ -466,8 +553,41 @@ export default function ChatDialogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (user && otherUserId) fetchMessages();
-    }, [user, otherUserId, fetchMessages])
+      if (!user || !otherUserId) return;
+      let focused = true;
+      void fetchMessages();
+      const listener = AppState.addEventListener('change', (state) => {
+        if (state === 'active') void fetchMessages();
+      });
+      const notifications =
+        Platform.OS !== 'web'
+          ? Notifications.addNotificationReceivedListener((notification) => {
+              const data = notification.request.content.data;
+              if (
+                focused &&
+                data?.type === 'chat-message' &&
+                data.recipientId === user.id &&
+                data.senderId === otherUserId &&
+                AppState.currentState === 'active'
+              )
+                void fetchMessages();
+            })
+          : undefined;
+      const interval = setInterval(() => {
+        if (
+          AppState.currentState === 'active' &&
+          pendingMessageRequests.current === 0
+        ) {
+          void fetchMessages();
+        }
+      }, 5000);
+      return () => {
+        focused = false;
+        clearInterval(interval);
+        notifications?.remove();
+        listener.remove();
+      };
+    }, [user?.id, otherUserId, fetchMessages])
   );
 
   useFocusEffect(
@@ -534,12 +654,14 @@ export default function ChatDialogScreen() {
 
   useEffect(() => {
     if (!user || !otherUserId) return;
+    let active = true;
     const channel = supabase
       .channel(`messages-dialog-${user.id}-${otherUserId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
+          if (!active) return;
           try {
             const evt =
               (payload as any).eventType ||
@@ -752,15 +874,30 @@ export default function ChatDialogScreen() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (!active) return;
+        if (status === 'SUBSCRIBED') {
+          // Fill the initial join/reconnect gap before processing live events.
+          void fetchMessages();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          logger.warn('[Chat] Realtime subscription unavailable', status);
+        }
+      });
     return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch (e) {
-        logger.error('Ошибка отписки от канала', e);
-      }
+      active = false;
+      void supabase.removeChannel(channel).catch((error) => {
+        logger.error('Ошибка отписки от канала', error);
+      });
     };
-  }, [user, otherUserId]);
+  }, [
+    user,
+    otherUserId,
+    fetchMessages,
+    pickKey,
+    mediaKeys,
+    contentKeys,
+    createdKeys,
+  ]);
 
   // Локальная подпись URL для медиа, если сервер не вернул mediaUrl
   useEffect(() => {
@@ -1112,6 +1249,19 @@ export default function ChatDialogScreen() {
           ]}
         >
           <Pressable
+            accessibilityRole={hasImage ? 'button' : undefined}
+            accessibilityLabel={
+              hasImage ? t('chat.media.openPhoto') : undefined
+            }
+            onPress={
+              hasImage
+                ? () => {
+                    Keyboard.dismiss();
+                    setPhotoLoadFailed(false);
+                    setViewingPhotoId(item.id);
+                  }
+                : undefined
+            }
             onLongPress={() => onLongPressMessage(item)}
             style={[
               styles.bubbleBase,
@@ -1171,11 +1321,7 @@ export default function ChatDialogScreen() {
 
   const resolvedPhotoUrl =
     primaryPhotoUrl ?? otherProfile?.primaryPhotoUrl ?? undefined;
-  const isOtherOnline = (() => {
-    if (!otherProfile?.lastActive) return false;
-    const value = new Date(otherProfile.lastActive).getTime();
-    return Number.isFinite(value) && Date.now() - value < 5 * 60 * 1000;
-  })();
+  const isOtherOnline = onlineIds.has(otherUserId);
   const zodiacLabel = otherProfile?.zodiacSign
     ? t(`common.zodiacSigns.${otherProfile.zodiacSign.toLowerCase()}`, {
         defaultValue: otherProfile.zodiacSign,
@@ -1354,11 +1500,32 @@ export default function ChatDialogScreen() {
           </View>
         ) : (
           <FlatList
+            testID="chat-message-list"
             ref={listRef}
             style={{ flex: 1 }}
             data={messages}
+            initialNumToRender={100}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            ListHeaderComponent={
+              historyCursor ? (
+                <Pressable
+                  onPress={() => void loadOlderMessages()}
+                  disabled={loadingOlder}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('chat.loading.older')}
+                >
+                  <Text style={styles.emptyHint}>
+                    {t(
+                      loadingOlder
+                        ? 'chat.loading.messages'
+                        : 'chat.loading.older'
+                    )}
+                  </Text>
+                </Pressable>
+              ) : null
+            }
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             contentContainerStyle={[
@@ -1373,8 +1540,15 @@ export default function ChatDialogScreen() {
                 style={{ height: messagesFooterHeight }}
               />
             }
-            onContentSizeChange={handleMessagesLayoutReady}
-            onLayout={handleMessagesLayoutReady}
+            onContentSizeChange={(_width, height) => {
+              listContentReadyRef.current = height > 0;
+              handleMessagesLayoutReady();
+            }}
+            onLayout={(event) => {
+              listViewportReadyRef.current =
+                event.nativeEvent.layout.height > 0;
+              handleMessagesLayoutReady();
+            }}
             onScroll={handleMessagesScroll}
             scrollEventThrottle={16}
           />
@@ -1548,17 +1722,84 @@ export default function ChatDialogScreen() {
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
+      <Modal
+        visible={Boolean(viewingPhotoUrl)}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setViewingPhotoId(null)}
+      >
+        <View style={styles.photoViewer}>
+          {viewingPhotoUrl ? (
+            <ScrollView
+              key={viewingPhotoId}
+              style={styles.photoViewer}
+              contentContainerStyle={styles.photoViewerContent}
+              minimumZoomScale={1}
+              maximumZoomScale={4}
+              centerContent
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+            >
+              <Image
+                testID="chat-photo-viewer-image"
+                source={{ uri: viewingPhotoUrl }}
+                resizeMode="contain"
+                style={{
+                  width: photoViewport.width,
+                  height: photoViewport.height,
+                }}
+                onError={() => setPhotoLoadFailed(true)}
+              />
+            </ScrollView>
+          ) : null}
+          {photoLoadFailed ? (
+            <Text style={styles.photoViewerError}>
+              {t('chat.media.failedToLoadPhoto')}
+            </Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('common.buttons.close')}
+            onPress={() => setViewingPhotoId(null)}
+            style={[styles.photoViewerClose, { top: insets.top + 12 }]}
+          >
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  photoViewer: { flex: 1, backgroundColor: '#000000' },
+  photoViewerContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoViewerClose: {
+    position: 'absolute',
+    right: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(40,40,40,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoViewerError: {
+    position: 'absolute',
+    top: '50%',
+    alignSelf: 'center',
+    color: '#FFFFFF',
+  },
   container: {
     flex: 1,
     backgroundColor: '#080E1C',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },
@@ -1828,7 +2069,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   messageStatusIcon: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1850,7 +2091,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   emojiBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 30,
   },
   emojiPopoverBorder: {
