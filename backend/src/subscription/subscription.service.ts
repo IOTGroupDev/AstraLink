@@ -1,7 +1,13 @@
 // backend/src/subscription/subscription.service.ts
 // ✅ MIGRATED TO PRISMA - Full Prisma integration
 
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  BadGatewayException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Stripe from 'stripe';
 import type { Event } from 'stripe/cjs/resources/Events';
@@ -627,13 +633,13 @@ export class SubscriptionService {
           tier,
           trialEndsAt: trialEndsAt || currentPeriodEnd,
           expiresAt: null,
-          isCancelled: false,
+          isCancelled: subscription.cancel_at_period_end,
         },
         update: {
           tier,
           trialEndsAt: trialEndsAt || currentPeriodEnd,
           expiresAt: null,
-          isCancelled: false,
+          isCancelled: subscription.cancel_at_period_end,
         },
       });
     } else if (subscription.status === 'active') {
@@ -723,6 +729,13 @@ export class SubscriptionService {
     transactionId?: string,
     locale: 'ru' | 'en' | 'es' = 'ru',
   ) {
+    const environment = this.configService.get<string>('NODE_ENV');
+    if (environment !== 'development' && environment !== 'test') {
+      throw new ForbiddenException(
+        'Mock payments are only available in development or test',
+      );
+    }
+
     return this.processPaidPayment(
       userId,
       tier,
@@ -991,11 +1004,95 @@ export class SubscriptionService {
    * Отменить подписку
    */
   async cancel(userId: string) {
-    // ✅ PRISMA: Обновляем статус подписки
-    await this.prisma.subscription.update({
-      where: { userId },
-      data: { isCancelled: true },
-    });
+    const [localSubscription, payments] = await Promise.all([
+      this.prisma.subscription.findUnique({ where: { userId } }),
+      this.prisma.payment.findMany({
+        where: { userId, stripeSessionId: { startsWith: 'sub_' } },
+        select: { stripeSessionId: true },
+      }),
+    ]);
+    const stripeSubscriptionIds = [
+      ...new Set(
+        payments.flatMap((payment) =>
+          payment.stripeSessionId?.startsWith('sub_')
+            ? [payment.stripeSessionId]
+            : [],
+        ),
+      ),
+    ];
+
+    // A local trial or a manually granted tier does not start recurring billing.
+    // Do not tell the user a provider subscription was cancelled in that case.
+    if (stripeSubscriptionIds.length === 0) {
+      return {
+        success: true,
+        message:
+          localSubscription &&
+          normalizeSubscriptionTier(localSubscription.tier) !==
+            SubscriptionTier.FREE
+            ? 'Подписка не продлевается автоматически. Доступ сохранится до конца периода.'
+            : 'Нет активной подписки для отмены.',
+      };
+    }
+
+    const stripe = this.getStripeClient();
+    try {
+      const subscriptions: StripeSubscription[] = [];
+      for (const subscriptionId of stripeSubscriptionIds) {
+        const subscription =
+          await stripe.subscriptions.retrieve(subscriptionId);
+        await this.assertStripeSubscriptionOwnership(
+          stripe,
+          subscription,
+          userId,
+        );
+        subscriptions.push(subscription);
+      }
+
+      // Verify every owner before changing any provider subscription. A retry
+      // also completes any remaining cancellations after a partial provider failure.
+      for (const subscription of subscriptions) {
+        if (
+          subscription.cancel_at_period_end ||
+          subscription.status === 'canceled' ||
+          subscription.status === 'incomplete_expired'
+        ) {
+          continue;
+        }
+
+        const updated = await stripe.subscriptions.update(subscription.id, {
+          cancel_at_period_end: true,
+        });
+        if (
+          updated.id !== subscription.id ||
+          (!updated.cancel_at_period_end && updated.status !== 'canceled')
+        ) {
+          throw new BadGatewayException(
+            'Stripe did not confirm subscription cancellation',
+          );
+        }
+      }
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof BadGatewayException
+      ) {
+        throw error;
+      }
+      this.logger.error(`Stripe cancellation failed for user ${userId}`);
+      throw new BadGatewayException(
+        'Не удалось подтвердить отмену продления в Stripe. Повторите запрос.',
+      );
+    }
+
+    // An expired local tier must not prevent cancellation of continuing billing.
+    // Update local state only after all provider cancellations are confirmed.
+    if (localSubscription) {
+      await this.prisma.subscription.update({
+        where: { userId },
+        data: { isCancelled: true },
+      });
+    }
 
     // ✅ Очистка кэша подписки в Redis
     await Promise.all([
@@ -1008,6 +1105,36 @@ export class SubscriptionService {
       success: true,
       message: 'Подписка отменена. Доступ сохранится до конца периода.',
     };
+  }
+
+  private async assertStripeSubscriptionOwnership(
+    stripe: Stripe.Stripe,
+    subscription: StripeSubscription,
+    userId: string,
+  ): Promise<void> {
+    const subscriptionOwner = subscription.metadata?.userId;
+    if (subscriptionOwner) {
+      if (subscriptionOwner !== userId) {
+        throw new ForbiddenException(
+          'Stripe subscription does not belong to user',
+        );
+      }
+      return;
+    }
+
+    // Older subscriptions may only bind the app user on the Stripe customer.
+    const customerId =
+      typeof subscription.customer === 'string'
+        ? subscription.customer
+        : subscription.customer?.id;
+    if (customerId) {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer.deleted && customer.metadata?.userId === userId) {
+        return;
+      }
+    }
+
+    throw new ForbiddenException('Stripe subscription does not belong to user');
   }
 
   /**

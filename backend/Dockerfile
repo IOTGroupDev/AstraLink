@@ -21,6 +21,11 @@ RUN apk add --no-cache \
 COPY package.json package-lock.json ./
 RUN npm ci && npm cache clean --force
 
+# Run this target explicitly only after schema baseline verification.
+FROM deps AS migrations
+COPY prisma ./prisma
+CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
+
 FROM deps AS builder
 
 RUN mkdir -p /app/ephe

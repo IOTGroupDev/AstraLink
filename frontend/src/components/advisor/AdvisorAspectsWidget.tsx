@@ -1,7 +1,7 @@
 // src/components/advisor/AdvisorAspectsWidget.tsx
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../shared/BlurView';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';

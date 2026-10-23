@@ -15,7 +15,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -96,6 +96,13 @@ interface ChartData {
     };
     interpretation?: any;
     aiInterpretations?: Record<string, any>;
+    metadata?: {
+      birthTimeKnown?: boolean;
+      moonLongitudeRange?: {
+        from: { sign: string; degree: number };
+        to: { sign: string; degree: number };
+      };
+    };
   };
   interpretation?: any;
   aiInterpretations?: Record<string, any>;
@@ -733,7 +740,11 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
 
   // Извлекаем данные из правильной структуры
   const { planets, houses, aspects, ascendant, midheaven } = chartData.data;
-  const interpretation = chartData.data?.interpretation;
+  const birthTimeKnown = chartData.data.metadata?.birthTimeKnown !== false;
+  const moonRange = chartData.data.metadata?.moonLongitudeRange;
+  const interpretation = birthTimeKnown
+    ? chartData.data?.interpretation
+    : undefined;
   const resolvedAscendant: AngleData = ascendant || {
     sign: houses?.[1]?.sign || 'N/A',
     degree: typeof houses?.[1]?.cusp === 'number' ? houses[1].cusp % 30 : 0,
@@ -1030,7 +1041,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
           <BlurView
             intensity={20}
             tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
+            blurMethod="dimezisBlurView"
             style={styles.premiumNarrativeBlur}
           >
             <LinearGradient
@@ -1119,7 +1130,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
           <BlurView
             intensity={20}
             tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
+            blurMethod="dimezisBlurView"
             style={styles.premiumNarrativeBlur}
           >
             <LinearGradient
@@ -1395,20 +1406,24 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
                 </Text>
                 <Text style={styles.bigThreeValue}>{moonSign}</Text>
                 <Text style={styles.bigThreeDegree}>
-                  {formatDegree(planets?.moon?.degree || 0)}
+                  {!birthTimeKnown && moonRange
+                    ? `${getZodiacLabel(moonRange.from.sign)} ${formatDegree(moonRange.from.degree)} – ${getZodiacLabel(moonRange.to.sign)} ${formatDegree(moonRange.to.degree)}`
+                    : formatDegree(planets?.moon?.degree || 0)}
                 </Text>
               </View>
 
-              <View style={styles.bigThreeItem}>
-                <Text style={styles.bigThreeSymbol}>ASC</Text>
-                <Text style={styles.bigThreeLabel}>
-                  {t('natalChart.bigThree.ascendant')}
-                </Text>
-                <Text style={styles.bigThreeValue}>{ascSign}</Text>
-                <Text style={styles.bigThreeDegree}>
-                  {formatDegree(resolvedAscendant.degree || 0)}
-                </Text>
-              </View>
+              {birthTimeKnown && (
+                <View style={styles.bigThreeItem}>
+                  <Text style={styles.bigThreeSymbol}>ASC</Text>
+                  <Text style={styles.bigThreeLabel}>
+                    {t('natalChart.bigThree.ascendant')}
+                  </Text>
+                  <Text style={styles.bigThreeValue}>{ascSign}</Text>
+                  <Text style={styles.bigThreeDegree}>
+                    {formatDegree(resolvedAscendant.degree || 0)}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {!!(
@@ -1573,137 +1588,141 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
           </View>
         </BlurView>
 
-        <BlurView intensity={20} tint="dark" style={styles.card}>
-          <View style={styles.cardInner}>
-            <View style={styles.cardTitleRow}>
-              <Text style={[styles.cardTitle, styles.cardTitleInline]}>
-                {t('natalChart.angles.title')}
-              </Text>
+        {birthTimeKnown && (
+          <BlurView intensity={20} tint="dark" style={styles.card}>
+            <View style={styles.cardInner}>
+              <View style={styles.cardTitleRow}>
+                <Text style={[styles.cardTitle, styles.cardTitleInline]}>
+                  {t('natalChart.angles.title')}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.angleItem}
+                activeOpacity={0.85}
+                onPress={() => openAngleDetails('ascendant')}
+              >
+                <View style={styles.angleHeader}>
+                  <Text style={styles.angleSymbol}>ASC</Text>
+                  <Text style={styles.angleLabel}>
+                    {t('natalChart.angles.ascendant')}
+                  </Text>
+                </View>
+                <Text style={styles.angleValue}>
+                  {getZodiacLabel(resolvedAscendant.sign)}{' '}
+                  {formatDegree(resolvedAscendant.degree || 0)}
+                </Text>
+                <Text style={styles.angleHint}>
+                  {t('natalChart.angleModal.openHint')}
+                </Text>
+                {!!interpretation?.ascendant?.interpretation && (
+                  <Text style={styles.angleDescription} numberOfLines={3}>
+                    {interpretation.ascendant.interpretation}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity
+                style={styles.angleItem}
+                activeOpacity={0.85}
+                onPress={() => openAngleDetails('midheaven')}
+              >
+                <View style={styles.angleHeader}>
+                  <Text style={styles.angleSymbol}>MC</Text>
+                  <Text style={styles.angleLabel}>
+                    {t('natalChart.angles.midheaven')}
+                  </Text>
+                </View>
+                <Text style={styles.angleValue}>
+                  {getZodiacLabel(resolvedMidheaven.sign)}{' '}
+                  {formatDegree(resolvedMidheaven.degree || 0)}
+                </Text>
+                <Text style={styles.angleHint}>
+                  {t('natalChart.angleModal.openHint')}
+                </Text>
+                {!!interpretation?.houses?.find(
+                  (house: any) => house.house === 10
+                )?.interpretation && (
+                  <Text style={styles.angleDescription} numberOfLines={3}>
+                    {
+                      interpretation.houses.find(
+                        (house: any) => house.house === 10
+                      )?.interpretation
+                    }
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity
+                style={styles.angleItem}
+                activeOpacity={0.85}
+                onPress={() => openAngleDetails('descendant')}
+              >
+                <View style={styles.angleHeader}>
+                  <Text style={styles.angleSymbol}>DSC</Text>
+                  <Text style={styles.angleLabel}>
+                    {t('natalChart.angles.descendant')}
+                  </Text>
+                </View>
+                <Text style={styles.angleValue}>
+                  {houses?.[7]?.sign || 'N/A'}{' '}
+                  {houses?.[7]?.cusp ? formatDegree(houses[7].cusp) : ''}
+                </Text>
+                <Text style={styles.angleHint}>
+                  {t('natalChart.angleModal.openHint')}
+                </Text>
+                {!!interpretation?.houses?.find(
+                  (house: any) => house.house === 7
+                )?.interpretation && (
+                  <Text style={styles.angleDescription} numberOfLines={3}>
+                    {
+                      interpretation.houses.find(
+                        (house: any) => house.house === 7
+                      )?.interpretation
+                    }
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity
+                style={styles.angleItem}
+                activeOpacity={0.85}
+                onPress={() => openAngleDetails('ic')}
+              >
+                <View style={styles.angleHeader}>
+                  <Text style={styles.angleSymbol}>IC</Text>
+                  <Text style={styles.angleLabel}>
+                    {t('natalChart.angles.ic')}
+                  </Text>
+                </View>
+                <Text style={styles.angleValue}>
+                  {houses?.[4]?.sign || 'N/A'}{' '}
+                  {houses?.[4]?.cusp ? formatDegree(houses[4].cusp) : ''}
+                </Text>
+                <Text style={styles.angleHint}>
+                  {t('natalChart.angleModal.openHint')}
+                </Text>
+                {!!interpretation?.houses?.find(
+                  (house: any) => house.house === 4
+                )?.interpretation && (
+                  <Text style={styles.angleDescription} numberOfLines={3}>
+                    {
+                      interpretation.houses.find(
+                        (house: any) => house.house === 4
+                      )?.interpretation
+                    }
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={styles.angleItem}
-              activeOpacity={0.85}
-              onPress={() => openAngleDetails('ascendant')}
-            >
-              <View style={styles.angleHeader}>
-                <Text style={styles.angleSymbol}>ASC</Text>
-                <Text style={styles.angleLabel}>
-                  {t('natalChart.angles.ascendant')}
-                </Text>
-              </View>
-              <Text style={styles.angleValue}>
-                {getZodiacLabel(resolvedAscendant.sign)}{' '}
-                {formatDegree(resolvedAscendant.degree || 0)}
-              </Text>
-              <Text style={styles.angleHint}>
-                {t('natalChart.angleModal.openHint')}
-              </Text>
-              {!!interpretation?.ascendant?.interpretation && (
-                <Text style={styles.angleDescription} numberOfLines={3}>
-                  {interpretation.ascendant.interpretation}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.angleItem}
-              activeOpacity={0.85}
-              onPress={() => openAngleDetails('midheaven')}
-            >
-              <View style={styles.angleHeader}>
-                <Text style={styles.angleSymbol}>MC</Text>
-                <Text style={styles.angleLabel}>
-                  {t('natalChart.angles.midheaven')}
-                </Text>
-              </View>
-              <Text style={styles.angleValue}>
-                {getZodiacLabel(resolvedMidheaven.sign)}{' '}
-                {formatDegree(resolvedMidheaven.degree || 0)}
-              </Text>
-              <Text style={styles.angleHint}>
-                {t('natalChart.angleModal.openHint')}
-              </Text>
-              {!!interpretation?.houses?.find(
-                (house: any) => house.house === 10
-              )?.interpretation && (
-                <Text style={styles.angleDescription} numberOfLines={3}>
-                  {
-                    interpretation.houses.find(
-                      (house: any) => house.house === 10
-                    )?.interpretation
-                  }
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.angleItem}
-              activeOpacity={0.85}
-              onPress={() => openAngleDetails('descendant')}
-            >
-              <View style={styles.angleHeader}>
-                <Text style={styles.angleSymbol}>DSC</Text>
-                <Text style={styles.angleLabel}>
-                  {t('natalChart.angles.descendant')}
-                </Text>
-              </View>
-              <Text style={styles.angleValue}>
-                {houses?.[7]?.sign || 'N/A'}{' '}
-                {houses?.[7]?.cusp ? formatDegree(houses[7].cusp) : ''}
-              </Text>
-              <Text style={styles.angleHint}>
-                {t('natalChart.angleModal.openHint')}
-              </Text>
-              {!!interpretation?.houses?.find((house: any) => house.house === 7)
-                ?.interpretation && (
-                <Text style={styles.angleDescription} numberOfLines={3}>
-                  {
-                    interpretation.houses.find(
-                      (house: any) => house.house === 7
-                    )?.interpretation
-                  }
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.angleItem}
-              activeOpacity={0.85}
-              onPress={() => openAngleDetails('ic')}
-            >
-              <View style={styles.angleHeader}>
-                <Text style={styles.angleSymbol}>IC</Text>
-                <Text style={styles.angleLabel}>
-                  {t('natalChart.angles.ic')}
-                </Text>
-              </View>
-              <Text style={styles.angleValue}>
-                {houses?.[4]?.sign || 'N/A'}{' '}
-                {houses?.[4]?.cusp ? formatDegree(houses[4].cusp) : ''}
-              </Text>
-              <Text style={styles.angleHint}>
-                {t('natalChart.angleModal.openHint')}
-              </Text>
-              {!!interpretation?.houses?.find((house: any) => house.house === 4)
-                ?.interpretation && (
-                <Text style={styles.angleDescription} numberOfLines={3}>
-                  {
-                    interpretation.houses.find(
-                      (house: any) => house.house === 4
-                    )?.interpretation
-                  }
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </BlurView>
+          </BlurView>
+        )}
       </View>
     );
   };
@@ -1786,16 +1805,19 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
                       {t('natalChart.planetDetails.speed')}
                     </Text>
                     <Text style={styles.detailValue}>
-                      {(planet.speed || 0).toFixed(4)}°/день
+                      {(planet.speed || 0).toFixed(4)}
+                      {t('natalChart.degreesPerDay')}
                     </Text>
                   </View>
 
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>
-                      {t('natalChart.planetDetails.house')}
-                    </Text>
-                    <Text style={styles.detailValue}>{house}</Text>
-                  </View>
+                  {birthTimeKnown && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>
+                        {t('natalChart.planetDetails.house')}
+                      </Text>
+                      <Text style={styles.detailValue}>{house}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {planetInterpretation ? (
@@ -1996,9 +2018,9 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
       const normalized = normalizeAspectToken(String(value || ''));
       return Boolean(
         normalized &&
-          tokens.some(
-            (token) => normalized === token || normalized.includes(token)
-          )
+        tokens.some(
+          (token) => normalized === token || normalized.includes(token)
+        )
       );
     };
     const findAspectInterpretation = (aspect: AspectData) => {
@@ -3083,11 +3105,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
       style={[
         styles.tabsStickyShell,
         {
-          marginHorizontal: pinned
-            ? 0
-            : showBackButton
-              ? -24
-              : -16,
+          marginHorizontal: pinned ? 0 : showBackButton ? -24 : -16,
         },
         pinned && styles.pinnedTabsShell,
       ]}
@@ -3111,10 +3129,7 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
             <GradientBorderView
               colors={
                 activeTab === tab.id
-                  ? [
-                      'rgba(216, 180, 254, 0.78)',
-                      'rgba(139, 92, 246, 0.24)',
-                    ]
+                  ? ['rgba(216, 180, 254, 0.78)', 'rgba(139, 92, 246, 0.24)']
                   : CHART_SURFACE_BORDER_COLORS
               }
               gradientProps={{
@@ -3201,26 +3216,19 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
             <BlurView
               intensity={24}
               tint="dark"
-              experimentalBlurMethod="dimezisBlurView"
+              blurMethod="dimezisBlurView"
               style={styles.headerGradient}
             >
               <LinearGradient
                 pointerEvents="none"
-                colors={[
-                  'rgba(88, 1, 114, 0.42)',
-                  'rgba(8, 14, 28, 0.56)',
-                ]}
+                colors={['rgba(88, 1, 114, 0.42)', 'rgba(8, 14, 28, 0.56)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
               <>
                 <View style={styles.headerIconContainer}>
-                  <Ionicons
-                    name="sparkles-outline"
-                    size={26}
-                    color="#F1C5FF"
-                  />
+                  <Ionicons name="sparkles-outline" size={26} color="#F1C5FF" />
                 </View>
                 <Text style={styles.headerTitle}>{t('natalChart.title')}</Text>
                 <Text style={styles.headerSubtitle}>
@@ -3234,20 +3242,25 @@ const NatalChartScreen: React.FC<NatalChartScreenProps> = ({
         {/* Вкладки */}
         {!showBackButton && renderTabsNavigation()}
 
+        {!birthTimeKnown && (
+          <View style={styles.content}>
+            <Text style={styles.interpretationText}>
+              {t('natalChart.unknownBirthTime')}
+            </Text>
+          </View>
+        )}
         {/* Контент вкладки */}
-        {activeTab === 'summary' && renderSummary()}
+        {activeTab === 'summary' &&
+          (birthTimeKnown ? renderSummary() : renderOverview())}
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'planets' && renderPlanets()}
-        {activeTab === 'houses' && renderHouses()}
+        {activeTab === 'houses' && birthTimeKnown && renderHouses()}
         {activeTab === 'aspects' && renderAspects()}
       </ScrollView>
 
       {showBackButton && (
         <View
-          style={[
-            styles.pinnedTabsOverlay,
-            { top: fixedHeaderHeight + 12 },
-          ]}
+          style={[styles.pinnedTabsOverlay, { top: fixedHeaderHeight + 12 }]}
         >
           {renderTabsNavigation(true)}
         </View>
@@ -3433,7 +3446,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.82,
@@ -3875,7 +3888,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(3, 6, 20, 0.78)',
   },
   modalContent: {

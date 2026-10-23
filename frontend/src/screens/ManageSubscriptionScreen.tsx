@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#080E1C',
   },
   backgroundFrame: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     transform: [{ rotate: '180deg' }],
   },
   background: {

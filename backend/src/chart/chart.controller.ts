@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
+import { CreateChartRequestDto } from '@/common/dto/request-validation.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -17,9 +18,10 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ChartService } from './chart.service';
-import type { CreateNatalChartRequest, TransitRequest } from '@/types';
+import type { TransitRequest } from '@/types';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { DevOnlyGuard } from '@/common/guards/dev-only.guard';
+import { AdminGuard } from '@/common/guards/admin.guard';
 import { ArchetypeService } from '@/chart/services/archetype.service';
 import { LunarService } from '@/services/lunar.service';
 import { getHeaderValue } from '@/common/utils/request-headers.util';
@@ -210,7 +212,7 @@ export class ChartController {
   @ApiResponse({ status: 201, description: 'Карта создана' })
   async createNatalChart(
     @Request() req: AuthenticatedRequest,
-    @Body() chartData: CreateNatalChartRequest,
+    @Body() chartData: CreateChartRequestDto,
     @Query('locale') localeQuery?: 'ru' | 'en' | 'es',
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -681,6 +683,7 @@ export class ChartController {
   }
 
   @Post('admin/fix-nested-data')
+  @UseGuards(AdminGuard)
   @ApiOperation({
     summary: 'Fix deeply nested chart data (Admin only)',
   })
@@ -693,10 +696,6 @@ export class ChartController {
     if (!userId) {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
-
-    // TODO: Add admin role check
-    // For now, any authenticated user can run this
-    // In production, restrict to admin role only
 
     return this.chartService.fixNestedChartData();
   }

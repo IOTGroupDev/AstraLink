@@ -6,7 +6,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from './BlurView';
 
 interface CompactScreenHeaderProps {
   title: string;

@@ -36,7 +36,8 @@ export const chatAPI = {
 
   listMessages: async (
     userId: string,
-    limit = 50
+    limit = 50,
+    before?: string
   ): Promise<
     Array<{
       id: string;
@@ -50,7 +51,7 @@ export const chatAPI = {
     }>
   > => {
     const response = await api.get(
-      `/chat/messages?userId=${encodeURIComponent(userId)}&limit=${Math.max(1, Math.min(100, limit))}`
+      `/chat/messages?userId=${encodeURIComponent(userId)}&limit=${Math.max(1, Math.min(100, limit))}${before ? `&before=${encodeURIComponent(before)}` : ''}`
     );
     return response.data?.items ?? [];
   },

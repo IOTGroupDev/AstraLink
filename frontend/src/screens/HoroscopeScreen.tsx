@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import LoadingIndicator from '../components/shared/LoadingIndicator';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -388,8 +388,8 @@ const HoroscopeScreen: React.FC = () => {
 
       return Boolean(
         bundle.day &&
-          (bundle.day.status === 'ai_pending' ||
-            bundle.day.generatedBy === 'interpreter')
+        (bundle.day.status === 'ai_pending' ||
+          bundle.day.generatedBy === 'interpreter')
       );
     },
     []
@@ -762,9 +762,9 @@ const HoroscopeScreen: React.FC = () => {
       const newPredictions = normalizeHoroscopeBundle(response);
       const hasPredictionData = Boolean(
         newPredictions.day ||
-          newPredictions.tomorrow ||
-          newPredictions.week ||
-          newPredictions.month
+        newPredictions.tomorrow ||
+        newPredictions.week ||
+        newPredictions.month
       );
 
       if (
@@ -1310,7 +1310,7 @@ const HoroscopeScreen: React.FC = () => {
                         <BlurView
                           intensity={15}
                           tint="dark"
-                          experimentalBlurMethod="dimezisBlurView"
+                          blurMethod="dimezisBlurView"
                           style={styles.premiumBlur}
                         >
                           <Text style={styles.premiumText}>
@@ -1407,7 +1407,7 @@ const HoroscopeScreen: React.FC = () => {
                             <BlurView
                               intensity={15}
                               tint="dark"
-                              experimentalBlurMethod="dimezisBlurView"
+                              blurMethod="dimezisBlurView"
                               style={styles.quickActionBlur}
                             >
                               <Ionicons
@@ -1480,7 +1480,7 @@ const HoroscopeScreen: React.FC = () => {
                       <BlurView
                         intensity={20}
                         tint="dark"
-                        experimentalBlurMethod="dimezisBlurView"
+                        blurMethod="dimezisBlurView"
                         style={styles.learningBlur}
                       >
                         <LinearGradient

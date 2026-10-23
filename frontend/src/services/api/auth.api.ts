@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import { Linking, Platform, type EmitterSubscription } from 'react-native';
@@ -589,11 +590,11 @@ function isOAuthRedirectUrl(url: string, redirectUri: string): boolean {
   const parsed = extractFromRedirectUrl(url);
   return Boolean(
     parsed.accessToken ||
-      parsed.refreshToken ||
-      parsed.providerToken ||
-      parsed.code ||
-      parsed.error ||
-      parsed.errorDescription
+    parsed.refreshToken ||
+    parsed.providerToken ||
+    parsed.code ||
+    parsed.error ||
+    parsed.errorDescription
   );
 }
 
@@ -639,7 +640,7 @@ async function openOAuthSession(
 
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error('OAuth авторизация не завершилась'));
+      reject(new Error(i18n.t('auth.apiErrors.oauthIncomplete')));
     }, OAUTH_SESSION_TIMEOUT_MS);
   });
 
@@ -676,7 +677,7 @@ async function openOAuthSession(
         return buildSessionEstablishedRedirectUrl(redirectUri);
       }
 
-      throw new Error('Авторизация отменена или не завершена');
+      throw new Error(i18n.t('auth.apiErrors.cancelled'));
     });
 
     return await Promise.race([
@@ -818,7 +819,7 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
     const exchangedRefreshToken = sessionData.session?.refresh_token ?? null;
 
     if (!exchangedAccessToken || !exchangedRefreshToken) {
-      throw new Error('Не удалось получить сессию после OAuth code exchange');
+      throw new Error(i18n.t('auth.apiErrors.sessionExchange'));
     }
 
     await syncAccessToken(exchangedAccessToken);
@@ -838,7 +839,7 @@ async function establishSessionFromRedirectUrl(redirectedUrl: string): Promise<{
     return existingSession;
   }
 
-  throw new Error('Токены или code не получены из OAuth потока');
+  throw new Error(i18n.t('auth.apiErrors.missingTokens'));
 }
 
 export const authAPI = {
@@ -921,7 +922,9 @@ export const authAPI = {
       });
 
       if (!response?.data?.success) {
-        throw new Error(response?.data?.message || 'Не удалось отправить код');
+        throw new Error(
+          response?.data?.message || i18n.t('auth.apiErrors.sendCode')
+        );
       }
 
       const flow: 'signup' | 'login' = 'signup';
@@ -967,7 +970,7 @@ export const authAPI = {
       } else if (/invalid email/i.test(rawMsg)) {
         error.message = 'Некорректный email';
       } else {
-        error.message = error.message || 'Не удалось отправить код';
+        error.message = error.message || i18n.t('auth.apiErrors.sendCode');
       }
 
       // Логируем нормализованную ошибку + статус, чтобы было видно 429 и backoff
@@ -992,7 +995,8 @@ export const authAPI = {
         type: 'email',
       });
       if (error) throw error;
-      if (!data.session) throw new Error('Не удалось создать сессию');
+      if (!data.session)
+        throw new Error(i18n.t('auth.apiErrors.createSession'));
 
       try {
         await supabase.auth.setSession({
@@ -1017,7 +1021,7 @@ export const authAPI = {
           '❌ ensureUserProfile failed after OTP verification:',
           ensureError
         );
-        throw new Error('Не удалось создать профиль пользователя');
+        throw new Error(i18n.t('auth.apiErrors.createProfile'));
       }
 
       return {
@@ -1051,7 +1055,14 @@ export const authAPI = {
         // Dynamic import to avoid bundling issues on non-iOS platforms
         // Ensure expo-apple-authentication is installed for iOS builds
         const Apple = await import('expo-apple-authentication');
+        const Crypto = await import('expo-crypto');
+        const nonce = Crypto.randomUUID();
+        const hashedNonce = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          nonce
+        );
         const credential = await Apple.signInAsync({
+          nonce: hashedNonce,
           requestedScopes: [
             Apple.AppleAuthenticationScope.FULL_NAME,
             Apple.AppleAuthenticationScope.EMAIL,
@@ -1060,14 +1071,31 @@ export const authAPI = {
 
         const idToken = (credential as any)?.identityToken as string | null;
         if (!idToken) {
-          throw new Error('Apple identityToken отсутствует');
+          throw new Error(i18n.t('auth.apiErrors.appleToken'));
         }
 
         const { error } = await supabase.auth.signInWithIdToken({
           provider: 'apple',
           token: idToken,
+          nonce,
         });
         if (error) throw error;
+
+        const fullName = [
+          credential.fullName?.givenName,
+          credential.fullName?.middleName,
+          credential.fullName?.familyName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+        if (fullName) {
+          const result = await supabase.auth.updateUser({
+            data: { full_name: fullName },
+          });
+          if (result.error)
+            authLogger.warn('Could not save Apple display name', result.error);
+        }
 
         const { data: s } = await supabase.auth.getSession();
         const accessToken = s.session?.access_token ?? null;
@@ -1082,7 +1110,7 @@ export const authAPI = {
 
         const email = getUserEmailFromProvider(user);
         if (!email) {
-          throw new Error('Email не получен от Apple провайдера');
+          throw new Error(i18n.t('auth.apiErrors.appleEmail'));
         }
 
         const ensured = await ensureUserProfileWithTimeout({
@@ -1119,12 +1147,12 @@ export const authAPI = {
         const { data: userRes } = await supabase.auth.getUser();
         const user = userRes.user;
         if (!user) {
-          throw new Error('Не удалось получить пользователя после Apple OAuth');
+          throw new Error(i18n.t('auth.apiErrors.appleUser'));
         }
 
         const email = getUserEmailFromProvider(user);
         if (!email) {
-          throw new Error('Email не получен от Apple провайдера');
+          throw new Error(i18n.t('auth.apiErrors.appleEmail'));
         }
 
         const ensured = await ensureUserProfileWithTimeout({
@@ -1143,7 +1171,7 @@ export const authAPI = {
         };
       }
 
-      throw new Error('Не удалось инициировать Apple OAuth');
+      throw new Error(i18n.t('auth.apiErrors.appleStart'));
     } catch (error: any) {
       authLogger.error('❌ Apple sign in failed:', error);
       throw error;
@@ -1174,13 +1202,13 @@ export const authAPI = {
 
         const { data: userRes } = await supabase.auth.getUser();
         const user = userRes.user;
-        if (!user) throw new Error('Не удалось получить данные пользователя');
+        if (!user) throw new Error(i18n.t('auth.apiErrors.user'));
 
         const email =
           getUserEmailFromProvider(user) ||
           (await getUserEmailFromCurrentSession());
         if (!email) {
-          throw new Error('Email не получен от OAuth провайдера');
+          throw new Error(i18n.t('auth.apiErrors.providerEmail'));
         }
 
         const ensured = await ensureUserProfileWithTimeout({
@@ -1199,7 +1227,7 @@ export const authAPI = {
         };
       }
 
-      throw new Error('Не удалось инициировать OAuth');
+      throw new Error(i18n.t('auth.apiErrors.oauthStart'));
     } catch (error: any) {
       authLogger.error('❌ Google sign in failed:', error);
       throw error;
@@ -1239,13 +1267,13 @@ export const authAPI = {
 
         const { data: userRes } = await supabase.auth.getUser();
         const user = userRes.user;
-        if (!user) throw new Error('Не удалось получить данные пользователя');
+        if (!user) throw new Error(i18n.t('auth.apiErrors.user'));
 
         const email =
           getUserEmailFromProvider(user) ||
           (await getYandexEmailFromProviderToken(providerToken));
         if (!email) {
-          throw new Error('Email не получен от Yandex провайдера');
+          throw new Error(i18n.t('auth.apiErrors.yandexEmail'));
         }
 
         const ensured = await ensureUserProfileWithTimeout({
@@ -1264,7 +1292,7 @@ export const authAPI = {
         };
       }
 
-      throw new Error('Не удалось инициировать OAuth');
+      throw new Error(i18n.t('auth.apiErrors.oauthStart'));
     } catch (error: any) {
       authLogger.error('❌ Yandex sign in failed:', error);
       throw error;
@@ -1291,8 +1319,8 @@ export const authAPI = {
         userId: data.userId,
         name: data.name,
         birthDate: data.birthDate,
-        birthTime: data.birthTime || '12:00',
-        birthPlace: data.birthPlace || 'Moscow',
+        birthTime: data.birthTime,
+        birthPlace: data.birthPlace,
         latitude: data.latitude,
         longitude: data.longitude,
         timezone: data.timezone,

@@ -21,8 +21,10 @@ type GradientBorderStyle = ViewStyle & {
   borderLeftColor?: never;
 };
 
-export interface GradientBorderViewProps
-  extends Omit<ViewProps, 'style' | 'children'> {
+export interface GradientBorderViewProps extends Omit<
+  ViewProps,
+  'style' | 'children'
+> {
   children?: ReactNode;
   colors: GradientBorderColors;
   contentStyle?: StyleProp<ViewStyle>;
@@ -220,7 +222,7 @@ const styles = StyleSheet.create({
   },
   contentInset: {},
   mask: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderColor: '#000',
   },
 });

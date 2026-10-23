@@ -13,7 +13,8 @@
   },
   "loading": {
     "messages": "Loading messages...",
-    "authorization": "Checking authorization..."
+    "authorization": "Checking authorization...",
+    "older": "Load earlier messages"
   },
   "errors": {
     "authRequired": "Authorization Required",
@@ -25,7 +26,8 @@
     "failedToSendFile": "Failed to send file. Please try again.",
     "failedToDelete": "Failed to delete message.",
     "failedToDeleteForAll": "Failed to delete message for everyone.",
-    "failedToLoad": "Error loading messages"
+    "failedToLoad": "Error loading messages",
+    "loadHistory": "Could not load message history"
   },
   "deleteMessage": {
     "title": "Delete Message",
@@ -37,6 +39,8 @@
     "delete": "Delete"
   },
   "media": {
+    "openPhoto": "Open photo",
+    "failedToLoadPhoto": "Unable to load photo",
     "label": "📷 Media"
   }
 }

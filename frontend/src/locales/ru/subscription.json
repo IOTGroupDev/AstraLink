@@ -89,7 +89,8 @@
     "apple": {
       "title": "Apple Pay",
       "subtitle": "Нативная оплата на iPhone"
-    }
+    },
+    "unavailable": "Покупки подписки недоступны в этой версии приложения."
   },
   "tiers": {
     "free": {

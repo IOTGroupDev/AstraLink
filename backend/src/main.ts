@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, type LogLevel } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as compression from 'compression';
 import helmet from 'helmet';
@@ -90,10 +90,32 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  const levels: Record<string, LogLevel[]> = {
+    error: ['error'],
+    warn: ['error', 'warn'],
+    info: ['error', 'warn', 'log'],
+    debug: ['error', 'warn', 'log', 'debug', 'verbose'],
+  };
+  const logLevels =
+    levels[
+      process.env.LOG_LEVEL ||
+        (process.env.NODE_ENV === 'production' ? 'info' : 'debug')
+    ];
+  Logger.overrideLogger(logLevels);
   const app = await NestFactory.create(AppModule, {
     cors: false,
     rawBody: true,
+    logger: logLevels,
   });
+  app.enableShutdownHooks();
+  // Trust private reverse-proxy hops; never use raw X-Forwarded-For in guards.
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set(
+      'trust proxy',
+      process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal',
+    );
 
   // Security headers with Helmet
   app.use(
@@ -106,11 +128,7 @@ async function bootstrap() {
           imgSrc: ["'self'", 'data:', 'https:'],
         },
       },
-      hsts: {
-        maxAge: 31536000, // 1 year
-        includeSubDomains: true,
-        preload: true,
-      },
+      hsts: false, // TLS policy belongs to the deployment's HTTPS proxy.
       frameguard: {
         action: 'deny',
       },

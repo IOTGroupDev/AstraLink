@@ -34,7 +34,7 @@ const AstralCityInput: React.FC<AstralCityInputProps> = ({
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const justSelected = useRef(false);
 
   useEffect(() => {

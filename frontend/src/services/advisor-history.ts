@@ -27,9 +27,9 @@ const buildAdvisorHistoryHintKey = (userId: string) =>
 const isAdvisorHistoryState = (value: unknown): value is AdvisorChatState => {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      Array.isArray((value as AdvisorChatState).sessions) &&
-      typeof (value as AdvisorChatState).activeSessionId === 'string'
+    typeof value === 'object' &&
+    Array.isArray((value as AdvisorChatState).sessions) &&
+    typeof (value as AdvisorChatState).activeSessionId === 'string'
   );
 };
 

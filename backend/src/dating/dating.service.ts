@@ -1,12 +1,23 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ASTRO_CALCULATION_VERSION } from '@/shared/astro-version';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { isUUID } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { EphemerisService } from '../services/ephemeris.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../redis/redis.service';
 import type { DatingMatchResponse } from '../types';
 import { parseInterests, parsePreferences } from '../utils/preferences.utils';
+import { isOwnedPhotoPath } from '../user/dto/photos.dto';
 import type {
   CandidateRow,
   EnrichedCandidate,
@@ -157,16 +168,28 @@ export class DatingService {
       | null
       | undefined,
   ): { gender: string | null; lookingForGender: string | null } {
-    const prefs = parsePreferences((profile?.preferences as any) ?? null);
+    const rawPreferences = profile?.preferences;
+    const prefs = parsePreferences(
+      typeof rawPreferences === 'string' ||
+        (typeof rawPreferences === 'object' && rawPreferences !== null)
+        ? rawPreferences
+        : null,
+    );
+    const firstNonempty = (...values: unknown[]): string | null => {
+      const value = values.find(
+        (item) => typeof item === 'string' && item.trim(),
+      );
+      return typeof value === 'string' ? value.trim() : null;
+    };
 
     return {
-      gender: profile?.gender ?? prefs.gender ?? null,
-      lookingForGender:
-        ((profile as any)?.lookingForGender as string | null | undefined) ??
-        ((profile as any)?.looking_for_gender as string | null | undefined) ??
-        prefs.looking_for_gender ??
-        ((prefs as any).lookingForGender as string | undefined) ??
-        null,
+      gender: firstNonempty(profile?.gender, prefs?.gender),
+      lookingForGender: firstNonempty(
+        profile?.lookingForGender,
+        profile?.looking_for_gender,
+        prefs?.looking_for_gender,
+        prefs?.lookingForGender,
+      ),
     };
   }
 
@@ -323,12 +346,12 @@ export class DatingService {
   }
 
   private async resolvePhotoUrlMap(
-    rawPaths: Array<string | null | undefined>,
+    rawPhotos: Array<{ userId: string; path: string | null | undefined }>,
   ): Promise<Map<string, string | null>> {
     const uniquePaths = Array.from(
       new Set(
-        rawPaths.filter(
-          (path): path is string => !!path && typeof path === 'string',
+        rawPhotos.flatMap(({ userId, path }) =>
+          isOwnedPhotoPath(userId, path) ? [path] : [],
         ),
       ),
     );
@@ -406,6 +429,7 @@ export class DatingService {
 
   private async getExcludedUserIds(
     userId: string | null | undefined,
+    includeActions = false,
   ): Promise<Set<string>> {
     if (!userId) {
       return new Set<string>();
@@ -430,6 +454,15 @@ export class DatingService {
       }
     }
 
+    if (includeActions) {
+      // This Supabase-managed table has no Prisma model. Keep the UUID boundary
+      // explicit and parameterized so saved actions survive feed reloads.
+      const actions = await this.prisma.$queryRaw<
+        Array<{ target_user_id: string }>
+      >`SELECT target_user_id FROM public.likes WHERE user_id = ${userId}::uuid`;
+      for (const action of actions) excludedUserIds.add(action.target_user_id);
+    }
+
     return excludedUserIds;
   }
 
@@ -437,7 +470,11 @@ export class DatingService {
    * Получить кандидатов через Supabase RPC get_candidates_for_me
    * Требуется user access token для корректного auth.uid() в RLS.
    */
-  async getCandidatesViaSupabase(userAccessToken: string, limit = 20) {
+  async getCandidatesViaSupabase(
+    userAccessToken: string,
+    limit = 20,
+    includeReviewed = false,
+  ) {
     const safeLimit = Math.max(1, Math.min(50, limit));
     const rankedPoolLimit = Math.max(safeLimit, Math.min(150, safeLimit * 3));
     const { data, error } = await this.supabaseService.rpcWithToken<
@@ -446,9 +483,14 @@ export class DatingService {
 
     const rows: CandidateRow[] = Array.isArray(data) ? data : [];
 
-    const { data: selfRes } =
+    const { data: selfRes, error: selfError } =
       await this.supabaseService.getUser(userAccessToken);
     const selfId = selfRes?.user?.id ?? null;
+    if (selfError || !selfId) {
+      throw new ServiceUnavailableException(
+        'Unable to load dating preferences',
+      );
+    }
     const selfProfile = selfId
       ? await this.prisma.userProfile.findUnique({
           where: { userId: selfId },
@@ -459,7 +501,11 @@ export class DatingService {
           },
         })
       : null;
-    const excludedUserIds = await this.getExcludedUserIds(selfId);
+    // Explicit replay keeps saved actions intact; blocks apply in both modes.
+    const excludedUserIds = await this.getExcludedUserIds(
+      selfId,
+      !includeReviewed,
+    );
 
     // Итоговый список кандидатов (уже обогащённых)
     let result: EnrichedCandidate[] = [];
@@ -545,13 +591,13 @@ export class DatingService {
 
       const photosByUser = new Map<string, string[]>();
       for (const u of users) {
-        const paths = Array.isArray((u as any).photos)
-          ? (u as any).photos
-              .map((photo: any) => photo?.storagePath)
-              .filter(
-                (path: unknown): path is string => typeof path === 'string',
-              )
-          : [];
+        const paths = (u.photos ?? [])
+          .filter(
+            (photo) =>
+              photo.userId === u.id &&
+              isOwnedPhotoPath(photo.userId, photo.storagePath),
+          )
+          .map((photo) => photo.storagePath);
         photosByUser.set(u.id, paths);
       }
 
@@ -570,10 +616,12 @@ export class DatingService {
 
       const photoUrlLookup = await this.resolvePhotoUrlMap(
         filteredRows.flatMap((r) => {
-          const primaryPath = r.primary_photo_path
+          const primaryPath = isOwnedPhotoPath(r.user_id, r.primary_photo_path)
             ? [r.primary_photo_path]
             : [];
-          return [...primaryPath, ...(photosByUser.get(r.user_id) ?? [])];
+          return [...primaryPath, ...(photosByUser.get(r.user_id) ?? [])].map(
+            (path) => ({ userId: r.user_id, path }),
+          );
         }),
       );
 
@@ -586,7 +634,7 @@ export class DatingService {
 
         candidatePhotosMap.set(r.user_id, photoUrls);
 
-        if (r.primary_photo_path) {
+        if (isOwnedPhotoPath(r.user_id, r.primary_photo_path)) {
           photoUrlMap.set(
             r.user_id,
             photoUrlLookup.get(r.primary_photo_path) ?? null,
@@ -643,6 +691,13 @@ export class DatingService {
         // ✅ PRISMA: Получаем дополнительных пользователей
         const moreUsers = await this.prisma.public_users.findMany({
           where: {
+            id: {
+              notIn: [
+                ...excludedUserIds,
+                ...existingIds,
+                ...(selfId ? [selfId] : []),
+              ],
+            },
             onboarding_completed: true,
             profile: { is: { isOnboarded: true } },
           },
@@ -732,10 +787,12 @@ export class DatingService {
             photoPathsById.set(
               u.id,
               (u.photos ?? [])
-                .map((photo: any) => photo?.storagePath)
                 .filter(
-                  (path: unknown): path is string => typeof path === 'string',
-                ),
+                  (photo) =>
+                    photo.userId === u.id &&
+                    isOwnedPhotoPath(photo.userId, photo.storagePath),
+                )
+                .map((photo) => photo.storagePath),
             );
           }
 
@@ -752,8 +809,11 @@ export class DatingService {
           );
           const fallbackUserIds = fallbackEligibleUserIds.slice(0, needMore);
           const fallbackPhotoLookup = await this.resolvePhotoUrlMap(
-            fallbackUserIds.flatMap(
-              (uid: string) => photoPathsById.get(uid) ?? [],
+            fallbackUserIds.flatMap((uid: string) =>
+              (photoPathsById.get(uid) ?? []).map((path) => ({
+                userId: uid,
+                path,
+              })),
             ),
           );
 
@@ -847,11 +907,12 @@ export class DatingService {
     const rows = (data as Array<Record<string, unknown>>).filter(
       (row) => readString(row.status, 'active').toLowerCase() === 'active',
     );
+    const excluded = await this.getExcludedUserIds(selfId);
     const otherIds = rows
       .map((row) =>
         row.user_a === selfId ? readString(row.user_b) : readString(row.user_a),
       )
-      .filter(Boolean);
+      .filter((id) => id && !excluded.has(id));
 
     const [compatibilityMap, selfProfile, profiles] = await Promise.all([
       this.getCompatibilityMap(selfId, otherIds),
@@ -929,7 +990,23 @@ export class DatingService {
       userAccessToken,
     );
     if (error) {
-      return { success: false, matchId: null, message: 'Like failed' };
+      const code = (error as { code?: string }).code;
+      this.logger.warn(`Dating action RPC failed (${code ?? 'unknown'})`);
+      if (code === '28000' || code === 'PGRST301') {
+        throw new UnauthorizedException('Authentication required');
+      }
+      if (code === '22023' || code === '22P02') {
+        throw new BadRequestException('Invalid dating action or target user');
+      }
+      if (code === '42501') {
+        throw new ForbiddenException(
+          'Dating action is unavailable for this user',
+        );
+      }
+      if (code === 'P0002') {
+        throw new NotFoundException('Target user not found');
+      }
+      throw new ServiceUnavailableException('Unable to save dating action');
     }
     return {
       success: true,
@@ -1005,7 +1082,7 @@ export class DatingService {
    */
   private getSynastryCacheKey(chartId1: string, chartId2: string): string {
     const [id1, id2] = [chartId1, chartId2].sort();
-    return `synastry:${id1}:${id2}`;
+    return `synastry:${ASTRO_CALCULATION_VERSION}:${id1}:${id2}`;
   }
 
   async getMatches(
@@ -1018,6 +1095,10 @@ export class DatingService {
     },
   ): Promise<DatingMatchResponse[]> {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const selfProfile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+    });
+    const excludedUserIds = Array.from(await this.getExcludedUserIds(userId));
 
     const hasFilters = !!(
       filters?.ageMin ||
@@ -1052,7 +1133,36 @@ export class DatingService {
         take: Math.max(1, Math.min(50, filters?.limit ?? 20)),
       });
       if (cached.length > 0) {
-        return cached.map(mapToResponse);
+        const partnerId = (match: (typeof cached)[number]) =>
+          this.sanitizeCandidateData(
+            match.candidateData as Record<string, unknown>,
+          ).partnerId;
+        const profiles = await this.prisma.userProfile.findMany({
+          where: {
+            userId: {
+              in: cached.map(partnerId).filter((value) => isUUID(value)),
+            },
+          },
+          select: {
+            userId: true,
+            gender: true,
+            lookingForGender: true,
+            preferences: true,
+          },
+        });
+        const profilesById = new Map(
+          profiles.map((profile) => [profile.userId, profile]),
+        );
+        const eligible = cached.filter(
+          (match) =>
+            profilesById.has(partnerId(match)) &&
+            !excludedUserIds.includes(partnerId(match)) &&
+            this.passesGenderPreferences(
+              selfProfile,
+              profilesById.get(partnerId(match)),
+            ),
+        );
+        if (eligible.length) return eligible.map(mapToResponse);
       }
     }
 
@@ -1066,11 +1176,7 @@ export class DatingService {
     }
 
     // Self profile for gender preferences
-    const selfProfile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-    });
     const selfDatingPreferences = this.extractDatingPreferences(selfProfile);
-    const excludedUserIds = Array.from(await this.getExcludedUserIds(userId));
 
     // If user explicitly set a gender preference, filter via DB first
     const seekersPrefNormalized = this.normalizeGender(
@@ -1082,7 +1188,7 @@ export class DatingService {
         userId: {
           notIn: [userId, ...excludedUserIds],
         },
-        ...(seekersPrefNormalized
+        ...(seekersPrefNormalized && seekersPrefNormalized !== 'any'
           ? {
               users: {
                 profile: {
@@ -1115,7 +1221,7 @@ export class DatingService {
           return false;
         }
       } catch {
-        // ignore
+        return false;
       }
 
       // Фильтр по городу
@@ -1266,7 +1372,10 @@ export class DatingService {
    * Публичные данные профиля пользователя для карточки Dating.
    * Возвращает: имя, возраст, знак, био, интересы, город и основное фото (подписанный URL).
    */
-  async getPublicProfileForCard(targetUserId: string): Promise<{
+  async getPublicProfileForCard(
+    targetUserId: string,
+    requesterId?: string,
+  ): Promise<{
     userId: string;
     name: string | null;
     age: number | null;
@@ -1279,6 +1388,12 @@ export class DatingService {
     primaryPhotoUrl: string | null;
     photos?: string[] | null;
   }> {
+    if (
+      requesterId &&
+      (await this.getExcludedUserIds(requesterId)).has(targetUserId)
+    ) {
+      throw new NotFoundException('Dating profile not found');
+    }
     // ✅ PRISMA: Получаем данные пользователя с профилем, картами и фото
     const userData = await this.prisma.public_users.findUnique({
       where: { id: targetUserId },
@@ -1343,8 +1458,12 @@ export class DatingService {
           }
         : null;
 
-    const primaryPhotoRow = userData.photos.find((p: any) => p.isPrimary);
-    const allPhotos = userData.photos;
+    const allPhotos = userData.photos.filter(
+      (photo) =>
+        photo.userId === userData.id &&
+        isOwnedPhotoPath(photo.userId, photo.storagePath),
+    );
+    const primaryPhotoRow = allPhotos.find((photo) => photo.isPrimary);
 
     // Возраст
     const getAge = (birthDate?: string | Date | null): number | null => {
@@ -1420,7 +1539,7 @@ export class DatingService {
     try {
       const storagePath = primaryPhotoRow?.storagePath ?? null;
 
-      if (typeof storagePath === 'string' && storagePath.trim()) {
+      if (isOwnedPhotoPath(userData.id, storagePath)) {
         if (/^https?:\/\//i.test(storagePath)) {
           // уже абсолютный URL
           primaryPhotoUrl = storagePath;
@@ -1447,9 +1566,9 @@ export class DatingService {
         const pathsToSign: string[] = [];
         const pathIndexes: number[] = [];
 
-        photoItems.forEach((p: any, index: number) => {
+        photoItems.forEach((p, index: number) => {
           const path = p?.storagePath;
-          if (!path || typeof path !== 'string') return;
+          if (!isOwnedPhotoPath(p.userId, path)) return;
 
           if (/^https?:\/\//i.test(path)) {
             absoluteUrls.push({ index, url: path });

@@ -13,7 +13,7 @@ import {
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { BlurRootView, BlurView } from '../components/shared/BlurView';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -192,7 +192,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
           <BlurView
             intensity={24}
             tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
+            blurMethod="dimezisBlurView"
             style={styles.introCardBlur}
           >
             <Ionicons name="code-outline" size={22} color="#D8B4FE" />
@@ -275,7 +275,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
                 <BlurView
                   intensity={20}
                   tint="dark"
-                  experimentalBlurMethod="dimezisBlurView"
+                  blurMethod="dimezisBlurView"
                   style={[
                     styles.purposeCardBlur,
                     selectedPurpose === purpose.key && styles.purposeCardActive,
@@ -314,7 +314,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
             visible
             onRequestClose={closeResult}
           >
-            <View style={styles.resultModalRoot}>
+            <BlurRootView style={styles.resultModalRoot}>
               <Animated.View
                 style={[
                   styles.resultScreen,
@@ -337,225 +337,270 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
                   ]}
                 >
                   <View style={styles.resultContainer}>
-            {/* Code Display */}
-            <BlurView intensity={30} style={styles.codeCard}>
-              <LinearGradient
-                colors={['rgba(139, 92, 246, 0.2)', 'rgba(124, 58, 237, 0.1)']}
-                style={styles.codeCardGradient}
-              >
-                <View style={styles.codeHeader}>
-                  <Text style={styles.codeLabel}>
-                    {t('personalCode.result.codeLabel')}
-                  </Text>
-                  {result.subscriptionTier !== 'free' && (
-                    <View style={styles.premiumBadge}>
-                      <Ionicons name="star" size={12} color="#F59E0B" />
-                      <Text style={styles.premiumBadgeText}>AI</Text>
-                    </View>
-                  )}
-                </View>
-
-                <Text style={styles.codeNumber}>{result.code}</Text>
-
-                <View style={styles.codeMetaRow}>
-                  <View style={styles.codeMeta}>
-                    <Text style={styles.codeMetaLabel}>
-                      {t('personalCode.result.energy')}
-                    </Text>
-                    <View style={styles.energyBar}>
-                      <View
-                        style={[
-                          styles.energyBarFill,
-                          {
-                            width: `${result.interpretation.energyLevel}%`,
-                            backgroundColor:
-                              selectedPurposeData?.color || '#8B5CF6',
-                          },
+                    {/* Code Display */}
+                    <BlurView intensity={30} style={styles.codeCard}>
+                      <LinearGradient
+                        colors={[
+                          'rgba(139, 92, 246, 0.2)',
+                          'rgba(124, 58, 237, 0.1)',
                         ]}
-                      />
-                    </View>
-                    <Text style={styles.codeMetaValue}>
-                      {result.interpretation.energyLevel}%
-                    </Text>
-                  </View>
+                        style={styles.codeCardGradient}
+                      >
+                        <View style={styles.codeHeader}>
+                          <Text style={styles.codeLabel}>
+                            {t('personalCode.result.codeLabel')}
+                          </Text>
+                          {result.subscriptionTier !== 'free' && (
+                            <View style={styles.premiumBadge}>
+                              <Ionicons name="star" size={12} color="#F59E0B" />
+                              <Text style={styles.premiumBadgeText}>AI</Text>
+                            </View>
+                          )}
+                        </View>
 
-                  <View style={styles.codeMeta}>
-                    <Text style={styles.codeMetaLabel}>
-                      {t('personalCode.result.vibration')}
-                    </Text>
-                    <Text style={styles.codeMetaValue}>
-                      {result.interpretation.vibration}
-                    </Text>
-                  </View>
-                </View>
+                        <Text style={styles.codeNumber}>{result.code}</Text>
 
-                <View style={styles.numerologyCard}>
-                  <Text style={styles.numerologyLabel}>
-                    {t('personalCode.result.numerology.title')}
-                  </Text>
-                  <View style={styles.numerologyRow}>
-                    <View style={styles.numerologyItem}>
-                      <Text style={styles.numerologyNumber}>
-                        {result.numerology.reducedNumber}
+                        <View style={styles.codeMetaRow}>
+                          <View style={styles.codeMeta}>
+                            <Text style={styles.codeMetaLabel}>
+                              {t('personalCode.result.energy')}
+                            </Text>
+                            <View style={styles.energyBar}>
+                              <View
+                                style={[
+                                  styles.energyBarFill,
+                                  {
+                                    width: `${result.interpretation.energyLevel}%`,
+                                    backgroundColor:
+                                      selectedPurposeData?.color || '#8B5CF6',
+                                  },
+                                ]}
+                              />
+                            </View>
+                            <Text style={styles.codeMetaValue}>
+                              {result.interpretation.energyLevel}%
+                            </Text>
+                          </View>
+
+                          <View style={styles.codeMeta}>
+                            <Text style={styles.codeMetaLabel}>
+                              {t('personalCode.result.vibration')}
+                            </Text>
+                            <Text style={styles.codeMetaValue}>
+                              {result.interpretation.vibration}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.numerologyCard}>
+                          <Text style={styles.numerologyLabel}>
+                            {t('personalCode.result.numerology.title')}
+                          </Text>
+                          <View style={styles.numerologyRow}>
+                            <View style={styles.numerologyItem}>
+                              <Text style={styles.numerologyNumber}>
+                                {result.numerology.reducedNumber}
+                              </Text>
+                              <Text style={styles.numerologyText}>
+                                {t(
+                                  'personalCode.result.numerology.reducedNumber'
+                                )}
+                              </Text>
+                            </View>
+                            {result.numerology.masterNumber && (
+                              <View style={styles.numerologyItem}>
+                                <Text
+                                  style={[
+                                    styles.numerologyNumber,
+                                    styles.masterNumber,
+                                  ]}
+                                >
+                                  {result.numerology.masterNumber}
+                                </Text>
+                                <Text style={styles.numerologyText}>
+                                  {t(
+                                    'personalCode.result.numerology.masterNumber'
+                                  )}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.numerologyMeaning}>
+                            {result.numerology.meaning}
+                          </Text>
+                        </View>
+                      </LinearGradient>
+                    </BlurView>
+
+                    {/* Interpretation */}
+                    <View style={styles.interpretationSection}>
+                      <Text style={styles.interpretationTitle}>
+                        {t('personalCode.result.interpretation.title')}
                       </Text>
-                      <Text style={styles.numerologyText}>
-                        {t('personalCode.result.numerology.reducedNumber')}
-                      </Text>
+
+                      <BlurView
+                        intensity={20}
+                        style={styles.interpretationCard}
+                      >
+                        <Text style={styles.interpretationSummary}>
+                          {result.interpretation.summary}
+                        </Text>
+                      </BlurView>
+
+                      <BlurView
+                        intensity={20}
+                        style={styles.interpretationCard}
+                      >
+                        <Text style={styles.interpretationText}>
+                          {result.interpretation.detailed}
+                        </Text>
+                      </BlurView>
+
+                      <BlurView
+                        intensity={20}
+                        style={styles.interpretationCard}
+                      >
+                        <Text style={styles.interpretationCompatibility}>
+                          {result.interpretation.compatibility}
+                        </Text>
+                      </BlurView>
                     </View>
-                    {result.numerology.masterNumber && (
-                      <View style={styles.numerologyItem}>
-                        <Text
-                          style={[styles.numerologyNumber, styles.masterNumber]}
+
+                    {/* Breakdown */}
+                    <View style={styles.breakdownSection}>
+                      <Text style={styles.sectionTitle}>
+                        {t('personalCode.result.breakdown.title')}
+                      </Text>
+                      {result.breakdown.map((item, index) => (
+                        <BlurView
+                          key={index}
+                          intensity={20}
+                          style={styles.breakdownCard}
                         >
-                          {result.numerology.masterNumber}
-                        </Text>
-                        <Text style={styles.numerologyText}>
-                          {t('personalCode.result.numerology.masterNumber')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.numerologyMeaning}>
-                    {result.numerology.meaning}
-                  </Text>
-                </View>
-              </LinearGradient>
-            </BlurView>
-
-            {/* Interpretation */}
-            <View style={styles.interpretationSection}>
-              <Text style={styles.interpretationTitle}>
-                {t('personalCode.result.interpretation.title')}
-              </Text>
-
-              <BlurView intensity={20} style={styles.interpretationCard}>
-                <Text style={styles.interpretationSummary}>
-                  {result.interpretation.summary}
-                </Text>
-              </BlurView>
-
-              <BlurView intensity={20} style={styles.interpretationCard}>
-                <Text style={styles.interpretationText}>
-                  {result.interpretation.detailed}
-                </Text>
-              </BlurView>
-
-              <BlurView intensity={20} style={styles.interpretationCard}>
-                <Text style={styles.interpretationCompatibility}>
-                  {result.interpretation.compatibility}
-                </Text>
-              </BlurView>
-            </View>
-
-            {/* Breakdown */}
-            <View style={styles.breakdownSection}>
-              <Text style={styles.sectionTitle}>
-                {t('personalCode.result.breakdown.title')}
-              </Text>
-              {result.breakdown.map((item, index) => (
-                <BlurView
-                  key={index}
-                  intensity={20}
-                  style={styles.breakdownCard}
-                >
-                  <View style={styles.breakdownHeader}>
-                    <View style={styles.digitCircle}>
-                      <Text style={styles.digitCircleText}>{item.digit}</Text>
+                          <View style={styles.breakdownHeader}>
+                            <View style={styles.digitCircle}>
+                              <Text style={styles.digitCircleText}>
+                                {item.digit}
+                              </Text>
+                            </View>
+                            <View style={styles.breakdownInfo}>
+                              <Text style={styles.breakdownSource}>
+                                {item.source}
+                              </Text>
+                              <Text style={styles.breakdownInfluence}>
+                                {item.influence}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.breakdownMeaning}>
+                            {item.astrologyMeaning}
+                          </Text>
+                          <Text style={styles.breakdownNumerology}>
+                            {t('personalCode.result.numerology.prefix')}
+                            {item.numerologyMeaning}
+                          </Text>
+                        </BlurView>
+                      ))}
                     </View>
-                    <View style={styles.breakdownInfo}>
-                      <Text style={styles.breakdownSource}>{item.source}</Text>
-                      <Text style={styles.breakdownInfluence}>
-                        {item.influence}
+
+                    {/* Practical Examples */}
+                    <View style={styles.examplesSection}>
+                      <Text style={styles.sectionTitle}>
+                        {t('personalCode.examples.title')}
                       </Text>
+
+                      <BlurView intensity={20} style={styles.exampleCard}>
+                        <View style={styles.exampleHeader}>
+                          <Ionicons
+                            name="card-outline"
+                            size={24}
+                            color="#10B981"
+                          />
+                          <Text style={styles.exampleTitle}>
+                            {t('personalCode.examples.fourDigits.title')}
+                          </Text>
+                        </View>
+                        <Text style={styles.exampleText}>
+                          {t('personalCode.examples.fourDigits.text')}
+                        </Text>
+                      </BlurView>
+
+                      <BlurView intensity={20} style={styles.exampleCard}>
+                        <View style={styles.exampleHeader}>
+                          <Ionicons
+                            name="lock-closed-outline"
+                            size={24}
+                            color="#8B5CF6"
+                          />
+                          <Text style={styles.exampleTitle}>
+                            {t('personalCode.examples.sixDigits.title')}
+                          </Text>
+                        </View>
+                        <Text style={styles.exampleText}>
+                          {t('personalCode.examples.sixDigits.text')}
+                        </Text>
+                      </BlurView>
+
+                      <BlurView intensity={20} style={styles.exampleCard}>
+                        <View style={styles.exampleHeader}>
+                          <Ionicons
+                            name="call-outline"
+                            size={24}
+                            color="#F59E0B"
+                          />
+                          <Text style={styles.exampleTitle}>
+                            {t('personalCode.examples.sevenPlusDigits.title')}
+                          </Text>
+                        </View>
+                        <Text style={styles.exampleText}>
+                          {t('personalCode.examples.sevenPlusDigits.text')}
+                        </Text>
+                      </BlurView>
                     </View>
-                  </View>
-                  <Text style={styles.breakdownMeaning}>
-                    {item.astrologyMeaning}
-                  </Text>
-                  <Text style={styles.breakdownNumerology}>
-                    {t('personalCode.result.numerology.prefix')}
-                    {item.numerologyMeaning}
-                  </Text>
-                </BlurView>
-              ))}
-            </View>
 
-            {/* Practical Examples */}
-            <View style={styles.examplesSection}>
-              <Text style={styles.sectionTitle}>
-                {t('personalCode.examples.title')}
-              </Text>
+                    {/* How to Use */}
+                    <View style={styles.usageSection}>
+                      <Text style={styles.sectionTitle}>
+                        {t('personalCode.usage.title')}
+                      </Text>
 
-              <BlurView intensity={20} style={styles.exampleCard}>
-                <View style={styles.exampleHeader}>
-                  <Ionicons name="card-outline" size={24} color="#10B981" />
-                  <Text style={styles.exampleTitle}>
-                    {t('personalCode.examples.fourDigits.title')}
-                  </Text>
-                </View>
-                <Text style={styles.exampleText}>
-                  {t('personalCode.examples.fourDigits.text')}
-                </Text>
-              </BlurView>
+                      <BlurView intensity={20} style={styles.usageCard}>
+                        <View style={styles.usageItem}>
+                          <Ionicons
+                            name="time-outline"
+                            size={20}
+                            color="#A78BFA"
+                          />
+                          <Text style={styles.usageLabel}>
+                            {t('personalCode.usage.whenToUse')}
+                          </Text>
+                        </View>
+                        <Text style={styles.usageText}>
+                          {result.interpretation.whenToUse}
+                        </Text>
+                      </BlurView>
 
-              <BlurView intensity={20} style={styles.exampleCard}>
-                <View style={styles.exampleHeader}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={24}
-                    color="#8B5CF6"
-                  />
-                  <Text style={styles.exampleTitle}>
-                    {t('personalCode.examples.sixDigits.title')}
-                  </Text>
-                </View>
-                <Text style={styles.exampleText}>
-                  {t('personalCode.examples.sixDigits.text')}
-                </Text>
-              </BlurView>
-
-              <BlurView intensity={20} style={styles.exampleCard}>
-                <View style={styles.exampleHeader}>
-                  <Ionicons name="call-outline" size={24} color="#F59E0B" />
-                  <Text style={styles.exampleTitle}>
-                    {t('personalCode.examples.sevenPlusDigits.title')}
-                  </Text>
-                </View>
-                <Text style={styles.exampleText}>
-                  {t('personalCode.examples.sevenPlusDigits.text')}
-                </Text>
-              </BlurView>
-            </View>
-
-            {/* How to Use */}
-            <View style={styles.usageSection}>
-              <Text style={styles.sectionTitle}>
-                {t('personalCode.usage.title')}
-              </Text>
-
-              <BlurView intensity={20} style={styles.usageCard}>
-                <View style={styles.usageItem}>
-                  <Ionicons name="time-outline" size={20} color="#A78BFA" />
-                  <Text style={styles.usageLabel}>
-                    {t('personalCode.usage.whenToUse')}
-                  </Text>
-                </View>
-                <Text style={styles.usageText}>
-                  {result.interpretation.whenToUse}
-                </Text>
-              </BlurView>
-
-              {result.interpretation.howToUse.map((instruction, index) => (
-                <BlurView key={index} intensity={20} style={styles.usageCard}>
-                  <View style={styles.usageItem}>
-                    <View style={styles.usageNumber}>
-                      <Text style={styles.usageNumberText}>{index + 1}</Text>
+                      {result.interpretation.howToUse.map(
+                        (instruction, index) => (
+                          <BlurView
+                            key={index}
+                            intensity={20}
+                            style={styles.usageCard}
+                          >
+                            <View style={styles.usageItem}>
+                              <View style={styles.usageNumber}>
+                                <Text style={styles.usageNumberText}>
+                                  {index + 1}
+                                </Text>
+                              </View>
+                              <Text style={styles.usageText}>
+                                {instruction}
+                              </Text>
+                            </View>
+                          </BlurView>
+                        )
+                      )}
                     </View>
-                    <Text style={styles.usageText}>{instruction}</Text>
-                  </View>
-                </BlurView>
-              ))}
-            </View>
                   </View>
                 </ScrollView>
               </Animated.View>
@@ -591,11 +636,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
                     contentStyle={[styles.datingGlassContent, styles.backHit]}
                   >
                     <DatingGlassFill />
-                    <Ionicons
-                      name="chevron-back"
-                      size={30}
-                      color="#FFFFFF"
-                    />
+                    <Ionicons name="chevron-back" size={30} color="#FFFFFF" />
                   </GradientBorderView>
                 </TouchableOpacity>
 
@@ -619,7 +660,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
 
                 <View style={styles.headerSpacer} />
               </View>
-            </View>
+            </BlurRootView>
           </Modal>
         )}
       </Animated.ScrollView>
@@ -668,10 +709,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
           <DatingGlassFill />
           <Animated.Text
             numberOfLines={1}
-            style={[
-              styles.fixedHeaderTitle,
-              { opacity: headerTitleOpacity },
-            ]}
+            style={[styles.fixedHeaderTitle, { opacity: headerTitleOpacity }]}
           >
             {t('personalCode.header.title')}
           </Animated.Text>
@@ -710,10 +748,7 @@ function PersonalCodeScreen({ navigation }: PersonalCodeScreenProps) {
           disabled={loading}
         >
           <GradientBorderView
-            colors={[
-              'rgba(216, 180, 254, 0.86)',
-              'rgba(126, 108, 160, 0.42)',
-            ]}
+            colors={['rgba(216, 180, 254, 0.86)', 'rgba(126, 108, 160, 0.42)']}
             gradientProps={{
               start: { x: 0.5, y: 0 },
               end: { x: 0.5, y: 1 },
@@ -757,7 +792,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.82,
@@ -986,7 +1021,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resultScreen: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#080E1C',
     overflow: 'hidden',
   },

@@ -54,8 +54,8 @@ function hasPlainBirthData(row: UserBirthRow): boolean {
 function hasEncryptedBirthData(row: UserBirthRow): boolean {
   return Boolean(
     row.birth_date_encrypted &&
-      row.birth_time_encrypted &&
-      row.birth_place_encrypted,
+    row.birth_time_encrypted &&
+    row.birth_place_encrypted,
   );
 }
 

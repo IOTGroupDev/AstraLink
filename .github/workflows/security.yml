@@ -39,15 +39,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ matrix.project == 'frontend' && '22' || '20' }}
 
       - name: Run npm audit
         working-directory: ${{ matrix.project }}
         run: |
-          npm audit --audit-level=moderate || true
-          npm audit --json > audit-report.json || true
+          set +e
+          npm audit --omit=dev --audit-level=high --json > audit-report.json
+          audit_status=$?
+          cat audit-report.json
+          exit "$audit_status"
 
       - name: Upload audit report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.project }}-audit-report
@@ -65,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['javascript', 'typescript']
+        language: ['javascript-typescript']
 
     steps:
       - name: Checkout code
@@ -83,7 +87,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{matrix.language}}"
+          category: '/language:${{matrix.language}}'
 
   secret-scanning:
     name: Secret Scanning
@@ -96,12 +100,12 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@c85580b712841eda4c53bc28fc6ace6100e8c16c # v3.99.4
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
-          extra_args: --debug --only-verified
+          extra_args: --only-verified --fail
 
   prisma-security:
     name: Prisma Schema Security

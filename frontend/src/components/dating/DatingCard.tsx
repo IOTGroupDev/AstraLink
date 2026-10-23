@@ -41,7 +41,7 @@ interface DatingCardProps {
     lastActive?: string | null;
   };
   cardHeight?: number;
-  onSwipe: (direction: 'left' | 'right') => void;
+  onSwipe: (direction: 'left' | 'right') => Promise<void>;
   onChat: () => void;
   onOpenProfile: () => void;
   onOpenActions: () => void;
@@ -68,6 +68,7 @@ function DatingCard({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
+  const swipePending = useSharedValue(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const photos = useMemo(
     () =>
@@ -82,9 +83,27 @@ function DatingCard({
   );
 
   useEffect(() => setPhotoIndex(0), [user.id]);
+  useEffect(() => {
+    setPhotoIndex((index) => Math.min(index, Math.max(0, photos.length - 1)));
+  }, [photos.length]);
+
+  const submitSwipe = async (direction: 'left' | 'right') => {
+    try {
+      await onSwipe(direction);
+    } finally {
+      // Failed saves keep the same card; return it from the exit animation.
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      rotation.value = withSpring(0);
+      swipePending.value = false;
+    }
+  };
 
   const gesture = Gesture.Pan()
+    .enabled(!actionsDisabled)
+    .minDistance(12)
     .onUpdate((event) => {
+      if (swipePending.value) return;
       translateX.value = event.translationX;
       translateY.value = event.translationY * 0.25;
       rotation.value = interpolate(
@@ -94,6 +113,7 @@ function DatingCard({
       );
     })
     .onEnd((event) => {
+      if (swipePending.value) return;
       const shouldSwipe = Math.abs(event.translationX) > width * 0.26;
       if (!shouldSwipe) {
         translateX.value = withSpring(0);
@@ -102,10 +122,14 @@ function DatingCard({
         return;
       }
       const direction = event.translationX > 0 ? 'right' : 'left';
+      swipePending.value = true;
       translateX.value = withTiming(
         direction === 'right' ? width * 1.25 : -width * 1.25,
         { duration: 260, easing: Easing.out(Easing.quad) },
-        () => runOnJS(onSwipe)(direction)
+        (finished) => {
+          if (finished) runOnJS(submitSwipe)(direction);
+          else swipePending.value = false;
+        }
       );
     });
 
@@ -145,13 +169,14 @@ function DatingCard({
               <LinearGradient
                 colors={['#FFFFFF', '#FFFFFF', 'rgba(255,255,255,0)']}
                 locations={[0, 0.58, 0.86]}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
             }
           >
             <View style={styles.photoClip}>
               {photos[photoIndex] ? (
                 <Image
+                  testID="dating-card-photo"
                   source={{ uri: photos[photoIndex] }}
                   style={styles.photo}
                 />
@@ -171,17 +196,46 @@ function DatingCard({
               <LinearGradient
                 colors={['rgba(8,14,28,0)', 'rgba(8,14,28,0.28)', '#080E1C']}
                 locations={[0.42, 0.69, 0.9]}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
             </View>
           </MaskedView>
+
+          {photos.length > 1 ? (
+            <View style={styles.photoNavigation} pointerEvents="box-none">
+              <Pressable
+                style={styles.photoNavigationZone}
+                accessibilityRole="button"
+                accessibilityLabel={t('dating.card.previousPhoto')}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setPhotoIndex(
+                    (index) => (index - 1 + photos.length) % photos.length
+                  );
+                }}
+              />
+              <Pressable
+                style={styles.photoNavigationZone}
+                accessibilityRole="button"
+                accessibilityLabel={t('dating.card.nextPhoto')}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setPhotoIndex((index) => (index + 1) % photos.length);
+                }}
+              />
+            </View>
+          ) : null}
 
           {photos.length > 1 ? (
             <View style={styles.photoSteps}>
               {photos.map((photo, index) => (
                 <Pressable
                   key={`${photo}-${index}`}
-                  onPress={() => setPhotoIndex(index)}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    setPhotoIndex(index);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8 }}
                   style={[
                     styles.photoStep,
                     index === photoIndex && styles.photoStepActive,
@@ -256,14 +310,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cardPressable: { flex: 1 },
-  photoMask: { ...StyleSheet.absoluteFillObject },
+  photoMask: { ...StyleSheet.absoluteFill },
   photoClip: {
     flex: 1,
     borderRadius: 40,
     overflow: 'hidden',
     backgroundColor: '#080E1C',
   },
-  photo: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  photo: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   photoFallback: {
     width: '100%',
     height: '100%',
@@ -278,6 +332,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 5,
   },
+  photoNavigation: {
+    position: 'absolute',
+    top: 38,
+    left: 0,
+    right: 0,
+    bottom: '42%',
+    flexDirection: 'row',
+  },
+  photoNavigationZone: { flex: 1 },
   photoStep: {
     flex: 1,
     height: 3,

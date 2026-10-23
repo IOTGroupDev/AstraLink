@@ -1,3 +1,4 @@
+import { stripePublishableKey } from './src/services/subscription-payment-config';
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
@@ -12,37 +13,28 @@ if (typeof globalThis.TextDecoder === 'undefined')
 
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { StatusBar, StyleSheet, View } from 'react-native';
-import Constants from 'expo-constants';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StripeProvider } from '@stripe/stripe-react-native';
+import { StatusBar, StyleSheet } from 'react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './src/providers/QueryProvider';
+import { StripeProvider } from './src/services/stripe';
 import MainStackNavigator from './src/navigation/MainStackNavigator';
 import { NavigationTheme } from './src/navigation/navigationConfig';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/stores/auth.store';
 import { AuthEngine } from './src/services/authEngine';
 import { notificationService } from './src/services/notifications';
+import { acquirePresence } from './src/services/presence';
 import { logger } from './src/services/logger';
 import { enableScreens } from 'react-native-screens';
 import { TopStatusBarFade } from './src/components/shared/TopStatusBarFade';
 import FullscreenLoadingScreen from './src/components/shared/FullscreenLoadingScreen';
+import { BlurRootView } from './src/components/shared/BlurView';
 import { chartAPI, subscriptionAPI, userAPI } from './src/services/api';
 import i18n from './src/i18n';
 
 enableScreens(true);
 
 const STARTUP_SPLASH_MIN_MS = 1600;
-
-const queryClient = new QueryClient();
-
-const expoExtra = (Constants?.expoConfig?.extra ?? {}) as Record<
-  string,
-  unknown
->;
-const stripePublishableKey =
-  (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY as string | undefined) ||
-  (expoExtra.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY as string | undefined) ||
-  '';
 
 const normalizeAppLocale = (locale?: string): 'ru' | 'en' | 'es' => {
   const normalized = String(locale || 'en').toLowerCase();
@@ -58,6 +50,12 @@ export default function App() {
   const authSceneVersion = useAuthStore((s) => s.authSceneVersion);
   const [startupSplashReady, setStartupSplashReady] = useState(false);
   const prefetchedUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (authState !== 'AUTHORIZED' || !userId) return;
+    return acquirePresence(userId);
+  }, [authState, session?.user?.id]);
 
   useEffect(() => {
     const splashTimer = setTimeout(() => {
@@ -134,8 +132,7 @@ export default function App() {
 
   useEffect(() => {
     const userId = session?.user?.id;
-    const isAuthorized =
-      authState === 'AUTHORIZED' || authState === 'ONBOARDING';
+    const isAuthorized = authState === 'AUTHORIZED';
 
     if (!isAuthorized || !userId) {
       return;
@@ -162,7 +159,7 @@ export default function App() {
         urlScheme="astralink"
       >
         <QueryClientProvider client={queryClient}>
-          <View style={styles.root}>
+          <BlurRootView style={styles.root}>
             <NavigationContainer
               key={`auth-scene-${authSceneVersion}`}
               theme={NavigationTheme}
@@ -170,7 +167,7 @@ export default function App() {
               <MainStackNavigator />
             </NavigationContainer>
             <TopStatusBarFade />
-          </View>
+          </BlurRootView>
         </QueryClientProvider>
       </StripeProvider>
     </SafeAreaProvider>

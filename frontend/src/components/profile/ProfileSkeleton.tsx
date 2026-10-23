@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../shared/BlurView';
 import { SkeletonLoader } from '../shared/SkeletonLoader';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 

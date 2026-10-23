@@ -13,7 +13,8 @@
   },
   "loading": {
     "messages": "Cargando mensajes...",
-    "authorization": "Verificando autorización..."
+    "authorization": "Verificando autorización...",
+    "older": "Cargar mensajes anteriores"
   },
   "errors": {
     "authRequired": "Se requiere autorización",
@@ -25,7 +26,8 @@
     "failedToSendFile": "Error al enviar archivo. Inténtalo de nuevo.",
     "failedToDelete": "Error al eliminar mensaje.",
     "failedToDeleteForAll": "Error al eliminar mensaje para todos.",
-    "failedToLoad": "Error al cargar mensajes"
+    "failedToLoad": "Error al cargar mensajes",
+    "loadHistory": "No se pudo cargar el historial de mensajes"
   },
   "deleteMessage": {
     "title": "Eliminar mensaje",
@@ -37,6 +39,8 @@
     "delete": "Eliminar"
   },
   "media": {
+    "openPhoto": "Abrir foto",
+    "failedToLoadPhoto": "No se pudo cargar la foto",
     "label": "📷 Multimedia"
   }
 }

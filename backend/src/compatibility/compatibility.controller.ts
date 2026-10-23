@@ -1,3 +1,4 @@
+import { requestLocale } from '../common/utils/request-headers.util';
 import {
   Body,
   Controller,
@@ -47,7 +48,11 @@ export class CompatibilityController {
       throw new UnauthorizedException('Пользователь не аутентифицирован');
     }
 
-    return this.compatibilityService.createReport(userId, dto);
+    return this.compatibilityService.createReport(
+      userId,
+      dto,
+      requestLocale(req),
+    );
   }
 
   @Get('quota')

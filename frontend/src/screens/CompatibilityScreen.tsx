@@ -22,7 +22,7 @@ import {
 import LoadingIndicator from '../components/shared/LoadingIndicator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { BlurRootView, BlurView } from '../components/shared/BlurView';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -883,7 +883,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
           <BlurView
             intensity={24}
             tint="dark"
-            experimentalBlurMethod="dimezisBlurView"
+            blurMethod="dimezisBlurView"
             style={styles.introCardBlur}
           >
             <Ionicons name="heart-circle-outline" size={24} color="#FFFFFF" />
@@ -904,7 +904,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
         <BlurView
           intensity={20}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
           style={styles.quotaCard}
         >
           <View style={styles.quotaHeader}>
@@ -955,7 +955,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
         <BlurView
           intensity={20}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
           style={styles.panel}
         >
           <Text style={styles.panelTitle}>{copy.formTitle}</Text>
@@ -1018,13 +1018,12 @@ export default function CompatibilityScreen({ navigation }: Props) {
               disabled={isQuotaExhausted}
             />
           </View>
-
         </BlurView>
 
         <BlurView
           intensity={20}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
           style={styles.panel}
         >
           <Text style={styles.panelTitle}>{copy.history}</Text>
@@ -1073,7 +1072,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
         visible={resultVisible && !!currentReport && !!result}
         onRequestClose={closeResult}
       >
-        <View style={styles.resultModalRoot}>
+        <BlurRootView style={styles.resultModalRoot}>
           <Animated.View
             style={[
               styles.resultScreen,
@@ -1099,7 +1098,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
                 <BlurView
                   intensity={20}
                   tint="dark"
-                  experimentalBlurMethod="dimezisBlurView"
+                  blurMethod="dimezisBlurView"
                   style={styles.resultPanel}
                 >
                   <View style={styles.resultHeader}>
@@ -1110,7 +1109,9 @@ export default function CompatibilityScreen({ navigation }: Props) {
                       </Text>
                     </View>
                     <View style={styles.scoreBadge}>
-                      <Text style={styles.scoreValue}>{currentReport.score}</Text>
+                      <Text style={styles.scoreValue}>
+                        {currentReport.score}
+                      </Text>
                       <Text style={styles.scoreLabel}>{copy.score}</Text>
                     </View>
                   </View>
@@ -1211,7 +1212,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
 
             <View style={styles.headerSpacer} />
           </View>
-        </View>
+        </BlurRootView>
       </Modal>
 
       <LinearGradient
@@ -1266,11 +1267,7 @@ export default function CompatibilityScreen({ navigation }: Props) {
 
       <LinearGradient
         pointerEvents="none"
-        colors={[
-          'rgba(8,14,28,0)',
-          'rgba(8,14,28,0.72)',
-          'rgba(8,14,28,0.98)',
-        ]}
+        colors={['rgba(8,14,28,0)', 'rgba(8,14,28,0.72)', 'rgba(8,14,28,0.98)']}
         locations={[0, 0.48, 1]}
         style={[styles.bottomCtaFade, { height: ctaBottom + 104 }]}
       />
@@ -1333,7 +1330,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.82,
@@ -1568,7 +1565,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   resultScreen: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#080E1C',
   },
   resultScrollContent: {

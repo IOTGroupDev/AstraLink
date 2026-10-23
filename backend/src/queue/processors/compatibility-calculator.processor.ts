@@ -1,3 +1,4 @@
+import { ASTRO_CALCULATION_VERSION } from '@/shared/astro-version';
 import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
@@ -240,6 +241,6 @@ export class CompatibilityCalculatorProcessor {
    */
   private getSynastryCacheKey(chartId1: string, chartId2: string): string {
     const [id1, id2] = [chartId1, chartId2].sort();
-    return `synastry:${id1}:${id2}`;
+    return `synastry:${ASTRO_CALCULATION_VERSION}:${id1}:${id2}`;
   }
 }

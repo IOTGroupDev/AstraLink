@@ -1,7 +1,7 @@
 # Frontend Dockerfile for development/testing
 # Note: For production, use Expo EAS Build
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 

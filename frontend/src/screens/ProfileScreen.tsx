@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -848,7 +848,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                         <BlurView
                           intensity={15}
                           tint="dark"
-                          experimentalBlurMethod="dimezisBlurView"
+                          blurMethod="dimezisBlurView"
                           style={styles.premiumFeatureBlur}
                         >
                           <Text style={styles.premiumFeatureText}>
@@ -961,6 +961,42 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     <Ionicons name="chevron-forward" size={22} color="#fff" />
                   </LinearGradient>
                 </GradientBorderView>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingTouchable}
+                onPress={() =>
+                  Alert.alert(
+                    t('profile.notifications.title'),
+                    t('profile.notifications.description'),
+                    [
+                      { text: t('common.cancel'), style: 'cancel' },
+                      {
+                        text: t('profile.notifications.enable'),
+                        onPress: () => {
+                          const id = useAuthStore.getState().session?.user.id;
+                          if (id)
+                            void notificationService.syncAuthenticatedPushToken(
+                              id,
+                              true
+                            );
+                        },
+                      },
+                    ]
+                  )
+                }
+              >
+                <View style={styles.settingItem}>
+                  <Ionicons
+                    name="notifications-outline"
+                    size={22}
+                    color="#fff"
+                  />
+                  <Text style={styles.settingText}>
+                    {t('profile.notifications.title')}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={22} color="#fff" />
+                </View>
               </TouchableOpacity>
 
               <GradientBorderView

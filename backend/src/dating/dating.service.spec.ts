@@ -39,6 +39,7 @@ describe('DatingService', () => {
 
   beforeEach(async () => {
     const mockPrismaService = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       chart: {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
@@ -61,6 +62,7 @@ describe('DatingService', () => {
       getUserProfileAdmin: jest.fn(),
       getUserChartsAdmin: jest.fn(),
       normalizeUserProfileRecord: jest.fn((value: unknown) => value),
+      rpcWithToken: jest.fn(),
     };
 
     const mockRedisService = {
@@ -104,6 +106,102 @@ describe('DatingService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('likeUserViaSupabase', () => {
+    const targetId = '22222222-2222-4222-8222-222222222222';
+
+    it('records a like with the caller token and returns a real match ID', async () => {
+      supabaseService.rpcWithToken.mockResolvedValue({
+        data: 'match-id',
+        error: null,
+      });
+
+      await expect(
+        service.likeUserViaSupabase('caller-token', targetId),
+      ).resolves.toEqual({
+        success: true,
+        matchId: 'match-id',
+        message: 'Mutual match',
+      });
+      expect(supabaseService.rpcWithToken.mock.calls).toEqual([
+        [
+          'create_like',
+          { p_target_user_id: targetId, p_action: 'like' },
+          'caller-token',
+        ],
+      ]);
+    });
+
+    it('records pass without reporting a mutual match', async () => {
+      supabaseService.rpcWithToken.mockResolvedValue({
+        data: null,
+        error: null,
+      });
+
+      await expect(
+        service.likeUserViaSupabase('caller-token', targetId, 'pass'),
+      ).resolves.toEqual({
+        success: true,
+        matchId: null,
+        message: 'Action recorded',
+      });
+      expect(supabaseService.rpcWithToken.mock.calls).toEqual([
+        [
+          'create_like',
+          { p_target_user_id: targetId, p_action: 'pass' },
+          'caller-token',
+        ],
+      ]);
+    });
+
+    it.each([
+      ['42501', 403],
+      ['28000', 401],
+      ['22P02', 400],
+      ['22023', 400],
+      ['P0002', 404],
+      ['XX000', 503],
+    ])(
+      'returns HTTP failure for RPC error %s instead of success:false',
+      async (code, status) => {
+        supabaseService.rpcWithToken.mockResolvedValue({
+          data: null,
+          error: { code },
+        });
+
+        await expect(
+          service.likeUserViaSupabase('caller-token', targetId),
+        ).rejects.toMatchObject({ status });
+      },
+    );
+  });
+
+  it('excludes previously liked and passed profiles from discovery alongside blocks', async () => {
+    jest
+      .spyOn(prismaService.userBlock, 'findMany')
+      .mockResolvedValue([
+        { userId: mockUserId, blockedUserId: 'blocked-user' } as never,
+      ]);
+    prismaService.$queryRaw.mockResolvedValue([
+      { target_user_id: 'liked-user' },
+      { target_user_id: 'passed-user' },
+    ]);
+
+    const excluded: Set<string> = await (
+      service as unknown as {
+        getExcludedUserIds: (
+          userId: string,
+          includeActions: boolean,
+        ) => Promise<Set<string>>;
+      }
+    ).getExcludedUserIds(mockUserId, true);
+
+    expect([...excluded]).toEqual([
+      'blocked-user',
+      'liked-user',
+      'passed-user',
+    ]);
   });
 
   describe('getAgeFromBirthDate', () => {

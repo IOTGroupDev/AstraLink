@@ -16,7 +16,7 @@ export class ChartEventListener {
    */
   @OnEvent('user.birthData.changed')
   async handleBirthDataChanged(event: BirthDataChangedEvent) {
-    const { userId, changes } = event;
+    const { userId } = event;
     const changedFields = event.getChangedFields();
 
     this.logger.log(
@@ -32,23 +32,6 @@ export class ChartEventListener {
       this.logger.log(
         `Invalidated caches for user ${userId} due to birth data change: horoscopes=${horoscopeDeleted}, transits=${transitDeleted}`,
       );
-
-      // Log the specific changes for audit purposes
-      if (changes.birthDate) {
-        this.logger.debug(
-          `Birth date changed from "${changes.birthDate.old}" to "${changes.birthDate.new}"`,
-        );
-      }
-      if (changes.birthPlace) {
-        this.logger.debug(
-          `Birth place changed from "${changes.birthPlace.old}" to "${changes.birthPlace.new}"`,
-        );
-      }
-      if (changes.birthTime) {
-        this.logger.debug(
-          `Birth time changed from "${changes.birthTime.old}" to "${changes.birthTime.new}"`,
-        );
-      }
     } catch (error: any) {
       this.logger.error(
         `Failed to invalidate derived caches for user ${userId}: ${error?.message || String(error)}`,

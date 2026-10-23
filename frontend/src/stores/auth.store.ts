@@ -21,8 +21,9 @@ type AuthCompatUser = AuthProfile & {
   role?: string;
 };
 
-const hasOnboardingData = (profile: AuthProfile | null): boolean =>
-  !!profile?.birthDate && !!profile?.birthTime && !!profile?.birthPlace;
+export const hasCompletedOnboarding = (profile: AuthProfile | null): boolean =>
+  profile?.onboardingCompleted === true ||
+  (!!profile?.birthDate && !!profile?.birthTime && !!profile?.birthPlace);
 
 interface AuthStateStore {
   authState: AuthState;
@@ -90,17 +91,17 @@ export const useAuthStore = create<AuthStateStore>()(
         set((state) => ({
           profile,
           user: profile,
-          onboardingCompleted: hasOnboardingData(profile),
+          onboardingCompleted: hasCompletedOnboarding(profile),
           isAuthenticated: !!profile || state.isAuthenticated,
         })),
       setUser: (user) =>
         set((state) => ({
           user,
           profile: user,
-          onboardingCompleted: hasOnboardingData(user),
+          onboardingCompleted: hasCompletedOnboarding(user),
           isAuthenticated: !!user,
           authState: user
-            ? hasOnboardingData(user)
+            ? hasCompletedOnboarding(user)
               ? 'AUTHORIZED'
               : state.session
                 ? 'ONBOARDING'
@@ -126,8 +127,8 @@ export const useAuthStore = create<AuthStateStore>()(
           user,
           profile: user,
           isAuthenticated: true,
-          onboardingCompleted: hasOnboardingData(user),
-          authState: hasOnboardingData(user) ? 'AUTHORIZED' : 'ONBOARDING',
+          onboardingCompleted: hasCompletedOnboarding(user),
+          authState: hasCompletedOnboarding(user) ? 'AUTHORIZED' : 'ONBOARDING',
           error: null,
         })),
       logout: () =>
@@ -146,7 +147,7 @@ export const useAuthStore = create<AuthStateStore>()(
         await tokenService.setOnboardingCompleted(completed);
         set((state) => ({
           onboardingCompleted:
-            completed && hasOnboardingData(state.profile ?? state.user),
+            completed && hasCompletedOnboarding(state.profile ?? state.user),
           profile: state.profile
             ? { ...state.profile, onboardingCompleted: completed }
             : state.profile,
@@ -154,7 +155,7 @@ export const useAuthStore = create<AuthStateStore>()(
             ? { ...state.user, onboardingCompleted: completed }
             : state.user,
           authState:
-            completed && hasOnboardingData(state.profile ?? state.user)
+            completed && hasCompletedOnboarding(state.profile ?? state.user)
               ? 'AUTHORIZED'
               : state.session || state.profile
                 ? 'ONBOARDING'

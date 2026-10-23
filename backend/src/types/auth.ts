@@ -184,6 +184,9 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role?: string;
 
+    // Populated only after Supabase verifies the access token.
+    appMetadata?: Record<string, unknown>;
+
     // Alternative ID fields for compatibility
     userId?: string; // Sometimes used instead of id
     sub?: string; // JWT standard subject field

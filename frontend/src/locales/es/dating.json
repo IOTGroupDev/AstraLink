@@ -6,7 +6,8 @@
   "loading": "Buscando coincidencias...",
   "empty": {
     "title": "No hay más perfiles",
-    "subtitle": "Vuelve más tarde para ver nuevas personas"
+    "subtitle": "Actualiza para volver a ver los perfiles",
+    "refresh": "Actualizar perfiles"
   },
   "compatibility": {
     "high": "Alta",
@@ -29,7 +30,9 @@
     "blockTitle": "Bloquear usuario",
     "blockMessage": "{{name}} ya no aparecerá en tu feed.",
     "failedToBlock": "No se pudo bloquear al usuario",
-    "failedToReport": "No se pudo enviar el reporte"
+    "failedToReport": "No se pudo enviar el reporte",
+    "like": "Me gusta",
+    "pass": "Pasar"
   },
   "profile": {
     "title": "Perfil",
@@ -50,7 +53,8 @@
     "noUserData": "Sin datos de usuario",
     "userNotSelected": "Usuario no seleccionado",
     "failedToSendMessage": "Error al enviar mensaje",
-    "failedToLoad": "Error al cargar candidatos"
+    "failedToLoad": "Error al cargar candidatos",
+    "failedToSaveAction": "No se pudo guardar la acción. Inténtalo de nuevo."
   },
   "interests": {
     "music": "Música",
@@ -65,6 +69,9 @@
     "nature": "Naturaleza"
   },
   "card": {
+    "openPhoto": "Ver foto completa",
+    "previousPhoto": "Foto anterior",
+    "nextPhoto": "Foto siguiente",
     "distanceAway": "A {{distance}} km",
     "compatibilityLabel": "Compatibilidad",
     "profession": "Astrólogo",

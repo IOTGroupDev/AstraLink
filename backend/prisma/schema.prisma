@@ -12,8 +12,8 @@ datasource db {
 }
 
 model Chart {
-  id            String       @id @default(uuid())
-  userId        String       @unique @map("user_id")
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @unique @map("user_id") @db.Uuid
   data          Json
   aiGeneratedAt DateTime?    @map("ai_generated_at")
   createdAt     DateTime     @default(now()) @map("created_at")
@@ -28,7 +28,7 @@ model Chart {
 
 model Connection {
   id         String       @id @default(uuid())
-  userId     String       @map("user_id")
+  userId     String       @map("user_id") @db.Uuid
   targetName String       @map("target_name")
   targetData Json         @map("target_data")
   createdAt  DateTime     @default(now()) @map("created_at")
@@ -43,7 +43,7 @@ model Connection {
 
 model DatingMatch {
   id            String       @id @default(uuid())
-  userId        String       @map("user_id")
+  userId        String       @map("user_id") @db.Uuid
   candidateData Json         @map("candidate_data")
   compatibility Int
   liked         Boolean      @default(false)
@@ -63,8 +63,8 @@ model DatingMatch {
 }
 
 model Subscription {
-  id          String       @id @default(uuid())
-  userId      String       @unique @map("user_id")
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @unique @map("user_id") @db.Uuid
   tier        String       @default("free")
   expiresAt   DateTime?    @map("expires_at")
   trialEndsAt DateTime?    @map("trial_ends_at")
@@ -83,8 +83,8 @@ model Subscription {
 }
 
 model UserPhoto {
-  id          String       @id @default(uuid())
-  userId      String       @map("user_id")
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
   storagePath String       @map("storage_path")
   isPrimary   Boolean      @default(false) @map("is_primary")
   createdAt   DateTime     @default(now()) @map("created_at")
@@ -98,7 +98,7 @@ model UserPhoto {
 }
 
 model UserProfile {
-  userId           String       @id @map("user_id")
+  userId           String       @id @map("user_id") @db.Uuid
   bio              String?
   gender           String?
   city             String?
@@ -556,19 +556,20 @@ model auth_users {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model public_users {
-  id                    String        @id
-  email                 String        @unique
+  id                    String                @id @db.Uuid
+  email                 String                @unique
   name                  String?
   birth_date            DateTime?
   birth_time            String?
+  birth_time_known      Boolean?
   birth_place           String?
   birth_date_encrypted  String?
   birth_time_encrypted  String?
   birth_place_encrypted String?
-  onboarding_completed  Boolean       @default(false)
-  role                  String        @default("user")
-  created_at            DateTime      @default(now())
-  updated_at            DateTime      @default(now())
+  onboarding_completed  Boolean               @default(false)
+  role                  String                @default("user")
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @default(now())
   charts                Chart[]
   connections           Connection[]
   compatibility_reports CompatibilityReport[]

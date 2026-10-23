@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   BadRequestException,
+  UnauthorizedException,
   Headers,
 } from '@nestjs/common';
 import {
@@ -18,7 +19,6 @@ import {
 } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { IsOptional, IsIn, IsString } from 'class-validator';
-import * as jwt from 'jsonwebtoken';
 import { SubscriptionService } from './subscription.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
@@ -157,39 +157,9 @@ export class SubscriptionController {
   }
 
   private getUserId(req: AuthenticatedRequest): string {
-    // 1) Попробуем взять из guard-а
     const direct = req.user?.userId || req.user?.id;
     if (direct) return direct;
-
-    // 2) Fallback: декодируем Bearer JWT без верификации, чтобы достать sub
-    const rawHeader =
-      req.headers?.authorization ??
-      (req.headers?.['Authorization'] as string | undefined);
-    const authHeader = rawHeader?.trim();
-
-    if (authHeader) {
-      const normalized = authHeader.replace(/^Bearer%20/i, 'Bearer ').trim();
-      const parts = normalized.split(/\s+/);
-      if (parts.length >= 2 && /^Bearer$/i.test(parts[0])) {
-        let token = parts.slice(1).join(' ').trim();
-        try {
-          token = decodeURIComponent(token);
-        } catch {
-          // ignore decode fail
-        }
-        try {
-          const decoded: any = jwt.decode(token);
-          const userId =
-            decoded?.sub || decoded?.user_id || decoded?.userId || decoded?.id;
-          if (userId) return userId;
-        } catch {
-          // ignore decode fail
-        }
-      }
-    }
-
-    // 3) Если определить не удалось — это ошибка запроса
-    throw new BadRequestException('Не удалось определить пользователя');
+    throw new UnauthorizedException('Не удалось определить пользователя');
   }
 
   /**
@@ -242,10 +212,15 @@ export class SubscriptionController {
     }
 
     const pmRaw = upgradeData?.paymentMethod;
-    const paymentMethod =
-      pmRaw === 'apple' || pmRaw === 'google' || pmRaw === 'mock'
-        ? pmRaw
-        : 'mock';
+    if (
+      pmRaw !== undefined &&
+      pmRaw !== 'apple' &&
+      pmRaw !== 'google' &&
+      pmRaw !== 'mock'
+    ) {
+      throw new BadRequestException('Неверный метод оплаты');
+    }
+    const paymentMethod = pmRaw ?? 'mock';
 
     return this.subscriptionService.upgrade(
       this.getUserId(req),

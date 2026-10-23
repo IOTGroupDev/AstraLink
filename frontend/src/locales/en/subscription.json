@@ -89,7 +89,8 @@
     "apple": {
       "title": "Apple Pay",
       "subtitle": "Native payment on iPhone"
-    }
+    },
+    "unavailable": "Subscription purchases are unavailable in this version of the app."
   },
   "tiers": {
     "free": {

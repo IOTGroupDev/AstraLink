@@ -1,7 +1,10 @@
 import { useCallback } from 'react';
-import { useStripe } from '@stripe/stripe-react-native';
+import { Platform } from 'react-native';
+import { useStripe } from '../services/stripe';
 import { subscriptionAPI } from '../services/api/subscription.api';
 import { SubscriptionTier } from '../types/subscription';
+import { stripeSubscriptionAvailable } from '../services/subscription-payment-config';
+import i18n from '../i18n';
 
 export const PAYMENT_METHOD_SHEET_DISMISS_MS = 320;
 
@@ -22,6 +25,13 @@ export const useStripeSubscriptionPayment = () => {
     async (
       tier: SubscriptionTier
     ): Promise<StripeSubscriptionPaymentResult> => {
+      if (!stripeSubscriptionAvailable) {
+        throw new Error(i18n.t('subscription.paymentSheet.unavailable'));
+      }
+      if (Platform.OS === 'web') {
+        throw new Error('Payments are available in the mobile app.');
+      }
+
       const paymentSheetParams =
         await subscriptionAPI.createStripePaymentSheet(tier);
 

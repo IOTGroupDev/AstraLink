@@ -22,9 +22,8 @@ import * as Haptics from 'expo-haptics';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { authAPI } from '../../services/api';
-import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../../stores/auth.store';
-import { AuthEngine } from '../../services/authEngine';
+import { applyOAuthSessionToAuthStore } from '../../services/oauthSessionRouting';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import {
@@ -174,38 +173,9 @@ const OtpCodeScreen: React.FC<Props> = ({ route, navigation }) => {
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      const authStore = useAuthStore.getState();
-      const onboardingCompleted = !!verifiedUser?.onboardingCompleted;
-
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          authStore.setSession(data.session);
-        }
-      } catch {
-        // Session was already written by authAPI; do not block routing here.
-      }
-
-      if (verifiedUser) {
-        authStore.setProfile({
-          id: verifiedUser.id,
-          email: verifiedUser.email,
-          name: verifiedUser.name,
-          onboardingCompleted: false,
-        });
-        authStore.setAuthState('ONBOARDING');
-        authStore.setLoading(false);
-        authStore.setError(null);
-      }
-
-      if (onboardingCompleted) {
-        try {
-          await AuthEngine.refreshProfile();
-        } catch {
-          authStore.setAuthState('ONBOARDING');
-        }
-      } else if (verifiedUser) {
-        authStore.setAuthState('ONBOARDING');
+      const applied = await applyOAuthSessionToAuthStore(verifiedUser);
+      if (!applied) {
+        throw new Error(t('auth.userDataLoader.sessionNotFound'));
       }
 
       setSubmitting(false);

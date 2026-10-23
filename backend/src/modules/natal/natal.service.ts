@@ -1,3 +1,7 @@
+import { getLocationFromBirthData } from '@/utils/location.utils';
+import { SensitiveProfileEncryptionService } from '../../common/services/sensitive-profile-encryption.service';
+import { historicalTimezoneOffset } from '@/common/utils/timezone.util';
+import { ASTRO_CALCULATION_VERSION } from '@/shared/astro-version';
 import {
   Injectable,
   NotFoundException,
@@ -24,6 +28,7 @@ export class NatalService {
     private ephemerisService: EphemerisService,
     private interpretationService: InterpretationService,
     private geoService: GeoService,
+    private readonly encryption: SensitiveProfileEncryptionService,
   ) {}
 
   private normalizeBirthDateInput(input?: string | null): string | null {
@@ -49,12 +54,12 @@ export class NatalService {
 
     return Boolean(
       birthDate &&
-        birthDate === chartData?.birthDate &&
-        birthTime &&
-        birthTime === chartData?.birthTime &&
-        typeof birthDateTimeUtc === 'string' &&
-        !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
-        calculationVersion === 'utc-fixed-v2',
+      birthDate === chartData?.birthDate &&
+      birthTime &&
+      birthTime === chartData?.birthTime &&
+      typeof birthDateTimeUtc === 'string' &&
+      !Number.isNaN(new Date(birthDateTimeUtc).getTime()) &&
+      calculationVersion === ASTRO_CALCULATION_VERSION,
     );
   }
 
@@ -101,6 +106,17 @@ export class NatalService {
   ) {
     const { data: userProfile } =
       await this.supabaseService.getUserProfileAdmin(userId);
+    const stored = await this.prisma.chart.findUnique({
+      where: { id: chartId },
+      select: { data: true },
+    });
+    const storedData = this.encryption.hydrateBirthDocument(stored?.data) as
+      | { metadata?: { birthTimeKnown?: boolean } }
+      | undefined;
+    const birthTimeKnown =
+      typeof userProfile?.birth_time_known === 'boolean'
+        ? userProfile.birth_time_known
+        : storedData?.metadata?.birthTimeKnown !== false;
     const birthDateISO = userProfile?.birth_date as string | undefined;
     const birthTime = userProfile?.birth_time as string | undefined;
     const birthPlace = userProfile?.birth_place as string | undefined;
@@ -124,13 +140,16 @@ export class NatalService {
       dateStr,
       birthTime,
       location,
+      birthTimeKnown,
+      locale,
     );
-    const interpretation =
-      await this.interpretationService.generateNatalChartInterpretation(
-        userId,
-        natalChartData,
-        locale,
-      );
+    const interpretation = !birthTimeKnown
+      ? null
+      : await this.interpretationService.generateNatalChartInterpretation(
+          userId,
+          natalChartData,
+          locale,
+        );
 
     const localizedData = this.withInterpretationLocale(
       {
@@ -142,15 +161,16 @@ export class NatalService {
     localizedData.metadata = {
       ...localizedData.metadata,
       recalculatedAt: new Date().toISOString(),
-      calculationVersion: 'utc-fixed-v2',
+      calculationVersion: ASTRO_CALCULATION_VERSION,
     };
 
-    return this.prisma.chart.update({
+    const updated = await this.prisma.chart.update({
       where: { id: chartId },
       data: {
-        data: localizedData,
+        data: this.encryption.prepareBirthDocumentForStorage(localizedData),
       },
     });
+    return { ...updated, data: localizedData };
   }
 
   /**
@@ -171,8 +191,12 @@ export class NatalService {
     });
 
     // Если карта уже существует с интерпретацией, возвращаем её
-    if (existing && (existing.data as any)?.interpretation) {
-      if (this.needsBirthDataUpgrade(existing.data)) {
+    if (existing) {
+      if (
+        this.needsBirthDataUpgrade(
+          this.encryption.hydrateBirthDocument(existing.data),
+        )
+      ) {
         this.logger.warn(
           `Upgrading legacy natal chart metadata for user ${userId} via /natal create path`,
         );
@@ -205,20 +229,27 @@ export class NatalService {
       birthTime,
     );
 
+    const { data: profile } =
+      await this.supabaseService.getUserProfileAdmin(userId);
+    const birthTimeKnown = profile?.birth_time_known !== false;
+
     // Рассчитываем натальную карту через Swiss Ephemeris
     const natalChartData = await this.ephemerisService.calculateNatalChart(
       dateStr,
       birthTime,
       location,
+      birthTimeKnown,
+      locale,
     );
 
     // Генерируем полную интерпретацию (только один раз при регистрации)
-    const interpretation =
-      await this.interpretationService.generateNatalChartInterpretation(
-        userId,
-        natalChartData,
-        locale,
-      );
+    const interpretation = !birthTimeKnown
+      ? null
+      : await this.interpretationService.generateNatalChartInterpretation(
+          userId,
+          natalChartData,
+          locale,
+        );
 
     // Сохраняем карту с интерпретацией
     const chartWithInterpretation = this.withInterpretationLocale(
@@ -230,19 +261,24 @@ export class NatalService {
     );
     chartWithInterpretation.metadata = {
       ...chartWithInterpretation.metadata,
-      calculationVersion: 'utc-fixed-v2',
+      calculationVersion: ASTRO_CALCULATION_VERSION,
     };
 
-    return await this.prisma.chart.upsert({
+    const created = await this.prisma.chart.upsert({
       where: { userId },
       update: {
-        data: chartWithInterpretation,
+        data: this.encryption.prepareBirthDocumentForStorage(
+          chartWithInterpretation,
+        ),
       },
       create: {
         userId,
-        data: chartWithInterpretation,
+        data: this.encryption.prepareBirthDocumentForStorage(
+          chartWithInterpretation,
+        ),
       },
     });
+    return { ...created, data: chartWithInterpretation };
   }
 
   /**
@@ -261,11 +297,26 @@ export class NatalService {
       throw new NotFoundException('Натальная карта не найдена');
     }
 
-    const chartData = chart.data as any;
+    const chartData = this.encryption.hydrateBirthDocument(chart.data) as any;
 
     if (this.needsBirthDataUpgrade(chartData)) {
       return this.recalculatePersistedChart(userId, chart.id, locale);
     }
+
+    if (chartData.metadata?.birthTimeKnown === false)
+      return {
+        ...chart,
+        data: {
+          ...chartData,
+          houses: {},
+          ascendant: null,
+          midheaven: null,
+          partOfFortune: null,
+          interpretation: undefined,
+          interpretations: undefined,
+          aiInterpretations: undefined,
+        },
+      };
 
     // Если интерпретация отсутствует или сохранена на другом языке, генерируем её заново
     if (
@@ -289,12 +340,14 @@ export class NatalService {
       );
       updatedData.metadata = {
         ...updatedData.metadata,
-        calculationVersion: 'utc-fixed-v2',
+        calculationVersion: ASTRO_CALCULATION_VERSION,
       };
 
       await this.prisma.chart.update({
         where: { id: chart.id },
-        data: { data: updatedData },
+        data: {
+          data: this.encryption.prepareBirthDocumentForStorage(updatedData),
+        },
       });
 
       return {
@@ -303,7 +356,7 @@ export class NatalService {
       };
     }
 
-    return chart;
+    return { ...chart, data: chartData };
   }
 
   /**
@@ -473,7 +526,7 @@ export class NatalService {
       ...natalChartData,
       metadata: {
         ...natalChartData?.metadata,
-        calculationVersion: 'utc-fixed-v2',
+        calculationVersion: ASTRO_CALCULATION_VERSION,
       },
     };
 
@@ -521,7 +574,12 @@ export class NatalService {
       default: { latitude: 55.7558, longitude: 37.6176, timezone: 3 },
     };
 
-    return locations[birthPlace] || locations['default'];
+    const location = locations[birthPlace];
+    if (!location || birthPlace === 'default')
+      throw new BadRequestException(
+        'Could not resolve birth location; select a city with coordinates',
+      );
+    return location;
   }
 
   private async resolveBirthLocation(
@@ -573,7 +631,14 @@ export class NatalService {
       // fallback to local lookup
     }
 
-    return this.getLocationCoordinates(birthPlace);
+    return getLocationFromBirthData(
+      birthPlace,
+      undefined,
+      undefined,
+      undefined,
+      birthDateISO,
+      birthTime,
+    );
   }
 
   private parseTimezoneOffset(
@@ -598,7 +663,7 @@ export class NatalService {
       const hours = Number(match[1]);
       const minutes = match[2] ? Number(match[2]) : 0;
       if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
-        const sign = hours >= 0 ? 1 : -1;
+        const sign = match[1].startsWith('-') ? -1 : 1;
         return hours + sign * (minutes / 60);
       }
     }
@@ -612,7 +677,9 @@ export class NatalService {
       return historicalOffset;
     }
 
-    return this.getLocationCoordinates(birthPlace || 'default').timezone;
+    throw new BadRequestException(
+      'Invalid timezone or nonexistent local birth time',
+    );
   }
 
   private resolveHistoricalTimezoneOffset(
@@ -620,50 +687,6 @@ export class NatalService {
     birthDateISO?: string,
     birthTime?: string,
   ): number | null {
-    if (!birthDateISO || !birthTime || !timezone.includes('/')) {
-      return null;
-    }
-
-    const dateMatch = birthDateISO.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const timeMatch = birthTime.match(/^(\d{1,2}):(\d{2})$/);
-    if (!dateMatch || !timeMatch) {
-      return null;
-    }
-
-    try {
-      const year = Number(dateMatch[1]);
-      const month = Number(dateMatch[2]);
-      const day = Number(dateMatch[3]);
-      const hour = Number(timeMatch[1]);
-      const minute = Number(timeMatch[2]);
-
-      const probe = new Date(
-        Date.UTC(year, month - 1, day, hour, minute, 0, 0),
-      );
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        timeZoneName: 'shortOffset',
-      }).formatToParts(probe);
-      const tzName = parts.find((part) => part.type === 'timeZoneName')?.value;
-      if (!tzName) {
-        return null;
-      }
-
-      const match = tzName.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?$/i);
-      if (!match) {
-        return null;
-      }
-
-      const hours = Number(match[1]);
-      const minutes = match[2] ? Number(match[2]) : 0;
-      if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-        return null;
-      }
-
-      const sign = hours >= 0 ? 1 : -1;
-      return hours + sign * (minutes / 60);
-    } catch {
-      return null;
-    }
+    return historicalTimezoneOffset(timezone, birthDateISO, birthTime);
   }
 }

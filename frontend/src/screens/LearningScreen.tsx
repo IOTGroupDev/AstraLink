@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -393,7 +393,7 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
             <BlurView
               intensity={24}
               tint="dark"
-              experimentalBlurMethod="dimezisBlurView"
+              blurMethod="dimezisBlurView"
               style={styles.headerBlur}
             >
               <View style={styles.overviewHeader}>
@@ -441,7 +441,7 @@ const LearningScreen: React.FC<{ navigation: any; route: any }> = ({
                 <BlurView
                   intensity={20}
                   tint="dark"
-                  experimentalBlurMethod="dimezisBlurView"
+                  blurMethod="dimezisBlurView"
                   style={styles.dailyCardBlur}
                 >
                   <View style={styles.dailyHeader}>
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     opacity: 0.82,

@@ -1,4 +1,5 @@
-import type { Session } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { AppState } from 'react-native';
 import { AuthEngine } from '../authEngine';
 import { supabase } from '../supabase';
 import { userAPI } from '../api/user.api';
@@ -12,6 +13,8 @@ jest.mock('../supabase', () => ({
       getSession: jest.fn(),
       signOut: jest.fn(),
       onAuthStateChange: jest.fn(),
+      startAutoRefresh: jest.fn(() => Promise.resolve()),
+      stopAutoRefresh: jest.fn(() => Promise.resolve()),
     },
   },
 }));
@@ -64,11 +67,12 @@ const session = {
 
 describe('AuthEngine stale session handling', () => {
   let authEventHandler:
-    | ((event: string, session: Session | null) => Promise<void>)
+    | ((event: AuthChangeEvent, session: Session | null) => void)
     | null = null;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
     authEventHandler = null;
     AuthEngine.dispose();
     useAuthStore.getState().resetAuth();
@@ -164,7 +168,8 @@ describe('AuthEngine stale session handling', () => {
     } as any);
 
     await AuthEngine.init();
-    await authEventHandler?.('SIGNED_OUT', null);
+    authEventHandler?.('SIGNED_OUT', null);
+    await jest.advanceTimersByTimeAsync(0);
 
     const state = useAuthStore.getState();
     expect(state.authState).toBe('AUTHORIZED');
@@ -189,7 +194,7 @@ describe('AuthEngine stale session handling', () => {
 
     const state = useAuthStore.getState();
     expect(state.isLoading).toBe(false);
-    expect(state.authState).toBe('ONBOARDING');
+    expect(state.authState).toBe('AUTHORIZED');
     expect(state.profile?.id).toBe('user-1');
   });
 
@@ -223,5 +228,152 @@ describe('AuthEngine stale session handling', () => {
     const state = useAuthStore.getState();
     expect(state.authState).toBe('AUTHORIZED');
     expect(state.profile?.birthDate).toBe('1990-01-01');
+  });
+
+  it('opens login when the saved session can no longer be refreshed', async () => {
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: { message: 'Refresh token expired' },
+    } as never);
+
+    await AuthEngine.init();
+
+    expect(useAuthStore.getState().authState).toBe('UNAUTHORIZED');
+    expect(useAuthStore.getState().session).toBeNull();
+    expect(mockedUserAPI.getProfile).not.toHaveBeenCalled();
+  });
+
+  it('restores a completed profile without repeating onboarding', async () => {
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: { session },
+      error: null,
+    } as never);
+    mockedUserAPI.getProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'person@example.com',
+      birthDate: '1990-01-01',
+      birthTime: '12:00',
+      birthPlace: 'Moscow',
+    } as never);
+
+    await AuthEngine.init();
+
+    expect(useAuthStore.getState().authState).toBe('AUTHORIZED');
+  });
+
+  it('honors server completion when a partial profile omits birth fields', async () => {
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: { session },
+      error: null,
+    } as never);
+    mockedUserAPI.getProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'person@example.com',
+      onboardingCompleted: true,
+    } as never);
+
+    await AuthEngine.init();
+
+    expect(useAuthStore.getState().authState).toBe('AUTHORIZED');
+    expect(useAuthStore.getState().onboardingCompleted).toBe(true);
+  });
+
+  it('rotates a token without reloading the profile or switching screens', async () => {
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: { session },
+      error: null,
+    } as never);
+    mockedUserAPI.getProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'person@example.com',
+      onboardingCompleted: true,
+    } as never);
+    await AuthEngine.init();
+    const profile = useAuthStore.getState().profile;
+    mockedUserAPI.getProfile.mockClear();
+
+    const result = authEventHandler?.('TOKEN_REFRESHED', {
+      ...session,
+      access_token: 'renewed-token',
+    });
+    expect(result).toBeUndefined();
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(useAuthStore.getState().session?.access_token).toBe('renewed-token');
+    expect(useAuthStore.getState().profile).toBe(profile);
+    expect(useAuthStore.getState().authState).toBe('AUTHORIZED');
+    expect(mockedUserAPI.getProfile).not.toHaveBeenCalled();
+  });
+
+  it('opens login on session loss and does not start onboarding', async () => {
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({ data: { session }, error: null } as never)
+      .mockResolvedValueOnce({ data: { session: null }, error: null } as never);
+    mockedUserAPI.getProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'person@example.com',
+      onboardingCompleted: true,
+    } as never);
+    await AuthEngine.init();
+
+    authEventHandler?.('SIGNED_OUT', null);
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(useAuthStore.getState().authState).toBe('UNAUTHORIZED');
+    expect(useAuthStore.getState().session).toBeNull();
+    expect(useAuthStore.getState().profile).toBeNull();
+  });
+
+  it('does not restore a profile response that arrives after sign-out', async () => {
+    mockedSupabaseAuth.getSession
+      .mockResolvedValueOnce({ data: { session }, error: null } as never)
+      .mockResolvedValueOnce({ data: { session: null }, error: null } as never);
+    mockedUserAPI.getProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'person@example.com',
+      onboardingCompleted: true,
+    } as never);
+    await AuthEngine.init();
+
+    let finishProfile!: (
+      profile: Awaited<ReturnType<typeof userAPI.getProfile>>
+    ) => void;
+    mockedUserAPI.getProfile.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishProfile = resolve;
+      })
+    );
+    authEventHandler?.('SIGNED_IN', session);
+    await jest.advanceTimersByTimeAsync(0);
+    authEventHandler?.('SIGNED_OUT', null);
+    await jest.advanceTimersByTimeAsync(0);
+    finishProfile({ id: 'user-1', email: 'person@example.com' } as never);
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(useAuthStore.getState().authState).toBe('UNAUTHORIZED');
+    expect(useAuthStore.getState().profile).toBeNull();
+  });
+
+  it('resumes token auto-refresh on foreground and removes its listener on dispose', async () => {
+    const remove = jest.fn();
+    const listener = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockReturnValue({ remove });
+    mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: null,
+    } as never);
+    try {
+      await AuthEngine.init();
+      const onChange = listener.mock.calls[0][1];
+      onChange('active');
+      expect(mockedSupabaseAuth.startAutoRefresh).toHaveBeenCalled();
+      onChange('background');
+      expect(mockedSupabaseAuth.stopAutoRefresh).toHaveBeenCalled();
+      AuthEngine.dispose();
+      expect(remove).toHaveBeenCalled();
+    } finally {
+      listener.mockRestore();
+    }
   });
 });

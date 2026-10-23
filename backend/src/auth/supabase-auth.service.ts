@@ -1,6 +1,7 @@
 import {
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
   ConflictException,
   BadRequestException,
   Logger,
@@ -16,6 +17,7 @@ import type {
 } from '../types';
 import { CompleteSignupDto } from '@/auth/dto/complete-signup.dto';
 import { UserSignupCompletedEvent } from '@/auth/events';
+import type { User } from '@supabase/supabase-js';
 
 const DEFAULT_UNKNOWN_BIRTH_TIME = '12:00';
 const DEFAULT_YANDEX_OAUTH_PROVIDER = 'custom:yandex';
@@ -361,8 +363,8 @@ export class SupabaseAuthService {
           email: userEmail,
           name: signupDto.name,
           birth_date: birthDateStorageIso,
-          birth_time: signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-          birth_place: signupDto.birthPlace || 'Moscow',
+          birth_time: signupDto.birthTime || null,
+          birth_place: signupDto.birthPlace || null,
           updated_at: new Date().toISOString(),
         });
 
@@ -386,12 +388,14 @@ export class SupabaseAuthService {
 
       // 5) Создаем натальную карту
       try {
-        await this.createNatalChart(
-          userId,
-          birthDateOnly,
-          signupDto.birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-          signupDto.birthPlace || 'Moscow',
-        );
+        if (signupDto.birthTime && signupDto.birthPlace) {
+          await this.createNatalChart(
+            userId,
+            birthDateOnly,
+            signupDto.birthTime,
+            signupDto.birthPlace,
+          );
+        }
       } catch (chartError) {
         this.logger.error(
           'Error creating natal chart (non-blocking):',
@@ -452,7 +456,19 @@ export class SupabaseAuthService {
     data: OAuthCallbackRequest,
   ): Promise<AuthResponse> {
     try {
-      const { user: userData } = data;
+      const verifiedUser = await this.requireVerifiedUser(data?.access_token);
+      if (data.user?.id !== undefined && data.user.id !== verifiedUser.id) {
+        throw new ForbiddenException(
+          'OAuth пользователь не соответствует сессии',
+        );
+      }
+      // Identity comes exclusively from Supabase Auth, never the callback body.
+      const userData = {
+        id: verifiedUser.id,
+        email: this.getVerifiedEmail(verifiedUser),
+        name:
+          this.readString(verifiedUser.user_metadata?.name) || data.user?.name,
+      };
 
       this.logger.log(`🔍 Обработка ${provider} OAuth callback`);
 
@@ -557,7 +573,11 @@ export class SupabaseAuthService {
       };
     } catch (error) {
       this.logger.error(`❌ ${provider} callback error:`, toSafeLogMeta(error));
-      if (error instanceof BadRequestException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException
+      ) {
         throw error;
       }
       throw new BadRequestException(`Ошибка обработки ${provider} авторизации`);
@@ -570,8 +590,14 @@ export class SupabaseAuthService {
     accessToken?: string,
   ): Promise<AuthResponse> {
     try {
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
+      const verifiedUser = await this.requireVerifiedUser(accessToken);
+      if (
+        userId !== verifiedUser.id ||
+        (dto.userId !== undefined && dto.userId !== verifiedUser.id)
+      ) {
+        throw new ForbiddenException(
+          'Нельзя изменять профиль другого пользователя',
+        );
       }
 
       const {
@@ -584,6 +610,15 @@ export class SupabaseAuthService {
         timezone,
         birthTimeKnown,
       } = dto;
+
+      if (!birthPlace?.trim())
+        throw new BadRequestException('Место рождения обязательно');
+      if (birthTimeKnown !== false && !birthTime)
+        throw new BadRequestException(
+          'Укажите время рождения или отметьте, что оно неизвестно',
+        );
+      const resolvedBirthTime =
+        birthTimeKnown === false ? DEFAULT_UNKNOWN_BIRTH_TIME : birthTime!;
 
       this.logger.log('📝 Completing signup for authenticated user');
 
@@ -598,112 +633,16 @@ export class SupabaseAuthService {
       let { data: existingProfile, error: checkError } =
         await this.supabaseService.getUserProfileAdmin(userId);
 
-      let authEmail: string | null = null;
-
       if (checkError || !existingProfile) {
-        // Попытка восстановить профиль через auth.users
-        try {
-          const admin = this.supabaseService.getAdminClient();
-          const { data: authData, error: authErr } =
-            await admin.auth.admin.getUserById(userId);
-          if (!authErr) {
-            authEmail = authData?.user?.email ?? null;
-          }
-        } catch (authLookupErr) {
-          this.logger.warn(
-            '⚠️ Failed to lookup auth user for missing profile',
-            toSafeLogMeta(authLookupErr),
-          );
-        }
-
-        if (!authEmail && accessToken) {
-          try {
-            const { data: tokenUser, error: tokenErr } =
-              await this.supabaseService.getUser(accessToken);
-            if (!tokenErr) {
-              authEmail = tokenUser?.user?.email ?? null;
-            }
-          } catch (tokenLookupErr) {
-            this.logger.warn(
-              '⚠️ Failed to lookup auth user by access token',
-              toSafeLogMeta(tokenLookupErr),
-            );
-          }
-        }
-
-        if (authEmail) {
-          await this.ensureUserProfile(userId, authEmail);
-          const retry = await this.supabaseService.getUserProfileAdmin(userId);
-          existingProfile = retry.data ?? null;
-          checkError = retry.error;
-        }
-      }
-
-      if (checkError || !existingProfile) {
-        // Финальный fallback: создать/апсертить профиль вручную
-        if (authEmail) {
-          const { error: upsertErr } = await this.supabaseService
-            .fromAdmin('users')
-            .upsert(
-              this.supabaseService.prepareUserProfileWritePayload({
-                id: userId,
-                email: authEmail,
-                name: name || authEmail.split('@')[0] || 'User',
-                birth_date: null,
-                birth_time: null,
-                birth_place: null,
-                updated_at: new Date().toISOString(),
-              }),
-              { onConflict: 'id' },
-            );
-
-          if (!upsertErr) {
-            const retry =
-              await this.supabaseService.getUserProfileAdmin(userId);
-            existingProfile = retry.data ?? null;
-            checkError = retry.error;
-          } else if (upsertErr?.code === '23505' && authEmail) {
-            this.logger.warn(
-              '⚠️ Duplicate email detected, removing stale profile by email',
-            );
-            await this.supabaseService
-              .fromAdmin('users')
-              .delete()
-              .eq('email', authEmail);
-
-            const { error: insertErr } = await this.supabaseService
-              .fromAdmin('users')
-              .insert(
-                this.supabaseService.prepareUserProfileWritePayload({
-                  id: userId,
-                  email: authEmail,
-                  name: name || authEmail.split('@')[0] || 'User',
-                  birth_date: null,
-                  birth_time: null,
-                  birth_place: null,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                }),
-              );
-
-            if (!insertErr) {
-              const retry =
-                await this.supabaseService.getUserProfileAdmin(userId);
-              existingProfile = retry.data ?? null;
-              checkError = retry.error;
-            } else {
-              this.logger.warn(
-                '⚠️ Manual profile insert failed:',
-                toSafeLogMeta(insertErr),
-              );
-            }
-          } else {
-            this.logger.warn(
-              '⚠️ Manual profile upsert failed:',
-              toSafeLogMeta(upsertErr),
-            );
-          }
-        }
+        // Restore only the verified owner's profile. Email conflicts must pass
+        // the same stale-account checks as the normal OTP/OAuth recovery flow.
+        await this.ensureUserProfile(
+          userId,
+          this.getVerifiedEmail(verifiedUser),
+        );
+        const retry = await this.supabaseService.getUserProfileAdmin(userId);
+        existingProfile = retry.data ?? null;
+        checkError = retry.error;
       }
 
       if (checkError || !existingProfile) {
@@ -715,8 +654,9 @@ export class SupabaseAuthService {
         await this.supabaseService.updateUserProfileAdmin(userId, {
           name: name || existingProfile.name,
           birth_date: birthDateStorageIso,
-          birth_time: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-          birth_place: birthPlace || 'Moscow',
+          birth_time: resolvedBirthTime,
+          birth_time_known: birthTimeKnown !== false,
+          birth_place: birthPlace.trim(),
           updated_at: new Date().toISOString(),
         });
 
@@ -786,8 +726,8 @@ export class SupabaseAuthService {
           'user.signup.completed',
           new UserSignupCompletedEvent(userId, {
             birthDate: birthDateOnly,
-            birthTime: birthTime || DEFAULT_UNKNOWN_BIRTH_TIME,
-            birthPlace: birthPlace || 'Moscow',
+            birthTime: resolvedBirthTime,
+            birthPlace: birthPlace.trim(),
             latitude,
             longitude,
             timezone,
@@ -820,7 +760,12 @@ export class SupabaseAuthService {
         access_token: '', // Токен должен быть получен на клиенте
       };
     } catch (error) {
-      if (error instanceof BadRequestException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
       this.logger.error('Complete signup error:', toSafeLogMeta(error));
@@ -833,6 +778,16 @@ export class SupabaseAuthService {
    * Called after OTP verification to create profile if missing
    * This is a workaround for missing database trigger
    */
+  async ensureAuthenticatedUserProfile(userId: string, accessToken?: string) {
+    const verifiedUser = await this.requireVerifiedUser(accessToken);
+    if (userId !== verifiedUser.id) {
+      throw new ForbiddenException(
+        'Нельзя изменять профиль другого пользователя',
+      );
+    }
+    return this.ensureUserProfile(userId, this.getVerifiedEmail(verifiedUser));
+  }
+
   async ensureUserProfile(
     userId: string,
     email: string,
@@ -886,13 +841,15 @@ export class SupabaseAuthService {
         .single();
 
       if (existingByEmail && existingByEmail.id !== userId) {
-        let staleAuthUserStillExists = false;
+        let staleAuthUserConfirmedMissing = false;
         try {
           const admin = this.supabaseService.getAdminClient();
           const { data: staleAuthData, error: staleAuthError } =
             await admin.auth.admin.getUserById(existingByEmail.id);
-          staleAuthUserStillExists = Boolean(
-            !staleAuthError && staleAuthData?.user,
+          staleAuthUserConfirmedMissing = Boolean(
+            !staleAuthData?.user &&
+            staleAuthError?.status === 404 &&
+            staleAuthError.code === 'user_not_found',
           );
         } catch (staleAuthLookupError) {
           this.logger.warn(
@@ -901,9 +858,9 @@ export class SupabaseAuthService {
           );
         }
 
-        if (staleAuthUserStillExists) {
+        if (!staleAuthUserConfirmedMissing) {
           this.logger.warn(
-            '⚠️ Email belongs to another active auth user; refusing to reuse profile data',
+            '⚠️ Email-matched account is active or its absence could not be verified',
           );
           throw new ConflictException(
             'Пользователь с таким email уже существует',
@@ -957,11 +914,7 @@ export class SupabaseAuthService {
           if (retry.data) {
             return toResult(retry.data, { existing: true });
           }
-          return {
-            success: true,
-            existing: true,
-            onboardingCompleted: false,
-          };
+          throw new ConflictException('Профиль с таким email уже существует');
         }
         this.logger.error(
           '❌ Error creating user profile:',
@@ -998,6 +951,33 @@ export class SupabaseAuthService {
   }
 
   // ==================== Helper Methods ====================
+
+  private async requireVerifiedUser(accessToken?: string): Promise<User> {
+    if (typeof accessToken !== 'string' || !accessToken.trim()) {
+      throw new UnauthorizedException('Токен авторизации не предоставлен');
+    }
+
+    try {
+      const { data, error } = await this.supabaseService.getUser(accessToken);
+      if (error || !data?.user?.id) {
+        throw new UnauthorizedException('Недействительный токен');
+      }
+      return data.user;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      this.logger.warn('Token verification failed', toSafeLogMeta(error));
+      throw new UnauthorizedException('Ошибка проверки токена');
+    }
+  }
+
+  private getVerifiedEmail(user: User): string {
+    // Providers may omit email. Use a server-derived per-user placeholder;
+    // user_metadata and request email are editable and cannot prove ownership.
+    return (
+      this.readEmail(user.email) ||
+      `${user.id}@${DEFAULT_YANDEX_FALLBACK_EMAIL_DOMAIN}`
+    );
+  }
 
   /**
    * Создание натальной карты
@@ -1107,6 +1087,11 @@ export class SupabaseAuthService {
     };
 
     const normalized = place.trim();
-    return cities[normalized] || cities['Москва'];
+    const coordinates = cities[normalized];
+    if (!coordinates)
+      throw new BadRequestException(
+        'Не удалось определить координаты места рождения',
+      );
+    return coordinates;
   }
 }

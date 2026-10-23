@@ -13,7 +13,7 @@ describe('NatalChartService locale handling', () => {
     },
     interpretationVersion: 'v3',
     metadata: {
-      calculationVersion: 'utc-fixed-v2',
+      calculationVersion: 'nodes-utc-houses-v3',
     },
   };
 
@@ -71,8 +71,72 @@ describe('NatalChartService locale handling', () => {
       chartRepository,
       prisma,
       redis,
+      supabaseService,
+      ephemerisService,
+      geoService,
     };
   };
+
+  it('preserves the profile unknown-time flag when a parallel bootstrap creates the first chart', async () => {
+    const {
+      service,
+      supabaseService,
+      ephemerisService,
+      chartRepository,
+      geoService,
+      interpretationService,
+    } = createService();
+    chartRepository.findByUserId.mockResolvedValue(null);
+    supabaseService.getUserProfileAdmin.mockResolvedValue({
+      data: {
+        birth_date: '1990-01-01',
+        birth_time: '12:00',
+        birth_place: 'Москва',
+        birth_time_known: false,
+      },
+    });
+    geoService.suggestCities.mockRejectedValue(new Error('Offline'));
+    ephemerisService.calculateNatalChart.mockResolvedValue({
+      planets: {},
+      houses: {},
+      metadata: { birthTimeKnown: false },
+    });
+    chartRepository.create.mockImplementation(async (value) => ({
+      id: 'chart-1',
+      ...value,
+    }));
+    const result = await service.createNatalChart(userId, {}, 'en');
+    expect(ephemerisService.calculateNatalChart.mock.calls[0][3]).toBe(false);
+    expect(result.data.metadata.birthTimeKnown).toBe(false);
+    expect(
+      interpretationService.generateNatalChartInterpretation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('withholds legacy unknown-time angles and never generates their interpretation', async () => {
+    const { service, interpretationService, chartRepository, aiService } =
+      createService();
+    chartRepository.findByUserId.mockResolvedValue({
+      id: 'chart-1',
+      user_id: userId,
+      data: {
+        ...baseChartData,
+        houses: { 1: { sign: 'Aries', cusp: 0 } },
+        ascendant: { sign: 'Aries', degree: 0 },
+        metadata: { ...baseChartData.metadata, birthTimeKnown: false },
+      },
+    });
+    const chart = await service.getNatalChartWithInterpretation(userId, 'en');
+    expect(chart.data.houses).toEqual({});
+    expect(chart.data.ascendant).toBeNull();
+    expect(chart.data.interpretation).toBeUndefined();
+    expect(
+      interpretationService.generateNatalChartInterpretation,
+    ).not.toHaveBeenCalled();
+    expect(
+      aiService.generatePremiumNatalSummaryInterpretation,
+    ).not.toHaveBeenCalled();
+  });
 
   it('regenerates legacy Russian interpretation when English locale is requested', async () => {
     const { service, interpretationService, chartRepository } = createService();

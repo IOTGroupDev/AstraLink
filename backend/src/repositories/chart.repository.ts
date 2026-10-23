@@ -6,6 +6,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { SensitiveProfileEncryptionService } from '../common/services/sensitive-profile-encryption.service';
 import {
   IChartRepository,
   NatalChart,
@@ -20,6 +21,7 @@ export class ChartRepository implements IChartRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
+    private readonly encryption: SensitiveProfileEncryptionService,
   ) {}
 
   /**
@@ -86,11 +88,11 @@ export class ChartRepository implements IChartRepository {
       const created = await this.prisma.chart.upsert({
         where: { userId: data.user_id },
         update: {
-          data: data.data,
+          data: this.encryption.prepareBirthDocumentForStorage(data.data),
         },
         create: {
           userId: data.user_id,
-          data: data.data,
+          data: this.encryption.prepareBirthDocumentForStorage(data.data),
         },
       });
 
@@ -116,7 +118,9 @@ export class ChartRepository implements IChartRepository {
 
       const updated = await this.prisma.chart.update({
         where: { id: chartId },
-        data: { data: chartData },
+        data: {
+          data: this.encryption.prepareBirthDocumentForStorage(chartData),
+        },
       });
 
       return this.normalizeChartData(updated);
@@ -280,7 +284,7 @@ export class ChartRepository implements IChartRepository {
     return {
       id: raw.id,
       user_id: raw.userId || raw.user_id,
-      data: raw.data,
+      data: this.encryption.hydrateBirthDocument(raw.data),
       created_at: raw.createdAt || raw.created_at,
       updated_at: raw.updatedAt || raw.updated_at,
     };

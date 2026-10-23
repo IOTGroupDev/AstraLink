@@ -107,7 +107,7 @@ export default function MainStackNavigator() {
     void Image.prefetch(backgroundUri).catch(() => undefined);
   }, [authState]);
 
-  if (authState === 'AUTHORIZED') {
+  if (authState === 'AUTHORIZED' && hasSession) {
     return (
       <Stack.Navigator key="authorized" screenOptions={defaultScreenOptions}>
         <Stack.Screen

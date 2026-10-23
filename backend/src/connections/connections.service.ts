@@ -41,6 +41,7 @@ export class ConnectionsService {
   async getSynastry(
     userId: string,
     connectionId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<SynastryResponse> {
     // Get connection and validate
     const connection = await this.getConnectionOrThrow(userId, connectionId);
@@ -55,6 +56,7 @@ export class ConnectionsService {
     const synastryData = await this.ephemerisService.getSynastry(
       userChart.data,
       targetChart,
+      locale,
     );
 
     return {
@@ -66,6 +68,7 @@ export class ConnectionsService {
   async getComposite(
     userId: string,
     connectionId: string,
+    locale: 'ru' | 'en' | 'es' = 'ru',
   ): Promise<CompositeResponse> {
     // Get connection and validate
     const connection = await this.getConnectionOrThrow(userId, connectionId);
@@ -80,10 +83,11 @@ export class ConnectionsService {
     const compositeData = await this.ephemerisService.getComposite(
       userChart.data,
       targetChart,
+      locale,
     );
 
     return {
-      summary: `Композитная карта для ${connection.targetName}: ${compositeData.summary}`,
+      summary: `${connection.targetName}: ${compositeData.summary}`,
     };
   }
 
@@ -145,6 +149,8 @@ export class ConnectionsService {
       targetData.latitude,
       targetData.longitude,
       targetData.timezone,
+      targetData.birthDate,
+      targetData.birthTime,
     );
 
     return this.ephemerisService.calculateNatalChart(

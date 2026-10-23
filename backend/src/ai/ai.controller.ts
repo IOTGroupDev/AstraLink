@@ -17,23 +17,34 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AIService } from '../services/ai.service';
+import { IsBoolean, IsIn, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { HoroscopeGeneratorService } from '../services/horoscope-generator.service';
 import { getHeaderValue } from '../common/utils/request-headers.util';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { SubscriptionGuard } from '@/common/guards/subscription.guard';
+import { AIRateLimitGuard } from '@/common/guards/ai-rate-limit.guard';
 import { RequiresSubscription } from '@/common/decorators/requires-subscription.decorator';
 import { SubscriptionTier } from '@/types/subscription';
 import type { AuthenticatedRequest } from '../types/auth';
 
-interface GenerateHoroscopeDto {
-  period: 'day' | 'tomorrow' | 'week' | 'month';
-  provider?: 'claude' | 'openai' | 'deepseek'; // ✅ Выбор AI провайдера
+class GenerateHoroscopeDto {
+  @ApiProperty({ enum: ['day', 'tomorrow', 'week', 'month'] })
+  @IsIn(['day', 'tomorrow', 'week', 'month'])
+  period!: 'day' | 'tomorrow' | 'week' | 'month';
+  @ApiPropertyOptional({ enum: ['claude', 'openai', 'deepseek'] })
+  @IsOptional()
+  @IsIn(['claude', 'openai', 'deepseek'])
+  provider?: 'claude' | 'openai' | 'deepseek';
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   useStreaming?: boolean;
 }
 
 @ApiTags('AI')
 @Controller('ai')
-@UseGuards(SupabaseAuthGuard, SubscriptionGuard)
+@UseGuards(SupabaseAuthGuard, SubscriptionGuard, AIRateLimitGuard)
 @ApiBearerAuth()
 export class AIController {
   constructor(

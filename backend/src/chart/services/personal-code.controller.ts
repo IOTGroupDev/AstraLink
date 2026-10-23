@@ -21,10 +21,19 @@ import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { DevOnlyGuard } from '@/common/guards/dev-only.guard';
 import { AuthenticatedRequest } from '@/types/auth';
 import { SubscriptionTier } from '@/types';
+import { IsEnum, IsInt, IsOptional, Min, Max } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { getHeaderValue } from '@/common/utils/request-headers.util';
 
-interface GenerateCodeDto {
-  purpose: CodePurpose;
+class GenerateCodeDto {
+  @ApiProperty({ enum: CodePurpose })
+  @IsEnum(CodePurpose)
+  purpose!: CodePurpose;
+  @ApiPropertyOptional({ minimum: 3, maximum: 9 })
+  @IsOptional()
+  @IsInt()
+  @Min(3)
+  @Max(9)
   digitCount?: number;
 }
 

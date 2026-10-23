@@ -12,7 +12,7 @@ import HoroscopeScreen from '../screens/HoroscopeScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import NatalChartScreen from '../screens/NatalChartScreen';
 import { useNavigation } from '@react-navigation/native';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../components/shared/BlurView';
 import ProfileCompletionModal from '../components/modals/ProfileCompletionModal';
 import { userAPI } from '../services/api/user.api';
 import { userExtendedProfileAPI } from '../services/api/user-extended-profile.api';
@@ -74,7 +74,7 @@ const TabBarBackground = React.memo(() => (
     <BlurView
       intensity={28}
       tint="dark"
-      experimentalBlurMethod="dimezisBlurView"
+      blurMethod="dimezisBlurView"
       style={StyleSheet.absoluteFill}
     />
     <View style={styles.tabBarTint} />
@@ -380,17 +380,17 @@ const styles = StyleSheet.create({
     lineHeight: 10,
   },
   tabBarShell: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 999,
     overflow: 'hidden',
   },
   tabBarBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderWidth: 1,
     borderRadius: 999,
   },
   tabBarTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(32, 28, 55, 0.5)',
   },
 });

@@ -14,6 +14,7 @@ export type BirthData = z.infer<typeof BirthDataSchema>;
 
 // Location coordinates
 export interface LocationCoordinates {
+  timezoneId?: string;
   latitude: number;
   longitude: number;
   timezone: number;

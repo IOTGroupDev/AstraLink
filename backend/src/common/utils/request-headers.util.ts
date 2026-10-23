@@ -18,3 +18,14 @@ export const getHeaderValue = (
   if (Array.isArray(raw)) return raw[0];
   return raw;
 };
+
+export function requestLocale(req: {
+  headers?: HeadersLike;
+}): 'ru' | 'en' | 'es' {
+  const value = (
+    getHeaderValue(req, 'x-locale') ||
+    getHeaderValue(req, 'accept-language') ||
+    'ru'
+  ).toLowerCase();
+  return value.startsWith('es') ? 'es' : value.startsWith('en') ? 'en' : 'ru';
+}

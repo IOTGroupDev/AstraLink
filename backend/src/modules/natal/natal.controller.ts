@@ -13,7 +13,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { NatalService } from './natal.service';
 import { CreateNatalChartDto } from './dto/create-natal-chart.dto';
 import { NatalChartResponseDto } from './dto/natal-chart-response.dto';
@@ -22,7 +22,7 @@ import { getHeaderValue } from '@/common/utils/request-headers.util';
 
 @ApiTags('natal')
 @Controller('natal')
-@UseGuards(JwtAuthGuard)
+@UseGuards(SupabaseAuthGuard)
 @ApiBearerAuth()
 export class NatalController {
   constructor(private readonly natalService: NatalService) {}

@@ -3,6 +3,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { RedisService } from '../redis/redis.service';
 import { SensitiveProfileEncryptionService } from '@/common/services/sensitive-profile-encryption.service';
 
+const SERVER_AUTH_OPTIONS = {
+  persistSession: false,
+  autoRefreshToken: false,
+  detectSessionInUrl: false,
+};
+
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   private readonly logger = new Logger(SupabaseService.name);
@@ -15,6 +21,7 @@ export class SupabaseService implements OnModuleInit {
     this.client = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
+      { auth: SERVER_AUTH_OPTIONS },
     );
   }
 
@@ -41,13 +48,17 @@ export class SupabaseService implements OnModuleInit {
       throw new Error('Supabase URL and Anon Key are required');
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: SERVER_AUTH_OPTIONS,
+    });
     this.logger.log(`✅ Supabase client initialized`);
     this.logger.debug(`📍 Supabase host: ${this.getSupabaseHost(supabaseUrl)}`);
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (serviceRoleKey) {
-      this.adminSupabase = createClient(supabaseUrl, serviceRoleKey);
+      this.adminSupabase = createClient(supabaseUrl, serviceRoleKey, {
+        auth: SERVER_AUTH_OPTIONS,
+      });
       this.logger.log('✅ Supabase admin client initialized');
     } else {
       this.logger.warn(
@@ -78,6 +89,7 @@ export class SupabaseService implements OnModuleInit {
     const supabaseUrl = process.env.SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_ANON_KEY!;
     return createClient(supabaseUrl, supabaseKey, {
+      auth: SERVER_AUTH_OPTIONS,
       global: {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -227,52 +239,54 @@ export class SupabaseService implements OnModuleInit {
     bucket: string,
     prefix: string,
   ): Promise<{ removed: number; error: unknown | null }> {
-    if (!this.adminSupabase) {
+    if (!this.adminSupabase)
       return {
         removed: 0,
-        error: new Error(
-          'SUPABASE_SERVICE_ROLE_KEY is required for storage cleanup',
-        ),
+        error: new Error('Storage admin client is unavailable'),
       };
+    if (!/^[a-zA-Z0-9_-]+$/.test(prefix)) {
+      return { removed: 0, error: new Error('Invalid user storage prefix') };
     }
-
+    let removed = 0;
     try {
-      const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, '');
-      const { data, error } = await this.adminSupabase.storage
-        .from(bucket)
-        .list(normalizedPrefix, { limit: 1000 });
-
-      if (error) {
-        return { removed: 0, error };
+      const storage = this.adminSupabase.storage.from(bucket);
+      const folders = [prefix];
+      while (folders.length) {
+        const folder = folders.shift()!;
+        const files: string[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const { data, error } = await storage.list(folder, {
+            limit: 1000,
+            offset,
+          });
+          if (error) return { removed, error };
+          const items = data ?? [];
+          for (const item of items) {
+            if (
+              !item.name ||
+              item.name === '.' ||
+              item.name === '..' ||
+              /[\\/]/.test(item.name)
+            ) {
+              throw new Error('Invalid storage entry');
+            }
+            const path = `${folder}/${item.name}`;
+            if (item.id) files.push(path);
+            else folders.push(path);
+          }
+          if (items.length < 1000) break;
+        }
+        for (let index = 0; index < files.length; index += 100) {
+          const paths = files.slice(index, index + 100);
+          const { error } = await storage.remove(paths);
+          if (error) return { removed, error };
+          removed += paths.length;
+        }
       }
-
-      const paths = (data ?? [])
-        .filter((item: any) => item?.name && !item.id?.endsWith('/'))
-        .map((item: any) => `${normalizedPrefix}/${item.name}`);
-
-      if (paths.length === 0) {
-        return { removed: 0, error: null };
-      }
-
-      const { error: removeError } = await this.adminSupabase.storage
-        .from(bucket)
-        .remove(paths);
-
-      if (removeError) {
-        return { removed: 0, error: removeError };
-      }
-
-      try {
-        await this.redis.deleteByPattern(
-          `signed-url:${bucket}:${normalizedPrefix}*`,
-        );
-      } catch {
-        // ignore cache cleanup failures
-      }
-
-      return { removed: paths.length, error: null };
+      await this.redis.deleteByPattern(`signed-url:${bucket}:${prefix}/*`);
+      return { removed, error: null };
     } catch (error) {
-      return { removed: 0, error };
+      return { removed, error };
     }
   }
 
@@ -297,7 +311,15 @@ export class SupabaseService implements OnModuleInit {
    * Используется после клика по magic link
    */
   async verifyOTP(token: string, type: 'email' | 'magiclink' = 'magiclink') {
-    const { data, error } = await this.supabase.auth.verifyOtp({
+    // OTP verification creates a session; isolate it from shared data clients.
+    const client = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        auth: SERVER_AUTH_OPTIONS,
+      },
+    );
+    const { data, error } = await client.auth.verifyOtp({
       token_hash: token,
       type,
     });
@@ -475,7 +497,7 @@ export class SupabaseService implements OnModuleInit {
     const { data, error } = await this.getAdminClient()
       .from('users')
       .select(
-        'id, email, name, birth_date, birth_time, birth_place, birth_date_encrypted, birth_time_encrypted, birth_place_encrypted, onboarding_completed, created_at, updated_at',
+        'id, email, name, birth_date, birth_time, birth_time_known, birth_place, birth_date_encrypted, birth_time_encrypted, birth_place_encrypted, onboarding_completed, created_at, updated_at',
       )
       .eq('id', userId)
       .single();
@@ -524,11 +546,30 @@ export class SupabaseService implements OnModuleInit {
       .from('charts')
       .insert({
         user_id: userId,
-        data: chartData,
+        data: this.sensitiveProfileEncryption.prepareBirthDocumentForStorage(
+          chartData,
+        ),
       })
       .select()
       .single();
-    return { data, error };
+    return {
+      data: Array.isArray(data)
+        ? data.map((row) => ({
+            ...row,
+            data: this.sensitiveProfileEncryption.hydrateBirthDocument(
+              row.data,
+            ),
+          }))
+        : data
+          ? {
+              ...data,
+              data: this.sensitiveProfileEncryption.hydrateBirthDocument(
+                data.data,
+              ),
+            }
+          : data,
+      error,
+    };
   }
 
   /**
@@ -540,7 +581,14 @@ export class SupabaseService implements OnModuleInit {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    return { data, error };
+    return {
+      data:
+        data?.map((row) => ({
+          ...row,
+          data: this.sensitiveProfileEncryption.hydrateBirthDocument(row.data),
+        })) ?? data,
+      error,
+    };
   }
 
   // ==================== Chart Methods (Admin) ====================
@@ -553,11 +601,30 @@ export class SupabaseService implements OnModuleInit {
       .from('charts')
       .insert({
         user_id: userId,
-        data: chartData,
+        data: this.sensitiveProfileEncryption.prepareBirthDocumentForStorage(
+          chartData,
+        ),
       })
       .select()
       .single();
-    return { data, error };
+    return {
+      data: Array.isArray(data)
+        ? data.map((row) => ({
+            ...row,
+            data: this.sensitiveProfileEncryption.hydrateBirthDocument(
+              row.data,
+            ),
+          }))
+        : data
+          ? {
+              ...data,
+              data: this.sensitiveProfileEncryption.hydrateBirthDocument(
+                data.data,
+              ),
+            }
+          : data,
+      error,
+    };
   }
 
   /**
@@ -569,7 +636,14 @@ export class SupabaseService implements OnModuleInit {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    return { data, error };
+    return {
+      data:
+        data?.map((row) => ({
+          ...row,
+          data: this.sensitiveProfileEncryption.hydrateBirthDocument(row.data),
+        })) ?? data,
+      error,
+    };
   }
 
   // ==================== Real-time Subscriptions ====================

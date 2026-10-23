@@ -160,7 +160,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         <Animated.View style={[styles.backgroundGlow, animatedGlowStyle]}>
           <LinearGradient
             colors={glowGradient}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           />

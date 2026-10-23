@@ -1,0 +1,10 @@
+- generic [ref=e19]:
+  - generic [ref=e20]: AstraLink
+  - generic [ref=e24]:
+    - generic [ref=e25]: Choose your authentication method
+    - generic [ref=e26]:
+      - generic [ref=e27] [cursor=pointer]: via email
+      - generic [ref=e29]:
+        - generic [ref=e30] [cursor=pointer]: 
+        - generic [ref=e32] [cursor=pointer]: 
+        - generic [ref=e34] [cursor=pointer]: Ya

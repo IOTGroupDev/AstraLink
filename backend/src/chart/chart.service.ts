@@ -143,6 +143,7 @@ export class ChartService {
       userId,
       locale,
     );
+    if (chart?.data?.metadata?.birthTimeKnown === false) return chart;
 
     const subscription = await this.getCachedSubscription(userId);
     if (!this.isPremiumSubscription(subscription)) {

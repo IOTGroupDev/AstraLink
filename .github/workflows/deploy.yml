@@ -1,10 +1,6 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       environment:
@@ -21,6 +17,9 @@ env:
 
 jobs:
   prepare:
+    # Legacy workflow uses invalid Compose profiles and unsafe duplicate DDL.
+    # Keep disabled until the documented Dokploy release path replaces it.
+    if: ${{ false }}
     name: Prepare Deployment
     runs-on: ubuntu-latest
     outputs:

@@ -83,7 +83,7 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
         colors={theme.gradients.lunar}
         start={{ x: 0, y: 0.44 }}
         end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
     </Animated.View>
   );

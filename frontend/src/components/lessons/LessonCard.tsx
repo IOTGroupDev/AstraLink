@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import { BlurView } from '../shared/BlurView';
 import { useTranslation } from 'react-i18next';
 import { AstroLesson } from '../../types/lessons';
 import { GradientBorderView } from '../shared';
@@ -144,7 +144,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
         <BlurView
           intensity={20}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
           style={styles.card}
         >
           {/* Header */}
@@ -179,9 +179,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                     <Ionicons
                       name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
                       size={20}
-                      color={
-                        isBookmarked ? '#FBBF24' : 'rgba(255,255,255,0.5)'
-                      }
+                      color={isBookmarked ? '#FBBF24' : 'rgba(255,255,255,0.5)'}
                     />
                   </TouchableOpacity>
                   <Ionicons
@@ -240,7 +238,6 @@ export const LessonCard: React.FC<LessonCardProps> = ({
                 )}
               </View>
             </View>
-
           </TouchableOpacity>
 
           {/* Expanded Content */}

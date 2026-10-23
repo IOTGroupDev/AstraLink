@@ -328,8 +328,8 @@ Advice: Slow the pace, name what matters, and act from clarity.`;
       expect(prompt).toContain('что стоит делать');
       expect(prompt).toContain('чего лучше избегать');
       expect(prompt).toContain('Поле "general" должно быть цельным резюме');
-      expect(prompt).toContain('Общий стиль ответа');
-      expect(prompt).toContain('Строго сохраняйте JSON-схему');
+      expect(prompt).toContain('Голос и интонация:');
+      expect(prompt).toContain('Не придумывай транзиты и дома.');
     });
 
     it('should build correct prompt for week period', () => {
@@ -349,28 +349,73 @@ Advice: Slow the pace, name what matters, and act from clarity.`;
       expect(prompt).toContain('на эту неделю');
     });
 
-    it('keeps horoscope JSON contract and human style guide for all locales', () => {
-      const context = {
-        sunSign: 'Aries',
-        moonSign: 'Leo',
-        ascendant: 'Sagittarius',
-        planets: {},
-        houses: {},
-        aspects: [],
-        transits: [],
-        period: 'day' as const,
-      };
+    it.each([
+      [
+        'ru',
+        'Ответьте ТОЛЬКО валидным JSON',
+        'Голос и интонация:',
+        'Не придумывай транзиты и дома.',
+      ],
+      [
+        'en',
+        'Respond with ONLY a valid JSON',
+        'Voice & tone:',
+        'Never invent transits, houses, aspects, or life events.',
+      ],
+      [
+        'es',
+        'Responde SOLO con un objeto JSON válido',
+        'Voz y tono:',
+        'No inventes tránsitos ni casas.',
+      ],
+    ] as const)(
+      'keeps the JSON contract and grounded style for %s',
+      (locale, jsonRule, styleHeading, accuracyRule) => {
+        const context = {
+          sunSign: 'Aries',
+          moonSign: 'Leo',
+          ascendant: 'Sagittarius',
+          planets: {},
+          houses: {},
+          aspects: [],
+          transits: [],
+          period: 'day' as const,
+        };
 
-      const ruPrompt = service['buildHoroscopePrompt'](context, 'ru');
-      const enPrompt = service['buildHoroscopePrompt'](context, 'en');
-      const esPrompt = service['buildHoroscopePrompt'](context, 'es');
+        const prompt = service['buildHoroscopePrompt'](context, locale);
+        expect(prompt).toContain(jsonRule);
+        expect(prompt).toContain(styleHeading);
+        expect(prompt).toContain(accuracyRule);
 
-      expect(ruPrompt).toContain('КРИТИЧЕСКИ ВАЖНО');
-      expect(ruPrompt).toContain('Строго сохраняйте JSON-схему');
-      expect(enPrompt).toContain('CRITICALLY IMPORTANT');
-      expect(enPrompt).toContain('Preserve the JSON schema exactly');
-      expect(esPrompt).toContain('CRÍTICAMENTE IMPORTANTE');
-      expect(esPrompt).toContain('Conserva exactamente el esquema JSON');
-    });
+        const schemaMatch = prompt.match(/\{\s*"general"[\s\S]*?\n\}/);
+        expect(schemaMatch).not.toBeNull();
+        const schema = JSON.parse(schemaMatch![0]) as Record<string, unknown>;
+        expect(Object.keys(schema)).toEqual([
+          'general',
+          'love',
+          'career',
+          'health',
+          'finance',
+          'advice',
+          'challenges',
+          'opportunities',
+        ]);
+        for (const field of [
+          'general',
+          'love',
+          'career',
+          'health',
+          'finance',
+          'advice',
+        ]) {
+          expect(typeof schema[field]).toBe('string');
+        }
+        for (const field of ['challenges', 'opportunities']) {
+          expect(schema[field]).toEqual(
+            expect.arrayContaining([expect.any(String)]),
+          );
+        }
+      },
+    );
   });
 });

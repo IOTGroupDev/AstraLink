@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from '../supabase';
@@ -6,7 +6,6 @@ import { apiLogger } from '../logger';
 import { tokenService } from '../tokenService';
 import i18n from '../../i18n';
 import { invalidateLocalAuthSession } from '../authInvalidation';
-import { useAuthStore } from '../../stores/auth.store';
 
 // Ensure base URL ends with /api/v1 (API versioning)
 function ensureApiBase(url: string): string {
@@ -24,14 +23,13 @@ function ensureApiBase(url: string): string {
 const getApiBaseUrl = () => {
   // 1) Явная переменная окружения имеет приоритет
   const envUrl =
-    (typeof process !== 'undefined' &&
-      (process as any)?.env?.EXPO_PUBLIC_API_URL) ||
+    (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL) ||
     (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_URL;
 
   // Флаг: внешний прокси уже монтирует backend под /api (например, Nginx/Cloudflare)
   const hasApiPrefix =
     (typeof process !== 'undefined' &&
-      (process as any)?.env?.EXPO_PUBLIC_API_HAS_PREFIX === 'true') ||
+      process.env.EXPO_PUBLIC_API_HAS_PREFIX === 'true') ||
     (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_HAS_PREFIX ===
       'true';
 
@@ -87,58 +85,22 @@ const PUBLIC_ENDPOINTS = [
   '/geo/cities',
 ];
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
+async function getAccessToken(): Promise<{
+  token: string | null;
+  userId: string | null;
+}> {
+  // getSession restores persisted auth and refreshes an expired access token.
+  // A cached Zustand/runtime token can still belong to the previous session.
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
 
-async function getAccessTokenWithRetry(): Promise<string | null> {
-  const storeToken = useAuthStore.getState().session?.access_token ?? null;
-  if (storeToken) {
-    try {
-      await tokenService.setToken(storeToken);
-    } catch {
-      // token cache sync failure should not block the request
-    }
-    return storeToken;
-  }
-
-  const maxAttempts = 6;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        apiLogger.warn(
-          '⚠️ supabase.auth.getSession failed during token lookup:',
-          error
-        );
-      }
-
-      const token = data.session?.access_token ?? null;
-      if (token) {
-        try {
-          await tokenService.setToken(token);
-        } catch {
-          // token cache sync failure should not block the request
-        }
-        return token;
-      }
-    } catch (error) {
-      apiLogger.warn('⚠️ Unexpected token lookup error:', error);
-    }
-
-    if (attempt < maxAttempts - 1) {
-      await sleep(200);
-    }
-  }
-
+  const token = data.session?.access_token ?? null;
   try {
-    return await tokenService.getToken();
-  } catch (error) {
-    apiLogger.warn('⚠️ tokenService.getToken failed:', error);
-    return null;
+    await tokenService.setToken(token);
+  } catch {
+    // A cache write failure must not block a valid Supabase session.
   }
+  return { token, userId: data.session?.user.id ?? null };
 }
 
 function getNormalizedLocale(): 'ru' | 'en' | 'es' {
@@ -223,7 +185,15 @@ api.interceptors.request.use(async (config) => {
   apiLogger.log('🔍 Получение токена для запроса:', requestLabel);
 
   try {
-    const token = await getAccessTokenWithRetry();
+    const { token, userId } = await getAccessToken();
+    const authenticatedConfig = config as AuthRequestConfig;
+    if (
+      authenticatedConfig.astraAuthRetried &&
+      authenticatedConfig.astraAuthUserId !== userId
+    ) {
+      throw new Error('Session changed before API retry');
+    }
+    authenticatedConfig.astraAuthUserId = userId;
 
     if (token) {
       (config.headers as any).Authorization = `Bearer ${token}`;
@@ -245,6 +215,43 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+type AuthRequestConfig = InternalAxiosRequestConfig & {
+  astraAuthUserId?: string | null;
+  astraAuthRetried?: boolean;
+};
+let pendingRefresh: ReturnType<typeof supabase.auth.refreshSession> | null =
+  null;
+
+async function retryWithFreshSession(error: {
+  config?: AuthRequestConfig;
+}): Promise<AuthRequestConfig | null> {
+  const config = error.config;
+  if (!config?.astraAuthUserId || config.astraAuthRetried) return null;
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user.id !== config.astraAuthUserId) return null;
+  const sentToken = getBearerTokenFromHeader(config.headers.Authorization);
+  let session = data.session;
+  if (session.access_token === sentToken) {
+    pendingRefresh ??= supabase.auth.refreshSession();
+    try {
+      const refreshed = await pendingRefresh;
+      if (refreshed.error || !refreshed.data.session) return null;
+      session = refreshed.data.session;
+    } finally {
+      pendingRefresh = null;
+    }
+  }
+  const current = await supabase.auth.getSession();
+  if (
+    session.user.id !== config.astraAuthUserId ||
+    current.data.session?.user.id !== config.astraAuthUserId ||
+    session.access_token === sentToken
+  )
+    return null;
+  config.astraAuthRetried = true;
+  return config;
+}
+
 // Response interceptor - handle 401
 api.interceptors.response.use(
   (response) => response,
@@ -255,6 +262,15 @@ api.interceptors.response.use(
       `❌ HTTP ${status} for ${requestLabel}`,
       error?.response?.data ?? error?.message
     );
+
+    if (error.response?.status === 401) {
+      try {
+        const retryConfig = await retryWithFreshSession(error);
+        if (retryConfig) return api.request(retryConfig);
+      } catch (refreshError) {
+        apiLogger.warn('Unable to refresh session for API retry', refreshError);
+      }
+    }
 
     if (
       error.response?.status === 401 &&

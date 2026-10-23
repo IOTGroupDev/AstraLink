@@ -1,6 +1,10 @@
 declare module 'openai' {
   export default class OpenAI {
-    constructor(options?: { apiKey?: string });
+    constructor(options?: {
+      apiKey?: string;
+      timeout?: number;
+      maxRetries?: number;
+    });
 
     chat: {
       completions: {

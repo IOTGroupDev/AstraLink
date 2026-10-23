@@ -1,6 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import axios from 'axios';
-import * as https from 'https';
+import { createHash } from 'crypto';
+import { RedisService } from '@/redis/redis.service';
+import { find as findTimezones } from 'geo-tz';
 
 export type CityOption = {
   id: string;
@@ -18,21 +24,35 @@ export class GeoService {
   private readonly nominatimEndpoint =
     'https://nominatim.openstreetmap.org/search';
 
-  // Keep-alive helps reduce handshake overhead and can mitigate some transient resets.
-  private readonly httpsAgent = new https.Agent({ keepAlive: true });
+  constructor(private readonly redis: RedisService) {}
 
-  private readonly timezoneCache = new Map<
-    string,
-    { tzid: string; expiresAt: number }
-  >();
+  async suggestCities(q: string, lang = 'ru'): Promise<CityOption[]> {
+    const normalized = q.trim().toLowerCase();
+    const key = `geo:query:${lang}:${createHash('sha256').update(normalized).digest('hex')}`;
+    const cached = await this.redis.get<CityOption[]>(key);
+    if (cached) return cached;
+    const client = this.redis.getClient();
+    if (!client)
+      throw new ServiceUnavailableException(
+        'City search is temporarily unavailable',
+      );
+    let lease = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      lease =
+        (await client.set('geo:nominatim:request', '1', 'PX', 1100, 'NX')) ===
+        'OK';
+      if (lease) break;
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+    if (!lease)
+      throw new ServiceUnavailableException(
+        'City search is busy; please retry',
+      );
+    const options = await this.fetchCities(q, lang);
+    await this.redis.set(key, options, options.length ? 86400 : 60);
+    return options;
+  }
 
-  // Successful timezone lookups can be cached longer.
-  private readonly timezoneCacheTtlMs = 24 * 60 * 60 * 1000; // 24h
-
-  // Failed lookups are cached briefly to avoid log spam / repeated calls on flaky networks.
-  private readonly timezoneFailureCacheTtlMs = 10 * 60 * 1000; // 10m
-
-  // Fallback cities for development/testing when external API is unavailable
   private readonly fallbackCities: CityOption[] = [
     {
       id: '1',
@@ -108,10 +128,8 @@ export class GeoService {
     },
   ];
 
-  async suggestCities(q: string, lang = 'ru'): Promise<CityOption[]> {
+  private async fetchCities(q: string, lang = 'ru'): Promise<CityOption[]> {
     try {
-      this.logger.log(`Searching cities for: "${q}"`);
-
       const response = await axios.get(this.nominatimEndpoint, {
         params: {
           q,
@@ -121,9 +139,9 @@ export class GeoService {
           'accept-language': lang,
         },
         headers: {
-          'User-Agent': 'AstraLink/1.0 (Astrology App)',
+          'User-Agent': process.env.GEO_USER_AGENT || 'AstraLink/1.0',
         },
-        timeout: 10000,
+        timeout: 5000,
         // Axios will use HTTP_PROXY/HTTPS_PROXY env vars automatically
       });
 
@@ -205,104 +223,12 @@ export class GeoService {
     };
   }
 
-  private timezoneCacheKey(lat: number, lon: number): string {
-    // Round to reduce cache cardinality (nominatim coordinates can be overly precise)
-    const r = (n: number) => n.toFixed(3);
-    return `${r(lat)},${r(lon)}`;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  private isTransientTimezoneError(error: any): boolean {
-    const code = String(error?.code ?? '');
-    const status = Number(error?.response?.status ?? 0);
-
-    // Network / DNS / timeout-ish
-    if (
-      code === 'ECONNRESET' ||
-      code === 'ETIMEDOUT' ||
-      code === 'ECONNABORTED' ||
-      code === 'EAI_AGAIN' ||
-      code === 'ENOTFOUND'
-    ) {
-      return true;
-    }
-
-    // Rate limit or server errors
-    if (status === 429 || (status >= 500 && status <= 599)) {
-      return true;
-    }
-
-    return false;
-  }
-
-  private approximateTimezoneFromLongitude(lon: number): string {
-    if (typeof lon !== 'number' || Number.isNaN(lon)) {
-      return 'UTC';
-    }
-
-    const offset = Math.max(-12, Math.min(14, Math.round(lon / 15)));
-    if (offset === 0) {
-      return 'UTC+0';
-    }
-
-    return `UTC${offset > 0 ? '+' : ''}${offset}`;
-  }
-
   private async lookupTimezone(lat: number, lon: number): Promise<string> {
-    const cacheKey = this.timezoneCacheKey(lat, lon);
-    const cached = this.timezoneCache.get(cacheKey);
-
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.tzid;
-    }
-
-    const url = 'https://timeapi.io/api/TimeZone/coordinate';
-    const maxAttempts = 3;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      try {
-        // Try to get timezone using timeapi.io (free, no key required)
-        const response = await axios.get(url, {
-          params: { latitude: lat, longitude: lon },
-          timeout: 3500,
-          httpsAgent: this.httpsAgent,
-        });
-
-        const tzid = response.data?.timeZone;
-        if (typeof tzid === 'string' && tzid.length > 0) {
-          this.timezoneCache.set(cacheKey, {
-            tzid,
-            expiresAt: Date.now() + this.timezoneCacheTtlMs,
-          });
-          return tzid;
-        }
-      } catch (error: any) {
-        const transient = this.isTransientTimezoneError(error);
-
-        if (transient && attempt < maxAttempts) {
-          // Exponential backoff with small jitter
-          const base = 200 * 2 ** (attempt - 1);
-          const jitter = Math.floor(Math.random() * 120);
-          await this.sleep(base + jitter);
-          continue;
-        }
-
-        // Swallow timezone lookup errors and fall back to UTC so suggestions still work
-        this.logger.debug(
-          `Timezone lookup failed for ${lat},${lon}: ${error?.message ?? 'unknown error'}`,
-        );
-        break;
-      }
-    }
-
-    const fallback = this.approximateTimezoneFromLongitude(lon);
-    this.timezoneCache.set(cacheKey, {
-      tzid: fallback,
-      expiresAt: Date.now() + this.timezoneFailureCacheTtlMs,
-    });
-    return fallback;
+    const zones = findTimezones(lat, lon);
+    if (zones.length !== 1)
+      throw new Error(
+        'Timezone boundary is ambiguous; select another city location',
+      );
+    return zones[0];
   }
 }

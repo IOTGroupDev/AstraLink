@@ -1,256 +1,142 @@
-// API Client tests
-import axios from 'axios';
+import type { Session } from '@supabase/supabase-js';
+import { AxiosError, type AxiosAdapter } from 'axios';
 import { api } from '../client';
-import { invalidateLocalAuthSession } from '../../authInvalidation';
 import { supabase } from '../../supabase';
-
-jest.mock('axios', () => ({
-  create: jest.fn(() => {
-    const requestHandlers: any[] = [];
-    const responseHandlers: any[] = [];
-
-    return {
-      defaults: {
-        baseURL: 'http://localhost:3001/api/v1',
-        timeout: 10000,
-      },
-      interceptors: {
-        request: {
-          handlers: requestHandlers,
-          use: jest.fn((fulfilled, rejected) => {
-            requestHandlers.push({ fulfilled, rejected });
-          }),
-        },
-        response: {
-          handlers: responseHandlers,
-          use: jest.fn((fulfilled, rejected) => {
-            responseHandlers.push({ fulfilled, rejected });
-          }),
-        },
-      },
-    };
-  }),
-}));
+import { tokenService } from '../../tokenService';
+import { useAuthStore } from '../../../stores/auth.store';
 
 jest.mock('../../supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: jest.fn(() =>
-        Promise.resolve({ data: { session: null }, error: null })
-      ),
-    },
-  },
+  supabase: { auth: { getSession: jest.fn(), refreshSession: jest.fn() } },
 }));
-
-jest.mock('../../tokenService', () => ({
-  tokenService: {
-    getToken: jest.fn(() => Promise.resolve(null)),
-    setToken: jest.fn(() => Promise.resolve()),
-  },
-}));
-
 jest.mock('../../authInvalidation', () => ({
-  invalidateLocalAuthSession: jest.fn(() => Promise.resolve()),
+  invalidateLocalAuthSession: jest.fn(),
+}));
+jest.mock('../../logger', () => ({
+  apiLogger: { log: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  authLogger: { error: jest.fn() },
+}));
+jest.mock('../../tokenService', () => ({
+  tokenService: { setToken: jest.fn(() => Promise.resolve()) },
+}));
+jest.mock('../../../i18n', () => ({
+  __esModule: true,
+  default: { language: 'ru' },
 }));
 
-const mockedAxios = axios as jest.Mocked<typeof axios>;
-const mockedSupabaseAuth = supabase.auth as jest.Mocked<typeof supabase.auth>;
-const mockedInvalidateLocalAuthSession =
-  invalidateLocalAuthSession as jest.MockedFunction<
-    typeof invalidateLocalAuthSession
-  >;
+const getSession = jest.mocked(supabase.auth.getSession);
+const expiredSession = {
+  access_token: 'expired-token',
+  refresh_token: 'refresh-token',
+  expires_at: 1,
+  user: { id: 'user-1', email: 'person@example.com', user_metadata: {} },
+} as Session;
 
-describe('API Client', () => {
+describe('protected API session freshness', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useAuthStore.getState().resetAuth();
+    useAuthStore.getState().setSession(expiredSession);
+    useAuthStore.getState().setAuthState('AUTHORIZED');
   });
 
-  it('should have correct base URL structure', () => {
-    expect(api.defaults.baseURL).toMatch(/^http/);
-  });
-
-  it('should have timeout configured', () => {
-    expect(api.defaults.timeout).toBeGreaterThan(0);
-  });
-
-  it('should have interceptors configured', () => {
-    expect(api.interceptors.request).toBeDefined();
-    expect(api.interceptors.response).toBeDefined();
-  });
-
-  describe('Request Interceptor', () => {
-    it('should add Authorization header when token exists', async () => {
-      // This test would require mocking the Supabase auth
-      // For now, just verify the interceptor exists
-      expect(api.interceptors.request.handlers.length).toBeGreaterThan(0);
+  it('uses the renewed Supabase token instead of the expired Zustand token', async () => {
+    getSession.mockResolvedValueOnce({
+      data: { session: { ...expiredSession, access_token: 'renewed-token' } },
+      error: null,
     });
+    const adapter: AxiosAdapter = async (config) => {
+      expect(config.headers.Authorization).toBe('Bearer renewed-token');
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
 
-    it('should attach Authorization to ensure-profile because backend guard protects it', async () => {
-      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
+    await api.get('/user/profile', { adapter });
+
+    expect(tokenService.setToken).toHaveBeenCalledWith('renewed-token');
+  });
+
+  it('does not reuse an old token after Supabase loses the session', async () => {
+    getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+    const adapter = jest.fn();
+
+    await expect(api.get('/user/profile', { adapter })).rejects.toThrow(
+      'Authentication required'
+    );
+    expect(adapter).not.toHaveBeenCalled();
+    expect(tokenService.setToken).toHaveBeenCalledWith(null);
+  });
+
+  it('does not send a cached token or enter onboarding when refresh fails', async () => {
+    getSession.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    const adapter = jest.fn();
+
+    await expect(api.get('/user/profile', { adapter })).rejects.toThrow(
+      'Refresh unavailable'
+    );
+    expect(adapter).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().authState).toBe('AUTHORIZED');
+  });
+});
+
+describe('401 refresh and account boundaries', () => {
+  const old = { data: { session: expiredSession }, error: null };
+  const renewed = {
+    data: { session: { ...expiredSession, access_token: 'new-token' } },
+    error: null,
+  };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getSession.mockResolvedValue(old);
+    jest.mocked(supabase.auth.refreshSession).mockImplementation(async () => {
+      getSession.mockResolvedValue(renewed);
+      return renewed;
+    });
+  });
+  const unauthorized: AxiosAdapter = async (config) => {
+    throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+      status: 401,
+      statusText: 'Unauthorized',
+      headers: {},
+      data: {},
+      config,
+    });
+  };
+  it('refreshes and retries a protected request exactly once', async () => {
+    let attempts = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      attempts++;
+      if (attempts === 1) return unauthorized(config);
+      expect(config.headers.Authorization).toBe('Bearer new-token');
+      return { status: 200, statusText: 'OK', headers: {}, data: {}, config };
+    };
+    await api.get('/user/profile', { adapter });
+    expect(attempts).toBe(2);
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+  });
+  it('stops after the refreshed token also receives 401', async () => {
+    const adapter = jest.fn(unauthorized);
+    await expect(api.get('/user/profile', { adapter })).rejects.toThrow(
+      'Unauthorized'
+    );
+    expect(adapter).toHaveBeenCalledTimes(2);
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+  });
+  it('does not replay a failed request under a different account', async () => {
+    const adapter = jest.fn(async (config) => {
+      getSession.mockResolvedValue({
         data: {
           session: {
-            access_token: 'access-token',
+            ...expiredSession,
+            user: { ...expiredSession.user, id: 'other-user' },
           },
         },
         error: null,
-      } as any);
-
-      const fulfilled = api.interceptors.request.handlers[0].fulfilled;
-      const config = await fulfilled({
-        method: 'post',
-        url: '/auth/ensure-profile',
-        headers: {},
       });
-
-      expect(config.headers.Authorization).toBe('Bearer access-token');
-      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
+      return unauthorized(config);
     });
-
-    it('should not reset local auth when token lookup races during startup', async () => {
-      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-        data: { session: null },
-        error: null,
-      } as any);
-
-      const fulfilled = api.interceptors.request.handlers[0].fulfilled;
-
-      await expect(
-        fulfilled({
-          method: 'get',
-          url: '/user/profile',
-          headers: {},
-        })
-      ).rejects.toThrow('Authentication required');
-
-      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Response Interceptor', () => {
-    it('should handle 401 errors', async () => {
-      // Verify error interceptor exists
-      expect(api.interceptors.response.handlers.length).toBeGreaterThan(0);
-    });
-
-    it('should reset local auth on unauthorized responses', async () => {
-      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-        data: { session: null },
-        error: null,
-      } as any);
-      const rejected = api.interceptors.response.handlers[0].rejected;
-
-      await expect(
-        rejected({
-          config: { method: 'get', url: '/user/profile' },
-          response: { status: 401, data: { message: 'Unauthorized' } },
-        })
-      ).rejects.toMatchObject({
-        response: { status: 401 },
-      });
-
-      expect(mockedInvalidateLocalAuthSession).toHaveBeenCalledWith(
-        '401 from GET /user/profile'
-      );
-    });
-
-    it('should not reset local auth when a stale request gets 401 after a new session exists', async () => {
-      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-        data: {
-          session: {
-            access_token: 'new-token',
-          },
-        },
-        error: null,
-      } as any);
-      const rejected = api.interceptors.response.handlers[0].rejected;
-
-      await expect(
-        rejected({
-          config: {
-            method: 'get',
-            url: '/user/profile',
-            headers: {
-              Authorization: 'Bearer old-token',
-            },
-          },
-          response: { status: 401, data: { message: 'Unauthorized' } },
-        })
-      ).rejects.toMatchObject({
-        response: { status: 401 },
-      });
-
-      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
-    });
-
-    it('should not reset local auth when an unauthenticated stale request gets 401 after sign-in', async () => {
-      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-        data: {
-          session: {
-            access_token: 'new-token',
-          },
-        },
-        error: null,
-      } as any);
-      const rejected = api.interceptors.response.handlers[0].rejected;
-
-      await expect(
-        rejected({
-          config: {
-            method: 'get',
-            url: '/user/profile',
-            headers: {},
-          },
-          response: { status: 401, data: { message: 'Unauthorized' } },
-        })
-      ).rejects.toMatchObject({
-        response: { status: 401 },
-      });
-
-      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
-    });
-
-    it('should not reset local auth when current Supabase session gets a backend 401', async () => {
-      mockedSupabaseAuth.getSession.mockResolvedValueOnce({
-        data: {
-          session: {
-            access_token: 'current-token',
-          },
-        },
-        error: null,
-      } as any);
-      const rejected = api.interceptors.response.handlers[0].rejected;
-
-      await expect(
-        rejected({
-          config: {
-            method: 'get',
-            url: '/user/profile',
-            headers: {
-              Authorization: 'Bearer current-token',
-            },
-          },
-          response: { status: 401, data: { message: 'Unauthorized' } },
-        })
-      ).rejects.toMatchObject({
-        response: { status: 401 },
-      });
-
-      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
-    });
-
-    it('should not reset local auth on forbidden responses', async () => {
-      const rejected = api.interceptors.response.handlers[0].rejected;
-
-      await expect(
-        rejected({
-          config: { method: 'get', url: '/subscription/status' },
-          response: { status: 403, data: { message: 'Forbidden' } },
-        })
-      ).rejects.toMatchObject({
-        response: { status: 403 },
-      });
-
-      expect(mockedInvalidateLocalAuthSession).not.toHaveBeenCalled();
-    });
+    await expect(api.get('/user/profile', { adapter })).rejects.toThrow(
+      'Unauthorized'
+    );
+    expect(adapter).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.refreshSession).not.toHaveBeenCalled();
   });
 });
